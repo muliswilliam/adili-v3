@@ -6,8 +6,8 @@ import { aiGatewayClient, type AiGatewayClient } from './ai-gateway/client.serve
 import type { Route, TenantPolicy, TenantUsage } from './ai-gateway/types';
 import {
   type AiPolicyOverview,
+  deleteRoute,
   loadAiPolicyOverview,
-  removeTenantRoute,
   saveGatePolicy,
   saveRoute,
   saveTenantBudget,
@@ -119,13 +119,19 @@ export const setRoute = createServerFn({ method: 'POST' })
     ),
   );
 
-export const removeRouteInput = z.object({ tenant: commissionSlug, task: taskName, approvalRef });
+export const removeRouteInput = z.object({
+  /** Null: the default route, so the task is back on the configured provider and model. */
+  tenant: commissionSlug.nullable(),
+  task: taskName,
+  approvalRef,
+});
 
-/** Removes a Commission's own route of a task, audited: it follows every Commission's again. */
+/**
+ * Removes a Commission's own route of a task (it follows every Commission's again) or a task's
+ * default route (back to the configured provider and model), audited.
+ */
 export const removeRoute = createServerFn({ method: 'POST' })
   .validator(removeRouteInput)
   .handler(({ data }): Promise<ServiceResult<null>> =>
-    withAiGateway((gateway) =>
-      removeTenantRoute(gateway, data.tenant, data.task, data.approvalRef),
-    ),
+    withAiGateway((gateway) => deleteRoute(gateway, data.tenant, data.task, data.approvalRef)),
   );

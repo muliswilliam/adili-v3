@@ -250,6 +250,7 @@ describe('formatting', () => {
       { label: 'Timeout', value: '10 s' },
       { label: 'topP', value: '1' },
     ]);
+    expect(routeParams({ timeoutMs: 12_500 })).toEqual([{ label: 'Timeout', value: '12.5 s' }]);
   });
 });
 
@@ -261,31 +262,43 @@ describe('S2 route dialog', () => {
     providerClass: 'external' as const,
     model: 'claude-opus-5-5',
     params: { maxOutputTokens: 3_000, effort: 'low', timeoutMs: 45_500 },
+    configured: false,
   };
 
-  it('fills the fields from the route, timeout in seconds', () => {
+  it('fills the fields from the route, timeout in seconds to the millisecond', () => {
     expect(routeDraft(route)).toEqual({
       provider: 'anthropic',
       model: 'claude-opus-5-5',
       maxOutputTokens: '3000',
       effort: 'low',
-      timeoutSeconds: '46',
+      timeoutSeconds: '45.5',
       approvalRef: '',
     });
     expect(routeDraft(null)).toMatchObject({ provider: '', effort: '', maxOutputTokens: '' });
   });
 
-  it('requires provider, model and approval, and whole numbers above 0 when set', () => {
+  it('requires provider, model and approval, and numbers above 0 when set', () => {
     expect(
-      routeErrors({ ...routeDraft(null), maxOutputTokens: '0', timeoutSeconds: '1.5' }),
+      routeErrors({ ...routeDraft(null), maxOutputTokens: '1.5', timeoutSeconds: '0' }),
     ).toEqual({
       provider: 'Enter the provider.',
       model: 'Enter the model.',
       maxOutputTokens: 'Enter a whole number above 0, or leave it empty.',
-      timeoutSeconds: 'Enter a whole number above 0, or leave it empty.',
+      timeoutSeconds: 'Enter a number of seconds above 0, or leave it empty.',
       approvalRef: 'Enter the approval reference.',
     });
+    expect(routeErrors({ ...routeDraft(route), timeoutSeconds: '1.2345' })).toMatchObject({
+      timeoutSeconds: 'Enter a number of seconds above 0, or leave it empty.',
+    });
     expect(routeErrors({ ...routeDraft(route), approvalRef: 'EACC/AI/1' })).toEqual({});
+  });
+
+  it('N11 saves an untouched timeout as it was, under a second too', () => {
+    for (const timeoutMs of [12_500, 300, 1]) {
+      const draft = routeDraft({ ...route, params: { timeoutMs } });
+      expect(routeErrors({ ...draft, approvalRef: 'A/1' })).toEqual({});
+      expect(routeInput(draft).params).toEqual({ timeoutMs });
+    }
   });
 
   it('sends only the parameters that are set', () => {
@@ -294,7 +307,7 @@ describe('S2 route dialog', () => {
     ).toEqual({
       provider: 'anthropic',
       model: 'claude-opus-5-5',
-      params: { timeoutMs: 46_000 },
+      params: { timeoutMs: 45_500 },
       approvalRef: 'A/1',
     });
   });

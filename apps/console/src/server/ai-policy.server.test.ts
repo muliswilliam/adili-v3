@@ -8,8 +8,8 @@ import {
   resetAiGatewayMock,
 } from './ai-gateway/mock.server';
 import {
+  deleteRoute,
   loadAiPolicyOverview,
-  removeTenantRoute,
   saveGatePolicy,
   saveRoute,
   saveTenantBudget,
@@ -126,8 +126,8 @@ describe('S16 loadAiPolicyOverview', () => {
     const result = await loadAiPolicyOverview(admin(), directory().client);
     if (!result.ok || !result.data.routing.ok) throw new Error('not ok');
     expect(result.data.routing.data[0]?.params).toEqual({
-      maxOutputTokens: 4_000,
-      timeoutMs: 60_000,
+      maxOutputTokens: 3_000,
+      timeoutMs: 45_000,
     });
   });
 
@@ -284,15 +284,38 @@ describe('S2 routing changes', () => {
       expect.objectContaining({ tenant: 'jsc', task: 'explain-flags' }),
     );
 
-    expect(await removeTenantRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041')).toEqual({
+    expect(await deleteRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041')).toEqual({
       ok: true,
       data: null,
     });
-    const again = await removeTenantRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041');
+    const again = await deleteRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041');
     expect(again).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 404 } },
     });
+  });
+
+  it('Q20 resets a default route to the configured provider and model', async () => {
+    const configured = (await admin().GET('/v1/ai/routing')).data?.find(
+      (each) => each.tenant === null && each.task === 'summarize-declaration',
+    );
+    expect(configured).toMatchObject({ configured: true, params: {} });
+    await saveRoute(admin(), null, 'summarize-declaration', route);
+    expect((await admin().GET('/v1/ai/routing')).data).toContainEqual(
+      expect.objectContaining({
+        tenant: null,
+        task: 'summarize-declaration',
+        model: 'claude-sonnet-5',
+        configured: false,
+      }),
+    );
+
+    expect(await deleteRoute(admin(), null, 'summarize-declaration', 'EACC/AI/2026/042')).toEqual({
+      ok: true,
+      data: null,
+    });
+    const table = (await admin().GET('/v1/ai/routing')).data ?? [];
+    expect(table.filter((each) => each.task === 'summarize-declaration')).toEqual([configured]);
   });
 
   it('is a 400 for a provider the gateway cannot reach', async () => {

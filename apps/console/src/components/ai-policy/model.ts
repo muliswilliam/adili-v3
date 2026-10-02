@@ -203,7 +203,7 @@ export function routeParams(params: RouteRow['params']): { label: string; value:
   const known: [string, string, (value: number | string) => string][] = [
     ['maxOutputTokens', m.paramMaxTokens, (value) => formatNumber(Number(value))],
     ['effort', m.paramEffort, (value) => m.effort(String(value))],
-    ['timeoutMs', m.paramTimeout, (value) => m.seconds(Math.round(Number(value) / 1000))],
+    ['timeoutMs', m.paramTimeout, (value) => m.seconds(Number(value) / 1000)],
   ];
   const shown = known.flatMap(([key, label, format]) => {
     const value = params[key];
@@ -280,6 +280,17 @@ export function parseWholeNumber(text: string): number | null {
   return Number.isSafeInteger(value) ? value : null;
 }
 
+/**
+ * Seconds as typed, to the millisecond ("12.5", "0.3"), in milliseconds; null unless above 0.
+ * A route's timeout is kept in milliseconds, so an untouched field saves what it showed.
+ */
+export function parseMilliseconds(text: string): number | null {
+  const seconds = text.trim();
+  if (!/^\d+(?:\.\d{1,3})?$/.test(seconds)) return null;
+  const ms = Math.round(Number(seconds) * 1000);
+  return Number.isSafeInteger(ms) && ms > 0 ? ms : null;
+}
+
 export interface BudgetErrors {
   monthlyTokens?: string;
   perMinute?: string;
@@ -331,7 +342,7 @@ export function routeDraft(route: RouteRow | null): RouteDraft {
     model: route?.model ?? '',
     maxOutputTokens: tokens === null ? '' : String(tokens),
     effort,
-    timeoutSeconds: timeout === null ? '' : String(Math.round(timeout / 1000)),
+    timeoutSeconds: timeout === null ? '' : String(timeout / 1000),
     approvalRef: '',
   };
 }
@@ -349,7 +360,9 @@ export function routeErrors(draft: RouteDraft): RouteErrors {
     ...(draft.provider.trim() ? {} : { provider: m.routeProviderRequired }),
     ...(draft.model.trim() ? {} : { model: m.routeModelRequired }),
     ...(optionalPositive(draft.maxOutputTokens) ? {} : { maxOutputTokens: m.routeNumberError }),
-    ...(optionalPositive(draft.timeoutSeconds) ? {} : { timeoutSeconds: m.routeNumberError }),
+    ...(!draft.timeoutSeconds.trim() || parseMilliseconds(draft.timeoutSeconds) !== null
+      ? {}
+      : { timeoutSeconds: m.routeSecondsError }),
     ...(draft.approvalRef.trim() ? {} : { approvalRef: m.approvalRefRequired }),
   };
 }
@@ -357,14 +370,14 @@ export function routeErrors(draft: RouteDraft): RouteErrors {
 /** The route the draft describes, in the contract's terms; unset parameters are left out. */
 export function routeInput(draft: RouteDraft) {
   const tokens = parseWholeNumber(draft.maxOutputTokens);
-  const seconds = parseWholeNumber(draft.timeoutSeconds);
+  const timeoutMs = parseMilliseconds(draft.timeoutSeconds);
   return {
     provider: draft.provider.trim(),
     model: draft.model.trim(),
     params: {
       ...(tokens ? { maxOutputTokens: tokens } : {}),
       ...(draft.effort ? { effort: draft.effort } : {}),
-      ...(seconds ? { timeoutMs: seconds * 1000 } : {}),
+      ...(timeoutMs ? { timeoutMs } : {}),
     },
     approvalRef: draft.approvalRef.trim(),
   };

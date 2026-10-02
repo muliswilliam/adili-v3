@@ -93,8 +93,9 @@ const isForbidden = (result: ServiceResult<unknown> | null) =>
  * The AI policy page for platform admins (spec 07c FE-4, S16): per Commission the classification
  * gate (provider classes allowed per data class), this month's usage against the budget and the
  * rate limit, each Commission's detail in a drawer with its policy and budget dialogs; and the
- * routing table, each route editable and a Commission's own route removable (story 17). Search, filter and page apply in the browser: the page reads every
- * Commission once per visit.
+ * routing table, each route editable, a Commission's own route removable and an edited default
+ * route resettable to the configured provider (story 17). Search, filter and page apply in the
+ * browser: the page reads every Commission once per visit.
  */
 export function AiPolicyView(props: AiPolicyViewProps) {
   const { result, search, onSearchChange } = props;
@@ -198,6 +199,7 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           route={openRoute.route}
           scope={openRoute.scope}
           commissions={tenants}
+          routes={overview?.routing.ok ? overview.routing.data : []}
           save={props.saveRoute}
           remove={props.removeRoute}
           onClose={() => {

@@ -129,8 +129,8 @@ function tenantOf(slug: string): StoredTenant {
 /** The providers the mock gateway reaches; a route to any other is refused, as the gateway does. */
 const PROVIDERS: Record<string, ProviderClass> = { anthropic: 'external' };
 
+/** Stored routes; summarize-declaration has no default route, so it shows the configured one. */
 const SEED_ROUTES: Route[] = [
-  route(null, 'summarize-declaration', 4_000, 60_000),
   route(null, 'explain-flags', 3_000, 45_000),
   route(null, 'draft-clarification', 2_000, 10_000),
   route('psc', 'draft-clarification', 3_000, 10_000),
@@ -152,7 +152,28 @@ function route(
     providerClass: 'external',
     model: 'claude-opus-5-5',
     params: { maxOutputTokens, timeoutMs },
+    configured: false,
   };
+}
+
+/**
+ * The effective table, as the gateway lists it: the stored routes, then the configured one of
+ * every task without a default route.
+ */
+function routingTable(): Route[] {
+  const defaults = new Set(routes.filter((each) => each.tenant === null).map((each) => each.task));
+  return [
+    ...routes,
+    ...TASKS.filter((task) => !defaults.has(task)).map((task): Route => ({
+      tenant: null,
+      task,
+      provider: 'anthropic',
+      providerClass: 'external',
+      model: 'claude-opus-5-5',
+      params: {},
+      configured: true,
+    })),
+  ];
 }
 
 /** The month usage is counted in, as the gateway would report it (Nairobi time). */
@@ -271,7 +292,7 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
     return setGatePolicy(request, policy[1], caller);
   }
 
-  if (method === 'GET' && pathname === '/v1/ai/routing') return json(200, routes);
+  if (method === 'GET' && pathname === '/v1/ai/routing') return json(200, routingTable());
 
   const routing = /^\/v1\/ai\/(?:tenants\/([a-z][a-z0-9]{1,19})\/)?routing\/([a-z-]+)$/.exec(
     pathname,
@@ -334,6 +355,7 @@ async function setRoute(request: Request, tenant: string | null, task: Route['ta
     providerClass: PROVIDERS[provider] ?? null,
     model,
     params: params,
+    configured: false,
   };
   const index = routes.findIndex((each) => each.task === task && each.tenant === tenant);
   if (index === -1) routes.push(next);

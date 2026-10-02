@@ -101,6 +101,7 @@ const OVERVIEW: AiPolicyOverview = {
         providerClass: 'external',
         model: 'claude-opus-5-5',
         params: { maxOutputTokens: 3_000, timeoutMs: 45_000 },
+        configured: false,
       },
       {
         tenant: 'psc',
@@ -109,6 +110,16 @@ const OVERVIEW: AiPolicyOverview = {
         providerClass: 'external',
         model: 'claude-opus-5-5',
         params: { maxOutputTokens: 3_000, effort: 'low', timeoutMs: 10_000 },
+        configured: false,
+      },
+      {
+        tenant: null,
+        task: 'summarize-declaration',
+        provider: 'anthropic',
+        providerClass: 'external',
+        model: 'claude-opus-5-5',
+        params: {},
+        configured: true,
       },
     ],
   },
@@ -393,10 +404,10 @@ describe('S16 AI policy: routing', () => {
       screen.getByRole('table', { name: 'Routing: task to provider and model' }),
     );
     expect(table.getByText('explain-flags')).toBeTruthy();
-    expect(table.getByText('All Commissions')).toBeTruthy();
+    expect(table.getAllByText('All Commissions')).toHaveLength(2);
     // A Commission's override names it.
     expect(table.getByText('Public Service Commission')).toBeTruthy();
-    expect(table.getAllByText('Anthropic')).toHaveLength(2);
+    expect(table.getAllByText('Anthropic')).toHaveLength(3);
     expect(table.getByText('45 s')).toBeTruthy();
     expect(table.getAllByText('3,000')).toHaveLength(2);
     expect(table.getByText('Low')).toBeTruthy();
@@ -418,6 +429,7 @@ describe('S16 AI policy: routing', () => {
                 providerClass: 'external',
                 model: 'claude-opus-5-5',
                 params: {},
+                configured: true,
               },
             ],
           },
@@ -438,6 +450,7 @@ describe('S16 AI policy: routing', () => {
         providerClass: 'external',
         model: 'claude-sonnet-5',
         params: {},
+        configured: false,
       },
     });
     renderView({ search: { tab: 'routing' }, saveRoute });
@@ -520,6 +533,32 @@ describe('S16 AI policy: routing', () => {
     });
     fireEvent.click(dialog.getByRole('button', { name: 'Remove route' }));
 
+    // Q21: a confirm step says what follows before anything is removed.
+    const confirm = within(screen.getByRole('dialog', { name: 'Remove this route?' }));
+    expect(
+      confirm.getByText(
+        "Public Service Commission's draft-clarification calls will follow the route for all Commissions again.",
+      ),
+    ).toBeTruthy();
+    expect(removeRoute).not.toHaveBeenCalled();
+    fireEvent.click(confirm.getByRole('button', { name: 'Back' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Edit route' })).getByRole('button', {
+        name: 'Remove route',
+      }),
+    );
+    let resolve: (result: { ok: true; data: null }) => void = () => undefined;
+    removeRoute.mockReturnValueOnce(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: 'Remove this route?' })).getByRole('button', {
+        name: 'Remove route',
+      }),
+    );
+
     await waitFor(() => {
       expect(removeRoute).toHaveBeenCalledWith({
         tenant: 'psc',
@@ -527,6 +566,80 @@ describe('S16 AI policy: routing', () => {
         approvalRef: 'EACC/AI/2026/032',
       });
     });
+    // N12: the busy label says what is happening.
+    expect(screen.getByText('Removing…')).toBeTruthy();
+    resolve({ ok: true, data: null });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('Q20 resets an edited default route to the configured provider, after a confirm', async () => {
+    const removeRoute = vi.fn<RemoveRoute>().mockResolvedValue({ ok: true, data: null });
+    renderView({ search: { tab: 'routing' }, removeRoute });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit route of explain-flags for All Commissions' }),
+    );
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit route' }));
+    expect(dialog.queryByRole('button', { name: 'Remove route' })).toBeNull();
+    fireEvent.click(dialog.getByRole('button', { name: 'Reset to configured' }));
+    // The approval reference is required first.
+    expect(await dialog.findByText('Enter the approval reference.')).toBeTruthy();
+    fireEvent.change(dialog.getByLabelText(/^Record the approval reference/), {
+      target: { value: 'EACC/AI/2026/034' },
+    });
+    fireEvent.click(dialog.getByRole('button', { name: 'Reset to configured' }));
+    const confirm = within(screen.getByRole('dialog', { name: 'Reset this route?' }));
+    expect(confirm.getByText(/configured provider and model/)).toBeTruthy();
+    fireEvent.click(confirm.getByRole('button', { name: 'Reset route' }));
+
+    await waitFor(() => {
+      expect(removeRoute).toHaveBeenCalledWith({
+        tenant: null,
+        task: 'explain-flags',
+        approvalRef: 'EACC/AI/2026/034',
+      });
+    });
+  });
+
+  it('Q20 offers no reset for a task already on the configured provider', () => {
+    renderView({ search: { tab: 'routing' } });
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Edit route of summarize-declaration for All Commissions',
+      }),
+    );
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit route' }));
+    expect(dialog.queryByRole('button', { name: 'Reset to configured' })).toBeNull();
+    expect(dialog.queryByRole('button', { name: 'Remove route' })).toBeNull();
+  });
+
+  it("Q19 warns that adding a Commission's route it already has replaces it", () => {
+    const saveRoute = vi.fn<SaveRoute>().mockResolvedValue({
+      ok: true,
+      data: {
+        tenant: 'psc',
+        task: 'draft-clarification',
+        provider: 'anthropic',
+        providerClass: 'external',
+        model: 'claude-opus-5-5',
+        params: {},
+        configured: false,
+      },
+    });
+    renderView({ search: { tab: 'routing' }, saveRoute });
+
+    fireEvent.click(screen.getByRole('button', { name: "Add a Commission's route" }));
+    const dialog = within(screen.getByRole('dialog', { name: "Add a Commission's route" }));
+    // The first Commission (psc) already routes draft-clarification, the task shown first.
+    expect(
+      dialog.getByText(
+        'Public Service Commission already has its own route of draft-clarification. Saving replaces it.',
+      ),
+    ).toBeTruthy();
+    expect(dialog.getByRole('button', { name: 'Replace route' })).toBeTruthy();
+    expect(dialog.queryByRole('button', { name: 'Save route' })).toBeNull();
   });
 
   it("S2 adds a Commission's own route", async () => {
@@ -539,9 +652,19 @@ describe('S16 AI policy: routing', () => {
         providerClass: 'external',
         model: 'claude-opus-5-5',
         params: {},
+        configured: false,
       },
     });
-    renderView({ search: { tab: 'routing' }, saveRoute });
+    // No Commission has its own route yet.
+    const routing = OVERVIEW.routing.ok ? OVERVIEW.routing.data : [];
+    renderView({
+      result: {
+        ok: true,
+        data: { ...OVERVIEW, routing: { ok: true, data: routing.filter((each) => !each.tenant) } },
+      },
+      search: { tab: 'routing' },
+      saveRoute,
+    });
 
     fireEvent.click(screen.getByRole('button', { name: "Add a Commission's route" }));
     const dialog = within(screen.getByRole('dialog', { name: "Add a Commission's route" }));

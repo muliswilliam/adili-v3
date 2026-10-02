@@ -102,11 +102,26 @@ export const en = {
   routeProviderRequired: 'Enter the provider.',
   routeModelRequired: 'Enter the model.',
   routeNumberError: 'Enter a whole number above 0, or leave it empty.',
+  routeSecondsError: 'Enter a number of seconds above 0, or leave it empty.',
   routeProviderUnknown: 'The AI gateway cannot reach this provider.',
   saveRoute: 'Save route',
+  replaceRoute: 'Replace route',
+  routeReplaces: (commission: string, task: string) =>
+    `${commission} already has its own route of ${task}. Saving replaces it.`,
   removeRoute: 'Remove route',
+  resetRoute: 'Reset to configured',
+  confirmRemoveTitle: 'Remove this route?',
+  confirmResetTitle: 'Reset this route?',
+  confirmRemoveText: (task: string, commission: string) =>
+    `${commission}'s ${task} calls will follow the route for all Commissions again.`,
+  confirmResetText: (task: string) =>
+    `${task} calls of every Commission without its own route will go to the AI gateway's configured provider and model, with the task's own parameters.`,
+  confirmReset: 'Reset route',
+  removing: 'Removing…',
+  resetting: 'Resetting…',
   routeSaved: 'Route saved and recorded in the audit trail',
   routeRemoved: 'Route removed and recorded in the audit trail',
+  routeReset: 'Route reset and recorded in the audit trail',
   routeError: 'The route could not be saved.',
   routeRejected: 'The gateway refused this route.',
 
@@ -155,6 +170,7 @@ export const en = {
   confirmBlock: (provider: string, data: string, commission: string) =>
     `${provider} providers will no longer process ${data.toLowerCase()} data for ${commission}. New AI requests are blocked; outputs already shown stay.`,
   approvalRef: 'Record the approval reference.',
+  approvalRefTerm: 'Approval reference',
   approvalRefPlaceholder: 'For example EACC/AI/2026/022',
   approvalRefRequired: 'Enter the approval reference.',
   auditNote: 'Recorded in the audit trail with your name.',

@@ -15,9 +15,16 @@ import {
   Input,
   Select,
   SelectItem,
+  cn,
   useToast,
 } from '@adili/ui';
-import { AlertCircleIcon, Loading03Icon, Route02Icon } from '@hugeicons/core-free-icons';
+import {
+  AlertCircleIcon,
+  ArrowTurnBackwardIcon,
+  Delete02Icon,
+  Loading03Icon,
+  Route02Icon,
+} from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type SyntheticEvent, useId, useState } from 'react';
 
@@ -41,9 +48,12 @@ export type SaveRoute = (
   input: { tenant: string | null; task: RouteTask } & RouteInput,
 ) => Promise<ServiceResult<Route>>;
 
-/** Removes a Commission's own route of a task; the page passes the server function. */
+/**
+ * Removes a Commission's own route of a task, or (tenant null) a task's default route so it is
+ * back on the gateway's configured provider and model; the page passes the server function.
+ */
 export type RemoveRoute = (input: {
-  tenant: string;
+  tenant: string | null;
   task: RouteTask;
   approvalRef: string;
 }) => Promise<ServiceResult<null>>;
@@ -55,6 +65,8 @@ export interface RouteDialogProps {
   scope: string | null;
   /** The Commissions a new route may be for, by name. */
   commissions: readonly { slug: string; name: string }[];
+  /** The routing table, so adding a route a Commission already has says it replaces it. */
+  routes: readonly RouteRow[];
   save: SaveRoute;
   remove: RemoveRoute;
   onClose: () => void;
@@ -66,7 +78,8 @@ const FAILED: ServiceResult<never> = { ok: false, error: { kind: 'unavailable', 
 /**
  * "Edit route" and "Add a Commission's route" (spec 07c story 17, S16): where a task's calls go,
  * the provider, model and call parameters, on an approval reference the gateway records in the
- * audit trail. A Commission's own route can be removed, so it follows every Commission's again.
+ * audit trail. A Commission's own route can be removed, so it follows every Commission's again,
+ * and an edited default route reset to the configured provider; both after a confirm step.
  */
 export function RouteDialog(props: RouteDialogProps) {
   const { route, commissions, onClose, onUnauthenticated } = props;
@@ -80,9 +93,17 @@ export function RouteDialog(props: RouteDialogProps) {
   const [serverErrors, setServerErrors] = useState<RouteErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState<'save' | 'remove' | null>(null);
+  const [step, setStep] = useState<'edit' | 'confirm'>('edit');
   const errors = submitted ? { ...routeErrors(draft), ...serverErrors } : serverErrors;
   const field = (name: keyof RouteDraft) => `${id}-${name}`;
   const scopeTenant = route ? route.tenant : tenant;
+  // A Commission's own route is removed; a stored default route is reset to the configured one.
+  const removal = !route ? null : route.tenant ? 'remove' : route.configured ? null : 'reset';
+  const commissionName = (slug: string) =>
+    commissions.find((each) => each.slug === slug)?.name ?? slug;
+  const replaces = route
+    ? null
+    : (props.routes.find((each) => each.tenant === tenant && each.task === task) ?? null);
 
   const update = (patch: Partial<RouteDraft>) => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -135,8 +156,9 @@ export function RouteDialog(props: RouteDialogProps) {
     void router.invalidate();
   };
 
-  const removeRoute = async () => {
-    if (busy || !route?.tenant) return;
+  /** Remove or reset asks for the approval reference, then for a confirm. */
+  const confirmRemoval = () => {
+    if (busy || !removal) return;
     setFailure(null);
     if (!draft.approvalRef.trim()) {
       setSubmitted(false);
@@ -144,6 +166,13 @@ export function RouteDialog(props: RouteDialogProps) {
       document.getElementById(field('approvalRef'))?.focus();
       return;
     }
+    setStep('confirm');
+  };
+
+  const removeRoute = async (event: SyntheticEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (busy || !route || !removal) return;
+    setFailure(null);
     setBusy('remove');
     const result = await props
       .remove({ tenant: route.tenant, task: route.task, approvalRef: draft.approvalRef.trim() })
@@ -153,10 +182,17 @@ export function RouteDialog(props: RouteDialogProps) {
       failed(result);
       return;
     }
-    toast({ title: m.routeRemoved });
+    toast({ title: removal === 'reset' ? m.routeReset : m.routeRemoved });
     onClose();
     void router.invalidate();
   };
+
+  const failureAlert = failure ? (
+    <Alert variant="destructive">
+      <Icon icon={AlertCircleIcon} />
+      <AlertTitle>{failure}</AlertTitle>
+    </Alert>
+  ) : null;
 
   return (
     <Dialog
@@ -167,188 +203,250 @@ export function RouteDialog(props: RouteDialogProps) {
     >
       <DialogContent busy={busy !== null}>
         <DialogHeader className="flex-row items-start gap-3">
-          <CardIcon className="mb-0">
-            <Icon icon={Route02Icon} />
+          <CardIcon
+            className={cn('mb-0', step === 'confirm' && 'bg-destructive-subtle text-destructive')}
+          >
+            <Icon
+              icon={
+                step === 'edit'
+                  ? Route02Icon
+                  : removal === 'reset'
+                    ? ArrowTurnBackwardIcon
+                    : Delete02Icon
+              }
+            />
           </CardIcon>
           <div className="grid gap-0.5">
-            <DialogTitle>{route ? m.routeTitleEdit : m.routeTitleAdd}</DialogTitle>
+            <DialogTitle>
+              {step === 'confirm'
+                ? removal === 'reset'
+                  ? m.confirmResetTitle
+                  : m.confirmRemoveTitle
+                : route
+                  ? m.routeTitleEdit
+                  : m.routeTitleAdd}
+            </DialogTitle>
             <DialogDescription>
               {route ? `${route.task} · ${props.scope ?? m.allCommissions}` : m.routingAudited}
             </DialogDescription>
           </div>
         </DialogHeader>
-        <form
-          noValidate
-          onSubmit={(event) => void submit(event)}
-          aria-busy={busy !== null}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <DialogBody>
-            <fieldset disabled={busy !== null} className="m-0 grid min-w-0 gap-4.5 border-0 p-0">
-              {failure ? (
-                <Alert variant="destructive">
-                  <Icon icon={AlertCircleIcon} />
-                  <AlertTitle>{failure}</AlertTitle>
-                </Alert>
-              ) : null}
-              {route ? null : (
-                <div className="grid gap-4.5 sm:grid-cols-2">
-                  <FormField label={m.routeTask} controlId={`${id}-task`}>
-                    <Select
-                      value={task}
-                      onValueChange={(value) => {
-                        setTask(TASK_NAMES.find((each) => each === value) ?? task);
-                      }}
-                    >
-                      {TASK_NAMES.map((each) => (
-                        <SelectItem key={each} value={each}>
-                          {each}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  </FormField>
-                  <FormField label={m.routeScope} controlId={`${id}-tenant`}>
-                    <Select value={tenant} onValueChange={setTenant}>
-                      {commissions.map((each) => (
-                        <SelectItem key={each.slug} value={each.slug}>
-                          {each.name}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  </FormField>
-                </div>
-              )}
-              <FormField
-                label={m.routeProvider}
-                hint={m.routeProviderHint}
-                error={errors.provider}
-                controlId={field('provider')}
-              >
-                <Input
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="font-mono"
-                  maxLength={100}
-                  value={draft.provider}
-                  onChange={(event) => {
-                    update({ provider: event.target.value });
-                  }}
-                />
-              </FormField>
-              <FormField label={m.routeModel} error={errors.model} controlId={field('model')}>
-                <Input
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="font-mono"
-                  maxLength={200}
-                  value={draft.model}
-                  onChange={(event) => {
-                    update({ model: event.target.value });
-                  }}
-                />
-              </FormField>
-              <div className="grid gap-1.5">
-                <div className="grid gap-4.5 sm:grid-cols-3">
-                  <FormField
-                    label={m.routeMaxTokens}
-                    error={errors.maxOutputTokens}
-                    controlId={field('maxOutputTokens')}
-                  >
-                    <Input
-                      inputMode="numeric"
-                      autoComplete="off"
-                      className="tabular-nums"
-                      value={draft.maxOutputTokens}
-                      onChange={(event) => {
-                        update({ maxOutputTokens: event.target.value });
-                      }}
-                    />
-                  </FormField>
-                  <FormField label={m.routeEffort} controlId={field('effort')}>
-                    <Select
-                      value={draft.effort || 'default'}
-                      onValueChange={(value) => {
-                        update({ effort: EFFORTS.find((each) => each === value) ?? '' });
-                      }}
-                    >
-                      <SelectItem value="default">{m.routeTaskDefault}</SelectItem>
-                      {EFFORTS.map((each) => (
-                        <SelectItem key={each} value={each}>
-                          {m.effort(each)}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  </FormField>
-                  <FormField
-                    label={m.routeTimeout}
-                    error={errors.timeoutSeconds}
-                    controlId={field('timeoutSeconds')}
-                  >
-                    <Input
-                      inputMode="numeric"
-                      autoComplete="off"
-                      className="tabular-nums"
-                      value={draft.timeoutSeconds}
-                      onChange={(event) => {
-                        update({ timeoutSeconds: event.target.value });
-                      }}
-                    />
-                  </FormField>
-                </div>
-                <p className="text-[13px] text-muted-foreground">{m.routeOptionalHint}</p>
-              </div>
-              <FormField
-                label={m.approvalRef}
-                hint={m.auditNote}
-                error={errors.approvalRef}
-                controlId={field('approvalRef')}
-              >
-                <Input
-                  autoComplete="off"
-                  maxLength={200}
-                  placeholder={m.approvalRefPlaceholder}
-                  value={draft.approvalRef}
-                  onChange={(event) => {
-                    update({ approvalRef: event.target.value });
-                  }}
-                />
-              </FormField>
-            </fieldset>
-          </DialogBody>
-          <DialogFooter>
-            {route?.tenant ? (
+        {step === 'confirm' && route ? (
+          <form
+            noValidate
+            onSubmit={(event) => void removeRoute(event)}
+            aria-busy={busy !== null}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogBody className="gap-4">
+              {failureAlert}
+              <p className="rounded-xl bg-muted px-3.5 py-3 text-sm">
+                {route.tenant
+                  ? m.confirmRemoveText(route.task, props.scope ?? commissionName(route.tenant))
+                  : m.confirmResetText(route.task)}
+              </p>
+              <dl className="grid gap-0.5 text-sm">
+                <dt className="text-[13px] text-muted-foreground">{m.approvalRefTerm}</dt>
+                <dd className="break-words">{draft.approvalRef.trim()}</dd>
+              </dl>
+            </DialogBody>
+            <DialogFooter>
               <Button
                 type="button"
-                variant="destructive-ghost"
-                className="sm:mr-auto"
+                variant="secondary"
                 disabled={busy !== null}
-                onClick={() => void removeRoute()}
+                onClick={() => {
+                  setFailure(null);
+                  setStep('edit');
+                }}
               >
+                {m.back}
+              </Button>
+              <Button type="submit" variant="destructive" disabled={busy !== null}>
                 {busy === 'remove' ? (
                   <>
                     <Icon icon={Loading03Icon} className="animate-spin" />
-                    {m.saving}
+                    {removal === 'reset' ? m.resetting : m.removing}
                   </>
+                ) : removal === 'reset' ? (
+                  m.confirmReset
                 ) : (
                   m.removeRoute
                 )}
               </Button>
-            ) : null}
-            <Button type="button" variant="secondary" disabled={busy !== null} onClick={onClose}>
-              {m.cancel}
-            </Button>
-            <Button type="submit" disabled={busy !== null}>
-              {busy === 'save' ? (
-                <>
-                  <Icon icon={Loading03Icon} className="animate-spin" />
-                  {m.saving}
-                </>
-              ) : (
-                m.saveRoute
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
+            </DialogFooter>
+          </form>
+        ) : (
+          <form
+            noValidate
+            onSubmit={(event) => void submit(event)}
+            aria-busy={busy !== null}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <DialogBody>
+              <fieldset disabled={busy !== null} className="m-0 grid min-w-0 gap-4.5 border-0 p-0">
+                {failureAlert}
+                {route ? null : (
+                  <div className="grid gap-4.5 sm:grid-cols-2">
+                    <FormField label={m.routeTask} controlId={`${id}-task`}>
+                      <Select
+                        value={task}
+                        className="font-mono text-[12.5px]"
+                        onValueChange={(value) => {
+                          setTask(TASK_NAMES.find((each) => each === value) ?? task);
+                        }}
+                      >
+                        {TASK_NAMES.map((each) => (
+                          <SelectItem key={each} value={each} className="font-mono text-[12.5px]">
+                            {each}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </FormField>
+                    <FormField label={m.routeScope} controlId={`${id}-tenant`}>
+                      <Select value={tenant} onValueChange={setTenant}>
+                        {commissions.map((each) => (
+                          <SelectItem key={each.slug} value={each.slug}>
+                            {each.name}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </FormField>
+                  </div>
+                )}
+                {replaces ? (
+                  <Alert variant="warning">
+                    <Icon icon={AlertCircleIcon} />
+                    <AlertTitle>{m.routeReplaces(commissionName(tenant), task)}</AlertTitle>
+                  </Alert>
+                ) : null}
+                <FormField
+                  label={m.routeProvider}
+                  hint={m.routeProviderHint}
+                  error={errors.provider}
+                  controlId={field('provider')}
+                >
+                  <Input
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="font-mono"
+                    maxLength={100}
+                    value={draft.provider}
+                    onChange={(event) => {
+                      update({ provider: event.target.value });
+                    }}
+                  />
+                </FormField>
+                <FormField label={m.routeModel} error={errors.model} controlId={field('model')}>
+                  <Input
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="font-mono"
+                    maxLength={200}
+                    value={draft.model}
+                    onChange={(event) => {
+                      update({ model: event.target.value });
+                    }}
+                  />
+                </FormField>
+                <div className="grid gap-1.5">
+                  <div className="grid gap-4.5 sm:grid-cols-3">
+                    <FormField
+                      label={m.routeMaxTokens}
+                      error={errors.maxOutputTokens}
+                      controlId={field('maxOutputTokens')}
+                    >
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="off"
+                        className="tabular-nums"
+                        value={draft.maxOutputTokens}
+                        onChange={(event) => {
+                          update({ maxOutputTokens: event.target.value });
+                        }}
+                      />
+                    </FormField>
+                    <FormField label={m.routeEffort} controlId={field('effort')}>
+                      <Select
+                        value={draft.effort || 'default'}
+                        onValueChange={(value) => {
+                          update({ effort: EFFORTS.find((each) => each === value) ?? '' });
+                        }}
+                      >
+                        <SelectItem value="default">{m.routeTaskDefault}</SelectItem>
+                        {EFFORTS.map((each) => (
+                          <SelectItem key={each} value={each}>
+                            {m.effort(each)}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </FormField>
+                    <FormField
+                      label={m.routeTimeout}
+                      error={errors.timeoutSeconds}
+                      controlId={field('timeoutSeconds')}
+                    >
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="off"
+                        className="tabular-nums"
+                        value={draft.timeoutSeconds}
+                        onChange={(event) => {
+                          update({ timeoutSeconds: event.target.value });
+                        }}
+                      />
+                    </FormField>
+                  </div>
+                  <p className="text-[13px] text-muted-foreground">{m.routeOptionalHint}</p>
+                </div>
+                <FormField
+                  label={m.approvalRef}
+                  hint={m.auditNote}
+                  error={errors.approvalRef}
+                  controlId={field('approvalRef')}
+                >
+                  <Input
+                    autoComplete="off"
+                    maxLength={200}
+                    placeholder={m.approvalRefPlaceholder}
+                    value={draft.approvalRef}
+                    onChange={(event) => {
+                      update({ approvalRef: event.target.value });
+                    }}
+                  />
+                </FormField>
+              </fieldset>
+            </DialogBody>
+            <DialogFooter>
+              {removal ? (
+                <Button
+                  type="button"
+                  variant="destructive-ghost"
+                  className="sm:mr-auto"
+                  disabled={busy !== null}
+                  onClick={confirmRemoval}
+                >
+                  {removal === 'reset' ? m.resetRoute : m.removeRoute}
+                </Button>
+              ) : null}
+              <Button type="button" variant="secondary" disabled={busy !== null} onClick={onClose}>
+                {m.cancel}
+              </Button>
+              <Button type="submit" disabled={busy !== null}>
+                {busy === 'save' ? (
+                  <>
+                    <Icon icon={Loading03Icon} className="animate-spin" />
+                    {m.saving}
+                  </>
+                ) : replaces ? (
+                  m.replaceRoute
+                ) : (
+                  m.saveRoute
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

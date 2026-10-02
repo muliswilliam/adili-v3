@@ -229,19 +229,25 @@ export function saveRoute(
 
 /**
  * `DELETE /v1/ai/tenants/{tenant}/routing/{task}`: the Commission's own route goes, and the task
- * follows the route of every Commission again. Audited with the approval reference.
+ * follows the route of every Commission again; or `DELETE /v1/ai/routing/{task}` (tenant null):
+ * the default route goes, and the task is back on the gateway's configured provider and model.
+ * Audited with the approval reference.
  */
-export function removeTenantRoute(
+export function deleteRoute(
   gateway: AiGatewayClient,
-  tenant: string,
+  tenant: string | null,
   task: TaskName,
   approvalRef: string,
 ): Promise<ServiceResult<null>> {
   // 204: no body, so nothing to read but the outcome.
   return callService(async () => ({
-    ...(await gateway.DELETE('/v1/ai/tenants/{tenant}/routing/{task}', {
-      params: { path: { tenant, task }, query: { approvalRef } },
-    })),
+    ...(await (tenant === null
+      ? gateway.DELETE('/v1/ai/routing/{task}', {
+          params: { path: { task }, query: { approvalRef } },
+        })
+      : gateway.DELETE('/v1/ai/tenants/{tenant}/routing/{task}', {
+          params: { path: { tenant, task }, query: { approvalRef } },
+        }))),
     data: null,
   }));
 }
