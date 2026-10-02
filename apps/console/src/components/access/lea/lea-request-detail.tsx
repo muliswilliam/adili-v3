@@ -10,6 +10,8 @@ import {
   deadlineSoonDays,
   formatDate,
   formatDateTime,
+  formatScopeSections,
+  formatScopeYears,
   Icon,
   RegisterTimeline,
   Tooltip,
@@ -28,7 +30,7 @@ import type { LeaRequest } from '../../../server/access/types';
 import { ReadOnlyBadge } from '../../commissions/badges';
 import { Page } from '../../page';
 import { Grid, NotGiven, Part, Value } from '../form-k-card';
-import { scopePeople, scopeSections, scopeYears } from '../format';
+import { scopePeople } from '../format';
 import { StatusBadge } from '../queue-list';
 import { Muted, SideCard, WaitingCard } from '../side-cards';
 import { DecidedCard } from '../decision/decided-card';
@@ -224,9 +226,9 @@ export function WrittenRequestCard({ request }: { request: LeaRequest }) {
         </Part>
         <Part title={m.scopeRequested}>
           <Grid>
-            <Value term={m.years}>{scopeYears(scope)}</Value>
+            <Value term={m.years}>{formatScopeYears(scope)}</Value>
             <Value term={m.people}>{scopePeople(scope)}</Value>
-            <Value term={m.sections}>{scopeSections(scope)}</Value>
+            <Value term={m.sections}>{formatScopeSections(scope)}</Value>
           </Grid>
         </Part>
       </div>

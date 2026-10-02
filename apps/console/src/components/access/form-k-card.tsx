@@ -1,10 +1,19 @@
 import type { FormKV1 } from '@adili/forms';
-import { Badge, Card, CardHeader, CardTitle, formatDateTime, Icon } from '@adili/ui';
+import {
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  formatDateTime,
+  formatScopeSections,
+  formatScopeYears,
+  Icon,
+} from '@adili/ui';
 import { Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import type { OfficerRequestView } from '../../server/access/types';
-import { scopePeople, scopeSections, scopeYears } from './format';
+import { scopePeople } from './format';
 import { messages as m } from './messages';
 
 /** The request's Form K as submitted. */
@@ -128,12 +137,9 @@ export function FormKCard({ view }: { view: OfficerRequestView }) {
         </Part>
         <Part title={m.scopeRequested}>
           <Grid columns={2}>
-            <Value term={m.years}>{scopeYears(scope)}</Value>
+            <Value term={m.years}>{formatScopeYears(scope)}</Value>
             <Value term={m.people}>{scopePeople(scope)}</Value>
-            <Value term={m.sections}>{scopeSections(scope)}</Value>
-            <Value term={m.clarifications}>
-              {scope.includeClarifications ? m.included : m.notIncluded}
-            </Value>
+            <Value term={m.sections}>{formatScopeSections(scope)}</Value>
           </Grid>
         </Part>
         <Part title={m.partIV}>

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { OutcomeLine, SideCard } from '../side-cards';
 import type { Decision } from './decision-rules';
 import { messages as m } from './messages';
-import { scopeText } from './scope-text';
+import { scopeText } from '../format';
 
 function Item({ term, children }: { term: string; children: ReactNode }) {
   return (

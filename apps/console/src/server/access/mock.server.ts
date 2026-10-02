@@ -32,7 +32,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { addDays } from '@adili/ui';
+import { addDays, isScopeWithin } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
@@ -208,7 +208,6 @@ const SCOPE_2026_ASSETS = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['assets' as const],
-  includeClarifications: false,
 };
 
 interface Stored {
@@ -470,7 +469,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: false,
       sections: ['assets', 'liabilities'],
-      includeClarifications: false,
     },
     receivedDaysAgo: 4,
     status: 'awaiting-representations',
@@ -495,7 +493,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['income', 'liabilities'],
-      includeClarifications: true,
     },
     receivedDaysAgo: 27,
     status: 'under-decision',
@@ -648,7 +645,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['bio', 'income', 'assets', 'liabilities', 'other'],
-      includeClarifications: true,
     },
     receivedDaysAgo: 45,
     status: 'denied',
@@ -680,7 +676,6 @@ const SEEDS: Seed[] = [
       includeSpouses: true,
       includeChildren: true,
       sections: ['income', 'assets', 'liabilities'],
-      includeClarifications: true,
     },
     receivedDaysAgo: 34,
     status: 'partially-granted',
@@ -696,7 +691,6 @@ const SEEDS: Seed[] = [
         includeSpouses: true,
         includeChildren: false,
         sections: ['assets', 'liabilities'],
-        includeClarifications: true,
       },
       grounds: ['public-interest'],
     },
@@ -1043,16 +1037,6 @@ function badDecision(path: string, message: string, code?: string): Response {
 
 type MockScope = OfficerRequestView['formK']['scope'];
 
-function within(scope: MockScope, requested: MockScope): boolean {
-  return (
-    scope.years.every((year) => requested.years.includes(year)) &&
-    scope.sections.every((section) => requested.sections.includes(section)) &&
-    (!scope.includeSpouses || requested.includeSpouses) &&
-    (!scope.includeChildren || requested.includeChildren) &&
-    (!scope.includeClarifications || requested.includeClarifications)
-  );
-}
-
 const DECIDED_STATUS = {
   grant: 'granted',
   'partial-grant': 'partially-granted',
@@ -1109,8 +1093,8 @@ async function decide(request: Request, stored: Stored, caller: Caller): Promise
     );
   }
   const requested = current.formK.scope;
-  const exceeds = scope !== null && !within(scope, requested);
-  const whole = scope !== null && !exceeds && within(requested, scope);
+  const exceeds = scope !== null && !isScopeWithin(scope, requested);
+  const whole = scope !== null && !exceeds && isScopeWithin(requested, scope);
   if (exceeds) {
     return badDecision(
       'grantedScope',

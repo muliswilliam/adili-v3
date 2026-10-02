@@ -6,7 +6,7 @@ import { messages as m } from './messages';
  * The new written request's rules (spec 10 S11), mirroring access.yaml `LeaRequestInput`: a
  * Commission, the officer sought (a name of 2 to 200 characters; entity, work station and file
  * number optional), the reason (up to 4,000), the case reference (up to 100) and a scope of at
- * least one year and one section, never clarifications. The service has the final say.
+ * least one year and one section. The service has the final say.
  */
 
 export const REASON_MAX = 4000;
@@ -43,7 +43,6 @@ export const EMPTY_SCOPE: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: [],
-  includeClarifications: false,
 };
 
 export function emptyLeaDraft(): LeaDraft {
@@ -98,7 +97,7 @@ export function leaInput(draft: LeaDraft & { commission: string }): LeaRequestIn
     },
     reason: draft.reason.trim(),
     caseReference: draft.caseReference.trim(),
-    scope: { ...draft.scope, includeClarifications: false },
+    scope: draft.scope,
   };
 }
 

@@ -16,7 +16,6 @@ const requested: Scope = {
   includeSpouses: true,
   includeChildren: true,
   sections: ['income', 'liabilities'],
-  includeClarifications: true,
 };
 const narrower: Scope = { ...requested, years: [2026], includeChildren: false };
 
@@ -83,13 +82,10 @@ describe('decisionErrors (as the access service decisionOf, S6)', () => {
       includeSpouses: false,
       includeChildren: false,
       sections: ['assets'],
-      includeClarifications: true,
     };
-    expect(canNarrow(requested, true)).toBe(true);
-    expect(canNarrow(minimal, true)).toBe(true);
-    // Law enforcement requests never cover clarifications.
-    expect(canNarrow(minimal, false)).toBe(false);
-    expect(canNarrow({ ...minimal, includeClarifications: false }, true)).toBe(false);
+    expect(canNarrow(requested)).toBe(true);
+    expect(canNarrow({ ...minimal, includeSpouses: true })).toBe(true);
+    expect(canNarrow(minimal)).toBe(false);
   });
 
   it('flags a partial grant of the whole request as it is chosen', () => {
@@ -105,21 +101,22 @@ describe('decisionErrors (as the access service decisionOf, S6)', () => {
 describe('decisionInput', () => {
   it('sends a grant without scope or grounds', () => {
     expect(
-      decisionInput(
-        { ...draft({ grounds: ['public-interest'] }), outcome: 'grant', reasons: ' Yes. ' },
-        true,
-      ),
+      decisionInput({
+        ...draft({ grounds: ['public-interest'] }),
+        outcome: 'grant',
+        reasons: ' Yes. ',
+      }),
     ).toEqual({ outcome: 'grant', reasons: 'Yes.' });
   });
 
-  it('sends a partial grant with its scope and grounds; never clarifications for LEA', () => {
-    const input = decisionInput(
-      { ...draft({ scope: narrower, grounds: ['public-interest'] }), outcome: 'partial-grant' },
-      false,
-    );
+  it('sends a partial grant with its scope and grounds', () => {
+    const input = decisionInput({
+      ...draft({ scope: narrower, grounds: ['public-interest'] }),
+      outcome: 'partial-grant',
+    });
     expect(input).toEqual({
       outcome: 'partial-grant',
-      grantedScope: { ...narrower, includeClarifications: false },
+      grantedScope: narrower,
       grounds: ['public-interest'],
       reasons: 'Because.',
     });
@@ -127,10 +124,10 @@ describe('decisionInput', () => {
 
   it('sends a denial with grounds and no scope', () => {
     expect(
-      decisionInput(
-        { ...draft({ scope: narrower, grounds: ['not-objectives'] }), outcome: 'deny' },
-        true,
-      ),
+      decisionInput({
+        ...draft({ scope: narrower, grounds: ['not-objectives'] }),
+        outcome: 'deny',
+      }),
     ).toEqual({ outcome: 'deny', grounds: ['not-objectives'], reasons: 'Because.' });
   });
 });

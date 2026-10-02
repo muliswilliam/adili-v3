@@ -11,6 +11,8 @@ import {
   deadlineSoonDays,
   formatDate,
   formatDateTime,
+  formatScopeSections,
+  formatScopeYears,
   groundMeta,
   Icon,
   Spinner,
@@ -28,8 +30,7 @@ import { type ReactNode, useEffect } from 'react';
 
 import type { LeaRequest } from '../../server/access/types';
 import { Grid, Part, Value } from '../access/form-k-card';
-import { scopeText } from '../access/decision/scope-text';
-import { scopePeople, scopeSections, scopeYears } from '../access/format';
+import { scopePeople, scopeText } from '../access/format';
 import { OutcomeLine, SideCard } from '../access/side-cards';
 import { Page } from '../page';
 import { messages as m } from './messages';
@@ -93,9 +94,9 @@ export function MyRequest({ request, now }: { request: LeaRequest; now: string }
               </Part>
               <Part title={m.scope}>
                 <Grid>
-                  <Value term={m.years}>{scopeYears(scope)}</Value>
+                  <Value term={m.years}>{formatScopeYears(scope)}</Value>
                   <Value term={m.people}>{scopePeople(scope)}</Value>
-                  <Value term={m.sections}>{scopeSections(scope)}</Value>
+                  <Value term={m.sections}>{formatScopeSections(scope)}</Value>
                 </Grid>
               </Part>
             </div>

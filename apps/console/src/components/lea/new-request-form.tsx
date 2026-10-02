@@ -50,9 +50,9 @@ const fieldId = (base: string, field: LeaField) => `${base}-${field}`;
 
 /**
  * A new written request (spec 10 FE-6, S11, Regs r.23(1)): the Commission, the officer sought,
- * the reason and the case reference, and the scope (never clarifications). The declarant is told
- * only after a grant. Sent once per form with its Idempotency-Key, so a retry after a network
- * failure cannot file it twice; then the LEA reference and the 14-day deadline.
+ * the reason and the case reference, and the scope. The declarant is told only after a grant.
+ * Sent once per form with its Idempotency-Key, so a retry after a network failure cannot file
+ * it twice; then the LEA reference and the 14-day deadline.
  */
 export function NewRequestForm({ commissions }: { commissions: AccessCommission[] }) {
   const id = useId();
@@ -287,7 +287,6 @@ export function NewRequestForm({ commissions }: { commissions: AccessCommission[
                     change({ scope });
                   }}
                   years={chosen?.years ?? []}
-                  clarifications={false}
                   errors={{
                     // Years come with the Commission.
                     years: errors.years && !chosen ? m.commissionFirst : errors.years,

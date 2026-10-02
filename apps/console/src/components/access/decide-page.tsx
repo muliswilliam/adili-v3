@@ -18,7 +18,7 @@ import type { OfficerRequestView } from '../../server/access/types';
 import { Page } from '../page';
 import { DecisionForm } from './decision/decision-form';
 import { messages as d } from './decision/messages';
-import { scopeText } from './decision/scope-text';
+import { scopeText } from './format';
 import { formKOf } from './form-k-card';
 import { RepresentationsCard } from './side-cards';
 
@@ -114,7 +114,6 @@ export function DecidePage({ view, readOnly }: { view: OfficerRequestView; readO
       <div className="grid items-start gap-4 min-[1080px]:grid-cols-[minmax(0,1fr)_380px]">
         <DecisionForm
           requestedScope={form.scope}
-          clarifications
           deadline={{ due: view.decisionDeadlineAt, soonDays: deadlineSoonDays.decision }}
           reasonsHint={d.reasonsToBoth}
           finality={() => ({ title: d.finalToBoth })}

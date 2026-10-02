@@ -23,7 +23,6 @@ const DRAFT: LeaDraft = {
     includeSpouses: true,
     includeChildren: false,
     sections: ['assets'],
-    includeClarifications: false,
   },
 };
 
@@ -49,19 +48,13 @@ describe('a new written request (S11)', () => {
     });
   });
 
-  it('sends it trimmed, leaving out what was not given, never clarifications', () => {
-    expect(
-      leaInput({
-        ...DRAFT,
-        commission: 'psc',
-        scope: { ...DRAFT.scope, includeClarifications: true },
-      }),
-    ).toEqual({
+  it('sends it trimmed, leaving out what was not given', () => {
+    expect(leaInput({ ...DRAFT, commission: 'psc' })).toEqual({
       commission: 'psc',
       officerSought: { name: 'Grace Nyambura Kamau', personnelFileNumber: '20107725' },
       reason: 'Investigation into housing tenders.',
       caseReference: 'DCI/ECU/150/2026',
-      scope: { ...DRAFT.scope, includeClarifications: false },
+      scope: DRAFT.scope,
     });
   });
 
