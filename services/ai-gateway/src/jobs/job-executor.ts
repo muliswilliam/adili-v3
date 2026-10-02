@@ -42,6 +42,9 @@ interface AttemptMetrics {
 }
 
 const NO_CALL: AttemptMetrics = { usage: null, model: null, latencyMs: 0 };
+
+/** Violations kept with a failed job and its audit record: enough to say why, bounded. */
+const MAX_STORED_VIOLATIONS = 20;
 /** Longest one write of a job's final state may take (Postgres `statement_timeout`). */
 const WRITE_TIMEOUT_MS = 5_000;
 /**
@@ -281,10 +284,11 @@ export class JobExecutor {
       return { status: 'failed', reason: 'validation' };
     }
     // The task's own checks read the output as stored: identifiers restored, as in the input.
-    const violations = task.validate?.(task.input.parse(job.input), restored.data) ?? [];
-    if (violations.length > 0) {
+    const found = task.validate?.(task.input.parse(job.input), restored.data) ?? [];
+    if (found.length > 0) {
+      const violations = found.slice(0, MAX_STORED_VIOLATIONS);
       this.logger.warn(
-        { jobId: job.id, task: job.task, violations: violations.slice(0, 20) },
+        { jobId: job.id, task: job.task, count: found.length, violations },
         'Model output failed the task checks',
       );
       return { status: 'failed', reason: 'validation', violations };

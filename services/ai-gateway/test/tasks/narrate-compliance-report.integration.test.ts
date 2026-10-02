@@ -96,4 +96,23 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
     const [audit] = await t.db.select().from(auditRecords).where(eq(auditRecords.jobId, job.id));
     expect(audit).toMatchObject({ outcome: 'failed', reason: 'validation', violations });
   });
+
+  it('stores no model text in violations, and at most twenty of them', async () => {
+    const prose = 'commission.tsc.nonFilerRate rose to 17.4%';
+    answer = {
+      paragraphs: narrateOutput.paragraphs.map((each, index) =>
+        index === 0 ? { ...each, aggregateRefs: Array.from({ length: 30 }, () => prose) } : each,
+      ),
+    };
+
+    const job = await run();
+
+    expect(job).toMatchObject({ status: 'failed', reason: 'validation' });
+    const [row] = await t.db.select().from(jobs).where(eq(jobs.id, job.id));
+    expect(row?.violations).toHaveLength(20);
+    expect(row?.violations?.[19]).toEqual({ kind: 'unknown-ref', paragraph: 0, index: 19 });
+    const [audit] = await t.db.select().from(auditRecords).where(eq(auditRecords.jobId, job.id));
+    expect(audit?.violations).toEqual(row?.violations);
+    expect(JSON.stringify([row?.violations, audit?.violations])).not.toContain('17.4');
+  });
 });

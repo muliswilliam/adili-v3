@@ -42,8 +42,9 @@ export const aiLabelSchema = z
 export type AiLabel = z.infer<typeof aiLabelSchema>;
 
 /**
- * Why an output that fits the schema still fails its task: a kind, and where (paragraph indexes,
- * keys, ids). Never output text or figures, as these are stored with the job and its audit record.
+ * Why an output that fits the schema still fails its task: a kind, and where (paragraph and item
+ * indexes, section names). Never output text or figures, not even a ref or id the model made up,
+ * as these are stored with the job and its audit record (the first twenty of them).
  */
 export interface OutputViolation {
   kind: string;

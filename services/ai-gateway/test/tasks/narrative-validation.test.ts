@@ -94,14 +94,14 @@ describe('narrative validation', () => {
   });
 
   describe('citations', () => {
-    it('fails an aggregate key the input does not hold, naming the key', () => {
+    it('fails an aggregate key the input does not hold, by position, not text', () => {
       const drafted = withParagraph(1, {
         aggregateRefs: ['commission.tsc.nonFilerRate', 'commission.kdf.nonFilerRate', 'national'],
       });
 
       expect(narrativeViolations(input, drafted)).toEqual([
-        { kind: 'unknown-ref', paragraph: 1, ref: 'commission.kdf.nonFilerRate' },
-        { kind: 'unknown-ref', paragraph: 1, ref: 'national' },
+        { kind: 'unknown-ref', paragraph: 1, index: 1 },
+        { kind: 'unknown-ref', paragraph: 1, index: 2 },
       ]);
     });
 
@@ -128,18 +128,14 @@ describe('narrative validation', () => {
         ],
       });
 
-      expect(narrativeViolations(input, drafted).map((each) => each.ref)).toEqual([
-        'commission.tsc.name',
-        'fy2024.national.filed',
-        'fy2025.commission.psc.expected',
-      ]);
+      expect(narrativeViolations(input, drafted).map((each) => each.index)).toEqual([0, 1, 2]);
     });
 
-    it('fails a candidate id the input does not hold', () => {
+    it('fails a candidate id the input does not hold, by position, not text', () => {
       const drafted = withParagraph(2, { candidateIds: ['threshold-breach:psc:lateRate'] });
 
       expect(narrativeViolations(input, drafted)).toEqual([
-        { kind: 'unknown-candidate', paragraph: 2, candidate: 'threshold-breach:psc:lateRate' },
+        { kind: 'unknown-candidate', paragraph: 2, index: 0 },
       ]);
     });
 

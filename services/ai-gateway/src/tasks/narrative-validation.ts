@@ -35,12 +35,15 @@ export function narrativeViolations(input: NarrateInput, output: NarrateOutput):
         kind: 'foreign-number',
         paragraph: index,
       })),
-      ...paragraph.aggregateRefs
-        .filter((ref) => !keys.has(ref))
-        .map((ref) => ({ kind: 'unknown-ref', paragraph: index, ref })),
-      ...paragraph.candidateIds
-        .filter((candidate) => !candidates.has(candidate))
-        .map((candidate) => ({ kind: 'unknown-candidate', paragraph: index, candidate })),
+      // By position, not value: an unknown ref or id is text the model wrote.
+      ...paragraph.aggregateRefs.flatMap((ref, at) =>
+        keys.has(ref) ? [] : [{ kind: 'unknown-ref', paragraph: index, index: at }],
+      ),
+      ...paragraph.candidateIds.flatMap((candidate, at) =>
+        candidates.has(candidate)
+          ? []
+          : [{ kind: 'unknown-candidate', paragraph: index, index: at }],
+      ),
       // A finding narrates a computed pattern; it does not discover one (ADR-007).
       ...(paragraph.section === 'findings' && paragraph.candidateIds.length === 0
         ? [{ kind: 'finding-without-candidate', paragraph: index }]
