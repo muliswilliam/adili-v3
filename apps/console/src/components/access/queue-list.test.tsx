@@ -59,6 +59,37 @@ describe('QueueList (spec 10 FE-5)', () => {
     expect(decided?.textContent).toMatch(/Decided \d+ \w{3}/);
   });
 
+  it('shows a late request awaiting representations as late, with the window under it', async () => {
+    const data = await page();
+    const awaiting = data.items.find((item) => item.status === 'awaiting-representations');
+    if (!awaiting?.windowEndsAt) throw new Error('no window');
+    renderList({ ok: true, data: { items: [{ ...awaiting, late: true }], nextCursor: null } });
+    const row = within(screen.getByRole('table')).getAllByRole('row')[1];
+    const chip = row?.querySelector('time');
+    expect(chip?.dataset.state).toBe('late');
+    expect(chip?.textContent).toContain('Late');
+    expect(row?.textContent).toContain('Closes');
+  });
+
+  it('keeps the name the request sought under the identified officer when it differs', async () => {
+    const data = await page();
+    const resolved = data.items.find((item) => item.resolvedName);
+    if (!resolved?.resolvedName) throw new Error('none resolved');
+    renderList({
+      ok: true,
+      data: {
+        items: [
+          { ...resolved, officerSought: 'G. Atieno' },
+          { ...resolved, id: crypto.randomUUID(), officerSought: resolved.resolvedName },
+        ],
+        nextCursor: null,
+      },
+    });
+    const [, differs, same] = within(screen.getByRole('table')).getAllByRole('row');
+    expect(differs?.textContent).toContain('Sought as G. Atieno');
+    expect(same?.textContent).not.toContain('Sought as');
+  });
+
   it('filters one way at a time, keeping the search', () => {
     const onSearchChange = renderList(
       { ok: true, data: { items: [], nextCursor: null } },
@@ -114,7 +145,7 @@ describe('QueueList (spec 10 FE-5)', () => {
     expect(breach.textContent).toMatch(/^LEA-PSC-2026-/);
     expect(breach.textContent).toContain('Law enforcement ·');
     expect(breach.textContent).toContain('Office of the Director of Public Prosecutions');
-    expect(breach.textContent).toContain('Verify');
+    expect(breach.textContent).toContain('Received');
     expect(breach.querySelector('time')?.dataset.state).toBe('late');
     // No window for representations on this tab.
     const chips = screen.getByRole('group', { name: 'Show' });
