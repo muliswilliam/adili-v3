@@ -161,7 +161,7 @@ export class CopilotFeedback {
 
     let recorded: boolean;
     try {
-      recorded = await this.gateway.recordFeedback(jobId, {
+      recorded = await this.gateway.recordFeedback(tenant, jobId, {
         reviewerSubject: principal.subject,
         ...input,
       });

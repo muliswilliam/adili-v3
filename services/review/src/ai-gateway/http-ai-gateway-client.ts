@@ -15,7 +15,10 @@ import {
   type TenantAiStatus,
 } from './ai-gateway-client.js';
 
-/** The scope the review service's token needs for the gateway's tasks and jobs. */
+/**
+ * The scope the review service's token needs for the gateway's internal API; every call names
+ * the Commission it acts for in `X-Acting-Tenant` (ADR-013 §8.8).
+ */
 export const AI_SCOPE = 'ai';
 
 /** A task call that waits: the wait plus the default budget for the hop (ADR-013 §2). */
@@ -97,11 +100,15 @@ export class HttpAiGatewayClient extends AiGatewayClient {
       throw new RangeError(`waitSeconds must be 0 to ${String(MAX_TASK_WAIT_SECONDS)}`);
     }
     const rejected = rejectedBy('ai-gateway');
+    const { tenant, ...body } = request;
     return (waitSeconds > 0 ? this.waiting : this.gateway).call(
       (api) =>
         api.POST('/internal/v1/tasks/{task}', {
-          params: { path: { task }, header: { 'Idempotency-Key': idempotencyKey } },
-          body: { ...request, waitSeconds },
+          params: {
+            path: { task },
+            header: { 'Idempotency-Key': idempotencyKey, 'X-Acting-Tenant': tenant },
+          },
+          body: { ...body, waitSeconds },
         }),
       {
         status: [200, 202],
@@ -111,19 +118,22 @@ export class HttpAiGatewayClient extends AiGatewayClient {
     );
   }
 
-  getJob(jobId: string): Promise<AiJob | null> {
+  getJob(tenant: string, jobId: string): Promise<AiJob | null> {
     return this.gateway.call(
-      (api) => api.GET('/internal/v1/jobs/{jobId}', { params: { path: { jobId } } }),
+      (api) =>
+        api.GET('/internal/v1/jobs/{jobId}', {
+          params: { path: { jobId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
       { status: 200, schema: jobSchema, otherwise: { 404: () => null } },
     );
   }
 
-  recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean> {
+  recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
     const rejected = rejectedBy('ai-gateway');
     return this.gateway.call(
       (api) =>
         api.PUT('/internal/v1/jobs/{jobId}/feedback', {
-          params: { path: { jobId } },
+          params: { path: { jobId }, header: { 'X-Acting-Tenant': tenant } },
           body: feedback,
         }),
       { status: 200, schema: recorded, otherwise: { 400: rejected, 404: () => false } },
@@ -132,7 +142,10 @@ export class HttpAiGatewayClient extends AiGatewayClient {
 
   tenantStatus(tenant: string): Promise<TenantAiStatus> {
     return this.gateway.call(
-      (api) => api.GET('/internal/v1/tenants/{tenant}/status', { params: { path: { tenant } } }),
+      (api) =>
+        api.GET('/internal/v1/tenants/{tenant}/status', {
+          params: { path: { tenant }, header: { 'X-Acting-Tenant': tenant } },
+        }),
       { status: 200, schema: tenantStatusSchema },
     );
   }

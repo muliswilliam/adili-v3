@@ -7,9 +7,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { feedback } from '../../src/db/schema.js';
 import { contractErrors } from '../support/contract.js';
 import {
+  actingFor,
   explainInput,
+  FLAG_ID,
   summarizeInput,
   summarizeOutput,
+  taskCall,
   taskRequest,
   usage,
 } from '../support/inputs.js';
@@ -30,11 +33,11 @@ describe('feedback', () => {
   let auth: { authorization: string };
   let succeeded: string;
 
-  const rate = (jobId: string, payload: object, headers = auth) =>
+  const rate = (jobId: string, payload: object, headers = auth, tenant = 'demo') =>
     t.app.inject({
       method: 'PUT',
       url: `/internal/v1/jobs/${jobId}/feedback`,
-      headers,
+      headers: { ...actingFor(tenant), ...headers },
       payload,
     });
 
@@ -57,8 +60,8 @@ describe('feedback', () => {
     const response = await t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/summarize-declaration',
-      headers: { ...auth, 'idempotency-key': randomUUID() },
-      payload: taskRequest(summarizeInput, { waitSeconds: 30 }),
+      headers: { ...auth, ...actingFor(), 'idempotency-key': randomUUID() },
+      payload: taskCall(taskRequest(summarizeInput, { waitSeconds: 30 })).body,
     });
     const job = response.json<Job>();
     expect(job.status).toBe('succeeded');
@@ -78,6 +81,7 @@ describe('feedback', () => {
     expect(body).toEqual({
       jobId: succeeded,
       reviewerSubject: 'reviewer-a',
+      block: null,
       rating: 'not-helpful',
       reason: 'missed-something',
       note: 'It left out the second plot.',
@@ -134,18 +138,51 @@ describe('feedback', () => {
     expect(events[1]?.data).toMatchObject({ rating: 'helpful', reason: null });
   });
 
+  it('keeps one rating per block of the output, and announces the block', async () => {
+    const rating = { reviewerSubject: 'reviewer-c', reason: null, note: null };
+    const flagBlock = `flag:${FLAG_ID}`;
+    for (const [block, value] of [
+      ['overview', 'helpful'],
+      [flagBlock, 'not-helpful'],
+      ['overview', 'not-helpful'],
+    ] as const) {
+      const response = await rate(succeeded, { ...rating, block, rating: value });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ block, rating: value });
+    }
+
+    const rows = await t.db
+      .select()
+      .from(feedback)
+      .where(eq(feedback.reviewerSubject, 'reviewer-c'));
+    expect(rows.map((row) => [row.block, row.rating]).sort()).toEqual([
+      [flagBlock, 'not-helpful'],
+      ['overview', 'not-helpful'],
+    ]);
+    const blocks = (await announced(succeeded))
+      .map((event) => event.data as { block: string | null })
+      .map((data) => data.block);
+    expect(blocks).toEqual(expect.arrayContaining(['overview', flagBlock]));
+    // Not a block a copilot output has.
+    expect(
+      (await rate(succeeded, { ...rating, block: 'Grace', rating: 'helpful' })).statusCode,
+    ).toBe(400);
+  });
+
   it("is 404 for another caller's job, a job without an output and an unknown job", async () => {
     const input = { reviewerSubject: 'reviewer-a', rating: 'helpful', reason: null, note: null };
     const other = { authorization: `Bearer ${await t.token({ clientId: 'declarations' })}` };
     expect((await rate(succeeded, input, other)).statusCode).toBe(404);
+    // The caller's own job, but rated acting for another tenant (ADR-013).
+    expect((await rate(succeeded, input, auth, 'kcomm')).statusCode).toBe(404);
 
     // A job that failed (no recorded response for this input) has nothing to rate.
     const failedInput = { ...explainInput, language: 'sw' };
     const response = await t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/explain-flags',
-      headers: { ...auth, 'idempotency-key': randomUUID() },
-      payload: taskRequest(failedInput, { waitSeconds: 30 }),
+      headers: { ...auth, ...actingFor(), 'idempotency-key': randomUUID() },
+      payload: taskCall(taskRequest(failedInput, { waitSeconds: 30 })).body,
     });
     const failed = response.json<Job>();
     expect(failed.status).toBe('failed');

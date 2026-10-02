@@ -9,7 +9,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { auditRecords, gatePolicies, jobs, routes } from '../../src/db/schema.js';
 import { currentMonth } from '../../src/policy/budgets.js';
 import { contractErrors } from '../support/contract.js';
-import { summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
+import { actingFor, summarizeInput, summarizeOutput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -59,7 +59,7 @@ describe('admin API', { timeout: 90_000 }, () => {
   const request = (
     method: 'GET' | 'PUT',
     url: string,
-    headers: { authorization: string },
+    headers: Record<string, string>,
     payload?: object,
   ) => t.app.inject({ method, url, headers, ...(payload ? { payload } : {}) });
 
@@ -68,9 +68,8 @@ describe('admin API', { timeout: 90_000 }, () => {
     const response = await t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/summarize-declaration',
-      headers: { ...service, 'idempotency-key': randomUUID() },
+      headers: { ...service, ...actingFor(tenant), 'idempotency-key': randomUUID() },
       payload: {
-        tenant,
         dataClass,
         subjectRef: `review-case:${randomUUID()}`,
         promptVersion: null,
@@ -83,7 +82,9 @@ describe('admin API', { timeout: 90_000 }, () => {
     while (['queued', 'running'].includes(job.status)) {
       if (Date.now() > deadline) throw new Error(`job ${job.id} still ${job.status}`);
       await new Promise((resolve) => setTimeout(resolve, 100));
-      job = (await request('GET', `/internal/v1/jobs/${job.id}`, service)).json<Job>();
+      job = (
+        await request('GET', `/internal/v1/jobs/${job.id}`, { ...service, ...actingFor(tenant) })
+      ).json<Job>();
     }
     return job;
   };
@@ -121,16 +122,16 @@ describe('admin API', { timeout: 90_000 }, () => {
       expect(await t.db.select().from(gatePolicies)).toEqual([]);
     });
 
-    it('serves the tenant status to services with the ai scope only', async () => {
-      expect((await request('GET', '/internal/v1/tenants/kcomm/status', admin)).statusCode).toBe(
-        403,
+    it('serves the tenant status to services with the ai scope, for the tenant they act for', async () => {
+      const status = (path: string, headers: Record<string, string>) =>
+        request('GET', `/internal/v1/tenants/${path}/status`, headers);
+      expect((await status('kcomm', { ...admin, ...actingFor('kcomm') })).statusCode).toBe(403);
+      expect((await status('kcomm', { ...service, ...actingFor('kcomm') })).statusCode).toBe(200);
+      expect((await status('kcomm', service)).statusCode).toBe(400);
+      expect((await status('kcomm', { ...service, ...actingFor('demo') })).statusCode).toBe(404);
+      expect((await status('Not-A-Slug', { ...service, ...actingFor('kcomm') })).statusCode).toBe(
+        400,
       );
-      expect((await request('GET', '/internal/v1/tenants/kcomm/status', service)).statusCode).toBe(
-        200,
-      );
-      expect(
-        (await request('GET', '/internal/v1/tenants/Not-A-Slug/status', service)).statusCode,
-      ).toBe(400);
     });
   });
 
@@ -374,7 +375,10 @@ describe('admin API', { timeout: 90_000 }, () => {
 
   describe('tenant AI status', () => {
     const status = async (tenant: string) => {
-      const response = await request('GET', `/internal/v1/tenants/${tenant}/status`, service);
+      const response = await request('GET', `/internal/v1/tenants/${tenant}/status`, {
+        ...service,
+        ...actingFor(tenant),
+      });
       expect(contractErrors('TenantAiStatus', response.json())).toEqual([]);
       return response.json<unknown>();
     };

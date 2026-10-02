@@ -137,21 +137,26 @@ export class FakeAiGateway extends AiGatewayClient {
     return Promise.resolve(this.view(job.id));
   }
 
-  getJob(jobId: string): Promise<AiJob | null> {
+  /** The job, when it is the tenant's; another tenant's is null, as the gateway answers 404. */
+  getJob(tenant: string, jobId: string): Promise<AiJob | null> {
     if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
     }
-    return Promise.resolve(this.jobs.has(jobId) ? this.view(jobId) : null);
+    return Promise.resolve(this.jobs.get(jobId)?.tenant === tenant ? this.view(jobId) : null);
   }
 
-  /** Records a rating of a succeeded job; false for any other job, as the gateway answers 404. */
-  recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean> {
+  /**
+   * Records a rating of the tenant's succeeded job; false for any other job, as the gateway
+   * answers 404.
+   */
+  recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
     if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
     }
-    if (this.jobs.get(jobId)?.status !== 'succeeded') return Promise.resolve(false);
+    const job = this.jobs.get(jobId);
+    if (job?.tenant !== tenant || job.status !== 'succeeded') return Promise.resolve(false);
     this.feedback.push({ jobId, feedback: structuredClone(feedback) });
     return Promise.resolve(true);
   }

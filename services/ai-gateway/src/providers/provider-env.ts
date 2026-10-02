@@ -3,6 +3,9 @@ import { z } from 'zod';
 
 const PROVIDERS = ['replay', 'anthropic'] as const;
 
+/** The model every task runs on without a routing row for it; evals record on it too. */
+export const DEFAULT_AI_MODEL = 'claude-opus-5-5';
+
 export const providerEnvShape = {
   /**
    * `replay` serves recorded fixtures (tests, CI, demo); `anthropic` calls the API. Defaults to
@@ -26,7 +29,7 @@ export const providerEnvShape = {
   ANTHROPIC_STRUCTURED_OUTPUT: z.enum(['native', 'prompted']).default('native'),
   AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
   /** Model for every task until the routing table (spec 07c BE-3) lands. */
-  AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
+  AI_MODEL: z.string().min(1).default(DEFAULT_AI_MODEL),
 };
 
 type ParsedProviderEnv = z.infer<z.ZodObject<typeof providerEnvShape>> & {

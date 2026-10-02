@@ -25,7 +25,7 @@ export const aiLabelSchema = z
     generatedAt: z.iso.datetime(),
     disclaimer: z
       .string()
-      .meta({ description: 'Fixed text: indicators, not findings; a named officer decides' }),
+      .meta({ description: 'Fixed text: indicators, not findings; a named reviewer decides' }),
   })
   .meta({ description: 'Present on every output' });
 export type AiLabel = z.infer<typeof aiLabelSchema>;
@@ -40,6 +40,11 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   promptVersions: readonly [number, ...number[]];
   /** Output limit of every call for this task. */
   maxOutputTokens: number;
+  /**
+   * Hours a finished job keeps this task's output, when shorter than the service-wide
+   * `AI_OUTPUT_RETENTION_DAYS` (a clarification draft is kept 24 hours, spec 07c).
+   */
+  outputRetentionHours?: number;
 }
 
 export interface TaskDefinition<
@@ -89,8 +94,8 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
 }
 
 const DISCLAIMERS: Record<Language, string> = {
-  en: 'AI-assisted. These are indicators, not findings: a named officer reviews the record and decides.',
-  sw: 'Imesaidiwa na AI. Hivi ni viashiria, si matokeo: afisa aliyetajwa hukagua rekodi na kuamua.',
+  en: 'AI-assisted. These are indicators, not findings: a named reviewer examines the record and decides.',
+  sw: 'Imesaidiwa na AI. Hivi ni viashiria, si matokeo: mkaguzi aliyetajwa huchunguza rekodi na kuamua.',
 };
 
 export function aiLabel(

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
-import { minimise } from '../../src/policy/minimisation.js';
+import { minimise, UnknownTokenError } from '../../src/policy/minimisation.js';
 
 /** A synthetic household declaration from the form fixtures: officer, two spouses, children. */
 const household = JSON.parse(
@@ -33,6 +33,10 @@ const IDENTIFIERS = [
   'A002345678Z',
   'P.O. Box 40123-00100, Nairobi',
   'Lavington, James Gichuru Road, Nairobi',
+  'PF-2003-001184',
+  'KISUMU/MUNICIPALITY BLOCK 7/412',
+  'KDK 482M',
+  'KDK482M',
 ];
 
 describe('minimise (spec 07c S3)', () => {
@@ -58,7 +62,7 @@ describe('minimise (spec 07c S3)', () => {
     expect(text).toContain('480000000');
     expect(text).toContain('"personKey":"spouse:0192f1a0-5a11-7000-8000-000000000101"');
     expect(text).toContain('"id":"0192f1a0-5a11-7000-8000-000000002003"');
-    expect(text).toContain('KDK 482M');
+    expect(text).toContain('"creditor":"[[PARTY_');
     expect(text).toContain('Repaid KES 500,000 of the principal.');
   });
 
@@ -72,6 +76,66 @@ describe('minimise (spec 07c S3)', () => {
     );
   });
 
+  it('replaces debtors, creditors, file numbers, parcels, registrations and file names whole', () => {
+    const { input } = minimise({
+      employment: { personnelFileNumber: 'PF-2003-001184' },
+      assets: [
+        {
+          details: {
+            parcelNumber: 'KSM/BLOCK 4/88',
+            registration: 'KCA 123B',
+            debtor: 'John Kamau',
+          },
+        },
+      ],
+      liabilities: [{ creditor: 'Equity Bank Kenya' }],
+      attachments: [{ fileName: 'logbook-KCA123B.pdf' }],
+      note: 'John Kamau still owes me; see KSM/BLOCK 4/88.',
+    });
+
+    expect(input).toEqual({
+      employment: { personnelFileNumber: '[[FILE_NUMBER_1]]' },
+      assets: [
+        {
+          details: {
+            debtor: '[[PARTY_1]]',
+            parcelNumber: '[[PARCEL_1]]',
+            registration: '[[REGISTRATION_1]]',
+          },
+        },
+      ],
+      liabilities: [{ creditor: '[[PARTY_2]]' }],
+      attachments: [{ fileName: '[[FILE_NAME_1]]' }],
+      note: '[[PARTY_1]] still owes me; see [[PARCEL_1]].',
+    });
+  });
+
+  it('finds addresses, registrations, parcels and unlabelled national IDs in free text', () => {
+    const { input } = minimise({
+      note: 'Write to P.O. Box 501-00200, Nairobi or Sanduku la Posta 77. Car KBZ 901A, plot NAIROBI/BLOCK 82/1190. Her ID 28765432, his 31234567; kitambulisho 2233445.',
+    });
+
+    expect(input.note).toBe(
+      'Write to [[ADDRESS_1]] or [[ADDRESS_2]]. Car [[REGISTRATION_1]], plot [[PARCEL_1]]. Her ID [[ID_1]], his [[ID_3]]; kitambulisho [[ID_2]].',
+    );
+  });
+
+  it('leaves amounts, percentages and longer codes readable', () => {
+    const text =
+      'Paid KES 1500000 and KSh 2500000, USD 1200000, 12,345,678 shillings, 3.1234567, 12345678%, group 12345678-aaaa.';
+    expect(minimise({ note: text }).input.note).toBe(text);
+  });
+
+  it('refuses to restore a token the input never had', () => {
+    const minimised = minimise({ surname: 'Otieno' });
+
+    expect(() => minimised.restore({ text: '[[PERSON_1]] and [[PERSON_2]]' })).toThrow(
+      UnknownTokenError,
+    );
+    expect(() => minimised.restore({ text: '[[ID_1]]' })).toThrow(UnknownTokenError);
+    expect(minimised.restore({ text: '[[PERSON_1]]' })).toEqual({ text: 'Otieno' });
+  });
+
   it('gives an identifier the same token everywhere, and restores every token', () => {
     const minimised = minimise({ a: { surname: 'Otieno' }, b: 'Otieno and Otieno' });
     expect(minimised.input).toEqual({
@@ -80,13 +144,10 @@ describe('minimise (spec 07c S3)', () => {
     });
 
     const restored = minimised.restore({
-      text: 'Asset held by [[PERSON_1]]; [[PERSON_9]] is unknown.',
+      text: 'Asset held by [[PERSON_1]].',
       list: ['[[PERSON_1]]'],
     });
-    expect(restored).toEqual({
-      text: 'Asset held by Otieno; [[PERSON_9]] is unknown.',
-      list: ['Otieno'],
-    });
+    expect(restored).toEqual({ text: 'Asset held by Otieno.', list: ['Otieno'] });
   });
 
   it('round-trips the whole declaration', () => {

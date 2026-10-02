@@ -1,7 +1,7 @@
 import { appendFile } from 'node:fs/promises';
 
 import type { ModelProvider, StructuredRequest } from '../../src/providers/port.js';
-import { providerEnvSchema } from '../../src/providers/provider-env.js';
+import { DEFAULT_AI_MODEL, providerEnvSchema } from '../../src/providers/provider-env.js';
 import { createModelProvider } from '../../src/providers/providers.module.js';
 import { type PreparedPrompt, preparePrompt } from '../../src/policy/prompt.js';
 import type { TaskDefinition } from '../../src/tasks/task.js';
@@ -46,10 +46,11 @@ export async function runTask(
 }
 
 /**
- * The model the fixtures are recorded with. Fixtures are keyed by model, so evals pin it rather
- * than follow the service default; `AI_MODEL` overrides it to record and compare another model.
+ * The model the fixtures are recorded with: the service default, which production runs.
+ * Fixtures are keyed by model, so changing the default misses them until they are recorded
+ * again; `AI_MODEL` overrides it to record and compare another model.
  */
-export const EVAL_MODEL = 'claude-sonnet-5';
+export const EVAL_MODEL = DEFAULT_AI_MODEL;
 
 export function evalModel(): string {
   return process.env.AI_MODEL ?? EVAL_MODEL;

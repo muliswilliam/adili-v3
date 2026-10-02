@@ -190,7 +190,7 @@ export class CopilotRequests {
     // A job may have ended before it was recorded here, its event then found no record to match:
     // read it again now that it is recorded.
     for (const job of jobs) {
-      const latest = isFinished(job) ? job : await this.gateway.getJob(job.id);
+      const latest = isFinished(job) ? job : await this.gateway.getJob(tenant, job.id);
       if (latest) await this.record(tenant, caseId, latest);
     }
   }
@@ -204,7 +204,7 @@ export class CopilotRequests {
   async recordJob(tenant: string, caseId: string, jobId: string): Promise<void> {
     const record = await withTenant(this.db, systemContext(tenant), (tx) => copilotOf(tx, caseId));
     if (!record || !isRequested(record, jobId)) return;
-    const job = await this.gateway.getJob(jobId);
+    const job = await this.gateway.getJob(tenant, jobId);
     if (job) await this.record(tenant, caseId, job);
   }
 

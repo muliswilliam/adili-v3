@@ -7,12 +7,11 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
-import { Budgets } from '../policy/budgets.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
-import { GatePolicies } from '../policy/gate-policies.js';
 import { costMicros } from '../policy/pricing.js';
 import { type PreparedPrompt, preparePrompt } from '../policy/prompt.js';
-import { sourceRefProblems } from '../policy/source-refs.js';
+import { UnknownTokenError } from '../policy/minimisation.js';
+import { problemCounts, sourceRefProblems } from '../policy/source-refs.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
 import {
   type ModelProvider,
@@ -25,9 +24,10 @@ import { ProviderRegistry } from '../providers/providers.module.js';
 import { inputLanguage } from '../tasks/common.js';
 import { findTask } from '../tasks/registry.js';
 import { aiLabel, type TaskDefinition } from '../tasks/task.js';
+import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { type JobReason, LIVE_STATUSES } from './job-states.js';
-import { parseParams } from './routing.js';
+import { parseParams, type RouteParams } from './routing.js';
 
 type Outcome =
   | { status: 'succeeded'; output: Record<string, unknown> }
@@ -119,8 +119,7 @@ export class JobExecutor {
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
     private readonly providers: ProviderRegistry,
-    private readonly gate: GatePolicies,
-    private readonly budgets: Budgets,
+    private readonly admission: Admission,
     private readonly breaker: CircuitBreaker,
     private readonly telemetry: GenAiTelemetry,
     private readonly events: EventPublisher,
@@ -139,17 +138,30 @@ export class JobExecutor {
       // Unreachable: jobs are created for registered tasks and keep their input until they end.
       throw new Error(`Job ${jobId} cannot run: unknown task or missing input`);
     }
-    const ending = await this.admission(job);
-    if (ending) {
-      await this.finish(job, ending, NO_CALL);
+    const refusal = await this.admission.refusal(job.tenant, job.dataClass, job.provider);
+    if (refusal) {
+      await this.finish(job, refusal, NO_CALL);
       return;
     }
     const provider = this.providers.get(job.provider);
     if (!provider) throw new Error(`Job ${jobId}: provider ${job.provider} vanished`);
+    if (!this.breaker.tryAcquire(provider.name)) {
+      await this.finish(job, { status: 'failed', reason: 'provider-unavailable' }, NO_CALL);
+      return;
+    }
 
-    const params = parseParams(job.params, `job ${job.id}`);
-    // The token map lives in `prompt` for this attempt only, and is never stored or logged.
-    const prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params);
+    let prompt: PreparedPrompt;
+    let params: RouteParams;
+    try {
+      params = parseParams(job.params, `job ${job.id}`);
+      // The token map lives in `prompt` for this attempt only, and is never stored or logged.
+      prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params);
+    } catch (error) {
+      // No call was made: a probe this attempt claimed must not keep the breaker half-open.
+      this.breaker.release(provider.name);
+      throw error;
+    }
+    this.telemetry.identifiersMinimised(job, prompt.counts);
     const startedAt = performance.now();
     const result = await this.call(job, provider, prompt, params.timeoutMs);
     const metrics: AttemptMetrics = {
@@ -169,24 +181,6 @@ export class JobExecutor {
   async fail(jobId: string, reason: JobReason): Promise<void> {
     const [job] = await this.db.select().from(jobs).where(eq(jobs.id, jobId));
     if (job) await this.finish(job, { status: 'failed', reason }, NO_CALL);
-  }
-
-  /**
-   * Why the job must end without contacting its provider, checked again at each attempt since
-   * policy, budget and provider health may have changed since it was created; undefined when it
-   * may go ahead. Claims the breaker's probe when it lets the call through.
-   */
-  private async admission(job: Job): Promise<Outcome | undefined> {
-    const provider = this.providers.get(job.provider);
-    if (!provider) return { status: 'failed', reason: 'provider-unavailable' };
-    if (!(await this.gate.admits(job.tenant, job.dataClass, provider.providerClass))) {
-      return { status: 'blocked', reason: 'policy' };
-    }
-    if (await this.budgets.exhausted(job.tenant)) return { status: 'blocked', reason: 'budget' };
-    if (!this.breaker.tryAcquire(provider.name)) {
-      return { status: 'failed', reason: 'provider-unavailable' };
-    }
-    return undefined;
   }
 
   /** One provider call in a GenAI span, bounded by the route's timeout, fed to the breaker. */
@@ -259,16 +253,27 @@ export class JobExecutor {
       );
       return { status: 'failed', reason: 'validation' };
     }
-    // Problems name keys and ids (item, person, section, flag), never text.
+    // The ids in a problem are the model's own writing: only how many of each kind are logged.
     const problems = sourceRefProblems(job.input, parsed.data);
     if (problems.length > 0) {
       this.logger.warn(
-        { jobId: job.id, task: job.task, problems: problems.slice(0, 20) },
+        { jobId: job.id, task: job.task, problems: problemCounts(problems) },
         'Model output refers to what the input does not hold',
       );
       return { status: 'failed', reason: 'validation' };
     }
-    const restored = task.output.safeParse(prompt.restore(parsed.data));
+    let unminimised: unknown;
+    try {
+      unminimised = prompt.restore(parsed.data);
+    } catch (error) {
+      if (!(error instanceof UnknownTokenError)) throw error;
+      this.logger.warn(
+        { jobId: job.id, task: job.task, unknownTokens: error.unknownTokens },
+        'Model output holds identifier tokens the input never had',
+      );
+      return { status: 'failed', reason: 'validation' };
+    }
+    const restored = task.output.safeParse(unminimised);
     if (!restored.success) {
       this.logger.warn(
         {
@@ -295,6 +300,23 @@ export class JobExecutor {
   }
 
   /**
+   * The call's cost at list price. A self-hosted model has none; an external one without a
+   * price is a gap in the price table, warned about and counted, and costs 0 until it is added.
+   */
+  private costOf(job: Job, model: string, usage: Usage): number {
+    const cost = costMicros(model, usage);
+    if (cost !== undefined) return cost;
+    if (this.providers.get(job.provider)?.providerClass === 'external') {
+      this.logger.warn(
+        { jobId: job.id, provider: job.provider, model },
+        'No list price for an external model: the call counts as costing 0',
+      );
+      this.telemetry.unpricedCall(job.provider, model);
+    }
+    return 0;
+  }
+
+  /**
    * Moves a live job to its final state, with its audit record and event; a job that already
    * ended is left. Counted in telemetry once committed.
    */
@@ -314,7 +336,7 @@ export class JobExecutor {
           ...(metrics.usage && {
             tokensIn: totalInputTokens(metrics.usage),
             tokensOut: metrics.usage.outputTokens,
-            costMicros: costMicros(metrics.model ?? job.model, metrics.usage),
+            costMicros: this.costOf(job, metrics.model ?? job.model, metrics.usage),
           }),
           latencyMs: metrics.latencyMs,
           finishedAt: sql`now()`,

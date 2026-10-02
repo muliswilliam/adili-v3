@@ -31,7 +31,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Job state and validated output (caller service only) */
+        /** Job state and validated output (caller service only, for the tenant it acts for) */
         get: operations["getJob"];
         put?: never;
         post?: never;
@@ -51,7 +51,7 @@ export interface paths {
         get?: never;
         /**
          * Record or update a reviewer's rating of a job's output (caller service only)
-         * @description One rating per reviewer per job: a second rating by the same reviewer replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).
+         * @description One rating per reviewer per block of the output (`block`; null for the output as a whole): a second rating by the same reviewer of the same block replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).
          */
         put: operations["recordFeedback"];
         post?: never;
@@ -205,7 +205,6 @@ export interface components {
          */
         JobReason: "policy" | "budget" | "validation" | "refused" | "provider" | "provider-unavailable" | "timeout";
         TaskRequest: {
-            tenant: string;
             dataClass: components["schemas"]["DataClass"];
             /** @description Owning record, e.g. review-case:<uuid>; appears in audit and events */
             subjectRef: string;
@@ -255,7 +254,7 @@ export interface components {
             model: string;
             /** Format: date-time */
             generatedAt: string;
-            /** @description Fixed text: indicators, not findings; a named officer decides */
+            /** @description Fixed text: indicators, not findings; a named reviewer decides */
             disclaimer: string;
         };
         SourceRef: {
@@ -374,8 +373,10 @@ export interface components {
             }[];
         };
         FeedbackInput: {
-            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
+            /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
+            /** @description The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole */
+            block?: string | null;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
@@ -384,8 +385,10 @@ export interface components {
         Feedback: {
             /** Format: uuid */
             jobId: string;
-            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
+            /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
+            /** @description The block rated; null for the output as a whole */
+            block: string | null;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
@@ -631,6 +634,8 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
                 "Idempotency-Key": string;
             };
@@ -667,7 +672,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            /** @description Request failed validation, or Idempotency-Key missing or not a UUID */
+            /** @description Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -676,7 +681,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the scopes: ai */
+            /** @description Requires a service token with scope ai */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -719,7 +724,10 @@ export interface operations {
     getJob: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
             path: {
                 jobId: string;
             };
@@ -736,7 +744,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            /** @description The id is not a UUID */
+            /** @description The id is not a UUID, or X-Acting-Tenant is missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -745,7 +753,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the scopes: ai */
+            /** @description Requires a service token with scope ai */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -754,7 +762,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found, or not visible to the caller */
+            /** @description Not found, another caller's job, or another tenant's */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -768,7 +776,10 @@ export interface operations {
     recordFeedback: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
             path: {
                 jobId: string;
             };
@@ -789,7 +800,7 @@ export interface operations {
                     "application/json": components["schemas"]["Feedback"];
                 };
             };
-            /** @description Request failed validation */
+            /** @description Request failed validation, or X-Acting-Tenant is missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -798,7 +809,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires one of the scopes: ai */
+            /** @description Requires a service token with scope ai */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -807,7 +818,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No succeeded job with this id visible to the caller */
+            /** @description No succeeded job with this id of the caller, for the tenant it acts for */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1036,7 +1047,10 @@ export interface operations {
     getTenantAiStatus: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
             path: {
                 tenant: string;
             };
@@ -1053,7 +1067,7 @@ export interface operations {
                     "application/json": components["schemas"]["TenantAiStatus"];
                 };
             };
-            /** @description Request failed validation */
+            /** @description Request failed validation, or X-Acting-Tenant is missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1062,8 +1076,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Caller lacks the ai scope */
+            /** @description Requires a service token with scope ai */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The tenant is not the one the caller acts for */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

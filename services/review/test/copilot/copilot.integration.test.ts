@@ -718,9 +718,7 @@ describe('review copilot', () => {
       // Rated again: replaces that block's rating only.
       expect((await rate(summary, 'overview')).statusCode).toBe(200);
 
-      // `block` joins the gateway's FeedbackInput (ai-gateway.yaml).
-      const blockOf = (feedback: object) => (feedback as { block?: unknown }).block;
-      expect(api.ai.feedback.map((call) => [call.jobId, blockOf(call.feedback)])).toEqual([
+      expect(api.ai.feedback.map((call) => [call.jobId, call.feedback.block])).toEqual([
         [summary, 'overview'],
         [summary, 'sections'],
         [explanations, `flag:${flagId}`],

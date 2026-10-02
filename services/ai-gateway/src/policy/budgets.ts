@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, count, eq, gte, lt, sql, sum } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, lt, or, sql, sum } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { budgetInput } from '../admin/admin-input.js';
 import { budgets, jobs, type schema } from '../db/schema.js';
+import { LIVE_STATUSES } from '../jobs/job-states.js';
 import { auditChange } from './audit.js';
 
 export const BUDGET_DEFAULTS = Symbol('BUDGET_DEFAULTS');
@@ -87,8 +88,10 @@ export class Budgets {
   }
 
   /**
-   * Whether the tenant has created its per-minute allowance of jobs in the last 60 seconds;
-   * when it has, the seconds until the oldest of them leaves the window. Concurrent requests
+   * Whether the tenant has had its per-minute allowance of jobs admitted in the last 60 seconds;
+   * when it has, the seconds until the oldest of them leaves the window. Only admitted jobs
+   * count (queued or running, or started at some point): one blocked by the gate or the budget,
+   * or failed at once because its provider is unreachable, loaded nothing. Concurrent requests
    * may each see room for one more: the limit bounds load, it is not an exact quota.
    */
   async rateLimited(
@@ -98,7 +101,13 @@ export class Budgets {
     const recent = await this.db
       .select({ createdAt: jobs.createdAt })
       .from(jobs)
-      .where(and(eq(jobs.tenant, tenant), gte(jobs.createdAt, sql`now() - interval '1 minute'`)))
+      .where(
+        and(
+          eq(jobs.tenant, tenant),
+          gte(jobs.createdAt, sql`now() - interval '1 minute'`),
+          or(inArray(jobs.status, LIVE_STATUSES), isNotNull(jobs.startedAt)),
+        ),
+      )
       .orderBy(jobs.createdAt)
       .limit(perMinute);
     if (recent.length < perMinute) return { limited: false };

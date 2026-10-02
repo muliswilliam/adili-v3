@@ -1,6 +1,6 @@
 # ADR-013: Service-to-service communication
 
-- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), 2026-10-01 with the reporting service's (§2 timeouts, §8.7; spec 09), and 2026-10-02 with the review service's AI draft call (§2 timeouts; spec 07c); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
+- **Status:** Accepted; amended 2026-09-28 with the recorded exceptions in §8 (spec #27, spec 03), 2026-10-01 with the reporting service's (§2 timeouts, §8.7; spec 09), and 2026-10-02 with the review service's AI draft call (§2 timeouts; spec 07c) and the ai-gateway's acting tenant (§8.8; spec 07c); the depth limit and default timeout in §2 and the acting-tenant uses in §8.1 partly superseded by [ADR-017](0017-obligation-reminder-delivery.md) for the declarations service's calls (spec 04)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-003](0003-temporal-as-workflow-engine.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-005](0005-message-queue-rabbitmq.md), [ADR-006](0006-multi-tenancy-and-hierarchy.md), [ADR-009](0009-api-first-interoperability.md), [ADR-012](0012-single-polyglot-monorepo.md)
@@ -135,6 +135,13 @@ Token exchange (§5) replaces these with 8.1's.
 - review's `GET /internal/v1/review/referrals/{referralId}/icms-payload` (scope `review:internal`), read when an EACC analyst pushes a referral to ICMS. It also names the analyst in `X-Acting-Subject`, as declarations' internal document reads name the officer for review: review's audit of the read records who caused it. The header is trusted on the same terms as the acting tenant (internal route, service scope, never a grant by itself) and only names; it widens nothing the token may read.
 
 Notifications' `POST /internal/v1/messages` and the gateway's ICMS routes take no acting tenant: the message carries its `tenant` for audit and branding, and ICMS registrations are keyed by the referral reference. Token exchange (§5) replaces these with 8.1's once system work carries an originating user or tenant claim.
+
+**8.8 Acting tenant on the ai-gateway's internal routes (§5, spec 07c).** The review service runs the reviewer copilot's AI tasks from Temporal activities and event consumers (the summary and explanations after triage, a job's outcome on `ai.job.*`) as well as in a reviewer's request (Draft with AI, a rating), always with its own client credentials token, and names the Commission in `X-Acting-Tenant`. The gateway's internal routes take the tenant from that header under every control of 8.1 (`InternalApi('ai')` and `@ActingTenant()` from `packages/api-kit`; a user token is refused whatever it sends), never from the request body:
+- `POST /internal/v1/tasks/{task}`: the job is the named tenant's; its routing, classification gate, budget and rate limit are that tenant's. The body carries no tenant;
+- `GET /internal/v1/jobs/{jobId}` and `PUT /internal/v1/jobs/{jobId}/feedback`: the caller's own job of the named tenant, else 404, as if it did not exist;
+- `GET /internal/v1/tenants/{tenant}/status`: the path tenant must equal the header, else 404.
+
+Token exchange (§5) replaces this with 8.1's once system work carries an originating user or tenant claim.
 
 ## Alternatives considered
 

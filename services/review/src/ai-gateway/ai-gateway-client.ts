@@ -29,7 +29,7 @@ export type AiJobReason = Schemas['JobReason'];
 /** ai-gateway.yaml `TenantAiStatus`: the tenant's routed provider class and what it may see. */
 export type TenantAiStatus = Schemas['TenantAiStatus'];
 
-/** ai-gateway.yaml `FeedbackInput`: an officer's rating of a job's output. */
+/** ai-gateway.yaml `FeedbackInput`: a reviewer's rating of a job's output. */
 export type FeedbackInput = Schemas['FeedbackInput'];
 
 /** The inputs of the tasks the review service runs. */
@@ -47,7 +47,10 @@ export interface RunTaskOptions {
   waitSeconds?: number;
 }
 
-/** A task call (ai-gateway.yaml `TaskRequest`), narrowed to the inputs the review service sends. */
+/**
+ * A task call (ai-gateway.yaml `TaskRequest`), narrowed to the inputs the review service sends.
+ * `tenant` is the Commission the service acts for, sent as `X-Acting-Tenant` (ADR-013 §8.8).
+ */
 export interface TaskRequest {
   tenant: string;
   dataClass: DataClass;
@@ -109,15 +112,18 @@ export abstract class AiGatewayClient {
     options?: RunTaskOptions,
   ): Promise<AiJob>;
 
-  /** `getJob`: the job with its output once succeeded; null when the gateway has no such job. */
-  abstract getJob(jobId: string): Promise<AiJob | null>;
+  /**
+   * `getJob`: the job with its output once succeeded; null when the gateway has no such job of
+   * the tenant's.
+   */
+  abstract getJob(tenant: string, jobId: string): Promise<AiJob | null>;
 
   /**
    * `recordFeedback`: records (or replaces) the reviewer's rating of the job's output. False when
-   * the gateway has no succeeded job with that id for the review service. Throws
+   * the gateway has no succeeded job with that id for the review service and the tenant. Throws
    * `AiGatewayUnavailable` when the gateway cannot take it.
    */
-  abstract recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean>;
+  abstract recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean>;
 
   /** `getTenantAiStatus`: whether AI assistance is enabled for the tenant, and for which data. */
   abstract tenantStatus(tenant: string): Promise<TenantAiStatus>;

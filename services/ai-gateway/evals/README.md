@@ -39,11 +39,11 @@ Soft scorers are averaged over a task's cases against its threshold: `coverage` 
 Every fixture is keyed by the full request: prompt text, model, input and output schema. Any change to one of these misses the fixtures, and `eval` fails with `ReplayFixtureMissingError`.
 
 1. Edit `prompts/<task>/vN.md`. A version that has served real jobs is never edited: add `vN+1.md` and list it in the task's `promptVersions`.
-2. Put a key in `services/ai-gateway/.env` (`ANTHROPIC_API_KEY=...`, never committed) or the shell, then run `eval:record`. Recording uses `EVAL_MODEL` in `lib/run.ts` (`claude-sonnet-5`), not the service default; set `AI_MODEL` to record and compare another model.
+2. Put a key in `services/ai-gateway/.env` (`ANTHROPIC_API_KEY=...`, never committed) or the shell, then run `eval:record`. Recording uses `EVAL_MODEL` in `lib/run.ts`, the service default (`DEFAULT_AI_MODEL`, `claude-opus-5-5`); set `AI_MODEL` to record and compare another model.
 3. Read the failures and the new outputs; repeat.
 4. `eval:prune`, then commit the prompt with `evals/fixtures`. Reviewers read the fixture diffs: they are the model's actual answers.
 
-The committed fixtures were recorded on `claude-sonnet-5` against Anthropic directly, with native structured output. Production runs `claude-opus-5-5`. Re-record them against the production model before the gate is relied on for a model or provider change.
+The committed fixtures were recorded on `claude-opus-5-5`, the model production runs, against Anthropic directly, with native structured output. Re-record them when the default model or a provider changes.
 
 Swahili outputs and the Swahili verdict terms in `lib/verdict.ts` need a Swahili speaker's review before merge.
 

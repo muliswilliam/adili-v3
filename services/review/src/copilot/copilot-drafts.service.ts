@@ -217,7 +217,7 @@ export class CopilotDraftsService {
     );
     if (draft.status !== 'pending' || draft.jobId === null) return this.viewOf(draft);
 
-    const job = await this.gateway.getJob(draft.jobId).catch((error: unknown) => {
+    const job = await this.gateway.getJob(tenant, draft.jobId).catch((error: unknown) => {
       throw error instanceof AiGatewayUnavailable ? gatewayUnavailable() : error;
     });
     // A job the gateway no longer has: its outcome cannot be known.
