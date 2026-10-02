@@ -82,13 +82,17 @@ export function rulesOf(gate: readonly GateCellView[]): GateRule[] {
 export function accessText(access: readonly ProviderAccess[]): string | null {
   if (access.length === 0) return null;
   const text = access
-    .map(({ providerClass, dataClasses }) => {
-      const data = dataClassesText(dataClasses);
-      const only = dataClasses.length === 1 && dataClasses[0] === 'synthetic';
-      return m.aiEnabledText(m.providerClass[providerClass].toLowerCase(), data, only);
-    })
+    .map(({ providerClass, dataClasses }) =>
+      m.aiEnabledText(m.providerClass[providerClass].toLowerCase(), dataScopeText(dataClasses)),
+    )
     .join('; ');
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "synthetic data only" (the least a provider may get), or "synthetic and restricted data". */
+export function dataScopeText(dataClasses: readonly DataClass[]): string {
+  const only = dataClasses.length === 1 && dataClasses[0] === 'synthetic';
+  return m.dataScope(dataClassesText(dataClasses), only);
 }
 
 /** "synthetic and restricted": the data classes in running text. */

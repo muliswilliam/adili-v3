@@ -198,15 +198,16 @@ export const en = {
 
   // Commission status line (the Commission's policy card)
   aiAssistance: 'AI assistance',
-  aiEnabledText: (provider: string, data: string, only: boolean) =>
-    `${provider} provider, ${data} data${only ? ' only' : ''}`,
+  /** The data a provider class may process: "synthetic data only", "synthetic and restricted data". */
+  dataScope: (data: string, only: boolean) => `${data} data${only ? ' only' : ''}`,
+  aiEnabledText: (provider: string, scope: string) => `${provider} provider, ${scope}`,
   aiNotEnabledText: 'No declaration data is sent to an AI provider',
   /**
    * The status line's detail after the Enabled badge, the spec's "(external provider, synthetic
    * data only)" with the provider named in it: "External provider Anthropic, synthetic data only".
    */
-  statusEnabled: (providerClass: string, provider: string | null, data: string, only: boolean) =>
-    `${providerClass} provider${provider ? ` ${provider}` : ''}, ${data} data${only ? ' only' : ''}`,
+  statusEnabled: (providerClass: string, provider: string | null, scope: string) =>
+    `${providerClass} provider${provider ? ` ${provider}` : ''}, ${scope}`,
   aiStatusUnavailable: 'Could not be checked. Reload the page to try again.',
 } as const;
 
