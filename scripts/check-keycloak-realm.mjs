@@ -50,6 +50,17 @@ for (const name of [
 }
 
 const clients = new Map((realm.clients ?? []).map((client) => [client.clientId, client]));
+// Keycloak stores descriptions in varchar(255) columns: a longer one fails the realm import.
+for (const [kind, items, name] of [
+  ['client', realm.clients ?? [], 'clientId'],
+  ['client scope', realm.clientScopes ?? [], 'name'],
+]) {
+  for (const item of items) {
+    if ((item.description ?? '').length > 255) {
+      fail(`${kind} ${item[name]} has a description over 255 characters`);
+    }
+  }
+}
 for (const [id, port, secret] of [
   ['portal', 3010, 'portal-dev-secret'],
   ['console', 3020, 'console-dev-secret'],

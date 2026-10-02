@@ -400,7 +400,7 @@
     {
       "clientId": "access",
       "name": "Access service",
-      "description": "Service account the access service uses to read Commissions, roster records and staff from the directory, to ask declarations for scoped disclosures and full documents, to issue packages and certified copies and check attachments with documents, and to send messages through notifications",
+      "description": "Service account the access service uses for Commissions, roster records, staff, applicants and officers from the directory, disclosures and full documents from declarations, packages, copies and attachments in documents, and messages",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
