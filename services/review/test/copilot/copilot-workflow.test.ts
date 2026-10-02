@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 
 import { FieldCipherError } from '@adili/data-access';
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
+import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { AiGatewayUnavailable } from '../../src/ai-gateway/ai-gateway-client.js';
@@ -70,6 +71,11 @@ describe('copilotJobFinished', () => {
   it('records what stayed unavailable: the key service, or an error of its own, not the gateway', async () => {
     for (const [error, reason] of [
       [new FieldCipherError('unavailable', 'OpenBao is sealed'), 'key-service-unavailable'],
+      // Another cipher failure, as the activities rethrow it (Q23).
+      [
+        ApplicationFailure.nonRetryable('Tampered', 'FieldCipherError:decryption-failed'),
+        'internal-error',
+      ],
       [new TypeError('a bug'), 'internal-error'],
     ] as const) {
       const mocks = activities({ recordCopilotJob: vi.fn(() => Promise.reject(error)) });

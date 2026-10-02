@@ -34,7 +34,10 @@ export const COPILOT_UNAVAILABLE = {
 export type CopilotUnavailableReason =
   (typeof COPILOT_UNAVAILABLE)[keyof typeof COPILOT_UNAVAILABLE];
 
-/** The reason of a failure by the name of the error the activity threw. */
+/**
+ * The reason of a failure by the name of the error the activity threw. `FieldCipherError` is
+ * only a key service outage: the activities rethrow any other cipher failure under another type.
+ */
 export const COPILOT_UNAVAILABLE_BY_ERROR: Readonly<Record<string, CopilotUnavailableReason>> = {
   DeclarationsUnavailable: COPILOT_UNAVAILABLE.declarations,
   AiGatewayUnavailable: COPILOT_UNAVAILABLE.aiGateway,
