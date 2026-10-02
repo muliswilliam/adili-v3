@@ -4,6 +4,7 @@ import { Link, useMatches, useSearch } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { HelpLine, OnboardingStepper } from '../onboarding/onboarding-layout';
+import { APPLICANT_FRAME_COPY as COPY } from './copy';
 import { APPLICANT_STEP_NAMES } from './steps';
 
 /**
@@ -23,12 +24,12 @@ export function ApplicantFrame({ children }: { children: ReactNode }) {
           {back === '/access' ? (
             <Link to="/access">
               <Icon icon={ArrowLeft01Icon} />
-              Back
+              {COPY.back}
             </Link>
           ) : (
             <Link to="/access/get-started" search={{ kind }}>
               <Icon icon={ArrowLeft01Icon} />
-              Back
+              {COPY.back}
             </Link>
           )}
         </Button>
@@ -41,4 +42,4 @@ export function ApplicantFrame({ children }: { children: ReactNode }) {
 }
 
 /** Applicants have no Commission or reporting officer to ask yet. */
-export const APPLICANT_HELP = 'Need help? Contact the EACC helpdesk.';
+export const APPLICANT_HELP = COPY.help;

@@ -392,3 +392,16 @@ export const ACCESS_SHELL_COPY = english({
 
 /** `26 Sep 2026` */
 export const day = (iso: string) => formatDate(iso);
+
+/** The access landing page, where members of the public start. */
+const ACCESS_LANDING = {
+  title: en('Request access to a declaration · Adili Online'),
+  heading: en('Request access to a declaration'),
+  lead: en('For members of the public, with a national ID or passport.'),
+  getStarted: en('Get started'),
+  signIn: en('Sign in'),
+  publicOfficer: en('Public officer?'),
+  declareHere: en('Declare here'),
+};
+
+export const ACCESS_LANDING_COPY = english(ACCESS_LANDING);
