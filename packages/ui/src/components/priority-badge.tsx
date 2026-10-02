@@ -28,8 +28,8 @@ const META: Record<Priority, { variant: NonNullable<BadgeProps['variant']>; bars
   low: { variant: 'default', bars: 1 },
 };
 
-/** Three rising bars, `lit` of them solid and the rest faint, like a signal meter. */
-function Bars({ lit }: { lit: number }) {
+/** Three rising bars, `lit` of them solid and the rest faint, like a signal meter. Decorative. */
+export function SignalBars({ lit }: { lit: number }) {
   const bars = [
     { x: 0.5, y: 7, height: 4.5 },
     { x: 4.5, y: 4, height: 7.5 },
@@ -99,7 +99,7 @@ export function PriorityBadge({
       )}
       {...props}
     >
-      <Bars lit={bars} />
+      <SignalBars lit={bars} />
       {word}
     </Badge>
   );

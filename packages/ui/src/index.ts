@@ -276,7 +276,15 @@ export {
   PriorityBadge,
   type PriorityBadgeMessages,
   type PriorityBadgeProps,
+  SignalBars,
 } from './components/priority-badge';
+export {
+  type Severity,
+  SEVERITIES,
+  SEVERITY_LABELS,
+  SeverityBadge,
+  type SeverityBadgeProps,
+} from './components/severity-badge';
 export { ProgressBar, type ProgressBarProps } from './components/progress-bar';
 export { QrCode, qrCodePath, type QrCodeProps } from './components/qr-code';
 export {
