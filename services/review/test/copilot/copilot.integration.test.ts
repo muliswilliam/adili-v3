@@ -9,6 +9,7 @@ import type {
   SummarizeDeclarationInput,
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotView } from '../../src/copilot/copilot.service.js';
+import { CopilotWorkflows } from '../../src/copilot/copilot-workflows.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, twoVersions } from '../support/cases.js';
@@ -373,7 +374,7 @@ describe('review copilot', () => {
       expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
     });
 
-    it('a route change of the Commission, or of every Commission, requests its not-enabled copilots again (Q25)', async () => {
+    it('a route change of the Commission, or of every Commission, requests its not-enabled copilots again (Q25, Q26)', async () => {
       const version = submittedVersion({
         tenant: 'tsc',
         document: declaration([statement('officer', { assets: [land] })]),
@@ -384,7 +385,7 @@ describe('review copilot', () => {
       await untilStatus(created.id, 'not-enabled');
 
       // The route of a task for one tenant (or, tenant `platform`, the default route) moved.
-      const routeEvent = (tenant: string): EventEnvelope => ({
+      const routeEvent = (tenant: string, task = 'summarize-declaration'): EventEnvelope => ({
         specversion: '1.0',
         id: randomUUID(),
         source: 'adili/ai-gateway',
@@ -398,10 +399,10 @@ describe('review copilot', () => {
           tenant,
           actor: 'platform-admin-1',
           approvalRef: 'EACC/AI/2026/050',
-          before: { tenant: null, task: 'summarize-declaration', route: null },
+          before: { tenant: null, task, route: null },
           after: {
             tenant: null,
-            task: 'summarize-declaration',
+            task,
             route: { provider: 'local', model: 'llama-4', params: {} },
           },
         },
@@ -409,6 +410,13 @@ describe('review copilot', () => {
       const asked = api.ai.calls.length;
       // Another Commission's route asks nothing.
       await api.aiPolicy.changed(routeEvent('psc'));
+      // Nor does a route of a task the copilot doesn't run, the Commission's own or the default:
+      // no workflow starts at all (Q26).
+      const started = vi.spyOn(CopilotWorkflows.prototype, 'policyChanged');
+      await api.aiPolicy.changed(routeEvent('tsc', 'draft-clarification'));
+      await api.aiPolicy.changed(routeEvent('platform', 'draft-clarification'));
+      expect(started).not.toHaveBeenCalled();
+      started.mockRestore();
       expect(api.ai.calls).toHaveLength(asked);
 
       // The Commission's own route: asked again, still blocked.
