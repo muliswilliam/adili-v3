@@ -3124,6 +3124,10 @@ components:
         - kra-pin-missing
         - kra-non-compliant
         - kra-income-mismatch
+        - registry-parcel-number-missing
+        - registry-vehicle-registration-missing
+        - registry-company-registration-missing
+        - registry-company-dissolved
     ClarificationStatus:
       type: string
       enum:

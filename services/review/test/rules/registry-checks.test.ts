@@ -136,9 +136,7 @@ function run(input: RegistryMatchInput): RegistryMatch {
       }
     }
   }
-  const values = [...result.flags, ...result.notes].flatMap((entry) =>
-    Object.values(entry.evidence).flat(),
-  );
+  const values = result.flags.flatMap((entry) => Object.values(entry.evidence).flat());
   const leaked = values.filter((value) =>
     typeof value === 'number'
       ? amounts.has(value)
@@ -194,7 +192,7 @@ describe('matchRegistries: the demo', () => {
         'ardhisasa matched',
       ]);
     }
-    expect(match.notes).toEqual([]);
+    expect(match.flags.filter((flag) => flag.severity === 'info')).toEqual([]);
   });
 
   it('S6: Kiprono Chebet, who declared all his holdings, shows the KRA non-compliance only', () => {
@@ -235,6 +233,30 @@ describe('matchRegistries: the demo', () => {
       'brs matched',
       'ardhisasa matched',
     ]);
+  });
+
+  it('M1: an item that could not be compared is an info flag, not a mismatch', () => {
+    const match = run(
+      declarant(
+        AMINA,
+        statement('officer', {
+          income: [twoYears(1_680_000)],
+          assets: [land(undefined), vehicle(undefined, 'Toyota Prado')],
+        }),
+      ),
+    );
+
+    expect(summary(match.flags)).toEqual([
+      'registry-vehicle-registration-missing info',
+      'registry-parcel-number-missing info',
+    ]);
+    expect(statuses(match, 'officer')).toEqual([
+      'kra matched',
+      'ntsa matched',
+      'brs matched',
+      'ardhisasa matched',
+    ]);
+    expect(score(match.flags)).toBe(0);
   });
 
   it('S8: the score and band include the registry flags with the deterministic ones', () => {
@@ -308,7 +330,7 @@ describe('matchRegistries: land (ArdhiSasa)', () => {
     expect(match.flags.filter((flag) => flag.ruleId.includes('parcel'))).toEqual([]);
   });
 
-  it('notes land declared without a parcel number and raises no flag on it', () => {
+  it('M1: notes land declared without a parcel number in an info flag and raises no other flag on it', () => {
     const input = wanjiku((h) => {
       h.officer.assets.push(land(undefined));
     });
@@ -318,21 +340,20 @@ describe('matchRegistries: land (ArdhiSasa)', () => {
     expect(summary(match.flags.filter((flag) => flag.ruleId.includes('parcel')))).toEqual([
       // The Kajiado parcel still has no declared item to pair with.
       'registry-parcel-undeclared high',
+      'registry-parcel-number-missing info',
     ]);
-    expect(match.notes).toEqual([
-      {
-        kind: 'parcel-number-missing',
-        system: 'ardhisasa',
-        evidence: {},
-        itemRefs: [
-          {
-            personKey: 'officer',
-            itemId: input.document.statements[0]?.assets.at(-1)?.id,
-            sectionKey: 'statement:officer',
-          },
-        ],
-      },
-    ]);
+    expect(match.flags.at(-1)).toMatchObject({
+      ruleId: 'registry-parcel-number-missing',
+      title: 'Land declared without a parcel number',
+      evidence: {},
+      itemRefs: [
+        {
+          personKey: 'officer',
+          itemId: input.document.statements[0]?.assets.at(-1)?.id,
+          sectionKey: 'statement:officer',
+        },
+      ],
+    });
   });
 });
 
@@ -365,8 +386,8 @@ describe('matchRegistries: vehicles (NTSA)', () => {
   it('notes a vehicle declared without a registration', () => {
     const match = run(wanjiku((h) => h.officer.assets.push(vehicle(undefined, 'Toyota Prado'))));
 
-    expect(match.notes.map((note) => `${note.system} ${note.kind}`)).toEqual([
-      'ntsa vehicle-registration-missing',
+    expect(summary(match.flags.filter((flag) => flag.severity === 'info'))).toEqual([
+      'registry-vehicle-registration-missing info',
     ]);
   });
 });
@@ -496,8 +517,8 @@ describe('matchRegistries: companies (BRS)', () => {
   it('notes a declared company without a registration number BRS does not know by name', () => {
     const match = run(wanjiku((h) => h.officer.assets.push(shares('Kilele Holdings'))));
 
-    expect(match.notes.map((note) => `${note.system} ${note.kind}`)).toEqual([
-      'brs company-registration-missing',
+    expect(summary(match.flags.filter((flag) => flag.severity === 'info'))).toEqual([
+      'registry-company-registration-missing info',
     ]);
     expect(match.flags.filter((flag) => flag.ruleId === 'declared-company-not-found')).toEqual([]);
   });
@@ -520,10 +541,13 @@ describe('matchRegistries: companies (BRS)', () => {
 
     const match = run(input);
 
-    expect(match.notes).toEqual([
+    expect(
+      match.flags
+        .filter((flag) => flag.severity === 'info')
+        .map(({ ruleId, evidence, itemRefs }) => ({ ruleId, evidence, itemRefs })),
+    ).toEqual([
       {
-        kind: 'company-dissolved',
-        system: 'brs',
+        ruleId: 'registry-company-dissolved',
         evidence: { companyRegistrationNumber: 'PVT-9XYZ2L4Q' },
         itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'other' }],
       },

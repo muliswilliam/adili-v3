@@ -15,7 +15,9 @@ import type { RegistryCheckRequest, RegistryLookups } from '../../src/registry/c
 import type { RegistryView } from '../../src/registry/representation.js';
 import {
   BARAKA_KEY,
+  type Household,
   IMANI_KEY,
+  land,
   SPOUSE,
   wanjikuDocument,
   wanjikuHousehold,
@@ -72,11 +74,14 @@ describe('registry checks', () => {
    * Wanjiku Kamau's demo declaration, her roster record (national ID, employer KEMSA) in the
    * directory, the seed's registry records for her household and KEMSA's supplier list.
    */
-  function wanjikuVersion(ids: { baraka?: string } = {}): StoredVersion {
+  function wanjikuVersion(
+    ids: { baraka?: string } = {},
+    household: Household = wanjikuHousehold(),
+  ): StoredVersion {
     const version = submittedVersion({
       tenant: 'psc',
       declarantName: 'Wanjiku Njoki Kamau',
-      document: wanjikuDocument(wanjikuHousehold(), ids),
+      document: wanjikuDocument(household, ids),
     });
     api.declarations.given(version);
     api.directory.givenRosterRecord('psc', version.rosterRecordId, {
@@ -479,6 +484,26 @@ describe('registry checks', () => {
         expect(stored).not.toContain(detail);
       }
       expect(stored).toContain('KDK 482M');
+    });
+
+    it('M1: land declared without a parcel number shows as an info flag beside ArdhiSasa, scoring nothing', async () => {
+      const household = wanjikuHousehold();
+      const plot = land(undefined);
+      household.officer.assets.push(plot);
+      const request = await caseOf(wanjikuVersion({}, household));
+
+      await check(request);
+
+      const view = (await api.get(registryPath(request.caseId), reviewer)).json<RegistryView>();
+      const ardhisasa = view.persons[0]?.systems.find((s) => s.system === 'ardhisasa');
+      expect(
+        ardhisasa?.flags.map((flag) => [flag.ruleId, flag.severity, flag.itemRefs[0]?.itemId]),
+      ).toEqual([
+        ['registry-parcel-undeclared', 'high', null],
+        ['registry-parcel-number-missing', 'info', plot.id],
+      ]);
+      // An info flag weighs nothing: the score is the demo's.
+      expect(await caseRow(request.caseId)).toMatchObject({ score: 17 });
     });
 
     it('before any check every registry is not checked, with no records', async () => {

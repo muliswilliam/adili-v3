@@ -1045,7 +1045,7 @@ export interface components {
         /** @enum {string} */
         Severity: "info" | "low" | "medium" | "high";
         /** @enum {string} */
-        RuleId: "completeness-residual" | "no-previous-version" | "value-change-25" | "acquisition-unflagged" | "disposal-unflagged" | "change-flag-mismatch" | "income-vs-asset-growth" | "nil-after-populated" | "late-filing" | "foreign-holdings" | "joint-share-inconsistent" | "registry-parcel-undeclared" | "declared-parcel-not-found" | "registry-vehicle-undeclared" | "declared-vehicle-not-found" | "registry-directorship-undeclared" | "declared-company-not-found" | "directorship-employer-supplier" | "kra-pin-missing" | "kra-non-compliant" | "kra-income-mismatch";
+        RuleId: "completeness-residual" | "no-previous-version" | "value-change-25" | "acquisition-unflagged" | "disposal-unflagged" | "change-flag-mismatch" | "income-vs-asset-growth" | "nil-after-populated" | "late-filing" | "foreign-holdings" | "joint-share-inconsistent" | "registry-parcel-undeclared" | "declared-parcel-not-found" | "registry-vehicle-undeclared" | "declared-vehicle-not-found" | "registry-directorship-undeclared" | "declared-company-not-found" | "directorship-employer-supplier" | "kra-pin-missing" | "kra-non-compliant" | "kra-income-mismatch" | "registry-parcel-number-missing" | "registry-vehicle-registration-missing" | "registry-company-registration-missing" | "registry-company-dissolved";
         /** @enum {string} */
         ClarificationStatus: "draft" | "issued" | "responded" | "resolved" | "overdue" | "withdrawn";
         /**

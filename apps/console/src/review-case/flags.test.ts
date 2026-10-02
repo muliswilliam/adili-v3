@@ -105,6 +105,12 @@ describe('evidenceLine', () => {
       null,
       'Income declared to KRA lower by 40%',
     ],
+    [
+      'registry-company-dissolved',
+      { companyRegistrationNumber: 'PVT-9XYZ2L4Q' },
+      null,
+      'Company PVT-9XYZ2L4Q dissolved',
+    ],
   ] as const)('%s reads its facts', (ruleId, evidence, previous, line) => {
     expect(evidenceLine({ ruleId, evidence }, previous)).toBe(line);
   });
@@ -120,6 +126,9 @@ describe('evidenceLine', () => {
 
   it('gives no line for a rule without facts, or facts it cannot read', () => {
     expect(evidenceLine({ ruleId: 'no-previous-version', evidence: {} }, null)).toBeNull();
+    expect(
+      evidenceLine({ ruleId: 'registry-parcel-number-missing', evidence: {} }, null),
+    ).toBeNull();
     expect(evidenceLine({ ruleId: 'registry-vehicle-undeclared', evidence: {} }, null)).toBeNull();
     expect(
       evidenceLine({ ruleId: 'late-filing', evidence: { daysLate: 'soon' } }, null),

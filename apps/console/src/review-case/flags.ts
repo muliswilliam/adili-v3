@@ -156,6 +156,12 @@ export function evidenceLine(
         (difference) =>
           `Income declared to KRA ${e.direction === 'below' ? 'lower' : 'higher'} by ${difference}`,
       );
+    case 'registry-company-dissolved':
+      return around(text(e.companyRegistrationNumber), (company) => `Company ${company} dissolved`);
+    // The item it points at is the fact: it carries no identifier to compare.
+    case 'registry-parcel-number-missing':
+    case 'registry-vehicle-registration-missing':
+    case 'registry-company-registration-missing':
     case 'no-previous-version':
       return null;
   }
