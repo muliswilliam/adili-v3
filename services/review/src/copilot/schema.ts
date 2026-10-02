@@ -88,9 +88,9 @@ export const COPILOT_RATINGS = ['helpful', 'not-helpful'] as const;
 export type CopilotRating = (typeof COPILOT_RATINGS)[number];
 
 /**
- * An officer's rating of a copilot output (spec 07c S13), one per officer per output (job). The
+ * A reviewer's rating of a copilot output (spec 07c S13), one per reviewer per output (job). The
  * ai-gateway holds the rating of record, with the reason and note, and announces it for
- * reporting; the review service keeps the rating so the copilot view can show the officer their
+ * reporting; the review service keeps the rating so the copilot view can show the reviewer their
  * own.
  */
 export const reviewCopilotRatings = pgTable(

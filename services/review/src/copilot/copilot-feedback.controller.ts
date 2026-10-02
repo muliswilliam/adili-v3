@@ -14,7 +14,7 @@ import {
   type CopilotFeedbackInput,
 } from './copilot-feedback.js';
 
-/** Officers' ratings of copilot outputs (spec 07c S13), named by the output's job. */
+/** Reviewers' ratings of copilot outputs (spec 07c S13), named by the output's job. */
 @ApiTags('copilot')
 @Controller('v1/review/copilot/outputs/:jobId/feedback')
 export class CopilotFeedbackController {

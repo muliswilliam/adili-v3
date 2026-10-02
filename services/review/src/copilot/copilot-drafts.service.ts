@@ -23,11 +23,7 @@ import {
 } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
-import {
-  declarationsUnavailable,
-  upstreamUnavailable,
-  withUpstream,
-} from '../internal-api/upstream.js';
+import { declarationsUnavailable, withUpstream } from '../internal-api/upstream.js';
 import { COPILOT_FAILURES, copilotOf, dataClassOf } from './copilot-requests.js';
 import {
   COPILOT_DRAFT_TTL_HOURS,
@@ -43,6 +39,7 @@ import {
   InvalidDraftSelection,
 } from './draft-input.js';
 import { caseSubjectRef } from './events.js';
+import { aiGatewayUnavailable as gatewayUnavailable, aiNotEnabled } from './problems.js';
 
 /** review.yaml `CopilotDraft`. */
 export interface CopilotDraft {
@@ -269,22 +266,3 @@ function outcomeOf(job: AiJob): Outcome {
   return { status: 'pending', reason: null };
 }
 
-function aiNotEnabled(): ProblemException {
-  return new ProblemException(
-    {
-      type: 'ai-not-enabled',
-      title: 'AI assistance not enabled',
-      status: HttpStatus.CONFLICT,
-      detail: 'AI assistance is not enabled for this Commission.',
-    },
-    { code: 'ai-not-enabled' },
-  );
-}
-
-function gatewayUnavailable(): ProblemException {
-  return upstreamUnavailable(
-    'ai-gateway',
-    'The AI gateway cannot be reached. Try again shortly.',
-    HttpStatus.SERVICE_UNAVAILABLE,
-  );
-}

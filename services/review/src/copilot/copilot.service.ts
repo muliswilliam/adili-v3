@@ -7,9 +7,10 @@ import { caseTenant, isSupervisor } from '../cases/access.js';
 import { findCase } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsUnavailable } from '../declarations/declarations-client.js';
-import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
+import { declarationsUnavailable } from '../internal-api/upstream.js';
 import { type CopilotRatingView, ratingsOf } from './copilot-feedback.js';
 import { copilotOf, copilotOutputRecordId, CopilotRequests } from './copilot-requests.js';
+import { aiGatewayUnavailable, aiNotEnabled } from './problems.js';
 import type { CopilotRow, CopilotStatus } from './schema.js';
 
 /** review.yaml `CopilotView`. */
@@ -119,17 +120,7 @@ export class CopilotService {
         { code: 'copilot-pending' },
       );
     }
-    if (record?.status === 'not-enabled') {
-      throw new ProblemException(
-        {
-          type: 'ai-not-enabled',
-          title: 'AI assistance not enabled',
-          status: HttpStatus.CONFLICT,
-          detail: 'AI assistance is not enabled for this Commission.',
-        },
-        { code: 'ai-not-enabled' },
-      );
-    }
+    if (record?.status === 'not-enabled') throw aiNotEnabled();
 
     try {
       await this.requests.request({
@@ -140,13 +131,7 @@ export class CopilotService {
       });
     } catch (error) {
       if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
-      if (error instanceof AiGatewayUnavailable) {
-        throw upstreamUnavailable(
-          'ai-gateway',
-          'The AI gateway cannot be reached. Try again shortly.',
-          HttpStatus.SERVICE_UNAVAILABLE,
-        );
-      }
+      if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
       throw error;
     }
     return this.view(principal, row.id);

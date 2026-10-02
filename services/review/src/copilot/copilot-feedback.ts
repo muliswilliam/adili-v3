@@ -8,8 +8,8 @@ import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-
 import { caseTenant } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { upstreamUnavailable } from '../internal-api/upstream.js';
 import { reviewCopilotDrafts } from './draft-schema.js';
+import { aiGatewayUnavailable } from './problems.js';
 import {
   COPILOT_RATINGS,
   type CopilotRating,
@@ -59,7 +59,7 @@ export async function caseShowingOutput(
   return drafted?.caseId ?? null;
 }
 
-/** The officer's own ratings of the outputs `jobIds`. */
+/** The reviewer's own ratings of the outputs `jobIds`. */
 export async function ratingsOf(
   tx: ReviewTransaction,
   reviewerSubject: string,
@@ -80,11 +80,11 @@ export async function ratingsOf(
 }
 
 /**
- * Officers' ratings of the copilot's outputs (spec 07c S13). The case's assignee rates; the
+ * Reviewers' ratings of the copilot's outputs (spec 07c S13). The case's assignee rates; the
  * Commission's other reviewers and its supervisors read the copilot but do not rate it (403),
  * and anyone else gets 404. The rating goes to the ai-gateway first, which holds it with the
  * reason and note and announces it for reporting; the review service then keeps the rating to
- * show it back. A repeat by the same officer replaces their rating in both places.
+ * show it back. A repeat by the same reviewer replaces their rating in both places.
  */
 @Injectable()
 export class CopilotFeedback {
@@ -120,13 +120,7 @@ export class CopilotFeedback {
         ...input,
       });
     } catch (error) {
-      if (error instanceof AiGatewayUnavailable) {
-        throw upstreamUnavailable(
-          'ai-gateway',
-          'The AI gateway cannot be reached. Try again shortly.',
-          HttpStatus.SERVICE_UNAVAILABLE,
-        );
-      }
+      if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
       throw error;
     }
     // The gateway does not know the output's job (it never forgets one): as if it did not exist.

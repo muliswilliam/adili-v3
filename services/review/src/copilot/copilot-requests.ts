@@ -32,7 +32,7 @@ import { type CopilotRow, type CopilotStatus, reviewCopilots } from './schema.js
 
 /** A request of a case's copilot, on whose behalf the declaration is read. */
 export interface CopilotRequest extends CopilotActivityRequest {
-  /** The service (`system:review`), or the officer who refreshed. */
+  /** The service (`system:review`), or the reviewer who refreshed. */
   actingSubject: string;
 }
 

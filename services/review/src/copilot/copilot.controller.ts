@@ -35,7 +35,7 @@ export class CopilotController {
     summary:
       'AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read)',
     description:
-      "Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named officer decides.",
+      "Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named reviewer decides.",
   })
   @ApiOkResponse({ description: 'Copilot view', schema: schemaRef('CopilotView') })
   @ApiProblemResponse(404, NOT_VISIBLE)
