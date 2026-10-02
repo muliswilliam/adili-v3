@@ -226,7 +226,23 @@ describe('S11 provision', () => {
       name: 'Achieng W. Njoroge',
       phone: '+254700111222',
     });
-    expect(await leaEvents()).toHaveLength(1);
+    // The change is recorded, ids only: no name or phone in the event.
+    const events = await leaEvents();
+    expect(events.map((event) => event.type)).toEqual([
+      'lea.account.provisioned.v1',
+      'lea.account.updated.v1',
+    ]);
+    expect(events[1]?.envelope).toMatchObject({
+      tenant: 'lea',
+      subject: officer.id,
+      data: {
+        personId: officer.id,
+        agencyCode: 'DCI',
+        keycloakUserId: api.identity.userByEmail(OFFICER.email)?.userId,
+      },
+    });
+    expect(JSON.stringify(events[1]?.envelope)).not.toContain('Achieng');
+    expect(JSON.stringify(events[1]?.envelope)).not.toContain('254700111222');
   });
 
   it('refuses an email of an officer of another agency, and of an account that is no officer', async () => {
@@ -266,7 +282,11 @@ describe('S11 provision', () => {
     const response = await provision();
 
     expect(response.statusCode).toBe(502);
-    expect(response.json<Problem>().type).toBe('identity-unavailable');
+    // The coded problem every identity provider failure is, as in applicant onboarding.
+    expect(response.json()).toMatchObject({
+      type: 'identity-unavailable',
+      code: 'identity-unavailable',
+    });
     expect(await api.db.select().from(persons)).toEqual([]);
     expect(await leaEvents()).toEqual([]);
     expect((await provision()).statusCode).toBe(201);
@@ -447,6 +467,11 @@ describe('S11 activation', () => {
 
     expect(again.json<Account>().state).toBe('activated');
     expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
+    expect((await leaEvents()).map((event) => event.type)).toEqual([
+      'lea.account.provisioned.v1',
+      'lea.account.activated.v1',
+      'lea.account.updated.v1',
+    ]);
   });
 });
 
@@ -455,7 +480,7 @@ describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance f
     sub: 'service-account-access',
     tenant: 'platform',
     azp: 'access',
-    scope: 'profile directory:internal',
+    scope: 'profile directory:law-enforcement',
   };
   const ACTING_PSC = { 'x-acting-tenant': 'psc' };
   const path = (personId: string) => `/internal/v1/law-enforcement/officers/${personId}`;
@@ -493,7 +518,11 @@ describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance f
     ).filter((event) => event.type === 'audit.read.v1');
     expect(audits.at(-1)?.envelope).toMatchObject({
       tenant: 'psc',
-      data: { action: 'lea-officer.read', actor: { subject: 'service-account-access' } },
+      data: {
+        action: 'lea-officer.read',
+        actor: { subject: 'service-account-access' },
+        resource: { subjectPersonId: officer.id },
+      },
     });
   });
 
@@ -518,6 +547,21 @@ describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance f
     expect((await api.get(path(officer.id), ACCESS)).statusCode).toBe(400);
     expect(
       (await api.get(path(officer.id), { ...ACCESS, scope: 'profile' }, ACTING_PSC)).statusCode,
+    ).toBe(403);
+    // Officers' names and accounts are not reference data: directory:internal does not open them.
+    expect(
+      (
+        await api.get(
+          path(officer.id),
+          {
+            ...ACCESS,
+            sub: 'service-account-reporting',
+            azp: 'reporting',
+            scope: 'directory:internal',
+          },
+          ACTING_PSC,
+        )
+      ).statusCode,
     ).toBe(403);
     expect((await api.get(path(officer.id), ACCESS_OFFICER, ACTING_PSC)).statusCode).toBe(403);
   });

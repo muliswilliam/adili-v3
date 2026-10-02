@@ -5,6 +5,8 @@ import {
   ApiProblemResponse,
   ApiQueryParameters,
   AuditedRead,
+  CurrentReadAudit,
+  type ReadAudit,
   CurrentPrincipal,
   type Principal,
   InternalApi,
@@ -110,11 +112,14 @@ export class InternalPersonsController {
     404,
     'No person has this id, or a declarant not onboarded at the acting tenant',
   )
-  contacts(
+  async contacts(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<PersonContacts> {
-    return this.persons.contacts({ tenant, subject: principal.subject }, personId);
+    const contacts = await this.persons.contacts({ tenant, subject: principal.subject }, personId);
+    audit.resource({ tenant, subjectPersonId: personId });
+    return contacts;
   }
 }

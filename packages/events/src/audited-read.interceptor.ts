@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+  ACTING_SUBJECT_HEADER,
   type AuditedReadOptions,
   type AuditedResource,
   type AuthenticatedRequest,
@@ -22,12 +23,6 @@ import type { NewEvent } from './envelope.js';
 
 /** A read of sensitive data, for the audit trail (ADR-008 Pipeline step 2). */
 export const AUDIT_READ = 'audit.read.v1';
-
-/**
- * The header in which a calling service names the officer it reads for (`X-Acting-Subject` on
- * internal reads), recorded as the actor's `onBehalfOf` (ADR-008 `actor.on-behalf-of`).
- */
-export const ACTING_SUBJECT_HEADER = 'x-acting-subject';
 
 export interface AuditReadData extends Record<string, unknown> {
   /** The route's audit action, e.g. `roster.record.viewed`. */
@@ -116,9 +111,11 @@ export class AuditedReadInterceptor implements NestInterceptor {
     return next.handle().pipe(
       mergeMap(async (body: unknown) => {
         const audit = readAuditOf(request);
-        if (!audit.isOwnRecord) {
-          await this.events.record(this.db, auditRead(mark, request, audit));
-        }
+        // One multi-row insert: the audit event and those the read causes, both or neither.
+        await this.events.recordAll(this.db, [
+          ...(audit.isOwnRecord ? [] : [auditRead(mark, request, audit)]),
+          ...audit.eventsAlongside,
+        ]);
         return body;
       }),
     );

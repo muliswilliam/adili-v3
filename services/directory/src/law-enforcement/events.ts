@@ -8,6 +8,7 @@ import type { NewEvent } from '@adili/events';
  */
 
 export const LEA_ACCOUNT_PROVISIONED = 'lea.account.provisioned.v1';
+export const LEA_ACCOUNT_UPDATED = 'lea.account.updated.v1';
 export const LEA_ACCOUNT_ACTIVATED = 'lea.account.activated.v1';
 export const LEA_ACCOUNT_REVOKED = 'lea.account.revoked.v1';
 
@@ -33,6 +34,12 @@ function leaAccountEvent(type: string) {
  * email follows the commit.
  */
 export const leaAccountProvisioned = leaAccountEvent(LEA_ACCOUNT_PROVISIONED);
+
+/**
+ * An invited or activated officer was provisioned again: their name and phone, on the account and
+ * the person, are as given now. No email follows unless they are still invited.
+ */
+export const leaAccountUpdated = leaAccountEvent(LEA_ACCOUNT_UPDATED);
 
 /** The officer signed in for the first time: their first authenticated request reached the directory. */
 export const leaAccountActivated = leaAccountEvent(LEA_ACCOUNT_ACTIVATED);

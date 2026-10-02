@@ -27,7 +27,7 @@ import {
 } from '../identity/identity-provisioning.js';
 import { newPersonId } from '../persons/person-id.js';
 import { persons } from '../persons/schema.js';
-import { leaAccountProvisioned, leaAccountRevoked } from './events.js';
+import { leaAccountProvisioned, leaAccountRevoked, leaAccountUpdated } from './events.js';
 import type {
   Agency,
   InternalLeaOfficer,
@@ -299,6 +299,11 @@ export class LawEnforcementOfficersService {
       .set({ fullName: body.name, phone: body.phone })
       .where(eq(persons.id, personId));
     if (officer.state !== 'revoked') {
+      // Every write is recorded (ADR-008): the account and the person now hold the name and phone.
+      await this.events.record(
+        tx,
+        leaAccountUpdated({ personId, agencyCode: agency.code, keycloakUserId }),
+      );
       return {
         officer: await this.lockedAccount(tx, personId),
         agencyName: agency.name,
@@ -431,12 +436,16 @@ interface Provisioned {
 }
 
 function account(row: OfficerRow): LeaOfficerAccount {
+  // Provisioning always stores both (the person's columns are nullable for other kinds).
+  if (row.email === null || row.phone === null) {
+    throw new Error(`Law-enforcement officer ${row.personId} has no email or phone`);
+  }
   return {
     id: row.personId,
     agencyCode: row.agencyCode,
     name: row.name,
-    email: row.email ?? '',
-    phone: row.phone ?? '',
+    email: row.email,
+    phone: row.phone,
     state: row.state,
     invitedAt: row.invitedAt.toISOString(),
     activatedAt: row.activatedAt?.toISOString() ?? null,
@@ -454,12 +463,7 @@ function asProblem(error: unknown, unavailable: string): unknown {
     return emailTaken();
   }
   if (error instanceof IdentityUnavailable) {
-    return new ProblemException({
-      type: 'identity-unavailable',
-      title: 'Identity provider unavailable',
-      status: HttpStatus.BAD_GATEWAY,
-      detail: unavailable,
-    });
+    return ProblemException.fromCode('identity-unavailable', { detail: unavailable });
   }
   if (error instanceof IdentityUserNotFound) {
     return new ProblemException({

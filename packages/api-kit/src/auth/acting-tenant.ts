@@ -14,7 +14,7 @@ import { ApiHeader } from '@nestjs/swagger';
 import { ApiProblemResponse } from '../openapi.js';
 import { ProblemException } from '../problem-details.filter.js';
 import type { AuthenticatedRequest } from './jwt-auth.guard.js';
-import { ACTING_TENANT_HEADER } from './service-token-client.js';
+import { ACTING_SUBJECT_HEADER, ACTING_TENANT_HEADER } from './service-token-client.js';
 
 /**
  * A tenant key: a Commission slug, or `eacc`. `platform` matches it but is the reserved RLS
@@ -94,3 +94,19 @@ export const ActingTenant = createParamDecorator((_: unknown, context: Execution
   if (!tenant) throw new Error('ActingTenant used on a route without InternalApi()');
   return tenant;
 });
+
+/**
+ * The raw `X-Acting-Subject` header of a call `@InternalApi()` admitted: whom the calling service
+ * acts for. Give it the validation pipe the route needs (required or optional, and its shape).
+ *
+ * @example
+ * read(@ActingSubject(new ZodValidationPipe(z.string().min(1).max(255))) subject: string) {}
+ */
+export const ActingSubject = createParamDecorator(
+  (_: unknown, context: ExecutionContext): unknown => {
+    const request = context.switchToHttp().getRequest<InternalRequest>();
+    if (!request.actingTenant)
+      throw new Error('ActingSubject used on a route without InternalApi()');
+    return request.headers[ACTING_SUBJECT_HEADER];
+  },
+);

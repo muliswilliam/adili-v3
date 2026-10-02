@@ -1,24 +1,7 @@
+import { Body, Controller, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { ApiBody, ApiHeader, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
-  Body,
-  Controller,
-  createParamDecorator,
-  type ExecutionContext,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiBody,
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
-import {
+  ActingSubject,
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
@@ -30,7 +13,7 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { DECLARATIONS_INTERNAL_SCOPE } from '@adili/roles';
+import { DECLARATIONS_DISCLOSURES_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
 import { versionNumber } from '../declaration/versions.js';
@@ -40,20 +23,11 @@ import {
   type DisclosureDocument,
   type DisclosureRequest,
   disclosureRequestSchema,
+  type FullDocumentRequest,
+  fullDocumentRequestSchema,
   type FullVersionDocument,
   SELF_ACCESS,
 } from './representation.js';
-
-/**
- * The `X-Acting-Subject` header, validated by the pipe given: required here, as a disclosure
- * always names whom the service acts for.
- */
-const ActingSubject = createParamDecorator(
-  (_: unknown, context: ExecutionContext): unknown =>
-    context.switchToHttp().getRequest<{ headers: Record<string, unknown> }>().headers[
-      'x-acting-subject'
-    ],
-);
 
 /**
  * Internal: not routed by the public entrypoint. The access service (spec 10) asks here for what
@@ -64,7 +38,7 @@ const ActingSubject = createParamDecorator(
  */
 @ApiTags('internal')
 @Controller('internal/v1/declarations')
-@InternalApi(DECLARATIONS_INTERNAL_SCOPE)
+@InternalApi(DECLARATIONS_DISCLOSURES_SCOPE)
 export class InternalDisclosureController {
   constructor(private readonly disclosures: DisclosureService) {}
 
@@ -82,7 +56,7 @@ export class InternalDisclosureController {
     summary:
       "Render the scoped disclosure of a person's submitted declarations for a grant (audited)",
     description:
-      "Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (the access service). For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.",
+      "Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.",
   })
   @ApiBody({ required: true, schema: schemaRef('DisclosureRequest') })
   @ApiOkResponse({ description: 'The disclosure', schema: schemaRef('DisclosureDocument') })
@@ -101,8 +75,13 @@ export class InternalDisclosureController {
     @Body(new ZodValidationPipe(disclosureRequestSchema)) request: DisclosureRequest,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<DisclosureDocument> {
-    const disclosure = await this.disclosures.render(tenant, principal.subject, request);
-    audit.resource({ tenant, subjectPersonId: request.personId });
+    const { disclosure, versionIds } = await this.disclosures.render(
+      tenant,
+      principal.subject,
+      request,
+    );
+    // The versions that left, by id: investigators can tell which were disclosed (ADR-008).
+    audit.resource({ tenant, subjectPersonId: request.personId, ids: versionIds });
     audit.disclosure({
       basis: request.legalBasis,
       reference: request.grantReference,
@@ -111,51 +90,47 @@ export class InternalDisclosureController {
     return disclosure;
   }
 
-  @Get(':declarationId/versions/:version/full-document')
+  @Post(':declarationId/versions/:version/full-document')
+  @HttpCode(HttpStatus.OK)
   @AuditedRead({ action: 'declaration.full-document.pulled', resource: 'declaration-version' })
   @ApiVersionParams()
   @ApiHeader({
     name: 'X-Acting-Subject',
     required: true,
     description:
-      'The declarant asking for the certified copy, who receives it; recorded in the audit event',
+      'Who asked for the certified copy: the declarant online, or the access officer recording their written application; recorded in the audit event as the actor',
     schema: { type: 'string', minLength: 1, maxLength: 255 },
-  })
-  @ApiQuery({
-    name: 'personId',
-    required: true,
-    description: 'The declarant asking for the copy: the version must be theirs',
-    schema: { type: 'string', format: 'uuid' },
   })
   @ApiOperation({
     operationId: 'internalGetFullDocumentForCertifiedCopy',
     summary:
       "The full immutable document of a version for the declarant's certified copy (audited as self-access)",
     description:
-      'Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (the access service). Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32), the declarant its recipient.',
+      "Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. A read, posted so that the recipient, possibly a representative's name, stays out of the URL. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32): X-Acting-Subject is who asked, `recipient` whom the copy is handed to (the declarant, or their representative).",
   })
+  @ApiBody({ required: true, schema: schemaRef('FullDocumentRequest') })
   @ApiOkResponse({ description: 'The version in full', schema: schemaRef('FullVersionDocument') })
   @ApiProblemResponse(
     400,
-    'version is not a positive integer, personId is not a UUID, or no X-Acting-Subject',
+    'version is not a positive integer, the body failed validation, or no X-Acting-Subject',
   )
   @ApiProblemResponse(404, "No such version of the person's declarations at the acting Commission")
   async fullDocument(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
-    @ActingSubject(new ZodValidationPipe(z.string().min(1).max(255))) recipient: string,
+    @ActingSubject(new ZodValidationPipe(z.string().min(1).max(255))) _actingSubject: string,
     @Param('declarationId') declarationId: string,
     @Param('version', versionNumber) version: number,
-    @Query('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @Body(new ZodValidationPipe(fullDocumentRequestSchema)) request: FullDocumentRequest,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<FullVersionDocument> {
     const full = await this.disclosures.fullDocument(tenant, principal.subject, {
       declarationId,
       version,
-      personId,
+      personId: request.personId,
     });
-    audit.resource({ tenant, subjectPersonId: personId });
-    audit.disclosure({ basis: SELF_ACCESS, reference: null, recipient });
+    audit.resource({ tenant, subjectPersonId: request.personId });
+    audit.disclosure({ basis: SELF_ACCESS, reference: null, recipient: request.recipient });
     return full;
   }
 }

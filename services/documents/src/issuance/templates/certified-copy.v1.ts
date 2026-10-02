@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { attestation, CONTENT_STYLES, declarationContent } from './declaration-content.js';
 import {
+  DECLARATION_DOCUMENT_STYLES,
   esc,
   formatDate,
   formatDateTime,
@@ -12,10 +13,8 @@ import {
   INK,
   LETTERHEAD_STYLES,
   letterhead,
-  LINE,
-  MUTED,
-  SOFT,
   signatureNote,
+  verificationPanel,
 } from './page.js';
 import { commissionRefSchema, DECLARATION_TYPES, isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
@@ -56,26 +55,9 @@ export const certifiedCopyPayload = z
 
 export type CertifiedCopyPayload = z.infer<typeof certifiedCopyPayload>;
 
-const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}
-body{font-size:9.2pt;line-height:1.45}
-p{margin:0 0 2.5mm}
-.doc-h{margin:7mm 0 5mm}
-.doc-h .t1{font-size:17pt;font-weight:700;letter-spacing:-0.01em;line-height:1.2}
-.doc-sub{color:${SOFT};font-size:10pt;margin-top:1mm}
-.fine{font-size:8.2pt;color:${SOFT}}
-.ref{display:flex;align-items:center;justify-content:space-between;gap:4mm;padding:4.5mm 5mm;border:0.35mm solid ${INK};border-radius:2mm}
-.lbl{font-size:7.4pt;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED}}
-.ref .big{font-size:16pt;font-weight:700;margin-top:0.5mm}
+const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYLES}
 .vpill{flex:none;padding:1.2mm 3.2mm;border-radius:999px;background:${INK};color:#fff;font-weight:600;font-size:8.6pt}
-.skv{display:grid;grid-template-columns:44mm 1fr;margin:5mm 0}
-.skv dt,.skv dd{margin:0;padding:1.6mm 0;border-bottom:0.25mm solid ${LINE}}
-.skv dt{color:${MUTED}}
-.skv dd{font-weight:500}
-.certify{padding:4mm 5mm;border-radius:2mm;background:#f6f5f3;margin:4mm 0}
-.vpanel{padding:5mm;border-radius:2mm;background:#f6f5f3;margin:6mm 0 4mm;break-inside:avoid}
-.vpanel .t{font-size:11pt;font-weight:700;margin-bottom:1.5mm}
-.vpanel .vcode{font-size:12pt;font-weight:700;letter-spacing:0.03em;margin:1.5mm 0 2mm}
-.signed{display:flex;justify-content:flex-end;break-inside:avoid}`;
+.certify{padding:4mm 5mm;border-radius:2mm;background:#f6f5f3;margin:4mm 0}`;
 
 /**
  * A certified copy of a submitted declaration version (spec 10, Administrative Mechanism 32):
@@ -138,7 +120,7 @@ ${fileNumber}
 <div class="certify">Certified a true copy of version ${payload.version} of this declaration as submitted through Adili Online and held by the ${esc(commission.name)}, issued to the declarant on ${esc(formatDate(issuedAt))}.</div>
 ${declarationContent(payload.document, { householdIdentifiers: true })}
 ${attestation(payload.document)}
-<div class="vpanel"><div class="t">Check that this copy is genuine</div><div>Scan the QR code at the foot of any page, or go to the Adili Online verify page and enter:</div><div class="vcode mono nw">${esc(verificationId)}</div><div class="fine">The check shows only the reference, type, Commission and date.</div></div>
+${verificationPanel('copy', verificationId, 'The check shows only the reference, type, Commission and date.')}
 <div class="signed">${signatureNote(signerName, issuedAt)}</div>`;
     return htmlDocument(`Certified copy ${payload.reference}`, STYLES, body);
   },

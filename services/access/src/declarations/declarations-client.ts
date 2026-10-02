@@ -43,10 +43,16 @@ export interface FullDocumentRequest {
   /** The declarant: the version must be theirs. */
   personId: string;
   /**
-   * Token subject of who asked for the copy, recorded as its recipient in declarations' audit:
-   * the declarant online, or the access officer recording their written application.
+   * Token subject of who asked for the copy, recorded as the actor in declarations' audit: the
+   * declarant online, or the access officer recording their written application.
    */
   actingSubject: string;
+  /**
+   * Whom the copy is handed to, recorded as its recipient in declarations' audit: the declarant's
+   * token subject when they asked online; for an application recorded by an access officer, the
+   * representative's name when made through one, else the declarant (`person:<personId>`).
+   */
+  recipient: string;
 }
 
 /**

@@ -260,11 +260,11 @@ export class InternalPersonVersionsController {
     @Param('personId', uuid) personId: string,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalPersonVersion[]> {
-    const versions = await this.versions.personVersions(
+    const { versions, versionIds } = await this.versions.personVersions(
       { tenant, subject: principal.subject },
       personId,
     );
-    audit.resource({ tenant, subjectPersonId: personId });
+    audit.resource({ tenant, subjectPersonId: personId, ids: versionIds });
     return versions;
   }
 }

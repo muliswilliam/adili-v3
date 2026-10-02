@@ -1,4 +1,4 @@
-import { ARQ, LEA, parse } from '@adili/numbering/references';
+import { ARQ, GRANT_REFERENCE_PATTERN, isGrantReference, LEA } from '@adili/numbering/references';
 import { z } from 'zod';
 
 import { declarationReferenceSchema } from '../declaration/reference.js';
@@ -12,22 +12,9 @@ import { DISCLOSURE_SECTIONS } from './scope.js';
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
-/**
- * ADR-011: the shape of a Form K (`ARQ`) or law-enforcement (`LEA`) access request's reference,
- * published as the contract's pattern. `grantReferenceSchema` also verifies it against the
- * numbering schemes, check character included.
- */
-export const GRANT_REFERENCE = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
-
-const GRANT_SCHEMES = [ARQ, LEA];
-
 /** The grant's scheme code (`ARQ`, `LEA`), or undefined when it is not a valid reference. */
 function grantScheme(reference: string): string | undefined {
-  try {
-    return parse(reference, GRANT_SCHEMES).scheme;
-  } catch {
-    return undefined;
-  }
+  return isGrantReference(reference) ? reference.slice(0, 3) : undefined;
 }
 
 /**
@@ -56,8 +43,8 @@ export const legalBasisSchema = z.enum(LEGAL_BASES).meta({
 
 export const grantReferenceSchema = z
   .string()
-  .regex(GRANT_REFERENCE)
-  .refine((reference) => grantScheme(reference) !== undefined, {
+  .regex(GRANT_REFERENCE_PATTERN)
+  .refine(isGrantReference, {
     message: 'not a valid ARQ or LEA reference (check character)',
   })
   .meta({
@@ -101,7 +88,7 @@ export const disclosedVersionSchema = z.object({
   submittedAt: z.iso.datetime(),
   content: z.record(z.string(), z.unknown()).meta({
     description:
-      'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted',
+      'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included, without their national IDs, KRA PINs or dates of birth); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted',
   }),
 });
 export type DisclosedVersion = z.infer<typeof disclosedVersionSchema>;
@@ -121,6 +108,19 @@ export const disclosureDocumentSchema = z
   })
   .meta({ description: "disclosure.v1: what a grant discloses of a declarant's declarations" });
 export type DisclosureDocument = z.infer<typeof disclosureDocumentSchema>;
+
+export const fullDocumentRequestSchema = z
+  .strictObject({
+    personId: z
+      .uuid()
+      .meta({ description: 'The declarant asking for the copy: the version must be theirs' }),
+    recipient: z.string().trim().min(1).max(255).meta({
+      description:
+        "Whom the certified copy is handed to, recorded in the audit event: the declarant's account (token subject) when they asked online; for a written application made in person, the representative's name when made through one, else the declarant",
+    }),
+  })
+  .meta({ description: 'Whose version is asked for in full, and whom the certified copy goes to' });
+export type FullDocumentRequest = z.infer<typeof fullDocumentRequestSchema>;
 
 export const fullVersionDocumentSchema = z
   .object({

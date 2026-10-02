@@ -28,6 +28,11 @@ export interface HttpDirectoryClientOptions {
    * data, so a scope of its own, apart from the reference data `tokens` read.
    */
   applicantTokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
+  /**
+   * Tokens with `directory:law-enforcement`, for law-enforcement officers' accounts: personal
+   * data too, so a scope of its own.
+   */
+  lawEnforcementTokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default ADR-013's 2 s. */
   timeoutMs?: number;
   cacheTtlMs?: number;
@@ -114,6 +119,7 @@ const none = (): null => null;
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;
   private readonly applicants: ServiceClient<paths>;
+  private readonly lawEnforcement: ServiceClient<paths>;
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly ttlMs: number;
   private readonly now: () => number;
@@ -132,6 +138,14 @@ export class HttpDirectoryClient extends DirectoryClient {
       baseUrl: options.directoryUrl,
       service: 'directory',
       tokens: options.applicantTokens,
+      unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
+      timeoutMs: options.timeoutMs,
+      fetch: options.fetch,
+    });
+    this.lawEnforcement = createServiceClient<paths>({
+      baseUrl: options.directoryUrl,
+      service: 'directory',
+      tokens: options.lawEnforcementTokens,
       unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
       timeoutMs: options.timeoutMs,
       fetch: options.fetch,
@@ -246,7 +260,7 @@ export class HttpDirectoryClient extends DirectoryClient {
   }
 
   async leaOfficer(personId: string, tenant: string): Promise<LeaOfficerFacts | null> {
-    const found = await this.directory.call(
+    const found = await this.lawEnforcement.call(
       (api) =>
         api.GET('/internal/v1/law-enforcement/officers/{personId}', {
           params: { path: { personId }, header: { 'X-Acting-Tenant': tenant } },

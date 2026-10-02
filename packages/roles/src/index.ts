@@ -104,6 +104,21 @@ export const DIRECTORY_ROSTER_NATIONAL_ID_SCOPE = 'directory:roster-national-id'
  */
 export const DECLARATIONS_INTERNAL_SCOPE = 'declarations:internal';
 
+/**
+ * The declarations service's disclosures to third parties (spec 10): a grant's scoped disclosure
+ * and a version in full for a certified copy, decrypted for someone other than a Commission's
+ * staff. A scope of its own, held by the access client alone: nothing else in the platform
+ * decrypts declarations for a third party.
+ */
+export const DECLARATIONS_DISCLOSURES_SCOPE = 'declarations:disclosures';
+
+/**
+ * Law-enforcement officers' accounts in the directory (names, agency, Keycloak account and its
+ * state): personal data, so a scope of its own, held by the access client alone, which checks a
+ * law-enforcement request's provenance against them (spec 10).
+ */
+export const DIRECTORY_LAW_ENFORCEMENT_SCOPE = 'directory:law-enforcement';
+
 /** The documents service's internal API (roster upload downloads, acting for a tenant). */
 export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';
 
