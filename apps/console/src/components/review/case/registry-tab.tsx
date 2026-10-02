@@ -74,7 +74,14 @@ function KraTable({ row }: { row: SystemRow }) {
     declared: line.badge ? (
       <Badge variant={BADGE_TONES[line.badge.tone]}>{line.badge.text}</Badge>
     ) : (
-      <span className={cn(line.warning ? 'font-semibold text-warning' : 'font-normal')}>
+      // A sentence that can wrap: tighter lines than the cell's single-line leading-6, with its
+      // first line still level with the record label.
+      <span
+        className={cn(
+          'block py-[3px] leading-[18px]',
+          line.warning ? 'font-semibold text-warning' : 'font-normal',
+        )}
+      >
         {line.text}
       </span>
     ),
