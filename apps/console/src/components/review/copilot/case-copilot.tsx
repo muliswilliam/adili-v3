@@ -1,5 +1,5 @@
 import { useToast } from '@adili/ui';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { getCaseCopilot, rateCopilotOutput, refreshCaseCopilot } from '../../../server/copilot';
 import type { Copilot } from '../../../server/copilot.server';
@@ -35,6 +35,11 @@ export interface CaseCopilotProps {
   selection?: CopilotPanelProps['selection'];
   /** The copilot view from the route's loader, if it read one; else the panel reads it. */
   initial?: Copilot;
+  /**
+   * Told the copilot's status whenever it changes (null until first read), so the host can offer
+   * Explain on its flag cards only once there are explanations.
+   */
+  onStatusChange?: (status: Copilot['status'] | null) => void;
   /** Fakes in tests. */
   api?: CopilotApi;
   /** "Now" for the relative times; tests fix it. Defaults to the time of each render. */
@@ -59,10 +64,15 @@ export function CaseCopilot({
   },
   selection,
   initial,
+  onStatusChange,
   api = copilotApi,
   now,
 }: CaseCopilotProps) {
   const state = useCaseCopilot(caseId, api, initial);
+  const status = state.copilot?.status ?? null;
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [status, onStatusChange]);
   const { toast } = useToast();
   const resolveRef = useMemo(() => sourceRefResolver(detail.document), [detail.document]);
 

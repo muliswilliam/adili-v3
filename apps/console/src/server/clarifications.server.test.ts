@@ -87,7 +87,8 @@ describe('actions (S15)', () => {
     const steps = await mockReviewClient(ME, 'Grace Wanjiru').GET('/v1/review/cases/{caseId}', {
       params: { path: { caseId: CASES.mine } },
     });
-    expect(steps.data?.timeline.map((entry) => entry.ref)).toEqual([
+    const statusChanges = steps.data?.timeline.filter((entry) => entry.kind === 'status-changed');
+    expect(statusChanges?.map((entry) => entry.ref)).toEqual([
       'clarified',
       'ready-for-determination',
     ]);

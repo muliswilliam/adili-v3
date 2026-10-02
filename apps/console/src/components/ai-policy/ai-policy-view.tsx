@@ -112,13 +112,14 @@ export function AiPolicyView(props: AiPolicyViewProps) {
   return (
     <Page>
       <PageHead title={m.title}>
-        <p className="mt-1 h-[21px] text-sm text-muted-foreground" aria-live="polite">
+        {/* A div: the skeleton is a block, which a paragraph cannot hold. */}
+        <div className="mt-1 h-[21px] text-sm text-muted-foreground" aria-live="polite">
           {result === null ? (
             <Skeleton className="my-1 inline-block w-[180px] align-middle" />
           ) : overview ? (
             m.enabledCount(tenants.filter((tenant) => isEnabled(tenant)).length, tenants.length)
           ) : null}
-        </p>
+        </div>
       </PageHead>
       <Tabs
         value={tab}
