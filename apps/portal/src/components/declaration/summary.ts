@@ -24,7 +24,7 @@ import type {
   Spouse,
   Statement,
 } from '../../declaration/contents';
-import { ageOn, UNANSWERED } from '../../declaration/format';
+import { ageOn, fullName, UNANSWERED } from '../../declaration/format';
 import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
 import type { Category } from '../../declaration/statement';
 import { type SectionKind, sectionKind } from '../../declaration/section-key';
@@ -131,7 +131,9 @@ function humanize(field: string): string {
  * An issue as the summary lists it. The rules write whole sentences; schema checks write what is
  * wrong with a field ("is required"), for the screen that shows it beside the field. Listed on
  * their own those read "is required / is required", so they are named: the item (its description,
- * or "Asset 2") and the field, "One-bedroom apartment: Value is required".
+ * or "Asset 2", a spouse or child by name) and the field, "One-bedroom apartment: Value is
+ * required". The rules' sentences start with a capital and schema checks' fragments do not; the
+ * issue's code cannot tell them apart, as both use `required`.
  */
 export function issueText(issue: CompletenessIssue, document: SummaryDocument): string {
   const { message } = issue;
@@ -156,8 +158,19 @@ export function issueText(issue: CompletenessIssue, document: SummaryDocument): 
       return last === category ? `${item}: ${message}` : `${item}: ${field} ${message}`;
     }
   }
+  // A spouse's or child's field names the person: the household lists several.
+  if (issue.sectionKey === 'household' && (category === 'spouses' || category === 'children')) {
+    const position = Number(parts[2]);
+    if (index === 'items' && Number.isInteger(position)) {
+      const name = fullName(document[category]?.items?.[position]?.name);
+      const person = name || `${PERSON_NOUNS[category]} ${String(position + 1)}`;
+      return `${person}: ${field} ${message}`;
+    }
+  }
   return `${field} ${message}`;
 }
+
+const PERSON_NOUNS = { spouses: 'Spouse', children: 'Child' } as const;
 
 export type ParagraphCompleteness = 'not-started' | 'incomplete' | 'complete';
 

@@ -190,6 +190,9 @@ describe('issueText', () => {
         assets: [{ description: 'One-bedroom apartment, Dubai Marina' }, {}],
       },
     ],
+    spouses: {
+      items: [{ name: { firstName: 'Mary', surname: 'Wanjiru' } }, { separated: true }],
+    },
   } as unknown as SummaryDocument;
   const issue = (
     sectionKey: CompletenessIssue['sectionKey'],
@@ -212,7 +215,14 @@ describe('issueText', () => {
     ).toBe('Asset 2: Value is required');
     expect(
       issueText(issue('household', '/spouses/items/0/separationDate', 'is required'), document),
-    ).toBe('Date of separation is required');
+    ).toBe('Mary Wanjiru: Date of separation is required');
+    // A spouse or child with no name yet is named by their place (N29).
+    expect(
+      issueText(issue('household', '/spouses/items/1/separationDate', 'is required'), document),
+    ).toBe('Spouse 2: Date of separation is required');
+    expect(
+      issueText(issue('household', '/children/items/0/dateOfBirth', 'is required'), document),
+    ).toBe('Child 1: Date of birth is required');
     expect(issueText(issue('bio', '/placeOfBirth', 'is required'), document)).toBe(
       'Place of birth is required',
     );
