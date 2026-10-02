@@ -9,10 +9,12 @@ import type {
   SummarizeDeclarationInput,
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotView } from '../../src/copilot/copilot.service.js';
+import { copilotJobWorkflowId } from '../../src/copilot/contract.js';
 import { CopilotWorkflows } from '../../src/copilot/copilot-workflows.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, twoVersions } from '../support/cases.js';
+import { temporalOf } from '../support/closures.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type StoredVersion, submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
@@ -419,21 +421,32 @@ describe('review copilot', () => {
       started.mockRestore();
       expect(api.ai.calls).toHaveLength(asked);
 
-      // The Commission's own route: asked again, still blocked.
+      // The Commission's own route: asked again, still blocked. The status alone can't tell the
+      // new request has settled (it reads not-enabled before and after), so wait until the
+      // copilot records the new blocked job, or a late write could land after the next step.
+      const jobsBefore = api.ai.jobsOf('summarize-declaration').length;
       await api.aiPolicy.changed(routeEvent('tsc'));
       await vi.waitFor(
-        () => {
-          expect(api.ai.calls.length).toBeGreaterThan(asked);
+        async () => {
+          const jobs = api.ai.jobsOf('summarize-declaration');
+          expect(jobs.length).toBeGreaterThan(jobsBefore);
+          const row = await copilotRow(created.id);
+          expect(row?.requestedSummaryJobId).toBe(jobs.at(-1)?.id);
+          expect(row?.status).toBe('not-enabled');
         },
-        { timeout: 10_000 },
+        { timeout: 45_000, interval: 250 },
       );
-      await untilStatus(created.id, 'not-enabled');
 
       // The default route, every Commission's: asked again, and now admitted.
       api.ai.reset();
       await api.aiPolicy.changed(routeEvent('platform'));
-      await untilStatus(created.id, 'pending');
-      expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
+      await vi.waitFor(
+        async () => {
+          expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
+          expect((await copilotRow(created.id))?.status).toBe('pending');
+        },
+        { timeout: 45_000, interval: 250 },
+      );
     });
 
     it('is not enabled when a blocked job is announced by event, and failed when a job fails', async () => {
@@ -670,6 +683,11 @@ describe('review copilot', () => {
       );
       const failed = await untilStatus(caseId, 'failed');
       expect(failed).toMatchObject({ failureReason: 'validation', summaryCiphertext: null });
+      // Let the first job's workflow end before resetting the row: under load an activity retry
+      // could otherwise write `validation` again over the second outcome.
+      await temporalOf(api)
+        .workflow.getHandle(copilotJobWorkflowId(row.requestedSummaryJobId ?? ''))
+        .result();
 
       // A job that succeeded with no output left (the gateway purged it) says so (Q24).
       await api.asPlatform((tx) =>
