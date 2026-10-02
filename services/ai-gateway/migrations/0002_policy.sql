@@ -135,11 +135,22 @@ CREATE POLICY "audit_records_tenant_isolation" ON "audit_records"
 	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
 --> statement-breakpoint
 -- A tenant's transactions read its own routes and the default ones (null tenant), which every
--- tenant follows; only platform work writes a default route.
+-- tenant follows; only platform work writes, moves or deletes a default route. Reads and writes
+-- are separate policies: UPDATE and DELETE pick rows by USING, so a write policy that admitted
+-- null-tenant rows would let any tenant delete or take over the defaults.
 ALTER TABLE "routing" ENABLE ROW LEVEL SECURITY;
 --> statement-breakpoint
 ALTER TABLE "routing" FORCE ROW LEVEL SECURITY;
 --> statement-breakpoint
-CREATE POLICY "routing_tenant_isolation" ON "routing"
-	USING ("tenant" IS NULL OR "tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform')
+CREATE POLICY "routing_tenant_read" ON "routing" FOR SELECT
+	USING ("tenant" IS NULL OR "tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
+--> statement-breakpoint
+CREATE POLICY "routing_tenant_insert" ON "routing" FOR INSERT
 	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
+--> statement-breakpoint
+CREATE POLICY "routing_tenant_update" ON "routing" FOR UPDATE
+	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform')
+	WITH CHECK ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');
+--> statement-breakpoint
+CREATE POLICY "routing_tenant_delete" ON "routing" FOR DELETE
+	USING ("tenant" = current_setting('app.tenant', true) OR current_setting('app.tenant', true) = 'platform');

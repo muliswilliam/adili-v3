@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
-import { sql } from 'drizzle-orm';
+import { isNull, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -126,6 +126,34 @@ describe('ai-gateway tables under row-level security', () => {
         }),
       ),
     ).rejects.toThrow();
+  });
+
+  it('lets a Commission neither delete nor take over a default route (M7)', async () => {
+    await asTsc(async (tx) => {
+      const deleted = await tx.delete(routes).where(isNull(routes.tenant)).returning();
+      expect(deleted).toEqual([]);
+    });
+    await asTsc(async (tx) => {
+      const updated = await tx
+        .update(routes)
+        .set({ model: 'tsc-model' })
+        .where(isNull(routes.tenant))
+        .returning();
+      expect(updated).toEqual([]);
+    });
+    await asTsc(async (tx) => {
+      const moved = await tx
+        .update(routes)
+        .set({ tenant: 'tsc' })
+        .where(isNull(routes.tenant))
+        .returning();
+      expect(moved).toEqual([]);
+    });
+    const defaults = await withTenant(t.serviceDb, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx.select().from(routes).where(isNull(routes.tenant)),
+    );
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0]).toMatchObject({ tenant: null, task: 'explain-flags', model: 'm' });
   });
 
   it('sees nothing at all without a tenant context', async () => {
