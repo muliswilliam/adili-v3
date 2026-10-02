@@ -64,7 +64,7 @@ describe('listNotices', () => {
     ]);
   });
 
-  it('gives a law-enforcement grant its agency, case, outcome and dates only', async () => {
+  it('gives a law-enforcement grant its agency, case, outcome, scope granted and dates only', async () => {
     const result = await listNotices(client());
     if (result.status !== 'ok') throw new Error(result.status);
     const lea = result.notices.find((notice) => notice.requestId === IDS.leaPartial);
@@ -73,6 +73,7 @@ describe('listNotices', () => {
       'caseReference',
       'commission',
       'decidedAt',
+      'grantedScope',
       'kind',
       'noticeChannel',
       'notifiedAt',

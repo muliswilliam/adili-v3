@@ -42,7 +42,8 @@ export type DeclarantNotice = Schemas['DeclarantNotice'];
 export type FormKDeclarantNotice = Schemas['FormKDeclarantNotice'];
 /**
  * A law-enforcement grant, shown once access was granted: the agency, its case reference, the
- * outcome and its dates only, never the agency's reason, the scope or the decision's grounds.
+ * outcome, its dates and the scope granted (what was disclosed), never the agency's reason or the
+ * decision's reasons or grounds.
  */
 export type LeaDeclarantNotice = Schemas['LeaDeclarantNotice'];
 export type Representations = Schemas['Representations'];

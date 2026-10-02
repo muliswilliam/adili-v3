@@ -57,7 +57,8 @@ function dateLine(notice: DeclarantNotice): string {
  * One request in the Access requests card or list. While the window is open it says someone
  * has requested access, with the applicant, the purpose in general terms, the scope and when to
  * respond by; afterwards, who asked and where it stands. A law-enforcement grant shows the
- * agency, its case reference, the outcome and its dates only.
+ * agency, its case reference, the outcome, its dates and the scope granted (what was disclosed),
+ * never the agency's reason.
  */
 export function NoticeRow({ notice, now }: { notice: DeclarantNotice; now: string }) {
   const state = noticeState(notice, now);
@@ -91,9 +92,11 @@ export function NoticeRow({ notice, now }: { notice: DeclarantNotice; now: strin
               {notice.purposeInGeneralTerms}
             </span>
           ) : null}
-          {notice.kind === 'form-k' ? (
-            <span className="text-[13px] text-muted-foreground">{scopeLine(notice.scope)}</span>
-          ) : null}
+          <span className="text-[13px] text-muted-foreground">
+            {notice.kind === 'form-k'
+              ? scopeLine(notice.scope)
+              : COPY.disclosed(scopeLine(notice.grantedScope))}
+          </span>
           <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {waiting ? null : <NoticeStateBadge state={badgeState(notice, now)} />}
             {open ? <WindowChip notice={notice} now={now} /> : null}

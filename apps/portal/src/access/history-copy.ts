@@ -86,6 +86,7 @@ const HISTORY = {
   purpose: en('Purpose'),
   scopeAsked: en('Scope asked'),
   scopeGranted: en('Scope granted'),
+  scopeDisclosed: en('Scope granted (what was disclosed)'),
   yourResponse: en('Your response'),
   dueBy: en((date: string) => `Due by ${date}`),
   none: en('None'),

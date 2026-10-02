@@ -323,7 +323,7 @@ describe('after the window and the decision', () => {
     expect(screen.queryByText('Your response')).toBeNull();
   });
 
-  it('shows only the agency, case reference, outcome and dates of a law-enforcement grant', async () => {
+  it('shows only the agency, case reference, outcome, dates and scope granted of a law-enforcement grant', async () => {
     renderPage(await seededNotice(IDS.leaPartial));
     const facts = Object.fromEntries(
       screen
@@ -337,9 +337,21 @@ describe('after the window and the decision', () => {
       Outcome: 'Partially granted',
       'Granted on': '15 May 2026',
       'Notified on': '15 May 2026',
+      // The scope granted, what was disclosed: one year, the declarant only, assets.
+      'Declaration year': '2025',
+      People: 'YouSpouse (not disclosed)Children (not disclosed)',
+      Sections: 'Assets',
     });
+    expect(screen.getByText('Scope granted (what was disclosed)')).toBeTruthy();
     expect(banner()).toMatch(/^A law-enforcement agency was partially granted access on /);
-    for (const hidden of [/scope/i, /purpose/i, /reasons/i, /grounds/i, /decision/i, /window/i]) {
+    for (const hidden of [
+      /scope asked/i,
+      /purpose/i,
+      /reasons/i,
+      /grounds/i,
+      /decision/i,
+      /window/i,
+    ]) {
       expect(screen.queryByText(hidden)).toBeNull();
     }
     expect(screen.getByText('You were notified')).toBeTruthy();

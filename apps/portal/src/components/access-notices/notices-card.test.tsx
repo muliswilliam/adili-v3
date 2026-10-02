@@ -94,7 +94,7 @@ describe('Access requests', () => {
     expect(earlier[3]?.textContent).toMatch(/\d{4}(, \d{4})* · You[^·]* · [A-Z]/);
   });
 
-  it('shows a law-enforcement grant by agency, case, outcome and dates only', async () => {
+  it('shows a law-enforcement grant by agency, case, outcome, dates and the scope disclosed', async () => {
     const notices = await seededNotices();
     render(<NoticesList notices={notices} page={1} now={NOW} onPage={vi.fn()} />);
     const rows = within(screen.getByRole('list', { name: 'Earlier' })).getAllByRole('link');
@@ -105,9 +105,12 @@ describe('Access requests', () => {
     expect(granted?.textContent).toBe(
       'A law-enforcement agency was granted access on 6 Sep 2026 (Asset Recovery Agency, case ARA/INV/2026/014)' +
         'LEA-TSC-2026-0000007-E · Notified 6 Sep 2026' +
+        'Disclosed: 2025, 2026 · You, spouse and children · Income, assets, liabilities' +
         'Granted',
     );
-    expect(partial?.textContent).toMatch(/· Notified 15 May 2026Partially granted$/);
+    expect(partial?.textContent).toMatch(
+      /· Notified 15 May 2026Disclosed: 2025 · You only · AssetsPartially granted$/,
+    );
     expect(granted?.getAttribute('aria-label')).toBe(
       'Open law-enforcement request LEA-TSC-2026-0000007-E',
     );

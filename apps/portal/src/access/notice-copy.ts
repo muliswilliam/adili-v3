@@ -40,6 +40,7 @@ const NOTICES = {
   ),
   openRequest: en((reference: string) => `Open access request ${reference}`),
   openLeaRequest: en((reference: string) => `Open law-enforcement request ${reference}`),
+  disclosed: en((scope: string) => `Disclosed: ${scope}`),
 
   statusAwaiting: en('Waiting for your response'),
   statusSaved: en('Response saved'),
@@ -109,6 +110,7 @@ const NOTICE = {
   scopeAsked: en('Scope asked'),
   scopeAskedAndGranted: en('Scope asked and granted'),
   scopeGranted: en('Scope granted'),
+  scopeDisclosed: en('Scope granted (what was disclosed)'),
   years: en('Declaration year'),
   people: en('People'),
   sections: en('Sections'),
@@ -120,6 +122,7 @@ const NOTICE = {
   withheld: en('Withheld'),
   notReleased: en('not released'),
   notAsked: en('not asked'),
+  notDisclosed: en('not disclosed'),
 
   decision: en('Decision'),
   grounds: en('Grounds'),

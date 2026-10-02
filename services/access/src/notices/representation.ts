@@ -94,9 +94,10 @@ export type FormKDeclarantNotice = z.infer<typeof formKDeclarantNoticeSchema>;
 
 /**
  * access.yaml `LeaDeclarantNotice`: a law enforcement request about the declarant, once granted and
- * they are told (r.23(2)). The agency, its case reference, the outcome and the dates only: never
- * the agency's stated reason, nor the decision's reasons or grounds, whose telling could
- * prejudice the investigation (Reg 24(b)). It takes no representations.
+ * they are told (r.23(2)). The agency, its case reference, the outcome, the scope granted (what was
+ * disclosed) and the dates: never the agency's stated reason, nor the decision's reasons or
+ * grounds, whose telling could prejudice the investigation (Reg 24(b)). It takes no
+ * representations.
  */
 export const leaDeclarantNoticeSchema = z.object({
   requestId: z.uuid(),
@@ -107,7 +108,11 @@ export const leaDeclarantNoticeSchema = z.object({
   agency: z.object({ code: z.string(), name: z.string() }),
   caseReference: z.string().meta({ description: "The agency's case reference" }),
   outcome: z.enum(['grant', 'partial-grant']).meta({
-    description: 'Granted in full or in part (the scope disclosed is not shown)',
+    description: 'Granted in full or in part',
+  }),
+  grantedScope: scopeSchema.meta({
+    description:
+      'What the grant disclosed: the years, whether the spouses and the children are included, and the sections',
   }),
   decidedAt: z.iso.datetime({ offset: true }),
   /** When the declarant was told of the grant. */
@@ -176,6 +181,8 @@ export function toLeaDeclarantNotice(row: LeaRequestRow): LeaDeclarantNotice {
     agency: { code: row.agencyCode, name: row.agencyName },
     caseReference: row.caseReference,
     outcome: decision.outcome,
+    // A grant is of the requested scope (`decisionOf` stores it); a partial grant narrows it.
+    grantedScope: decision.grantedScope ?? row.scope,
     decidedAt: decision.decidedAt,
     notifiedAt: declarantNotifiedAt.toISOString(),
     noticeChannel: row.writtenNotice === null ? 'online' : 'written',

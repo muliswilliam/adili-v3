@@ -3116,7 +3116,10 @@ components:
           enum:
             - grant
             - partial-grant
-          description: Granted in full or in part (the scope disclosed is not shown)
+          description: Granted in full or in part
+        grantedScope:
+          description: 'What the grant disclosed: the years, whether the spouses and the children are included, and the sections'
+          $ref: '#/components/schemas/Scope'
         decidedAt:
           type: string
           format: date-time
@@ -3138,6 +3141,7 @@ components:
         - agency
         - caseReference
         - outcome
+        - grantedScope
         - decidedAt
         - notifiedAt
         - noticeChannel

@@ -51,6 +51,13 @@ function leaNotice(fields: Partial<LeaDeclarantNotice> = {}): LeaDeclarantNotice
     agency: { code: 'ARA', name: 'Asset Recovery Agency' },
     caseReference: 'ARA/INV/2026/014',
     outcome: 'grant',
+    grantedScope: {
+      years: [2026],
+      includeSpouses: true,
+      includeChildren: false,
+      sections: ['assets'],
+      includeClarifications: false,
+    },
     decidedAt: '2026-09-02T12:30:00Z',
     notifiedAt: '2026-09-02T13:30:00Z',
     noticeChannel: 'online',

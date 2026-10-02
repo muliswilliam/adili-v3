@@ -139,7 +139,7 @@ function seed(now: number) {
     id: string,
     sequence: number,
     decidedAt: string,
-    fields: Pick<LeaDeclarantNotice, 'agency' | 'caseReference' | 'outcome'>,
+    fields: Pick<LeaDeclarantNotice, 'agency' | 'caseReference' | 'outcome' | 'grantedScope'>,
   ): LeaDeclarantNotice => ({
     requestId: id,
     reference: reference(sequence, LEA),
@@ -270,11 +270,13 @@ function seed(now: number) {
       agency: { code: 'ARA', name: 'Asset Recovery Agency' },
       caseReference: 'ARA/INV/2026/014',
       outcome: 'grant',
+      grantedScope: scope([2025, 2026], true, true, ['income', 'assets', 'liabilities']),
     }),
     lea(ids.leaPartial, 4, ago(140), {
       agency: { code: 'DCI', name: 'Directorate of Criminal Investigations' },
       caseReference: 'DCI/ECU/2026/0331',
       outcome: 'partial-grant',
+      grantedScope: scope([2025], false, false, ['assets']),
     }),
   ];
   notices.clear();
