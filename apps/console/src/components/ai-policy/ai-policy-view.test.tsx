@@ -175,6 +175,25 @@ describe('S16 AI policy: Commissions', () => {
     expect(tsc.queryByRole('meter')).toBeNull();
   });
 
+  it('on phones turns each Commission into labelled lines, not a table cut off at the right (e2e 36)', () => {
+    renderView();
+    const psc = rowOf('Public Service Commission');
+    const labels = psc
+      .getAllByRole('cell')
+      .map((cell) => cell.getAttribute('data-label'))
+      .filter(Boolean);
+    expect(labels).toEqual([
+      'Synthetic',
+      'Restricted',
+      'Highly confidential',
+      'Usage, Sep 2026',
+      'Rate limit',
+    ]);
+    // The header row is for screen readers there; each line carries its column's name.
+    const header = screen.getAllByRole('rowgroup')[0];
+    expect(header?.className).toContain('max-sm:sr-only');
+  });
+
   it('counts each filter and applies a chip through the search', () => {
     const { onSearchChange } = renderView({ search: { page: 2 } });
     expect(screen.getByRole('button', { name: /^Budget 80%\+ 2/ })).toBeTruthy();
