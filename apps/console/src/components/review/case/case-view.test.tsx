@@ -83,6 +83,11 @@ function view(
 
 const ok = <T,>(data: T) => ({ ok: true as const, data });
 
+/** The innermost element reading `text`, also when part of it is in a span of its own. */
+const wholeText = (text: string) => (_: string, element: Element | null) =>
+  element?.textContent === text &&
+  ![...element.children].some((child) => child.textContent === text);
+
 beforeEach(() => {
   vi.clearAllMocks();
   Element.prototype.scrollIntoView = scrollIntoView;
@@ -345,7 +350,9 @@ describe('CaseView: Registry tab', () => {
     expect(getCaseRegistry).toHaveBeenCalledWith({ data: { caseId: caseItem().id } });
     expect(within(wanjiku).getByText('PIN on record, compliant, income within 25%')).toBeTruthy();
     expect(
-      within(wanjiku).getByText('Could not reach ArdhiSasa. Re-checked automatically every hour.'),
+      within(wanjiku).getByText(
+        wholeText('Could not reach ArdhiSasa. Re-checked automatically every hour.'),
+      ),
     ).toBeTruthy();
     expect(within(wanjiku).getAllByText('Mismatched')).toHaveLength(2);
     const imani = screen.getByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' });
@@ -412,7 +419,7 @@ describe('CaseView: Registry tab', () => {
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText('Could not reach NTSA. Re-checked automatically every hour.'),
+      screen.getByText(wholeText('Could not reach NTSA. Re-checked automatically every hour.')),
     ).toBeTruthy();
     // The tab is marked: a registry could not be checked.
     expect(screen.getByRole('img', { name: 'A registry could not be checked' })).toBeTruthy();
