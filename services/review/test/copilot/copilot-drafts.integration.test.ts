@@ -276,6 +276,28 @@ describe('review copilot drafts', () => {
     });
   });
 
+  it('a ready draft is rated like any copilot output; a pending one cannot be yet', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    const feedbackPath = (jobId: string) => `/v1/review/copilot/outputs/${jobId}/feedback`;
+    const helpful = { rating: 'helpful', reason: null, note: null };
+    const pending = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
+    const jobId = pending.jobId ?? '';
+
+    expect((await api.send('PUT', feedbackPath(jobId), assignee, helpful)).statusCode).toBe(404);
+
+    api.ai.succeed(jobId, output(api.ai.calls[0]?.request.input as DraftClarificationInput));
+    expect((await api.get(draftPath(pending.id), assignee)).json()).toMatchObject({
+      status: 'ready',
+    });
+    expect((await api.send('PUT', feedbackPath(jobId), assignee, helpful)).statusCode).toBe(200);
+    expect(api.ai.feedback.map((call) => [call.jobId, call.feedback.rating])).toEqual([
+      [jobId, 'helpful'],
+    ]);
+    expect((await api.send('PUT', feedbackPath(jobId), otherReviewer, helpful)).statusCode).toBe(
+      403,
+    );
+  });
+
   it('is for the assignee only: another reviewer or a supervisor 403, another Commission 404, and a draft is polled only by who asked', async () => {
     const { caseId, flagId } = await flaggedCase();
 
