@@ -226,7 +226,23 @@ describe('S11 provision', () => {
       name: 'Achieng W. Njoroge',
       phone: '+254700111222',
     });
-    expect(await leaEvents()).toHaveLength(1);
+    // The change is recorded, ids only: no name or phone in the event.
+    const events = await leaEvents();
+    expect(events.map((event) => event.type)).toEqual([
+      'lea.account.provisioned.v1',
+      'lea.account.updated.v1',
+    ]);
+    expect(events[1]?.envelope).toMatchObject({
+      tenant: 'lea',
+      subject: officer.id,
+      data: {
+        personId: officer.id,
+        agencyCode: 'DCI',
+        keycloakUserId: api.identity.userByEmail(OFFICER.email)?.userId,
+      },
+    });
+    expect(JSON.stringify(events[1]?.envelope)).not.toContain('Achieng');
+    expect(JSON.stringify(events[1]?.envelope)).not.toContain('254700111222');
   });
 
   it('refuses an email of an officer of another agency, and of an account that is no officer', async () => {
@@ -447,6 +463,11 @@ describe('S11 activation', () => {
 
     expect(again.json<Account>().state).toBe('activated');
     expect(api.identity.calls('sendActivationEmail')).toHaveLength(1);
+    expect((await leaEvents()).map((event) => event.type)).toEqual([
+      'lea.account.provisioned.v1',
+      'lea.account.activated.v1',
+      'lea.account.updated.v1',
+    ]);
   });
 });
 
@@ -493,7 +514,11 @@ describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance f
     ).filter((event) => event.type === 'audit.read.v1');
     expect(audits.at(-1)?.envelope).toMatchObject({
       tenant: 'psc',
-      data: { action: 'lea-officer.read', actor: { subject: 'service-account-access' } },
+      data: {
+        action: 'lea-officer.read',
+        actor: { subject: 'service-account-access' },
+        resource: { subjectPersonId: officer.id },
+      },
     });
   });
 

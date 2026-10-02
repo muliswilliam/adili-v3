@@ -780,6 +780,16 @@ describe('S18 person contacts', () => {
       email: 'mary@example.go.ke',
       phone: '+254712345678',
     });
+    // Audited, naming whose contacts were read (ADR-008).
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'person.contacts.read',
+        resource: expect.objectContaining({
+          tenant: 'psc',
+          subjectPersonId: person.personId,
+        }) as unknown,
+      }),
+    );
   });
 
   it('gives nulls where the person has no verified contact', async () => {

@@ -12,7 +12,7 @@ import type {
   FullVersionDocument,
 } from '../../src/disclosure/representation.js';
 import type { SubmissionResult } from '../../src/submission/representation.js';
-import { contractErrors, okResponse, responseBody } from '../support/contract.js';
+import { contractErrors, responseBody } from '../support/contract.js';
 import {
   type Caller,
   type DeclarationsApi,
@@ -410,17 +410,30 @@ describe('the scoped disclosure of a grant (S9)', () => {
   });
 
   it('S9: the read is audited with the grant reference, legal basis and recipient, and no content', async () => {
-    await seeded(WANJIKU, [householdDeclaration(2027)]);
+    const { declarationId } = await seeded(WANJIKU, [householdDeclaration(2027)]);
+    // Another year's version, outside the grant: the audit does not name it.
+    await seeded(WANJIKU, [householdDeclaration(2025)], { sequence: 2 });
 
     expect((await disclosure()).statusCode).toBe(200);
 
+    const served = await api.asPlatform((tx) =>
+      tx
+        .select({ id: declarationVersions.id })
+        .from(declarationVersions)
+        .where(eq(declarationVersions.declarationId, declarationId)),
+    );
     const [event, ...more] = await audited();
     expect(more).toEqual([]);
     expect(event).toMatchObject({
       tenant: 'psc',
       data: {
         action: 'declaration.disclosed',
-        resource: { type: 'declaration', tenant: 'psc', subjectPersonId: WANJIKU },
+        resource: {
+          type: 'declaration',
+          tenant: 'psc',
+          subjectPersonId: WANJIKU,
+          ids: served.map((row) => row.id),
+        },
         actor: {
           subject: 'service-account-access',
           clientId: 'access',
@@ -583,7 +596,7 @@ describe("the full document of a version for the declarant's certified copy (S13
 
     expect(response.statusCode, response.body).toBe(200);
     const body = response.json<FullVersionDocument>();
-    expect(contractErrors(okResponse(FULL_DOCUMENT, 'post'), body)).toEqual([]);
+    expect(contractErrors(responseBody(FULL_DOCUMENT, 'post', 200), body)).toEqual([]);
     const [row] = await api.asPlatform((tx) =>
       tx
         .select()

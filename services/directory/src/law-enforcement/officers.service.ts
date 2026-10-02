@@ -27,7 +27,7 @@ import {
 } from '../identity/identity-provisioning.js';
 import { newPersonId } from '../persons/person-id.js';
 import { persons } from '../persons/schema.js';
-import { leaAccountProvisioned, leaAccountRevoked } from './events.js';
+import { leaAccountProvisioned, leaAccountRevoked, leaAccountUpdated } from './events.js';
 import type {
   Agency,
   InternalLeaOfficer,
@@ -299,6 +299,11 @@ export class LawEnforcementOfficersService {
       .set({ fullName: body.name, phone: body.phone })
       .where(eq(persons.id, personId));
     if (officer.state !== 'revoked') {
+      // Every write is recorded (ADR-008): the account and the person now hold the name and phone.
+      await this.events.record(
+        tx,
+        leaAccountUpdated({ personId, agencyCode: agency.code, keycloakUserId }),
+      );
       return {
         officer: await this.lockedAccount(tx, personId),
         agencyName: agency.name,

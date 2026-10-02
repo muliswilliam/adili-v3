@@ -4,6 +4,8 @@ import {
   ActingTenant,
   ApiProblemResponse,
   AuditedRead,
+  CurrentReadAudit,
+  type ReadAudit,
   CurrentPrincipal,
   InternalApi,
   type Principal,
@@ -68,11 +70,15 @@ export class InternalApplicantsController {
   @ApiOkResponse({ description: 'The applicant', schema: schemaRef('InternalApplicant') })
   @ApiProblemResponse(400, 'personId is not a UUID')
   @ApiProblemResponse(404, 'No applicant has this id')
-  find(
+  async find(
     @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalApplicant> {
-    return this.applicants.find(principal.subject, personId);
+    const applicant = await this.applicants.find(principal.subject, personId);
+    audit.resource({ tenant, subjectPersonId: applicant.personId });
+    return applicant;
   }
 
   @Post('identity-verification')

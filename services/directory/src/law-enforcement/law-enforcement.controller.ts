@@ -9,7 +9,10 @@ import {
 } from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  ActingTenant,
   AuditedRead,
+  CurrentReadAudit,
+  type ReadAudit,
   CurrentPrincipal,
   InternalApi,
   type Principal,
@@ -170,10 +173,14 @@ export class InternalLawEnforcementController {
   @ApiOkResponse({ description: 'The officer', schema: schemaRef('InternalLeaOfficer') })
   @ApiProblemResponse(400, 'personId is not a UUID')
   @ApiProblemResponse(404, 'No law-enforcement officer has this id')
-  find(
+  async find(
     @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
     @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalLeaOfficer> {
-    return this.officers.internalOfficer(principal.subject, personId);
+    const officer = await this.officers.internalOfficer(principal.subject, personId);
+    audit.resource({ tenant, subjectPersonId: officer.personId });
+    return officer;
   }
 }

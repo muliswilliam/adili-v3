@@ -3,6 +3,7 @@ import { withTenant } from '@adili/data-access';
 import { asc } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { config } from '../../src/config.js';
 import { onboardingSessions, outbox, persons } from '../../src/db/schema.js';
 import { EmailTaken, IdentityUnavailable } from '../../src/identity/identity-provisioning.js';
 import type {
@@ -10,6 +11,7 @@ import type {
   ApplicantOnboardingSessionCreated,
 } from '../../src/onboarding/applicants/representation.js';
 import type { OnboardingSessionCreated } from '../../src/onboarding/representation.js';
+import { keyedHash } from '../../src/onboarding/secret.js';
 import { componentSchema, contractErrors, okResponse } from '../support/contract.js';
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -181,10 +183,11 @@ describe('S1 start with a national ID', () => {
   });
 
   it('answers 409 identity-mismatch when IPRS disagrees with the names, or has no such person, storing nothing', async () => {
+    const ip = freshIp();
     const wrongNames = await startApplicant(
       api,
       { ...NJOKI, names: { surname: 'Kamau', firstName: 'Njoki' } },
-      freshIp(),
+      ip,
     );
     const unknown = await startApplicant(
       api,
@@ -201,7 +204,25 @@ describe('S1 start with a national ID', () => {
     }
     expect(api.otpDelivery.sent()).toEqual([]);
     expect(await storedSessions()).toEqual([]);
-    expect(await outboxEvents()).toEqual([]);
+    // Each refusal is recorded with no tenant, no session and nothing of the person but the
+    // hashed client IP, as the declarant's mismatch is (ADR-008).
+    const events = await outboxEvents();
+    expect(events.map(({ type }) => type)).toEqual([
+      'applicant.identity-mismatch.v1',
+      'applicant.identity-mismatch.v1',
+    ]);
+    expect(events[0]?.envelope).toMatchObject({
+      data: {
+        attemptId: expect.any(String) as unknown,
+        clientIpHash: keyedHash(config.ONBOARDING_HMAC_KEY, 'ip', ip),
+      },
+    });
+    expect(events[0]?.envelope.subject).toBe(events[0]?.envelope.data.attemptId);
+    expect(events.every(({ envelope }) => envelope.tenant === undefined)).toBe(true);
+    const serialised = JSON.stringify(events);
+    for (const identifier of ['23456789', '99999999', 'Kamau', 'Njoki', ip]) {
+      expect(serialised).not.toContain(identifier);
+    }
   });
 
   it('answers 503 iprs-unavailable when IPRS cannot be asked, storing nothing', async () => {

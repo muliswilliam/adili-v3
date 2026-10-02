@@ -94,8 +94,13 @@ export class InternalDisclosureController {
     @Body(new ZodValidationPipe(disclosureRequestSchema)) request: DisclosureRequest,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<DisclosureDocument> {
-    const disclosure = await this.disclosures.render(tenant, principal.subject, request);
-    audit.resource({ tenant, subjectPersonId: request.personId });
+    const { disclosure, versionIds } = await this.disclosures.render(
+      tenant,
+      principal.subject,
+      request,
+    );
+    // The versions that left, by id: investigators can tell which were disclosed (ADR-008).
+    audit.resource({ tenant, subjectPersonId: request.personId, ids: versionIds });
     audit.disclosure({
       basis: request.legalBasis,
       reference: request.grantReference,
