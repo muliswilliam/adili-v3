@@ -207,9 +207,9 @@ export function AttachmentList({
   }
 
   return (
-    <div className={cn('grid gap-2.5', className)} {...props}>
+    <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-2.5', className)} {...props}>
       {attachments.length > 0 ? (
-        <ul aria-label={label} className="grid gap-2">
+        <ul aria-label={label} className="grid grid-cols-[minmax(0,1fr)] gap-2">
           {attachments.map((attachment) => {
             const problem = PROBLEMS.includes(attachment.status);
             const menu = attachment.status === 'linked' ? menuFor(attachment) : null;
