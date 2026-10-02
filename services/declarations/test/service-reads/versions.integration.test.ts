@@ -26,6 +26,8 @@ import {
   STATEMENT_DATE,
   submissionFixtures,
 } from '../support/submission.js';
+import { registryCheckFixtures } from '../support/registry-checks.js';
+import { ntsa } from '../fixtures/registry-results.js';
 
 /**
  * Spec 07a #155 over HTTP: the review service reads a submitted version as filed (decrypted, with
@@ -54,8 +56,9 @@ const DIRECTORY: Caller = {
 };
 
 let api: DeclarationsApi;
-const { declarant, steppedUp, givenObligation, completeDraft, sourceItems, submit } =
+const { declarant, steppedUp, givenObligation, completeDraft, sourceItems, save, section, submit } =
   submissionFixtures(() => api);
+const { givenOfficerNationalId, checked } = registryCheckFixtures(() => api);
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
@@ -206,6 +209,65 @@ describe('version document (S16)', () => {
     expect(officer?.assets).toEqual([{ ...ASSET, source: ASSET_SOURCE }]);
     expect(officer?.liabilities).toEqual([LIABILITY]);
     expect(officer?.liabilities[0]).not.toHaveProperty('source');
+  });
+
+  it("carries an accepted suggestion's source and nothing else of the suggestion (05b S7)", async () => {
+    const draft = await completeDraft(ACHIENG);
+    await givenOfficerNationalId(ACHIENG, draft.id, '27451863');
+    api.gateway.given('ntsa', '27451863', ntsa.found);
+    const [set] = await checked(draft.id, declarant(ACHIENG), 'officer', ['ntsa']);
+    const fielder = set?.suggestions[0];
+    if (!fielder) throw new Error('No suggestion');
+    const etag = (await api.request('GET', `/v1/declarations/${draft.id}`, declarant(ACHIENG)))
+      .headers.etag;
+    const accepted = await api.request(
+      'POST',
+      `/v1/declarations/${draft.id}/suggestions/${fielder.id}/accept`,
+      declarant(ACHIENG),
+      {
+        headers: { 'if-match': String(etag) },
+        body: { fields: fielder.fields, applyToItemId: null },
+      },
+    );
+    expect(accepted.statusCode, accepted.body).toBe(200);
+    const { itemId } = accepted.json<{ itemId: string }>();
+    // The declarant gives the car's value, which the registry never does.
+    const statement = await section(ACHIENG, draft.id, 'statement:officer');
+    await save(ACHIENG, draft.id, 'statement:officer', {
+      ...statement,
+      assets: (statement.assets as { id: string }[]).map((item) =>
+        item.id === itemId ? { ...item, value: { kesCents: 90_000_000 } } : item,
+      ),
+    });
+    const filed = await submit(draft.id, steppedUp(ACHIENG));
+    expect(filed.statusCode, filed.body).toBe(201);
+
+    const response = await readDocument(draft.id);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const read = response.json<InternalVersionDocument>();
+    const [officer] = read.document.statements as { assets: Record<string, unknown>[] }[];
+    expect(officer?.assets.find((item) => item.id === itemId)).toMatchObject({
+      type: 'vehicle',
+      details: { registration: 'KCA 123A', makeModel: 'Toyota Fielder, 2016' },
+      source: {
+        kind: 'ntsa',
+        suggestionId: fielder.id,
+        verificationResultId: ntsa.found.resultId,
+        at: expect.any(String) as unknown,
+      },
+    });
+    // What the registry said beyond the accepted fields, and the suggestion left alone, stay out.
+    const document = JSON.stringify(read.document);
+    for (const suggestionData of [
+      '2019-03-14',
+      'registeredOn',
+      'sourceRef',
+      'matchKeys',
+      'KDA 456X',
+    ]) {
+      expect(document).not.toContain(suggestionData);
+    }
   });
 
   it('records the read with the reviewer it is for and the case as its legal basis', async () => {

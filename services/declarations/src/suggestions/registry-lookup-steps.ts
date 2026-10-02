@@ -18,7 +18,7 @@ import {
   IntegrationGatewayUnavailable,
 } from '../integration-gateway/integration-gateway-client.js';
 import { declarationSuggestionsReady } from './events.js';
-import { findMatchingItem } from './match-keys.js';
+import { type Comparable, findMatchingItem, repeatsDecided } from './match-keys.js';
 import { householdPerson, isOfficer, statementItems } from './persons.js';
 import { type MappedSuggestion, mapRegistryResult } from './registry-mapping.js';
 import type { RegistryResult } from './registry-results.js';
@@ -89,7 +89,12 @@ export class RegistryLookupSteps {
     }
 
     const mapped = mapRegistryResult(result, attempt.personKey as PersonKey);
-    const rows = await this.sealed(attempt, mapped.verificationResultId, mapped.suggestions);
+    const rows = await this.sealed(
+      attempt,
+      mapped.verificationResultId,
+      mapped.suggestions,
+      await this.decided(attempt),
+    );
     await this.settle(attempt, {
       status: 'ready',
       verificationResultId: mapped.verificationResultId,
@@ -130,13 +135,50 @@ export class RegistryLookupSteps {
   }
 
   /**
+   * What the declarant has decided on from this registry for the person: their accepted and
+   * dismissed suggestions, for the re-suggestion rule (`repeatsDecided`).
+   */
+  private async decided(attempt: LookupAttempt): Promise<Comparable[]> {
+    const rows = await withPerson(this.db, personContext(attempt), (tx) =>
+      tx
+        .select({
+          id: suggestions.id,
+          itemType: suggestions.itemType,
+          sectionKey: suggestions.sectionKey,
+          ciphertext: suggestions.ciphertext,
+          envelope: suggestions.envelope,
+        })
+        .from(suggestions)
+        .innerJoin(suggestionSets, eq(suggestionSets.id, suggestions.setId))
+        .where(
+          and(
+            eq(suggestions.declarationId, attempt.declarationId),
+            eq(suggestions.personKey, attempt.personKey as PersonKey),
+            eq(suggestionSets.source, attempt.system),
+            inArray(suggestions.status, ['accepted', 'dismissed']),
+          ),
+        ),
+    );
+    return Promise.all(
+      rows.map(async (row) => ({
+        itemType: row.itemType,
+        sectionKey: row.sectionKey,
+        matchKeys: (await this.cipher.open(attempt.tenant, attempt.declarationId, row.id, row))
+          .matchKeys,
+      })),
+    );
+  }
+
+  /**
    * The suggestions to store, encrypted, each with the item it matches in its statement (the
-   * statement as saved now: a match is a hint, re-checked on accept).
+   * statement as saved now: a match is a hint, re-checked on accept). One that repeats what the
+   * declarant has decided on is stored `superseded`, not `new`.
    */
   private async sealed(
     ref: LookupRef & { setId: string },
     verificationResultId: string,
     mapped: MappedSuggestion[],
+    decided: readonly Comparable[],
   ): Promise<(typeof suggestions.$inferInsert)[]> {
     const sectionKeys = [...new Set(mapped.map((each) => each.sectionKey))];
     const statements = await withPerson(this.db, personContext(ref), (tx) =>
@@ -185,6 +227,7 @@ export class RegistryLookupSteps {
           ciphertext: sealed.ciphertext,
           envelope: sealed.envelope,
           matchItemId: findMatchingItem(suggestion, items.get(suggestion.sectionKey) ?? []),
+          status: repeatsDecided(suggestion, decided) ? ('superseded' as const) : ('new' as const),
           verificationResultId,
           createdAt: now,
         };

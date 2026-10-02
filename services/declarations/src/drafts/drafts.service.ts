@@ -522,7 +522,35 @@ export class DraftsService {
     ifMatch: string | undefined,
     body: unknown,
   ): Promise<SectionSaveResult> {
-    const person = personOf(principal);
+    return this.save(personOf(principal), declarationId, sectionKey, ifMatch, () => body);
+  }
+
+  /**
+   * A read-modify-write of one section on the declarant's behalf (accepting a suggestion, spec
+   * 05b): `edit` turns the section as stored into the body to save, which then goes through
+   * everything a save does (`If-Match`, shape, the service's own fields, completeness, the
+   * `declaration.section-saved.v1` audit record). `within` runs in the save's transaction once
+   * the draft version is bumped, so what it records commits or rolls back with the section.
+   */
+  async editSection(
+    principal: Principal,
+    declarationId: string,
+    sectionKey: DeclarationSectionKey,
+    ifMatch: string | undefined,
+    edit: (stored: SectionContents) => SectionContents,
+    within: (tx: Transaction) => Promise<void>,
+  ): Promise<SectionSaveResult> {
+    return this.save(personOf(principal), declarationId, sectionKey, ifMatch, edit, within);
+  }
+
+  private async save(
+    person: PersonContext,
+    declarationId: string,
+    sectionKey: string,
+    ifMatch: string | undefined,
+    bodyFrom: (stored: SectionContents) => unknown,
+    within?: (tx: Transaction) => Promise<void>,
+  ): Promise<SectionSaveResult> {
     const key = sectionKeyOf(sectionKey);
     const expected = expectedVersion(ifMatch);
     const state = notFoundIfInvisible(
@@ -532,6 +560,8 @@ export class DraftsService {
     if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
     if (declaration.draftVersion !== expected) throw versionMismatch();
     if (section.metadata.archived === true) throw sectionArchived();
+    const stored = await this.sections.open(declaration.tenant, section);
+    const body = bodyFrom(stored);
     if (!isRecord(body)) throw validationProblem([{ path: '', message: 'Expected an object' }]);
     const errors = shapeErrors(key, body);
     if (errors.length > 0) throw validationProblem(errors);
@@ -542,7 +572,6 @@ export class DraftsService {
       }
     }
 
-    const stored = await this.sections.open(declaration.tenant, section);
     const prepared = await this.prepare(person, declaration, key, body, stored, section.metadata);
     const household =
       key === 'household' ? householdPeople(prepared, declaration.statementDate) : null;
@@ -607,6 +636,7 @@ export class DraftsService {
           sectionsChanged,
         }),
       );
+      await within?.(tx);
       return { draftVersion: bumped, unlinked };
     });
     await releaseUploads(this.documents, this.logger, declaration.tenant, unlinked);

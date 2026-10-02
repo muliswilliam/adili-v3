@@ -66,7 +66,10 @@ import {
 } from './declaration/representation.js';
 import { submissionResultSchema, submitProblemSchema } from './submission/representation.js';
 import {
+  acceptSuggestionRequestSchema,
+  dismissSuggestionRequestSchema,
   registryLookupRequestSchema,
+  suggestionAcceptanceSchema,
   suggestionSchema,
   suggestionSetSchema,
   suggestionSourceSchema,
@@ -135,4 +138,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Suggestion: suggestionSchema,
   SuggestionSet: suggestionSetSchema,
   RegistryLookupRequest: registryLookupRequestSchema,
+  AcceptSuggestionRequest: acceptSuggestionRequestSchema,
+  SuggestionAcceptance: suggestionAcceptanceSchema,
+  DismissSuggestionRequest: dismissSuggestionRequestSchema,
 };

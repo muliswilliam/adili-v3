@@ -114,3 +114,29 @@ function alnumKey(kind: MatchKeyKind, raw: string): MatchKey | null {
   const normal = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
   return normal ? `${kind}:${normal}` : null;
 }
+
+/** What the re-suggestion rule compares of a suggestion. */
+export interface Comparable {
+  itemType: string;
+  sectionKey: string;
+  matchKeys: readonly MatchKey[];
+}
+
+/**
+ * Whether a registry checked again is suggesting what the declarant has already decided on: an
+ * earlier suggestion of the same registry and person, accepted or dismissed, of the same item type
+ * and sharing a match key (the same car, parcel, company or PIN). A suggestion with no
+ * identifier (KRA's income hint) repeats a decided one of its type in the same section. Such a
+ * suggestion is stored `superseded` rather than `new`: the declarant's decision stands, and the
+ * earlier card keeps showing it.
+ */
+export function repeatsDecided(suggestion: Comparable, decided: readonly Comparable[]): boolean {
+  const keys = new Set<string>(suggestion.matchKeys);
+  return decided.some(
+    (earlier) =>
+      earlier.itemType === suggestion.itemType &&
+      (keys.size === 0
+        ? earlier.matchKeys.length === 0 && earlier.sectionKey === suggestion.sectionKey
+        : earlier.matchKeys.some((key) => keys.has(key))),
+  );
+}

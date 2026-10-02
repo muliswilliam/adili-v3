@@ -42,3 +42,44 @@ export function declarationSuggestionsReady(
 ): NewEvent<DeclarationSuggestionsReadyData> {
   return { type: DECLARATION_SUGGESTIONS_READY, subject: data.declarationId, tenant, data };
 }
+
+export const DECLARATION_SUGGESTION_ACCEPTED = 'declaration.suggestion-accepted.v1';
+
+/**
+ * The declarant accepted a suggestion: the item it added or filled, saved in the same transaction
+ * as the section (whose `declaration.section-saved.v1` is the audit record of the write).
+ */
+export interface DeclarationSuggestionAcceptedData extends Record<string, unknown> {
+  declarationId: string;
+  suggestionId: string;
+  setId: string;
+  source: SuggestionSource;
+  sectionKey: string;
+  itemId: string;
+  /** Applied to an item already declared, rather than added as a new one. */
+  applied: boolean;
+}
+
+export function declarationSuggestionAccepted(
+  tenant: string,
+  data: DeclarationSuggestionAcceptedData,
+): NewEvent<DeclarationSuggestionAcceptedData> {
+  return { type: DECLARATION_SUGGESTION_ACCEPTED, subject: data.declarationId, tenant, data };
+}
+
+export const DECLARATION_SUGGESTION_DISMISSED = 'declaration.suggestion-dismissed.v1';
+
+/** The declarant set a suggestion aside. The reason they gave stays with the suggestion. */
+export interface DeclarationSuggestionDismissedData extends Record<string, unknown> {
+  declarationId: string;
+  suggestionId: string;
+  setId: string;
+  source: SuggestionSource;
+}
+
+export function declarationSuggestionDismissed(
+  tenant: string,
+  data: DeclarationSuggestionDismissedData,
+): NewEvent<DeclarationSuggestionDismissedData> {
+  return { type: DECLARATION_SUGGESTION_DISMISSED, subject: data.declarationId, tenant, data };
+}

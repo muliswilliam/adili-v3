@@ -67,3 +67,38 @@ export const registryLookupRequestSchema = z.object({
   }),
 });
 export type RegistryLookupRequest = z.infer<typeof registryLookupRequestSchema>;
+
+export const acceptSuggestionRequestSchema = z.object({
+  fields: z.record(z.string(), z.unknown()).meta({
+    description:
+      "The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). Value fields are not taken: the declarant enters values on the item",
+  }),
+  applyToItemId: z.uuid().nullable().meta({
+    description:
+      "The item to fill instead of adding one: usually the suggestion's `matchItemId`, of the same type in the same section (for `directorship`, a directorship's `id`). Null adds a new item",
+  }),
+  overwrite: z.boolean().optional().meta({
+    description:
+      'When applying to an existing item, also replace the fields it already has; without it (false), only empty ones are filled',
+  }),
+});
+export type AcceptSuggestionRequest = z.infer<typeof acceptSuggestionRequestSchema>;
+
+export const suggestionAcceptanceSchema = z.object({
+  suggestion: suggestionSchema,
+  itemId: z.uuid().meta({
+    description:
+      "The item added or filled: an asset or income of the person's statement, a directorship in `other`, or the spouse in `household` (for a spouse's KRA PIN)",
+  }),
+  etag: z.string().meta({ description: 'The new draft version, as in the `ETag` header' }),
+});
+export type SuggestionAcceptance = z.infer<typeof suggestionAcceptanceSchema>;
+
+export const dismissSuggestionRequestSchema = z.object({
+  reason: z
+    .string()
+    .max(200)
+    .optional()
+    .meta({ description: 'Why the declarant set it aside, if they said' }),
+});
+export type DismissSuggestionRequest = z.infer<typeof dismissSuggestionRequestSchema>;

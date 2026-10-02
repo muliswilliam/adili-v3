@@ -12,6 +12,7 @@ import {
   parcelMatchKey,
   presentKeys,
   registrationMatchKey,
+  repeatsDecided,
 } from '../../src/suggestions/match-keys.js';
 import { mapRegistryResult } from '../../src/suggestions/registry-mapping.js';
 import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
@@ -150,5 +151,38 @@ describe('findMatchingItem', () => {
     const sameDigits = [asset('x', 'land', { parcelNumber: 'KCA123A' })];
     const [fielder] = suggest(ntsa.found, 'officer');
     expect(fielder && findMatchingItem(fielder, sameDigits)).toBeNull();
+  });
+});
+
+describe('a re-check repeating what the declarant decided (repeatsDecided)', () => {
+  const [fielder, dmax] = suggest(ntsa.found, 'officer');
+  const kraHints = suggest(kra.found, 'officer');
+  const brsSuggestions = suggest(brs.found, 'officer');
+
+  it('repeats a decided suggestion of the same type sharing a match key, however written', () => {
+    if (!fielder || !dmax) throw new Error('No vehicles');
+    const rewritten = { ...fielder, matchKeys: matchKeysFor('vehicle', 'kca-123 a') };
+
+    expect(repeatsDecided(rewritten, [fielder])).toBe(true);
+    expect(repeatsDecided(dmax, [fielder])).toBe(false);
+    expect(repeatsDecided(fielder, [])).toBe(false);
+  });
+
+  it("does not take one company's directorship for its shareholding", () => {
+    const [shares, directorship] = brsSuggestions;
+    if (!shares || !directorship) throw new Error('No BRS suggestions');
+
+    expect(repeatsDecided(shares, [directorship])).toBe(false);
+  });
+
+  it('repeats a keyless suggestion (the income hint) of its type in the same section only', () => {
+    const hint = kraHints.find((each) => each.itemType === 'income-hint');
+    if (!hint) throw new Error('No income hint');
+
+    expect(repeatsDecided(hint, [hint])).toBe(true);
+    expect(repeatsDecided(hint, [{ ...hint, sectionKey: 'statement:spouse:x' }])).toBe(false);
+    expect(
+      repeatsDecided(hint, [{ ...hint, matchKeys: matchKeysFor('vehicle', 'KCA 123A') }]),
+    ).toBe(false);
   });
 });

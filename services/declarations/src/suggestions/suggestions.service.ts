@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -10,19 +10,29 @@ import { Clock } from '../clock.js';
 import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
-import { isRecord } from '../guards.js';
+import { isRecord, isUuid } from '../guards.js';
 import { personOf } from '../drafts/access.js';
+import { DraftsService } from '../drafts/drafts.service.js';
 import { declarationNotDraft, validationProblem } from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration, sectionIs } from '../drafts/repository.js';
 import { declarationSections } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
-import { declarationLookupRequested } from './events.js';
+import { etag } from '../http.js';
+import { placementOf } from './acceptance.js';
+import {
+  declarationLookupRequested,
+  declarationSuggestionAccepted,
+  declarationSuggestionDismissed,
+} from './events.js';
 import { householdPerson, isHouseholdPersonKey, isOfficer } from './persons.js';
 import { RegistryLookupWorkflows } from './registry-lookup-workflows.js';
 import {
+  acceptSuggestionRequestSchema,
+  dismissSuggestionRequestSchema,
   type RegistryLookupRequest,
   registryLookupRequestSchema,
   type Suggestion,
+  type SuggestionAcceptance,
   type SuggestionSet,
 } from './representation.js';
 import { suggestionConsents, suggestions, suggestionSets } from './schema.js';
@@ -54,6 +64,7 @@ export class SuggestionsService {
     private readonly workflows: RegistryLookupWorkflows,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
+    private readonly drafts: DraftsService,
   ) {}
 
   /**
@@ -208,6 +219,156 @@ export class SuggestionsService {
   }
 
   /**
+   * Accepts a `new` suggestion (S4): the section read-modify-write of the section save, with
+   * `If-Match`, adding the item with the suggestion as its `source` or filling the item it is
+   * applied to (`acceptance.ts`). In the save's transaction the suggestion becomes `accepted` with
+   * the item, re-checked under a row lock, and `declaration.suggestion-accepted.v1` is recorded
+   * beside the save's own `declaration.section-saved.v1`. 409 `not-new` when it was decided or
+   * superseded already, 409 `draft-version-mismatch` when the draft changed since `If-Match`
+   * (428 without it), 400 for fields the item cannot take or a suggestion with no place in
+   * declaration.v1, 404 when it is not the caller's.
+   */
+  async accept(
+    principal: Principal,
+    declarationId: string,
+    suggestionId: string,
+    ifMatch: string | undefined,
+    body: unknown,
+  ): Promise<SuggestionAcceptance> {
+    const person = personOf(principal);
+    const { declaration, row, set } = await this.decidable(person, declarationId, suggestionId);
+    const parsed = acceptSuggestionRequestSchema.safeParse(body);
+    if (!parsed.success) throw validationProblem(issuesOf(parsed.error.issues));
+    const accepted = { ...parsed.data, overwrite: parsed.data.overwrite === true };
+    const verificationResultId = row.verificationResultId ?? set.verificationResultId;
+    const source = {
+      kind: set.source,
+      suggestionId: row.id,
+      ...(verificationResultId ? { verificationResultId } : {}),
+      ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
+      at: this.clock.now().toISOString(),
+    };
+    const placement = placementOf(row, accepted, source, uuidv7());
+    let itemId = '';
+    let decided: SuggestionRow | undefined;
+    let saved: { draftVersion: number };
+    try {
+      saved = await this.drafts.editSection(
+        principal,
+        declaration.id,
+        placement.sectionKey,
+        ifMatch,
+        (stored) => {
+          const applied = placement.apply(stored);
+          itemId = applied.itemId;
+          return applied.contents;
+        },
+        async (tx) => {
+          decided = await decide(tx, row.id, { status: 'accepted', acceptedItemId: itemId });
+          await this.events.record(
+            tx,
+            declarationSuggestionAccepted(declaration.tenant, {
+              declarationId: declaration.id,
+              suggestionId: row.id,
+              setId: row.setId,
+              source: set.source,
+              sectionKey: placement.sectionKey,
+              itemId,
+              applied: accepted.applyToItemId !== null,
+            }),
+          );
+        },
+      );
+    } catch (error) {
+      // A suggestion is accepted onto the draft the declarant saw: a stale one conflicts.
+      if (error instanceof ProblemException && error.problem.type === 'draft-version-mismatch') {
+        throw new ProblemException({ ...error.problem, status: HttpStatus.CONFLICT });
+      }
+      throw error;
+    }
+    if (!decided) throw new Error(`Suggestion ${row.id} was not marked accepted`);
+    return {
+      suggestion: suggestionView(
+        decided,
+        await this.cipher.open(declaration.tenant, declaration.id, decided.id, decided),
+      ),
+      itemId,
+      etag: etag(saved.draftVersion),
+    };
+  }
+
+  /**
+   * Sets a `new` suggestion aside with the declarant's reason, if they gave one (S5), recording
+   * `declaration.suggestion-dismissed.v1` (identifiers only; the reason stays with the
+   * suggestion). Dismissing it again changes nothing; 409 `not-new` when it was accepted or
+   * superseded; 404 when it is not the caller's. The draft is untouched.
+   */
+  async dismiss(
+    principal: Principal,
+    declarationId: string,
+    suggestionId: string,
+    body: unknown,
+  ): Promise<Suggestion> {
+    const person = personOf(principal);
+    const { declaration, row, set } = await this.decidable(person, declarationId, suggestionId, {
+      dismissed: true,
+    });
+    const parsed = dismissSuggestionRequestSchema.safeParse(body ?? {});
+    if (!parsed.success) throw validationProblem(issuesOf(parsed.error.issues));
+    const reason = parsed.data.reason?.trim() ? parsed.data.reason.trim() : null;
+    const dismissed =
+      row.status === 'dismissed'
+        ? row
+        : await withPerson(this.db, person, async (tx) => {
+            const updated = await decide(tx, row.id, { status: 'dismissed', reason });
+            await this.events.record(
+              tx,
+              declarationSuggestionDismissed(declaration.tenant, {
+                declarationId: declaration.id,
+                suggestionId: row.id,
+                setId: row.setId,
+                source: set.source,
+              }),
+            );
+            return updated;
+          });
+    return suggestionView(
+      dismissed,
+      await this.cipher.open(declaration.tenant, declaration.id, dismissed.id, dismissed),
+    );
+  }
+
+  /**
+   * The suggestion on the caller's draft, while the declarant can still decide on it: 404 when
+   * either is not theirs, 409 when the declaration is past the draft, 409 `not-new` when it is
+   * no longer `new` (a dismissed one passes for a repeated dismissal).
+   */
+  private async decidable(
+    person: PersonContext,
+    declarationId: string,
+    suggestionId: string,
+    { dismissed = false }: { dismissed?: boolean } = {},
+  ): Promise<{ declaration: DeclarationRow; row: SuggestionRow; set: SetRow }> {
+    if (!isUuid(suggestionId)) notFoundIfInvisible(null);
+    const found = await withPerson(this.db, person, async (tx) => {
+      const declaration = await liveDeclaration(tx, declarationId);
+      if (!declaration) return null;
+      const [joined] = await tx
+        .select()
+        .from(suggestions)
+        .innerJoin(suggestionSets, eq(suggestionSets.id, suggestions.setId))
+        .where(
+          and(eq(suggestions.id, suggestionId), eq(suggestions.declarationId, declaration.id)),
+        );
+      return joined ? { declaration, row: joined.suggestions, set: joined.suggestion_sets } : null;
+    });
+    const { declaration, row, set } = notFoundIfInvisible(found);
+    if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
+    if (row.status !== 'new' && !(dismissed && row.status === 'dismissed')) throw notNew();
+    return { declaration, row, set };
+  }
+
+  /**
    * The officer can always be looked up (by their roster record); a spouse or child must be
    * listed in Household, with a national ID.
    */
@@ -268,15 +429,51 @@ function parseRequest(body: unknown): RegistryLookupRequest {
   }
   const parsed = registryLookupRequestSchema.safeParse(body);
   if (!parsed.success) {
-    throw validationProblem(
-      parsed.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })),
-    );
+    throw validationProblem(issuesOf(parsed.error.issues));
   }
   return parsed.data;
 }
 
 type SetRow = typeof suggestionSets.$inferSelect;
 type SuggestionRow = typeof suggestions.$inferSelect;
+
+/**
+ * In the deciding transaction: the suggestion, locked, becomes `status` if it is still `new`;
+ * 409 `not-new` if another request decided it first (or a re-check superseded it).
+ */
+async function decide(
+  tx: Transaction,
+  suggestionId: string,
+  decision:
+    { status: 'accepted'; acceptedItemId: string } | { status: 'dismissed'; reason: string | null },
+): Promise<SuggestionRow> {
+  const [current] = await tx
+    .select({ status: suggestions.status })
+    .from(suggestions)
+    .where(eq(suggestions.id, suggestionId))
+    .for('update');
+  if (current?.status !== 'new') throw notNew();
+  const [updated] = await tx
+    .update(suggestions)
+    .set(decision)
+    .where(eq(suggestions.id, suggestionId))
+    .returning();
+  if (!updated) throw notNew();
+  return updated;
+}
+
+function notNew(): ProblemException {
+  return ProblemException.fromCode('not-new', {
+    detail: 'This suggestion was accepted, dismissed or replaced by a later check already.',
+  });
+}
+
+function issuesOf(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
+  return issues.map((issue) => ({
+    path: issue.path.map(String).join('.'),
+    message: issue.message,
+  }));
+}
 
 function setView(set: SetRow, own: Suggestion[]): SuggestionSet {
   return {
