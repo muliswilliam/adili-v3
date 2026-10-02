@@ -791,6 +791,7 @@ describe("the full document of a version for the declarant's certified copy (S13
           type: 'declaration-version',
           params: { declarationId: version.declarationId, version: '1' },
           subjectPersonId: WANJIKU,
+          ids: [row?.id],
         },
         actor: { subject: 'service-account-access', onBehalfOf: `account-${WANJIKU}` },
         legalBasis: { basis: 'self-access', reference: null },
