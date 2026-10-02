@@ -321,4 +321,19 @@ describe('QueueView', () => {
     expect(loadPage).toHaveBeenCalledWith('next');
     expect(await screen.findByText('Showing all 2 cases')).toBeTruthy();
   });
+
+  it('N5: starts the list again with each first page loaded, even one with the same cases', async () => {
+    const loadPage = vi.fn().mockResolvedValue(page([HELD]));
+    const { rerender } = render(view({ list: page([UNASSIGNED], 'next'), loadPage }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+      await Promise.resolve();
+    });
+    expect(await screen.findByText('Showing all 2 cases')).toBeTruthy();
+
+    // A reload (after a claim, say) gives a new first page.
+    rerender(view({ list: page([UNASSIGNED], 'next'), loadPage }));
+
+    expect(screen.getByText('Showing the first 1 case')).toBeTruthy();
+  });
 });

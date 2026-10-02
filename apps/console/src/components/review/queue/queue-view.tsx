@@ -1,4 +1,5 @@
 import { Card } from '@adili/ui';
+import { useState } from 'react';
 
 import type { CaseViewer } from '../../../review-case/view';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
@@ -40,10 +41,12 @@ export interface QueueViewProps {
 /**
  * The review workspace of a Commission (spec 07a FE-2, `/review`): the summary tiles and the
  * overdue clarifications, then the filterable queue with Claim, Open and a supervisor's
- * Reassign, Assign and Unassign on each row. Filters live in the URL (S19).
+ * Reassign, Assign and Unassign on each row. Filters live in the URL (S19), the search text in
+ * the history entry.
  */
 export function QueueView(props: QueueViewProps) {
   const { summary, list, search, onSearchChange, viewer, slug } = props;
+  const listNumber = useLoadNumber(list);
   const items = list?.ok ? list.data.items : [];
   const assignment = useCaseAssignment({
     viewer,
@@ -79,7 +82,7 @@ export function QueueView(props: QueueViewProps) {
           ) : (
             <QueueResults
               // A new first page (other filters, or a reload) starts the list again.
-              key={pageKey(list)}
+              key={listNumber}
               result={list}
               search={search}
               onSearchChange={onSearchChange}
@@ -97,11 +100,18 @@ export function QueueView(props: QueueViewProps) {
   );
 }
 
-/** Identifies a first page, so "Load more" state resets when it changes. */
-function pageKey(result: ServiceResult<QueuePage>): string {
-  if (!result.ok) return 'error';
-  const { items, nextCursor } = result.data;
-  return `${items.map((item) => `${item.id}:${item.assignee?.subject ?? ''}:${item.status}`).join(',')}|${nextCursor ?? ''}`;
+/**
+ * Counts the first pages loaded (each load is a new object), so "Load more" state resets with
+ * each one.
+ */
+function useLoadNumber(list: ServiceResult<QueuePage> | null): number {
+  const [seen, setSeen] = useState({ list, number: 0 });
+  if (seen.list !== list) {
+    const next = { list, number: seen.number + 1 };
+    setSeen(next);
+    return next.number;
+  }
+  return seen.number;
 }
 
 /** "2 clarifications overdue", when any are. */
