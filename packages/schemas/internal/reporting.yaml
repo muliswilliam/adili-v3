@@ -1357,7 +1357,12 @@ components:
           description: Commission slug, entity type, or `national`
         values:
           type: object
-          additionalProperties: true
+          description: >-
+            The figures the candidate rests on, by name: numbers, strings or null, no nested values,
+            as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state
+            (a change, a count of years) is carried here.
+          additionalProperties:
+            type: [number, string, 'null']
         aggregateKeys:
           type: array
           description: >-
