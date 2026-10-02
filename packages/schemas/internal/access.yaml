@@ -238,7 +238,7 @@ paths:
       tags:
         - officer
       summary: Queue of access requests with deadlines (access officer; supervisor reads)
-      description: 'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`).'
+      description: 'Form K requests (30-day deadline) and law enforcement requests (14-day deadline) together, or one `kind`. Open requests first, earliest decision deadline first; then decided and closed ones, latest deadline first. `late`: past the deadline and neither decided nor closed (for a law enforcement request, the breach flag). Filters combine (`status`, `kind`, `late`, `search`). Audited (ADR-008: it returns declarant names, and a search finds them), naming the requests served.'
       operationId: listCommissionAccessRequests
       parameters:
         - name: slug
@@ -318,6 +318,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.requests.listed
+        resource: access-request
   /v1/access/requests/{requestId}/officer:
     get:
       tags:
@@ -1968,7 +1971,7 @@ paths:
       tags:
         - officer
       summary: The Commission's written self-access applications with their deadlines
-      description: 'Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).'
+      description: 'Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt). Audited (ADR-008: it returns declarant names), naming the applications served.'
       operationId: listSelfAccessApplications
       parameters:
         - name: slug
@@ -2027,6 +2030,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: access.self-access.listed
+        resource: self-access-application
   /v1/access/self-access/{applicationId}:
     get:
       tags:

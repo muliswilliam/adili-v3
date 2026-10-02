@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { withTenant } from '@adili/data-access';
+import { sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { onboardingInvitations } from '../../src/db/schema.js';
+import { onboardingInvitations, outbox } from '../../src/db/schema.js';
 import type { OnboardingInvitation } from '../../src/roster/records/representation.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
@@ -34,6 +35,14 @@ let api: DirectoryApi;
 let ids: Map<string, string>;
 
 const record = (fileNumber: string) => ids.get(fileNumber) ?? '';
+
+const invitationEvents = async () =>
+  (
+    await api.db
+      .select({ type: outbox.eventType, envelope: outbox.envelope })
+      .from(outbox)
+      .orderBy(outbox.id)
+  ).filter((event) => event.type === 'roster.onboarding-invitation.sent.v1');
 
 beforeAll(async () => {
   api = await startDirectoryApi();
@@ -97,6 +106,22 @@ describe('invitations to onboard (spec 10, decision 2)', () => {
     expect(rows).toEqual([
       expect.objectContaining({ rosterRecordId: record('PSC/1'), requestedBy: 'access' }),
     ]);
+    // The write's audit record, in its transaction (ADR-008): ids and channels, no contacts.
+    const events = await invitationEvents();
+    expect(events.map(({ envelope }) => envelope)).toEqual([
+      expect.objectContaining({
+        type: 'roster.onboarding-invitation.sent.v1',
+        subject: invitation.id,
+        tenant: 'psc',
+        data: {
+          invitationId: invitation.id,
+          rosterRecordId: record('PSC/1'),
+          channels: ['email', 'sms'],
+          actor: { kind: 'client', id: 'access' },
+        },
+      }),
+    ]);
+    expect(JSON.stringify(events)).not.toContain('achieng@example.go.ke');
   });
 
   it('is one invitation per Idempotency-Key: a retry sends nothing again', async () => {
@@ -114,6 +139,27 @@ describe('invitations to onboard (spec 10, decision 2)', () => {
     expect(again.statusCode, again.body).toBe(200);
     expect(again.json()).toEqual(first.json());
     expect(api.invitations.sent()).toHaveLength(1);
+    expect(await invitationEvents()).toHaveLength(1);
+  });
+
+  it('is 422 idempotency-key-reused when the key invited another record, after the idempotency store forgot it', async () => {
+    const key = randomUUID();
+    const first = await api.post(invite('psc', record('PSC/1')), undefined, ACCESS, {
+      headers: ACTING_PSC,
+      idempotencyKey: key,
+    });
+    expect(first.statusCode, first.body).toBe(200);
+    // The idempotency store keeps a key 24 hours; the invitation table keeps it for good.
+    await api.db.execute(sql`delete from idempotency_keys`);
+
+    const other = await api.post(invite('psc', record('PSC/3')), undefined, ACCESS, {
+      headers: ACTING_PSC,
+      idempotencyKey: key,
+    });
+
+    expect(other.statusCode, other.body).toBe(422);
+    expect(other.json<Problem>().type).toBe('idempotency-key-reused');
+    expect(api.invitations.sent().map(({ to }) => to)).not.toContain('chebet@example.go.ke');
   });
 
   it('records an invitation on no channel when the roster holds no contact', async () => {

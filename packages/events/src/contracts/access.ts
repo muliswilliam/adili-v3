@@ -125,7 +125,11 @@ export const LEA_REQUEST_WITHDRAWN = LEA_REQUEST_EVENTS.withdrawn;
 /** A self-access step (a certified copy issued) publishes this. */
 export const ACCESS_CERTIFIED_COPY_ISSUED = 'access.certified-copy.issued.v1';
 
-/** Every event type the access service publishes. */
+/**
+ * Every event type an access-register entry publishes. The access service's writes that are not
+ * register steps (the window closing, a self-access application recorded) record their own audit
+ * events (ADR-008), which no other service reads.
+ */
 export const ACCESS_EVENT_TYPES = [
   ...Object.values(ACCESS_REQUEST_EVENTS),
   ...Object.values(LEA_REQUEST_EVENTS),

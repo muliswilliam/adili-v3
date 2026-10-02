@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, FieldCipherError, withTenant } from '@adili/data-access';
+import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -62,6 +63,7 @@ import {
   toSelfAccessApplicationDetail,
 } from './application-representation.js';
 import { CertifiedCopyIssuance, type CertifiedCopyRow } from './certified-copy-issuance.js';
+import { selfAccessApplicationDelivered, selfAccessApplicationRecorded } from './events.js';
 import {
   certifiedCopies,
   type SelfAccessRepresentative,
@@ -101,6 +103,7 @@ export class SelfAccessApplicationsService {
     private readonly cipher: FieldCipher,
     private readonly issuance: CertifiedCopyIssuance,
     private readonly clock: Clock,
+    private readonly events: EventPublisher,
   ) {}
 
   /** The Commission's roster records matching a search, as the officer looks for the declarant. */
@@ -220,6 +223,22 @@ export class SelfAccessApplicationsService {
           applicationId: id,
           at: now,
         });
+        // The write's audit record, in its transaction (ADR-008).
+        await this.events.record(
+          tx,
+          selfAccessApplicationRecorded({
+            applicationId: row.id,
+            certifiedCopyId: copy.id,
+            tenant,
+            personId: row.personId,
+            deliveryMethod: row.deliveryMethod,
+            actor: principal.subject,
+            at: now.toISOString(),
+            declarationId: row.declarationId,
+            version: row.version,
+            byRepresentative: representative !== null,
+          }),
+        );
         return { row, copy };
       },
     );
@@ -328,6 +347,19 @@ export class SelfAccessApplicationsService {
           .where(eq(selfAccessApplications.id, current.row.id))
           .returning();
         if (!updated) throw new Error('The self-access application was not updated');
+        // The write's audit record, in its transaction (ADR-008).
+        await this.events.record(
+          tx,
+          selfAccessApplicationDelivered({
+            applicationId: updated.id,
+            certifiedCopyId: current.copy.id,
+            tenant,
+            personId: updated.personId,
+            deliveryMethod: updated.deliveryMethod,
+            actor: principal.subject,
+            at: (updated.deliveredAt ?? this.clock.now()).toISOString(),
+          }),
+        );
         return { row: updated, copy: current.copy };
       },
     );

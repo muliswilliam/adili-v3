@@ -234,6 +234,8 @@ describe('The scope preview before the decision (decision 1)', () => {
               type: 'access-request',
               tenant: 'psc',
               subjectPersonId: anne.personId,
+              // The declarations counted, by reference: what an investigator needs (ADR-008).
+              ids: [D2025],
             }) as unknown,
             legalBasis: { basis: 'act-s36-1', reference: expect.any(String) as unknown },
             recipient: officer.sub,
