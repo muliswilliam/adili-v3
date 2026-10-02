@@ -332,7 +332,7 @@ function PersonAvatar({ name, relation }: { name: string; relation: Relation }) 
  */
 const PHONE_TOTALS_ROW = 'max-sm:grid max-sm:gap-y-0.5 max-sm:py-2';
 const PHONE_TOTALS_CELL =
-  'max-sm:flex max-sm:justify-between max-sm:gap-3 max-sm:py-0 max-sm:pl-0 max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]';
+  'max-sm:flex max-sm:justify-between max-sm:gap-3 max-sm:py-0 max-sm:pl-0 max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)_/_""]';
 
 function Totals({ view }: { view: DeclarationView }) {
   const cell = cn('py-2 pl-2.5 text-right tabular-nums', PHONE_TOTALS_CELL);
@@ -346,41 +346,65 @@ function Totals({ view }: { view: DeclarationView }) {
         {t.declaration.totals}
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[13.5px]">
-          <thead className="max-sm:sr-only">
-            <tr className="border-b text-[12.5px] text-muted-foreground">
-              <th scope="col" className="py-1.5 text-left font-medium">
+        {/* Explicit roles: the rows are grids on phones, which drops them in Safari. */}
+        <table role="table" className="w-full border-collapse text-[13.5px]">
+          <thead role="rowgroup" className="max-sm:sr-only">
+            <tr role="row" className="border-b text-[12.5px] text-muted-foreground">
+              <th scope="col" role="columnheader" className="py-1.5 text-left font-medium">
                 {t.declaration.totals}
               </th>
               {CATEGORIES.map((category) => (
-                <th key={category} scope="col" className="py-1.5 pl-2.5 text-right font-medium">
+                <th
+                  key={category}
+                  scope="col"
+                  role="columnheader"
+                  className="py-1.5 pl-2.5 text-right font-medium"
+                >
                   {CATEGORY_HEADINGS[category]}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {view.statements.map((statement) => (
-              <tr key={statement.personKey} className={cn('border-b', PHONE_TOTALS_ROW)}>
-                <th scope="row" className="py-2 text-left font-normal max-sm:pt-0 max-sm:pb-1">
+              <tr key={statement.personKey} role="row" className={cn('border-b', PHONE_TOTALS_ROW)}>
+                <th
+                  scope="row"
+                  role="rowheader"
+                  className="py-2 text-left font-normal max-sm:pt-0 max-sm:pb-1"
+                >
                   <span className="flex items-center gap-2">
                     <PersonAvatar name={statement.name} relation={statement.relation} />
                     <span className="truncate">{statement.name || t.declaration.unnamed}</span>
                   </span>
                 </th>
                 {CATEGORIES.map((category) => (
-                  <td key={category} data-label={CATEGORY_HEADINGS[category]} className={cell}>
+                  <td
+                    key={category}
+                    role="cell"
+                    data-label={CATEGORY_HEADINGS[category]}
+                    className={cell}
+                  >
                     {kes(statement.totals[category])}
                   </td>
                 ))}
               </tr>
             ))}
-            <tr className={cn('font-semibold', PHONE_TOTALS_ROW)}>
-              <th scope="row" className="py-2 text-left font-semibold max-sm:pt-0 max-sm:pb-1">
+            <tr role="row" className={cn('font-semibold', PHONE_TOTALS_ROW)}>
+              <th
+                scope="row"
+                role="rowheader"
+                className="py-2 text-left font-semibold max-sm:pt-0 max-sm:pb-1"
+              >
                 {t.declaration.total}
               </th>
               {CATEGORIES.map((category) => (
-                <td key={category} data-label={CATEGORY_HEADINGS[category]} className={cell}>
+                <td
+                  key={category}
+                  role="cell"
+                  data-label={CATEGORY_HEADINGS[category]}
+                  className={cell}
+                >
                   {kes(view.totals[category])}
                 </td>
               ))}
