@@ -43,10 +43,12 @@ export interface Submitted {
  *
  * An instruction already acknowledged answers the stored acknowledgement without calling payroll
  * again; under the same reference with other particulars it is a conflict. One payroll left
- * `pending` is sent again (payroll answers the original) and its row updated once it settles. An instruction payroll
- * does not acknowledge (down, timed out, breaker open, paused) is `upstream-unavailable` and
- * nothing is recorded as sent: the caller's workflow retries, and payroll, idempotent by
- * reference too, answers a retry of an instruction it did receive with the original. Every call
+ * `pending` is sent again (payroll answers the original) and its row updated once it settles;
+ * while payroll does not answer, the stored pending acknowledgement is. `failed` is final. An
+ * instruction payroll does not acknowledge (down, timed out, breaker open, paused) is
+ * `upstream-unavailable` and nothing is recorded as sent: the caller's workflow retries, and
+ * payroll, idempotent by reference too, answers a retry of an instruction it did receive with
+ * the original. Every call
  * to payroll leaves a `system_calls` row for coverage, in one transaction with what it achieved:
  * the acknowledgement stored and `payroll.instruction.submitted.v1`, or, unacknowledged,
  * `payroll.instruction.unacknowledged.v1` alone.
@@ -81,10 +83,10 @@ export class PayrollInstructions {
     const call = await this.calls.call(PAYROLL, (signal) => this.payroll.submit(request, signal), {
       log: { instructionReference: request.instructionReference },
     });
-    const logged = { system: PAYROLL, outcome: call, started, caller: requestedBy };
+    const callRecord = { system: PAYROLL, outcome: call, started, caller: requestedBy };
     const unacknowledged = (reason: PayrollInstructionUnacknowledgedData['reason']) =>
       this.db.transaction(async (tx) => {
-        await this.callLog.record(logged, tx);
+        await this.callLog.record(callRecord, tx);
         await this.events.record(
           tx,
           payrollInstructionUnacknowledged({
@@ -99,6 +101,9 @@ export class PayrollInstructions {
       });
     if (call.outcome === 'unavailable') {
       await unacknowledged(call.reason);
+      // A pending instruction was acknowledged: its replay answers what is stored, as a read does.
+      const pending = stored && (await this.find(request.instructionReference));
+      if (pending) return replay(pending, particulars);
       throw new ProblemException({
         type: 'upstream-unavailable',
         title: 'Payroll unavailable',
@@ -124,7 +129,7 @@ export class PayrollInstructions {
       caseRef: purpose.caseRef,
     };
     const written = await this.db.transaction(async (tx) => {
-      await this.callLog.record(logged, tx);
+      await this.callLog.record(callRecord, tx);
       // A new instruction, or a pending one settled; never a settled one overwritten.
       const [created] = await tx
         .insert(payrollInstructions)

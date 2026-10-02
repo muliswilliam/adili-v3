@@ -16,7 +16,9 @@ export type StubPayrollBehaviour =
   /** Waits `ms` before answering as the mock. */
   | { kind: 'slow'; ms: number }
   /** Stores the instruction as the mock, but acknowledges it `pending`, without a reference yet. */
-  | { kind: 'pending' };
+  | { kind: 'pending' }
+  /** Stores the instruction as the mock, but acknowledges it `failed`. */
+  | { kind: 'failed' };
 
 /** external/payroll.yaml `Instruction`, as the Django mock (mocks/payroll) answers it. */
 export interface StubInstruction {
@@ -120,6 +122,7 @@ export class StubPayroll {
         return;
       case 'payroll':
       case 'pending':
+      case 'failed':
         break;
     }
     const missing = REQUIRED.filter((field) => typeof body[field] !== 'string' || !body[field]);
@@ -131,7 +134,9 @@ export class StubPayroll {
     const answer =
       behaviour.kind === 'pending'
         ? { ...instruction, status: 'pending', payroll_reference: null, received_at: null }
-        : instruction;
+        : behaviour.kind === 'failed'
+          ? { ...instruction, status: 'failed' }
+          : instruction;
     send(response, created ? 201 : 200, answer);
   }
 

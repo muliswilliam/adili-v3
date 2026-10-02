@@ -10,8 +10,9 @@ import type {
 
 /**
  * Payroll acknowledged an instruction the gateway sent (ADR-008: integration calls are audited
- * with their legal basis). Once per instruction reference: a replay emits nothing. Identifiers and
- * statuses only, never the personal number or national ID. Subject: the instruction reference;
+ * with their legal basis). Once per stored status: a replay emits nothing, and a `pending`
+ * instruction emits it again when it settles. Identifiers and statuses only, never the personal
+ * number or national ID. Subject: the instruction reference;
  * tenant: `platform`, as instructions act for no tenant. The review service's own
  * `payroll.instruction.sent.v1` / `acknowledged.v1` tie it to the administrative action.
  * Documented here until the AsyncAPI file lands.

@@ -279,6 +279,45 @@ describe('payroll instructions', () => {
       expect(payroll.calls).toBe(2);
     });
 
+    it('answers the stored pending acknowledgement (200) when payroll is down on its replay', async () => {
+      payroll.behaviour = { kind: 'pending' };
+      const first = await submit();
+      expect(first.statusCode).toBe(201);
+
+      payroll.behaviour = { kind: 'status', status: 503 };
+      const replay = await submit();
+
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect((await read(STOP.instructionReference)).json()).toEqual(first.json());
+      expect(payroll.calls).toBe(2);
+      // The attempt is audited, and nothing new is recorded as sent.
+      expect((await calls()).map((call) => call.outcome)).toEqual(['answered', 'unavailable']);
+      expect(await events(PAYROLL_INSTRUCTION_UNACKNOWLEDGED)).toEqual([
+        expect.objectContaining({
+          data: expect.objectContaining({ reason: 'upstream-error' }) as unknown,
+        }),
+      ]);
+      expect((await events()).map((event) => event.data)).toEqual([
+        expect.objectContaining({ status: 'pending' }),
+      ]);
+    });
+
+    it('keeps a failed acknowledgement final: a replay answers it without asking payroll again', async () => {
+      payroll.behaviour = { kind: 'failed' };
+      const first = await submit();
+      expect(first.statusCode).toBe(201);
+      expect(first.json()).toMatchObject({ status: 'failed' });
+
+      payroll.behaviour = { kind: 'payroll' };
+      const replay = await submit();
+
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect(payroll.calls).toBe(1);
+      expect(await stored()).toEqual([expect.objectContaining({ status: 'failed' })]);
+    });
+
     it('refuses an acknowledgement of another instruction payroll holds under the reference', async () => {
       await submit();
       await t.db.delete(payrollInstructions);

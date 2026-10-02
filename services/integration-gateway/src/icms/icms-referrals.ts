@@ -78,10 +78,10 @@ export class IcmsReferrals {
     const call = await this.calls.call(ICMS, (signal) => this.icms.submit(request, signal), {
       log: { referralReference: request.referralReference },
     });
-    const logged = { system: ICMS, outcome: call, started, caller: requestedBy };
+    const callRecord = { system: ICMS, outcome: call, started, caller: requestedBy };
     const unacknowledged = (reason: IcmsReferralUnacknowledgedData['reason']) =>
       this.db.transaction(async (tx) => {
-        await this.callLog.record(logged, tx);
+        await this.callLog.record(callRecord, tx);
         await this.events.record(
           tx,
           icmsReferralUnacknowledged({
@@ -121,7 +121,7 @@ export class IcmsReferrals {
       caseRef: purpose.caseRef,
     };
     const written = await this.db.transaction(async (tx) => {
-      await this.callLog.record(logged, tx);
+      await this.callLog.record(callRecord, tx);
       const [created] = await tx
         .insert(icmsReferrals)
         .values(row)
