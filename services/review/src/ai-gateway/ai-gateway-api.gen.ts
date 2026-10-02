@@ -429,7 +429,10 @@ export interface components {
                 };
                 aggregateKeys: string[];
             }[];
-            /** @enum {string} */
+            /**
+             * @description `findings` and `all` need at least one candidate: a finding narrates a computed pattern, so with none no draft could pass validation
+             * @enum {string}
+             */
             section: "overview" | "findings" | "recommendations" | "all";
             /** @enum {string} */
             language: "en";

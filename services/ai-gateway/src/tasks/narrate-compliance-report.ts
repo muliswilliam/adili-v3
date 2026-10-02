@@ -30,6 +30,9 @@ const year = {
   }),
 };
 
+/** Sections whose draft includes findings, each of which must cite a candidate. */
+const sectionsWithFindings: ReadonlySet<string> = new Set(['findings', 'all']);
+
 const input = z
   .object({
     kind: z.literal('narrate-compliance-report'),
@@ -44,8 +47,16 @@ const input = z
         aggregateKeys: z.array(z.string()).min(1),
       }),
     ),
-    section: z.enum([...NARRATIVE_SECTIONS, 'all']),
+    section: z.enum([...NARRATIVE_SECTIONS, 'all']).meta({
+      description:
+        '`findings` and `all` need at least one candidate: a finding narrates a computed pattern, so with none no draft could pass validation',
+    }),
     language: z.enum(['en']),
+  })
+  // Refused here, before a provider is paid for a draft that must fail.
+  .refine((each) => each.candidates.length > 0 || !sectionsWithFindings.has(each.section), {
+    path: ['candidates'],
+    message: 'A draft of `findings` or `all` needs at least one candidate',
   })
   .meta({
     description:

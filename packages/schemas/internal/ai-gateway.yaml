@@ -1146,6 +1146,7 @@ components:
             - findings
             - recommendations
             - all
+          description: '`findings` and `all` need at least one candidate: a finding narrates a computed pattern, so with none no draft could pass validation'
         language:
           type: string
           enum:

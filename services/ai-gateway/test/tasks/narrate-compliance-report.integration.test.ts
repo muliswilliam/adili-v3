@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords, jobs } from '../../src/db/schema.js';
 import type { StructuredResult } from '../../src/providers/port.js';
-import type { NarrateOutput } from '../../src/tasks/narrate-compliance-report.js';
+import type { NarrateInput, NarrateOutput } from '../../src/tasks/narrate-compliance-report.js';
 import { contractErrors } from '../support/contract.js';
 import { narrateInput, narrateOutput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
@@ -42,8 +42,8 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
     return () => t.close();
   });
 
-  const run = async (): Promise<Job> => {
-    const response = await t.app.inject({
+  const post = (input: NarrateInput) =>
+    t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/narrate-compliance-report',
       headers: { ...auth, 'idempotency-key': randomUUID() },
@@ -52,9 +52,12 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
         dataClass: 'synthetic',
         subjectRef: `ncr:${randomUUID()}`,
         waitSeconds: 10,
-        input: narrateInput,
+        input,
       },
     });
+
+  const run = async (): Promise<Job> => {
+    const response = await post(narrateInput);
     expect(response.statusCode).toBe(200);
     return response.json<Job>();
   };
@@ -114,5 +117,19 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
     const [audit] = await t.db.select().from(auditRecords).where(eq(auditRecords.jobId, job.id));
     expect(audit?.violations).toEqual(row?.violations);
     expect(JSON.stringify([row?.violations, audit?.violations])).not.toContain('17.4');
+  });
+
+  it('refuses findings with no candidate to narrate, before any provider call', async () => {
+    const calls = provider.requests.length;
+
+    const response = await post({ ...narrateInput, candidates: [], section: 'all' });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      errors: [
+        { path: 'input.candidates', message: expect.stringContaining('candidate') as string },
+      ],
+    });
+    expect(provider.requests).toHaveLength(calls);
   });
 });
