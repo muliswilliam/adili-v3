@@ -310,6 +310,7 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
       requestBody:
         required: true
         content:
@@ -360,6 +361,7 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
       responses:
         '204':
           description: Removed
@@ -406,6 +408,7 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
       requestBody:
         required: true
         content:
@@ -462,6 +465,7 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
       responses:
         '204':
           description: Removed
@@ -584,7 +588,7 @@ paths:
       tags:
         - internal
       summary: Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
-      description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process."
+      description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded."
       operationId: getTenantAiStatus
       parameters:
         - name: X-Acting-Tenant
@@ -1521,9 +1525,9 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ProviderClass'
             - type: 'null'
-          description: The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
+          description: The provider class of the tenant's Commission task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
         provider:
-          description: The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is
+          description: The provider the tenant's Commission task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is
           type:
             - string
             - 'null'

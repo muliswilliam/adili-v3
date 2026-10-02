@@ -201,7 +201,7 @@ export interface paths {
         };
         /**
          * Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
-         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process.
+         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded.
          */
         get: operations["getTenantAiStatus"];
         put?: never;
@@ -517,9 +517,9 @@ export interface components {
             tenant: string;
             /** @description Some data class may be sent to the tenant's routed provider class */
             enabled: boolean;
-            /** @description The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
+            /** @description The provider class of the tenant's Commission task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
             providerClass: components["schemas"]["ProviderClass"] | null;
-            /** @description The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is */
+            /** @description The provider the tenant's Commission task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is */
             provider: string | null;
             /** @description Data classes every routed provider class may process, in DataClass order */
             dataClasses: components["schemas"]["DataClass"][];
@@ -1027,7 +1027,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report";
             };
             cookie?: never;
         };
@@ -1074,7 +1074,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report";
             };
             cookie?: never;
         };
@@ -1122,7 +1122,7 @@ export interface operations {
             header?: never;
             path: {
                 tenant: string;
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report";
             };
             cookie?: never;
         };
@@ -1170,7 +1170,7 @@ export interface operations {
             header?: never;
             path: {
                 tenant: string;
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report";
             };
             cookie?: never;
         };

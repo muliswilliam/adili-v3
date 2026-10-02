@@ -22,9 +22,11 @@ AI supports declarants, reviewers and EACC. The target production setup is **sel
 | Income vs asset growth ratios | `summarizeDeclaration` - reviewer summary with links to source fields |
 | Cross-checks against KRA, NTSA, BRS, ArdhiSasa, IPRS | `explainFlags` - plain-language explanation of deterministic risk flags |
 | Deadline and cycle logic | `draftClarification` - draft a clarification letter (s.35) for a reviewer to edit and approve |
-| | `narrateComplianceReport` - narrative sections for Form M and the EACC national report |
+| | `narrateComplianceReport` - narrative sections for the EACC national report (NCR) |
 
 Every AI output is labelled as AI-assisted, and **a named human approves** any action based on it.
+
+*Amended 2026-10-02 (spec 09b, #336):* `narrateComplianceReport` drafts the NCR only, and only EACC calls it. Form M is compiled from data and edited by the Commission's authorised officer, with no AI narrative (user stories 18 and 21), and the task's input is national: totals, every Commission's row and prior years. A Commission's AI status therefore reads only the tasks its officers call. AI narration of Form M would be a new task in a later spec.
 
 ### Architecture (four layers)
 

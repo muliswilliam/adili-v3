@@ -16,14 +16,19 @@ export type TaskName = (typeof TASK_NAMES)[number];
 export const taskNameSchema = z.enum(TASK_NAMES);
 
 /**
- * The tasks a Commission's officers call; the rest serve EACC alone (`narrate-compliance-report`
- * drafts the national report). A Commission's AI status reads only these routes.
+ * Tasks only EACC calls: `narrate-compliance-report` drafts the national report (NCR), not a
+ * Commission's Form M (ADR-007).
  */
-export const COMMISSION_TASKS = [
-  'summarize-declaration',
-  'explain-flags',
-  'draft-clarification',
-] as const satisfies readonly TaskName[];
+export const EACC_TASKS = ['narrate-compliance-report'] as const satisfies readonly TaskName[];
+
+/**
+ * The tasks a Commission's officers call: every task but EACC's, so a new task counts unless it is
+ * listed there. A Commission's AI status reads only these routes.
+ */
+export const COMMISSION_TASKS = TASK_NAMES.filter(
+  (task): task is Exclude<TaskName, (typeof EACC_TASKS)[number]> =>
+    !(EACC_TASKS as readonly TaskName[]).includes(task),
+);
 
 /** Contract `AiLabel`: present on every job output. */
 export const aiLabelSchema = z

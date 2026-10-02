@@ -16,11 +16,11 @@ export const tenantAiStatusSchema = z.object({
     .meta({ description: "Some data class may be sent to the tenant's routed provider class" }),
   providerClass: providerClassSchema.nullable().meta({
     description:
-      "The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach",
+      "The provider class of the tenant's Commission task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach",
   }),
   provider: z.string().nullable().meta({
     description:
-      "The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is",
+      "The provider the tenant's Commission task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is",
   }),
   dataClasses: z.array(dataClassSchema).meta({
     description: 'Data classes every routed provider class may process, in DataClass order',

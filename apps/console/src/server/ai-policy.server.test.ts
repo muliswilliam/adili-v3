@@ -10,10 +10,12 @@ import {
 import {
   deleteRoute,
   loadAiPolicyOverview,
+  routedClasses,
   saveGatePolicy,
   saveRoute,
   saveTenantBudget,
 } from './ai-policy.server';
+import type { Route } from './ai-gateway/types';
 import { createDirectoryClient } from './directory/client';
 
 const admin = () => mockAiGatewayClient('Amina Wanjiru', ['platform-admin']);
@@ -145,6 +147,29 @@ describe('S16 loadAiPolicyOverview', () => {
   it('fails when the directory does not answer', async () => {
     const result = await loadAiPolicyOverview(admin(), directory(200, 503).client);
     expect(result).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
+  });
+});
+
+describe('routedClasses', () => {
+  const route = (task: Route['task'], providerClass: Route['providerClass']): Route => ({
+    tenant: null,
+    task,
+    provider: providerClass === 'external' ? 'anthropic' : 'local',
+    providerClass,
+    model: 'model',
+    params: {},
+    configured: false,
+  });
+
+  it("reads a Commission's own tasks only, not EACC's narrate-compliance-report", () => {
+    const routes = [
+      route('summarize-declaration', 'self-hosted'),
+      route('explain-flags', 'self-hosted'),
+      route('draft-clarification', 'self-hosted'),
+      route('narrate-compliance-report', 'external'),
+    ];
+
+    expect(routedClasses(routes, 'psc')).toEqual(['self-hosted']);
   });
 });
 

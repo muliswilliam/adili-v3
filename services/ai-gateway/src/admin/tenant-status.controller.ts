@@ -31,7 +31,7 @@ export class TenantStatusController {
     summary:
       'Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)',
     description:
-      "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process.",
+      "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded.",
   })
   @ApiOkResponse({ description: 'Status', schema: schemaRef('TenantAiStatus') })
   @ApiProblemResponse(400, 'Request failed validation, or X-Acting-Tenant is missing')
