@@ -2,6 +2,11 @@ import type { z } from 'zod';
 
 import { coverageSchema, systemCoverageSchema } from './integrations/coverage.js';
 import { iprsPersonSchema, lookupIprsPersonSchema } from './iprs/iprs-person.js';
+import {
+  payrollActionSchema,
+  payrollInstructionRequestSchema,
+  payrollInstructionSchema,
+} from './payroll/payroll-records.js';
 import { registryRateLimitsSchema } from './registries/rate-limits.controller.js';
 import {
   ardhisasaResultSchema,
@@ -37,4 +42,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   SystemCoverage: systemCoverageSchema,
   Coverage: coverageSchema,
   RegistryRateLimits: registryRateLimitsSchema,
+  PayrollAction: payrollActionSchema,
+  PayrollInstructionRequest: payrollInstructionRequestSchema,
+  PayrollInstruction: payrollInstructionSchema,
 };

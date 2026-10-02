@@ -5,11 +5,14 @@ import { DATABASE, DatabaseModule, DatabaseReadinessCheck } from '@adili/data-ac
 import { EventsModule, RabbitMqReadinessCheck } from '@adili/events';
 import { TemporalModule, TemporalReadinessCheck } from '@adili/temporal';
 
+import { AdapterKitModule } from './adapter-kit/adapter-kit.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { IntegrationsModule } from './integrations/integrations.module.js';
 import { IprsModule } from './iprs/iprs.module.js';
+import { PayrollModule } from './payroll/payroll.module.js';
 import { RegistriesModule } from './registries/registries.module.js';
+import { SYSTEM_POLICY_CONFIG } from './system-policy-config.js';
 import { VerificationModule } from './verification/verification.module.js';
 
 @Module({
@@ -37,8 +40,18 @@ import { VerificationModule } from './verification/verification.module.js';
       namespace: config.TEMPORAL_NAMESPACE,
     }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    AdapterKitModule.forRoot({
+      policies: SYSTEM_POLICY_CONFIG,
+      breaker: {
+        failureThreshold: config.BREAKER_FAILURE_THRESHOLD,
+        cooldownMs: config.BREAKER_COOLDOWN_MS,
+      },
+      subjectHashKey: config.SUBJECT_HASH_KEY,
+      openbao: { url: config.OPENBAO_ADDR, token: config.OPENBAO_TOKEN },
+    }),
     IprsModule,
     RegistriesModule,
+    PayrollModule,
     VerificationModule,
     IntegrationsModule,
   ],

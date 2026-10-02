@@ -144,6 +144,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/payroll/instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
+         * @description Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll; another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+         */
+        post: operations["submitPayrollInstruction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payroll/instructions/{instructionReference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stored instruction and acknowledgement
+         * @description The instruction as payroll acknowledged it, from the gateway's store (payroll is not called). Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+         */
+        get: operations["getPayrollInstruction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/verification-results/{resultId}": {
         parameters: {
             query?: never;
@@ -173,7 +213,7 @@ export interface paths {
         };
         /**
          * Per-system call volume, cache hit rate, breaker state and last success
-         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa): lookups and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime, timeout and breaker rule. Platform administrators only.
+         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa, HR supplier lists, payroll): lookups (for payroll, instructions sent) and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime (null for payroll, never cached), timeout and breaker rule. Platform administrators only.
          */
         get: operations["getIntegrationsCoverage"];
         put?: never;
@@ -195,7 +235,7 @@ export interface paths {
         put?: never;
         /**
          * Force lookups to unavailable during a known outage (platform-admin)
-         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
+         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll answers instructions 503 and records nothing as sent. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
          */
         post: operations["pauseIntegration"];
         delete?: never;
@@ -218,42 +258,6 @@ export interface paths {
          * @description Lookups call the system again, within its rate limit and behind its breaker. Records `integrations.system.resumed.v1`. Resuming a system that is not paused changes nothing. Platform administrators only.
          */
         post: operations["resumeIntegration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/payroll/instructions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send a stop or resume salary instruction to payroll (idempotent by instruction reference) */
-        post: operations["submitPayrollInstruction"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/payroll/instructions/{instructionReference}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instructionReference: string;
-            };
-            cookie?: never;
-        };
-        /** Stored instruction and acknowledgement */
-        get: operations["getPayrollInstruction"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -445,11 +449,11 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /** @description How one registry integration is behaving */
+        /** @description How one integration is behaving */
         SystemCoverage: {
             system: components["schemas"]["System"];
             calls24h: number;
-            /** @description Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers */
+            /** @description Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers, and always 0 for a system that is never cached */
             cacheHitRate: number;
             failures24h: number;
             /**
@@ -464,7 +468,8 @@ export interface components {
             /** @description When it was paused; null unless paused */
             pausedAt: string | null;
             rateLimitPerMinute: number;
-            cacheTtlSeconds: number;
+            /** @description How long an answer is reused; null for a system that is never cached (payroll instructions) */
+            cacheTtlSeconds: number | null;
             timeoutMs: number;
             breakerFailureThreshold: number;
             breakerCooldownSeconds: number;
@@ -476,6 +481,35 @@ export interface components {
             system: components["schemas"]["System"];
             ratePerMinute: number;
         }[];
+        /** @enum {string} */
+        PayrollAction: "stop_salary" | "resume_salary";
+        /** @description A stop or resume salary instruction for payroll */
+        PayrollInstructionRequest: {
+            /** @description The ADM reference (stop) or ADM reference with -R suffix (resume) */
+            instructionReference: string;
+            employerCode: string;
+            personalNumber: string;
+            nationalId: string;
+            action: components["schemas"]["PayrollAction"];
+            reason: string;
+            /** Format: date */
+            effectiveDate: string;
+        };
+        /** @description A payroll instruction and its acknowledgement */
+        PayrollInstruction: {
+            instructionReference: string;
+            action: components["schemas"]["PayrollAction"];
+            /** @enum {string} */
+            status: "accepted" | "pending" | "failed";
+            payrollReference: string | null;
+            /** @description When payroll received it, by payroll's clock; null until payroll says */
+            receivedAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the gateway sent the instruction payroll acknowledged
+             */
+            sentAt: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -492,30 +526,6 @@ export interface components {
                 path: string;
                 message: string;
             }[];
-        };
-        /** @enum {string} */
-        PayrollAction: "stop_salary" | "resume_salary";
-        PayrollInstructionRequest: {
-            /** @description The ADM reference (stop) or ADM reference with -R suffix (resume) */
-            instructionReference: string;
-            employerCode: string;
-            personalNumber: string;
-            nationalId: string;
-            action: components["schemas"]["PayrollAction"];
-            reason: string;
-            /** Format: date */
-            effectiveDate: string;
-        };
-        PayrollInstruction: {
-            instructionReference: string;
-            action: components["schemas"]["PayrollAction"];
-            /** @enum {string} */
-            status: "accepted" | "pending" | "failed";
-            payrollReference: string | null;
-            /** Format: date-time */
-            receivedAt: string | null;
-            /** Format: date-time */
-            sentAt: string;
         };
         IcmsReferralRequest: {
             /** @description The RFL reference */
@@ -954,6 +964,120 @@ export interface operations {
             };
         };
     };
+    submitPayrollInstruction: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Why the system is instructed, recorded with the instruction: am-sanctions */
+                "X-Legal-Basis": "am-sanctions";
+                /** @description Review case the instruction is for; recorded with the instruction */
+                "X-Case-Ref"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayrollInstructionRequest"];
+            };
+        };
+        responses: {
+            /** @description Already acknowledged (replay) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollInstruction"];
+                };
+            };
+            /** @description Sent now and acknowledged by payroll */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollInstruction"];
+                };
+            };
+            /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the scopes: payroll */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `instruction-reference-conflict`: another instruction was sent under the reference */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upstream-unavailable`: payroll did not acknowledge (down, timed out, breaker open or paused); nothing recorded as sent */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getPayrollInstruction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instructionReference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The instruction */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollInstruction"];
+                };
+            };
+            /** @description Requires one of the scopes: payroll */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No instruction acknowledged under the reference */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getVerificationResult: {
         parameters: {
             query?: never;
@@ -1078,7 +1202,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No adapter for the system (payroll and ICMS have no coverage to pause) */
+            /** @description No adapter for the system (ICMS has no coverage to pause) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1139,7 +1263,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No adapter for the system (payroll and ICMS have no coverage to pause) */
+            /** @description No adapter for the system (ICMS has no coverage to pause) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1159,85 +1283,6 @@ export interface operations {
             };
             /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
             503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    submitPayrollInstruction: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding */
-                "X-Legal-Basis": components["parameters"]["LegalBasis"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PayrollInstructionRequest"];
-            };
-        };
-        responses: {
-            /** @description Already submitted (replay) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description Acknowledged by payroll */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            400: components["responses"]["MissingLegalBasis"];
-            /** @description Payroll unavailable; nothing recorded as sent */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getPayrollInstruction: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instructionReference: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Instruction */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description Not found */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };

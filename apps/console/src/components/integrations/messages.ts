@@ -93,6 +93,7 @@ export const en = {
   rateLimitValue: (perMinute: number) => `${formatNumber(perMinute)} calls a minute`,
   cacheLifetime: 'Cache lifetime',
   cacheLifetimeValue: (lifetime: string) => `${lifetime}, hits and misses`,
+  notCached: 'Not cached',
   failedCalls: 'Failed calls (24 h)',
   breakerRule: 'Breaker rule',
   breakerRuleValue: (threshold: number, cooldown: string) =>

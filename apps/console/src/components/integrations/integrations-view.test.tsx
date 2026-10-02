@@ -424,7 +424,12 @@ describe('S15 Integrations page', () => {
   });
 
   it('lists only the systems coverage returns, naming one it has no description of by its id', () => {
-    renderView({ result: ok([coverage({ system: 'kra' }), coverage({ system: 'payroll' })]) });
+    renderView({
+      result: ok([
+        coverage({ system: 'kra' }),
+        coverage({ system: 'payroll', cacheTtlSeconds: null }),
+      ]),
+    });
 
     expect(
       within(list())
@@ -435,6 +440,7 @@ describe('S15 Integrations page', () => {
     fireEvent.click(payroll.getByRole('button', { name: 'PAYROLL' }));
     expect(payroll.queryByText('Operated by')).toBe(null);
     payroll.getByText('Rate limit');
+    payroll.getByText('Not cached');
   });
 
   it('draws the cache hit rate as a decorative bar beside its percentage', () => {

@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { AdapterKitModule } from '../adapter-kit/adapter-kit.module.js';
 import { config } from '../config.js';
 import { ArdhisasaAdapter } from './ardhisasa-adapter.js';
 import { BrsDirectorshipsAdapter, SupplierCheckAdapter } from './brs-adapters.js';
@@ -12,7 +11,6 @@ import { REGISTRY_URLS, type RegistryUrls } from './registry-urls.js';
 
 /** KRA, NTSA, BRS and ArdhiSasa lookups and the employer-supplier check, on the adapter kit. */
 @Module({
-  imports: [AdapterKitModule],
   controllers: [RegistriesController, RegistryRateLimitsController],
   providers: [
     KraAdapter,

@@ -460,6 +460,109 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
+  /internal/v1/payroll/instructions:
+    post:
+      tags:
+        - internal
+      summary: Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
+      description: "Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll; another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6)."
+      operationId: submitPayrollInstruction
+      parameters:
+        - name: X-Legal-Basis
+          in: header
+          description: 'Why the system is instructed, recorded with the instruction: am-sanctions'
+          required: true
+          schema:
+            type: string
+            enum:
+              - am-sanctions
+        - name: X-Case-Ref
+          in: header
+          description: Review case the instruction is for; recorded with the instruction
+          required: false
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayrollInstructionRequest'
+      responses:
+        '200':
+          description: Already acknowledged (replay)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollInstruction'
+        '201':
+          description: Sent now and acknowledged by payroll
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollInstruction'
+        '400':
+          description: X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'Requires one of the scopes: payroll'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem type `instruction-reference-conflict`: another instruction was sent under the reference'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 'Problem type `upstream-unavailable`: payroll did not acknowledge (down, timed out, breaker open or paused); nothing recorded as sent'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /internal/v1/payroll/instructions/{instructionReference}:
+    get:
+      tags:
+        - internal
+      summary: Stored instruction and acknowledgement
+      description: "The instruction as payroll acknowledged it, from the gateway's store (payroll is not called). Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6)."
+      operationId: getPayrollInstruction
+      parameters:
+        - name: instructionReference
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$
+      responses:
+        '200':
+          description: The instruction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayrollInstruction'
+        '403':
+          description: 'Requires one of the scopes: payroll'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No instruction acknowledged under the reference
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
   /internal/v1/verification-results/{resultId}:
     get:
       tags:
@@ -529,7 +632,7 @@ paths:
       tags:
         - integrations
       summary: Per-system call volume, cache hit rate, breaker state and last success
-      description: 'Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa): lookups and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime, timeout and breaker rule. Platform administrators only.'
+      description: 'Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa, HR supplier lists, payroll): lookups (for payroll, instructions sent) and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime (null for payroll, never cached), timeout and breaker rule. Platform administrators only.'
       operationId: getIntegrationsCoverage
       responses:
         '200':
@@ -551,7 +654,7 @@ paths:
       tags:
         - integrations
       summary: Force lookups to unavailable during a known outage (platform-admin)
-      description: From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
+      description: From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll answers instructions 503 and records nothing as sent. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
       operationId: pauseIntegration
       parameters:
         - name: system
@@ -580,7 +683,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: No adapter for the system (payroll and ICMS have no coverage to pause)
+          description: No adapter for the system (ICMS has no coverage to pause)
           content:
             application/problem+json:
               schema:
@@ -633,7 +736,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
-          description: No adapter for the system (payroll and ICMS have no coverage to pause)
+          description: No adapter for the system (ICMS has no coverage to pause)
           content:
             application/problem+json:
               schema:
@@ -652,69 +755,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
-  /internal/v1/payroll/instructions:
-    post:
-      tags:
-        - internal
-      summary: Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
-      operationId: submitPayrollInstruction
-      x-draft: true
-      parameters:
-        - $ref: '#/components/parameters/CaseRef'
-        - $ref: '#/components/parameters/LegalBasis'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PayrollInstructionRequest'
-      responses:
-        '200':
-          description: Already submitted (replay)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PayrollInstruction'
-        '201':
-          description: Acknowledged by payroll
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PayrollInstruction'
-        '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-        '503':
-          description: Payroll unavailable; nothing recorded as sent
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /internal/v1/payroll/instructions/{instructionReference}:
-    parameters:
-      - name: instructionReference
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags:
-        - internal
-      summary: Stored instruction and acknowledgement
-      operationId: getPayrollInstruction
-      x-draft: true
-      responses:
-        '200':
-          description: Instruction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PayrollInstruction'
-        '404':
-          description: Not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/icms/referrals:
     post:
       tags:
@@ -1189,7 +1229,7 @@ components:
           type: number
           minimum: 0
           maximum: 1
-          description: Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers
+          description: Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers, and always 0 for a system that is never cached
         failures24h:
           type: integer
           minimum: 0
@@ -1222,8 +1262,11 @@ components:
           type: integer
           exclusiveMinimum: 0
         cacheTtlSeconds:
-          type: integer
-          exclusiveMinimum: 0
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          description: How long an answer is reused; null for a system that is never cached (payroll instructions)
         timeoutMs:
           type: integer
           exclusiveMinimum: 0
@@ -1248,7 +1291,7 @@ components:
         - timeoutMs
         - breakerFailureThreshold
         - breakerCooldownSeconds
-      description: How one registry integration is behaving
+      description: How one integration is behaving
     Coverage:
       type: array
       items:
@@ -1268,6 +1311,81 @@ components:
           - system
           - ratePerMinute
       description: The configured rate limit of every system with an adapter
+    PayrollAction:
+      type: string
+      enum:
+        - stop_salary
+        - resume_salary
+    PayrollInstructionRequest:
+      type: object
+      properties:
+        instructionReference:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._/-]{0,39}$
+          description: The ADM reference (stop) or ADM reference with -R suffix (resume)
+        employerCode:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9_-]{0,19}$
+        personalNumber:
+          type: string
+          pattern: ^[A-Za-z0-9/.-]{1,20}$
+        nationalId:
+          type: string
+          pattern: ^[0-9]{5,10}$
+        action:
+          $ref: '#/components/schemas/PayrollAction'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        effectiveDate:
+          type: string
+          format: date
+      required:
+        - instructionReference
+        - employerCode
+        - personalNumber
+        - nationalId
+        - action
+        - reason
+        - effectiveDate
+      additionalProperties: false
+      description: A stop or resume salary instruction for payroll
+    PayrollInstruction:
+      type: object
+      properties:
+        instructionReference:
+          type: string
+        action:
+          $ref: '#/components/schemas/PayrollAction'
+        status:
+          type: string
+          enum:
+            - accepted
+            - pending
+            - failed
+        payrollReference:
+          type:
+            - string
+            - 'null'
+        receivedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+          description: When payroll received it, by payroll's clock; null until payroll says
+        sentAt:
+          type: string
+          format: date-time
+          description: When the gateway sent the instruction payroll acknowledged
+      required:
+        - instructionReference
+        - action
+        - status
+        - payrollReference
+        - receivedAt
+        - sentAt
+      description: A payroll instruction and its acknowledgement
     ProblemDetails:
       type: object
       properties:
@@ -1338,71 +1456,6 @@ components:
         - type
         - title
         - status
-    PayrollAction:
-      type: string
-      enum:
-        - stop_salary
-        - resume_salary
-    PayrollInstructionRequest:
-      type: object
-      required:
-        - instructionReference
-        - employerCode
-        - personalNumber
-        - nationalId
-        - action
-        - reason
-        - effectiveDate
-      properties:
-        instructionReference:
-          type: string
-          description: The ADM reference (stop) or ADM reference with -R suffix (resume)
-        employerCode:
-          type: string
-        personalNumber:
-          type: string
-        nationalId:
-          type: string
-        action:
-          $ref: '#/components/schemas/PayrollAction'
-        reason:
-          type: string
-          maxLength: 500
-        effectiveDate:
-          type: string
-          format: date
-    PayrollInstruction:
-      type: object
-      required:
-        - instructionReference
-        - action
-        - status
-        - payrollReference
-        - receivedAt
-        - sentAt
-      properties:
-        instructionReference:
-          type: string
-        action:
-          $ref: '#/components/schemas/PayrollAction'
-        status:
-          type: string
-          enum:
-            - accepted
-            - pending
-            - failed
-        payrollReference:
-          type:
-            - string
-            - 'null'
-        receivedAt:
-          type:
-            - string
-            - 'null'
-          format: date-time
-        sentAt:
-          type: string
-          format: date-time
     IcmsReferralRequest:
       type: object
       required:

@@ -272,7 +272,7 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
   });
 
   it('a system without an adapter is 404; an unknown one 400', async () => {
-    expect((await act('payroll', 'pause')).statusCode).toBe(404);
+    expect((await act('icms', 'pause')).statusCode).toBe(404);
     expect((await act('mpesa', 'pause')).statusCode).toBe(400);
     expect(await events()).toEqual([]);
   });

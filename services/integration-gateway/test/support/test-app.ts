@@ -25,6 +25,10 @@ import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { schema } from '../../src/db/schema.js';
 import { IPRS_CLIENT_OPTIONS, type IprsClientOptions } from '../../src/iprs/iprs-client.js';
+import {
+  PAYROLL_CLIENT_OPTIONS,
+  type PayrollClientOptions,
+} from '../../src/payroll/payroll-client.js';
 import { REGISTRY_URLS, type RegistryUrls } from '../../src/registries/registry-urls.js';
 
 const MIGRATIONS = new URL('../../migrations', import.meta.url).pathname;
@@ -51,11 +55,14 @@ export interface TestAppOptions extends Partial<IprsClientOptions> {
   timeoutMs?: number;
   /**
    * Policies of systems besides IPRS, e.g. for a stub adapter. KRA, NTSA, BRS and ArdhiSasa
-   * default to the spec's timeout and cache with a rate the tests never reach.
+   * default to the spec's timeout and cache with a rate the tests never reach; payroll to the
+   * same without a cache.
    */
   policies?: SystemPolicies;
   /** Where the KRA, NTSA, BRS, ArdhiSasa and HR adapters call, e.g. `StubRegistries.urls`. */
   registryUrls?: RegistryUrls;
+  /** Where the payroll adapter calls, e.g. `StubPayroll.baseUrl`. */
+  payrollUrl?: string;
   /** Extra controllers, e.g. one exercising a kit decorator. */
   controllers?: Type[];
 }
@@ -97,6 +104,7 @@ export async function createTestApp({
   timeoutMs = config.IPRS_TIMEOUT_MS,
   policies = {},
   registryUrls,
+  payrollUrl,
   controllers = [],
 }: TestAppOptions = {}): Promise<TestApp> {
   const baseUrl = requireEnv('TEST_DATABASE_URL');
@@ -163,6 +171,7 @@ export async function createTestApp({
       brs: registryPolicy,
       ardhisasa: registryPolicy,
       'hr-suppliers': registryPolicy,
+      payroll: { ...registryPolicy, cacheTtlSeconds: null },
       ...policies,
     } satisfies SystemPolicies)
     .overrideProvider(TokenVerifier)
@@ -174,6 +183,11 @@ export async function createTestApp({
       ),
     );
   if (registryUrls) builder = builder.overrideProvider(REGISTRY_URLS).useValue(registryUrls);
+  if (payrollUrl) {
+    builder = builder
+      .overrideProvider(PAYROLL_CLIENT_OPTIONS)
+      .useValue({ baseUrl: payrollUrl } satisfies PayrollClientOptions);
+  }
   const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());

@@ -370,7 +370,14 @@ function Details({ row, withAction }: { row: SystemCoverage; withAction: boolean
   const items: [string, string, DetailColumn][] = [
     ...(owner === null ? [] : [[m.operatedBy, owner, 'name'] satisfies DetailItem]),
     [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute), 'calls'],
-    [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds)), 'last'],
+    [
+      m.cacheLifetime,
+      // Payroll instructions are acts, not reads: never cached.
+      row.cacheTtlSeconds === null
+        ? m.notCached
+        : m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds)),
+      'last',
+    ],
     [m.failedCalls, formatNumber(row.failures24h), 'name'],
     [m.timeout, m.timeoutValue(formatDuration(row.timeoutMs / 1000)), 'calls'],
     [

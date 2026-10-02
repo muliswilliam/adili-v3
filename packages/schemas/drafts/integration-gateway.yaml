@@ -1,69 +1,10 @@
-# Drafted operations of the integration-gateway API for specs not implemented yet: 08 (payroll
-# instructions) and 09 (ICMS referrals).
+# Drafted operations of the integration-gateway API for specs not implemented yet: 09 (ICMS
+# referrals).
 # `pnpm --filter @adili/integration-gateway contracts` merges them into
 # packages/schemas/internal/integration-gateway.yaml, where they may reference the implemented
 # components (e.g. `#/components/schemas/ProblemDetails`). When an operation or component is
 # implemented, delete it here: the export fails while both define it.
 paths:
-  /internal/v1/payroll/instructions:
-    post:
-      tags: [internal]
-      operationId: submitPayrollInstruction
-      summary: Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
-      parameters:
-        - $ref: '#/components/parameters/CaseRef'
-        - $ref: '#/components/parameters/LegalBasis'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PayrollInstructionRequest'
-      responses:
-        '201':
-          description: Acknowledged by payroll
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PayrollInstruction'
-        '200':
-          description: Already submitted (replay)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PayrollInstruction'
-        '400':
-          $ref: '#/components/responses/MissingLegalBasis'
-        '503':
-          description: Payroll unavailable; nothing recorded as sent
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /internal/v1/payroll/instructions/{instructionReference}:
-    parameters:
-      - name: instructionReference
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [internal]
-      operationId: getPayrollInstruction
-      summary: Stored instruction and acknowledgement
-      responses:
-        '200':
-          description: Instruction
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PayrollInstruction'
-        '404':
-          description: Not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/icms/referrals:
     post:
       tags: [internal]
@@ -147,58 +88,6 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
-    PayrollAction:
-      type: string
-      enum: [stop_salary, resume_salary]
-    PayrollInstructionRequest:
-      type: object
-      required:
-        [
-          instructionReference,
-          employerCode,
-          personalNumber,
-          nationalId,
-          action,
-          reason,
-          effectiveDate,
-        ]
-      properties:
-        instructionReference:
-          type: string
-          description: The ADM reference (stop) or ADM reference with -R suffix (resume)
-        employerCode:
-          type: string
-        personalNumber:
-          type: string
-        nationalId:
-          type: string
-        action:
-          $ref: '#/components/schemas/PayrollAction'
-        reason:
-          type: string
-          maxLength: 500
-        effectiveDate:
-          type: string
-          format: date
-    PayrollInstruction:
-      type: object
-      required: [instructionReference, action, status, payrollReference, receivedAt, sentAt]
-      properties:
-        instructionReference:
-          type: string
-        action:
-          $ref: '#/components/schemas/PayrollAction'
-        status:
-          type: string
-          enum: [accepted, pending, failed]
-        payrollReference:
-          type: [string, 'null']
-        receivedAt:
-          type: [string, 'null']
-          format: date-time
-        sentAt:
-          type: string
-          format: date-time
     IcmsReferralRequest:
       type: object
       required: [referralReference, nationalId, fullName, referringCommission, grounds, details]
