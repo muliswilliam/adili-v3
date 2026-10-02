@@ -1,6 +1,7 @@
 import { useToday } from '@adili/ui';
 import {
   getRouteApi,
+  useHydrated,
   useLocation,
   useNavigate,
   useRouter,
@@ -58,7 +59,10 @@ export function QueuePage({
   queue: QueueSummaryLoad | null;
   list: QueueListLoad | null;
 }) {
-  const text = useLocation({ select: (location) => location.state.reviewQueueSearch });
+  // The server has no history state: until hydrated, render as it did, without the text.
+  const hydrated = useHydrated();
+  const stateText = useLocation({ select: (location) => location.state.reviewQueueSearch });
+  const text = hydrated ? stateText : undefined;
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const search = readQueueSearch(useSearch({ strict: false }), text);
   const { viewer, supervisor } = reviewLayout.useRouteContext();
