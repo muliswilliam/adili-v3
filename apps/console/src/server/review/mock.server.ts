@@ -18,7 +18,8 @@
  * pre-fills a follow-up with the unresolved items; items carry no resolved state, so the mock
  * copies them all. Resolving the last outstanding
  * clarification makes the case ready for determination. Downloads point at
- * `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
+ * `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`). The copilot endpoints (spec 07c),
+ * and the flags and declaration document of the cases, come from `copilot-mock.server.ts`.
  */
 import { randomUUID } from 'node:crypto';
 
@@ -29,6 +30,7 @@ import createClient from 'openapi-fetch';
 import { isOutstanding } from '../../clarification/labels';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
+import { copilotRoute, mockCaseContent, resetCopilotMock } from './copilot-mock.server';
 import type { Assignee, CaseDetail, CaseListItem, Clarification, TimelineEntry } from './types';
 
 export const MOCK_CASE_IDS = {
@@ -242,6 +244,7 @@ export function resetReviewMock(now: number = Date.now()) {
   });
   seed(clarification(K.petersOverdue, C.peters, 3, [PLOT], 35, now, { status: 'overdue' }));
   for (const each of cases.values()) refreshCase(each);
+  resetCopilotMock(now, C);
 }
 
 /** A bearer token the mock reads `sub` and `name` from (tests; unsigned). */
@@ -374,6 +377,12 @@ async function route(request: Request): Promise<Response> {
     });
   }
 
+  const copilot = await copilotRoute(request, caller, (caseId) => {
+    const stored = cases.get(caseId);
+    return stored ? holderOf(stored, caller).subject === caller.subject : null;
+  });
+  if (copilot) return copilot;
+
   const oneCase = /^\/v1\/review\/cases\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && oneCase?.[1]) {
     const stored = cases.get(oneCase[1]);
@@ -400,11 +409,10 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
   const holder = holderOf(stored, caller);
   return {
     case: { ...stored.item, assignee: holder },
-    flags: [],
+    ...mockCaseContent(stored.item.id),
     clarifications: ofCase(stored.item.id),
     notes: [],
     timeline: stored.timeline,
-    document: null,
     // One version per mock case; the case id stands in for its version id.
     versions: [
       {
