@@ -1063,7 +1063,10 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Rate an AI output as helpful or not (reviewer, supervisor); one rating per reviewer per output */
+        /**
+         * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
+         * @description The output is named by its job (`CopilotView.jobs`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not an output shown on a case, gets 404.
+         */
         put: operations["rateCopilotOutput"];
         post?: never;
         delete?: never;
@@ -1177,7 +1180,7 @@ export interface components {
                 /** Format: uuid */
                 explain: string | null;
             };
-            /** @description The caller's own ratings */
+            /** @description The caller's own ratings of the outputs shown (`jobs`) */
             feedback: {
                 /** Format: uuid */
                 jobId: string;
@@ -3993,7 +3996,26 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["ValidationProblem"];
+            /** @description The caller is not the case's assignee (problem type `not-the-assignee`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             404: components["responses"]["NotFound"];
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     getCommissionAiStatus: {

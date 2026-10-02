@@ -103,7 +103,8 @@ paths:
     put:
       tags: [feedback]
       operationId: recordFeedback
-      summary: Record or update a reviewer's rating of a job's output
+      summary: Record or update a reviewer's rating of a job's output (caller service only)
+      description: 'One rating per reviewer per job: a second rating by the same reviewer replaces the first. Only a succeeded job of the caller has an output to rate. Each rating announces `ai.feedback.recorded.v1` (no note, no reviewer).'
       requestBody:
         required: true
         content:
@@ -117,8 +118,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Feedback'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
-          $ref: '#/components/responses/NotFound'
+          description: No succeeded job with this id visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/tenants/{tenant}/status:
     parameters:
       - $ref: '#/components/parameters/Tenant'
@@ -921,6 +928,9 @@ components:
       properties:
         reviewerSubject:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: The officer rating the output, as the calling service knows them (token `sub`)
         rating:
           type: string
           enum: [helpful, not-helpful]

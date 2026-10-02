@@ -1801,7 +1801,8 @@ paths:
     put:
       tags: [copilot]
       operationId: rateCopilotOutput
-      summary: Rate an AI output as helpful or not (reviewer, supervisor); one rating per reviewer per output
+      summary: Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
+      description: 'The output is named by its job (`CopilotView.jobs`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not an output shown on a case, gets 404.'
       requestBody:
         required: true
         content:
@@ -1811,8 +1812,22 @@ paths:
       responses:
         '200':
           description: Recorded
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '403':
+          description: "The caller is not the case's assignee (problem type `not-the-assignee`)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: 'The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/commissions/{slug}/ai-status:
     parameters:
       - $ref: '#/components/parameters/Slug'
@@ -2137,7 +2152,7 @@ components:
               format: uuid
         feedback:
           type: array
-          description: The caller's own ratings
+          description: "The caller's own ratings of the outputs shown (`jobs`)"
           items:
             type: object
             required: [jobId, rating]

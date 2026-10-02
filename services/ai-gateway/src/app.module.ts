@@ -14,6 +14,7 @@ import {
 
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
+import { FeedbackModule } from './feedback/feedback.module.js';
 import { JobActivities } from './jobs/job-activities.js';
 import { JobsModule } from './jobs/jobs.module.js';
 
@@ -53,6 +54,7 @@ const workflowsPath = fileURLToPath(
       activities: [JobActivities],
     }),
     JobsModule,
+    FeedbackModule,
   ],
 })
 export class AppModule {}
