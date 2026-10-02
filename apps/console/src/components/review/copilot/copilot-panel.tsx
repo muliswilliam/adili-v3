@@ -84,8 +84,9 @@ export function CopilotPanel({
   const { copilot, error, stopped, sessionEnded, refreshing } = state;
   const status = copilot?.status ?? null;
   const busy = status === 'pending' || status === 'stale';
-  // Not enabled may have changed since (the Commission's AI policy): a refresh asks again.
-  const canRefresh = access !== 'viewer' && copilot !== null;
+  // Not enabled can only end not enabled again: a change of the Commission's AI policy or route
+  // already asks again (review's policy-change workflow), so there is nothing to refresh.
+  const canRefresh = access !== 'viewer' && copilot !== null && status !== 'not-enabled';
 
   function openFlag(flagId: string) {
     setTab('flags');
