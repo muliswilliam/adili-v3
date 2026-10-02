@@ -84,8 +84,9 @@ export class CopilotRequests {
    *
    * Safe to retry: the idempotency keys are derived from the case, the version, the registry
    * check, the task's prompt version and the request count, which moves on only once the previous request has ended, so a
-   * retry gets the same jobs. A job that has already ended (a cached result, a blocked tenant) is
-   * recorded at once.
+   * retry gets the same jobs. A job may end before it is recorded here (a cached result, a blocked
+   * tenant), its event then finding no record to match: the caller `settle`s the request after,
+   * on its own, so an outage there never repeats the request.
    *
    * Throws `DeclarationsUnavailable` and `AiGatewayUnavailable` for the caller to retry.
    */
@@ -193,13 +194,6 @@ export class CopilotRequests {
         await this.updated(tx, tenant, caseId, status, row.currentVersionId);
       }
     });
-
-    // A job may have ended before it was recorded here, its event then found no record to match:
-    // read it again now that it is recorded.
-    for (const job of jobs) {
-      const latest = isFinished(job) ? job : await this.gateway.getJob(tenant, job.id);
-      if (latest) await this.record(tenant, caseId, latest);
-    }
   }
 
   /**
@@ -216,9 +210,10 @@ export class CopilotRequests {
   }
 
   /**
-   * Pulls the latest request's jobs from the gateway and records those that have ended: for a
-   * copilot still `pending` whose job events were lost (a consumer that could not start its
-   * workflow dead-letters the event), so a refresh never finds it stuck.
+   * Pulls the latest request's jobs from the gateway and records those that have ended: after a
+   * request (a job may have ended before it was recorded), and for a copilot still `pending`
+   * whose job events were lost (a consumer that could not start its workflow dead-letters the
+   * event), so a refresh never finds it stuck.
    *
    * Throws `AiGatewayUnavailable`.
    */

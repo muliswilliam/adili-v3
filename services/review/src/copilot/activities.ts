@@ -23,6 +23,11 @@ export class CopilotActivities {
     return this.requests.request({ ...request, actingSubject: SYSTEM_SUBJECT });
   }
 
+  /** Pulls the latest request's jobs and records those that have ended. */
+  settleCopilot({ tenant, caseId }: { tenant: string; caseId: string }): Promise<void> {
+    return this.requests.settle(tenant, caseId);
+  }
+
   /** Pulls an ended job's outcome from the gateway and records it on the case's copilot. */
   recordCopilotJob({ tenant, caseId, jobId }: CopilotJobFinished): Promise<void> {
     return this.requests.recordJob(tenant, caseId, jobId);

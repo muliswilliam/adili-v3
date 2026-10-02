@@ -27,6 +27,7 @@ const job = {
 function activities(overrides: Partial<Activities> = {}): Activities {
   return {
     requestCopilot: vi.fn(() => Promise.resolve()),
+    settleCopilot: vi.fn(() => Promise.resolve()),
     recordCopilotJob: vi.fn(() => Promise.resolve()),
     copilotUnavailable: vi.fn(() => Promise.resolve()),
     notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: [], next: null })),
@@ -119,6 +120,25 @@ describe('copilotPolicyChanged', () => {
       caseId: cases[1],
       reason: 'ai-gateway-unavailable',
     });
+  }, 120_000);
+
+  it("pulls the request's jobs in an activity of its own: an outage there never asks the gateway again", async () => {
+    const caseId = '0199b000-0000-7000-8000-0000000000c1';
+    const mocks = activities({
+      notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: [caseId], next: null })),
+      settleCopilot: vi.fn(() =>
+        Promise.reject(new AiGatewayUnavailable('ai-gateway unreachable')),
+      ),
+    });
+    await env.execute(copilotPolicyChanged, {
+      workflowsPath,
+      activities: mocks,
+      args: [{ tenant: 'psc' }],
+    });
+    expect(mocks.requestCopilot).toHaveBeenCalledTimes(1);
+    expect(mocks.settleCopilot).toHaveBeenCalledWith({ tenant: 'psc', caseId });
+    // The jobs were asked for; their events record them.
+    expect(mocks.copilotUnavailable).not.toHaveBeenCalled();
   }, 120_000);
 
   it('pages through the not-enabled copilots and continues as new, so a large Commission fits in history', async () => {

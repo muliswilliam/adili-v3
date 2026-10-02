@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 
@@ -37,6 +37,8 @@ export interface CopilotView {
  */
 @Injectable()
 export class CopilotService {
+  private readonly logger = new Logger(CopilotService.name);
+
   constructor(
     @InjectDatabase() private readonly db: Database<ReviewSchema>,
     private readonly requests: CopilotRequests,
@@ -131,6 +133,11 @@ export class CopilotService {
       if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
       throw error;
     }
+    // Jobs that ended at once (a cached result): best effort, the request is made either way, and
+    // the jobs' events (or the next refresh) record what this misses.
+    await this.requests.settle(tenant, row.id).catch((error: unknown) => {
+      this.logger.warn({ err: error, caseId: row.id }, 'Could not pull the refreshed copilot jobs');
+    });
     return this.view(principal, row.id);
   }
 

@@ -24,7 +24,7 @@ import {
  * copilot is an aid, never a step a case waits for, so the workflow then records it as failed
  * (the assignee can try again) instead of retrying for good.
  */
-const { requestCopilot, recordCopilotJob } = proxyActivities<CopilotActivities>({
+const { requestCopilot, settleCopilot, recordCopilotJob } = proxyActivities<CopilotActivities>({
   startToCloseTimeout: '1 minute',
   retry: {
     initialInterval: '1 second',
@@ -55,6 +55,14 @@ export async function requestCaseCopilot(request: CopilotActivityRequest): Promi
       caseId: request.caseId,
       reason: unavailableOf(error),
     });
+    return;
+  }
+  try {
+    // Jobs that ended before the request was recorded; the others' events record them.
+    await settleCopilot({ tenant: request.tenant, caseId: request.caseId });
+  } catch (error) {
+    // The jobs were asked for: their events record them, or a refresh pulls them.
+    if (!(error instanceof ActivityFailure)) throw error;
   }
 }
 
@@ -63,8 +71,8 @@ export async function requestCaseCopilot(request: CopilotActivityRequest): Promi
  * error the activity last threw; any other error is the review service's own.
  */
 function unavailableOf(error: ActivityFailure): CopilotUnavailableReason {
-  const type = error.cause instanceof ApplicationFailure ? error.cause.type : undefined;
-  return (type && COPILOT_UNAVAILABLE_BY_ERROR[type]) ?? COPILOT_UNAVAILABLE.internal;
+  const type = error.cause instanceof ApplicationFailure ? error.cause.type : null;
+  return (type ? COPILOT_UNAVAILABLE_BY_ERROR[type] : undefined) ?? COPILOT_UNAVAILABLE.internal;
 }
 
 /** Not-enabled copilots one page of `copilotPolicyChanged` requests again. */
