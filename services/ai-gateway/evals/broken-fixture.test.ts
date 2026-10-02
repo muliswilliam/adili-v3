@@ -189,6 +189,63 @@ describe('hard scorers on recorded fixtures', () => {
   });
 });
 
+describe('narrative validation on recorded fixtures', () => {
+  const CASE = 'FY2026, all sections, two prior years';
+  const narrative = {
+    paragraphs: [
+      {
+        section: 'overview',
+        text: 'In FY2025/26, 14,854 of 15,910 expected declarations were filed, a filing rate of 93.4%.',
+        aggregateRefs: ['national.filed', 'national.expected', 'national.filingRate'],
+        candidateIds: [],
+      },
+      {
+        section: 'findings',
+        text: "The Teachers Service Commission's non-filer rate doubled, from 4.1% to 8.2%.",
+        aggregateRefs: ['fy2025.commission.tsc.nonFilerRate', 'commission.tsc.nonFilerRate'],
+        candidateIds: ['rate-change:tsc:nonFilerRate'],
+      },
+      {
+        section: 'recommendations',
+        text: 'EACC should ask the Teachers Service Commission to account for its non-filers.',
+        aggregateRefs: ['commission.tsc.nonFilerRate'],
+        candidateIds: ['rate-change:tsc:nonFilerRate'],
+      },
+    ],
+  };
+  type Paragraph = (typeof narrative.paragraphs)[number];
+  const tampered = (index: number, changes: Partial<Paragraph>) => ({
+    paragraphs: narrative.paragraphs.map((each, at) =>
+      at === index ? { ...each, ...changes } : each,
+    ),
+  });
+
+  it('passes a sound narrative', async () => {
+    expect(failingHard(await scoreRecorded('narrate-compliance-report', CASE, narrative))).toEqual(
+      [],
+    );
+  });
+
+  it.each([
+    ['a foreign number', tampered(0, { text: 'In FY2025/26, 14,900 declarations were filed.' })],
+    ['an invented key', tampered(1, { aggregateRefs: ['commission.kdf.nonFilerRate'] })],
+    ['an invented candidate', tampered(1, { candidateIds: ['rate-change:kdf:nonFilerRate'] })],
+    ['a missing section', { paragraphs: narrative.paragraphs.slice(0, 2) }],
+  ])('fails a narrative with %s', async (_, broken) => {
+    expect(failingHard(await scoreRecorded('narrate-compliance-report', CASE, broken))).toEqual([
+      'narrative-valid',
+    ]);
+  });
+
+  it('fails a draft of findings with a paragraph from another section', async () => {
+    const findings = 'FY2026 findings';
+    const broken = { paragraphs: narrative.paragraphs.slice(1) };
+    expect(failingHard(await scoreRecorded('narrate-compliance-report', findings, broken))).toEqual(
+      ['narrative-valid'],
+    );
+  });
+});
+
 describe('recorded fixtures', () => {
   it('miss when the output schema, the prompt or the model changes', async () => {
     const { suite, golden } = goldenCase('summarize-declaration', 'household amendment');

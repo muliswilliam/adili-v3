@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { narrateComplianceReport } from '../../src/tasks/narrate-compliance-report.js';
+import { aggregateKeys } from '../../src/tasks/narrative-validation.js';
 import { TASK_NAMES } from '../../src/tasks/task.js';
 import { refProblem } from '../lib/refs.js';
 import { hardFailures } from '../lib/score.js';
@@ -12,12 +14,21 @@ describe('golden sets', () => {
     expect(SUITES.map((suite) => suite.task.name).sort()).toEqual([...TASK_NAMES].sort());
   });
 
+  /** The reviewer tasks serve both languages; the NCR narrative is English (spec 09b). */
+  const SIZES: Record<string, { cases: number; swahili: number }> = {
+    'narrate-compliance-report': { cases: 6, swahili: 0 },
+  };
+
   for (const suite of SUITES) {
     describe(suite.task.name, () => {
-      it('has 12 uniquely named cases, 4 in Swahili', () => {
+      const size = SIZES[suite.task.name] ?? { cases: 12, swahili: 4 };
+
+      it(`has ${size.cases} uniquely named cases, ${size.swahili} in Swahili`, () => {
         const names = suite.cases.map((each) => each.name);
-        expect(new Set(names).size).toBe(12);
-        expect(suite.cases.filter((each) => each.input.language === 'sw')).toHaveLength(4);
+        expect(new Set(names).size).toBe(size.cases);
+        expect(suite.cases.filter((each) => each.input.language === 'sw')).toHaveLength(
+          size.swahili,
+        );
       });
 
       for (const golden of suite.cases) {
@@ -44,6 +55,18 @@ describe('golden sets', () => {
         refs.map((ref) => refProblem(ref, documents)).filter((problem) => problem !== null),
         golden.name,
       ).toEqual([]);
+    }
+  });
+
+  it('narrative candidates cite only keys of their input', () => {
+    const narrate = SUITES.find((suite) => suite.task.name === 'narrate-compliance-report');
+    for (const golden of narrate?.cases ?? []) {
+      const input = narrateComplianceReport.input.parse(golden.input);
+      const keys = aggregateKeys(input);
+      const unknown = input.candidates.flatMap((each) =>
+        each.aggregateKeys.filter((ref) => !keys.has(ref)),
+      );
+      expect(unknown, golden.name).toEqual([]);
     }
   });
 
