@@ -175,6 +175,7 @@ describe('S16 saveGatePolicy', () => {
     expect(mockTenantAiStatus('tsc')).toEqual({
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic', 'highly-confidential'],
     });
   });
@@ -200,6 +201,7 @@ describe('S16 saveGatePolicy', () => {
     expect(mockTenantAiStatus('psc')).toEqual({
       enabled: false,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: [],
     });
   });

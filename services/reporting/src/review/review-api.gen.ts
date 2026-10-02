@@ -1238,6 +1238,8 @@ export interface components {
              * @enum {string|null}
              */
             providerClass: "external" | "self-hosted" | null;
+            /** @description The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is */
+            provider: string | null;
             /** @description Data classes that provider class may process for the Commission */
             dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
         };

@@ -54,6 +54,7 @@ describe('Commission AI status', () => {
     expect(response.json()).toEqual({
       enabled: false,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: [],
     });
 

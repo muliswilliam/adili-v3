@@ -18,6 +18,8 @@ import { aiGatewayUnavailable } from './problems.js';
 export interface CommissionAiStatus {
   enabled: boolean;
   providerClass: 'external' | 'self-hosted' | null;
+  /** The routed provider (`anthropic`...), of `providerClass`. */
+  provider: string | null;
   dataClasses: string[];
 }
 
@@ -63,6 +65,7 @@ export class AiStatusController {
     return {
       enabled: status.dataClasses.includes(dataClassOf(tenant)),
       providerClass: status.providerClass,
+      provider: status.provider,
       dataClasses: status.dataClasses,
     };
   }

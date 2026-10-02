@@ -2282,7 +2282,7 @@ components:
           description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request"
     CommissionAiStatus:
       type: object
-      required: [enabled, providerClass, dataClasses]
+      required: [enabled, providerClass, provider, dataClasses]
       properties:
         enabled:
           type: boolean
@@ -2291,6 +2291,9 @@ components:
           type: [string, 'null']
           enum: [external, self-hosted, null]
           description: The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach
+        provider:
+          type: [string, 'null']
+          description: The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is
         dataClasses:
           type: array
           description: Data classes that provider class may process for the Commission

@@ -188,6 +188,7 @@ function gateOf(slug: string): GateRuleInput[] {
 export function mockTenantAiStatus(slug: string): {
   enabled: boolean;
   providerClass: ProviderClass | null;
+  provider: string | null;
   dataClasses: DataClass[];
 } {
   ensureSeeded();
@@ -200,7 +201,7 @@ export function mockTenantAiStatus(slug: string): {
     ),
   );
   const sent: DataClass = SYNTHETIC_DATA_TENANTS.has(slug) ? 'synthetic' : 'highly-confidential';
-  return { enabled: dataClasses.includes(sent), providerClass, dataClasses };
+  return { enabled: dataClasses.includes(sent), providerClass, provider: 'anthropic', dataClasses };
 }
 
 interface Caller {

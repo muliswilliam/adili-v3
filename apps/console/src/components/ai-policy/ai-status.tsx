@@ -1,3 +1,5 @@
+import { AI_PROVIDER_NAMES } from '@adili/ui';
+
 import type { CommissionAiStatus } from '../../server/ai-status';
 import type { ServiceResult } from '../../server/service-call';
 import { messages as m } from './messages';
@@ -14,18 +16,23 @@ export function statusAccess(status: CommissionAiStatus): ProviderAccess[] {
 /**
  * The Commission's AI status line (spec 07c FE-4), as the spec words it: "AI assistance: enabled
  * (external provider, synthetic data only)", or "not enabled (no declaration data is sent to an
- * AI provider)". The row names "AI assistance"; this is its value. Read only.
+ * AI provider)", with the provider named after it when enabled (story 15: "with which provider").
+ * The row names "AI assistance"; this is its value. Read only.
  */
 export function AiStatusValue({ status }: { status: ServiceResult<CommissionAiStatus> }) {
   if (!status.ok) {
     return <span className="font-normal text-muted-foreground">{m.aiStatusUnavailable}</span>;
   }
   const text = accessText(statusAccess(status.data));
+  const { provider } = status.data;
   return (
     <span className="flex flex-wrap items-center gap-2">
       <EnabledBadge enabled={text !== null} />
       <span className="font-normal text-secondary-foreground">
         {m.statusDetail(text ?? m.aiNotEnabledText)}
+        {text !== null && provider
+          ? m.statusProvider(AI_PROVIDER_NAMES[provider] ?? provider)
+          : null}
       </span>
     </span>
   );
