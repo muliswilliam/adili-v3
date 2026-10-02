@@ -65,6 +65,13 @@ describe('statusDescription', () => {
     expect(statusDescription('ardhisasa', 'unavailable', { records: null, indicators: 0 })).toBe(
       'Could not reach ArdhiSasa. Re-checked automatically every hour.',
     );
+    expect(
+      statusDescription('brs', 'unavailable', {
+        records: null,
+        indicators: 0,
+        reason: 'supplier-check-unavailable',
+      }),
+    ).toBe("Could not reach the employer's supplier list. Re-checked automatically every hour.");
     expect(statusDescription('kra', 'not-checked', { records: null, indicators: 0 })).toBe(
       'Checks run after submission.',
     );
@@ -170,6 +177,24 @@ describe('registryLayout', () => {
     ]);
     // A flag a re-check closed is no indicator any more.
     expect(row?.description).toBe('1 indicator');
+  });
+
+  it("orders a registry's open flags by severity, highest first", () => {
+    const view = registryView();
+    const brs = view.persons[0]?.systems[2];
+    const undeclared = flag({
+      id: '0192f1a0-0000-7000-8000-0000000f0198',
+      ruleId: 'registry-directorship-undeclared',
+      severity: 'medium',
+    });
+    if (brs) brs.flags = [DISSOLVED_FLAG, undeclared, SUPPLIER_FLAG];
+
+    const row = registryLayout(view, [], true).persons[0]?.systems[2];
+    expect(row?.flags.map((each) => each.id)).toEqual([
+      SUPPLIER_FLAG.id,
+      undeclared.id,
+      DISSOLVED_FLAG.id,
+    ]);
   });
 
   it('says nobody can be checked when no one has a national ID', () => {

@@ -73,7 +73,7 @@ export interface SystemRow {
   /** Opens to its match table and flags: it answered, and its records were read. */
   expandable: boolean;
   rows: RegistryRow[];
-  /** Its flags, open ones first, then reviewed, then closed by a re-check. */
+  /** Its flags, open ones first, then reviewed, then closed by a re-check; highest severity first. */
   flags: CaseFlag[];
 }
 
@@ -96,7 +96,18 @@ export interface RegistryLayout {
   noIds: boolean;
 }
 
+/** The review service's reason for BRS when only the employer-supplier check went unanswered. */
+const SUPPLIER_CHECK_UNAVAILABLE = 'supplier-check-unavailable';
+
+/** Highest first, as the flags tab orders them (`SEVERITY_ORDER`, which imports this module). */
+const SEVERITIES: readonly CaseFlag['severity'][] = ['high', 'medium', 'low', 'info'];
+
+/** Open flags first, then reviewed, then closed by a re-check; by severity within each. */
 function flagOrder(flag: CaseFlag): number {
+  return flagState(flag) * SEVERITIES.length + SEVERITIES.indexOf(flag.severity);
+}
+
+function flagState(flag: CaseFlag): number {
   if (flag.reviewed === null && !flag.closedReason) return 0;
   return flag.reviewed !== null ? 1 : 2;
 }
@@ -140,6 +151,8 @@ export function statusDescription(
     incomeCompared?: boolean;
     /** The person checked, by first name, for the no-ID copy. */
     personName?: string;
+    /** Why the system is unavailable, as the check gives it. */
+    reason?: string | null;
   },
 ): string {
   const copy = REGISTRY_COPY.rows;
@@ -167,7 +180,10 @@ export function statusDescription(
         counts.indicators === 0 ? copy.mismatchedNoCount : copy.mismatched(counts.indicators),
       );
     case 'unavailable':
-      return copy.unavailable(SYSTEM_NAMES[system]);
+      // BRS itself answered: only the employer's supplier list (HR) did not.
+      return counts.reason === SUPPLIER_CHECK_UNAVAILABLE
+        ? copy.supplierListUnavailable
+        : copy.unavailable(SYSTEM_NAMES[system]);
     case 'not-checked':
       return copy.notChecked;
     case 'no-id':
@@ -203,6 +219,7 @@ function systemRow(
           ? entry.rows.some((row) => typeof row.registryRecord.incomeDifferencePercent === 'number')
           : undefined,
       personName: context.personName,
+      reason: entry.reason,
     }),
     checkedAt: entry.checkedAt && entry.checkedAt !== context.checkedAt ? entry.checkedAt : null,
     expandable: answered && context.recordsLoaded,
