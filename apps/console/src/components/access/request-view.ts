@@ -105,12 +105,31 @@ export const IN_WRITING_TITLES: Partial<Record<RegisterEntry['kind'], string>> =
   representations: 'Representations received in writing',
 };
 
+/**
+ * The register's line for a step about a nil letter (spec 10 decision 1): a grant that found
+ * nothing in its scope delivered the letter, not a package.
+ */
+export const NIL_LETTER_TITLES: Partial<Record<RegisterEntry['kind'], string>> = {
+  'package-issued': 'Nil letter issued',
+  downloaded: 'Nil letter downloaded',
+};
+
+/** The title a step takes from what the grant delivered, if not the default. */
+export function packageTitleOf(
+  entry: Pick<RegisterEntry, 'kind'>,
+  delivered: { kind: 'access-package' | 'nil-letter' } | null,
+): string | undefined {
+  return delivered?.kind === 'nil-letter' ? NIL_LETTER_TITLES[entry.kind] : undefined;
+}
+
 /** The access register as the timeline primitive draws it. */
 export function timelineOf(
-  view: Pick<OfficerRequestView, 'timeline' | 'decision'>,
+  view: Pick<OfficerRequestView, 'timeline' | 'decision' | 'package'>,
 ): TimelineEntry[] {
   return view.timeline.map((entry) => {
-    const title = entry.inWriting ? IN_WRITING_TITLES[entry.kind] : undefined;
+    const title =
+      (entry.inWriting ? IN_WRITING_TITLES[entry.kind] : undefined) ??
+      packageTitleOf(entry, view.package);
     return {
       id: entry.id,
       kind: entry.kind,
