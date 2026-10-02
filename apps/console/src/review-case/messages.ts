@@ -5,6 +5,12 @@ import { formatDate, formatDateTime, plural, type Severity, SEVERITY_LABELS } fr
  * the declaration pane, the flags, notes and timeline tabs. English; the Swahili slots come
  * with the i18n pass.
  */
+/** "medium severity" for one indicator; "highest severity: high" for several. */
+function pinnedSeverity(count: number, severity: Severity): string {
+  const label = SEVERITY_LABELS[severity].toLowerCase();
+  return count === 1 ? `${label} severity` : `highest severity: ${label}`;
+}
+
 export const CASE_COPY = {
   title: 'Review case',
   type: { initial: 'Initial', biennial: 'Biennial', final: 'Final' },
@@ -86,9 +92,9 @@ export const CASE_COPY = {
     downloadFailed: 'The document could not be downloaded. Try again.',
     pinned: (count: number) => plural(count, 'indicator'),
     sectionPinnedLabel: (count: number, severity: Severity) =>
-      `${plural(count, 'indicator')} on this section, highest ${SEVERITY_LABELS[severity].toLowerCase()}. Show in flags.`,
+      `${plural(count, 'indicator')} on this section, ${pinnedSeverity(count, severity)}. Show in flags.`,
     pinnedLabel: (count: number, severity: Severity) =>
-      `${plural(count, 'indicator')} on this item, highest ${SEVERITY_LABELS[severity].toLowerCase()}. Show in flags.`,
+      `${plural(count, 'indicator')} on this item, ${pinnedSeverity(count, severity)}. Show in flags.`,
   },
 
   tabsLabel: 'Case review',

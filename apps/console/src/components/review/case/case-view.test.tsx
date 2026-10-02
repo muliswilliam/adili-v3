@@ -219,7 +219,7 @@ describe('CaseView', () => {
     if (!salary) throw new Error('no salary item');
     fireEvent.click(
       within(salary).getByRole('button', {
-        name: '1 indicator on this item, highest medium. Show in flags.',
+        name: '1 indicator on this item, medium severity. Show in flags.',
       }),
     );
     expect(onTab).toHaveBeenCalledWith('flags');
