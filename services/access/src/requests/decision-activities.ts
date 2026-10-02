@@ -152,7 +152,7 @@ export class DecisionActivities {
     });
     const { downloadExpiresAt } = issued;
 
-    await withTenant(this.db, systemContext(tenant), async (tx) => {
+    const stored = await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [recorded] = await tx
         .update(accessRequests)
         .set({
@@ -165,7 +165,14 @@ export class DecisionActivities {
         })
         .where(and(eq(accessRequests.id, requestId), isNull(accessRequests.packageDocumentId)))
         .returning();
-      if (!recorded) return;
+      if (!recorded) {
+        // Another attempt recorded its package first: answer with that one's window.
+        const [current] = await tx
+          .select({ downloadExpiresAt: accessRequests.downloadExpiresAt })
+          .from(accessRequests)
+          .where(eq(accessRequests.id, requestId));
+        return current?.downloadExpiresAt ?? null;
+      }
       await this.register.record(tx, {
         tenant,
         subjectKind: 'access-request',
@@ -182,8 +189,10 @@ export class DecisionActivities {
         },
         eventData: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
       });
+      return downloadExpiresAt;
     });
-    return { outcome: 'issued', downloadExpiresAt: downloadExpiresAt.toISOString() };
+    if (stored === null) throw invariantBroken('The recorded package has no download window');
+    return { outcome: 'issued', downloadExpiresAt: stored.toISOString() };
   }
 
   /**

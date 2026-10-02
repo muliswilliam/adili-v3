@@ -340,7 +340,7 @@ export class LeaRequestActivities {
     });
     const { downloadExpiresAt } = issued;
 
-    await withTenant(this.db, systemContext(tenant), async (tx) => {
+    const stored = await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [recorded] = await tx
         .update(leaRequests)
         .set({
@@ -353,7 +353,14 @@ export class LeaRequestActivities {
         })
         .where(and(eq(leaRequests.id, requestId), isNull(leaRequests.packageDocumentId)))
         .returning();
-      if (!recorded) return;
+      if (!recorded) {
+        // Another attempt recorded its package first: answer with that one's window.
+        const [current] = await tx
+          .select({ downloadExpiresAt: leaRequests.downloadExpiresAt })
+          .from(leaRequests)
+          .where(eq(leaRequests.id, requestId));
+        return current?.downloadExpiresAt ?? null;
+      }
       await this.register.record(tx, {
         tenant,
         subjectKind: 'lea-request',
@@ -370,8 +377,10 @@ export class LeaRequestActivities {
         },
         eventData: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
       });
+      return downloadExpiresAt;
     });
-    return { outcome: 'issued', downloadExpiresAt: downloadExpiresAt.toISOString() };
+    if (stored === null) throw invariantBroken('The recorded package has no download window');
+    return { outcome: 'issued', downloadExpiresAt: stored.toISOString() };
   }
 
   /**
