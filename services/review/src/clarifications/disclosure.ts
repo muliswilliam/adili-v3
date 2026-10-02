@@ -194,7 +194,8 @@ export function disclosedClarification(
       {
         label: lettered?.label ?? itemLabel(item, null, clarification.language),
         requirementLabel:
-          lettered?.requirementLabel ?? REQUIREMENT_LABELS[clarification.language][item.requirement],
+          lettered?.requirementLabel ??
+          REQUIREMENT_LABELS[clarification.language][item.requirement],
         text: lettered?.text ?? item.text,
         response:
           answer === undefined
