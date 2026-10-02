@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, Button, Icon, ReferenceChip } from '@adili/ui';
+import { Alert, AlertDescription, Button, Icon, ReferenceChip, StatusMark } from '@adili/ui';
 import { Tick02Icon, UserQuestion01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
@@ -15,9 +15,7 @@ export function SubmittedRequest({ request }: { request: AccessRequest }) {
   const pending = request.status === 'pending-applicant-verification';
   return (
     <div className="flex flex-col items-center text-center">
-      <span className="mb-4 flex size-16 items-center justify-center rounded-full bg-success-subtle text-success">
-        <Icon icon={Tick02Icon} className="size-8" strokeWidth={2.4} />
-      </span>
+      <StatusMark icon={Tick02Icon} tone="success" className="mb-4" />
       <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.02em]">{COPY.title}</h1>
       <ReferenceChip
         className="mt-4"

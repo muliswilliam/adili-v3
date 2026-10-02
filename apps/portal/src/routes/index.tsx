@@ -2,9 +2,11 @@ import {
   Alert,
   AlertDescription,
   Button,
+  cn,
   Icon,
   SiteFooter,
   SiteHeader,
+  textLink,
   ToastProvider,
   useToast,
 } from '@adili/ui';
@@ -125,10 +127,7 @@ function Landing({ error }: { error: string | null }) {
       </p>
       <p className="mt-7 border-t pt-4 text-[13.5px] text-muted-foreground">
         Not a public officer?{' '}
-        <Link
-          to="/access"
-          className="font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground"
-        >
+        <Link to="/access" className={cn(textLink, 'font-medium')}>
           Request access to a declaration
         </Link>
       </p>
