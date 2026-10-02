@@ -1510,7 +1510,7 @@ paths:
       x-audited-read:
         action: access.scope.previewed
         resource: access-request
-  /v1/lea/requests/{requestId}/preview:
+  /v1/lea/requests/{leaRequestId}/preview:
     get:
       tags:
         - officer
@@ -1518,7 +1518,7 @@ paths:
       description: "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Once verified (the officer sought identified), until the decision; never the agency's officer. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike."
       operationId: getLeaRequestScopePreview
       parameters:
-        - name: requestId
+        - name: leaRequestId
           required: true
           in: path
           schema:
@@ -1532,7 +1532,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ScopePreview'
         '400':
-          description: requestId is not a UUID
+          description: leaRequestId is not a UUID
           content:
             application/problem+json:
               schema:
@@ -1574,7 +1574,7 @@ paths:
       description: "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404. Within the requested scope (else 400 `scope-exceeds-request`; clarifications are never in one). A read: no Idempotency-Key. Per year of the scope, the declarations of the declarant at the Commission and, per section and included household member kind, how many entries and persons a grant would disclose, with the clarifications when the scope includes them: counts only, never content. `empty` when the scope holds nothing, so a grant would issue the nil letter (no declarations held within the granted scope) instead of an access package. Audited (`audit.read.v1`) with the legal basis, the reference and the caller as recipient; declarations and review audit their counts alike."
       operationId: previewLeaRequestScope
       parameters:
-        - name: requestId
+        - name: leaRequestId
           required: true
           in: path
           schema:
@@ -1594,7 +1594,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ScopePreview'
         '400':
-          description: requestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request`
+          description: leaRequestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request`
           content:
             application/problem+json:
               schema:

@@ -476,7 +476,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/lea/requests/{requestId}/preview": {
+    "/v1/lea/requests/{leaRequestId}/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -3145,7 +3145,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                requestId: string;
+                leaRequestId: string;
             };
             cookie?: never;
         };
@@ -3160,7 +3160,7 @@ export interface operations {
                     "application/json": components["schemas"]["ScopePreview"];
                 };
             };
-            /** @description requestId is not a UUID */
+            /** @description leaRequestId is not a UUID */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3216,7 +3216,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                requestId: string;
+                leaRequestId: string;
             };
             cookie?: never;
         };
@@ -3235,7 +3235,7 @@ export interface operations {
                     "application/json": components["schemas"]["ScopePreview"];
                 };
             };
-            /** @description requestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request` */
+            /** @description leaRequestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request` */
             400: {
                 headers: {
                     [name: string]: unknown;

@@ -311,7 +311,7 @@ describe('The scope preview before the decision (decision 1)', () => {
       expect(response.statusCode, response.body).toBe(200);
       const body = response.json<ScopePreview>();
       expect(
-        contractErrors(okResponse('/v1/lea/requests/{requestId}/preview', 'get'), body),
+        contractErrors(okResponse('/v1/lea/requests/{leaRequestId}/preview', 'get'), body),
       ).toEqual([]);
       expect(body).toMatchObject({
         scope: LEA_INPUT.scope,

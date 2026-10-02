@@ -19,6 +19,10 @@ import { PreviewService } from './preview.service.js';
 import type { ScopePreview } from './representation.js';
 
 const REQUEST_ID = { name: 'requestId', schema: { type: 'string', format: 'uuid' } } as const;
+const LEA_REQUEST_ID = {
+  name: 'leaRequestId',
+  schema: { type: 'string', format: 'uuid' },
+} as const;
 
 const WHO =
   "The Commission's access officer, and its supervisor (reading); another Commission's request, and EACC, get 404.";
@@ -97,17 +101,17 @@ export class PreviewController {
     return this.previews.formK(principal, requestId, scope, audit);
   }
 
-  @Get('v1/lea/requests/:requestId/preview')
+  @Get('v1/lea/requests/:leaRequestId/preview')
   @Roles(...OFFICER_ROUTE_ROLES)
   @AuditedRead({ action: 'access.scope.previewed', resource: 'lea-request' })
-  @ApiParam(REQUEST_ID)
+  @ApiParam(LEA_REQUEST_ID)
   @ApiOperation({
     operationId: 'getLeaRequestScopePreview',
     summary: 'What the requested scope of a law enforcement request holds, in counts (audited)',
     description: `${WHO} Once verified (the officer sought identified), until the decision; never the agency's officer. ${COUNTS}`,
   })
   @ApiOkResponse({ description: 'Preview', schema: schemaRef('ScopePreview') })
-  @ApiProblemResponse(400, 'requestId is not a UUID')
+  @ApiProblemResponse(400, 'leaRequestId is not a UUID')
   @ApiProblemResponse(403, 'Not an access officer or supervisor')
   @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
   @ApiProblemResponse(
@@ -117,17 +121,17 @@ export class PreviewController {
   @ApiProblemResponse(503, 'Declarations cannot be reached')
   lea(
     @CurrentPrincipal() principal: Principal,
-    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<ScopePreview> {
     return this.previews.lea(principal, requestId, null, audit);
   }
 
-  @Post('v1/lea/requests/:requestId/preview')
+  @Post('v1/lea/requests/:leaRequestId/preview')
   @HttpCode(HttpStatus.OK)
   @Roles(...OFFICER_ROUTE_ROLES)
   @AuditedRead({ action: 'access.scope.previewed', resource: 'lea-request' })
-  @ApiParam(REQUEST_ID)
+  @ApiParam(LEA_REQUEST_ID)
   @ApiOperation({
     operationId: 'previewLeaRequestScope',
     summary: 'What a proposed scope of a law enforcement request holds, in counts (audited)',
@@ -137,7 +141,7 @@ export class PreviewController {
   @ApiOkResponse({ description: 'Preview', schema: schemaRef('ScopePreview') })
   @ApiProblemResponse(
     400,
-    'requestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request`',
+    'leaRequestId is not a UUID, the scope failed validation, or problem code `scope-exceeds-request`',
   )
   @ApiProblemResponse(403, 'Not an access officer or supervisor')
   @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
@@ -148,7 +152,7 @@ export class PreviewController {
   @ApiProblemResponse(503, 'Declarations cannot be reached')
   leaScope(
     @CurrentPrincipal() principal: Principal,
-    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
     @Body(new ZodValidationPipe(scopeSchema)) scope: Scope,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<ScopePreview> {
