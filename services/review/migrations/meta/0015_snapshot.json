@@ -1,5 +1,5 @@
 {
-  "id": "8ce7f284-1a23-4b88-8a64-e452f33350d4",
+  "id": "5d788154-a452-4363-bbd7-c097f132d342",
   "prevId": "54297218-a3b3-4d08-a5e2-5aa82205360b",
   "version": "7",
   "dialect": "postgresql",
@@ -451,6 +451,25 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
+        },
+        "opening": {
+          "name": "opening",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opening_ai_job_id": {
+          "name": "opening_ai_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ai_assisted": {
+          "name": "ai_assisted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "issued_at": {
           "name": "issued_at",
@@ -1649,6 +1668,227 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.review_copilot_drafts": {
+      "name": "review_copilot_drafts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by": {
+          "name": "requested_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selection_hash": {
+          "name": "selection_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failure_reason": {
+          "name": "failure_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "envelope": {
+          "name": "envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "review_copilot_drafts_expires_at_idx": {
+          "name": "review_copilot_drafts_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "review_copilot_drafts_case_id_review_cases_id_fk": {
+          "name": "review_copilot_drafts_case_id_review_cases_id_fk",
+          "tableFrom": "review_copilot_drafts",
+          "tableTo": "review_cases",
+          "columnsFrom": [
+            "case_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "review_copilot_drafts_status_check": {
+          "name": "review_copilot_drafts_status_check",
+          "value": "\"review_copilot_drafts\".\"status\" in ('pending', 'ready', 'failed')"
+        },
+        "review_copilot_drafts_content_check": {
+          "name": "review_copilot_drafts_content_check",
+          "value": "(\"review_copilot_drafts\".\"status\" = 'ready' and \"review_copilot_drafts\".\"purged_at\" is null) = (\"review_copilot_drafts\".\"ciphertext\" is not null and \"review_copilot_drafts\".\"envelope\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.review_copilot_ratings": {
+      "name": "review_copilot_ratings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reviewer_subject": {
+          "name": "reviewer_subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rating": {
+          "name": "rating",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rated_at": {
+          "name": "rated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "review_copilot_ratings_case_id_review_cases_id_fk": {
+          "name": "review_copilot_ratings_case_id_review_cases_id_fk",
+          "tableFrom": "review_copilot_ratings",
+          "tableTo": "review_cases",
+          "columnsFrom": [
+            "case_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "review_copilot_ratings_job_reviewer_block_key": {
+          "name": "review_copilot_ratings_job_reviewer_block_key",
+          "nullsNotDistinct": true,
+          "columns": [
+            "job_id",
+            "reviewer_subject",
+            "block"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "review_copilot_ratings_rating_check": {
+          "name": "review_copilot_ratings_rating_check",
+          "value": "\"review_copilot_ratings\".\"rating\" in ('helpful', 'not-helpful')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.review_copilots": {
       "name": "review_copilots",
       "schema": "",
@@ -1773,6 +2013,42 @@
           "primaryKey": false,
           "notNull": false
         },
+        "staged_summary_prompt_version": {
+          "name": "staged_summary_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_ciphertext": {
+          "name": "staged_summary_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_envelope": {
+          "name": "staged_summary_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_prompt_version": {
+          "name": "staged_explanations_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_ciphertext": {
+          "name": "staged_explanations_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_envelope": {
+          "name": "staged_explanations_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -1781,7 +2057,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "review_copilots_summary_job_id_idx": {
+          "name": "review_copilots_summary_job_id_idx",
+          "columns": [
+            {
+              "expression": "summary_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "review_copilots_explanations_job_id_idx": {
+          "name": "review_copilots_explanations_job_id_idx",
+          "columns": [
+            {
+              "expression": "explanations_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "review_copilots_case_id_review_cases_id_fk": {
           "name": "review_copilots_case_id_review_cases_id_fk",

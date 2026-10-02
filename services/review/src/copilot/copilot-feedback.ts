@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, gt, inArray, or, sql } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
 import {
@@ -188,6 +189,7 @@ export class CopilotFeedback {
       tx
         .insert(reviewCopilotRatings)
         .values({
+          id: uuidv7(),
           jobId,
           reviewerSubject: principal.subject,
           block: input.block,

@@ -108,6 +108,8 @@ export type CopilotRating = (typeof COPILOT_RATINGS)[number];
 export const reviewCopilotRatings = pgTable(
   'review_copilot_ratings',
   {
+    /** A key of its own: `block` is null for the output as a whole, so it cannot be in one. */
+    id: uuid().primaryKey(),
     jobId: uuid().notNull(),
     reviewerSubject: text().notNull(),
     /** review.yaml `CopilotBlock`; null for the output as a whole (a clarification draft). */
