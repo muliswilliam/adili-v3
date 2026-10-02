@@ -6053,6 +6053,10 @@ components:
     ReferralPackagePayload:
       type: object
       properties:
+        declarantPersonId:
+          type: string
+          format: uuid
+          description: 'The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed'
         reference:
           type: string
         grounds:
@@ -6183,6 +6187,7 @@ components:
               - reference
               - documentId
       required:
+        - declarantPersonId
         - reference
         - grounds
         - groundsLabel

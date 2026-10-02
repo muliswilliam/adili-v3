@@ -1964,6 +1964,11 @@ export interface components {
             narrative: string;
         };
         ReferralPackagePayload: {
+            /**
+             * Format: uuid
+             * @description The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed
+             */
+            declarantPersonId: string;
             reference: string;
             grounds: components["schemas"]["ReferralGrounds"];
             groundsLabel: string;

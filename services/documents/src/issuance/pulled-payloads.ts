@@ -30,12 +30,13 @@ export interface PulledPayload {
   /** The subject a document of the record is issued under: one per record. */
   subjectRef(id: string): string;
   /**
-   * Who may download it, checked against the pulled `declarantPersonId` (which the template does
-   * not print): `declarant` must name a person; `declarant-if-onboarded` may name none (an officer
-   * who never onboarded); `nobody` refuses any subject person (a Confidential referral package
-   * the declarant is never told of).
+   * What the pulled `declarantPersonId` (which the template does not print) is to the document:
+   * its subject person, who may download it, for `declarant` (which must name a person) and
+   * `declarant-if-onboarded` (which may name none: an officer who never onboarded); for
+   * `excluded-declarant` the one person who must never download it (a Confidential referral
+   * package the declarant is never told of; its template refuses a subject person).
    */
-  owner: 'declarant' | 'declarant-if-onboarded' | 'nobody';
+  owner: 'declarant' | 'declarant-if-onboarded' | 'excluded-declarant';
   /**
    * EACC roles who may download a document of the type issued by any Commission, with a token of
    * the EACC tenant (spec 09: the referral packages Commissions send EACC). None: nobody at EACC.
@@ -97,7 +98,7 @@ const PULLED: Partial<Record<DocumentType, PulledPayload>> = {
     idField: 'referralId',
     source: referralPackageSource,
     subjectRef: (id) => `referral:${id}`,
-    owner: 'nobody',
+    owner: 'excluded-declarant',
     eaccReaders: EACC_ROLES,
   },
 };

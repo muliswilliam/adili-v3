@@ -347,6 +347,8 @@ describe('referrals: propose, approve with evidence package, decline (S13)', () 
       ),
     ).toEqual([]);
     expect(issued?.pulled.body).toMatchObject({
+      // So documents keeps the package from the officer it refers (an EACC officer, at EACC).
+      declarantPersonId: version.personId,
       reference: body.reference,
       grounds: 'undeclared-assets',
       groundsLabel: 'Undeclared assets',

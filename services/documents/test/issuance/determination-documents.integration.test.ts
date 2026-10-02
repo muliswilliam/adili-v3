@@ -214,6 +214,10 @@ function held(record: ReviewRecord, payload: object, tenant = 'psc'): string {
 const determination = (payload: object = decisionPayload(), tenant = 'psc') =>
   held('determination', { ...payload, declarantPersonId: DECLARANT_PERSON }, tenant);
 
+/** A referral the review service holds, with the declarant it refers (who never downloads it). */
+const referral = (payload: object = packagePayload()) =>
+  held('referral', { ...payload, declarantPersonId: DECLARANT_PERSON });
+
 /** An administrative action the review service holds; `person` null when never onboarded. */
 const action = (payload: object = actionPayload(), person: string | null = DECLARANT_PERSON) =>
   held('action', { ...payload, declarantPersonId: person });
@@ -581,7 +585,7 @@ describe('S13 the referral package', () => {
   let texts: string[];
 
   beforeAll(async () => {
-    referralId = held('referral', packagePayload());
+    referralId = referral();
     ({ document, texts } = await issued(packageBody(referralId)));
   });
 
@@ -593,7 +597,12 @@ describe('S13 the referral package', () => {
       status: 'valid',
     });
     const [row] = await registered(document.subjectRef);
-    expect(row?.document).toMatchObject({ reference: RFL_REFERENCE, subjectPersonId: null });
+    // The declarant is recorded only to keep the package from them, never as its owner.
+    expect(row?.document).toMatchObject({
+      reference: RFL_REFERENCE,
+      subjectPersonId: null,
+      excludedPersonId: DECLARANT_PERSON,
+    });
     expect(api.review.pulls.filter((pull) => pull.id === referralId)).toEqual([
       { record: 'referral', tenant: 'psc', id: referralId },
     ]);
@@ -669,18 +678,27 @@ describe('S13 the referral package', () => {
     await expectFooters(document, texts, RFL_REFERENCE, 'CONFIDENTIAL');
   });
 
-  it('refuses a package with a person to download it with 400', async () => {
-    const id = held('referral', packagePayload());
+  it('refuses a package with a person to download it with 400, before pulling the package', async () => {
+    const id = referral();
+    const pulls = api.review.pulls.length;
     const response = await issue({ ...packageBody(id), subjectPersonId: DECLARANT_PERSON });
     expect(response.statusCode).toBe(400);
     expect(response.json<Problem>().errors).toEqual([
       expect.objectContaining({ path: 'subjectPersonId' }),
     ]);
+    expect(api.review.pulls).toHaveLength(pulls);
     expect(await registered(`referral:${id}`)).toEqual([]);
   });
 
+  it('refuses a pulled package that names no declarant with 400', async () => {
+    const id = held('referral', packagePayload());
+    const response = await issue(packageBody(id));
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([expect.objectContaining({ path: 'payload' })]);
+  });
+
   it('refuses a package with an empty manifest with 400', async () => {
-    const id = held('referral', packagePayload({ manifest: [] }));
+    const id = referral(packagePayload({ manifest: [] }));
     expect((await issue(packageBody(id))).statusCode).toBe(400);
   });
 });
@@ -735,7 +753,7 @@ describe('spec 08 issuing: refusals and outages', () => {
   });
 
   it('answers 502 review-unavailable when the review service fails, and registers nothing', async () => {
-    const id = held('referral', packagePayload());
+    const id = referral();
     api.review.unavailable();
     const response = await issue(packageBody(id));
     expect(response.statusCode).toBe(502);

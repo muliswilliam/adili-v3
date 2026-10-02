@@ -41,6 +41,12 @@ export const issuedDocuments = pgTable(
     subjectVersion: integer(),
     /** The person who may download it (the declarant); null when no person may. */
     subjectPersonId: uuid(),
+    /**
+     * The person a document is about who must never download it: the declarant a referral package
+     * refers (spec 08, never told of it). An EACC officer is referred by EACC as their Commission,
+     * so EACC's analysts and supervisors download every package but the one about themselves.
+     */
+    excludedPersonId: uuid(),
     verificationId: text().notNull().unique(),
     /** Key in the issued bucket: `issued/<id>.pdf`. */
     objectKey: text().notNull().unique(),

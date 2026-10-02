@@ -23,7 +23,7 @@ import {
   newVerificationId,
 } from '@adili/events/contracts';
 import { ACCESS_OFFICER, EACC_TENANT } from '@adili/roles';
-import { and, arrayContains, eq, inArray } from 'drizzle-orm';
+import { and, arrayContains, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
@@ -77,6 +77,7 @@ interface DocumentWithRecord {
 const pulledOwner = {
   declarant: z.looseObject({ declarantPersonId: z.uuid() }),
   'declarant-if-onboarded': z.looseObject({ declarantPersonId: z.uuid().nullable() }),
+  'excluded-declarant': z.looseObject({ declarantPersonId: z.uuid() }),
 } as const;
 
 /** A pulled type's request: how its fields are pulled, and the record they are pulled for. */
@@ -194,6 +195,7 @@ export class IssuanceService {
     if (existing) return { document: existing, created: false };
 
     const fields = await this.fieldsOf(request, from);
+    const { excludedPersonId } = fields;
     const parsed = template.payload.safeParse(fields.payload);
     if (!parsed.success) {
       throw validationProblem([
@@ -269,6 +271,7 @@ export class IssuanceService {
               disclosureLevel: template.disclosureLevel,
               subjectRef: request.subjectRef,
               subjectPersonId: request.subjectPersonId,
+              excludedPersonId,
               reference: template.reference(payload),
               subjectVersion: template.subjectVersion(payload),
               verificationId,
@@ -332,15 +335,17 @@ export class IssuanceService {
 
   /**
    * The fields the template renders: the request's own, or those the source holds for the
-   * record (pulled for the same tenant). A record the source does not hold is a refused request
-   * (400), and so is a request naming another person than the record's declarant as the one who
-   * may download the document; a source that fails is a 502, so the caller retries.
+   * record (pulled for the same tenant), with the person the record names who must never
+   * download the document (a referral package's declarant). A record the source does not hold
+   * is a refused request (400), and so is a request naming another person than the record's
+   * declarant as the one who may download the document; a source that fails is a 502, so the
+   * caller retries.
    */
   private async fieldsOf(
     request: IssueRequest,
     from: PullFrom | null,
-  ): Promise<{ payload: unknown; pulled: boolean }> {
-    if (from === null) return { payload: request.payload, pulled: false };
+  ): Promise<{ payload: unknown; pulled: boolean; excludedPersonId: string | null }> {
+    if (from === null) return { payload: request.payload, pulled: false, excludedPersonId: null };
     const { pulled, id } = from;
     let fields: unknown;
     try {
@@ -365,17 +370,6 @@ export class IssuanceService {
       }
       throw error;
     }
-    if (pulled.owner === 'nobody') {
-      if (request.subjectPersonId !== null) {
-        throw validationProblem([
-          {
-            path: 'subjectPersonId',
-            message: `Must be null: no person may download a ${request.type}`,
-          },
-        ]);
-      }
-      return { payload: fields, pulled: true };
-    }
     const subject = pulledOwner[pulled.owner].safeParse(fields);
     if (!subject.success) {
       throw validationProblem([
@@ -383,6 +377,10 @@ export class IssuanceService {
       ]);
     }
     const { declarantPersonId, ...payload } = subject.data;
+    // The template refuses a subject person (checked before the pull).
+    if (pulled.owner === 'excluded-declarant') {
+      return { payload, pulled: true, excludedPersonId: declarantPersonId };
+    }
     if (request.subjectPersonId !== declarantPersonId) {
       throw validationProblem([
         {
@@ -391,7 +389,7 @@ export class IssuanceService {
         },
       ]);
     }
-    return { payload, pulled: true };
+    return { payload, pulled: true, excludedPersonId: null };
   }
 
   /**
@@ -606,8 +604,8 @@ export class IssuanceService {
    * downloaders (read in their own tenant's context): one who is no longer an access officer
    * there downloads it no more, or an EACC analyst or supervisor and the document is of a type
    * EACC reads from every Commission (a referral package, pulled-payloads.ts `eaccReaders`; read
-   * in EACC's context, which the database admits to those types only). Anyone else gets the
-   * same 404.
+   * in EACC's context, which the database admits to those types only) and not about them (an
+   * EACC officer referred by EACC). Anyone else gets the same 404.
    */
   private async owned(
     { personId, subject, tenant, roles }: Downloader,
@@ -625,7 +623,16 @@ export class IssuanceService {
     if (eaccTypes.length > 0) {
       const [asEacc] = await withTenant(this.db, { tenant: EACC_TENANT, subject }, (tx) =>
         withRecord(tx).where(
-          and(eq(issuedDocuments.id, id), inArray(issuedDocuments.type, eaccTypes)),
+          and(
+            eq(issuedDocuments.id, id),
+            inArray(issuedDocuments.type, eaccTypes),
+            personId === null
+              ? undefined
+              : or(
+                  isNull(issuedDocuments.excludedPersonId),
+                  ne(issuedDocuments.excludedPersonId, personId),
+                ),
+          ),
         ),
       );
       return notFoundIfInvisible(asEacc);

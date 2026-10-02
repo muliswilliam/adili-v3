@@ -199,7 +199,10 @@ function ncrRequest(nationalReportId: string, overrides: Record<string, unknown>
  * As reporting's client sends it: the issuer in X-Acting-Tenant (EACC for the national report,
  * the PSC for its own report) and an Idempotency-Key.
  */
-const issue = (body: { type: string }) =>
+/** A request body: its type decides the acting tenant. */
+type ReportBody = { type: string } & Record<string, unknown>;
+
+const issue = (body: ReportBody) =>
   api.post('/internal/v1/documents/issue', body, REPORTING, {
     idempotencyKey: randomUUID(),
     headers: { 'x-acting-tenant': body.type === 'ncr' ? 'eacc' : 'psc' },
@@ -753,10 +756,16 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
 
   const download = (id: string, caller: Caller) => api.get(`/v1/documents/${id}/download`, caller);
 
-  /** A referral package the PSC issues, as the review service asks it. */
-  async function issuedPackage(): Promise<IssuedDocument> {
+  /**
+   * A referral package a Commission issues, as the review service asks it, about a declarant of
+   * its own; EACC refers its own officers too (ADR-006: EACC is their Commission).
+   */
+  async function issuedPackage(
+    tenant = 'psc',
+    declarantPersonId: string = randomUUID(),
+  ): Promise<IssuedDocument> {
     const referralId = randomUUID();
-    api.review.given('referral', 'psc', referralId, packagePayload());
+    api.review.given('referral', tenant, referralId, { ...packagePayload(), declarantPersonId });
     const response = await api.post(
       '/internal/v1/documents/issue',
       {
@@ -767,7 +776,7 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
         payload: { referralId },
       },
       REVIEW,
-      { idempotencyKey: null, headers: { 'x-acting-tenant': 'psc' } },
+      { idempotencyKey: null, headers: { 'x-acting-tenant': tenant } },
     );
     expect(response.statusCode, response.body).toBe(201);
     return response.json<IssuedDocument>();
@@ -858,6 +867,20 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
     const analyst: Caller = { ...EACC_ANALYST, personId };
     expect((await download(letter.id, analyst)).statusCode).toBe(200);
     expect((await download(letter.id, EACC_SUPERVISOR)).statusCode).toBe(404);
+  });
+
+  it('never hands an EACC officer the package referring them, whichever EACC role they hold', async () => {
+    const personId = randomUUID();
+    const own = await issuedPackage('eacc', personId);
+    for (const caller of [EACC_ANALYST, EACC_SUPERVISOR]) {
+      const referred: Caller = { ...caller, personId };
+      expect((await download(own.id, referred)).statusCode, caller.sub).toBe(404);
+      expect((await api.get(`/v1/documents/${own.id}`, referred)).statusCode).toBe(404);
+      // Any other EACC analyst or supervisor downloads it.
+      const colleague: Caller = { ...caller, personId: randomUUID() };
+      expect((await download(own.id, colleague)).statusCode, caller.sub).toBe(200);
+    }
+    expect((await download(own.id, EACC_ANALYST)).statusCode).toBe(200);
   });
 
   it("answers 404 to a service acting for EACC on a Commission's package: no metadata, download, supersede or announcement", async () => {

@@ -93,6 +93,7 @@ const ACTION_PAYLOAD = {
 };
 
 const REFERRAL_PAYLOAD = {
+  declarantPersonId: '0192f1a0-5a11-7000-8000-0000000000d1',
   reference: format(RFL, { issuer: 'PSC', period: 2028, sequence: 1 }),
   grounds: 'two-missed-cycles',
   groundsLabel: 'Two consecutive declarations not filed',

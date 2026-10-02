@@ -334,6 +334,7 @@ export const referralPackageV1: DocumentTemplate<ReferralPackagePayload> = {
   type: REFERRAL_PACKAGE,
   version: 1,
   disclosureLevel: 'confidential',
+  requires: { subjectPerson: 'refused' },
   title: 'Referral package',
   payload: referralPackagePayload,
 
