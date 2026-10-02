@@ -79,7 +79,11 @@ export const ICMS_LEGAL_BASES = ['regs-r20-referral'] as const satisfies Instruc
 export const PAYROLL_ACTIONS = ['stop_salary', 'resume_salary'] as const;
 export type PayrollAction = (typeof PAYROLL_ACTIONS)[number];
 
-/** How payroll acknowledged an instruction. The mock accepts every valid one. */
+/**
+ * How payroll acknowledged an instruction. external/payroll.yaml `StatusEnum` is only `accepted`
+ * (the mock accepts every valid one); `pending` and `failed` are reserved for a payroll that
+ * acknowledges asynchronously, as the internal contract publishes them.
+ */
 export const PAYROLL_STATUSES = ['accepted', 'pending', 'failed'] as const;
 export type PayrollStatus = (typeof PAYROLL_STATUSES)[number];
 

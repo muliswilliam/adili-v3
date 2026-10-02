@@ -499,14 +499,18 @@ export interface components {
             /** Format: date */
             effectiveDate: string;
         };
-        /** @description A payroll instruction and its acknowledgement */
+        /** @description A payroll instruction and its acknowledgement. Payroll accepts an instruction as it receives it, so the gateway currently always answers accepted with a payroll reference; pending and failed are reserved */
         PayrollInstruction: {
             instructionReference: string;
             action: components["schemas"]["PayrollAction"];
-            /** @enum {string} */
+            /**
+             * @description Currently always accepted; pending and failed are reserved
+             * @enum {string}
+             */
             status: "accepted" | "pending" | "failed";
+            /** @description Payroll's own reference. Currently always present; null is reserved for a pending instruction */
             payrollReference: string | null;
-            /** @description When payroll received it, by payroll's clock; null until payroll says */
+            /** @description When payroll received it, by payroll's clock. Currently always present; null is reserved for a pending instruction */
             receivedAt: string | null;
             /**
              * Format: date-time

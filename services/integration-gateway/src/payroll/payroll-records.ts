@@ -48,24 +48,34 @@ export const payrollInstructionSchema = z
   .object({
     instructionReference: z.string(),
     action: payrollActionSchema,
-    status: payrollStatusSchema,
-    /** Payroll's own reference; null until payroll gives one. */
-    payrollReference: z.string().nullable(),
+    status: payrollStatusSchema.meta({
+      description: 'Currently always accepted; pending and failed are reserved',
+    }),
+    payrollReference: z.string().nullable().meta({
+      description:
+        "Payroll's own reference. Currently always present; null is reserved for a pending instruction",
+    }),
     receivedAt: z.iso.datetime({ offset: true }).nullable().meta({
-      description: "When payroll received it, by payroll's clock; null until payroll says",
+      description:
+        "When payroll received it, by payroll's clock. Currently always present; null is reserved for a pending instruction",
     }),
     sentAt: z.iso
       .datetime({ offset: true })
       .meta({ description: 'When the gateway sent the instruction payroll acknowledged' }),
   })
-  .meta({ description: 'A payroll instruction and its acknowledgement' });
+  .meta({
+    description:
+      'A payroll instruction and its acknowledgement. Payroll accepts an instruction as it receives it, so the gateway currently always answers accepted with a payroll reference; pending and failed are reserved',
+  });
 export type PayrollInstruction = z.infer<typeof payrollInstructionSchema>;
 
 // Payroll's own shapes (packages/schemas/external/payroll.yaml).
 
 /**
  * external/payroll.yaml `Instruction`, the acknowledgement of `submitInstruction` (201 received,
- * 200 a resubmission of the same reference answering the original).
+ * 200 a resubmission of the same reference answering the original). Payroll's `StatusEnum` is
+ * only `accepted`, with its reference and time; `pending` and `failed`, without them, are taken
+ * too, reserved for a payroll that acknowledges asynchronously.
  */
 export const payrollAcknowledgementSchema = z
   .object({
