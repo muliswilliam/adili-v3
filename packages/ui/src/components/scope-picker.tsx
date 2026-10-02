@@ -9,8 +9,8 @@ import { FieldError } from './form-field';
 
 /**
  * What an access request asks for, or a decision grants: declaration years, whether the
- * declarant's spouses and children are included, which sections, and clarifications (always false
- * for law-enforcement requests). The declarant is always included. The `scope` of `form-k.v1`.
+ * declarant's spouses and children are included, and which sections. The declarant is always
+ * included. The `scope` of `form-k.v1`.
  */
 export type Scope = FormKV1['scope'];
 
@@ -27,7 +27,7 @@ export const scopeSectionLabels: Record<ScopeSection, string> = {
 
 export const SCOPE_SECTIONS = Object.keys(scopeSectionLabels) as ScopeSection[];
 
-type ScopeFlag = 'includeSpouses' | 'includeChildren' | 'includeClarifications';
+type ScopeFlag = 'includeSpouses' | 'includeChildren';
 
 /** True when `scope` asks for nothing beyond `requested`: a grant can only narrow a request. */
 export function isScopeWithin(scope: Scope, requested: Scope): boolean {
@@ -35,36 +35,48 @@ export function isScopeWithin(scope: Scope, requested: Scope): boolean {
     scope.years.every((year) => requested.years.includes(year)) &&
     scope.sections.every((section) => requested.sections.includes(section)) &&
     (!scope.includeSpouses || requested.includeSpouses) &&
-    (!scope.includeChildren || requested.includeChildren) &&
-    (!scope.includeClarifications || requested.includeClarifications)
+    (!scope.includeChildren || requested.includeChildren)
   );
 }
 
-/** True when both scopes cover the same years, people, sections and clarifications. */
+/** True when both scopes cover the same years, people and sections. */
 export function isSameScope(a: Scope, b: Scope): boolean {
   return isScopeWithin(a, b) && isScopeWithin(b, a);
 }
 
-function people(scope: Scope): string {
+/** `2025, 2026`: the years in order. */
+export function formatScopeYears(scope: Pick<Scope, 'years'>): string {
+  return [...scope.years].sort((a, b) => a - b).join(', ');
+}
+
+/** `Declarant and spouses`: who the scope covers, in the declarant's words. */
+export function formatScopePeople(
+  scope: Pick<Scope, 'includeSpouses' | 'includeChildren'>,
+): string {
   if (scope.includeSpouses && scope.includeChildren) return 'Declarant, spouses and children';
   if (scope.includeSpouses) return 'Declarant and spouses';
   if (scope.includeChildren) return 'Declarant and children';
   return 'Declarant only';
 }
 
-/** `2025, 2026 · Declarant and spouses · Income, assets · clarifications` */
-export function formatScope(scope: Scope): string {
-  const sections = SCOPE_SECTIONS.filter((section) => scope.sections.includes(section))
+/** `Income, assets`: the sections in the form's order, the first capitalised. */
+export function formatScopeSections(scope: Pick<Scope, 'sections'>): string {
+  return SCOPE_SECTIONS.filter((section) => scope.sections.includes(section))
     .map((section, index) =>
       index === 0 ? scopeSectionLabels[section] : scopeSectionLabels[section].toLowerCase(),
     )
     .join(', ');
-  return [
-    [...scope.years].sort((a, b) => a - b).join(', '),
-    people(scope),
-    sections,
-    ...(scope.includeClarifications ? ['clarifications'] : []),
-  ].join(' · ');
+}
+
+/**
+ * `2025, 2026 · Declarant and spouses · Income, assets`. `people` words the household for
+ * another reader (the console names the officer, the declarant's notices say "You").
+ */
+export function formatScope(
+  scope: Scope,
+  people: (scope: Scope) => string = formatScopePeople,
+): string {
+  return [formatScopeYears(scope), people(scope), formatScopeSections(scope)].join(' · ');
 }
 
 export interface ScopePickerProps {
@@ -80,11 +92,6 @@ export interface ScopePickerProps {
    * marked "Not requested", so a partial grant can only narrow the request.
    */
   restrictTo?: Scope;
-  /**
-   * Offer clarifications (Form K); law-enforcement requests do not cover them, so leave
-   * `includeClarifications` false when this is off.
-   */
-  clarifications?: boolean;
   errors?: { years?: ReactNode; sections?: ReactNode };
   disabled?: boolean;
   /** Prefix for the checkboxes' `name`s, when several pickers share a form. */
@@ -93,8 +100,8 @@ export interface ScopePickerProps {
 }
 
 /**
- * Chooses the scope of an access request or grant: years, people (the declarant, spouses,
- * children, and clarifications) and sections, each a fieldset with a legend. Side by side from
+ * Chooses the scope of an access request or grant: years, people (the declarant, spouses and
+ * children) and sections, each a fieldset with a legend. Side by side from
  * 600px of its own width, stacked below (the prototype shows three columns inside a card).
  */
 export function ScopePicker({
@@ -102,7 +109,6 @@ export function ScopePicker({
   onChange,
   years,
   restrictTo,
-  clarifications = true,
   errors = {},
   disabled = false,
   name,
@@ -194,9 +200,6 @@ export function ScopePicker({
           </div>
           {flag('includeSpouses', 'Spouses')}
           {flag('includeChildren', 'Children')}
-          {clarifications ? (
-            <div className="pt-0.5">{flag('includeClarifications', 'Clarifications')}</div>
-          ) : null}
         </ScopeGroup>
         <ScopeGroup legend="Sections" error={errors.sections}>
           {SCOPE_SECTIONS.map((section) =>

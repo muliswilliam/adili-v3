@@ -8,7 +8,6 @@ const nothing: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: [],
-  includeClarifications: false,
 };
 
 const requested: Scope = {
@@ -16,7 +15,6 @@ const requested: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: ['income', 'assets', 'liabilities'],
-  includeClarifications: false,
 };
 
 function Controlled({ value: initial, ...props }: ScopePickerProps) {
@@ -34,11 +32,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Form K: everything on offer, clarifications included. */
+/** Everything on offer: Form K and law-enforcement requests alike. */
 export const Full: Story = {};
-
-/** Law-enforcement requests do not cover clarifications. */
-export const LawEnforcement: Story = { args: { clarifications: false } };
 
 /** A partial grant: only what was requested can be granted. */
 export const RestrictedToRequest: Story = {

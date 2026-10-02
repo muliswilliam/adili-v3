@@ -51,13 +51,13 @@ export interface GroundsSelectProps {
 /**
  * Chooses the Regulation 24 grounds for a partial grant or a denial. Each ground is a card
  * that toggles from anywhere on it; its checkbox is named by the short label and described by
- * the regulation's text, which is quoted in the decision letter.
+ * the regulation's text.
  */
 export function GroundsSelect({
   value,
   onChange,
   legend = 'Regulation 24 grounds',
-  hint = 'Required for a partial grant or a denial. Choose every ground that applies; the text is quoted in the decision letter.',
+  hint = 'Required for a partial grant or a denial. Choose every ground that applies.',
   error,
   disabled = false,
   name = 'grounds',
