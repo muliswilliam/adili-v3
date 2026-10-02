@@ -625,7 +625,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationProblem"];
-            /** @description Per-tenant rate limit; problem code `rate-limited` */
+            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
             429: {
                 headers: {
                     [name: string]: unknown;
@@ -661,7 +661,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["ValidationProblem"];
-            /** @description Per-tenant rate limit; problem code `rate-limited` */
+            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
             429: {
                 headers: {
                     [name: string]: unknown;
