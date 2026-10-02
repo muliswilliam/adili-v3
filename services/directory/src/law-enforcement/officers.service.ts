@@ -436,12 +436,16 @@ interface Provisioned {
 }
 
 function account(row: OfficerRow): LeaOfficerAccount {
+  // Provisioning always stores both (the person's columns are nullable for other kinds).
+  if (row.email === null || row.phone === null) {
+    throw new Error(`Law-enforcement officer ${row.personId} has no email or phone`);
+  }
   return {
     id: row.personId,
     agencyCode: row.agencyCode,
     name: row.name,
-    email: row.email ?? '',
-    phone: row.phone ?? '',
+    email: row.email,
+    phone: row.phone,
     state: row.state,
     invitedAt: row.invitedAt.toISOString(),
     activatedAt: row.activatedAt?.toISOString() ?? null,
