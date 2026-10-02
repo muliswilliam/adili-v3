@@ -25,9 +25,12 @@ export function DataClassesTip() {
   );
 }
 
-/** The provider classes allowed for one data class ("External"), or "Blocked". */
+/**
+ * The routed provider classes allowed for one data class ("External"), or "Blocked". A class no
+ * task is routed to receives nothing, so the table leaves it out; the drawer shows the whole gate.
+ */
 export function GateCell({ row, dataClass }: { row: AiTenantRow; dataClass: DataClass }) {
-  const allowed = allowedProviders(row.gate, dataClass);
+  const allowed = allowedProviders(row.gate, dataClass).filter((each) => row.routed.includes(each));
   if (allowed.length === 0) {
     return <span className="text-[13.5px] text-muted-foreground">{m.blocked}</span>;
   }

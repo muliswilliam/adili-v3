@@ -80,6 +80,7 @@ export const en = {
   effort: (effort: string) =>
     (({ low: 'Low', medium: 'Medium', high: 'High' }) as Record<string, string>)[effort] ?? effort,
   paramTimeout: 'Timeout',
+  taskDefaults: 'Task defaults',
   seconds: (seconds: number) => `${formatNumber(seconds)} s`,
 
   // Commission drawer

@@ -148,15 +148,15 @@ describe('S16 AI policy: Commissions', () => {
     expect(screen.getByText('3 of 4 Commissions enabled')).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Usage, Sep 2026' })).toBeTruthy();
     const psc = rowOf('Public Service Commission');
-    expect(psc.getByText('External, Self-hosted')).toBeTruthy();
-    expect(psc.getAllByText('Self-hosted')).toHaveLength(2);
-    expect(psc.queryByText('Blocked')).toBeNull();
+    // Only the routed provider class shows; nothing is routed to a self-hosted one.
+    expect(psc.getByText('External')).toBeTruthy();
+    expect(psc.getAllByText('Blocked')).toHaveLength(2);
     expect(psc.getByRole('meter').getAttribute('aria-label')).toBe(
       'Tokens this month: 1,926,400 of 3,000,000',
     );
     expect(psc.getByText('120/min')).toBeTruthy();
     const tsc = rowOf('Teachers Service Commission');
-    expect(tsc.getAllByText('Self-hosted')).toHaveLength(3);
+    expect(tsc.getAllByText('Blocked')).toHaveLength(3);
     expect(tsc.getByText('Not enabled · 214 blocked')).toBeTruthy();
     expect(tsc.queryByRole('meter')).toBeNull();
   });
@@ -395,6 +395,32 @@ describe('S16 AI policy: routing', () => {
     expect(table.getByText('45 s')).toBeTruthy();
     expect(table.getAllByText('3,000')).toHaveLength(2);
     expect(table.getByText('Low')).toBeTruthy();
+  });
+
+  it("says a route without parameters uses the task's own", () => {
+    renderView({
+      result: {
+        ok: true,
+        data: {
+          ...OVERVIEW,
+          routing: {
+            ok: true,
+            data: [
+              {
+                tenant: null,
+                task: 'summarize-declaration',
+                provider: 'anthropic',
+                providerClass: 'external',
+                model: 'claude-opus-5-5',
+                params: {},
+              },
+            ],
+          },
+        },
+      },
+      search: { tab: 'routing' },
+    });
+    expect(screen.getByText('Task defaults')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
   });
 
