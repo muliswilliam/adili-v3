@@ -8,11 +8,14 @@ import {
   getMyCertifiedCopyDownload,
   requestMyCertifiedCopy,
 } from '../../server/certified-copies';
+import { usePoll } from '../declaration/use-poll';
 import { downloadFrom } from '../download';
 import { signInAgain } from '../sign-in';
 
 /** How often a copy being prepared is checked on. */
 export const COPY_POLL_MS = 1500;
+/** How many times, about a minute; a copy still being prepared then is followed after a reload. */
+export const COPY_POLLS = 40;
 
 /** The version a copy is of. */
 export interface CopyTarget {
@@ -36,9 +39,10 @@ export type CopyState =
 /**
  * Certified copies of the declarant's submitted versions (spec 10 FE-4, S13): Request certified
  * copy, then "Preparing…" while the access service has it issued (checked on every
- * `COPY_POLL_MS`), then Download. A copy that could not be prepared offers Try again, which asks
- * again (the service tries a failed copy again). Copies already asked for (`initial`, or later
- * `remember`) start where they stand, and one still being prepared is followed too.
+ * `COPY_POLL_MS`, one read at a time, up to `COPY_POLLS` reads), then Download. A copy that
+ * could not be prepared offers Try again, which asks again (the service tries a failed copy
+ * again). Copies already asked for (`initial`, or later `remember`) start where they stand, and
+ * one still being prepared is followed too.
  */
 export function useCertifiedCopies(initial: CertifiedCopy[] = []) {
   const { toast } = useToast();
@@ -73,28 +77,31 @@ export function useCertifiedCopies(initial: CertifiedCopy[] = []) {
     .map((copy) => copy.id)
     .sort()
     .join(',');
-  useEffect(() => {
-    if (!pendingIds) return;
-    const timer = setInterval(() => {
-      for (const copyId of pendingIds.split(',')) {
-        void getMyCertifiedCopy({ data: { copyId } })
-          .then((result) => {
-            if (!mounted.current) return;
-            if (result.status === 'unauthenticated') {
-              signInAgain();
-              return;
-            }
-            if (result.status !== 'ok' || result.copy.status === 'pending') return;
-            store(result.copy);
-            if (result.copy.status === 'issued') toast({ title: COPY.ready });
-          })
-          .catch(() => undefined);
+  usePoll({
+    pollKey: pendingIds || null,
+    read: () =>
+      Promise.all(
+        pendingIds
+          .split(',')
+          .map((copyId) => getMyCertifiedCopy({ data: { copyId } }).catch(() => null)),
+      ),
+    onRead: (results) => {
+      for (const result of results ?? []) {
+        if (result?.status === 'unauthenticated') {
+          signInAgain();
+          return true;
+        }
+        if (result?.status !== 'ok' || result.copy.status === 'pending') continue;
+        store(result.copy);
+        if (result.copy.status === 'issued') toast({ title: COPY.ready });
       }
-    }, COPY_POLL_MS);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [pendingIds, store, toast]);
+      // A copy settled changes the ids followed, which starts over; nothing else is done.
+      return false;
+    },
+    onGiveUp: () => undefined,
+    intervalMs: COPY_POLL_MS,
+    limit: COPY_POLLS,
+  });
 
   function stateOf(declarationId: string, version: number): CopyState {
     const key = versionKey(declarationId, version);

@@ -13,7 +13,7 @@ import type { DeclarationVersion } from '../../server/declarations/types';
 import type { SubmittedVersion } from '../../server/my-declarations.server';
 import { downloadFrom } from '../download';
 import { CopiesView } from './copies-view';
-import { COPY_POLL_MS } from './use-certified-copies';
+import { COPY_POLL_MS, COPY_POLLS } from './use-certified-copies';
 
 vi.mock('@tanstack/react-router', async () =>
   (await import('../declaration/testing-mocks')).routerMock(),
@@ -171,6 +171,33 @@ describe('Certified copies (S13)', () => {
       data: { documentId: ISSUED.documentId },
     });
     expect(downloadFrom).toHaveBeenCalledWith('/copy.pdf');
+  });
+
+  it('checks on a copy being prepared one read at a time, and gives up after a while', async () => {
+    vi.useFakeTimers();
+    let answer: (value: Awaited<ReturnType<typeof getMyCertifiedCopy>>) => void = () => undefined;
+    vi.mocked(getMyCertifiedCopy).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderView([copy({})]);
+
+    // A slow read is not overlapped by the next one.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(COPY_POLL_MS * 3);
+    });
+    expect(getMyCertifiedCopy).toHaveBeenCalledTimes(1);
+
+    vi.mocked(getMyCertifiedCopy).mockResolvedValue({ status: 'ok', copy: copy({}) });
+    await act(async () => {
+      answer({ status: 'ok', copy: copy({}) });
+      await vi.advanceTimersByTimeAsync(COPY_POLL_MS * (COPY_POLLS + 5));
+    });
+    // Still being prepared: checked a bounded number of times, then left to a reload.
+    expect(getMyCertifiedCopy).toHaveBeenCalledTimes(COPY_POLLS);
+    expect(within(rowOf(2)).getByRole('button', { name: /Preparing/ })).toBeDefined();
   });
 
   it('starts from copies already asked for', () => {
