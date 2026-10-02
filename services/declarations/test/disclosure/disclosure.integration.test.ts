@@ -472,7 +472,12 @@ describe('the scoped disclosure of a grant (S9)', () => {
       'type',
     ]);
     expect(content.officer).toEqual(document.officer);
-    expect(content.spouses).toEqual(document.spouses);
+    // The spouse as declared, but for the national ID, which never leaves (data minimisation).
+    expect(content.spouses).toEqual({
+      none: false,
+      items: [{ id: SPOUSE, name: { firstName: 'Spouse', surname: 'Kamau' }, separated: false }],
+    });
+    expect(response.body).not.toContain('22334455');
     expect(content.statements?.map((statement) => statement.personKey)).toEqual([
       'officer',
       `spouse:${SPOUSE}`,

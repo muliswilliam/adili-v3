@@ -109,7 +109,15 @@ function disclosedContent(): DisclosedDeclaration {
     statementDate: DECLARATION.statementDate,
     incomePeriod: DECLARATION.incomePeriod,
     officer: DECLARATION.officer,
-    spouses: DECLARATION.spouses,
+    spouses: {
+      none: DECLARATION.spouses.none,
+      items: DECLARATION.spouses.items.map((item) => {
+        const disclosed: Partial<typeof item> = { ...item };
+        delete disclosed.nationalId;
+        delete disclosed.kraPin;
+        return disclosed as NonNullable<DisclosedDeclaration['spouses']>['items'][number];
+      }),
+    },
     statements: [officer, spouse],
     attestation: DECLARATION.attestation,
   };
@@ -345,6 +353,24 @@ describe('S10 an access package needs its watermark, window and recipient', () =
     const response = await issue(packageBody(overrides));
     expect(response.statusCode).toBe(400);
     expect(response.json<Problem>().errors).toEqual([expect.objectContaining({ path })]);
+  });
+
+  it.each([
+    ["a spouse's national ID", 'spouses', { nationalId: '12345678' }],
+    ["a spouse's KRA PIN", 'spouses', { kraPin: 'A012345678Z' }],
+    ["a child's national ID", 'children', { nationalId: '87654321' }],
+    ["a child's date of birth", 'children', { dateOfBirth: '2015-03-14' }],
+  ] as const)('refuses a disclosure carrying %s (data minimisation)', async (_, members, field) => {
+    const payload = packagePayload();
+    const content = payload.disclosure.versions[0]?.content as Record<string, unknown>;
+    const child = { id: CHILD?.id, name: CHILD?.name, includedAtStatementDate: true };
+    const member = members === 'spouses' ? disclosedContent().spouses?.items[0] : child;
+    content[members] = { none: false, items: [{ ...member, ...field }] };
+    const response = await issue(packageBody({ payload }));
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: `payload.disclosure.versions.0.content.${members}.items.0` }),
+    ]);
   });
 
   it('refuses a disclosure with an undisclosable field, naming it', async () => {

@@ -43,6 +43,22 @@ const disclosedStatement = z.strictObject({
 });
 
 /**
+ * The household members a grant discloses: who they are, never their national IDs, KRA PINs or
+ * dates of birth (architecture §8, data minimisation). Strict: a payload that carries them is
+ * refused.
+ */
+const disclosedSpouses = z.strictObject({
+  none: declaration.spouses.shape.none,
+  items: z.array(declaration.spouses.shape.items.element.omit({ nationalId: true, kraPin: true })),
+});
+const disclosedChildren = z.strictObject({
+  none: declaration.children.shape.none,
+  items: z.array(
+    declaration.children.shape.items.element.omit({ nationalId: true, dateOfBirth: true }),
+  ),
+});
+
+/**
  * The part of a `declaration.v1` document a grant discloses (spec 10), as the declarations
  * service cuts it: the document's identity and attestation always; `officer` (with `spouses`
  * and `children` when included) only with bio; `statements` of the included persons with only
@@ -56,15 +72,15 @@ export const disclosedDeclarationSchema = z
     statementDate: declaration.statementDate,
     incomePeriod: declaration.incomePeriod.optional(),
     officer: declaration.officer.optional(),
-    spouses: declaration.spouses.optional(),
-    children: declaration.children.optional(),
+    spouses: disclosedSpouses.optional(),
+    children: disclosedChildren.optional(),
     statements: z.array(disclosedStatement).optional(),
     otherInformation: declaration.otherInformation.optional(),
     attestation: declaration.attestation,
   })
   .meta({
     description:
-      'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted',
+      'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted',
   });
 
 export type DisclosedDeclaration = z.infer<typeof disclosedDeclarationSchema>;
@@ -262,9 +278,25 @@ function bio(officer: DeclarationV1['officer']): string {
   ])}</dl></section>`;
 }
 
+/** A spouse as printed: a disclosed one has no national ID or KRA PIN. */
+interface HouseholdSpouse {
+  name: PersonName;
+  nationalId?: string;
+  kraPin?: string;
+  separated: boolean;
+  separationDate?: string;
+}
+
+/** A child as printed: a disclosed one has no national ID or date of birth. */
+interface HouseholdChild {
+  name: PersonName;
+  nationalId?: string;
+  dateOfBirth?: string;
+}
+
 function household(
-  spouses: DeclarationV1['spouses'] | undefined,
-  children: DeclarationV1['children'] | undefined,
+  spouses: { none: boolean; items: readonly HouseholdSpouse[] } | undefined,
+  children: { none: boolean; items: readonly HouseholdChild[] } | undefined,
   options: ContentOptions,
 ): string {
   if (!spouses && !children) return '';
@@ -284,17 +316,21 @@ function household(
       return `<tr><td>${esc(fullName(spouse.name))}${id(spouse.nationalId)}${pin}</td><td>${separated}</td></tr>`;
     })
     .join('');
+  // Dates of birth are on the declarant's own copy only.
+  const birthDates = options.householdIdentifiers;
   const childRows = children?.items
-    .map(
-      (child) =>
-        `<tr><td>${esc(fullName(child.name))}${id(child.nationalId)}</td><td>${esc(formatDate(child.dateOfBirth))}</td></tr>`,
-    )
+    .map((child) => {
+      const born = birthDates
+        ? `<td>${child.dateOfBirth ? esc(formatDate(child.dateOfBirth)) : ''}</td>`
+        : '';
+      return `<tr><td>${esc(fullName(child.name))}${id(child.nationalId)}</td>${born}</tr>`;
+    })
     .join('');
   const spouseTable = spouses
     ? `<h3>Spouses</h3>${spouses.none || !spouseRows ? '<p class="nil">None declared.</p>' : `<table class="items"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody>${spouseRows}</tbody></table>`}`
     : '';
   const childTable = children
-    ? `<h3>Children</h3>${children.none || !childRows ? '<p class="nil">None declared.</p>' : `<table class="items"><thead><tr><th>Name</th><th>Date of birth</th></tr></thead><tbody>${childRows}</tbody></table>`}`
+    ? `<h3>Children</h3>${children.none || !childRows ? '<p class="nil">None declared.</p>' : `<table class="items"><thead><tr><th>Name</th>${birthDates ? '<th>Date of birth</th>' : ''}</tr></thead><tbody>${childRows}</tbody></table>`}`
     : '';
   return `<section class="sec"><h2>Household</h2>${spouseTable}${childTable}</section>`;
 }

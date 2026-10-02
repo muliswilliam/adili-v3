@@ -1244,9 +1244,67 @@ components:
         officer:
           $ref: '#/components/schemas/DeclarationOfficer'
         spouses:
-          $ref: '#/components/schemas/DeclarationSpouses'
+          type: object
+          properties:
+            none:
+              type: boolean
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    $ref: '#/components/schemas/PersonName'
+                  occupationSector:
+                    type: string
+                    enum:
+                      - public
+                      - private
+                      - not-employed
+                      - unknown
+                  separated:
+                    type: boolean
+                  separationDate:
+                    type: string
+                    format: date
+                required:
+                  - id
+                  - name
+                  - separated
+                additionalProperties: false
+          required:
+            - none
+            - items
+          additionalProperties: false
         children:
-          $ref: '#/components/schemas/DeclarationChildren'
+          type: object
+          properties:
+            none:
+              type: boolean
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    $ref: '#/components/schemas/PersonName'
+                  includedAtStatementDate:
+                    type: boolean
+                required:
+                  - id
+                  - name
+                  - includedAtStatementDate
+                additionalProperties: false
+          required:
+            - none
+            - items
+          additionalProperties: false
         statements:
           type: array
           items:
@@ -1322,7 +1380,7 @@ components:
         - statementDate
         - attestation
       additionalProperties: false
-      description: 'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted'
+      description: 'The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted'
     DeclarationV1:
       type: object
       properties:

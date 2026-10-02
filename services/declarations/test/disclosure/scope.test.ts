@@ -29,8 +29,31 @@ const DOCUMENT = {
   statementDate: '2027-11-01',
   incomePeriod: { from: '2025-11-01', to: '2027-11-01', fromSource: 'declared' },
   officer: { name: { firstName: 'Wanjiku', surname: 'Kamau' } },
-  spouses: { none: false, items: [{ id: 's1' }] },
-  children: { none: false, items: [{ id: 'c1' }] },
+  spouses: {
+    none: false,
+    items: [
+      {
+        id: 's1',
+        name: { firstName: 'Otieno', surname: 'Kamau' },
+        nationalId: '12345678',
+        kraPin: 'A012345678Z',
+        occupationSector: 'private',
+        separated: false,
+      },
+    ],
+  },
+  children: {
+    none: false,
+    items: [
+      {
+        id: 'c1',
+        name: { firstName: 'Amani', surname: 'Kamau' },
+        dateOfBirth: '2015-03-14',
+        nationalId: '87654321',
+        includedAtStatementDate: true,
+      },
+    ],
+  },
   statements: [statement('officer'), statement(SPOUSE), statement(CHILD)],
   otherInformation: {
     materialChanges: [
@@ -87,9 +110,37 @@ describe('disclose', () => {
     });
     expect(disclose(DOCUMENT, scope({ sections: ['bio'] }))).not.toHaveProperty('spouses');
     const children = disclose(DOCUMENT, scope({ sections: ['bio'], includeChildren: true }));
-    expect(children.children).toEqual(DOCUMENT.children);
+    expect(children.children).toEqual({
+      none: false,
+      items: [
+        { id: 'c1', name: { firstName: 'Amani', surname: 'Kamau' }, includedAtStatementDate: true },
+      ],
+    });
     expect(children).not.toHaveProperty('spouses');
     expect(children).not.toHaveProperty('statements');
+  });
+
+  it("never discloses household members' national IDs, KRA PINs or dates of birth", () => {
+    const content = disclose(
+      DOCUMENT,
+      scope({ sections: ['bio'], includeSpouses: true, includeChildren: true }),
+    );
+
+    expect(content.spouses).toEqual({
+      none: false,
+      items: [
+        {
+          id: 's1',
+          name: { firstName: 'Otieno', surname: 'Kamau' },
+          occupationSector: 'private',
+          separated: false,
+        },
+      ],
+    });
+    const serialised = JSON.stringify(content);
+    for (const identifier of ['12345678', 'A012345678Z', '2015-03-14', '87654321']) {
+      expect(serialised).not.toContain(identifier);
+    }
   });
 
   it('income brings the income period, and statements of the included persons', () => {

@@ -3770,7 +3770,7 @@ components:
           propertyNames:
             type: string
           additionalProperties: {}
-          description: 'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted'
+          description: 'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included, without their national IDs, KRA PINs or dates of birth); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted'
       required:
         - reference
         - version

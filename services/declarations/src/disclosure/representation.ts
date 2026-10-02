@@ -88,7 +88,7 @@ export const disclosedVersionSchema = z.object({
   submittedAt: z.iso.datetime(),
   content: z.record(z.string(), z.unknown()).meta({
     description:
-      'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted',
+      'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included, without their national IDs, KRA PINs or dates of birth); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted',
   }),
 });
 export type DisclosedVersion = z.infer<typeof disclosedVersionSchema>;

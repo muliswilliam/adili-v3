@@ -7,7 +7,7 @@ import type { DeclarationV1 } from '@adili/forms';
  *
  * The sections map onto the document so that nothing outside the scope travels:
  * - `bio`: the officer's particulars (`officer`), and the particulars of the included household
- *   members (`spouses`, `children`);
+ *   members (`spouses`, `children`) without their national IDs, KRA PINs or dates of birth;
  * - `income`, `assets`, `liabilities`: those parts of the included persons' statements
  *   (`statements[]`, each with its person, statement date, income period and knowledge
  *   limitation), and the declaration's income period with `income`;
@@ -27,6 +27,18 @@ export interface DisclosureScope {
 }
 
 type Statement = DeclarationV1['statements'][number];
+type Spouse = DeclarationV1['spouses']['items'][number];
+type Child = DeclarationV1['children']['items'][number];
+
+/**
+ * A spouse as disclosed: who they are and whether separated, never their national ID or KRA PIN
+ * (architecture §8, data minimisation: the recipient needs neither, and they would travel
+ * through the access service and the issue payload).
+ */
+export type DisclosedSpouse = Omit<Spouse, 'nationalId' | 'kraPin'>;
+
+/** A child as disclosed: who they are, never their national ID or date of birth. */
+export type DisclosedChild = Omit<Child, 'nationalId' | 'dateOfBirth'>;
 
 /** A statement as disclosed: whose and for when, and only the granted sections of it. */
 export type DisclosedStatement = Pick<
@@ -53,8 +65,8 @@ export interface DisclosedContent {
   statementDate: DeclarationV1['statementDate'];
   incomePeriod?: DeclarationV1['incomePeriod'];
   officer?: DeclarationV1['officer'];
-  spouses?: DeclarationV1['spouses'];
-  children?: DeclarationV1['children'];
+  spouses?: { none: boolean; items: DisclosedSpouse[] };
+  children?: { none: boolean; items: DisclosedChild[] };
   statements?: DisclosedStatement[];
   otherInformation?: DeclarationV1['otherInformation'];
   attestation: DeclarationV1['attestation'];
@@ -78,8 +90,22 @@ export function disclose(document: DeclarationV1, scope: DisclosureScope): Discl
     statementDate: document.statementDate,
     ...(has('income') ? { incomePeriod: document.incomePeriod } : {}),
     ...(has('bio') ? { officer: document.officer } : {}),
-    ...(has('bio') && scope.includeSpouses ? { spouses: document.spouses } : {}),
-    ...(has('bio') && scope.includeChildren ? { children: document.children } : {}),
+    ...(has('bio') && scope.includeSpouses
+      ? {
+          spouses: {
+            none: document.spouses.none,
+            items: document.spouses.items.map(discloseSpouse),
+          },
+        }
+      : {}),
+    ...(has('bio') && scope.includeChildren
+      ? {
+          children: {
+            none: document.children.none,
+            items: document.children.items.map(discloseChild),
+          },
+        }
+      : {}),
     ...(financial
       ? {
           statements: document.statements
@@ -118,5 +144,24 @@ function discloseStatement(
     ...(statement.knowledgeLimitation === undefined
       ? {}
       : { knowledgeLimitation: statement.knowledgeLimitation }),
+  };
+}
+
+/** Listed field by field, so that a field added to `declaration.v1` is not disclosed by default. */
+function discloseSpouse(spouse: Spouse): DisclosedSpouse {
+  return {
+    id: spouse.id,
+    name: spouse.name,
+    ...(spouse.occupationSector === undefined ? {} : { occupationSector: spouse.occupationSector }),
+    separated: spouse.separated,
+    ...(spouse.separationDate === undefined ? {} : { separationDate: spouse.separationDate }),
+  };
+}
+
+function discloseChild(child: Child): DisclosedChild {
+  return {
+    id: child.id,
+    name: child.name,
+    includedAtStatementDate: child.includedAtStatementDate,
   };
 }

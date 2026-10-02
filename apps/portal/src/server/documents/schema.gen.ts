@@ -518,7 +518,7 @@ export interface components {
             submittedAt: string;
             document: components["schemas"]["DeclarationV1"];
         };
-        /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
+        /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
         DisclosedDeclaration: {
             /** @constant */
             schemaVersion: "declaration.v1";
@@ -535,8 +535,28 @@ export interface components {
                 fromSource: "declared" | "assumed";
             };
             officer?: components["schemas"]["DeclarationOfficer"];
-            spouses?: components["schemas"]["DeclarationSpouses"];
-            children?: components["schemas"]["DeclarationChildren"];
+            spouses?: {
+                none: boolean;
+                items: {
+                    /** Format: uuid */
+                    id: string;
+                    name: components["schemas"]["PersonName"];
+                    /** @enum {string} */
+                    occupationSector?: "public" | "private" | "not-employed" | "unknown";
+                    separated: boolean;
+                    /** Format: date */
+                    separationDate?: string;
+                }[];
+            };
+            children?: {
+                none: boolean;
+                items: {
+                    /** Format: uuid */
+                    id: string;
+                    name: components["schemas"]["PersonName"];
+                    includedAtStatementDate: boolean;
+                }[];
+            };
             statements?: {
                 personKey: string;
                 personName: components["schemas"]["PersonName"];
