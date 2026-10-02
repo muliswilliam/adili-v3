@@ -50,6 +50,11 @@ export interface ReplayAdapterOptions {
   /** `replay` serves fixtures only; `record` calls `inner` and writes what it returns. */
   mode: 'replay' | 'record';
   inner?: ModelProvider;
+  /**
+   * In replay mode, the class of the provider the fixtures stand in for (default `external`: they
+   * are recorded from Anthropic), so the gate decides as it would in production.
+   */
+  providerClass?: ProviderClass;
 }
 
 const ALL_CAPABILITIES: ProviderCapabilities = {
@@ -69,7 +74,10 @@ const ALL_CAPABILITIES: ProviderCapabilities = {
 export class ReplayAdapter implements ModelProvider {
   readonly name = 'replay';
   readonly capabilities: ProviderCapabilities;
-  /** Replays never leave the process; recording sends requests wherever the inner provider does. */
+  /**
+   * The gate treats a replay as the provider it stands in for, though replays never leave the
+   * process; recording sends requests wherever the inner provider does.
+   */
   readonly providerClass: ProviderClass;
   private readonly inner: ModelProvider | undefined;
   /** Replayed batches never leave the process; their items are resolved from fixtures on poll. */
@@ -81,7 +89,7 @@ export class ReplayAdapter implements ModelProvider {
     }
     this.inner = options.mode === 'record' ? options.inner : undefined;
     this.capabilities = this.inner?.capabilities ?? ALL_CAPABILITIES;
-    this.providerClass = this.inner?.providerClass ?? 'self-hosted';
+    this.providerClass = this.inner?.providerClass ?? options.providerClass ?? 'external';
   }
 
   generate(request: GenerateRequest): Promise<GenerateResult> {

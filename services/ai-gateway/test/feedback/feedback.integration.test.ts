@@ -46,6 +46,7 @@ describe('feedback', () => {
 
   beforeAll(async () => {
     t = await createTestApp();
+    await t.seedDemoGate('demo');
     auth = { authorization: `Bearer ${await t.token()}` };
     await t.record('summarize-declaration', summarizeInput, {
       status: 'completed',

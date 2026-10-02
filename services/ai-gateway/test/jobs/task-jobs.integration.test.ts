@@ -35,6 +35,8 @@ describe('task jobs', () => {
 
   beforeAll(async () => {
     t = await createTestApp();
+    // The replay adapter stands in for an external provider: the demo tenant's rule lets it run.
+    await t.seedDemoGate('demo');
     auth = { authorization: `Bearer ${await t.token()}` };
     return () => t.close();
   });
