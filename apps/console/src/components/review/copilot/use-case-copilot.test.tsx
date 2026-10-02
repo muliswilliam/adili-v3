@@ -90,6 +90,23 @@ describe('useCaseCopilot', () => {
     expect(api.read).toHaveBeenCalledTimes(4);
   });
 
+  it('skips the once-a-minute read of a not-enabled copilot while the page is hidden (Q29, N34)', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      const api = fakeApi([ok(copilot('not-enabled'))]);
+      renderHook(() => useCaseCopilot(CASE, api));
+      await settle();
+      await wait(180_000);
+      expect(api.read).toHaveBeenCalledTimes(1);
+
+      visibility.mockReturnValue('visible');
+      await wait(60_000);
+      expect(api.read).toHaveBeenCalledTimes(2);
+    } finally {
+      visibility.mockRestore();
+    }
+  });
+
   it('stops after two minutes, and Check again starts over', async () => {
     const api = fakeApi([ok(copilot('stale'))]);
     const { result } = renderHook(() => useCaseCopilot(CASE, api));
