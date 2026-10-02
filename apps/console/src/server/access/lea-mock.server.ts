@@ -67,9 +67,9 @@ const ACCESS_OFFICER_NAME = 'Lucy Wambui';
 const DEMO_OFFICER = { subject: 'mock-lea-officer', name: 'Suleiman Ali' };
 
 export const MOCK_COMMISSIONS: AccessCommission[] = [
-  { slug: 'jsc', name: 'Judicial Service Commission', years: [2025, 2026] },
-  { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026] },
-  { slug: 'tsc', name: 'Teachers Service Commission', years: [2026] },
+  { slug: 'jsc', name: 'Judicial Service Commission', years: [2025, 2026], decisionDays: 30 },
+  { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026], decisionDays: 30 },
+  { slug: 'tsc', name: 'Teachers Service Commission', years: [2026], decisionDays: 30 },
 ];
 
 const AGENCIES = {

@@ -72,7 +72,7 @@ const FORM_K = {
   newRequest: en('New request'),
   myRequests: en('My requests'),
   steps: en('Form K steps'),
-  decisionWithin: en('Decision within 30 days'),
+  decisionWithin: en((days: number) => `Decision within ${count(days)} days`),
   back: en('Back'),
   continue: en('Continue'),
   submit: en('Submit request'),

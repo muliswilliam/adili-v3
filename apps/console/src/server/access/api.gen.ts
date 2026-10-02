@@ -1015,6 +1015,8 @@ export interface components {
             name: string;
             /** @description The declaration years (statement-date years) a request can ask of it, ascending: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi. Empty while it holds none yet. */
             years: number[];
+            /** @description The days from receipt the Commission has to decide a Form K request, by its policy in force now (a request keeps the period in force when it is received) */
+            decisionDays: number;
         };
         AccessHistoryEntry: {
             /** Format: uuid */

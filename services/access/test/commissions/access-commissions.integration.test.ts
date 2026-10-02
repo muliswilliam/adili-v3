@@ -42,8 +42,13 @@ describe('S2: Commissions an applicant can address', () => {
     const body = response.json<unknown>();
     expect(contractErrors(okResponse(COMMISSIONS, 'get'), body)).toEqual([]);
     expect(body).toEqual([
-      { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026, 2027] },
-      { slug: 'tsc', name: 'Teachers Service Commission', years: [2026, 2027] },
+      {
+        slug: 'psc',
+        name: 'Public Service Commission',
+        years: [2025, 2026, 2027],
+        decisionDays: 30,
+      },
+      { slug: 'tsc', name: 'Teachers Service Commission', years: [2026, 2027], decisionDays: 30 },
     ]);
   });
 
@@ -60,8 +65,8 @@ describe('S2: Commissions an applicant can address', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual([
-      { slug: 'cpsb022', name: 'Kiambu County Public Service Board', years: [] },
-      { slug: 'npsc', name: 'National Police Service Commission', years: [2027] },
+      { slug: 'cpsb022', name: 'Kiambu County Public Service Board', years: [], decisionDays: 30 },
+      { slug: 'npsc', name: 'National Police Service Commission', years: [2027], decisionDays: 30 },
     ]);
   });
 
@@ -74,7 +79,12 @@ describe('S2: Commissions an applicant can address', () => {
     const response = await api.get(COMMISSIONS, applicant);
 
     expect(response.json()).toEqual([
-      { slug: 'psc', name: 'Public Service Commission', years: [2025, 2026, 2027] },
+      {
+        slug: 'psc',
+        name: 'Public Service Commission',
+        years: [2025, 2026, 2027],
+        decisionDays: 30,
+      },
     ]);
   });
 
@@ -94,7 +104,7 @@ describe('S2: Commissions an applicant can address', () => {
 
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toEqual([
-      { slug: 'psc', name: 'Public Service Commission', years: [2026, 2027] },
+      { slug: 'psc', name: 'Public Service Commission', years: [2026, 2027], decisionDays: 30 },
     ]);
   });
 
@@ -109,6 +119,41 @@ describe('S2: Commissions an applicant can address', () => {
       const response = await api.get(COMMISSIONS, caller);
       expect(response.statusCode, caller.sub).toBe(403);
     }
+  });
+
+  it('S2: each carries the decision period of its policy in force (decision 3)', async () => {
+    api.clock.set('2027-03-04T09:00:00.000Z');
+    api.directory.givenCommission('psc', 'Public Service Commission', {
+      obligationsStartDate: '2026-01-01',
+    });
+    api.directory.givenCommission('tsc', 'Teachers Service Commission', {
+      obligationsStartDate: '2026-01-01',
+    });
+    api.directory.givenAccessPolicy('tsc', { decisionDays: 21 });
+
+    const response = await api.get(COMMISSIONS, applicant);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(contractErrors(okResponse(COMMISSIONS, 'get'), response.json())).toEqual([]);
+    expect(
+      response.json<{ slug: string; decisionDays: number }[]>().map(({ slug, decisionDays }) => ({
+        slug,
+        decisionDays,
+      })),
+    ).toEqual([
+      { slug: 'psc', decisionDays: 30 },
+      { slug: 'tsc', decisionDays: 21 },
+    ]);
+  });
+
+  it('S2: the directory unreachable for a policy is 503 directory-unavailable', async () => {
+    api.directory.givenCommission('psc', 'Public Service Commission');
+    api.directory.failCalls(1, 'accessPolicy');
+
+    const response = await api.get(COMMISSIONS, applicant);
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'directory-unavailable' });
   });
 
   it('S2: the directory unreachable is 503 directory-unavailable', async () => {

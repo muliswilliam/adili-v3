@@ -64,23 +64,45 @@ interface MockCommission extends AccessCommission {
 }
 
 export const MOCK_ACCESS_COMMISSIONS: MockCommission[] = [
-  { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission', years: [2025, 2026] },
-  { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission', years: [2025, 2026] },
-  { slug: 'jsc', issuerCode: 'JSC', name: 'Judicial Service Commission', years: [2026] },
+  {
+    slug: 'psc',
+    issuerCode: 'PSC',
+    name: 'Public Service Commission',
+    years: [2025, 2026],
+    decisionDays: 30,
+  },
+  {
+    slug: 'tsc',
+    issuerCode: 'TSC',
+    name: 'Teachers Service Commission',
+    years: [2025, 2026],
+    decisionDays: 30,
+  },
+  // A policy with a shorter decision period than the default.
+  {
+    slug: 'jsc',
+    issuerCode: 'JSC',
+    name: 'Judicial Service Commission',
+    years: [2026],
+    decisionDays: 21,
+  },
   {
     slug: 'npsc',
     issuerCode: 'NPSC',
     name: 'National Police Service Commission',
     years: [2025, 2026],
+    decisionDays: 30,
   },
   {
     slug: 'cpsb022',
     issuerCode: 'CPSB022',
     name: 'Kiambu County Public Service Board',
     years: [],
+    decisionDays: 30,
   },
 ];
 
+/** The default decision period of a Commission's policy (access.decisionDays). */
 const DECISION_DAYS = 30;
 /** The default download window of a Commission's policy (access.packageDownloadDays). */
 const PACKAGE_DAYS = 14;
@@ -785,7 +807,7 @@ async function submit(request: Request): Promise<Response> {
         : 'submitted',
     formK: { ...formK, meta: { reference, submittedAt } },
     submittedAt,
-    decisionDeadlineAt: addDays(submittedAt, DECISION_DAYS),
+    decisionDeadlineAt: addDays(submittedAt, commission.decisionDays),
     decision: null,
     package: null,
     packageFailedAt: null,
@@ -944,7 +966,12 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   if (request.method === 'GET' && path === '/v1/access/commissions') {
     return json(
       200,
-      MOCK_ACCESS_COMMISSIONS.map(({ slug, name, years }) => ({ slug, name, years })),
+      MOCK_ACCESS_COMMISSIONS.map(({ slug, name, years, decisionDays }) => ({
+        slug,
+        name,
+        years,
+        decisionDays,
+      })),
     );
   }
   if (path === '/v1/access/requests') {
