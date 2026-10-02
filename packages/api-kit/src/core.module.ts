@@ -7,6 +7,7 @@ import { TokenVerifier } from './auth/token-verifier.js';
 import type { BaseEnv } from './config.js';
 import { HealthController, READINESS_CHECKS } from './health/health.controller.js';
 import type { ReadinessCheck } from './health/readiness-check.js';
+import { serializeRequest } from './log-redaction.js';
 import { ProblemDetailsFilter } from './problem-details.filter.js';
 
 export interface CoreModuleOptions {
@@ -41,6 +42,7 @@ export class CoreModule {
             genReqId: (request) => request.id,
             redact: ['req.headers.authorization', 'req.headers.cookie'],
             serializers: {
+              req: serializeRequest,
               res: (response: { statusCode: number }) => ({ statusCode: response.statusCode }),
             },
             transport:
