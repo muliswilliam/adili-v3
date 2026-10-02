@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { DECLARANT } from '@adili/roles';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { representations } from '../../src/db/schema.js';
+import { accessRequests, representations } from '../../src/db/schema.js';
 import type { FormKDeclarantNotice as DeclarantNotice } from '../../src/notices/representation.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import type { OfficerRequestView } from '../../src/requests/officer-view.js';
@@ -194,6 +194,53 @@ describe("The declarant's notices and representations (S4)", () => {
       );
       expect(stored).toHaveLength(1);
       expect(await api.events('access.request.representations.v1')).toHaveLength(2);
+    });
+
+    it('locks the request before its representations, like every other writer: no deadlock with the officer', async () => {
+      const { declarant, row } = await notified();
+      api.clock.set('2027-03-07T10:00:00.000Z');
+      await respond(row.id, declarant, { stance: 'object', text: OBJECTION, attachments: [] });
+
+      // An officer's transaction holds the request, as entering representations in writing does.
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => (release = resolve));
+      let officerLocked!: (pid: number) => void;
+      const locked = new Promise<number>((resolve) => (officerLocked = resolve));
+      const officerTx = api.asPlatform(async (tx) => {
+        const result = await tx.execute(sql`select pg_backend_pid() as pid`);
+        const { pid } = result.rows[0] as { pid: number };
+        await tx.select().from(accessRequests).where(eq(accessRequests.id, row.id)).for('update');
+        officerLocked(pid);
+        await released;
+        // Then takes the representations: free, as the declarant waits on the request first.
+        return tx
+          .select()
+          .from(representations)
+          .where(eq(representations.requestId, row.id))
+          .for('update', { noWait: true });
+      });
+      const officerPid = await locked;
+
+      const amended = respond(row.id, declarant, {
+        stance: 'context',
+        text: 'Further context.',
+        attachments: [],
+      });
+      await expect
+        .poll(
+          async () => {
+            const result = await api.db.execute(
+              sql`select count(*)::int as waiting from pg_stat_activity where ${officerPid}::int = any(pg_blocking_pids(pid))`,
+            );
+            return (result.rows[0] as { waiting: number }).waiting;
+          },
+          { timeout: 10_000 },
+        )
+        .toBe(1);
+      release();
+
+      await expect(officerTx).resolves.toHaveLength(1);
+      expect((await amended).statusCode).toBe(200);
     });
 
     it('S4: after the window, 409 `representations-closed`', async () => {
