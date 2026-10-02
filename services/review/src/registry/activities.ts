@@ -102,7 +102,7 @@ export class RegistryCheckActivities {
    */
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
     // A new check takes its number on the case; a further attempt keeps the check's.
-    const found = previous ? await caseAt(this.db, check) : await startCheck(this.db, check);
+    const found = await caseAt(this.db, check, { start: previous === null });
     if (found === null) return null;
     const sequence = previous?.sequence ?? found.sequence;
     const { roster, ids } = await household(this.declarations, this.directory, check);
@@ -318,39 +318,29 @@ async function recordsOf(
 }
 
 /**
- * The case's declarant and last check number, if the case still exists and is at the version
- * being checked.
+ * The case's declarant and check number, if the case still exists and is at the version being
+ * checked: the last number handed out, or with `start` the next one, handed out now.
  */
 async function caseAt(
   db: Database<ReviewSchema>,
   check: RegistryCheckRequest,
+  { start = false } = {},
 ): Promise<{ personId: string; sequence: number } | null> {
+  const atVersion = and(
+    eq(reviewCases.id, check.caseId),
+    eq(reviewCases.currentVersionId, check.versionId),
+  );
+  const fields = { personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence };
   const [found] = await withTenant(db, systemContext(check.tenant), (tx) =>
-    tx
-      .select({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence })
-      .from(reviewCases)
-      .where(
-        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
-      ),
+    start
+      ? tx
+          .update(reviewCases)
+          .set({ registryCheckSequence: sql`${reviewCases.registryCheckSequence} + 1` })
+          .where(atVersion)
+          .returning(fields)
+      : tx.select(fields).from(reviewCases).where(atVersion),
   );
   return found ?? null;
-}
-
-/** As `caseAt`, handing out the next check number of the case. */
-async function startCheck(
-  db: Database<ReviewSchema>,
-  check: RegistryCheckRequest,
-): Promise<{ personId: string; sequence: number } | null> {
-  const [started] = await withTenant(db, systemContext(check.tenant), (tx) =>
-    tx
-      .update(reviewCases)
-      .set({ registryCheckSequence: sql`${reviewCases.registryCheckSequence} + 1` })
-      .where(
-        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
-      )
-      .returning({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence }),
-  );
-  return started ?? null;
 }
 
 /**
