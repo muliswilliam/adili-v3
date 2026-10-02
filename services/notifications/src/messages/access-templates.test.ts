@@ -246,6 +246,16 @@ describe('access templates', () => {
       renderTemplate('access-officer-reminder-sms', 'en', { ...params, task: 'verify-applicant' })
         .text,
     ).toBe(`Adili: verify the applicant for request ${ARQ}. Decision due 31 October 2026.`);
+    const notice = renderTemplate('access-officer-reminder-email', 'en', {
+      ...params,
+      task: 'record-notice',
+    });
+    expect(notice.subject).toBe(`Reminder: record the written notice for ${ARQ}`);
+    expect(notice.text).toContain('names an officer who has no Adili account');
+    expect(
+      renderTemplate('access-officer-reminder-sms', 'en', { ...params, task: 'record-notice' })
+        .text,
+    ).toBe(`Adili: record the written notice for request ${ARQ}. Decision due 31 October 2026.`);
   });
 
   it('tells the declarant of a law-enforcement grant after it, naming the agency and date', () => {

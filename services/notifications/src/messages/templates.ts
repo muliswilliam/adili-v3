@@ -13,6 +13,7 @@ import {
   type Channel,
   define,
   email,
+  escapeHtml,
   LOCALES,
   type Locale,
   longDate,
@@ -51,6 +52,33 @@ function otpEmail(
 
 const forCommission = (params: OtpParams) =>
   params.commissionName ? ` with ${params.commissionName}` : '';
+
+/**
+ * An invitation to a roster officer who has not set up their declarant account (spec 10: the
+ * Commission needs to reach them, e.g. to tell them of an access request). Names no request.
+ */
+const invitationParams = z.strictObject({
+  commissionName: z.string().trim().min(1).max(120),
+  /** The portal's onboarding start for the Commission (http or https URL). */
+  getStartedUrl: z.url({ protocol: /^https?$/ }).max(200),
+});
+type InvitationParams = z.infer<typeof invitationParams>;
+
+function invitationEmail(params: InvitationParams): RenderedEmail {
+  return email('Set up your Adili Online declarant account', [
+    paragraph(
+      `${params.commissionName} has you on its roster of public officers who declare on Adili Online, and you have not set up your declarant account yet.`,
+    ),
+    paragraph(
+      "With an account you file your declarations online and receive the Commission's notices about them.",
+    ),
+    {
+      text: `Set it up at ${params.getStartedUrl} with your personnel file number and national ID.`,
+      html: `Set it up at <a href="${escapeHtml(params.getStartedUrl)}">${escapeHtml(params.getStartedUrl)}</a> with your personnel file number and national ID.`,
+    },
+    paragraph(NEVER_ASKS),
+  ]);
+}
 
 const reminderParams = z
   .strictObject({
@@ -221,6 +249,20 @@ export const templates = {
           `Your Adili sign-in code: ${params.code}`,
           () => 'Enter it to finish signing in to Adili Online.',
         )(params),
+    },
+  }),
+  'onboarding-invitation-email': define({
+    channel: 'email',
+    params: invitationParams,
+    copy: { en: invitationEmail },
+  }),
+  'onboarding-invitation-sms': define({
+    channel: 'sms',
+    params: invitationParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: ${params.commissionName} invites you to set up your declarant account, to file your declarations and receive the Commission's notices online. Start at ${params.getStartedUrl}`,
+      }),
     },
   }),
   'obligation-reminder-sms': define({
