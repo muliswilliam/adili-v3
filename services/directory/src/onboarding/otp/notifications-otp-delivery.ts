@@ -74,11 +74,13 @@ export class NotificationsOtpDelivery extends OtpDelivery {
       template,
       params: {
         code: message.code,
-        commissionName: message.commissionName.slice(0, COMMISSION_NAME_MAX),
+        ...(message.commissionName === undefined
+          ? {}
+          : { commissionName: message.commissionName.slice(0, COMMISSION_NAME_MAX) }),
         expiresInMinutes: message.expiresInMinutes,
       },
       locale: 'en',
-      tenant: message.tenant,
+      ...(message.tenant === undefined ? {} : { tenant: message.tenant }),
     };
 
     const sent = await this.notifications.call(

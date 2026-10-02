@@ -7,15 +7,59 @@ export interface AuditedResource {
   /** The person the data is about, when known (ADR-008 "subject person id"). */
   subjectPersonId?: string | null;
   /**
-   * Why the data is read, when the caller names it (ADR-008 `legal_basis`), e.g.
-   * `review-case:<id>` for a declaration read for a review case.
-   */
-  legalBasis?: string;
-  /**
    * The ids of the resources a batch read served (ADR-008 resource id), e.g. the obligations
    * whose officers a details request returned. A read of one resource names it in its path.
    */
   ids?: readonly string[];
+  /**
+   * The resource type (ADR-008 `resource`), when a batch read serves more than the route's one
+   * type (a queue of Form K and law enforcement requests names each kind's ids apart, with
+   * `ReadAudit.resources`); the route's `@AuditedRead` `resource` otherwise.
+   */
+  type?: string;
+}
+
+/**
+ * The bases a read can be made on (ADR-008 `legal_basis`): a provision (`act-s36-1` for Form K,
+ * `act-s36-2` for law enforcement, `self-access` for a declarant's access to their own declaration
+ * under Administrative Mechanism 32) or the work the read serves (`review-case`). One word per
+ * basis across the audit trail: the access register uses the same ones.
+ */
+export const READ_LEGAL_BASES = ['act-s36-1', 'act-s36-2', 'self-access', 'review-case'] as const;
+export type ReadLegalBasisCode = (typeof READ_LEGAL_BASES)[number];
+
+/**
+ * Why a read was allowed (ADR-008 `legal_basis`): the basis and the act under it that authorises
+ * this read.
+ */
+export interface ReadLegalBasis {
+  basis: ReadLegalBasisCode;
+  /**
+   * The act under it that authorises this read, e.g. a grant's `ARQ` or `LEA` reference or the
+   * review case's id; null when none.
+   */
+  reference: string | null;
+}
+
+/**
+ * A read that hands the data to someone under a legal basis, a disclosure: a scoped disclosure
+ * for a Form K or law-enforcement grant, or a declarant's certified copy of their own declaration.
+ */
+export interface ReadDisclosure extends ReadLegalBasis {
+  /** The subject the data read is handed to (the grant's recipient, the declarant). */
+  recipient: string;
+}
+
+/**
+ * An event the read itself causes (a download registered for the access register), recorded with
+ * the read's audit event in one statement: both are written, or neither. The shape of
+ * `@adili/events`' `NewEvent`, which this package does not import.
+ */
+export interface EventAlongsideRead {
+  type: string;
+  data: Record<string, unknown>;
+  subject?: string;
+  tenant?: string;
 }
 
 /**
@@ -23,15 +67,29 @@ export interface AuditedResource {
  * injected with `@CurrentReadAudit()`. A route whose path names the tenant needs none of it: the
  * event is then filed under the route's `slug`, else the tenant a service acts for, else the
  * caller's. A route that loads the resource by id says whose it is once loaded (`resource`), or
- * that the caller read their own record (`ownRecord`), which is not audited.
+ * that the caller read their own record (`ownRecord`), which is not audited. A read made on a
+ * named legal basis says so (`legalBasis`); one that hands the data to someone on a legal basis
+ * names the recipient too (`disclosure`). An event the read causes is recorded with its audit
+ * event (`alongside`).
  */
 export class ReadAudit {
-  #resource: AuditedResource | undefined;
+  #resources: AuditedResource[] = [];
   #ownRecord = false;
+  #legalBasis: ReadLegalBasis | undefined;
+  #recipient: string | undefined;
+  readonly #alongside: EventAlongsideRead[] = [];
 
   /** The resource read: the event is filed under its tenant and names the person it is about. */
   resource(resource: AuditedResource): void {
-    this.#resource = resource;
+    this.#resources = [resource];
+  }
+
+  /**
+   * The resources a batch read served, of more than one type: one audit event for each, naming
+   * its `type` and `ids`, so no id is filed under another resource's type.
+   */
+  resources(resources: readonly AuditedResource[]): void {
+    this.#resources = [...resources];
   }
 
   /**
@@ -43,9 +101,51 @@ export class ReadAudit {
     this.#ownRecord = true;
   }
 
-  /** The resource the handler named, if any. */
+  /** The read is made on a legal basis: the event names the basis and the reference under it. */
+  legalBasis(legalBasis: ReadLegalBasis): void {
+    this.#legalBasis = { basis: legalBasis.basis, reference: legalBasis.reference };
+  }
+
+  /**
+   * The read hands the data to `recipient` on a legal basis (a disclosure): the event names the
+   * basis, the reference that authorises it and the recipient.
+   */
+  disclosure(disclosure: ReadDisclosure): void {
+    this.legalBasis(disclosure);
+    this.#recipient = disclosure.recipient;
+  }
+
+  /**
+   * Records `event` with the audit event, atomically: an event the read causes is then never
+   * written without the read's audit, nor the audit without it.
+   */
+  alongside(event: EventAlongsideRead): void {
+    this.#alongside.push(event);
+  }
+
+  /** The events the handler asked to record with the audit event. */
+  get eventsAlongside(): readonly EventAlongsideRead[] {
+    return this.#alongside;
+  }
+
+  /** The resource the handler named, if any (the first, when it named several). */
   get describedResource(): AuditedResource | undefined {
-    return this.#resource;
+    return this.#resources[0];
+  }
+
+  /** Every resource the handler named; empty when it named none. */
+  get describedResources(): readonly AuditedResource[] {
+    return this.#resources;
+  }
+
+  /** The legal basis the handler named, if any. */
+  get describedLegalBasis(): ReadLegalBasis | undefined {
+    return this.#legalBasis;
+  }
+
+  /** Whom the read hands the data to, when the handler named a disclosure. */
+  get describedRecipient(): string | undefined {
+    return this.#recipient;
   }
 
   /** Whether the handler said the caller read their own record. */

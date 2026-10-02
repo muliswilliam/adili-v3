@@ -1,0 +1,1 @@
+ALTER TABLE "lea_requests" ADD COLUMN "closed_at" timestamp with time zone;

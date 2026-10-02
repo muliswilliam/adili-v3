@@ -39,16 +39,16 @@ export class InternalCommissionListController {
   @Get()
   @ApiOperation({
     operationId: 'internalListCommissions',
-    summary: 'Slug, issuer code and name of every Commission (services)',
+    summary: 'Slug, issuer code, name, status and obligations start of every Commission (services)',
     description:
-      'Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.',
+      'Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary; access offers applicants the active Commissions and the declaration years each can hold (from its earliest obligations-start date).',
   })
   @ApiOkResponse({
     description: 'Every Commission, by slug',
     schema: schemaRef('InternalCommissionList'),
   })
-  async list(): Promise<InternalCommissionList> {
-    return { items: await this.commissions.internalRefs() };
+  async list(@CurrentPrincipal() principal: Principal): Promise<InternalCommissionList> {
+    return { items: await this.commissions.internalRefs(principal) };
   }
 }
 
@@ -87,7 +87,7 @@ export class InternalCommissionsController {
     operationId: 'internalListCommissionStaff',
     summary: "A Commission's staff holding a role, with their emails (services)",
     description:
-      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09).',
+      'Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff and their emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the access service reminds access officers of the requests awaiting them (spec 10).',
   })
   @ApiOkResponse({
     description: 'The staff holding the role',

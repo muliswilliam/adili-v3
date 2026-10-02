@@ -5,6 +5,7 @@
     "build": {
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/access.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",
@@ -15,6 +16,7 @@
     "typecheck": {
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/schemas/internal/access.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/directory.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/documents.yaml",
         "$TURBO_ROOT$/packages/schemas/internal/declarations.yaml",

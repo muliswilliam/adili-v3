@@ -25,6 +25,10 @@ export type TenantPolicyHistory = Schemas['TenantPolicyHistory'];
 export type RosterApiCredential = Schemas['RosterApiCredential'];
 export type RosterApiCredentialWithSecret = Schemas['RosterApiCredentialWithSecret'];
 export type RosterSummary = Schemas['RosterSummary'];
+export type Agency = Schemas['Agency'];
+export type LeaOfficerAccount = Schemas['LeaOfficerAccount'];
+export type LeaOfficerState = Schemas['LeaOfficerState'];
+export type ProvisionAgencyOfficer = Schemas['ProvisionAgencyOfficer'];
 export type RosterImport = Schemas['RosterImport'];
 export type RosterImportPreview = Schemas['RosterImportPreview'];
 export type ColumnMapping = Schemas['ColumnMapping'];
@@ -60,7 +64,8 @@ export type DirectoryResult<T> = ServiceResult<T, ProblemDetails>;
 /**
  * How long the console waits for the directory, by kind of call. Reads and plain writes are
  * quick. Changing a roster API credential waits on several Keycloak admin calls (client, secret,
- * mappers). Assigning and resending wait on Keycloak too: at worst a dozen or so admin calls at the
+ * mappers). Assigning and resending (and provisioning or revoking a law enforcement officer) wait
+ * on Keycloak too: at worst a dozen or so admin calls at the
  * directory's 5 s timeout each, then the activation email, which Keycloak sends over SMTP before
  * answering (the directory allows it 25 s). Giving up sooner would report a failure for an
  * assignment that still succeeds. A write that does time out keeps its Idempotency-Key, so the
@@ -77,7 +82,10 @@ export const DIRECTORY_TIMEOUTS_MS = {
 /** The timeout of one directory call, from its method and path. */
 export function directoryTimeoutMs(method: string, path: string): number {
   if (method === 'GET' || method === 'HEAD') return DIRECTORY_TIMEOUTS_MS.read;
-  if (/\/(reporting-officer|roster\/api-credential)(\/|$)/.test(path)) {
+  if (
+    /\/(reporting-officer|roster\/api-credential)(\/|$)/.test(path) ||
+    path.startsWith('/v1/law-enforcement/')
+  ) {
     return DIRECTORY_TIMEOUTS_MS.identity;
   }
   if (path.endsWith('/roster/imports/preview')) return DIRECTORY_TIMEOUTS_MS.file;

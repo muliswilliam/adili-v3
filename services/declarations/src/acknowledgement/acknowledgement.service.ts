@@ -26,7 +26,7 @@ import { config } from '../config.js';
 import { acknowledgementOf, reissueDecision } from '../declaration/acknowledgement.js';
 import type { Acknowledgement } from '../declaration/representation.js';
 import { declarations, declarationVersions } from '../declaration/schema.js';
-import { openSnapshot, versionRow } from '../declaration/versions.js';
+import { declaredName, openSnapshot, versionRow } from '../declaration/versions.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import { personOf } from '../drafts/access.js';
 import {
@@ -178,14 +178,10 @@ export class AcknowledgementService {
       throw new Error(`No Commission reference for ${row.tenant}`);
     }
     const document = await openSnapshot(this.cipher, row);
-    const name = document.officer.name;
     return {
       declarantPersonId: row.personId,
       slip: {
-        declarantName: [name.firstName, name.otherNames, name.surname]
-          .map((part) => part?.trim())
-          .filter(Boolean)
-          .join(' '),
+        declarantName: declaredName(document),
         commissionName: context.commissionName,
         issuerCode: context.issuerCode,
         declarationType: context.type,

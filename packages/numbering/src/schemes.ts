@@ -103,7 +103,7 @@ export const DCF = defineScheme({
 
 /**
  * Clarification request (Act s.35): issued by the Responsible Commission, numbered per Commission
- * and calendar year of issue. `CLR-PSC-2028-0000451-3`.
+ * and calendar year of issue. `CLR-PSC-2028-0000451-1`.
  */
 export const CLR = defineScheme({
   code: 'CLR',
@@ -119,7 +119,7 @@ export const CLR = defineScheme({
 
 /**
  * Compliance determination (spec 08): numbered by the Responsible Commission when a supervisor
- * approves it, per Commission and calendar year of approval. `CMP-PSC-2027-0000001-7`.
+ * approves it, per Commission and calendar year of approval. `CMP-PSC-2027-0000001-D`.
  */
 export const CMP = defineScheme({
   code: 'CMP',
@@ -136,7 +136,7 @@ export const CMP = defineScheme({
 /**
  * Administrative action (spec 08, the enforcement ladder): a notice to comply, warning, salary
  * stoppage or disciplinary referral, numbered by the Responsible Commission when an officer
- * approves it, per Commission and calendar year of approval. `ADM-PSC-2027-0000001-4`.
+ * approves it, per Commission and calendar year of approval. `ADM-PSC-2027-0000001-1`.
  */
 export const ADM = defineScheme({
   code: 'ADM',
@@ -152,7 +152,7 @@ export const ADM = defineScheme({
 
 /**
  * Referral to EACC (spec 08, Regs r.20): numbered by the Responsible Commission when a supervisor
- * approves it, per Commission and calendar year of approval. `RFL-PSC-2027-0000001-7`.
+ * approves it, per Commission and calendar year of approval. `RFL-PSC-2027-0000001-Q`.
  */
 export const RFL = defineScheme({
   code: 'RFL',
@@ -163,6 +163,37 @@ export const RFL = defineScheme({
   issuer: true,
   period: true,
   periodName: 'Year of approval',
+  sequenceDigits: 7,
+});
+
+/**
+ * Access request (Form K, spec 10): numbered by the Responsible Commission when the applicant
+ * submits it, per Commission and calendar year of submission. `ARQ-JSC-2028-0000012-A`.
+ */
+export const ARQ = defineScheme({
+  code: 'ARQ',
+  name: 'Access request',
+  description: 'A request by any person to see a declaration or clarification (Form K).',
+  legalBasis: 'Act s.36(1); Regs r.22',
+  issuer: true,
+  period: true,
+  periodName: 'Year of submission',
+  sequenceDigits: 7,
+});
+
+/**
+ * Law enforcement request (spec 10): numbered by the Responsible Commission when a provisioned
+ * law enforcement officer submits it, per Commission and calendar year of submission.
+ * `LEA-PSC-2028-0000004-9`.
+ */
+export const LEA = defineScheme({
+  code: 'LEA',
+  name: 'Law enforcement request',
+  description: 'A written request by a law enforcement agency to access a declaration.',
+  legalBasis: 'Act s.36(2); Regs r.23',
+  issuer: true,
+  period: true,
+  periodName: 'Year of submission',
   sequenceDigits: 7,
 });
 
@@ -182,7 +213,7 @@ export const declarationSchemes: Readonly<Record<DeclarationType, NumberingSchem
 /**
  * Compliance report (Form M, Regs r.25(2)): numbered when the Responsible Commission submits it
  * to EACC, per Commission and financial year, whose end year is the period (ADR-011 §2: 2027 is
- * FY 2026/27). `RPT-PSC-2027-0000001-4`.
+ * FY 2026/27). `RPT-PSC-2027-0000001-L`.
  */
 export const RPT = defineScheme({
   code: 'RPT',
@@ -197,7 +228,7 @@ export const RPT = defineScheme({
 
 /**
  * National consolidated report (spec 09): numbered when an EACC supervisor approves it, issued
- * by EACC per financial year, whose end year is the period. `NCR-EACC-2027-0000001-Q`.
+ * by EACC per financial year, whose end year is the period. `NCR-EACC-2027-0000001-Y`.
  */
 export const NCR = defineScheme({
   code: 'NCR',
@@ -210,7 +241,7 @@ export const NCR = defineScheme({
   sequenceDigits: 7,
 });
 
-/** Schemes this package knows; later slices add theirs (ARQ...) the same way. */
+/** Schemes this package knows; later slices add theirs the same way. */
 export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   OFR,
   DCI,
@@ -222,6 +253,8 @@ export const numberingSchemes: readonly NumberingScheme[] = Object.freeze([
   RFL,
   RPT,
   NCR,
+  ARQ,
+  LEA,
 ]);
 
 /** The registered scheme with `code`, if any. */

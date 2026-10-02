@@ -93,6 +93,51 @@ export function loadVersions(
   });
 }
 
+/** A submitted version, with the declaration it belongs to (for certified copies). */
+export interface SubmittedVersion {
+  declarationId: string;
+  commission: DeclarationListItem['commission'];
+  type: DeclarationListItem['type'];
+  statementDate: string;
+  version: DeclarationVersion;
+}
+
+export type SubmittedVersionsResult = { status: 'ok'; versions: SubmittedVersion[] } | Unavailable;
+
+/**
+ * Every submitted version of every declaration of the declarant: the declarations with a
+ * version in force (`GET /v1/me/declarations`, latest statement date first), each with its
+ * versions newest first (`GET /v1/declarations/{id}/versions`, read side by side). A declarant
+ * files a handful of declarations, so one call each is fine. Any call failing fails the whole.
+ */
+export function loadSubmittedVersions(
+  client: DeclarationsClient,
+): Promise<SubmittedVersionsResult> {
+  return attempt(async () => {
+    const { data, response } = await client.GET('/v1/me/declarations');
+    if (!data && response.status !== 404) return unavailable;
+    const filed = (data ?? [])
+      .filter((item) => item.status !== 'discarded' && item.currentVersion !== null)
+      .sort((a, b) => b.statementDate.localeCompare(a.statementDate));
+    const results = await Promise.all(filed.map((item) => loadVersions(client, item.id)));
+    const versions: SubmittedVersion[] = [];
+    for (const [index, result] of results.entries()) {
+      const item = filed[index];
+      if (!item || result.status !== 'ok') return unavailable;
+      for (const version of result.versions) {
+        versions.push({
+          declarationId: item.id,
+          commission: item.commission,
+          type: item.type,
+          statementDate: item.statementDate,
+          version,
+        });
+      }
+    }
+    return { status: 'ok', versions };
+  });
+}
+
 export type AmendOutcome =
   | { status: 'amending'; declaration: Declaration }
   /** 409: the due date has passed, or the declaration is not submitted (changed elsewhere). */

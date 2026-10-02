@@ -218,7 +218,7 @@ describe('S18 records touched by an import', () => {
   });
 
   it.each([
-    ['neither importId nor exitBatchId', ''],
+    ['none of importId, exitBatchId and search', ''],
     ['both importId and exitBatchId', `importId=${randomUUID()}&exitBatchId=${randomUUID()}`],
     ['an unknown cursor', `importId=${randomUUID()}&cursor=nonsense`],
     ['a limit above 1,000', `importId=${randomUUID()}&limit=1001`],
@@ -231,12 +231,19 @@ describe('S18 records touched by an import', () => {
   it('records the pull in the audit trail as the calling service', async () => {
     const first = await importRoster([ROW.achieng]);
 
-    await api.get(`${INTERNAL_RECORDS}?importId=${first.id}`, DECLARATIONS, ACTING_PSC);
+    const pulled = await api.get(
+      `${INTERNAL_RECORDS}?importId=${first.id}`,
+      DECLARATIONS,
+      ACTING_PSC,
+    );
+    const served = pulled.json<{ items: { id: string }[] }>().items.map(({ id }) => id);
 
     expect(await auditReads()).toContainEqual(
       expect.objectContaining({
         action: 'roster.records.pulled',
         actor: expect.objectContaining({ clientId: 'declarations' }) as unknown,
+        // A batch read names the records it served (ADR-008).
+        resource: expect.objectContaining({ ids: served }) as unknown,
       }),
     );
   });
@@ -304,6 +311,114 @@ describe('S18 records of an exit batch', () => {
 
     expect(unknown.statusCode).toBe(404);
     expect(otherTenant.statusCode).toBe(404);
+  });
+});
+
+describe('Spec 10 roster search (officer resolution)', () => {
+  /** The access service's client credentials token. */
+  const ACCESS: Caller = {
+    sub: 'service-account-access',
+    azp: 'access',
+    scope: 'profile directory:internal',
+  };
+
+  const search = (query: string, headers: Record<string, string> = ACTING_PSC) =>
+    api.get(`${INTERNAL_RECORDS}?${query}`, ACCESS, headers);
+
+  async function givenPscRoster() {
+    const ids = await givenRoster(api, 'psc', [
+      { personnelFileNumber: 'PSC/0101', fullName: 'Anne Njeri Mutua', nationalId: '11223344' },
+      { personnelFileNumber: 'PSC/0102', fullName: 'Peter Njeru Kamande', nationalId: '22334455' },
+      { personnelFileNumber: 'HR/77', fullName: 'Grace Wanjiru', nationalId: '33445566' },
+    ]);
+    await givenRoster(api, 'tsc', [
+      { personnelFileNumber: 'TSC/0101', fullName: 'Anne Njeri Otieno', nationalId: '44556677' },
+    ]);
+    return ids;
+  }
+
+  it('finds records by part of the name, case-insensitive, ordered by full name, with their person', async () => {
+    const ids = await givenPscRoster();
+    const person = await givenOnboardedPerson(api, { recordIds: [idOf(ids, 'PSC/0101')] });
+
+    const response = await search('search=NJER');
+
+    expect(response.statusCode, response.body).toBe(200);
+    const page = response.json<InternalRosterRecordPage>();
+    expect(
+      contractErrors(okResponse('/internal/v1/commissions/{slug}/roster/records', 'get'), page),
+    ).toEqual([]);
+    expect(page.items.map((item) => [item.fullName, item.personId])).toEqual([
+      ['Anne Njeri Mutua', person.personId],
+      ['Peter Njeru Kamande', null],
+    ]);
+    expect(page.nextCursor).toBeNull();
+  });
+
+  it('finds records by the beginning of the personnel file number', async () => {
+    await givenPscRoster();
+
+    const page = (await search('search=psc%2F010')).json<InternalRosterRecordPage>();
+    const none = (await search('search=0101')).json<InternalRosterRecordPage>();
+
+    expect(page.items.map((item) => item.personnelFileNumber)).toEqual(['PSC/0101', 'PSC/0102']);
+    expect(none.items).toEqual([]);
+  });
+
+  it("does not search by national ID, and never shows another Commission's records", async () => {
+    await givenPscRoster();
+
+    const byNationalId = (await search('search=11223344')).json<InternalRosterRecordPage>();
+    const anne = (await search('search=Anne')).json<InternalRosterRecordPage>();
+
+    expect(byNationalId.items).toEqual([]);
+    expect(anne.items.map((item) => item.tenant)).toEqual(['psc']);
+  });
+
+  it('pages by full name with the cursor', async () => {
+    await givenPscRoster();
+
+    const first = (await search('search=an&limit=2')).json<InternalRosterRecordPage>();
+    const second = (
+      await search(`search=an&limit=2&cursor=${encodeURIComponent(first.nextCursor ?? '')}`)
+    ).json<InternalRosterRecordPage>();
+
+    expect(first.items.map((item) => item.fullName)).toEqual(['Anne Njeri Mutua', 'Grace Wanjiru']);
+    expect(second.items.map((item) => item.fullName)).toEqual(['Peter Njeru Kamande']);
+    expect(second.nextCursor).toBeNull();
+  });
+
+  it.each([
+    ['a search of one character', 'search=a%20'],
+    ['a search with an import', `search=anne&importId=${randomUUID()}`],
+    ['a limit above 50', 'search=anne&limit=51'],
+    [
+      'a cursor of an import pull',
+      `search=anne&cursor=${Buffer.from('["row",1]').toString('base64url')}`,
+    ],
+  ])('answers 400 for %s', async (_case, query) => {
+    const response = await search(query);
+
+    expect(response.statusCode, response.body).toBe(400);
+  });
+
+  it('records the search in the audit trail as the calling service', async () => {
+    await givenPscRoster();
+
+    const served = (await search('search=anne')).json<{ items: { id: string }[] }>().items;
+
+    expect(served.length).toBeGreaterThan(0);
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'roster.records.pulled',
+        actor: expect.objectContaining({ clientId: 'access' }) as unknown,
+        // The records the search returned, by id (ADR-008: a batch read names what it served).
+        resource: expect.objectContaining({
+          tenant: 'psc',
+          ids: served.map(({ id }) => id),
+        }) as unknown,
+      }),
+    );
   });
 });
 
@@ -508,6 +623,33 @@ describe('Commission staff by role (spec 09 reminders and chase)', () => {
     );
   });
 
+  it("lists the Commission's access officers, for access's officer reminders", async () => {
+    const officer = api.identity.seedUser({
+      email: 'access.officer@psc.go.ke',
+      tenant: 'psc',
+      roles: ['access-officer'],
+      emailVerified: true,
+    });
+    api.identity.seedUser({
+      email: 'access.officer@tsc.go.ke',
+      tenant: 'tsc',
+      roles: ['access-officer'],
+      emailVerified: true,
+    });
+    const access: Caller = {
+      sub: 'service-account-access',
+      azp: 'access',
+      scope: 'profile directory:internal',
+    };
+
+    const response = await staff('access-officer', access);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual({
+      items: [{ subject: officer, email: 'access.officer@psc.go.ke' }],
+    });
+  });
+
   it('takes the staff roles only; 404 for another Commission; refuses user tokens', async () => {
     expect((await staff('declarant')).statusCode).toBe(400);
     expect((await staff('supervisor', REPORTING, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(
@@ -535,9 +677,39 @@ describe('Commission reference', () => {
     expect(contractErrors(okResponse('/internal/v1/commissions', 'get'), body)).toEqual([]);
     expect(body).toEqual({
       items: [
-        { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
-        { slug: 'tsc', issuerCode: 'TSC', name: 'Teachers Service Commission' },
+        {
+          slug: 'psc',
+          issuerCode: 'PSC',
+          name: 'Public Service Commission',
+          status: 'active',
+          obligationsStartDate: todayInNairobi(),
+        },
+        {
+          slug: 'tsc',
+          issuerCode: 'TSC',
+          name: 'Teachers Service Commission',
+          status: 'active',
+          obligationsStartDate: todayInNairobi(),
+        },
       ],
+    });
+  });
+
+  it("gives each Commission's earliest obligations-start date over its policy versions", async () => {
+    const admin: Caller = { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] };
+    const moved = await api.post(
+      '/v1/commissions/psc/policy/versions',
+      { obligationsStartDate: '2031-07-01' },
+      admin,
+    );
+    expect(moved.statusCode, moved.body).toBe(201);
+
+    const response = await api.get('/internal/v1/commissions', DECLARATIONS);
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json<{ items: unknown[] }>().items[0]).toMatchObject({
+      slug: 'psc',
+      obligationsStartDate: todayInNairobi(),
     });
   });
 
@@ -621,6 +793,16 @@ describe('S18 person contacts', () => {
       email: 'mary@example.go.ke',
       phone: '+254712345678',
     });
+    // Audited, naming whose contacts were read (ADR-008).
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'person.contacts.read',
+        resource: expect.objectContaining({
+          tenant: 'psc',
+          subjectPersonId: person.personId,
+        }) as unknown,
+      }),
+    );
   });
 
   it('gives nulls where the person has no verified contact', async () => {

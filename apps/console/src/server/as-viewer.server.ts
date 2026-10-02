@@ -1,5 +1,6 @@
 import { getRequest } from '@tanstack/react-start/server';
 
+import { type AccessClient, accessClient } from './access/client.server';
 import { getBff } from './bff.server';
 import {
   createDirectoryClient,
@@ -39,6 +40,17 @@ export async function withViewerClient<Client, Result>(
     return { ok: false, error: { kind: 'unauthenticated' } };
   }
   return work(createClient(session.accessToken));
+}
+
+/**
+ * Runs `work` with an access client acting as the signed-in user: the access officer or
+ * supervisor of the Form K, law enforcement and certified copy screens, or a law enforcement
+ * officer.
+ */
+export function asAccessViewer<Result>(
+  work: (client: AccessClient) => Promise<Result>,
+): Promise<Result | Unauthenticated> {
+  return withViewerClient(accessClient, work);
 }
 
 /** Runs `work` with a directory client acting as the signed-in user. */

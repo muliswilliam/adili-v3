@@ -1,4 +1,4 @@
-import { countryName } from '@adili/ui';
+import { countryName, formatNumber } from '@adili/ui';
 
 import type { Draft, MaterialChangeEntry, OtherInformation } from './contents';
 import { UNANSWERED } from './format';
@@ -115,5 +115,5 @@ export function dualCitizenshipLine(dual: DraftDualCitizenship | undefined): str
 
 /** "{n} / 4,000 characters". */
 export function freeTextCounter(length: number): string {
-  return `${length.toLocaleString('en-KE')} / ${FREE_TEXT_LIMIT.toLocaleString('en-KE')} characters`;
+  return `${formatNumber(length)} / ${formatNumber(FREE_TEXT_LIMIT)} characters`;
 }

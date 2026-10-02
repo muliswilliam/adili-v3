@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DeclarationListItem, DeclarationVersion } from '../../server/declarations/types';
 import { amendMyDeclaration, discardMyAmendment } from '../../server/declarations';
+import { getMyCertifiedCopies, requestMyCertifiedCopy } from '../../server/certified-copies';
 import { getMyDeclarationVersions } from '../../server/my-declarations';
 import type { FiledDeclaration, MyDeclarationsPage } from '../../server/my-declarations.server';
 import { getMySlipDownload } from '../../server/submission';
@@ -25,6 +26,9 @@ vi.mock('../../server/submission', async () =>
 );
 vi.mock('../../server/my-declarations', async () =>
   (await import('../declaration/testing-mocks')).myDeclarationsMock(),
+);
+vi.mock('../../server/certified-copies', async () =>
+  (await import('../declaration/testing-mocks')).certifiedCopiesMock(),
 );
 vi.mock('../download', async () => (await import('../declaration/testing-mocks')).downloadMock());
 
@@ -234,6 +238,63 @@ describe('my declarations (spec 06 FE-4)', () => {
     expect(within(row).getByRole('link', { name: 'Get your slip' }).getAttribute('href')).toBe(
       `/declarations/${ID}/submitted`,
     );
+  });
+
+  it('offers a certified copy of each version, from Request to Download (spec 10 S13)', async () => {
+    vi.mocked(getMyDeclarationVersions).mockResolvedValue({
+      status: 'ok',
+      versions: [
+        version({ version: 2, acknowledgement: issued(DOC_V2) }),
+        version({ supersededAt: '2026-09-27T07:42:00Z' }),
+      ],
+    });
+    const copy = {
+      id: 'c0c20000-0000-4000-8000-000000000001',
+      commission: { slug: 'tsc', name: 'Teachers Service Commission' },
+      declarationId: ID,
+      version: 1,
+      reference: REFERENCE,
+      status: 'issued' as const,
+      documentId: 'd0c30000-0000-4000-8000-000000000001',
+      verificationId: 'CC000001',
+      requestedAt: '2026-09-28T07:00:00Z',
+      issuedAt: '2026-09-28T07:00:03Z',
+    };
+    vi.mocked(getMyCertifiedCopies).mockResolvedValue({ status: 'ok', copies: [copy] });
+    vi.mocked(requestMyCertifiedCopy).mockResolvedValue({
+      status: 'ok',
+      copy: { ...copy, id: 'c0c20000-0000-4000-8000-000000000002', version: 2, status: 'pending' },
+    });
+    const row = renderFiled(filed({ currentVersion: 2 }));
+    await act(async () => {
+      fireEvent.click(within(row).getByRole('button', { name: /2 versions/ }));
+      await Promise.resolve();
+    });
+
+    const versions = within(row).getByRole('list', { name: 'Versions of Initial declaration' });
+    expect(
+      within(versions).getByRole('button', {
+        name: 'Download certified copy of Initial declaration, version 1',
+      }).textContent,
+    ).toContain('Certified copy');
+    expect(within(versions).getByText('Certified 28 Sep 2026')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(
+        within(versions).getByRole('button', {
+          name: 'Request certified copy of Initial declaration, version 2',
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(vi.mocked(requestMyCertifiedCopy).mock.calls[0]?.[0].data).toMatchObject({
+      commission: 'tsc',
+      declarationId: ID,
+      version: 2,
+    });
+    expect(
+      within(versions).getByRole<HTMLButtonElement>('button', { name: /Preparing/ }).disabled,
+    ).toBe(true);
   });
 
   it('expands to every version, older ones superseded, each with its slip and checks', async () => {

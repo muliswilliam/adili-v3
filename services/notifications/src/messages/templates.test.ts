@@ -36,6 +36,26 @@ describe('renderTemplate', () => {
     );
   });
 
+  it('invites a roster officer to set up their account, naming the Commission and no request', () => {
+    const params = {
+      commissionName: 'Public Service Commission',
+      getStartedUrl: 'https://portal.adili.test/get-started?commission=psc',
+    };
+    const rendered = renderTemplate('onboarding-invitation-email', 'en', params);
+
+    expect(rendered.subject).toBe('Set up your Adili Online declarant account');
+    expect(rendered.text).toContain(
+      'Public Service Commission has you on its roster of public officers who declare on Adili Online',
+    );
+    expect(rendered.html).toContain(
+      '<a href="https://portal.adili.test/get-started?commission=psc">',
+    );
+    expect(rendered.text).not.toMatch(/request|ARQ|LEA/);
+    expect(renderTemplate('onboarding-invitation-sms', 'en', params).text).toBe(
+      "Adili: Public Service Commission invites you to set up your declarant account, to file your declarations and receive the Commission's notices online. Start at https://portal.adili.test/get-started?commission=psc",
+    );
+  });
+
   it('uses the singular for one minute', () => {
     const rendered = renderTemplate('login-otp-sms', 'en', { code: '1234', expiresInMinutes: 1 });
 

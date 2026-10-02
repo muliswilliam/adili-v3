@@ -1,6 +1,12 @@
 /** Holds the onboarding session id and secret. httpOnly, so page scripts never see the secret. */
 export const ONBOARDING_COOKIE = 'adili_onboarding';
 
+/**
+ * The same for an applicant's onboarding (Get started as an applicant). Its own cookie, so a
+ * declarant's and an applicant's onboarding in one browser never take each other's session.
+ */
+export const APPLICANT_ONBOARDING_COOKIE = 'adili_applicant_onboarding';
+
 export interface OnboardingCredentials {
   sessionId: string;
   secret: string;
@@ -41,18 +47,21 @@ export interface CookieJar {
  * The one place the onboarding cookie is read and written. Every write takes the session's
  * current `expiresAt`, so the cookie lives exactly as long as the session it holds.
  */
-export function onboardingCookie(jar: CookieJar, { secure }: { secure: boolean }) {
+export function onboardingCookie(
+  jar: CookieJar,
+  { secure, name = ONBOARDING_COOKIE }: { secure: boolean; name?: string },
+) {
   const options: CookieOptions = { httpOnly: true, sameSite: 'lax', secure, path: '/' };
   return {
-    read: (): OnboardingCredentials | null => decodeOnboardingCookie(jar.get(ONBOARDING_COOKIE)),
+    read: (): OnboardingCredentials | null => decodeOnboardingCookie(jar.get(name)),
     save: (credentials: OnboardingCredentials, expiresAt: string) => {
-      jar.set(ONBOARDING_COOKIE, encodeOnboardingCookie(credentials), {
+      jar.set(name, encodeOnboardingCookie(credentials), {
         ...options,
         maxAge: cookieMaxAge(expiresAt),
       });
     },
     clear: () => {
-      jar.delete(ONBOARDING_COOKIE, options);
+      jar.delete(name, options);
     },
   };
 }

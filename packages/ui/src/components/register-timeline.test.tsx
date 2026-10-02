@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   REGISTER_KINDS,
@@ -70,7 +71,7 @@ describe('RegisterTimeline', () => {
       );
     }
     expect(registerKindMeta['cannot-identify']).toMatchObject({
-      label: 'Declarant could not be identified',
+      label: 'Officer could not be identified',
       tone: 'destructive',
     });
   });
@@ -186,6 +187,23 @@ describe('RegisterTimeline', () => {
           .getByText('28 Aug 2026')
           .getAttribute('aria-hidden'),
       ).toBe('true');
+    });
+
+    it('makes each row a button that opens the entry when asked to', async () => {
+      const onSelect = vi.fn();
+      render(<RegisterList entries={entries} onSelect={onSelect} />);
+
+      const september = screen.getByRole('list', { name: 'September 2026' });
+      await userEvent.click(within(september).getByRole('button', { name: /Decision recorded/ }));
+
+      expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ kind: 'decided' }));
+      expect(screen.getAllByRole('button')).toHaveLength(entries.length);
+    });
+
+    it('has no buttons without onSelect', () => {
+      render(<RegisterList entries={entries} />);
+
+      expect(screen.queryAllByRole('button')).toHaveLength(0);
     });
   });
 });

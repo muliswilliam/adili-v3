@@ -1,3 +1,4 @@
+import { Slot } from '@radix-ui/react-slot';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import type { ComponentProps } from 'react';
 
@@ -10,26 +11,25 @@ import { focusRing, focusRingInset } from '../lib/focus';
  */
 export const Tabs = TabsPrimitive.Root;
 
+const tabRow =
+  'flex gap-0.5 overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+const tab = cn(
+  // Inset, so the ring is not clipped by the scrolling tab row.
+  focusRingInset,
+  '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground',
+);
+
 /** An underlined row of tabs that scrolls sideways when it does not fit. */
 export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
-  return (
-    <TabsPrimitive.List
-      className={cn(
-        'flex gap-0.5 overflow-x-auto border-b [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <TabsPrimitive.List className={cn(tabRow, className)} {...props} />;
 }
 
 export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        // Inset, so the ring is not clipped by the scrolling tab list.
-        focusRingInset,
-        '-mb-px inline-flex h-10 shrink-0 items-center gap-2 rounded-t-md border-b-2 border-transparent px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-foreground data-[state=active]:text-foreground',
+        tab,
+        'disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-foreground data-[state=active]:text-foreground',
         className,
       )}
       {...props}
@@ -53,5 +53,43 @@ export function TabsCount({ className, ...props }: ComponentProps<'span'>) {
 export function TabsContent({ className, ...props }: ComponentProps<typeof TabsPrimitive.Content>) {
   return (
     <TabsPrimitive.Content className={cn(focusRing, 'mt-4 rounded-lg', className)} {...props} />
+  );
+}
+
+/**
+ * Links between pages that look like tabs (Tabs are for panels on one page): a `nav` with its
+ * row of `TabsLink`s. Name it with `aria-label`.
+ */
+export function TabsNav({ className, children, ...props }: ComponentProps<'nav'>) {
+  return (
+    <nav className={className} {...props}>
+      <ul className={tabRow}>{children}</ul>
+    </nav>
+  );
+}
+
+/**
+ * One page in a `TabsNav`, underlined when `current` (and marked `aria-current="page"`). Pass the
+ * app's router link as the child with `asChild`.
+ */
+export function TabsLink({
+  asChild = false,
+  current = false,
+  className,
+  ...props
+}: ComponentProps<'a'> & { asChild?: boolean; current?: boolean }) {
+  const Component = asChild ? Slot : 'a';
+  return (
+    <li>
+      <Component
+        aria-current={current ? 'page' : undefined}
+        className={cn(
+          tab,
+          'aria-[current=page]:border-foreground aria-[current=page]:text-foreground',
+          className,
+        )}
+        {...props}
+      />
+    </li>
   );
 }

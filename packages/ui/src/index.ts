@@ -214,8 +214,14 @@ export { Label } from './components/label';
 export { LateBadge, type LateBadgeProps } from './components/late-badge';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
-// The masking rules live in @adili/contacts (the services mask with them too).
-export { type ContactChannel, maskContact, maskEmail, maskPhone } from '@adili/contacts';
+// The masking and display rules live in @adili/contacts (the services mask with them too).
+export {
+  type ContactChannel,
+  formatPhone,
+  maskContact,
+  maskEmail,
+  maskPhone,
+} from '@adili/contacts';
 export {
   Menu,
   MenuContent,
@@ -287,9 +293,13 @@ export {
 } from './components/save-indicator';
 export {
   formatScope,
+  formatScopePeople,
+  formatScopeSections,
+  formatScopeYears,
   isSameScope,
   isScopeWithin,
   type Scope,
+  SCOPE_CLARIFICATIONS_LABEL,
   SCOPE_SECTIONS,
   ScopePicker,
   type ScopePickerProps,
@@ -389,7 +399,15 @@ export {
   TableRowLink,
   type TableRowLinkProps,
 } from './components/table';
-export { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from './components/tabs';
+export {
+  Tabs,
+  TabsContent,
+  TabsCount,
+  TabsLink,
+  TabsList,
+  TabsNav,
+  TabsTrigger,
+} from './components/tabs';
 export {
   Timeline,
   type TimelineEvent,
@@ -425,7 +443,26 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing, focusRingInset, focusRingWithin } from './lib/focus';
+export { focusRing, focusRingInset, focusRingWithin, textLink } from './lib/focus';
+export {
+  type AccessOutcome,
+  accessMessages,
+  accessMessagesSw,
+  accessOutcomeLabels,
+  accessOutcomeTones,
+  type AccessRequestStatus,
+  type AccessStatusMeta,
+  accessStatusMeta,
+  applicantAccessStatusMeta,
+  DECIDED_ACCESS_STATUSES,
+  GRANTED_ACCESS_STATUSES,
+  leaStatusMeta,
+  type LeaRequestStatus,
+  type MatchesAccessCopy,
+  OPEN_ACCESS_STATUSES,
+  type GrantPackageStatus,
+  grantPackageStatus,
+} from './lib/access';
 export {
   daysInMonth,
   formatDayMonthYear,
@@ -444,6 +481,7 @@ export {
   formatTime,
   msUntilKenyanMidnight,
 } from './lib/format-date';
+export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-key';
 export { useToday } from './lib/use-today';
 export {
   obligationCycleLabel,

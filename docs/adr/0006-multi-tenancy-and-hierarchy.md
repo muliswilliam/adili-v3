@@ -1,6 +1,6 @@
 # ADR-006: Multi-tenancy and hierarchy
 
-- **Status:** Accepted; decision 5 (isolation) partly superseded by [ADR-018](0018-person-scoped-row-level-security.md) (person-scoped row-level security for a declarant's own records)
+- **Status:** Accepted; decision 5 (isolation) partly superseded by [ADR-018](0018-person-scoped-row-level-security.md) (person-scoped row-level security for a declarant's own records, and a law enforcement officer axis for the requests an officer filed)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [ADR-004](0004-identity-keycloak-self-registration.md), [ADR-009](0009-api-first-interoperability.md), [research/dials-scope-and-scale.md](../research/dials-scope-and-scale.md)
@@ -30,7 +30,7 @@
 5. **Isolation, in four layers:**
    1. **Token:** tenant memberships and roles (Keycloak, ADR-004).
    2. **Service policy (CASL):** tenant + org-path scope (`path <@ :scope`) + data classification.
-   3. **Postgres row-level security:** every transaction runs `SET LOCAL app.tenant_id` and `app.scope_paths` through the shared data-access library. Tables use `FORCE ROW LEVEL SECURITY`, and services connect as non-owner roles.
+   3. **Postgres row-level security:** every transaction runs `SET LOCAL app.tenant_id` and `app.scope_paths` through the shared data-access library. Tables use `FORCE ROW LEVEL SECURITY`, and services connect as non-owner roles. A declarant's or applicant's own records (the person) and a law enforcement officer's requests (tenant `lea` and the officer's subject) are further axes, in ADR-018.
    4. **Tests:** CI asserts that cross-tenant and out-of-scope reads and writes fail.
 6. **Shared schema + RLS** for all tenants. Large tenants (TSC ~436k, PSC) can later be sharded by `tenant_id` with Citus (ADR-001 scale path).
 7. **Per-tenant encryption keys:** financial fields are envelope-encrypted with a tenant data key held in OpenBao. That isolates tenants cryptographically as well as logically.

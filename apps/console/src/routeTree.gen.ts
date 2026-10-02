@@ -10,11 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccessRouteRouteImport } from './routes/access/route'
 import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
+import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
+import { Route as PlatformRouteRouteImport } from './routes/platform/route'
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
+import { Route as AccessIndexRouteImport } from './routes/access/index'
+import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
+import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
+import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route'
 import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -22,9 +29,13 @@ import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
+import { Route as LeaIndexRouteImport } from './routes/lea/index'
+import { Route as LeaRequestsRouteRouteImport } from './routes/lea/requests/route'
 import { Route as ObligationsIndexRouteImport } from './routes/obligations/index'
 import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy'
 import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route'
+import { Route as PlatformIndexRouteImport } from './routes/platform/index'
+import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platform/law-enforcement/route'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
@@ -32,16 +43,33 @@ import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
 import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
 import { Route as RosterTemplateRouteImport } from './routes/roster/template'
+import { Route as AccessCertifiedCopiesIndexRouteImport } from './routes/access/certified-copies/index'
+import { Route as AccessCertifiedCopiesApplicationIdRouteImport } from './routes/access/certified-copies/$applicationId'
+import { Route as AccessCertifiedCopiesNewRouteImport } from './routes/access/certified-copies/new'
+import { Route as AccessLeaRequestsIndexRouteImport } from './routes/access/lea-requests/index'
+import { Route as AccessLeaRequestsLeaRequestIdRouteRouteImport } from './routes/access/lea-requests/$leaRequestId/route'
+import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index'
+import { Route as AccessRequestsRequestIdRouteRouteImport } from './routes/access/requests/$requestId/route'
 import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id'
+import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
+import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index'
+import { Route as LeaRequestsLeaRequestIdRouteImport } from './routes/lea/requests/$leaRequestId'
+import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new'
 import { Route as ObligationsNationalIndexRouteImport } from './routes/obligations_/national/index'
+import { Route as PlatformLawEnforcementIndexRouteImport } from './routes/platform/law-enforcement/index'
+import { Route as PlatformLawEnforcementAgencyCodeRouteImport } from './routes/platform/law-enforcement/$agencyCode'
 import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index'
 import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-access/docs'
 import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index'
 import { Route as RosterRecordsIndexRouteImport } from './routes/roster/records/index'
 import { Route as RosterRecordsRecordIdRouteImport } from './routes/roster/records/$recordId'
+import { Route as AccessLeaRequestsLeaRequestIdIndexRouteImport } from './routes/access/lea-requests/$leaRequestId/index'
+import { Route as AccessLeaRequestsLeaRequestIdDecideRouteImport } from './routes/access/lea-requests/$leaRequestId/decide'
+import { Route as AccessRequestsRequestIdIndexRouteImport } from './routes/access/requests/$requestId/index'
+import { Route as AccessRequestsRequestIdDecideRouteImport } from './routes/access/requests/$requestId/decide'
 import { Route as CommissionsSlugObligationsIndexRouteImport } from './routes/commissions/$slug/obligations/index'
 import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commissions/$slug/records/index'
 import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId'
@@ -57,6 +85,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccessRouteRoute = AccessRouteRouteImport.update({
+  id: '/access',
+  path: '/access',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
   id: '/ai-policy',
   path: '/ai-policy',
@@ -67,9 +100,19 @@ const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   path: '/commissions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeaRouteRoute = LeaRouteRouteImport.update({
+  id: '/lea',
+  path: '/lea',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ObligationsRouteRoute = ObligationsRouteRouteImport.update({
   id: '/obligations',
   path: '/obligations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformRouteRoute = PlatformRouteRouteImport.update({
+  id: '/platform',
+  path: '/platform',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRouteRoute = ReviewRouteRouteImport.update({
@@ -81,6 +124,27 @@ const RosterRouteRoute = RosterRouteRouteImport.update({
   id: '/roster',
   path: '/roster',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AccessIndexRoute = AccessIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccessRouteRoute,
+} as any)
+const AccessCertifiedCopiesRouteRoute =
+  AccessCertifiedCopiesRouteRouteImport.update({
+    id: '/certified-copies',
+    path: '/certified-copies',
+    getParentRoute: () => AccessRouteRoute,
+  } as any)
+const AccessLeaRequestsRouteRoute = AccessLeaRequestsRouteRouteImport.update({
+  id: '/lea-requests',
+  path: '/lea-requests',
+  getParentRoute: () => AccessRouteRoute,
+} as any)
+const AccessRequestsRouteRoute = AccessRequestsRouteRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => AccessRouteRoute,
 } as any)
 const AiPolicyIndexRoute = AiPolicyIndexRouteImport.update({
   id: '/',
@@ -117,6 +181,16 @@ const CommissionsNewRoute = CommissionsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
 } as any)
+const LeaIndexRoute = LeaIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LeaRouteRoute,
+} as any)
+const LeaRequestsRouteRoute = LeaRequestsRouteRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => LeaRouteRoute,
+} as any)
 const ObligationsIndexRoute = ObligationsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -132,6 +206,17 @@ const ObligationsNationalRouteRoute =
     id: '/obligations_/national',
     path: '/obligations/national',
     getParentRoute: () => rootRouteImport,
+  } as any)
+const PlatformIndexRoute = PlatformIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformRouteRoute,
+} as any)
+const PlatformLawEnforcementRouteRoute =
+  PlatformLawEnforcementRouteRouteImport.update({
+    id: '/law-enforcement',
+    path: '/law-enforcement',
+    getParentRoute: () => PlatformRouteRoute,
   } as any)
 const RosterIndexRoute = RosterIndexRouteImport.update({
   id: '/',
@@ -168,9 +253,54 @@ const RosterTemplateRoute = RosterTemplateRouteImport.update({
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
 } as any)
+const AccessCertifiedCopiesIndexRoute =
+  AccessCertifiedCopiesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+  } as any)
+const AccessCertifiedCopiesApplicationIdRoute =
+  AccessCertifiedCopiesApplicationIdRouteImport.update({
+    id: '/$applicationId',
+    path: '/$applicationId',
+    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+  } as any)
+const AccessCertifiedCopiesNewRoute =
+  AccessCertifiedCopiesNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+  } as any)
+const AccessLeaRequestsIndexRoute = AccessLeaRequestsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccessLeaRequestsRouteRoute,
+} as any)
+const AccessLeaRequestsLeaRequestIdRouteRoute =
+  AccessLeaRequestsLeaRequestIdRouteRouteImport.update({
+    id: '/$leaRequestId',
+    path: '/$leaRequestId',
+    getParentRoute: () => AccessLeaRequestsRouteRoute,
+  } as any)
+const AccessRequestsIndexRoute = AccessRequestsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccessRequestsRouteRoute,
+} as any)
+const AccessRequestsRequestIdRouteRoute =
+  AccessRequestsRequestIdRouteRouteImport.update({
+    id: '/$requestId',
+    path: '/$requestId',
+    getParentRoute: () => AccessRequestsRouteRoute,
+  } as any)
 const ApiMockFilesIdRoute = ApiMockFilesIdRouteImport.update({
   id: '/api/mock-files/$id',
   path: '/api/mock-files/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMockUploadsIdRoute = ApiMockUploadsIdRouteImport.update({
+  id: '/api/mock-uploads/$id',
+  path: '/api/mock-uploads/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommissionsSlugIndexRoute = CommissionsSlugIndexRouteImport.update({
@@ -190,11 +320,38 @@ const CommissionsSlugRecordsRouteRoute =
     path: '/records',
     getParentRoute: () => CommissionsSlugRouteRoute,
   } as any)
+const LeaRequestsIndexRoute = LeaRequestsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LeaRequestsRouteRoute,
+} as any)
+const LeaRequestsLeaRequestIdRoute = LeaRequestsLeaRequestIdRouteImport.update({
+  id: '/$leaRequestId',
+  path: '/$leaRequestId',
+  getParentRoute: () => LeaRequestsRouteRoute,
+} as any)
+const LeaRequestsNewRoute = LeaRequestsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => LeaRequestsRouteRoute,
+} as any)
 const ObligationsNationalIndexRoute =
   ObligationsNationalIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => ObligationsNationalRouteRoute,
+  } as any)
+const PlatformLawEnforcementIndexRoute =
+  PlatformLawEnforcementIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => PlatformLawEnforcementRouteRoute,
+  } as any)
+const PlatformLawEnforcementAgencyCodeRoute =
+  PlatformLawEnforcementAgencyCodeRouteImport.update({
+    id: '/$agencyCode',
+    path: '/$agencyCode',
+    getParentRoute: () => PlatformLawEnforcementRouteRoute,
   } as any)
 const RosterApiAccessIndexRoute = RosterApiAccessIndexRouteImport.update({
   id: '/',
@@ -221,6 +378,30 @@ const RosterRecordsRecordIdRoute = RosterRecordsRecordIdRouteImport.update({
   path: '/$recordId',
   getParentRoute: () => RosterRecordsRouteRoute,
 } as any)
+const AccessLeaRequestsLeaRequestIdIndexRoute =
+  AccessLeaRequestsLeaRequestIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AccessLeaRequestsLeaRequestIdRouteRoute,
+  } as any)
+const AccessLeaRequestsLeaRequestIdDecideRoute =
+  AccessLeaRequestsLeaRequestIdDecideRouteImport.update({
+    id: '/decide',
+    path: '/decide',
+    getParentRoute: () => AccessLeaRequestsLeaRequestIdRouteRoute,
+  } as any)
+const AccessRequestsRequestIdIndexRoute =
+  AccessRequestsRequestIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AccessRequestsRequestIdRouteRoute,
+  } as any)
+const AccessRequestsRequestIdDecideRoute =
+  AccessRequestsRequestIdDecideRouteImport.update({
+    id: '/decide',
+    path: '/decide',
+    getParentRoute: () => AccessRequestsRequestIdRouteRoute,
+  } as any)
 const CommissionsSlugObligationsIndexRoute =
   CommissionsSlugObligationsIndexRouteImport.update({
     id: '/',
@@ -277,13 +458,21 @@ const ReviewCasesCaseIdClarificationsClarificationIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/access': typeof AccessRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
+  '/platform': typeof PlatformRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
+  '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
+  '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
   '/obligations/national': typeof ObligationsNationalRouteRouteWithChildren
+  '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
@@ -295,22 +484,42 @@ export interface FileRoutesByFullPath {
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
+  '/access/': typeof AccessIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
+  '/platform/': typeof PlatformIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
+  '/lea/requests/new': typeof LeaRequestsNewRoute
+  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
+  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute
+  '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
+  '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations/national/': typeof ObligationsNationalIndexRoute
+  '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
+  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
+  '/access/lea-requests/$leaRequestId/': typeof AccessLeaRequestsLeaRequestIdIndexRoute
+  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
@@ -330,20 +539,38 @@ export interface FileRoutesByTo {
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
+  '/access': typeof AccessIndexRoute
   '/ai-policy': typeof AiPolicyIndexRoute
   '/commissions': typeof CommissionsIndexRoute
+  '/lea': typeof LeaIndexRoute
   '/obligations': typeof ObligationsIndexRoute
+  '/platform': typeof PlatformIndexRoute
   '/roster': typeof RosterIndexRoute
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
+  '/lea/requests/new': typeof LeaRequestsNewRoute
+  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
+  '/access/certified-copies': typeof AccessCertifiedCopiesIndexRoute
+  '/access/lea-requests': typeof AccessLeaRequestsIndexRoute
+  '/access/requests': typeof AccessRequestsIndexRoute
   '/commissions/$slug': typeof CommissionsSlugIndexRoute
+  '/lea/requests': typeof LeaRequestsIndexRoute
   '/obligations/national': typeof ObligationsNationalIndexRoute
+  '/platform/law-enforcement': typeof PlatformLawEnforcementIndexRoute
   '/roster/api-access': typeof RosterApiAccessIndexRoute
   '/roster/imports': typeof RosterImportsIndexRoute
   '/roster/records': typeof RosterRecordsIndexRoute
+  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
+  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdIndexRoute
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
   '/review/cases/$caseId': typeof ReviewCasesCaseIdIndexRoute
@@ -355,13 +582,21 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/access': typeof AccessRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
+  '/platform': typeof PlatformRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
+  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
+  '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
+  '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
   '/obligations_/national': typeof ObligationsNationalRouteRouteWithChildren
+  '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
@@ -373,22 +608,42 @@ export interface FileRoutesById {
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
+  '/access/': typeof AccessIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
+  '/platform/': typeof PlatformIndexRoute
   '/roster/': typeof RosterIndexRoute
+  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
   '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
   '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
+  '/lea/requests/new': typeof LeaRequestsNewRoute
+  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
   '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
   '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
+  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute
+  '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
+  '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations_/national/': typeof ObligationsNationalIndexRoute
+  '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
   '/roster/api-access/': typeof RosterApiAccessIndexRoute
   '/roster/imports/': typeof RosterImportsIndexRoute
   '/roster/records/': typeof RosterRecordsIndexRoute
+  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
   '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
   '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
+  '/access/lea-requests/$leaRequestId/': typeof AccessLeaRequestsLeaRequestIdIndexRoute
+  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
   '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
   '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
   '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
@@ -401,13 +656,21 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/lea'
     | '/obligations'
+    | '/platform'
     | '/review'
     | '/roster'
+    | '/access/certified-copies'
+    | '/access/lea-requests'
+    | '/access/requests'
     | '/commissions/$slug'
+    | '/lea/requests'
     | '/obligations/national'
+    | '/platform/law-enforcement'
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
@@ -419,22 +682,42 @@ export interface FileRouteTypes {
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
+    | '/access/'
     | '/ai-policy/'
     | '/commissions/'
+    | '/lea/'
     | '/obligations/'
+    | '/platform/'
     | '/roster/'
+    | '/access/lea-requests/$leaRequestId'
+    | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
+    | '/access/certified-copies/$applicationId'
+    | '/access/certified-copies/new'
     | '/api/mock-files/$id'
+    | '/api/mock-uploads/$id'
+    | '/lea/requests/$leaRequestId'
+    | '/lea/requests/new'
+    | '/platform/law-enforcement/$agencyCode'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
+    | '/access/certified-copies/'
+    | '/access/lea-requests/'
+    | '/access/requests/'
     | '/commissions/$slug/'
+    | '/lea/requests/'
     | '/obligations/national/'
+    | '/platform/law-enforcement/'
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
+    | '/access/lea-requests/$leaRequestId/decide'
+    | '/access/requests/$requestId/decide'
     | '/commissions/$slug/records/$recordId'
     | '/roster/imports/$importId/report.csv'
+    | '/access/lea-requests/$leaRequestId/'
+    | '/access/requests/$requestId/'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
     | '/review/cases/$caseId/'
@@ -454,20 +737,38 @@ export interface FileRouteTypes {
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
+    | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/lea'
     | '/obligations'
+    | '/platform'
     | '/roster'
+    | '/access/certified-copies/$applicationId'
+    | '/access/certified-copies/new'
     | '/api/mock-files/$id'
+    | '/api/mock-uploads/$id'
+    | '/lea/requests/$leaRequestId'
+    | '/lea/requests/new'
+    | '/platform/law-enforcement/$agencyCode'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
+    | '/access/certified-copies'
+    | '/access/lea-requests'
+    | '/access/requests'
     | '/commissions/$slug'
+    | '/lea/requests'
     | '/obligations/national'
+    | '/platform/law-enforcement'
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
+    | '/access/lea-requests/$leaRequestId/decide'
+    | '/access/requests/$requestId/decide'
     | '/commissions/$slug/records/$recordId'
     | '/roster/imports/$importId/report.csv'
+    | '/access/lea-requests/$leaRequestId'
+    | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
     | '/review/cases/$caseId'
@@ -478,13 +779,21 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/lea'
     | '/obligations'
+    | '/platform'
     | '/review'
     | '/roster'
+    | '/access/certified-copies'
+    | '/access/lea-requests'
+    | '/access/requests'
     | '/commissions/$slug'
+    | '/lea/requests'
     | '/obligations_/national'
+    | '/platform/law-enforcement'
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
@@ -496,22 +805,42 @@ export interface FileRouteTypes {
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
+    | '/access/'
     | '/ai-policy/'
     | '/commissions/'
+    | '/lea/'
     | '/obligations/'
+    | '/platform/'
     | '/roster/'
+    | '/access/lea-requests/$leaRequestId'
+    | '/access/requests/$requestId'
     | '/commissions/$slug/obligations'
     | '/commissions/$slug/records'
+    | '/access/certified-copies/$applicationId'
+    | '/access/certified-copies/new'
     | '/api/mock-files/$id'
+    | '/api/mock-uploads/$id'
+    | '/lea/requests/$leaRequestId'
+    | '/lea/requests/new'
+    | '/platform/law-enforcement/$agencyCode'
     | '/roster/api-access/docs'
     | '/roster/records/$recordId'
+    | '/access/certified-copies/'
+    | '/access/lea-requests/'
+    | '/access/requests/'
     | '/commissions/$slug/'
+    | '/lea/requests/'
     | '/obligations_/national/'
+    | '/platform/law-enforcement/'
     | '/roster/api-access/'
     | '/roster/imports/'
     | '/roster/records/'
+    | '/access/lea-requests/$leaRequestId/decide'
+    | '/access/requests/$requestId/decide'
     | '/commissions/$slug/records/$recordId'
     | '/roster/imports/$importId/report.csv'
+    | '/access/lea-requests/$leaRequestId/'
+    | '/access/requests/$requestId/'
     | '/commissions/$slug/obligations/'
     | '/commissions/$slug/records/'
     | '/review/cases/$caseId/'
@@ -523,9 +852,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccessRouteRoute: typeof AccessRouteRouteWithChildren
   AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
+  LeaRouteRoute: typeof LeaRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
+  PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
@@ -533,6 +865,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
+  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -542,6 +875,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/access': {
+      id: '/access'
+      path: '/access'
+      fullPath: '/access'
+      preLoaderRoute: typeof AccessRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai-policy': {
@@ -558,11 +898,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lea': {
+      id: '/lea'
+      path: '/lea'
+      fullPath: '/lea'
+      preLoaderRoute: typeof LeaRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/obligations': {
       id: '/obligations'
       path: '/obligations'
       fullPath: '/obligations'
       preLoaderRoute: typeof ObligationsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -578,6 +932,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/roster'
       preLoaderRoute: typeof RosterRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/access/': {
+      id: '/access/'
+      path: '/'
+      fullPath: '/access/'
+      preLoaderRoute: typeof AccessIndexRouteImport
+      parentRoute: typeof AccessRouteRoute
+    }
+    '/access/certified-copies': {
+      id: '/access/certified-copies'
+      path: '/certified-copies'
+      fullPath: '/access/certified-copies'
+      preLoaderRoute: typeof AccessCertifiedCopiesRouteRouteImport
+      parentRoute: typeof AccessRouteRoute
+    }
+    '/access/lea-requests': {
+      id: '/access/lea-requests'
+      path: '/lea-requests'
+      fullPath: '/access/lea-requests'
+      preLoaderRoute: typeof AccessLeaRequestsRouteRouteImport
+      parentRoute: typeof AccessRouteRoute
+    }
+    '/access/requests': {
+      id: '/access/requests'
+      path: '/requests'
+      fullPath: '/access/requests'
+      preLoaderRoute: typeof AccessRequestsRouteRouteImport
+      parentRoute: typeof AccessRouteRoute
     }
     '/ai-policy/': {
       id: '/ai-policy/'
@@ -628,6 +1010,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsNewRouteImport
       parentRoute: typeof CommissionsRouteRoute
     }
+    '/lea/': {
+      id: '/lea/'
+      path: '/'
+      fullPath: '/lea/'
+      preLoaderRoute: typeof LeaIndexRouteImport
+      parentRoute: typeof LeaRouteRoute
+    }
+    '/lea/requests': {
+      id: '/lea/requests'
+      path: '/requests'
+      fullPath: '/lea/requests'
+      preLoaderRoute: typeof LeaRequestsRouteRouteImport
+      parentRoute: typeof LeaRouteRoute
+    }
     '/obligations/': {
       id: '/obligations/'
       path: '/'
@@ -648,6 +1044,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/obligations/national'
       preLoaderRoute: typeof ObligationsNationalRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/platform/': {
+      id: '/platform/'
+      path: '/'
+      fullPath: '/platform/'
+      preLoaderRoute: typeof PlatformIndexRouteImport
+      parentRoute: typeof PlatformRouteRoute
+    }
+    '/platform/law-enforcement': {
+      id: '/platform/law-enforcement'
+      path: '/law-enforcement'
+      fullPath: '/platform/law-enforcement'
+      preLoaderRoute: typeof PlatformLawEnforcementRouteRouteImport
+      parentRoute: typeof PlatformRouteRoute
     }
     '/roster/': {
       id: '/roster/'
@@ -698,11 +1108,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RosterTemplateRouteImport
       parentRoute: typeof RosterRouteRoute
     }
+    '/access/certified-copies/': {
+      id: '/access/certified-copies/'
+      path: '/'
+      fullPath: '/access/certified-copies/'
+      preLoaderRoute: typeof AccessCertifiedCopiesIndexRouteImport
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute
+    }
+    '/access/certified-copies/$applicationId': {
+      id: '/access/certified-copies/$applicationId'
+      path: '/$applicationId'
+      fullPath: '/access/certified-copies/$applicationId'
+      preLoaderRoute: typeof AccessCertifiedCopiesApplicationIdRouteImport
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute
+    }
+    '/access/certified-copies/new': {
+      id: '/access/certified-copies/new'
+      path: '/new'
+      fullPath: '/access/certified-copies/new'
+      preLoaderRoute: typeof AccessCertifiedCopiesNewRouteImport
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute
+    }
+    '/access/lea-requests/': {
+      id: '/access/lea-requests/'
+      path: '/'
+      fullPath: '/access/lea-requests/'
+      preLoaderRoute: typeof AccessLeaRequestsIndexRouteImport
+      parentRoute: typeof AccessLeaRequestsRouteRoute
+    }
+    '/access/lea-requests/$leaRequestId': {
+      id: '/access/lea-requests/$leaRequestId'
+      path: '/$leaRequestId'
+      fullPath: '/access/lea-requests/$leaRequestId'
+      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdRouteRouteImport
+      parentRoute: typeof AccessLeaRequestsRouteRoute
+    }
+    '/access/requests/': {
+      id: '/access/requests/'
+      path: '/'
+      fullPath: '/access/requests/'
+      preLoaderRoute: typeof AccessRequestsIndexRouteImport
+      parentRoute: typeof AccessRequestsRouteRoute
+    }
+    '/access/requests/$requestId': {
+      id: '/access/requests/$requestId'
+      path: '/$requestId'
+      fullPath: '/access/requests/$requestId'
+      preLoaderRoute: typeof AccessRequestsRequestIdRouteRouteImport
+      parentRoute: typeof AccessRequestsRouteRoute
+    }
     '/api/mock-files/$id': {
       id: '/api/mock-files/$id'
       path: '/api/mock-files/$id'
       fullPath: '/api/mock-files/$id'
       preLoaderRoute: typeof ApiMockFilesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mock-uploads/$id': {
+      id: '/api/mock-uploads/$id'
+      path: '/api/mock-uploads/$id'
+      fullPath: '/api/mock-uploads/$id'
+      preLoaderRoute: typeof ApiMockUploadsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions/$slug/': {
@@ -726,12 +1192,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport
       parentRoute: typeof CommissionsSlugRouteRoute
     }
+    '/lea/requests/': {
+      id: '/lea/requests/'
+      path: '/'
+      fullPath: '/lea/requests/'
+      preLoaderRoute: typeof LeaRequestsIndexRouteImport
+      parentRoute: typeof LeaRequestsRouteRoute
+    }
+    '/lea/requests/$leaRequestId': {
+      id: '/lea/requests/$leaRequestId'
+      path: '/$leaRequestId'
+      fullPath: '/lea/requests/$leaRequestId'
+      preLoaderRoute: typeof LeaRequestsLeaRequestIdRouteImport
+      parentRoute: typeof LeaRequestsRouteRoute
+    }
+    '/lea/requests/new': {
+      id: '/lea/requests/new'
+      path: '/new'
+      fullPath: '/lea/requests/new'
+      preLoaderRoute: typeof LeaRequestsNewRouteImport
+      parentRoute: typeof LeaRequestsRouteRoute
+    }
     '/obligations_/national/': {
       id: '/obligations_/national/'
       path: '/'
       fullPath: '/obligations/national/'
       preLoaderRoute: typeof ObligationsNationalIndexRouteImport
       parentRoute: typeof ObligationsNationalRouteRoute
+    }
+    '/platform/law-enforcement/': {
+      id: '/platform/law-enforcement/'
+      path: '/'
+      fullPath: '/platform/law-enforcement/'
+      preLoaderRoute: typeof PlatformLawEnforcementIndexRouteImport
+      parentRoute: typeof PlatformLawEnforcementRouteRoute
+    }
+    '/platform/law-enforcement/$agencyCode': {
+      id: '/platform/law-enforcement/$agencyCode'
+      path: '/$agencyCode'
+      fullPath: '/platform/law-enforcement/$agencyCode'
+      preLoaderRoute: typeof PlatformLawEnforcementAgencyCodeRouteImport
+      parentRoute: typeof PlatformLawEnforcementRouteRoute
     }
     '/roster/api-access/': {
       id: '/roster/api-access/'
@@ -767,6 +1268,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/roster/records/$recordId'
       preLoaderRoute: typeof RosterRecordsRecordIdRouteImport
       parentRoute: typeof RosterRecordsRouteRoute
+    }
+    '/access/lea-requests/$leaRequestId/': {
+      id: '/access/lea-requests/$leaRequestId/'
+      path: '/'
+      fullPath: '/access/lea-requests/$leaRequestId/'
+      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdIndexRouteImport
+      parentRoute: typeof AccessLeaRequestsLeaRequestIdRouteRoute
+    }
+    '/access/lea-requests/$leaRequestId/decide': {
+      id: '/access/lea-requests/$leaRequestId/decide'
+      path: '/decide'
+      fullPath: '/access/lea-requests/$leaRequestId/decide'
+      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdDecideRouteImport
+      parentRoute: typeof AccessLeaRequestsLeaRequestIdRouteRoute
+    }
+    '/access/requests/$requestId/': {
+      id: '/access/requests/$requestId/'
+      path: '/'
+      fullPath: '/access/requests/$requestId/'
+      preLoaderRoute: typeof AccessRequestsRequestIdIndexRouteImport
+      parentRoute: typeof AccessRequestsRequestIdRouteRoute
+    }
+    '/access/requests/$requestId/decide': {
+      id: '/access/requests/$requestId/decide'
+      path: '/decide'
+      fullPath: '/access/requests/$requestId/decide'
+      preLoaderRoute: typeof AccessRequestsRequestIdDecideRouteImport
+      parentRoute: typeof AccessRequestsRequestIdRouteRoute
     }
     '/commissions/$slug/obligations/': {
       id: '/commissions/$slug/obligations/'
@@ -833,6 +1362,108 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AccessCertifiedCopiesRouteRouteChildren {
+  AccessCertifiedCopiesApplicationIdRoute: typeof AccessCertifiedCopiesApplicationIdRoute
+  AccessCertifiedCopiesNewRoute: typeof AccessCertifiedCopiesNewRoute
+  AccessCertifiedCopiesIndexRoute: typeof AccessCertifiedCopiesIndexRoute
+}
+
+const AccessCertifiedCopiesRouteRouteChildren: AccessCertifiedCopiesRouteRouteChildren =
+  {
+    AccessCertifiedCopiesApplicationIdRoute:
+      AccessCertifiedCopiesApplicationIdRoute,
+    AccessCertifiedCopiesNewRoute: AccessCertifiedCopiesNewRoute,
+    AccessCertifiedCopiesIndexRoute: AccessCertifiedCopiesIndexRoute,
+  }
+
+const AccessCertifiedCopiesRouteRouteWithChildren =
+  AccessCertifiedCopiesRouteRoute._addFileChildren(
+    AccessCertifiedCopiesRouteRouteChildren,
+  )
+
+interface AccessLeaRequestsLeaRequestIdRouteRouteChildren {
+  AccessLeaRequestsLeaRequestIdDecideRoute: typeof AccessLeaRequestsLeaRequestIdDecideRoute
+  AccessLeaRequestsLeaRequestIdIndexRoute: typeof AccessLeaRequestsLeaRequestIdIndexRoute
+}
+
+const AccessLeaRequestsLeaRequestIdRouteRouteChildren: AccessLeaRequestsLeaRequestIdRouteRouteChildren =
+  {
+    AccessLeaRequestsLeaRequestIdDecideRoute:
+      AccessLeaRequestsLeaRequestIdDecideRoute,
+    AccessLeaRequestsLeaRequestIdIndexRoute:
+      AccessLeaRequestsLeaRequestIdIndexRoute,
+  }
+
+const AccessLeaRequestsLeaRequestIdRouteRouteWithChildren =
+  AccessLeaRequestsLeaRequestIdRouteRoute._addFileChildren(
+    AccessLeaRequestsLeaRequestIdRouteRouteChildren,
+  )
+
+interface AccessLeaRequestsRouteRouteChildren {
+  AccessLeaRequestsLeaRequestIdRouteRoute: typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
+  AccessLeaRequestsIndexRoute: typeof AccessLeaRequestsIndexRoute
+}
+
+const AccessLeaRequestsRouteRouteChildren: AccessLeaRequestsRouteRouteChildren =
+  {
+    AccessLeaRequestsLeaRequestIdRouteRoute:
+      AccessLeaRequestsLeaRequestIdRouteRouteWithChildren,
+    AccessLeaRequestsIndexRoute: AccessLeaRequestsIndexRoute,
+  }
+
+const AccessLeaRequestsRouteRouteWithChildren =
+  AccessLeaRequestsRouteRoute._addFileChildren(
+    AccessLeaRequestsRouteRouteChildren,
+  )
+
+interface AccessRequestsRequestIdRouteRouteChildren {
+  AccessRequestsRequestIdDecideRoute: typeof AccessRequestsRequestIdDecideRoute
+  AccessRequestsRequestIdIndexRoute: typeof AccessRequestsRequestIdIndexRoute
+}
+
+const AccessRequestsRequestIdRouteRouteChildren: AccessRequestsRequestIdRouteRouteChildren =
+  {
+    AccessRequestsRequestIdDecideRoute: AccessRequestsRequestIdDecideRoute,
+    AccessRequestsRequestIdIndexRoute: AccessRequestsRequestIdIndexRoute,
+  }
+
+const AccessRequestsRequestIdRouteRouteWithChildren =
+  AccessRequestsRequestIdRouteRoute._addFileChildren(
+    AccessRequestsRequestIdRouteRouteChildren,
+  )
+
+interface AccessRequestsRouteRouteChildren {
+  AccessRequestsRequestIdRouteRoute: typeof AccessRequestsRequestIdRouteRouteWithChildren
+  AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
+}
+
+const AccessRequestsRouteRouteChildren: AccessRequestsRouteRouteChildren = {
+  AccessRequestsRequestIdRouteRoute:
+    AccessRequestsRequestIdRouteRouteWithChildren,
+  AccessRequestsIndexRoute: AccessRequestsIndexRoute,
+}
+
+const AccessRequestsRouteRouteWithChildren =
+  AccessRequestsRouteRoute._addFileChildren(AccessRequestsRouteRouteChildren)
+
+interface AccessRouteRouteChildren {
+  AccessCertifiedCopiesRouteRoute: typeof AccessCertifiedCopiesRouteRouteWithChildren
+  AccessLeaRequestsRouteRoute: typeof AccessLeaRequestsRouteRouteWithChildren
+  AccessRequestsRouteRoute: typeof AccessRequestsRouteRouteWithChildren
+  AccessIndexRoute: typeof AccessIndexRoute
+}
+
+const AccessRouteRouteChildren: AccessRouteRouteChildren = {
+  AccessCertifiedCopiesRouteRoute: AccessCertifiedCopiesRouteRouteWithChildren,
+  AccessLeaRequestsRouteRoute: AccessLeaRequestsRouteRouteWithChildren,
+  AccessRequestsRouteRoute: AccessRequestsRouteRouteWithChildren,
+  AccessIndexRoute: AccessIndexRoute,
+}
+
+const AccessRouteRouteWithChildren = AccessRouteRoute._addFileChildren(
+  AccessRouteRouteChildren,
+)
 
 interface AiPolicyRouteRouteChildren {
   AiPolicyIndexRoute: typeof AiPolicyIndexRoute
@@ -914,6 +1545,35 @@ const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
 const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
 
+interface LeaRequestsRouteRouteChildren {
+  LeaRequestsLeaRequestIdRoute: typeof LeaRequestsLeaRequestIdRoute
+  LeaRequestsNewRoute: typeof LeaRequestsNewRoute
+  LeaRequestsIndexRoute: typeof LeaRequestsIndexRoute
+}
+
+const LeaRequestsRouteRouteChildren: LeaRequestsRouteRouteChildren = {
+  LeaRequestsLeaRequestIdRoute: LeaRequestsLeaRequestIdRoute,
+  LeaRequestsNewRoute: LeaRequestsNewRoute,
+  LeaRequestsIndexRoute: LeaRequestsIndexRoute,
+}
+
+const LeaRequestsRouteRouteWithChildren =
+  LeaRequestsRouteRoute._addFileChildren(LeaRequestsRouteRouteChildren)
+
+interface LeaRouteRouteChildren {
+  LeaRequestsRouteRoute: typeof LeaRequestsRouteRouteWithChildren
+  LeaIndexRoute: typeof LeaIndexRoute
+}
+
+const LeaRouteRouteChildren: LeaRouteRouteChildren = {
+  LeaRequestsRouteRoute: LeaRequestsRouteRouteWithChildren,
+  LeaIndexRoute: LeaIndexRoute,
+}
+
+const LeaRouteRouteWithChildren = LeaRouteRoute._addFileChildren(
+  LeaRouteRouteChildren,
+)
+
 interface ObligationsRouteRouteChildren {
   ObligationsPolicyRoute: typeof ObligationsPolicyRoute
   ObligationsIndexRoute: typeof ObligationsIndexRoute
@@ -926,6 +1586,38 @@ const ObligationsRouteRouteChildren: ObligationsRouteRouteChildren = {
 
 const ObligationsRouteRouteWithChildren =
   ObligationsRouteRoute._addFileChildren(ObligationsRouteRouteChildren)
+
+interface PlatformLawEnforcementRouteRouteChildren {
+  PlatformLawEnforcementAgencyCodeRoute: typeof PlatformLawEnforcementAgencyCodeRoute
+  PlatformLawEnforcementIndexRoute: typeof PlatformLawEnforcementIndexRoute
+}
+
+const PlatformLawEnforcementRouteRouteChildren: PlatformLawEnforcementRouteRouteChildren =
+  {
+    PlatformLawEnforcementAgencyCodeRoute:
+      PlatformLawEnforcementAgencyCodeRoute,
+    PlatformLawEnforcementIndexRoute: PlatformLawEnforcementIndexRoute,
+  }
+
+const PlatformLawEnforcementRouteRouteWithChildren =
+  PlatformLawEnforcementRouteRoute._addFileChildren(
+    PlatformLawEnforcementRouteRouteChildren,
+  )
+
+interface PlatformRouteRouteChildren {
+  PlatformLawEnforcementRouteRoute: typeof PlatformLawEnforcementRouteRouteWithChildren
+  PlatformIndexRoute: typeof PlatformIndexRoute
+}
+
+const PlatformRouteRouteChildren: PlatformRouteRouteChildren = {
+  PlatformLawEnforcementRouteRoute:
+    PlatformLawEnforcementRouteRouteWithChildren,
+  PlatformIndexRoute: PlatformIndexRoute,
+}
+
+const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
+  PlatformRouteRouteChildren,
+)
 
 interface ReviewRouteRouteChildren {
   ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
@@ -1024,9 +1716,12 @@ const ObligationsNationalRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccessRouteRoute: AccessRouteRouteWithChildren,
   AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
+  LeaRouteRoute: LeaRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
+  PlatformRouteRoute: PlatformRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
@@ -1034,6 +1729,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
+  ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

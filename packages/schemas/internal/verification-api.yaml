@@ -217,6 +217,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -226,6 +227,18 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - no-applicant-record
+            - request-decided
+            - request-closed
+            - officer-resolved
+            - not-under-decision
+            - not-pending-verification
+            - lea-account-inactive
+            - declarant-notified
+            - representations-closed
+            - download-window-closed
+            - scope-exceeds-request
+            - grounds-required
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

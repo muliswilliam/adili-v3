@@ -5,7 +5,13 @@
 export { ALPHABET, checkCharacter, hasValidCheckCharacter } from './check-character.js';
 export {
   format,
+  GRANT_LEGAL_BASES,
+  GRANT_REFERENCE_PATTERN,
+  GRANT_SCHEMES,
+  grantLegalBasis,
+  type GrantLegalBasis,
   InvalidReferenceError,
+  isGrantReference,
   type InvalidReferenceReason,
   issuerCode,
   type ParsedReference,
@@ -14,6 +20,7 @@ export {
 } from './reference.js';
 export {
   ADM,
+  ARQ,
   CLR,
   CMP,
   DCB,
@@ -24,6 +31,7 @@ export {
   declarationSchemes,
   defineScheme,
   findScheme,
+  LEA,
   NCR,
   type NumberingScheme,
   numberingSchemes,

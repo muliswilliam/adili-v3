@@ -54,6 +54,20 @@ export const issuedDocuments = pgTable(
     issuedAt: timestamp({ withTimezone: true }).notNull(),
     /** `sub` of the service or user that asked for the document. */
     issuedBy: text().notNull(),
+    /**
+     * End of the download window (an access package's fourteen days): the subject person gets
+     * no download link from then on. Null when the document has none.
+     */
+    downloadExpiresAt: timestamp({ withTimezone: true }),
+    /**
+     * Token subjects (`sub`) of staff of the issuing Commission who may download the document as
+     * well as its subject person: the access officer who recorded an in-person self-access
+     * application, to print the certified copy they hand over. Empty for most documents.
+     */
+    additionalDownloaders: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
   },
   (table) => [
     unique('issued_documents_type_subject_key').on(table.type, table.subjectRef),

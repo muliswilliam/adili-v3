@@ -16,6 +16,7 @@ import {
 import {
   commissionPageSchema,
   commissionSchema,
+  internalCommissionListItemSchema,
   internalCommissionListSchema,
   internalCommissionSchema,
   internalCommissionStaffSchema,
@@ -24,6 +25,23 @@ import {
   reportingOfficerStateSchema,
   rosterSummarySchema,
 } from './commissions/representation.js';
+import {
+  agencyCodeSchema,
+  agencySchema,
+  internalLeaOfficerSchema,
+  leaOfficerAccountSchema,
+  leaOfficerStateSchema,
+  provisionAgencyOfficerBody,
+} from './law-enforcement/representation.js';
+import {
+  applicantOnboardingProblemSchema,
+  applicantOnboardingSessionCreatedSchema,
+  applicantOnboardingSessionSchema,
+  applicantOnboardingStateSchema,
+  identityDocumentKindSchema,
+  identityStatusSchema,
+  startApplicantOnboardingBody,
+} from './onboarding/applicants/representation.js';
 import { onboardingFailuresSchema } from './onboarding/failures/representation.js';
 import {
   identifyDeclarantBody,
@@ -41,9 +59,13 @@ import {
   verifyOnboardingOtpBody,
 } from './onboarding/representation.js';
 import {
+  applicantIdentityDocumentSchema,
+  applicantProfileSchema,
   declarantProfileSchema,
+  internalApplicantSchema,
   personContactsSchema,
   personSummarySchema,
+  verifyApplicantIdentityBody,
 } from './persons/representation.js';
 import {
   confirmExitsBody,
@@ -76,6 +98,7 @@ import {
   internalRosterRecordPageSchema,
   rosterNationalIdSchema,
   internalRosterRecordSchema,
+  onboardingInvitationSchema,
   reportingEntityRefSchema,
   rosterRecordImportSchema,
   rosterRecordListItemSchema,
@@ -106,6 +129,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Commission: commissionSchema,
   CommissionPage: commissionPageSchema,
   InternalCommission: internalCommissionSchema,
+  InternalCommissionListItem: internalCommissionListItemSchema,
   InternalCommissionList: internalCommissionListSchema,
   InternalStaffList: internalCommissionStaffSchema,
   TenantPolicyVersion: tenantPolicyVersionSchema,
@@ -138,6 +162,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   RosterRecord: rosterRecordSchema,
   RosterRecordPage: rosterRecordPageSchema,
   InternalRosterRecord: internalRosterRecordSchema,
+  OnboardingInvitation: onboardingInvitationSchema,
   InternalRosterRecordPage: internalRosterRecordPageSchema,
   RosterNationalId: rosterNationalIdSchema,
   ConfirmExits: confirmExitsBody,
@@ -162,4 +187,21 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   PersonContacts: personContactsSchema,
   VerifyOnboardingOtp: verifyOnboardingOtpBody,
   ProvideOnboardingContact: provideOnboardingContactBody,
+  AgencyCode: agencyCodeSchema,
+  Agency: agencySchema,
+  LeaOfficerState: leaOfficerStateSchema,
+  LeaOfficerAccount: leaOfficerAccountSchema,
+  InternalLeaOfficer: internalLeaOfficerSchema,
+  ProvisionAgencyOfficer: provisionAgencyOfficerBody,
+  IdentityDocumentKind: identityDocumentKindSchema,
+  IdentityStatus: identityStatusSchema,
+  StartApplicantOnboarding: startApplicantOnboardingBody,
+  ApplicantOnboardingState: applicantOnboardingStateSchema,
+  ApplicantOnboardingSession: applicantOnboardingSessionSchema,
+  ApplicantOnboardingSessionCreated: applicantOnboardingSessionCreatedSchema,
+  ApplicantOnboardingProblem: applicantOnboardingProblemSchema,
+  ApplicantIdentityDocument: applicantIdentityDocumentSchema,
+  ApplicantProfile: applicantProfileSchema,
+  InternalApplicant: internalApplicantSchema,
+  VerifyApplicantIdentity: verifyApplicantIdentityBody,
 };

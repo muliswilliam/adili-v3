@@ -20,7 +20,8 @@ import type {
 
 /** Logic behind the onboarding server functions, kept free of request context so it can be tested. */
 
-const problemSchema = z.object({
+/** The parts of an onboarding problem the portal reads, declarant's or applicant's. */
+export const problemSchema = z.object({
   code: z.string(),
   attemptsLeft: z.number().optional(),
   retryAfterSeconds: z.number().optional(),
@@ -73,7 +74,11 @@ export async function listCommissions(
   }
 }
 
-function retryAfter(response: Response, bodySeconds: number | undefined): number | undefined {
+/** The wait a 429 gives, from its body or else its RateLimit-Reset header. */
+export function retryAfter(
+  response: Response,
+  bodySeconds: number | undefined,
+): number | undefined {
   if (bodySeconds !== undefined) return bodySeconds;
   const header = Number(response.headers.get('RateLimit-Reset'));
   return Number.isFinite(header) && header > 0 ? header : undefined;
@@ -175,10 +180,10 @@ export async function readSession(
  * returns the session moves the cookie's expiry with it; one that finds the session ended
  * clears the cookie.
  */
-export async function runStep(
+export async function runStep<S extends { expiresAt: string } = OnboardingSession>(
   cookie: OnboardingCookie,
-  step: (credentials: OnboardingCredentials) => Promise<StepResult>,
-): Promise<StepResult> {
+  step: (credentials: OnboardingCredentials) => Promise<StepResult<S>>,
+): Promise<StepResult<S>> {
   const credentials = cookie.read();
   if (!credentials) return { ok: false, code: 'ended' };
   const result = await step(credentials);
@@ -202,6 +207,8 @@ export type StepProblem =
   | { code: 'identity-unavailable' }
   /** The verified email belongs to another account; nothing changed, retrying will not help. */
   | { code: 'email-in-use' }
+  /** An applicant account already has this document (applicant complete only); nothing changed. */
+  | { code: 'already-onboarded' }
   | { code: 'invalid' }
   | { code: 'ended' }
   | { code: 'too-many' }
@@ -210,14 +217,21 @@ export type StepProblem =
   | { code: 'send-failed' }
   | { code: 'unavailable' };
 
-/** What the browser gets back from a step: the session (never its secret). */
-export type StepResult = { ok: true; session: OnboardingSession } | ({ ok: false } & StepProblem);
+/**
+ * What the browser gets back from a step: the session (never its secret). A declarant's
+ * onboarding session by default; an applicant's for Get started as an applicant.
+ */
+export type StepResult<S = OnboardingSession> =
+  { ok: true; session: S } | ({ ok: false } & StepProblem);
 
-function stepProblem(response: Response, error: unknown): StepProblem {
+/** A failed step's answer as the portal reads it, the same for declarants and applicants. */
+export function stepProblem(response: Response, error: unknown): StepProblem {
   if (response.status === 404 || response.status === 410) return { code: 'ended' };
   const problem = problemSchema.safeParse(error);
   const code = problem.success ? problem.data.code : undefined;
-  if (response.status === 409 && code === 'email-in-use') return { code };
+  if (response.status === 409 && (code === 'email-in-use' || code === 'already-onboarded')) {
+    return { code };
+  }
   if (response.status === 409) return { code: 'moved' };
   if (response.status === 400 && code === 'otp-invalid') {
     // The last wrong code ends the session.
@@ -252,8 +266,8 @@ function channelParams({ sessionId, secret }: OnboardingCredentials, channel: Ot
 }
 
 /** What an openapi-fetch call on a session answers. */
-interface SessionCallResult {
-  data?: OnboardingSession;
+export interface SessionCallResult<S = OnboardingSession> {
+  data?: S;
   error?: unknown;
   response: Response;
 }
@@ -263,12 +277,11 @@ interface SessionCallResult {
  * 202 without a body, the session read back (for the new cooldown and resends left); otherwise
  * the step's problem. A call that throws is the directory being unavailable.
  */
-async function sessionCall(
-  client: OnboardingClient,
-  credentials: OnboardingCredentials,
-  call: () => Promise<SessionCallResult>,
-): Promise<StepResult> {
-  let result: SessionCallResult;
+export async function sessionCall<S>(
+  call: () => Promise<SessionCallResult<S>>,
+  readBack: () => Promise<StepResult<S>>,
+): Promise<StepResult<S>> {
+  let result: SessionCallResult<S>;
   try {
     result = await call();
   } catch {
@@ -276,7 +289,7 @@ async function sessionCall(
   }
   const { data, error, response } = result;
   if (data) return { ok: true, session: data };
-  if (response.status === 202) return readBack(client, credentials);
+  if (response.status === 202) return readBack();
   return { ok: false, ...stepProblem(response, error) };
 }
 
@@ -298,11 +311,13 @@ export async function verifyCode(
   const parsed = codeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, code: 'invalid' };
   const { channel, code } = parsed.data;
-  return sessionCall(client, credentials, () =>
-    client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify', {
-      params: channelParams(credentials, channel),
-      body: { code },
-    }),
+  return sessionCall(
+    () =>
+      client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/verify', {
+        params: channelParams(credentials, channel),
+        body: { code },
+      }),
+    () => readBack(client, credentials),
   );
 }
 
@@ -314,10 +329,12 @@ export async function resendCode(
 ): Promise<StepResult> {
   const parsed = channelSchema.safeParse(input);
   if (!parsed.success) return { ok: false, code: 'invalid' };
-  return sessionCall(client, credentials, () =>
-    client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend', {
-      params: channelParams(credentials, parsed.data.channel),
-    }),
+  return sessionCall(
+    () =>
+      client.POST('/v1/onboarding/sessions/{sessionId}/otp/{channel}/resend', {
+        params: channelParams(credentials, parsed.data.channel),
+      }),
+    () => readBack(client, credentials),
   );
 }
 
@@ -329,11 +346,13 @@ export async function provideContact(
 ): Promise<StepResult> {
   const parsed = contactSchema.safeParse(input);
   if (!parsed.success) return { ok: false, code: 'invalid' };
-  return sessionCall(client, credentials, () =>
-    client.POST('/v1/onboarding/sessions/{sessionId}/contacts', {
-      params: sessionParams(credentials),
-      body: parsed.data,
-    }),
+  return sessionCall(
+    () =>
+      client.POST('/v1/onboarding/sessions/{sessionId}/contacts', {
+        params: sessionParams(credentials),
+        body: parsed.data,
+      }),
+    () => readBack(client, credentials),
   );
 }
 
@@ -348,12 +367,15 @@ export function confirm(
   credentials: OnboardingCredentials,
   idempotencyKey: string,
 ): Promise<StepResult> {
-  return sessionCall(client, credentials, async () => {
-    const result = await client.POST('/v1/onboarding/sessions/{sessionId}/confirm', {
-      params: idempotentSessionParams(credentials, idempotencyKey),
-    });
-    return { ...result, data: result.data?.session };
-  });
+  return sessionCall(
+    async () => {
+      const result = await client.POST('/v1/onboarding/sessions/{sessionId}/confirm', {
+        params: idempotentSessionParams(credentials, idempotencyKey),
+      });
+      return { ...result, data: result.data?.session };
+    },
+    () => readBack(client, credentials),
+  );
 }
 
 /**
@@ -365,9 +387,11 @@ export function resendPasswordEmail(
   credentials: OnboardingCredentials,
   idempotencyKey: string,
 ): Promise<StepResult> {
-  return sessionCall(client, credentials, () =>
-    client.POST('/v1/onboarding/sessions/{sessionId}/resend-password-email', {
-      params: idempotentSessionParams(credentials, idempotencyKey),
-    }),
+  return sessionCall(
+    () =>
+      client.POST('/v1/onboarding/sessions/{sessionId}/resend-password-email', {
+        params: idempotentSessionParams(credentials, idempotencyKey),
+      }),
+    () => readBack(client, credentials),
   );
 }

@@ -34,15 +34,15 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Form K: everything on offer, clarifications included. */
-export const Full: Story = {};
+/** Form K: everything on offer, the declarant's clarifications too. */
+export const Full: Story = { args: { clarifications: true } };
 
 /** Law-enforcement requests do not cover clarifications. */
-export const LawEnforcement: Story = { args: { clarifications: false } };
+export const LawEnforcement: Story = {};
 
 /** A partial grant: only what was requested can be granted. */
 export const RestrictedToRequest: Story = {
-  args: { value: requested, restrictTo: requested },
+  args: { value: requested, restrictTo: requested, clarifications: true },
 };
 
 export const Validation: Story = {

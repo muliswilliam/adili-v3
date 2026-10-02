@@ -5,7 +5,7 @@
   "description": "Console for Commissions, employers and EACC (TanStack Start BFF).",
   "type": "module",
   "scripts": {
-    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/server/directory/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/server/review/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/server/documents/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/server/declarations/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/ai-gateway.yaml -o src/server/ai-gateway/api.gen.ts",
+    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/server/directory/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/server/review/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/server/documents/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/server/declarations/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/ai-gateway.yaml -o src/server/ai-gateway/api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/access.yaml -o src/server/access/api.gen.ts",
     "dev": "pnpm generate:api && node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev",
     "build": "pnpm generate:api && vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
+    "@adili/forms": "workspace:*",
     "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",

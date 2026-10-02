@@ -118,9 +118,74 @@ export function signatureNote(signerName: string, signedAt: Date): string {
   return `<div class="sigbox">${SHIELD}<div><b>Digitally signed by ${esc(signerName)}</b><br />${esc(formatDateTime(signedAt))}<br />PAdES · Reason: issued through Adili Online</div></div>`;
 }
 
+/**
+ * Styles shared by the multi-page documents of a declaration (the certified copy, the access
+ * package): the heading, the reference box, the summary list, the verification panel and the
+ * signature's place. Goes after the letterhead's and the declaration content's styles.
+ */
+export const DECLARATION_DOCUMENT_STYLES = `
+body{font-size:9.2pt;line-height:1.45}
+p{margin:0 0 2.5mm}
+.doc-h{margin:7mm 0 5mm}
+.doc-h .t1{font-size:17pt;font-weight:700;letter-spacing:-0.01em;line-height:1.2}
+.doc-sub{color:${SOFT};font-size:10pt;margin-top:1mm}
+.fine{font-size:8.2pt;color:${SOFT}}
+.ref{display:flex;align-items:center;justify-content:space-between;gap:4mm;padding:4.5mm 5mm;border:0.35mm solid ${INK};border-radius:2mm}
+.lbl{font-size:7.4pt;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED}}
+.ref .big{font-size:16pt;font-weight:700;margin-top:0.5mm}
+.skv{display:grid;grid-template-columns:44mm 1fr;margin:5mm 0}
+.skv dt,.skv dd{margin:0;padding:1.6mm 0;border-bottom:0.25mm solid ${LINE}}
+.skv dt{color:${MUTED}}
+.skv dd{font-weight:500}
+.vpanel{padding:5mm;border-radius:2mm;background:#f6f5f3;margin:6mm 0 4mm;break-inside:avoid}
+.vpanel .t{font-size:11pt;font-weight:700;margin-bottom:1.5mm}
+.vpanel .vcode{font-size:12pt;font-weight:700;letter-spacing:0.03em;margin:1.5mm 0 2mm}
+.signed{display:flex;justify-content:flex-end;break-inside:avoid}`;
+
+/**
+ * How to check that a multi-page document is genuine: its verification code, and `shows`, what
+ * the check tells whoever makes it. `what` names the document (`copy`, `package`).
+ */
+export function verificationPanel(what: string, verificationId: string, shows: string): string {
+  return `<div class="vpanel"><div class="t">Check that this ${esc(what)} is genuine</div><div>Scan the QR code at the foot of any page, or go to the Adili Online verify page and enter:</div><div class="vcode mono nw">${esc(verificationId)}</div><div class="fine">${esc(shows)}</div></div>`;
+}
+
 /** An HTML document for Gotenberg's main page. */
 export function htmlDocument(title: string, styles: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
+}
+
+/** Who a watermarked document was issued to, for what and when (ADR-010 §6). */
+export interface Watermark {
+  recipientName: string;
+  /** The request reference the document answers, e.g. `ARQ-PSC-2026-0000012-H`. */
+  reference: string;
+  /** Calendar date `YYYY-MM-DD`. */
+  date: string;
+}
+
+/** `Issued to Amina Otieno · ARQ-PSC-2026-0000012-H · 1 Oct 2026`: the watermark's line. */
+export function watermarkText(watermark: Watermark): string {
+  return `Issued to ${watermark.recipientName} · ${watermark.reference} · ${formatDate(watermark.date)}`;
+}
+
+/** Lines of the watermark down each page; each fits the page's width whole. */
+const WATERMARK_LINES = 5;
+
+const WATERMARK_STYLES = `.wm{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:2147483647;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:40mm 0}
+.wm div{transform:rotate(-30deg);white-space:nowrap;font-size:11pt;font-weight:600;letter-spacing:0.03em;color:rgba(26,26,26,0.11)}`;
+
+/**
+ * `html` with the watermark across every page: a fixed layer above the content, which Chromium
+ * prints on each page, so no page of a leaked copy lacks its recipient. Issuance applies it to
+ * any template's document, so no template can forget it.
+ */
+export function watermarked(html: string, watermark: Watermark): string {
+  const at = html.lastIndexOf('</body>');
+  if (at < 0) throw new Error('a watermarked document needs a body');
+  const line = `<div>${esc(watermarkText(watermark))}</div>`;
+  const layer = `<style>${WATERMARK_STYLES}</style><div class="wm" aria-hidden="true">${line.repeat(WATERMARK_LINES)}</div>`;
+  return `${html.slice(0, at)}${layer}${html.slice(at)}`;
 }
 
 /** What the verification footer shows on every page. */

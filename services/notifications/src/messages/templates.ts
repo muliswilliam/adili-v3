@@ -7,37 +7,24 @@ import {
 } from '@adili/numbering/references';
 import { z } from 'zod';
 
-export const CHANNELS = ['email', 'sms'] as const;
-export type Channel = (typeof CHANNELS)[number];
+import { accessTemplates } from './access-templates.js';
+import {
+  CHANNELS,
+  type Channel,
+  define,
+  email,
+  escapeHtml,
+  LOCALES,
+  type Locale,
+  longDate,
+  NEVER_ASKS,
+  paragraph,
+  type RenderedEmail,
+  type RenderedSms,
+  signInParagraph,
+} from './template-kit.js';
 
-/** English now; Swahili renders English until its copy is written. */
-export const LOCALES = ['en', 'sw'] as const;
-export type Locale = (typeof LOCALES)[number];
-
-export interface RenderedEmail {
-  subject: string;
-  text: string;
-  html: string;
-}
-
-export interface RenderedSms {
-  text: string;
-}
-
-type Rendered<TChannel extends Channel> = TChannel extends 'email' ? RenderedEmail : RenderedSms;
-
-interface Template<TChannel extends Channel, TParams extends z.ZodType> {
-  channel: TChannel;
-  params: TParams;
-  /** English is required; other locales fall back to it until translated. */
-  copy: { en: (params: z.infer<TParams>) => Rendered<TChannel> } & Partial<
-    Record<Exclude<Locale, 'en'>, (params: z.infer<TParams>) => Rendered<TChannel>>
-  >;
-}
-
-const define = <TChannel extends Channel, TParams extends z.ZodType>(
-  template: Template<TChannel, TParams>,
-) => template;
+export { CHANNELS, type Channel, LOCALES, type Locale, type RenderedEmail, type RenderedSms };
 
 const otpParams = z.strictObject({
   code: z.string().regex(/^\d{4,8}$/, 'must be 4 to 8 digits'),
@@ -47,28 +34,6 @@ const otpParams = z.strictObject({
 type OtpParams = z.infer<typeof otpParams>;
 
 const minutes = (n: number) => (n === 1 ? '1 minute' : `${n} minutes`);
-
-/** One paragraph of an email, as plain text and as HTML. */
-interface Paragraph {
-  text: string;
-  html: string;
-}
-
-/** A paragraph of plain words, escaped for the HTML body. */
-const paragraph = (text: string): Paragraph => ({ text, html: escapeHtml(text) });
-
-/** "Sign in to Adili Online at <portal> <rest>", the portal linked in the HTML body. */
-const signInParagraph = (portalUrl: string, rest: string): Paragraph => ({
-  text: `Sign in to Adili Online at ${portalUrl} ${rest}`,
-  html: `Sign in to Adili Online at <a href="${escapeHtml(portalUrl)}">${escapeHtml(portalUrl)}</a> ${escapeHtml(rest)}`,
-});
-
-/** An email of `paragraphs`: blank-line separated in the text body, one `<p>` each in HTML. */
-const email = (subject: string, paragraphs: readonly Paragraph[]): RenderedEmail => ({
-  subject,
-  text: paragraphs.map((p) => p.text).join('\n\n'),
-  html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
-});
 
 function otpEmail(
   subject: string,
@@ -87,6 +52,33 @@ function otpEmail(
 
 const forCommission = (params: OtpParams) =>
   params.commissionName ? ` with ${params.commissionName}` : '';
+
+/**
+ * An invitation to a roster officer who has not set up their declarant account (spec 10: the
+ * Commission needs to reach them, e.g. to tell them of an access request). Names no request.
+ */
+const invitationParams = z.strictObject({
+  commissionName: z.string().trim().min(1).max(120),
+  /** The portal's onboarding start for the Commission (http or https URL). */
+  getStartedUrl: z.url({ protocol: /^https?$/ }).max(200),
+});
+type InvitationParams = z.infer<typeof invitationParams>;
+
+function invitationEmail(params: InvitationParams): RenderedEmail {
+  return email('Set up your Adili Online declarant account', [
+    paragraph(
+      `${params.commissionName} has you on its roster of public officers who declare on Adili Online, and you have not set up your declarant account yet.`,
+    ),
+    paragraph(
+      "With an account you file your declarations online and receive the Commission's notices about them.",
+    ),
+    {
+      text: `Set it up at ${params.getStartedUrl} with your personnel file number and national ID.`,
+      html: `Set it up at <a href="${escapeHtml(params.getStartedUrl)}">${escapeHtml(params.getStartedUrl)}</a> with your personnel file number and national ID.`,
+    },
+    paragraph(NEVER_ASKS),
+  ]);
+}
 
 const reminderParams = z
   .strictObject({
@@ -110,35 +102,12 @@ const reminderParams = z
   });
 type ReminderParams = z.infer<typeof reminderParams>;
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
-
-/** `2027-12-31` as `31 December 2027`, without a time zone: the date is already civil. */
-function longDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return `${String(day)} ${MONTHS[(month ?? 1) - 1] ?? ''} ${String(year)}`;
-}
-
 const days = (n: number) => (n === 1 ? '1 day' : `${String(n)} days`);
 
 const statementDateParagraph = (statementDate: string) =>
   paragraph(
     `It declares your income, assets and liabilities as at the statement date, ${longDate(statementDate)}.`,
   );
-
-const NEVER_ASKS = 'Adili Online will never ask you for your password or sign-in code.';
 
 function reminderEmail(params: ReminderParams): RenderedEmail {
   const due = longDate(params.dueDate);
@@ -238,9 +207,8 @@ function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
  *
  * Later specs add theirs here, which widens the contract's `TemplateId` enum: 07a clarifications
  * (issued, reminder), 08 decisions, notices, salary stopped and reinstated, 09 Form M (draft
- * ready, reminder, chase, receipt), access requests (acknowledged, notified, decisions to
- * applicant and declarant, package ready, officer reminder), law-enforcement access (grant
- * notice, decision) and certified copies (ready).
+ * ready, reminder, chase, receipt). Spec 10's access templates, the Form K acknowledgement
+ * among them, are in access-templates.ts.
  */
 export const templates = {
   'onboarding-otp-email': define({
@@ -283,6 +251,20 @@ export const templates = {
         )(params),
     },
   }),
+  'onboarding-invitation-email': define({
+    channel: 'email',
+    params: invitationParams,
+    copy: { en: invitationEmail },
+  }),
+  'onboarding-invitation-sms': define({
+    channel: 'sms',
+    params: invitationParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: ${params.commissionName} invites you to set up your declarant account, to file your declarations and receive the Commission's notices online. Start at ${params.getStartedUrl}`,
+      }),
+    },
+  }),
   'obligation-reminder-sms': define({
     channel: 'sms',
     params: reminderParams,
@@ -312,6 +294,7 @@ export const templates = {
       }),
     },
   }),
+  ...accessTemplates,
 } as const;
 
 export type TemplateId = keyof typeof templates;
@@ -354,13 +337,4 @@ export function renderTemplate(
     );
   }
   return (template.copy[locale] ?? template.copy.en)(parsed.data);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }

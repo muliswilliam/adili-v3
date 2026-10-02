@@ -426,6 +426,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/declarations/disclosures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Render the scoped disclosure of a person's submitted declarations for a grant (audited)
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.
+         */
+        post: operations["internalRenderDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/declarations/disclosure-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count what a scope would disclose of a person's declarations (audited, no content)
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each year of the scope, the person's versions in force at the Commission and, per section and included household member kind, how many entries and persons the disclosure of that scope would let out: counts only, never content, so the access officer can see before deciding whether a grant would disclose anything. A year with none, or a person who is not the Commission's declarant, counts zero. Audited (`audit.read.v1`, action `declaration.disclosure-counted`) with the legal basis, the request reference and the officer as recipient.
+         */
+        post: operations["internalCountDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/declarations/{declarationId}/versions/{version}/full-document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The full immutable document of a version for the declarant's certified copy (audited as self-access)
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. A read, posted so that the recipient, possibly a representative's name, stays out of the URL. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32): X-Acting-Subject is who asked, `recipient` whom the copy is handed to (the declarant, or their representative).
+         */
+        post: operations["internalGetFullDocumentForCertifiedCopy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/help/search": {
         parameters: {
             query?: never;
@@ -682,41 +742,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/internal/v1/declarations/disclosures": {
+    "/internal/v1/persons/{personId}/declaration-versions": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Render the scoped disclosure of a person's submitted declarations for a grant (audited)
-         * @description Only the versions, household members and sections in the granted scope are decrypted and
-         *     returned. The read is audited with the grant reference as legal basis and the recipient.
+         * A person's submitted versions at the Commission (for certified copies)
+         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. Latest submitted first: declaration, version, reference, type, statement date, when submitted and whether a later version replaced it; no content. The access service lists them for the access officer recording a written self-access application. Empty when the acting tenant holds none of the person's.
          */
-        post: operations["internalRenderDisclosure"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/declarations/{declarationId}/versions/{version}/full-document": {
-        parameters: {
-            query?: never;
-            header: {
-                "X-Acting-Subject": string;
-            };
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
-            };
-            cookie?: never;
-        };
-        /** The full immutable document of a version for the declarant's certified copy (audited as self-access) */
-        get: operations["internalGetFullDocumentForCertifiedCopy"];
+        get: operations["internalListPersonVersions"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1464,6 +1501,140 @@ export interface components {
             declarantPersonId: string;
             slip: components["schemas"]["AcknowledgementSlip"];
         };
+        /**
+         * @description `bio`: the officer's particulars, with the included spouses' and children's; `income`, `assets`, `liabilities`: those parts of the included persons' statements; `other`: other information
+         * @enum {string}
+         */
+        DisclosureSection: "bio" | "income" | "assets" | "liabilities" | "other";
+        /**
+         * @description Act s.36(1) for a Form K grant (ARQ), s.36(2) for a law-enforcement grant (LEA)
+         * @enum {string}
+         */
+        LegalBasis: "act-s36-1" | "act-s36-2";
+        /**
+         * @description ADR-011: the access request's ARQ (Form K) or LEA (law enforcement) reference
+         * @example ARQ-PSC-2028-0000012-N
+         */
+        GrantReference: string;
+        /** @description The granted scope of an access request, and whom it is disclosed to */
+        DisclosureRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant whose declarations are disclosed
+             */
+            personId: string;
+            grantReference: components["schemas"]["GrantReference"];
+            legalBasis: components["schemas"]["LegalBasis"];
+            /** @description The account the disclosure is handed to (the applicant, the law-enforcement officer); recorded in the audit event */
+            recipientSubject: string;
+            /** @description Declaration years: the statement dates' years */
+            years: number[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: components["schemas"]["DisclosureSection"][];
+        };
+        DisclosedVersion: {
+            reference: components["schemas"]["DeclarationReference"];
+            version: number;
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included, without their national IDs, KRA PINs or dates of birth); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted */
+            content: {
+                [key: string]: unknown;
+            };
+        };
+        /** @description disclosure.v1: what a grant discloses of a declarant's declarations */
+        DisclosureDocument: {
+            /** @constant */
+            schemaVersion: "disclosure.v1";
+            grantReference: components["schemas"]["GrantReference"];
+            /** @description The declarant as named in the latest disclosed version */
+            personName: string;
+            commission: components["schemas"]["CommissionRef"];
+            /** @description Per granted year, the version in force of each of the person's declarations at the Commission, by statement date. A granted year with none has no entry */
+            versions: components["schemas"]["DisclosedVersion"][];
+        };
+        /** @description A scope an access officer is about to decide on, to be counted */
+        DisclosureCountsRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant whose declarations are counted
+             */
+            personId: string;
+            grantReference: components["schemas"]["GrantReference"];
+            legalBasis: components["schemas"]["LegalBasis"];
+            /** @description Declaration years: the statement dates' years */
+            years: number[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: components["schemas"]["DisclosureSection"][];
+        };
+        DisclosureYearCounts: {
+            /** @description A year of the scope: the statement dates' year */
+            year: number;
+            /** @description The person's declarations at the Commission that year (versions in force) */
+            declarations: number;
+            /** @description Their reference numbers, for counting the clarifications issued on them; the access service never shows them */
+            declarationReferences: components["schemas"]["DeclarationReference"][];
+            /** @description Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out, `income`, `assets`, `liabilities` the entries of the included persons' statements, `other` the material changes, directorships, memberships, pending cases and a written statement */
+            sections: {
+                bio?: number;
+                income?: number;
+                assets?: number;
+                liabilities?: number;
+                other?: number;
+            };
+            /** @description The spouses anything would go out about; null when not included */
+            spouses: number | null;
+            /** @description The children anything would go out about; null when not included */
+            children: number | null;
+        };
+        /** @description How much a scope would disclose of a person's declarations, in counts only: never content */
+        DisclosureCounts: {
+            /** @description Every year of the scope, ascending, with zero counts for a year with none */
+            years: components["schemas"]["DisclosureYearCounts"][];
+        };
+        /** @description Whose version is asked for in full, and whom the certified copy goes to */
+        FullDocumentRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant asking for the copy: the version must be theirs
+             */
+            personId: string;
+            /** @description Whom the certified copy is handed to, recorded in the audit event: the declarant's account (token subject) when they asked online; for a written application made in person, the representative's name when made through one, else the declarant */
+            recipient: string;
+        };
+        /** @description A submitted version in full, for the declarant's certified copy */
+        FullVersionDocument: {
+            /** Format: uuid */
+            declarationId: string;
+            /** Format: uuid */
+            versionId: string;
+            version: number;
+            /**
+             * Format: uuid
+             * @description The declarant
+             */
+            personId: string;
+            reference: components["schemas"]["DeclarationReference"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description Hex SHA-256 of the document's RFC 8785 canonical JSON */
+            canonicalSha256: string;
+            commission: components["schemas"]["CommissionRef"];
+            /** @description As declared in the version (first, other and surname) */
+            declarantName: string;
+            /** @description The immutable declaration.v1 document as submitted, decrypted */
+            document: {
+                [key: string]: unknown;
+            };
+        };
         /** @enum {string} */
         HelpLanguage: "en" | "sw";
         /**
@@ -1585,6 +1756,19 @@ export interface components {
                 sha256: string;
             }[];
         };
+        InternalPersonVersion: {
+            /** Format: uuid */
+            declarationId: string;
+            version: number;
+            reference: components["schemas"]["DeclarationReference"];
+            type: components["schemas"]["ObligationType"];
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            /** @description A later version of the declaration replaced it */
+            superseded: boolean;
+        };
         InternalPreviousVersion: {
             /** Format: uuid */
             declarationId: string;
@@ -1643,47 +1827,13 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
             errors?: {
                 path: string;
                 message: string;
-            }[];
-        };
-        DisclosureRequest: {
-            /** Format: uuid */
-            personId: string;
-            tenant: string;
-            /** @description ARQ or LEA reference */
-            grantReference: string;
-            /** @enum {string} */
-            legalBasis: "act-s36-1" | "act-s36-2";
-            recipientSubject: string;
-            years: number[];
-            includeSpouses: boolean;
-            includeChildren: boolean;
-            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
-        };
-        DisclosureDocument: {
-            /** @constant */
-            schemaVersion: "disclosure.v1";
-            grantReference: string;
-            personName: string;
-            commission: components["schemas"]["CommissionRef"];
-            versions: {
-                reference: components["schemas"]["DeclarationReference"];
-                version: number;
-                type: components["schemas"]["ObligationType"];
-                /** Format: date */
-                statementDate: string;
-                /** Format: date-time */
-                submittedAt: string;
-                /** @description Subset of the declaration.v1 document limited to the granted persons and sections */
-                content: {
-                    [key: string]: unknown;
-                };
             }[];
         };
         /** @enum {string} */
@@ -1794,11 +1944,8 @@ export interface components {
     parameters: {
         Slug: string;
         DeclarationId: string;
-        VersionNumber: number;
         SuggestionId: string;
         ConversationId: string;
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        ActingTenant: string;
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
     };
@@ -2881,6 +3028,168 @@ export interface operations {
             };
         };
     };
+    internalRenderDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer who decided the grant; recorded in the audit event */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisclosureRequest"];
+            };
+        };
+        responses: {
+            /** @description The disclosure */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisclosureDocument"];
+                };
+            };
+            /** @description Invalid scope, a legal basis that does not go with the grant reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:disclosures */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No version of the person's declarations at the acting Commission in the granted years */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalCountDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisclosureCountsRequest"];
+            };
+        };
+        responses: {
+            /** @description The counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisclosureCounts"];
+                };
+            };
+            /** @description Invalid scope, a legal basis that does not go with the request reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:disclosures */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetFullDocumentForCertifiedCopy: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Who asked for the certified copy: the declarant online, or the access officer recording their written application; recorded in the audit event as the actor */
+                "X-Acting-Subject": string;
+            };
+            path: {
+                declarationId: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FullDocumentRequest"];
+            };
+        };
+        responses: {
+            /** @description The version in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FullVersionDocument"];
+                };
+            };
+            /** @description version is not a positive integer, the body failed validation, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:disclosures */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such version of the person's declarations at the acting Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     searchHelp: {
         parameters: {
             query: {
@@ -3655,58 +3964,47 @@ export interface operations {
             };
         };
     };
-    internalRenderDisclosure: {
+    internalListPersonVersions: {
         parameters: {
             query?: never;
             header: {
-                "X-Acting-Subject": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DisclosureRequest"];
-            };
-        };
-        responses: {
-            /** @description Disclosure document */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DisclosureDocument"];
-                };
-            };
-            400: components["responses"]["ValidationProblem"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    internalGetFullDocumentForCertifiedCopy: {
-        parameters: {
-            query?: never;
-            header: {
-                "X-Acting-Subject": string;
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                version: components["parameters"]["VersionNumber"];
+                personId: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Document */
+            /** @description Versions */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InternalVersionDocument"];
+                    "application/json": components["schemas"]["InternalPersonVersion"][];
                 };
             };
-            404: components["responses"]["NotFound"];
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope declarations:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     requestRegistryLookups: {

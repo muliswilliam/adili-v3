@@ -40,6 +40,7 @@ import {
   type InternalObligation,
   type InternalObligationDetails,
   type InternalPersonObligation,
+  type InternalPersonVersion,
   type InternalPreviousVersion,
   type InternalVersionDocument,
   type ObligationDetailsRequest,
@@ -115,11 +116,8 @@ export class InternalVersionsController {
       version,
     );
     const caseId = headers['x-review-case'];
-    audit.resource({
-      tenant,
-      subjectPersonId: read.personId,
-      ...(caseId === undefined ? {} : { legalBasis: `review-case:${caseId}` }),
-    });
+    audit.resource({ tenant, subjectPersonId: read.personId });
+    if (caseId !== undefined) audit.legalBasis({ basis: 'review-case', reference: caseId });
     return read;
   }
 
@@ -233,5 +231,40 @@ export class InternalObligationsController {
     // The trail names the obligations whose officers were read, not the ids asked for.
     audit.resource({ tenant, ids: details.items.map((item) => item.obligationId) });
     return details;
+  }
+}
+
+/** Internal: a person's submitted versions, as the access service lists them (spec 10). */
+@ApiTags('internal')
+@Controller('internal/v1/persons')
+@InternalApi(DECLARATIONS_INTERNAL_SCOPE)
+export class InternalPersonVersionsController {
+  constructor(private readonly versions: ServiceVersionsService) {}
+
+  @Get(':personId/declaration-versions')
+  @AuditedRead({ action: 'declaration.versions.listed', resource: 'declaration-version' })
+  @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'internalListPersonVersions',
+    summary: "A person's submitted versions at the Commission (for certified copies)",
+    description: `${CALLERS}; audited. Latest submitted first: declaration, version, reference, type, statement date, when submitted and whether a later version replaced it; no content. The access service lists them for the access officer recording a written self-access application. Empty when the acting tenant holds none of the person's.`,
+  })
+  @ApiOkResponse({
+    description: 'Versions',
+    schema: { type: 'array', items: schemaRef('InternalPersonVersion') },
+  })
+  @ApiProblemResponse(400, 'personId is not a UUID')
+  async personVersions(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('personId', uuid) personId: string,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<InternalPersonVersion[]> {
+    const { versions, versionIds } = await this.versions.personVersions(
+      { tenant, subject: principal.subject },
+      personId,
+    );
+    audit.resource({ tenant, subjectPersonId: personId, ids: versionIds });
+    return versions;
   }
 }

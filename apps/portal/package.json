@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js dev",
-    "generate": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/server/directory/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/server/declarations/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/server/documents/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/server/review/schema.gen.ts && json2ts -i node_modules/@adili/schemas/forms/declaration.v1.json -o src/declaration/form.gen.ts --unreachableDefinitions",
+    "generate": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/server/directory/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/server/declarations/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/server/documents/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/server/review/schema.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/access.yaml -o src/server/access/schema.gen.ts && json2ts -i node_modules/@adili/schemas/forms/declaration.v1.json -o src/declaration/form.gen.ts --unreachableDefinitions",
     "build": "pnpm generate && vite build",
     "start": "node --env-file-if-exists=.env .output/server/index.mjs",
     "lint": "eslint .",
@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
+    "@adili/forms": "workspace:*",
     "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
