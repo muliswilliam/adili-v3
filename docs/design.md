@@ -69,7 +69,7 @@ Status colours come in three steps: the solid colour (`text-success`, dots, bars
 | `ai` | `--ai` | `#6d4ae0` (text on it `ai-foreground`: white, `#150f2b` in the dark theme; hover `ai-hover`, 12% darker) | `#f1edfd` | `#43299f` |
 | `brand` | `--brand`, `--brand-soft`, `--brand-ink` | `#e95a24` | `#fdf0e9` | `#b8430f` |
 
-`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it. `bg-stripes-brand` lays `brand-faint` and `brand-subtle` in 10px diagonal stripes for the acknowledgement slip's header band (`.slip-head` in `declarant-journey`).
+`brand-faint` (`--brand-softer`, `#fef7f3`) tints selected table rows and a drop zone while a file is dragged over it. `bg-stripes-brand` lays `brand-faint` and `brand-subtle` in 10px diagonal stripes for the acknowledgement slip's header band (`.slip-head` in `declarant-journey`). `data-highlight` marks the target of a link into a long page (a Copilot source in the declaration pane) for a moment: `brand-faint` with a 3px inset `brand` edge, fading in from `brand-subtle`; `animate-pulse-ring` pulses a card just opened (a Copilot flag) with a 3px `brand` ring back to `shadow-card`. Both stop under reduced motion.
 
 **Brand and logo.** The kit's brand orange (`#e95a24`) is for UI accents: the brand badge, eyebrows, icon tiles on `brand-subtle`. The logo keeps the Figma orange (`#f06225`) through its own `logo` token, so the mark does not shift when UI accents are tuned.
 

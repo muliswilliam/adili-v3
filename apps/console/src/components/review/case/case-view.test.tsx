@@ -278,9 +278,9 @@ describe('CaseView: the reviewer holding the case', () => {
     await renderCase(CASES.mine);
     const flag = screen.getByRole('article', { name: /Value changed by 150%/ });
     fireEvent.click(within(flag).getByRole('button', { name: 'Go to item' }));
-    expect(
-      document.getElementById(`decl-item-${I.plot}`)?.hasAttribute('data-copilot-highlight'),
-    ).toBe(true);
+    expect(document.getElementById(`decl-item-${I.plot}`)?.hasAttribute('data-highlight')).toBe(
+      true,
+    );
 
     const plot = document.getElementById(`decl-item-${I.plot}`);
     if (!plot) throw new Error('no plot');

@@ -120,7 +120,7 @@ export function FlagExplanation({
       id={flagAnchor(flag.id)}
       className={cn(
         'scroll-mt-[150px] overflow-hidden rounded-xl shadow-card',
-        pulse && 'animate-[copilot-flag-pulse_1.6s_ease-out] motion-reduce:animate-none',
+        pulse && 'animate-pulse-ring motion-reduce:animate-none',
       )}
     >
       <button

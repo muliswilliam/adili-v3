@@ -180,7 +180,7 @@ describe('CaseCopilot (S15)', () => {
       }),
     );
     const target = document.getElementById(`decl-item-${MOCK_ITEM_IDS.plot}`);
-    expect(target?.hasAttribute('data-copilot-highlight')).toBe(true);
+    expect(target?.hasAttribute('data-highlight')).toBe(true);
     target?.remove();
   });
 

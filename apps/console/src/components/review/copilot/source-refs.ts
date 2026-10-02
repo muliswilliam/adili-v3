@@ -196,19 +196,19 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
 export const HIGHLIGHT_MS = 2_400;
 
 /**
- * Scrolls the declaration pane to a ref's target and highlights it (`data-copilot-highlight`,
- * which the case view styles), for `HIGHLIGHT_MS`. Returns false when the pane does not have the
+ * Scrolls the declaration pane to a ref's target and highlights it (`data-highlight`,
+ * which `@adili/ui` styles), for `HIGHLIGHT_MS`. Returns false when the pane does not have the
  * element, for instance while it shows another version.
  */
 export function highlightInDeclaration(anchorId: string, root: Document = document): boolean {
   const element = root.getElementById(anchorId);
   if (!element) return false;
   element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  element.setAttribute('data-copilot-highlight', '');
+  element.setAttribute('data-highlight', '');
   if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '-1');
   element.focus({ preventScroll: true });
   setTimeout(() => {
-    element.removeAttribute('data-copilot-highlight');
+    element.removeAttribute('data-highlight');
   }, HIGHLIGHT_MS);
   return true;
 }

@@ -224,7 +224,7 @@ function FlagCard({
 
   const base = cn(
     'relative grid scroll-mt-[60px] gap-1.5 overflow-hidden rounded-xl py-[13px] pr-3.5 pl-4 outline-none before:absolute before:inset-y-0 before:left-0 before:w-1',
-    pulsing && 'animate-[copilot-flag-pulse_1.6s_ease-out] motion-reduce:animate-none',
+    pulsing && 'animate-pulse-ring motion-reduce:animate-none',
   );
 
   if (flag.closedReason) {
