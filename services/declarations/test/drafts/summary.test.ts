@@ -1,7 +1,12 @@
-import { ATTESTATION_TEXT, declarationIssues } from '@adili/forms';
+import { ATTESTATION_TEXT, declarationIssues, type DeclarationSectionKey } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
-import { assembleDocument, blockingIssues, notStartedIssues } from '../../src/drafts/summary.js';
+import {
+  assembleDocument,
+  blockingIssues,
+  notStartedIssues,
+  reviewDraft,
+} from '../../src/drafts/summary.js';
 import {
   bio,
   CHILD_ID,
@@ -108,6 +113,51 @@ describe('assembleDocument', () => {
       },
     ]);
     expect(paragraph9.freeText).toBe('Also a church elder');
+  });
+});
+
+describe('reviewDraft', () => {
+  const saved = (live: readonly { key: DeclarationSectionKey }[]) =>
+    live.map(({ key }) => ({ key, completeness: 'complete' }));
+
+  /** Sections as an older portal saved them: change flags without a kind or explanation. */
+  function staleFlags() {
+    return sections().map((section) =>
+      section.key === 'bio'
+        ? { ...section, contents: { ...bio(), maritalStatusChange: { changed: true } } }
+        : section.key === 'statement:officer'
+          ? {
+              ...section,
+              contents: {
+                ...statement(),
+                income: [{ ...incomeItem(), change: { changed: true } }],
+              },
+            }
+          : section,
+    );
+  }
+
+  it("leaves an initial's changes since the last declaration out: it follows none", () => {
+    const live = staleFlags();
+
+    const review = reviewDraft({ ...FRAME, type: 'initial' }, live, saved(live));
+
+    expect(review).toMatchObject({ valid: true, blocking: [] });
+    expect(review.document.officer).toEqual(bio());
+    expect(review.document.otherInformation).toMatchObject({ materialChanges: [] });
+  });
+
+  it('still asks a biennial to explain them', () => {
+    const live = staleFlags();
+
+    const review = reviewDraft(FRAME, live, saved(live));
+
+    expect(review.valid).toBe(false);
+    expect(review.blocking.map(({ sectionKey, path }) => [sectionKey, path])).toEqual([
+      ['bio', '/maritalStatusChange/explanation'],
+      ['statement:officer', '/income/0/change/kind'],
+      ['statement:officer', '/income/0/change/explanation'],
+    ]);
   });
 });
 

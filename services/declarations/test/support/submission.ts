@@ -61,10 +61,13 @@ export function submissionFixtures(api: () => DeclarationsApi) {
     };
   }
 
-  /** A PSC declarant's biennial obligation of 2027. */
+  /** A PSC declarant's obligation of 2027: the biennial unless another type is given. */
   async function givenObligation(
     personId: string,
-    { status = 'due' }: { status?: 'upcoming' | 'due' | 'overdue' } = {},
+    {
+      status = 'due',
+      type = 'biennial',
+    }: { status?: 'upcoming' | 'due' | 'overdue'; type?: 'initial' | 'biennial' } = {},
   ): Promise<string> {
     const record = rosterRecord('psc', {
       personId,
@@ -91,8 +94,8 @@ export function submissionFixtures(api: () => DeclarationsApi) {
         tenant: 'psc',
         rosterRecordId: record.id,
         personId,
-        type: 'biennial',
-        cycleKey: 'biennial:2027',
+        type,
+        cycleKey: type === 'initial' ? `initial:${STATEMENT_DATE}` : 'biennial:2027',
         statementDate: STATEMENT_DATE,
         dueDate: DUE_DATE,
         status,
