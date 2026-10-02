@@ -188,8 +188,9 @@ describe('DiffTable', () => {
       />,
     );
     const percentOf = (label: string) => {
-      const cells = screen.getByRole('rowheader', { name: new RegExp(`^${label}`) }).closest('tr')
-        ?.cells;
+      const cells = screen
+        .getByRole('rowheader', { name: new RegExp(`^${label}`) })
+        .closest('tr')?.cells;
       const cell = cells?.[4];
       return {
         shown: cell?.querySelector('[aria-hidden="true"]')?.textContent,
