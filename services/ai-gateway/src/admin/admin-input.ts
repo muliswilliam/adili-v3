@@ -1,13 +1,19 @@
 import { ApiParam } from '@nestjs/swagger';
-import { TENANT_KEY } from '@adili/api-kit';
+import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { gateCellSchema } from '../policy/gate-policies.js';
 import { PROVIDER_CLASSES } from '../providers/port.js';
 
-/** The `tenant` path parameter (contract `Tenant`). */
-export const tenantParam = z.string().regex(TENANT_KEY);
+/**
+ * The `tenant` path parameter (contract `Tenant`): a tenant key, never the reserved `platform`
+ * context of cross-tenant work.
+ */
+export const tenantParam = z
+  .string()
+  .regex(TENANT_KEY)
+  .refine((tenant) => tenant !== PLATFORM_TENANT, { message: 'Must name a tenant' });
 
 /** Documents the `tenant` path parameter. */
 export const ApiTenantParam = () =>
