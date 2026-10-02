@@ -283,6 +283,41 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(within(itemCard(1)).getByRole('img', { name: /^AI draft, edited\./ })).toBeTruthy();
   });
 
+  it('warns that a draft in Swahili mixes two languages in the English letter (e2e 13)', async () => {
+    renderHost();
+    pick('Value changed by 150% since the previous declaration');
+    // An English draft: nothing to warn about.
+    fireEvent.click(draftButton());
+    await settle();
+    expect(within(drawer()).queryByText(/the letter will mix two languages/)).toBeNull();
+
+    pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
+    fireEvent.keyDown(within(drafting()).getByRole('combobox', { name: 'Language' }), {
+      key: 'Enter',
+    });
+    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
+    // Before drafting, the language list says what the letter is in.
+    expect(
+      within(drafting())
+        .getByRole('combobox', { name: 'Language' })
+        .getAttribute('aria-describedby'),
+    ).toBeTruthy();
+    expect(within(drafting()).getByText('The rest of the letter is in English.')).toBeTruthy();
+
+    fireEvent.click(draftButton());
+    await settle();
+    // The English items stay quiet; each Swahili one says so, edited or not.
+    const warning =
+      'Drafted in Swahili, but the rest of the letter is in English. Rewrite it in English, or the letter will mix two languages.';
+    expect(items()).toHaveLength(4);
+    expect(within(itemCard(0)).queryByText(warning)).toBeNull();
+    expect(within(itemCard(2)).getByText(warning)).toBeTruthy();
+    fireEvent.change(within(itemCard(3)).getByRole('textbox', { name: 'What you need' }), {
+      target: { value: 'Tafadhali taja tarehe ya ununuzi.' },
+    });
+    expect(within(itemCard(3)).getByText(warning)).toBeTruthy();
+  });
+
   it('saves the opening paragraph with the items, each drafted part with its job (ADR-007)', async () => {
     const { composer } = renderHost();
     pick('Value changed by 150% since the previous declaration');

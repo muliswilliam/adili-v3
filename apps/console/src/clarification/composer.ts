@@ -1,6 +1,7 @@
 import type { AiLabelDetails } from '@adili/ui';
 
 import type { Requirement } from '../server/review/types';
+import type { DraftLanguage } from './draft-selection';
 import { type ClarificationTarget, targetOf, type TargetRef } from './targets';
 
 /**
@@ -16,6 +17,13 @@ export const ITEM_TEXT_MAX = 1000;
 
 /** review.yaml `ClarificationInput.opening` limit. */
 export const OPENING_TEXT_MAX = 800;
+
+/**
+ * The language of the letter's own text: its heading, introduction and how to respond
+ * (`LetterPreview`, and the issued `clarification-letter.v1`) are in English only. Text drafted
+ * with AI in another language would mix two languages in one letter.
+ */
+export const LETTER_LANGUAGE: DraftLanguage = 'en';
 
 export interface ComposerItem {
   /** Stable while the composer is open, for React keys and field ids. */
@@ -33,6 +41,8 @@ export interface ComposerItem {
   aiJobId: string | null;
   /** An inserted item the reviewer has changed since ("AI draft, edited"). */
   edited: boolean;
+  /** The language Draft with AI drafted it in, in this sitting; null when not known. */
+  language: DraftLanguage | null;
 }
 
 /**
@@ -45,6 +55,8 @@ export interface ComposerOpening {
   /** The Draft with AI job that drafted it (review.yaml `ClarificationInput.openingAiJobId`). */
   aiJobId: string | null;
   edited: boolean;
+  /** The language Draft with AI drafted it in, in this sitting; null when not known. */
+  language: DraftLanguage | null;
 }
 
 export interface ComposerState {
@@ -69,6 +81,8 @@ export interface ComposerDraft {
   label: AiLabelDetails | null;
   /** The Draft with AI job (`CopilotDraft.jobId`); null for items seeded without AI. */
   jobId: string | null;
+  /** The language it was drafted in; null (or left out) for items seeded without AI. */
+  language?: DraftLanguage | null;
   opening: string | null;
   items: ComposerSeed[];
 }
@@ -84,7 +98,16 @@ export type ComposerAction =
   | { type: 'discard-opening' };
 
 function blank(key: string): ComposerItem {
-  return { key, target: null, requirement: null, text: '', ai: null, aiJobId: null, edited: false };
+  return {
+    key,
+    target: null,
+    requirement: null,
+    text: '',
+    ai: null,
+    aiJobId: null,
+    edited: false,
+    language: null,
+  };
 }
 
 const isBlank = (item: ComposerItem) =>
@@ -96,6 +119,7 @@ function seeded(
   targets: readonly ClarificationTarget[],
   ai: AiLabelDetails | null,
   jobId: string | null,
+  language: DraftLanguage | null,
 ): ComposerState {
   let next = state.next;
   const items = seeds.map((seed) => ({
@@ -114,6 +138,7 @@ function seeded(
     ai,
     aiJobId: seed.aiJobId ?? jobId,
     edited: false,
+    language,
   }));
   return { ...state, items: [...state.items, ...items], next };
 }
@@ -135,11 +160,14 @@ export function draftComposer(
   return seeded(
     {
       items: [],
-      opening: opening ? { text: opening, ai: null, aiJobId: openingAiJobId, edited: false } : null,
+      opening: opening
+        ? { text: opening, ai: null, aiJobId: openingAiJobId, edited: false, language: null }
+        : null,
       next: 1,
     },
     items,
     targets,
+    null,
     null,
     null,
   );
@@ -185,6 +213,7 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         targets,
         draft.label,
         draft.jobId,
+        draft.language ?? null,
       );
       // A new draft's opening replaces an earlier one only while nobody has written in it.
       const replaceable =
@@ -192,7 +221,13 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
       return draft.opening && replaceable
         ? {
             ...inserted,
-            opening: { text: draft.opening, ai: draft.label, aiJobId: draft.jobId, edited: false },
+            opening: {
+              text: draft.opening,
+              ai: draft.label,
+              aiJobId: draft.jobId,
+              edited: false,
+              language: draft.language ?? null,
+            },
           }
         : inserted;
     }
@@ -204,12 +239,22 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
           aiJobId: state.opening?.aiJobId ?? null,
           text: action.text,
           edited: state.opening?.ai != null,
+          language: state.opening?.language ?? null,
         },
       };
     case 'discard-opening':
       return { ...state, opening: null };
   }
 }
+
+/**
+ * The language a drafted part (an item or the opening) is in when it is not the letter's, so
+ * the composer can say the letter would mix languages; null when it matches or is not known.
+ */
+export const foreignLanguageOf = (part: {
+  language: DraftLanguage | null;
+}): DraftLanguage | null =>
+  part.language !== null && part.language !== LETTER_LANGUAGE ? part.language : null;
 
 export type ItemProblem = 'required' | 'too-long';
 

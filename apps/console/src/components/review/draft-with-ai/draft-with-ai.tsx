@@ -33,6 +33,7 @@ import {
   pickedOf,
   removePick,
 } from '../../../clarification/draft-selection';
+import { LETTER_LANGUAGE } from '../../../clarification/composer';
 import type { ItemCategory } from '../../../clarification/targets';
 import { draftClarificationWithAi, getCopilotDraft } from '../../../server/copilot';
 import type { AiDraft } from '../../../server/copilot-drafts.server';
@@ -209,6 +210,7 @@ export function DraftWithAi({
       api.insert({
         label: done.label,
         jobId: done.jobId,
+        language: input.language,
         opening: done.opening,
         items: done.items,
       });
@@ -318,6 +320,7 @@ export function DraftWithAi({
         </label>
         <Select
           id={`${id}-language`}
+          aria-describedby={language !== LETTER_LANGUAGE ? `${id}-language-note` : undefined}
           value={language}
           disabled={busy}
           onValueChange={(value) => {
@@ -331,6 +334,11 @@ export function DraftWithAi({
             </SelectItem>
           ))}
         </Select>
+        {language !== LETTER_LANGUAGE ? (
+          <span id={`${id}-language-note`} className="text-[12.5px] text-warning">
+            {t.otherLanguage(t.languages[LETTER_LANGUAGE] ?? LETTER_LANGUAGE)}
+          </span>
+        ) : null}
         <span className="flex-1" />
         <span
           role="status"

@@ -17,6 +17,7 @@ export const en = {
   remove: (name: string) => `Remove ${name}`,
   language: 'Language',
   languages: { en: 'English', sw: 'Swahili' } as Record<string, string>,
+  otherLanguage: (letter: string) => `The rest of the letter is in ${letter}.`,
   draft: 'Draft with AI',
   drafting: 'Drafting…',
   draftingStatus: 'Drafting',

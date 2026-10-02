@@ -47,6 +47,9 @@ export const en = {
   openingLabel: 'Opening paragraph',
   discardOpeningLabel: 'Discard drafted opening paragraph',
   openingTooLong: 'Keep the opening paragraph to 800 characters or fewer.',
+  otherLanguage: (language: string) =>
+    `Drafted in ${language}, but the rest of the letter is in English. Rewrite it in English, or the letter will mix two languages.`,
+  languages: { en: 'English', sw: 'Swahili' } as Record<string, string>,
 
   completeItems: 'Complete the highlighted items.',
   addOneItem: 'Add at least one item.',

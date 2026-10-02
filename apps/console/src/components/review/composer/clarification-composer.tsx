@@ -36,6 +36,7 @@ import {
 } from '@adili/ui';
 import {
   AlertCircleIcon,
+  Alert02Icon,
   Clock01Icon,
   Delete02Icon,
   FloppyDiskIcon,
@@ -59,6 +60,7 @@ import {
   composerToInput,
   draftComposer,
   emptyComposer,
+  foreignLanguageOf,
   ITEM_TEXT_MAX,
   type ItemProblem,
   OPENING_TEXT_MAX,
@@ -606,8 +608,25 @@ function ItemCard({
         {problems?.text ? (
           <FieldError id={`${id}-text-error`}>{PROBLEM_TEXT.text[problems.text]}</FieldError>
         ) : null}
+        <LanguageWarning part={item} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Text drafted with AI in a language other than the letter's own (`LETTER_LANGUAGE`): the letter
+ * would mix two languages, so the reviewer is told before issuing. It stays while the text does,
+ * edited or not; the composer cannot tell from the text whether it was rewritten.
+ */
+function LanguageWarning({ part }: { part: Parameters<typeof foreignLanguageOf>[0] }) {
+  const language = foreignLanguageOf(part);
+  if (language === null) return null;
+  return (
+    <Alert variant="warning" role="note" className="mt-1 px-3.5 py-2.5 text-[13.5px]">
+      <Icon icon={Alert02Icon} />
+      <AlertDescription>{t.otherLanguage(t.languages[language] ?? language)}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -682,6 +701,7 @@ function OpeningField({
         }}
       />
       {tooLong ? <FieldError id={`${id}-error`}>{t.openingTooLong}</FieldError> : null}
+      <LanguageWarning part={opening} />
     </section>
   );
 }
