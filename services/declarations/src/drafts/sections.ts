@@ -68,24 +68,33 @@ export function sectionRank(key: string): number {
   return 5;
 }
 
-/** What the roster says about the declarant, for the bio's pre-filled (locked) fields. */
+/** What the roster says about the declarant, for the bio's pre-filled fields. */
 export interface RosterFacts {
   tenant: string;
   fullName: string;
   personnelFileNumber: string;
   designation: string | null;
   employer: string | null;
+  /** The HR fields (spec 05b): pre-filled but editable. */
+  jobGroup: string | null;
+  appointmentDate: string | null;
+  workStation: string | null;
+  maritalStatus: string | null;
 }
 
 /**
- * Bio as a new draft starts it: name, reporting entity (`employer`), designation, Commission and personnel file
- * number from the roster record, each locked (identity is fixed at onboarding; the roster is
- * corrected by the Commission, not here). A field the roster leaves empty is not locked, so the
- * declarant can fill it in. `lockedFields` are JSON pointers, kept in clear metadata.
+ * Bio as a new draft starts it, from the roster record. Name, reporting entity (`employer`),
+ * designation, Commission and personnel file number are locked (identity is fixed at onboarding;
+ * the roster is corrected by the Commission, not here); a field the roster leaves empty is not
+ * locked, so the declarant can fill it in. Job group, appointment date, work station and marital
+ * status (spec 05b) are pre-filled when the roster has them and stay editable; they are listed in
+ * `prefilledFields` so the declarant sees where they came from. Both lists are JSON pointers,
+ * kept in clear metadata.
  */
 export function prefillBio(facts: RosterFacts): {
   contents: SectionContents;
   lockedFields: string[];
+  prefilledFields: string[];
 } {
   const name = splitFullName(facts.fullName);
   const employment: Record<string, string> = {
@@ -94,12 +103,43 @@ export function prefillBio(facts: RosterFacts): {
   };
   if (facts.designation) employment.designation = facts.designation;
   if (facts.employer) employment.employer = facts.employer;
-  const contents = { name, employment };
   const lockedFields = [
     ...Object.keys(name).map((field) => `/name/${field}`),
     ...Object.keys(employment).map((field) => `/employment/${field}`),
   ];
-  return { contents, lockedFields };
+
+  const prefilledFields: string[] = [];
+  const editable = {
+    jobGroup: facts.jobGroup,
+    appointmentDate: facts.appointmentDate,
+    workStation: facts.workStation,
+  };
+  for (const [field, value] of Object.entries(editable)) {
+    if (!value) continue;
+    employment[field] = value;
+    prefilledFields.push(`/employment/${field}`);
+  }
+  const contents: SectionContents = { name, employment };
+  if (facts.maritalStatus) {
+    contents.maritalStatus = facts.maritalStatus;
+    prefilledFields.push('/maritalStatus');
+  }
+  return { contents, lockedFields, prefilledFields };
+}
+
+/**
+ * The pre-filled fields (JSON pointers) still holding the roster's value after a save: those the
+ * saved contents leave as the stored ones. A field the declarant changes or clears is theirs from
+ * then on, even if they later type the roster's value back.
+ */
+export function keepPrefilledFields(
+  prefilledFields: readonly string[],
+  saved: SectionContents,
+  stored: SectionContents,
+): string[] {
+  return prefilledFields.filter(
+    (pointer) => valueAtPointer(saved, pointer) === valueAtPointer(stored, pointer),
+  );
 }
 
 /**

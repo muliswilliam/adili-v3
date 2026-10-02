@@ -1,0 +1,3 @@
+ALTER TABLE "roster_records" ADD COLUMN "work_station" text;--> statement-breakpoint
+ALTER TABLE "roster_records" ADD COLUMN "marital_status" text;--> statement-breakpoint
+ALTER TABLE "roster_records" ADD CONSTRAINT "roster_records_marital_status_check" CHECK ("roster_records"."marital_status" is null or "roster_records"."marital_status" in ('single', 'married', 'separated', 'divorced', 'widowed'));

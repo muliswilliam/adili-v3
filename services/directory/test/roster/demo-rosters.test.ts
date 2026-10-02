@@ -45,7 +45,11 @@ describe('demo roster files', () => {
       const file = await parseRosterFile(bytes, 'csv');
 
       if (!file.ok) throw new Error(`missing ${file.missingRequired.join(', ')}`);
-      expect(file.mapping).toMatchObject({ ignored: [], missing: [] });
+      // The HR mock has no work station or marital status (spec 05b's columns) to export.
+      expect(file.mapping).toMatchObject({
+        ignored: [],
+        missing: ['work_station', 'marital_status'],
+      });
       const rejected = [];
       let accepted = 0;
       for await (const row of file.rows) {

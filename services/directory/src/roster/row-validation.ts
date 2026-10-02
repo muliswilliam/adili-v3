@@ -46,12 +46,22 @@ export interface NormalisedRosterRow {
   designation: string | null;
   jobGroup: string | null;
   reportingEntity: string | null;
+  /**
+   * Absent from rows staged before spec 05b; read as null. Pre-fills the declaration's bio.
+   */
+  workStation?: string | null;
   /** `YYYY-MM-DD` */
   appointmentDate: string | null;
+  /** Lower-cased to `declaration.v1`'s values. Absent from rows staged before spec 05b. */
+  maritalStatus?: MaritalStatus | null;
   email: string | null;
   /** E.164, e.g. `+254712345678` */
   phone: string | null;
 }
+
+/** The marital statuses `declaration.v1` accepts (officer `maritalStatus`), as rows may give them. */
+export const MARITAL_STATUSES = ['single', 'married', 'separated', 'divorced', 'widowed'] as const;
+export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
 
 export type RowValidation =
   | { status: 'accepted'; normalised: NormalisedRosterRow; errors: [] }
@@ -112,6 +122,7 @@ export function createRowValidator(
     const designation = optionalText(raw.designation, 100, 'designation', fail);
     const jobGroup = optionalText(raw.jobGroup, 10, 'jobGroup', fail);
     const reportingEntity = optionalText(raw.reportingEntity, 200, 'reportingEntity', fail);
+    const workStation = optionalText(raw.workStation, 100, 'workStation', fail);
 
     const appointmentDate = optional(raw.appointmentDate, (value) => {
       const iso = parseDate(value);
@@ -119,6 +130,13 @@ export function createRowValidator(
         return fail('appointmentDate', 'format', 'Use YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY');
       }
       return iso > today ? fail('appointmentDate', 'future-date', 'Date is in the future') : iso;
+    });
+
+    const maritalStatus = optional(raw.maritalStatus, (value) => {
+      const status = value.toLowerCase();
+      return isMaritalStatus(status)
+        ? status
+        : fail('maritalStatus', 'format', 'Use single, married, separated, divorced or widowed');
     });
 
     const email = optional(raw.email, (value) => {
@@ -171,7 +189,9 @@ export function createRowValidator(
         designation,
         jobGroup,
         reportingEntity,
+        workStation,
         appointmentDate,
+        maritalStatus,
         email,
         phone,
       },
@@ -181,6 +201,10 @@ export function createRowValidator(
 }
 
 const FILE_NUMBER = /^[A-Za-z0-9/.-]+$/;
+
+function isMaritalStatus(value: string): value is MaritalStatus {
+  return (MARITAL_STATUSES as readonly string[]).includes(value);
+}
 
 /** Trims and collapses runs of whitespace (including non-breaking spaces) to one space. */
 function collapse(value: string | null | undefined): string {

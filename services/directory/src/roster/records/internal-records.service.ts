@@ -34,6 +34,8 @@ const internalRecordColumns = {
   jobGroup: rosterRecords.jobGroup,
   reportingEntityId: reportingEntities.id,
   reportingEntityName: reportingEntities.name,
+  workStation: rosterRecords.workStation,
+  maritalStatus: rosterRecords.maritalStatus,
   state: rosterRecords.state,
   appointmentDate: rosterRecords.appointmentDate,
   exitDate: rosterRecords.exitDate,
@@ -216,6 +218,8 @@ function toInternalRecord(row: RecordRow): InternalRosterRecord {
       row.reportingEntityId === null || row.reportingEntityName === null
         ? null
         : { id: row.reportingEntityId, name: row.reportingEntityName },
+    workStation: row.workStation,
+    maritalStatus: row.maritalStatus,
     state: row.state,
     appointmentDate: row.appointmentDate,
     exitDate: row.exitDate,

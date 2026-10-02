@@ -52,8 +52,8 @@ describe('GET /v1/roster/template', () => {
     const workbook = await readXlsx(response.rawPayload);
     const roster = sheet(workbook, 'Roster');
     expect(rowValues(roster, 1)).toEqual(HEADERS);
-    expect(roster.getCell('I2').value).toBe('0712345678');
-    expect(roster.getCell('I2').numFmt).toBe('@');
+    expect(roster.getCell('K2').value).toBe('0712345678');
+    expect(roster.getCell('K2').numFmt).toBe('@');
     const notes = sheet(workbook, 'Notes');
     expect(columnText(notes, 1, 2).slice(0, HEADERS.length)).toEqual(HEADERS);
   });

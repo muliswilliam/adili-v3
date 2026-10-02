@@ -3682,7 +3682,9 @@ components:
                   - designation
                   - job_group
                   - reporting_entity
+                  - work_station
                   - appointment_date
+                  - marital_status
                   - email
                   - phone
                 description: Template column it matched
@@ -3706,7 +3708,9 @@ components:
               - designation
               - job_group
               - reporting_entity
+              - work_station
               - appointment_date
+              - marital_status
               - email
               - phone
           description: Optional template columns not present
@@ -3919,10 +3923,24 @@ components:
           type:
             - string
             - 'null'
+        workStation:
+          description: Up to 100 characters.
+          examples:
+            - Eldoret
+          type:
+            - string
+            - 'null'
         appointmentDate:
           description: YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future.
           examples:
             - 2019-01-07
+          type:
+            - string
+            - 'null'
+        maritalStatus:
+          description: single, married, separated, divorced or widowed (any case).
+          examples:
+            - married
           type:
             - string
             - 'null'
@@ -4120,7 +4138,9 @@ components:
               - designation
               - job_group
               - reporting_entity
+              - work_station
               - appointment_date
+              - marital_status
               - email
               - phone
           description: Required template columns the file lacks; the import would fail while any are
@@ -4164,7 +4184,9 @@ components:
             - designation
             - jobGroup
             - reportingEntity
+            - workStation
             - appointmentDate
+            - maritalStatus
             - email
             - phone
           description: The roster field at fault
@@ -4222,7 +4244,15 @@ components:
               type:
                 - string
                 - 'null'
+            workStation:
+              type:
+                - string
+                - 'null'
             appointmentDate:
+              type:
+                - string
+                - 'null'
+            maritalStatus:
               type:
                 - string
                 - 'null'
@@ -4254,7 +4284,9 @@ components:
                   - designation
                   - jobGroup
                   - reportingEntity
+                  - workStation
                   - appointmentDate
+                  - maritalStatus
                   - email
                   - phone
                 description: The roster field the note is about
@@ -4595,6 +4627,22 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ReportingEntityRef'
             - type: 'null'
+        workStation:
+          description: Where the officer works; null when the roster gives none
+          type:
+            - string
+            - 'null'
+        maritalStatus:
+          anyOf:
+            - type: string
+              enum:
+                - single
+                - married
+                - separated
+                - divorced
+                - widowed
+            - type: 'null'
+          description: As `declaration.v1` names it; null when the roster gives none
         state:
           $ref: '#/components/schemas/RosterRecordState'
         appointmentDate:
@@ -4637,6 +4685,8 @@ components:
         - designation
         - jobGroup
         - reportingEntity
+        - workStation
+        - maritalStatus
         - state
         - appointmentDate
         - exitDate

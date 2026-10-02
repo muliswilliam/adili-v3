@@ -1210,12 +1210,12 @@ export interface components {
                  * @description Template column it matched
                  * @enum {string}
                  */
-                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone";
+                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "work_station" | "appointment_date" | "marital_status" | "email" | "phone";
             }[];
             /** @description File headers that match no template column, or repeat one already matched */
             ignored: string[];
             /** @description Optional template columns not present */
-            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
+            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "work_station" | "appointment_date" | "marital_status" | "email" | "phone")[];
         };
         ImportCounts: {
             /** @description Rows applied to the roster (created, updated or unchanged). Like every count, only rows processed: a failed import does not count the rows it did not reach (totalRows - processedRows) */
@@ -1317,10 +1317,20 @@ export interface components {
              */
             reportingEntity?: string | null;
             /**
+             * @description Up to 100 characters.
+             * @example Eldoret
+             */
+            workStation?: string | null;
+            /**
              * @description YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future.
              * @example 2019-01-07
              */
             appointmentDate?: string | null;
+            /**
+             * @description single, married, separated, divorced or widowed (any case).
+             * @example married
+             */
+            maritalStatus?: string | null;
             /**
              * @description Email address, up to 254 characters.
              * @example mary.otieno@example.go.ke
@@ -1396,7 +1406,7 @@ export interface components {
             format: "csv" | "xlsx";
             mapping: components["schemas"]["ColumnMapping"];
             /** @description Required template columns the file lacks; the import would fail while any are */
-            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone")[];
+            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "work_station" | "appointment_date" | "marital_status" | "email" | "phone")[];
             /** @description Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files */
             estimatedRows: number | null;
         };
@@ -1411,7 +1421,7 @@ export interface components {
              * @description The roster field at fault
              * @enum {string}
              */
-            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "workStation" | "appointmentDate" | "maritalStatus" | "email" | "phone";
             /** @enum {string} */
             code: "required" | "format" | "too-long" | "future-date" | "duplicate-in-file" | "identity-locked";
             /** @description What to fix, in English */
@@ -1430,7 +1440,9 @@ export interface components {
                 designation?: string | null;
                 jobGroup?: string | null;
                 reportingEntity?: string | null;
+                workStation?: string | null;
                 appointmentDate?: string | null;
+                maritalStatus?: string | null;
                 email?: string | null;
                 phone?: string | null;
             };
@@ -1442,7 +1454,7 @@ export interface components {
                  * @description The roster field the note is about
                  * @enum {string}
                  */
-                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone";
+                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "workStation" | "appointmentDate" | "maritalStatus" | "email" | "phone";
                 /**
                  * @description `national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed
                  * @enum {string}
@@ -1574,6 +1586,10 @@ export interface components {
             designation: string | null;
             jobGroup: string | null;
             reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+            /** @description Where the officer works; null when the roster gives none */
+            workStation: string | null;
+            /** @description As `declaration.v1` names it; null when the roster gives none */
+            maritalStatus: ("single" | "married" | "separated" | "divorced" | "widowed") | null;
             state: components["schemas"]["RosterRecordState"];
             /** @description Null when the roster gives none */
             appointmentDate: string | null;

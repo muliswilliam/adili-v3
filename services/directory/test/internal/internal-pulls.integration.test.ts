@@ -56,7 +56,7 @@ const ROW = {
   kiprono: 'PSC/0002,Kiprono Kipchumba,23456789,Officer,',
   wanjiru: 'PSC/0003,Wanjiru Kamau,34567890,Senior Officer,2019-07-01',
 };
-const csv = (rows: string[]) => [HEADER, ...rows].join('\n') + '\n';
+const csv = (rows: string[], header = HEADER) => [header, ...rows].join('\n') + '\n';
 
 let api: DirectoryApi;
 
@@ -74,8 +74,12 @@ beforeEach(async () => {
 });
 
 /** Imports `rows` for psc through the import endpoints and waits for the import to complete. */
-async function importRoster(rows: string[], declaredComplete = false): Promise<RosterImport> {
-  const uploadId = api.uploads.add('psc', { bytes: csv(rows), fileName: 'psc.csv' });
+async function importRoster(
+  rows: string[],
+  declaredComplete = false,
+  header = HEADER,
+): Promise<RosterImport> {
+  const uploadId = api.uploads.add('psc', { bytes: csv(rows, header), fileName: 'psc.csv' });
   const started = await api.post(
     `${PSC_ROSTER}/imports`,
     { channel: 'file', uploadId, declaredComplete },
@@ -164,6 +168,8 @@ describe('S18 records touched by an import', () => {
       designation: 'Officer',
       jobGroup: null,
       reportingEntity: null,
+      workStation: null,
+      maritalStatus: null,
       state: 'not_onboarded',
       appointmentDate: '2025-03-10',
       exitDate: null,
@@ -239,6 +245,37 @@ describe('S18 records touched by an import', () => {
         actor: expect.objectContaining({ clientId: 'declarations' }) as unknown,
       }),
     );
+  });
+});
+
+describe('S8 HR fields for bio pre-fill (spec 05b)', () => {
+  it('gives job group, appointment date, work station and marital status as the roster has them', async () => {
+    const imported = await importRoster(
+      [
+        'PSC/0001,Achieng Otieno,12345678,C3,07/01/2019,"Afya House, Nairobi",Married',
+        'PSC/0002,Kiprono Kipchumba,23456789,,,,',
+      ],
+      false,
+      'personnel_file_number,full_name,national_id,job_group,appointment_date,work_station,marital_status',
+    );
+
+    const items = (await pullAll(`importId=${imported.id}`, 10)).flatMap((page) => page.items);
+
+    expect(items[0]).toMatchObject({
+      personnelFileNumber: 'PSC/0001',
+      jobGroup: 'C3',
+      appointmentDate: '2019-01-07',
+      workStation: 'Afya House, Nairobi',
+      maritalStatus: 'married',
+    });
+    // Absent on the roster: null, never a guess.
+    expect(items[1]).toMatchObject({
+      personnelFileNumber: 'PSC/0002',
+      jobGroup: null,
+      appointmentDate: null,
+      workStation: null,
+      maritalStatus: null,
+    });
   });
 });
 

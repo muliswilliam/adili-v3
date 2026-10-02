@@ -160,7 +160,8 @@ describe('S4 file import', () => {
         flaggedAbsent: 0,
         exitsRecorded: 0,
       },
-      mapping: { ignored: [], missing: [] },
+      // The file has spec 02's columns, not spec 05b's.
+      mapping: { ignored: [], missing: ['work_station', 'marital_status'] },
       failure: null,
     });
     expect(done.mapping?.matched).toHaveLength(9);
@@ -686,7 +687,7 @@ describe('previewing an import', () => {
       format: 'csv',
       missingRequired: [],
       estimatedRows: 3,
-      mapping: { ignored: ['Station Code'], missing: [] },
+      mapping: { ignored: ['Station Code'], missing: ['work_station', 'marital_status'] },
     });
     expect(body.mapping.matched[0]).toEqual({
       source: 'personnel_file_number',

@@ -71,6 +71,7 @@ import {
   emptyOther,
   emptyStatement,
   isSectionKey,
+  keepPrefilledFields,
   isStatementKey,
   nilConflicts,
   prefillBio,
@@ -180,9 +181,17 @@ export class DraftsService {
       personnelFileNumber: record.personnelFileNumber,
       designation: record.designation,
       employer: record.reportingEntity?.name ?? null,
+      jobGroup: record.jobGroup,
+      appointmentDate: record.appointmentDate,
+      workStation: record.workStation,
+      maritalStatus: record.maritalStatus,
     });
     const initial: [DeclarationSectionKey, SectionContents, SectionMetadata][] = [
-      ['bio', bio.contents, { lockedFields: bio.lockedFields }],
+      [
+        'bio',
+        bio.contents,
+        { lockedFields: bio.lockedFields, prefilledFields: bio.prefilledFields },
+      ],
       ['household', emptyHousehold(), {}],
       [
         statementKey('officer'),
@@ -487,6 +496,7 @@ export class DraftsService {
       contents,
       issues,
       ...(key === 'household' && { notIncluded: notIncludedOf(state.section.metadata) }),
+      ...(key === 'bio' && { prefilledFields: state.section.metadata.prefilledFields ?? [] }),
       draftVersion: state.declaration.draftVersion,
     };
   }
@@ -540,6 +550,9 @@ export class DraftsService {
       ...section.metadata,
       ...sectionMetadata(key, contents),
       ...(household && { notIncluded: household.notIncluded }),
+      ...(section.metadata.prefilledFields && {
+        prefilledFields: keepPrefilledFields(section.metadata.prefilledFields, contents, stored),
+      }),
     };
     // Saved at the version the conditional bump below produces, or not at all.
     const savedVersion = expected + 1;
@@ -613,6 +626,7 @@ export class DraftsService {
       draftVersion,
       issues: assessment.section.issues,
       ...(household && { notIncluded: household.notIncluded }),
+      ...(key === 'bio' && { prefilledFields: metadata.prefilledFields ?? [] }),
       sectionsChanged,
     };
   }

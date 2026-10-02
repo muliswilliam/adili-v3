@@ -19,7 +19,13 @@ import { commissions } from '../commissions/schema.js';
 import { persons } from '../persons/schema.js';
 import type { ColumnMapping } from './header-mapping.js';
 import type { ImportCounts, ImportFailureCode } from './import/representation.js';
-import type { NormalisedRosterRow, RawRosterRow, RowError, RowNote } from './row-validation.js';
+import {
+  MARITAL_STATUSES,
+  type NormalisedRosterRow,
+  type RawRosterRow,
+  type RowError,
+  type RowNote,
+} from './row-validation.js';
 
 /**
  * The roster of each Commission (spec #27): its records, reporting entities, imports with their
@@ -109,7 +115,11 @@ export const rosterRecords = pgTable(
     designation: text(),
     jobGroup: text(),
     reportingEntityId: uuid().references(() => reportingEntities.id),
+    /** Where the officer works, as the roster gives it (spec 05b: pre-fills the bio). */
+    workStation: text(),
     appointmentDate: date({ mode: 'string' }),
+    /** One of `declaration.v1`'s marital statuses (spec 05b: pre-fills the bio). */
+    maritalStatus: text({ enum: MARITAL_STATUSES }),
     email: text(),
     /** E.164. */
     phone: text(),
@@ -197,6 +207,10 @@ export const rosterRecords = pgTable(
       sql`${table.state} in ('not_onboarded', 'onboarded', 'exited')`,
     ),
     check('roster_records_source_check', sql`${table.source} in ('file', 'api')`),
+    check(
+      'roster_records_marital_status_check',
+      sql`${table.maritalStatus} is null or ${table.maritalStatus} in ('single', 'married', 'separated', 'divorced', 'widowed')`,
+    ),
     check(
       'roster_records_exit_date_check',
       sql`${table.state} = 'exited' or ${table.exitDate} is null`,

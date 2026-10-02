@@ -190,6 +190,13 @@
       "when": 1790629547220,
       "tag": "0026_tenant_policy_versions_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790919033915,
+      "tag": "0027_roster_hr_fields",
+      "breakpoints": true
     }
   ]
 }

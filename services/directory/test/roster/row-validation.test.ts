@@ -22,14 +22,81 @@ describe('createRowValidator', () => {
 
   it('accepts null and blank optional fields (API batches send null)', () => {
     const result = createRowValidator()(
-      { ...base, designation: null, email: '   ', phone: null, appointmentDate: '' },
+      {
+        ...base,
+        designation: null,
+        email: '   ',
+        phone: null,
+        appointmentDate: '',
+        workStation: null,
+        maritalStatus: ' ',
+      },
       2,
     );
 
     expect(result).toMatchObject({
       status: 'accepted',
-      normalised: { designation: null, email: null, phone: null, appointmentDate: null },
+      normalised: {
+        designation: null,
+        email: null,
+        phone: null,
+        appointmentDate: null,
+        workStation: null,
+        maritalStatus: null,
+      },
     });
+  });
+
+  it("reads marital status as declaration.v1's values, ignoring case, and rejects others", () => {
+    const validate = createRowValidator();
+    const cases = {
+      single: 'single',
+      ' Married ': 'married',
+      SEPARATED: 'separated',
+      Divorced: 'divorced',
+      widowed: 'widowed',
+    };
+    let row = 2;
+    for (const [input, expected] of Object.entries(cases)) {
+      const result = validate(
+        {
+          personnelFileNumber: `M${row}`,
+          fullName: 'Jane Doe',
+          nationalId: `1000000${row}`,
+          maritalStatus: input,
+        },
+        row,
+      );
+      expect(result.normalised?.maritalStatus, input).toBe(expected);
+      row += 1;
+    }
+
+    expect(validate({ ...base, maritalStatus: 'engaged' }, row).errors).toEqual([
+      {
+        field: 'maritalStatus',
+        code: 'format',
+        message: 'Use single, married, separated, divorced or widowed',
+      },
+    ]);
+  });
+
+  it('keeps the work station as written, up to 100 characters', () => {
+    const validate = createRowValidator();
+
+    expect(
+      validate({ ...base, workStation: '  Afya   House, Nairobi ' }, 2).normalised?.workStation,
+    ).toBe('Afya House, Nairobi');
+    expect(
+      validate(
+        {
+          ...base,
+          personnelFileNumber: 'A2',
+          nationalId: '22222222',
+          workStation: 'x'.repeat(101),
+        },
+        3,
+      ).errors,
+    ).toEqual([{ field: 'workStation', code: 'too-long', message: 'Enter up to 100 characters' }]);
   });
 
   it('accepts an appointment date of today and rejects tomorrow', () => {
