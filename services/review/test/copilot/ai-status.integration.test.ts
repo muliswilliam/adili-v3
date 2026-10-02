@@ -5,7 +5,7 @@ import { type Caller, type ReviewApi, startReviewApi } from '../support/review-a
 
 /**
  * The Commission's AI status line (spec 07c S14, S16) at the review service's seam: the
- * ai-gateway's tenant status (a fake), read by the Commission's admin and supervisors. `psc`
+ * ai-gateway's tenant status (a fake), read by the Commission's admin only. `psc`
  * sends its cases as synthetic data (AI_SYNTHETIC_DATA_TENANTS) and has the demo seed's rule
  * letting the external provider see them; `tsc` sends highly confidential data and has no rule.
  */
@@ -34,18 +34,16 @@ describe('Commission AI status', () => {
     api.ai.reset();
   });
 
-  it('is enabled for the commission admin and supervisor when the gate admits their data class', async () => {
-    for (const caller of [pscAdmin, pscSupervisor]) {
-      const response = await api.get(path('psc'), caller);
+  it('is enabled for the commission admin when the gate admits their data class', async () => {
+    const response = await api.get(path('psc'), pscAdmin);
 
-      expect(response.statusCode).toBe(200);
-      expect(contractErrors(SCHEMA, response.json())).toEqual([]);
-      expect(response.json()).toEqual({
-        enabled: true,
-        providerClass: 'external',
-        dataClasses: ['synthetic'],
-      });
-    }
+    expect(response.statusCode).toBe(200);
+    expect(contractErrors(SCHEMA, response.json())).toEqual([]);
+    expect(response.json()).toEqual({
+      enabled: true,
+      providerClass: 'external',
+      dataClasses: ['synthetic'],
+    });
   });
 
   it('is not enabled where the gate keeps the Commission’s data class from the routed provider', async () => {
@@ -81,6 +79,7 @@ describe('Commission AI status', () => {
     for (const [caller, slug] of [
       [tscAdmin, 'psc'],
       [pscReviewer, 'psc'],
+      [pscSupervisor, 'psc'],
       [platformAdmin, 'psc'],
       [pscAdmin, 'tsc'],
     ] as const) {
