@@ -1,9 +1,9 @@
 import { Card, Skeleton } from '@adili/ui';
 
-/** The transparency pages while they load: a few rows' worth of placeholders. */
-export function TransparencySkeleton() {
+/** The transparency pages while they load: a few rows' worth of placeholders, named `label`. */
+export function TransparencySkeleton({ label }: { label: string }) {
   return (
-    <div role="status" aria-busy="true" aria-label="Loading" className="grid gap-4">
+    <div role="status" aria-busy="true" aria-label={label} className="grid gap-4">
       <div className="flex gap-2">
         <Skeleton className="h-8 w-16 rounded-full" />
         <Skeleton className="h-8 w-32 rounded-full" />
