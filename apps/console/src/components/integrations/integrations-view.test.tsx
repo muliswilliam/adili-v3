@@ -423,7 +423,7 @@ describe('S15 Integrations page', () => {
     });
   });
 
-  it('lists only the systems coverage returns, naming one it has no description of by its id', () => {
+  it('lists only the systems coverage returns', () => {
     renderView({
       result: ok([
         coverage({ system: 'kra' }),
@@ -436,11 +436,109 @@ describe('S15 Integrations page', () => {
         .getAllByRole('listitem')
         .map((item) => item.dataset.system),
     ).toEqual(['kra', 'payroll']);
-    const payroll = within(row('payroll'));
-    fireEvent.click(payroll.getByRole('button', { name: 'PAYROLL' }));
-    expect(payroll.queryByText('Operated by')).toBe(null);
-    payroll.getByText('Rate limit');
-    payroll.getByText('Not cached');
+  });
+
+  describe('S15 instructed systems (payroll, ICMS)', () => {
+    const INSTRUCTED = [
+      coverage({
+        system: 'kra',
+        calls24h: 300,
+        cacheHitRate: 0.5,
+        lastSuccessAt: '2026-09-26T07:27:00Z',
+      }),
+      coverage({
+        system: 'payroll',
+        calls24h: 100,
+        cacheTtlSeconds: null,
+        timeoutMs: 5_000,
+        lastSuccessAt: '2026-09-26T07:20:00Z',
+      }),
+      coverage({
+        system: 'icms',
+        calls24h: 4,
+        cacheTtlSeconds: null,
+        timeoutMs: 5_000,
+        lastSuccessAt: '2026-09-26T07:10:00Z',
+      }),
+    ];
+
+    const hitRate = (system: string) =>
+      within(row(system)).getByText('Cache hit rate').nextElementSibling?.textContent;
+
+    it('names and describes them, with Not cached for a hit rate', () => {
+      renderView({ result: ok(INSTRUCTED) });
+
+      const payroll = within(row('payroll'));
+      payroll.getByText('Payroll (IPPD)');
+      payroll.getByText('Salary stoppages and reinstatements of officers');
+      expect(hitRate('payroll')).toBe('Not cached');
+      const icms = within(row('icms'));
+      icms.getByText('EACC ICMS');
+      icms.getByText("Commissions' referrals, registered as EACC cases");
+      expect(hitRate('icms')).toBe('Not cached');
+      expect(hitRate('kra')).toBe('50%');
+    });
+
+    it('leaves them out of the cache hit rate tile', () => {
+      renderView({ result: ok(INSTRUCTED) });
+
+      const tiles = within(screen.getByRole('group', { name: 'Summary' }));
+      tiles.getByText('404');
+      tiles.getByText('50%');
+    });
+
+    it('expands to who runs them and Not cached for the cache lifetime', () => {
+      renderView({ result: ok(INSTRUCTED) });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Payroll (IPPD)' }));
+      const payroll = within(row('payroll'));
+      payroll.getByText('Operated by');
+      payroll.getByText('State Department for Public Service');
+      expect(payroll.getByText('Cache lifetime').nextElementSibling?.textContent).toBe(
+        'Not cached',
+      );
+      payroll.getByText('5 seconds per call');
+    });
+
+    it('words the pause dialog as instructions held back, not lookups or cached answers', () => {
+      renderView({
+        result: ok(INSTRUCTED),
+        setPaused: vi.fn(() => Promise.resolve({ ok: true, data: coverage() } as const)),
+      });
+
+      fireEvent.click(within(row('payroll')).getByRole('button', { name: 'Pause Payroll (IPPD)' }));
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByText(
+        'Salary stoppages and reinstatements are not sent to Payroll (IPPD) until it is resumed.',
+      );
+      dialog.getByText('Nothing is sent to Payroll (IPPD) while it is paused.');
+      dialog.getByText('They are retried automatically and sent once it is resumed.');
+      dialog.getByText('Recorded in the audit trail with your name.');
+      expect(dialog.queryByText(/Lookups|cache|Registry tab/)).toBe(null);
+    });
+
+    it('says what a paused ICMS holds back, and what resuming it sends', () => {
+      renderView({
+        result: ok([
+          coverage({
+            system: 'icms',
+            cacheTtlSeconds: null,
+            paused: true,
+            pausedBy: 'Amina Wanjiru',
+            pausedAt: '2026-09-26T06:00:00Z',
+            rateLimitPerMinute: 60,
+          }),
+        ]),
+        setPaused: vi.fn(() => Promise.resolve({ ok: true, data: coverage() } as const)),
+      });
+
+      screen.getByText(/Referrals are retried and sent once it is resumed\./);
+      expect(screen.queryByText(/Lookups are marked unavailable/)).toBe(null);
+      fireEvent.click(within(row('icms')).getByRole('button', { name: 'Resume EACC ICMS' }));
+      within(screen.getByRole('dialog')).getByText(
+        'Waiting referrals are sent to EACC ICMS, within its rate limit of 60 calls a minute.',
+      );
+    });
   });
 
   it('draws the cache hit rate as a decorative bar beside its percentage', () => {

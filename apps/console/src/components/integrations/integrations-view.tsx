@@ -29,7 +29,9 @@ import {
   CheckmarkCircle02Icon,
   Clock01Icon,
   InformationCircleIcon,
+  JusticeScale01Icon,
   Location01Icon,
+  Money03Icon,
   PauseIcon,
   PlugSocketIcon,
   RefreshIcon,
@@ -49,19 +51,24 @@ import {
   formatDuration,
   formatLastSuccess,
   formatPercent,
+  isInstructed,
   isLastSuccessStale,
   summarise,
+  type SystemInfo,
   systemInfo,
 } from './coverage';
 import { messages as m } from './messages';
 import { PauseControl, type SetPaused } from './pause-control';
 
-const ICONS: Partial<Record<IntegrationSystem, IconProps['icon']>> = {
+const ICONS: Record<IntegrationSystem, IconProps['icon']> = {
   iprs: UserIcon,
   kra: BankIcon,
   ntsa: Car01Icon,
   brs: Briefcase01Icon,
   ardhisasa: Location01Icon,
+  'hr-suppliers': PlugSocketIcon,
+  payroll: Money03Icon,
+  icms: JusticeScale01Icon,
 };
 
 const TILES = 'grid grid-cols-2 gap-3 min-[980px]:grid-cols-4';
@@ -185,8 +192,8 @@ function Coverage({
           label={m.hitRateTile}
           value={summary.cacheHitRate}
           // Without calls there is no rate: 0% would read as a cache that never hits.
-          format={summary.calls24h > 0 ? formatPercent : () => m.noCalls}
-          description={summary.calls24h > 0 ? m.hitRateHint : m.noCallsHint}
+          format={summary.cachedCalls24h > 0 ? formatPercent : () => m.noCalls}
+          description={summary.cachedCalls24h > 0 ? m.hitRateHint : m.noCallsHint}
         />
         <StatTile
           label={m.openTile}
@@ -266,7 +273,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
             {row.pausedBy && row.pausedAt
               ? `${m.pausedSince(row.pausedBy, formatTime(row.pausedAt))} `
               : null}
-            {m.pausedDetail(systemInfo(row.system))}
+            {pausedDetail(systemInfo(row.system))}
           </AlertDescription>
         </Alert>
       ))}
@@ -274,13 +281,16 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
   );
 }
 
+const pausedDetail = (system: SystemInfo) =>
+  isInstructed(system) ? m.pausedInstructionsDetail(system) : m.pausedDetail(system);
+
 function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; action: ReactNode }) {
   const system = systemInfo(row.system);
   return (
     <SystemStatusRow
       name={system.name}
-      icon={ICONS[row.system] ?? PlugSocketIcon}
-      description={system.use ?? undefined}
+      icon={ICONS[row.system]}
+      description={system.use}
       data-system={row.system}
       metrics={<Metrics row={row} now={now} />}
       action={action}
@@ -310,7 +320,10 @@ function Metrics({ row, now }: { row: SystemCoverage; now: Date }) {
     <dl className="grid grid-cols-[minmax(0,92px)_minmax(0,128px)_minmax(0,124px)] gap-x-5">
       <Metric term={m.calls}>{formatNumber(row.calls24h)}</Metric>
       <Metric term={m.hitRate}>
-        {row.calls24h > 0 ? (
+        {/* Instructions are acts, never cached: a 0% bar would read as a cache that never hits. */}
+        {row.cacheTtlSeconds === null ? (
+          <span className="text-muted-foreground">{m.notCached}</span>
+        ) : row.calls24h > 0 ? (
           <span className="flex items-center gap-2">
             <span className="w-10">{formatPercent(row.cacheHitRate)}</span>
             <Meter value={row.cacheHitRate} />
@@ -368,11 +381,11 @@ function Details({ row, withAction }: { row: SystemCoverage; withAction: boolean
   // Each in the row's column above it (when the row has its figures beside the name): who runs it and its failures under
   // the name, the rate limit and timeout under Calls, the cache and breaker under Last success.
   const items: [string, string, DetailColumn][] = [
-    ...(owner === null ? [] : [[m.operatedBy, owner, 'name'] satisfies DetailItem]),
+    [m.operatedBy, owner, 'name'],
     [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute), 'calls'],
     [
       m.cacheLifetime,
-      // Payroll instructions are acts, not reads: never cached.
+      // Instructions (payroll, ICMS) are acts, not reads: never cached.
       row.cacheTtlSeconds === null
         ? m.notCached
         : m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds)),

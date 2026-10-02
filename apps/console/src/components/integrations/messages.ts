@@ -6,6 +6,11 @@ export interface SystemName {
   plural?: boolean;
 }
 
+/** A system Adili instructs (payroll, ICMS), with what it sends it ("Referrals"). */
+export interface InstructedSystem extends SystemName {
+  instructions: string;
+}
+
 const is = (system: SystemName) => `${system.name} ${system.plural ? 'are' : 'is'}`;
 const itIs = (system: SystemName) => (system.plural ? 'they are' : 'it is');
 const its = (system: SystemName) => (system.plural ? 'their' : 'its');
@@ -43,6 +48,8 @@ export const en = {
   pausedSince: (by: string, time: string) => `Paused by ${by} since ${time}.`,
   pausedDetail: (system: SystemName) =>
     `Lookups are marked unavailable until ${itIs(system)} resumed. Cached answers still serve.`,
+  pausedInstructionsDetail: (system: InstructedSystem) =>
+    `${system.instructions} are retried and sent once ${itIs(system)} resumed.`,
   // Coverage
   coverageLabel: 'Integration coverage',
   calls: 'Calls (24 h)',
@@ -68,6 +75,10 @@ export const en = {
   pauseTitle: (system: string) => `Pause ${system}?`,
   pauseText: (system: SystemName) =>
     `Lookups to ${system.name} will be marked unavailable until ${itIs(system)} resumed.`,
+  pauseInstructionsText: (system: InstructedSystem) =>
+    `${system.instructions} are not sent to ${system.name} until ${itIs(system)} resumed.`,
+  pauseInstructionsRetried: (system: SystemName) =>
+    `They are retried automatically and sent once ${itIs(system)} resumed.`,
   pauseNothingSent: (system: SystemName) =>
     `Nothing is sent to ${system.name} while ${itIs(system)} paused.`,
   pauseCasesFlow: (system: SystemName) =>
@@ -83,6 +94,8 @@ export const en = {
   resumeTitle: (system: string) => `Resume ${system}?`,
   resumeText: (system: SystemName, perMinute: number) =>
     `Lookups to ${system.name} start again, within ${its(system)} rate limit of ${formatNumber(perMinute)} calls a minute.`,
+  resumeInstructionsText: (system: InstructedSystem, perMinute: number) =>
+    `Waiting ${system.instructions.toLowerCase()} are sent to ${system.name}, within ${its(system)} rate limit of ${formatNumber(perMinute)} calls a minute.`,
   resuming: 'Resuming…',
   resumeFailed: (system: string) => `Could not resume ${system}. Try again.`,
   resumedToast: (system: string) => `${system} resumed`,

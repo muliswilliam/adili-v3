@@ -5,6 +5,7 @@ import {
   formatDuration,
   formatLastSuccess,
   formatPercent,
+  isInstructed,
   isLastSuccessStale,
   summarise,
   systemInfo,
@@ -42,6 +43,17 @@ describe('summarise', () => {
 
     expect(summary.calls24h).toBe(400);
     expect(summary.cacheHitRate).toBeCloseTo(0.4);
+  });
+
+  it('leaves systems that never cache out of the hit rate, not out of the calls', () => {
+    const summary = summarise([
+      coverage({ system: 'kra', calls24h: 300, cacheHitRate: 0.5 }),
+      coverage({ system: 'payroll', calls24h: 100, cacheHitRate: 0, cacheTtlSeconds: null }),
+    ]);
+
+    expect(summary.calls24h).toBe(400);
+    expect(summary.cachedCalls24h).toBe(300);
+    expect(summary.cacheHitRate).toBeCloseTo(0.5);
   });
 
   it('has a hit rate of 0 without calls', () => {
@@ -107,13 +119,30 @@ describe('isLastSuccessStale', () => {
 });
 
 describe('systemInfo', () => {
-  it('describes the systems coverage lists and names any other by its id', () => {
+  it('describes every system coverage lists', () => {
     expect(systemInfo('kra')).toEqual({
       name: 'KRA iTax',
       owner: 'Kenya Revenue Authority',
       use: 'PIN, tax compliance and income declared to KRA',
     });
     expect(systemInfo('hr-suppliers').name).toBe('HR supplier lists');
-    expect(systemInfo('icms')).toEqual({ name: 'ICMS', owner: null, use: null });
+    expect(systemInfo('payroll')).toEqual({
+      name: 'Payroll (IPPD)',
+      owner: 'State Department for Public Service',
+      use: 'Salary stoppages and reinstatements of officers',
+      instructions: 'Salary stoppages and reinstatements',
+    });
+    expect(systemInfo('icms')).toEqual({
+      name: 'EACC ICMS',
+      owner: 'Ethics and Anti-Corruption Commission',
+      use: "Commissions' referrals, registered as EACC cases",
+      instructions: 'Referrals',
+    });
+  });
+
+  it('tells the systems Adili instructs from the ones it looks up', () => {
+    expect(isInstructed(systemInfo('payroll'))).toBe(true);
+    expect(isInstructed(systemInfo('icms'))).toBe(true);
+    expect(isInstructed(systemInfo('kra'))).toBe(false);
   });
 });
