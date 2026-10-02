@@ -423,7 +423,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Route'
         '400':
-          description: Request failed validation, or the provider is not one this gateway reaches
+          description: Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches
           content:
             application/problem+json:
               schema:

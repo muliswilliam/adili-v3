@@ -637,6 +637,21 @@ describe('admin API', { timeout: 90_000 }, () => {
       expect((await request('DELETE', '/v1/ai/routing/explain-flags', admin)).statusCode).toBe(400);
       expect(await t.db.select().from(routes)).toEqual([]);
     });
+
+    it("refuses a Commission's own route of a task only EACC calls", async () => {
+      const response = await request(
+        'PUT',
+        '/v1/ai/tenants/rcomm/routing/narrate-compliance-report',
+        admin,
+        { provider: 'local', model: 'm', approvalRef: 'A/1' },
+      );
+      expect(response.statusCode).toBe(400);
+      expect(contractErrors('ProblemDetails', response.json())).toEqual([]);
+      expect(response.json()).toMatchObject({
+        errors: [{ path: 'task', message: 'Must be a task a Commission calls' }],
+      });
+      expect(await t.db.select().from(routes)).toEqual([]);
+    });
   });
 
   describe('tenant AI status', () => {

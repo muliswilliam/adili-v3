@@ -36,7 +36,7 @@ import {
   type RouteView,
   UnknownProviderError,
 } from '../jobs/routing.js';
-import { type TaskName, taskNameSchema } from '../tasks/task.js';
+import { EACC_TASKS, type TaskName, taskNameSchema } from '../tasks/task.js';
 import { type BudgetLimits, Budgets, type TenantUsage, type UsageList } from '../policy/budgets.js';
 import {
   defaultGate,
@@ -177,7 +177,7 @@ export class AdminController {
   @ApiOkResponse({ description: 'Updated', schema: schemaRef('Route') })
   @ApiProblemResponse(
     400,
-    'Request failed validation, or the provider is not one this gateway reaches',
+    'Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches',
   )
   @ApiProblemResponse(403, FORBIDDEN)
   setTenantRoute(
@@ -186,6 +186,15 @@ export class AdminController {
     @Body(new ZodValidationPipe(routeInputSchema)) body: RouteInput,
     @CurrentPrincipal() principal: Principal,
   ): Promise<RouteView> {
+    // No Commission calls an EACC task, so a Commission's own route of one would route nothing.
+    if ((EACC_TASKS as readonly TaskName[]).includes(task)) {
+      throw new ProblemException({
+        type: 'about:blank',
+        title: 'Validation failed',
+        status: HttpStatus.BAD_REQUEST,
+        errors: [{ path: 'task', message: 'Must be a task a Commission calls' }],
+      });
+    }
     return this.setRoute(tenant, task, body, principal);
   }
 

@@ -12,6 +12,7 @@ import type {
   TenantUsage,
   UsageList,
 } from './ai-gateway/types';
+import { isCommissionTask } from './ai-gateway/tasks';
 import { callDirectory, type DirectoryClient } from './directory/client';
 import { callService, type ServiceResult } from './service-call';
 
@@ -99,17 +100,12 @@ export function gateOf(
 
 const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
 
-/** Tasks only EACC calls (ADR-007): a Commission's routes leave them out, as the gateway does. */
-const EACC_TASKS: readonly TaskName[] = ['narrate-compliance-report'];
-
 /**
  * The provider classes a Commission's tasks are routed to: per task its own route, else the
  * default route. Routes to a provider the gateway cannot reach send nothing anywhere.
  */
 export function routedClasses(routes: readonly Route[], tenant: string): ProviderClass[] {
-  const tasks = new Set(
-    routes.map((route) => route.task).filter((task) => !EACC_TASKS.includes(task)),
-  );
+  const tasks = new Set(routes.map((route) => route.task).filter(isCommissionTask));
   const classes = new Set(
     [...tasks].flatMap((task) => {
       const route =

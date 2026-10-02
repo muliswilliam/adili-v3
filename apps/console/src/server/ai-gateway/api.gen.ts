@@ -1141,7 +1141,7 @@ export interface operations {
                     "application/json": components["schemas"]["Route"];
                 };
             };
-            /** @description Request failed validation, or the provider is not one this gateway reaches */
+            /** @description Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches */
             400: {
                 headers: {
                     [name: string]: unknown;
