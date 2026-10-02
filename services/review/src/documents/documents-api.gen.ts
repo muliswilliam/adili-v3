@@ -696,6 +696,7 @@ export interface components {
             builtAt: string;
             reportsIncluded: number;
             aggregates: {
+                fy: number;
                 reporting: {
                     commissions: number;
                     reported: number;
@@ -741,6 +742,7 @@ export interface components {
                         name: string;
                         /** @enum {string} */
                         status: "not-reported" | "submitted-on-time" | "submitted-late";
+                        reportId: string | null;
                         reference: string | null;
                         submittedAt: string | null;
                         initial: {
@@ -761,6 +763,12 @@ export interface components {
                             declared: number;
                             notDeclared: number;
                             rate: number | null;
+                        } | null;
+                        clarifications: number | null;
+                        accessRequests: {
+                            received: number;
+                            granted: number;
+                            declined: number;
                         } | null;
                     };
                 };

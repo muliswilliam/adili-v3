@@ -1815,6 +1815,8 @@ components:
         aggregates:
           type: object
           properties:
+            fy:
+              type: integer
             reporting:
               type: object
               properties:
@@ -1846,6 +1848,7 @@ components:
                 - late
                 - notReported
                 - rate
+              additionalProperties: false
             national:
               type: object
               properties:
@@ -1872,6 +1875,7 @@ components:
                     - declared
                     - notDeclared
                     - rate
+                  additionalProperties: false
                 biennial:
                   type: object
                   properties:
@@ -1895,6 +1899,7 @@ components:
                     - declared
                     - notDeclared
                     - rate
+                  additionalProperties: false
                 final:
                   type: object
                   properties:
@@ -1918,6 +1923,7 @@ components:
                     - declared
                     - notDeclared
                     - rate
+                  additionalProperties: false
                 all:
                   type: object
                   properties:
@@ -1941,6 +1947,7 @@ components:
                     - declared
                     - notDeclared
                     - rate
+                  additionalProperties: false
                 clarifications:
                   type: integer
                   minimum: 0
@@ -1960,6 +1967,7 @@ components:
                     - received
                     - granted
                     - declined
+                  additionalProperties: false
               required:
                 - initial
                 - biennial
@@ -1967,6 +1975,7 @@ components:
                 - all
                 - clarifications
                 - accessRequests
+              additionalProperties: false
             byCommission:
               type: object
               propertyNames:
@@ -1986,6 +1995,11 @@ components:
                       - not-reported
                       - submitted-on-time
                       - submitted-late
+                  reportId:
+                    anyOf:
+                      - type: string
+                        format: uuid
+                      - type: 'null'
                   reference:
                     anyOf:
                       - type: string
@@ -2020,6 +2034,7 @@ components:
                           - declared
                           - notDeclared
                           - rate
+                        additionalProperties: false
                       - type: 'null'
                   biennial:
                     anyOf:
@@ -2048,6 +2063,7 @@ components:
                           - notDeclared
                           - rate
                           - noCycleInPeriod
+                        additionalProperties: false
                       - type: 'null'
                   final:
                     anyOf:
@@ -2073,19 +2089,50 @@ components:
                           - declared
                           - notDeclared
                           - rate
+                        additionalProperties: false
+                      - type: 'null'
+                  clarifications:
+                    anyOf:
+                      - type: integer
+                        minimum: 0
+                      - type: 'null'
+                  accessRequests:
+                    anyOf:
+                      - type: object
+                        properties:
+                          received:
+                            type: integer
+                            minimum: 0
+                          granted:
+                            type: integer
+                            minimum: 0
+                          declined:
+                            type: integer
+                            minimum: 0
+                        required:
+                          - received
+                          - granted
+                          - declined
+                        additionalProperties: false
                       - type: 'null'
                 required:
                   - name
                   - status
+                  - reportId
                   - reference
                   - submittedAt
                   - initial
                   - biennial
                   - final
+                  - clarifications
+                  - accessRequests
+                additionalProperties: false
           required:
+            - fy
             - reporting
             - national
             - byCommission
+          additionalProperties: false
         narrative:
           type: object
           properties:
@@ -2102,6 +2149,7 @@ components:
             - overview
             - findings
             - recommendations
+          additionalProperties: false
         author:
           type: string
           minLength: 1
@@ -2123,6 +2171,7 @@ components:
         - author
         - approver
         - approvedAt
+      additionalProperties: false
       description: "Payload of ncr v1: the approved national consolidated report's NCR reference, financial year, build time and reports included, the aggregates reporting built (`reporting`, `national` and `byCommission`; counts and rates only), the narrative sections, the author and the approver. Sent by the reporting service"
     FormMDeclarationSection:
       type: object

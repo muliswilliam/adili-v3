@@ -27,18 +27,21 @@ const count = z.int().min(0);
 /** declared / expected, 0 to 1; null when none were expected. */
 const rate = z.number().min(0).max(1).nullable();
 
-const section = z.object({ expected: count, declared: count, notDeclared: count, rate });
-const access = z.object({ received: count, granted: count, declined: count });
+const section = z.strictObject({ expected: count, declared: count, notDeclared: count, rate });
+const access = z.strictObject({ received: count, granted: count, declined: count });
 
 /** reporting's `IntakeStatus`. */
 const STATUSES = ['not-reported', 'submitted-on-time', 'submitted-late'] as const;
 
 /**
  * The national report's numbers as reporting builds them (`NationalAggregates`): counts and rates
- * per Form M section, the year's reporting, and a row per Commission. Never an officer.
+ * per Form M section, the year's reporting, and a row per Commission. Never an officer. Strict, so
+ * a field reporting adds fails the issue until the template prints it.
  */
-const aggregatesSchema = z.object({
-  reporting: z.object({
+const aggregatesSchema = z.strictObject({
+  /** The financial year's start year; the payload's `financialYear` is what the report prints. */
+  fy: z.int(),
+  reporting: z.strictObject({
     commissions: count,
     reported: count,
     onTime: count,
@@ -46,7 +49,7 @@ const aggregatesSchema = z.object({
     notReported: count,
     rate,
   }),
-  national: z.object({
+  national: z.strictObject({
     initial: section,
     biennial: section,
     final: section,
@@ -56,14 +59,20 @@ const aggregatesSchema = z.object({
   }),
   byCommission: z.record(
     z.string().min(1).max(20),
-    z.object({
+    z.strictObject({
       name: z.string().trim().min(1).max(200),
       status: z.enum(STATUSES),
+      /** The Commission's report in the reporting service; not printed. */
+      reportId: z.uuid().nullable(),
       reference: z.string().max(60).nullable(),
       submittedAt: z.iso.datetime({ offset: true }).nullable(),
       initial: section.nullable(),
       biennial: section.extend({ noCycleInPeriod: z.boolean() }).nullable(),
       final: section.nullable(),
+      /** Form M section 4: clarifications sought; null until the Commission reports. */
+      clarifications: count.nullable(),
+      /** Form M section 5: requests for access to information; null until it reports. */
+      accessRequests: access.nullable(),
     }),
   ),
 });
@@ -74,7 +83,7 @@ const aggregatesSchema = z.object({
  * narrative sections the analyst wrote, and who wrote and approved it.
  */
 export const ncrPayload = z
-  .object({
+  .strictObject({
     reference: referenceOf(NCR),
     /** `2027/2028`. */
     financialYear: z.string().regex(/^\d{4}\/\d{4}$/),
@@ -85,7 +94,7 @@ export const ncrPayload = z
      * Each section's text, paragraphs separated by a blank line; empty when not written. As long
      * as reporting's `updateNationalReportNarrative` accepts.
      */
-    narrative: z.object({
+    narrative: z.strictObject({
       overview: z.string().max(20_000),
       findings: z.string().max(40_000),
       recommendations: z.string().max(20_000),
@@ -135,6 +144,8 @@ h2{font-size:11pt;font-weight:700;margin:6mm 0 2.5mm;break-after:avoid}
 .rt.dense{font-size:7.4pt}
 .rt.dense td{padding:1.25mm 1.4mm}
 .rt .sub{display:block;color:#8a8985;font-size:6.6pt}
+.rt th.wrap{white-space:normal}
+.rt .ref{display:block;white-space:nowrap}
 .rbar{height:2mm;border-radius:1mm;background:#ecebe8;overflow:hidden;margin-top:1mm}
 .rbar i{display:block;height:100%;background:#1a1a1a}
 .rbar.low i{background:#c9291e}
@@ -226,16 +237,21 @@ function sectionCell(each: Section | null): string {
   return `<td class="num"><span class="${isLow(each.rate) ? 'low-rate' : ''}">${percent(each.rate)}</span><span class="sub">${formatCount(each.declared)} / ${formatCount(each.expected)}</span></td>`;
 }
 
+function accessCell(each: z.infer<typeof access> | null): string {
+  if (each === null) return '<td class="num">-</td>';
+  return `<td class="num">${formatCount(each.received)}<span class="sub">${formatCount(each.granted)} granted · ${formatCount(each.declined)} declined</span></td>`;
+}
+
 function annex(payload: NcrPayload): string {
   const rows = Object.entries(payload.aggregates.byCommission)
     .map(
       ([slug, row], index) =>
-        `<tr><td>${index + 1}</td><td><b>${esc(row.name)}</b><span class="sub">${esc(slug.toUpperCase())}${row.reference ? ` · <span class="mono">${esc(row.reference)}</span>` : ''}</span></td><td>${STATUS_CELL[row.status]}</td><td class="nw">${row.submittedAt ? esc(formatDate(row.submittedAt)) : '-'}</td>${sectionCell(row.initial)}${sectionCell(row.biennial)}${sectionCell(row.final)}</tr>`,
+        `<tr><td>${index + 1}</td><td><b>${esc(row.name)}</b><span class="sub">${esc(slug.toUpperCase())}${row.reference ? `<span class="mono ref">${esc(row.reference)}</span>` : ''}</span></td><td>${STATUS_CELL[row.status]}</td><td class="nw">${row.submittedAt ? esc(formatDate(row.submittedAt)) : '-'}</td>${sectionCell(row.initial)}${sectionCell(row.biennial)}${sectionCell(row.final)}<td class="num">${row.clarifications === null ? '-' : formatCount(row.clarifications)}</td>${accessCell(row.accessRequests)}</tr>`,
     )
     .join('');
   return `<section class="annex"><h2>Annex. Results by Commission</h2>
-<p class="fine">Declared / expected officers per Form M section, as filed. Rates below ${percent(LOW_RATE)} are in red.</p>
-<table class="rt dense"><thead><tr><th style="width:6mm">No</th><th>Commission</th><th>Status</th><th>Received</th><th class="num">Initial</th><th class="num">Biennial</th><th class="num">Final</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="empty">No Commissions</td></tr>'}</tbody></table></section>`;
+<p class="fine">Declared / expected officers per Form M section, as filed, with the clarifications sought (section 4) and the requests for access to information received (section 5). Rates below ${percent(LOW_RATE)} are in red.</p>
+<table class="rt dense"><thead><tr><th style="width:6mm">No</th><th>Commission</th><th>Status</th><th>Received</th><th class="num">Initial</th><th class="num">Biennial</th><th class="num">Final</th><th class="num wrap">Clarifications</th><th class="num wrap">Access requests</th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="empty">No Commissions</td></tr>'}</tbody></table></section>`;
 }
 
 /**

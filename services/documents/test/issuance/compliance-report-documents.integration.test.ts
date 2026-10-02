@@ -663,13 +663,40 @@ describe('S11 the national consolidated report', () => {
     expect(all).toContain('Not reported when this report was built 1 33.3%');
   });
 
-  it('prints the annex: each Commission with its status and declared rates', () => {
+  it('prints the annex: each Commission with its status, declared rates, clarifications and access requests', () => {
     const annex = all.slice(all.indexOf('Annex. Results by Commission'));
-    expect(annex).toContain('Judicial Service Commission JSC Not reported - - - -');
+    expect(annex).toContain('CLARIFICATIONS ACCESS REQUESTS');
+    expect(annex).toContain('Judicial Service Commission JSC Not reported - - - - - -');
     expect(annex).toContain('Public Service Commission PSC');
-    expect(annex).toContain('On time 20 Jul 2028 83.3% 10 / 12 95.0% 95 / 100 75.0% 3 / 4');
+    expect(annex).toContain(
+      'On time 20 Jul 2028 83.3% 10 / 12 95.0% 95 / 100 75.0% 3 / 4 6 7 4 granted · 3 declined',
+    );
     expect(annex).toContain('Teachers Service Commission TSC');
     expect(annex).toContain('Late');
+  });
+
+  it.each([
+    ['the aggregates', (aggregates: Record<string, unknown>) => ({ ...aggregates, extra: 1 })],
+    [
+      "a Commission's row",
+      (aggregates: Record<string, unknown>) => {
+        const byCommission = aggregates.byCommission as Record<string, object>;
+        return {
+          ...aggregates,
+          byCommission: { ...byCommission, psc: { ...byCommission.psc, complaints: 2 } },
+        };
+      },
+    ],
+  ])('refuses a field it does not print in %s with 400', async (_name, drift) => {
+    const request = ncrRequest(randomUUID());
+    const response = await issue({
+      ...request,
+      payload: { ...request.payload, aggregates: drift(request.payload.aggregates) },
+    });
+    expect(response.statusCode, response.body).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([
+      expect.objectContaining({ path: expect.stringMatching(/^payload\.aggregates/) as string }),
+    ]);
   });
 
   it('prints the code, EACC, the NCR reference and RESTRICTED on every page, with the QR code', async () => {
