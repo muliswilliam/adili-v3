@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * Metadata of an issued document (owner)
-         * @description The person the document is about only; anyone else gets 404.
+         * @description The person the document is about, or staff of the issuing Commission named among the document's additional downloaders; anyone else gets 404.
          */
         get: operations["getDocument"];
         put?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned download of an issued PDF (owner)
-         * @description The person the document is about only; anyone else gets 404. Every download link handed out is audited under the issuing Commission.
+         * @description The document's subject person (the `person_id` of their token), or an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
          */
         get: operations["getDocumentDownload"];
         put?: never;
@@ -195,7 +195,7 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A clarification letter names its clarification; its fields are pulled from the review service (internalGetClarificationLetterPayload) for the same tenant. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
         delete?: never;
@@ -308,7 +308,7 @@ export interface components {
          * @description Sets allowed content types and the size limit
          * @enum {string}
          */
-        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment";
+        UploadPurpose: "roster-import" | "declaration-attachment" | "clarification-attachment" | "access-representation";
         /** @enum {string} */
         UploadState: "awaiting-upload" | "clean" | "infected" | "rejected" | "expired" | "deleted";
         /**
@@ -380,7 +380,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip" | "clarification-letter";
+        DocumentType: "acknowledgement-slip" | "clarification-letter" | "access-package" | "access-nil-letter" | "certified-copy";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -388,34 +388,25 @@ export interface components {
         DisclosureLevel: "public" | "restricted" | "confidential";
         /** @enum {string} */
         DocumentStatus: "valid" | "superseded" | "revoked" | "expired";
-        IssueDocument: components["schemas"]["IssueAcknowledgementSlip"] | components["schemas"]["IssueClarificationLetter"];
-        IssueAcknowledgementSlip: {
-            /** @constant */
-            type: "acknowledgement-slip";
+        IssueDocument: {
+            type: components["schemas"]["DocumentType"];
             templateVersion: number;
             /**
              * @description The record the document is about; one document per type and subject. Issuing again returns it
              * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
              */
             subjectRef: string;
-            /** @description The person who may download the document (the declarant); null for none */
+            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy */
             subjectPersonId: string | null;
-            payload: components["schemas"]["AcknowledgementSlipPayload"];
+            watermark?: components["schemas"]["Watermark"];
+            /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
+            downloadWindowDays?: number;
+            /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
+            additionalDownloaders?: string[];
+            /** @description The template's payload: the schema named after `type` */
+            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
         };
-        IssueClarificationLetter: {
-            /** @constant */
-            type: "clarification-letter";
-            templateVersion: number;
-            /**
-             * @description The record the document is about; one document per type and subject. Issuing again returns it
-             * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
-             */
-            subjectRef: string;
-            /** @description The person who may download the document (the declarant); null for none */
-            subjectPersonId: string | null;
-            payload: components["schemas"]["ClarificationLetterSource"];
-        };
-        /** @description The clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
+        /** @description A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
         ClarificationLetterSource: {
             /** Format: uuid */
             clarificationId: string;
@@ -450,6 +441,8 @@ export interface components {
             supersededBy: string | null;
             /** Format: date-time */
             issuedAt: string;
+            /** @description End of the download window; null when the document has none */
+            downloadExpiresAt: string | null;
         };
         DocumentDownload: {
             /**
@@ -460,6 +453,19 @@ export interface components {
             /** Format: date-time */
             expiresAt: string;
             sha256: string;
+        };
+        /** @description Printed across every page as `Issued to <recipientName> · <reference> · <date>` (ADR-010 §6), so a leaked copy traces to its recipient. Required for access-package and access-nil-letter */
+        Watermark: {
+            recipientName: string;
+            /** @example ARQ-PSC-2026-0000012-H */
+            reference: string;
+            /** Format: date */
+            date: string;
+        };
+        CommissionRef: {
+            slug: string;
+            issuerCode: string;
+            name: string;
         };
         /** @description Payload of acknowledgement-slip v1: what the declarations service's acknowledgement payload endpoint returns for a submitted version */
         AcknowledgementSlipPayload: {
@@ -479,6 +485,493 @@ export interface components {
             late: boolean;
             statementCount: number;
             itemCount: number;
+        };
+        /** @description Payload of access-package v1: the declarations service's scoped disclosure for the grant, the clarifications disclosed with it, and what the grant decided */
+        AccessPackagePayload: {
+            disclosure: {
+                /** @constant */
+                schemaVersion: "disclosure.v1";
+                /**
+                 * @description The access request (ARQ) or law-enforcement request (LEA) reference
+                 * @example ARQ-PSC-2026-0000012-H
+                 */
+                grantReference: string;
+                personName: string;
+                commission: components["schemas"]["CommissionRef"];
+                versions: {
+                    reference: string;
+                    version: number;
+                    /** @enum {string} */
+                    type: "initial" | "biennial" | "final";
+                    /** Format: date */
+                    statementDate: string;
+                    /** Format: date-time */
+                    submittedAt: string;
+                    content: components["schemas"]["DisclosedDeclaration"];
+                }[];
+            };
+            /**
+             * @description act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request
+             * @enum {string}
+             */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            recipient: {
+                name: string;
+                organisation: string | null;
+            };
+            /** Format: date-time */
+            grantedAt: string;
+            scope: {
+                years: number[];
+                includeSpouses: boolean;
+                includeChildren: boolean;
+                sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+                includeClarifications: boolean;
+            };
+            /** @description The clarifications of the disclosed declarations, as the review service disclosed them for the grant (oldest issued first; empty when none was issued in the scope); null when the grant does not include clarifications */
+            clarifications: {
+                declarationReference: string;
+                reference: string;
+                /** @enum {string} */
+                status: "issued" | "overdue" | "responded" | "resolved";
+                /** Format: date-time */
+                issuedAt: string;
+                /** Format: date-time */
+                dueAt: string;
+                respondedAt: string | null;
+                responseLate: boolean;
+                resolvedAt: string | null;
+                items: {
+                    label: string;
+                    requirementLabel: string;
+                    text: string;
+                    response: {
+                        text: string;
+                        attachmentNames: string[];
+                    } | null;
+                }[];
+            }[] | null;
+        };
+        /** @description Payload of access-nil-letter v1: a grant whose scope holds no declaration at the Commission, and whom the letter saying so is issued to */
+        AccessNilLetterPayload: {
+            /**
+             * @description The access request (ARQ) or law-enforcement request (LEA) reference
+             * @example ARQ-PSC-2026-0000012-H
+             */
+            grantReference: string;
+            commission: components["schemas"]["CommissionRef"];
+            /** @description The declarant the request is about, as the Commission identified them */
+            declarantName: string;
+            /**
+             * @description act-s36-1: an access request (Form K); act-s36-2: a law-enforcement request
+             * @enum {string}
+             */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            recipient: {
+                name: string;
+                organisation: string | null;
+            };
+            /** Format: date-time */
+            grantedAt: string;
+            scope: {
+                years: number[];
+                includeSpouses: boolean;
+                includeChildren: boolean;
+                sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+                includeClarifications: boolean;
+            };
+        };
+        /** @description Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash) */
+        CertifiedCopyPayload: {
+            commission: components["schemas"]["CommissionRef"];
+            declarantName: string;
+            /** @description Declaration reference number (ADR-011), e.g. DCB-PSC-2027-0000001-1 */
+            reference: string;
+            version: number;
+            /** @enum {string} */
+            type: "initial" | "biennial" | "final";
+            /** Format: date */
+            statementDate: string;
+            /** Format: date-time */
+            submittedAt: string;
+            document: components["schemas"]["DeclarationV1"];
+        };
+        /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
+        DisclosedDeclaration: {
+            /** @constant */
+            schemaVersion: "declaration.v1";
+            /** @enum {string} */
+            type: "initial" | "biennial" | "final";
+            /** Format: date */
+            statementDate: string;
+            incomePeriod?: {
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+                /** @enum {string} */
+                fromSource: "declared" | "assumed";
+            };
+            officer?: components["schemas"]["DeclarationOfficer"];
+            spouses?: {
+                none: boolean;
+                items: {
+                    /** Format: uuid */
+                    id: string;
+                    name: components["schemas"]["PersonName"];
+                    /** @enum {string} */
+                    occupationSector?: "public" | "private" | "not-employed" | "unknown";
+                    separated: boolean;
+                    /** Format: date */
+                    separationDate?: string;
+                }[];
+            };
+            children?: {
+                none: boolean;
+                items: {
+                    /** Format: uuid */
+                    id: string;
+                    name: components["schemas"]["PersonName"];
+                    includedAtStatementDate: boolean;
+                }[];
+            };
+            statements?: {
+                personKey: string;
+                personName: components["schemas"]["PersonName"];
+                /** Format: date */
+                statementDate: string;
+                incomePeriod: {
+                    /** Format: date */
+                    from: string;
+                    /** Format: date */
+                    to: string;
+                };
+                incomeNil?: boolean;
+                income?: components["schemas"]["DeclarationIncomeItem"][];
+                assetsNil?: boolean;
+                assets?: components["schemas"]["DeclarationAssetItem"][];
+                liabilitiesNil?: boolean;
+                liabilities?: components["schemas"]["DeclarationLiabilityItem"][];
+                knowledgeLimitation?: string;
+            }[];
+            otherInformation?: components["schemas"]["DeclarationOtherInformation"];
+            attestation: {
+                /** @constant */
+                text: "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.";
+                /** Format: date-time */
+                declaredAt?: string;
+                reference?: string;
+            };
+        };
+        DeclarationV1: {
+            /** @constant */
+            schemaVersion: "declaration.v1";
+            /** @enum {string} */
+            type: "initial" | "biennial" | "final";
+            /** Format: date */
+            statementDate: string;
+            incomePeriod: {
+                /** Format: date */
+                from: string;
+                /** Format: date */
+                to: string;
+                /** @enum {string} */
+                fromSource: "declared" | "assumed";
+            };
+            officer: components["schemas"]["DeclarationOfficer"];
+            spouses: components["schemas"]["DeclarationSpouses"];
+            children: components["schemas"]["DeclarationChildren"];
+            statements: {
+                personKey: string;
+                personName: components["schemas"]["PersonName"];
+                /** Format: date */
+                statementDate: string;
+                incomePeriod: {
+                    /** Format: date */
+                    from: string;
+                    /** Format: date */
+                    to: string;
+                };
+                incomeNil: boolean;
+                income: components["schemas"]["DeclarationIncomeItem"][];
+                assetsNil: boolean;
+                assets: components["schemas"]["DeclarationAssetItem"][];
+                liabilitiesNil: boolean;
+                liabilities: components["schemas"]["DeclarationLiabilityItem"][];
+                knowledgeLimitation?: string;
+            }[];
+            otherInformation: components["schemas"]["DeclarationOtherInformation"];
+            attestation: {
+                /** @constant */
+                text: "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.";
+                /** Format: date-time */
+                declaredAt?: string;
+                reference?: string;
+            };
+        };
+        DeclarationOfficer: {
+            name: components["schemas"]["PersonName"];
+            birth: {
+                /** Format: date */
+                date: string;
+                place: string;
+            };
+            /** @enum {string} */
+            maritalStatus: "single" | "married" | "separated" | "divorced" | "widowed";
+            maritalStatusChange?: {
+                changed: boolean;
+                explanation?: string;
+            };
+            address: {
+                postal: string;
+                physical: string;
+            };
+            employment: {
+                designation: string;
+                employer: string;
+                /** @enum {string} */
+                nature: "permanent" | "temporary" | "contract" | "other";
+                natureOther?: string;
+                responsibleCommission: string;
+                personnelFileNumber?: string;
+                jobGroup?: string;
+                /** Format: date */
+                appointmentDate?: string;
+                workStation?: string;
+            };
+        };
+        DeclarationSpouses: {
+            none: boolean;
+            items: {
+                /** Format: uuid */
+                id: string;
+                name: components["schemas"]["PersonName"];
+                nationalId?: string;
+                kraPin?: string;
+                /** @enum {string} */
+                occupationSector?: "public" | "private" | "not-employed" | "unknown";
+                separated: boolean;
+                /** Format: date */
+                separationDate?: string;
+            }[];
+        };
+        DeclarationChildren: {
+            none: boolean;
+            items: {
+                /** Format: uuid */
+                id: string;
+                name: components["schemas"]["PersonName"];
+                /** Format: date */
+                dateOfBirth: string;
+                nationalId?: string;
+                includedAtStatementDate: boolean;
+            }[];
+        };
+        DeclarationOtherInformation: {
+            materialChanges: {
+                personKey?: string;
+                /** Format: uuid */
+                itemId?: string;
+                itemDescription?: string;
+                /** @enum {string} */
+                kind: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled" | "marital-status" | "directorship" | "membership";
+                explanation: string;
+            }[];
+            registrableInterests: {
+                directorships: {
+                    company: string;
+                    role: string;
+                    remunerated: boolean;
+                    change?: {
+                        changed: boolean;
+                        /** @enum {string} */
+                        kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
+                        explanation?: string;
+                    };
+                }[];
+                memberships: {
+                    entity: string;
+                    /** @enum {string} */
+                    kind: "company" | "partnership" | "society" | "club" | "foundation" | "trust" | "other";
+                    change?: {
+                        changed: boolean;
+                        /** @enum {string} */
+                        kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
+                        explanation?: string;
+                    };
+                }[];
+                dualCitizenship: {
+                    holds: boolean;
+                    country?: string;
+                    pendingApplication: boolean;
+                };
+                pendingCases: {
+                    forum: string;
+                    reference: string;
+                    nature: string;
+                }[];
+            };
+            freeText: string;
+        };
+        DeclarationIncomeItem: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy" | "other";
+            description: string;
+            amount: {
+                kesCents: number;
+                original?: {
+                    currency: string;
+                    minorUnits: number;
+                };
+            };
+            location: {
+                inKenya: boolean;
+                county?: string;
+                country?: string;
+                detail?: string;
+            };
+            change: {
+                changed: boolean;
+                /** @enum {string} */
+                kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
+                explanation?: string;
+            };
+            source?: {
+                /** @enum {string} */
+                kind: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+                /** Format: uuid */
+                suggestionId: string;
+                /** Format: uuid */
+                verificationResultId?: string;
+                /** Format: uuid */
+                aiJobId?: string;
+                /** Format: date-time */
+                at: string;
+            };
+            attachments?: {
+                /** Format: uuid */
+                attachmentId: string;
+                /** Format: uuid */
+                uploadId: string;
+                fileName: string;
+                sha256: string;
+            }[];
+        };
+        DeclarationAssetItem: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "other";
+            description: string;
+            details?: {
+                parcelNumber?: string;
+                size?: string;
+                registration?: string;
+                makeModel?: string;
+                issuer?: string;
+                quantityOrPercent?: string;
+                institution?: string;
+                accountType?: string;
+                debtor?: string;
+            };
+            value: {
+                kesCents: number;
+                original?: {
+                    currency: string;
+                    minorUnits: number;
+                };
+            };
+            location: {
+                inKenya: boolean;
+                county?: string;
+                country?: string;
+                detail?: string;
+            };
+            joint: {
+                isJoint: boolean;
+                sharePercent?: number;
+                coOwner?: string;
+            };
+            change: {
+                changed: boolean;
+                /** @enum {string} */
+                kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
+                explanation?: string;
+            };
+            source?: {
+                /** @enum {string} */
+                kind: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+                /** Format: uuid */
+                suggestionId: string;
+                /** Format: uuid */
+                verificationResultId?: string;
+                /** Format: uuid */
+                aiJobId?: string;
+                /** Format: date-time */
+                at: string;
+            };
+            attachments?: {
+                /** Format: uuid */
+                attachmentId: string;
+                /** Format: uuid */
+                uploadId: string;
+                fileName: string;
+                sha256: string;
+            }[];
+        };
+        DeclarationLiabilityItem: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            type: "mortgage" | "loan" | "guarantee" | "other";
+            description: string;
+            creditor: string;
+            outstanding: {
+                kesCents: number;
+                original?: {
+                    currency: string;
+                    minorUnits: number;
+                };
+            };
+            location: {
+                inKenya: boolean;
+                county?: string;
+                country?: string;
+                detail?: string;
+            };
+            change: {
+                changed: boolean;
+                /** @enum {string} */
+                kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
+                explanation?: string;
+            };
+            source?: {
+                /** @enum {string} */
+                kind: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+                /** Format: uuid */
+                suggestionId: string;
+                /** Format: uuid */
+                verificationResultId?: string;
+                /** Format: uuid */
+                aiJobId?: string;
+                /** Format: date-time */
+                at: string;
+            };
+            attachments?: {
+                /** Format: uuid */
+                attachmentId: string;
+                /** Format: uuid */
+                uploadId: string;
+                fileName: string;
+                sha256: string;
+            }[];
+        };
+        PersonName: {
+            surname: string;
+            firstName: string;
+            otherNames?: string;
         };
         InternalUpload: {
             /** Format: uuid */
@@ -510,7 +1003,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -980,6 +1473,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Problem type `download-window-closed`: the download window has ended */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     issueDocument: {
@@ -1018,7 +1520,7 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedDocument"];
                 };
             };
-            /** @description Request failed validation, the payload (or the one pulled) is not the template's, or the review service holds no issued clarification with the id for the tenant */
+            /** @description Request failed validation, the payload (or the one pulled) is not the template's, the request lacks what the type requires, or the review service holds no issued clarification with the id for the tenant */
             400: {
                 headers: {
                     [name: string]: unknown;

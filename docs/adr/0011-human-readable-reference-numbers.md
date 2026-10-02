@@ -18,7 +18,7 @@ Internal IDs (UUIDv7) aren't human-friendly. The verification ID (ADR-010) is de
 | Identifier | Example | Purpose | Visible to |
 |---|---|---|---|
 | Internal ID | `0192f3a4-...` (UUIDv7) | Primary key, joins, events | Systems only |
-| **Reference number** | `DCB-TSC-2027-0012345-K` | Everyday human reference | Authorised users, on documents |
+| **Reference number** | `DCB-TSC-2027-0012345-A` | Everyday human reference | Authorised users, on documents |
 | Verification ID | `ADL-7Q4K-M2XR-9HTC` | Public QR verification (ADR-010); random, can't be enumerated | Anyone holding the document |
 
 Reference numbers are sequential and so guessable. They are **never used as public URLs or access tokens**, and knowing a number grants no access.
@@ -36,17 +36,17 @@ Reference numbers are sequential and so guessable. They are **never used as publ
 
 | Code | Record | Example |
 |---|---|---|
-| `DCI` / `DCB` / `DCF` | Initial / biennial / final declaration (the number is also the acknowledgement receipt number) | `DCB-TSC-2027-0012345-K` |
+| `DCI` / `DCB` / `DCF` | Initial / biennial / final declaration (the number is also the acknowledgement receipt number) | `DCB-TSC-2027-0012345-A` |
 | `CLR` | Clarification request (s.35) | `CLR-PSC-2028-0000451-1` |
-| `CMP` | Compliance determination | `CMP-PSC-2028-0003120-P` |
-| `ADM` | Administrative action (notice, warning, salary stoppage, disciplinary) | `ADM-CPSB047-2028-0000087-X` |
-| `ARQ` | Access request, Form K (s.36, Reg 22) | `ARQ-JSC-2028-0000012-5` |
-| `LEA` | Law enforcement access request (Reg 23) | `LEA-PSC-2028-0000004-M` |
-| `RPT` | Form M compliance report | `RPT-TSC-2028-0000001-A` |
-| `NCR` | EACC national consolidated report | `NCR-EACC-2028-0000001-Q` |
-| `RFL` | Referral to EACC / ICMS (Reg 20) | `RFL-PSC-2028-0000031-7` |
-| `CRT` | Compliance certificate (ADR-009) | `CRT-TSC-2027-0098765-D` |
-| `DLG` | Delegation record (s.33, s.7(c)) | `DLG-PSC-2026-0000003-2` |
+| `CMP` | Compliance determination | `CMP-PSC-2028-0003120-S` |
+| `ADM` | Administrative action (notice, warning, salary stoppage, disciplinary) | `ADM-CPSB047-2028-0000087-D` |
+| `ARQ` | Access request, Form K (s.36, Reg 22) | `ARQ-JSC-2028-0000012-A` |
+| `LEA` | Law enforcement access request (Reg 23) | `LEA-PSC-2028-0000004-9` |
+| `RPT` | Form M compliance report | `RPT-TSC-2028-0000001-B` |
+| `NCR` | EACC national consolidated report | `NCR-EACC-2028-0000001-Z` |
+| `RFL` | Referral to EACC / ICMS (Reg 20) | `RFL-PSC-2028-0000031-H` |
+| `CRT` | Compliance certificate (ADR-009) | `CRT-TSC-2027-0098765-I` |
+| `DLG` | Delegation record (s.33, s.7(c)) | `DLG-PSC-2026-0000003-K` |
 | `OFR` | **Officer reference**: permanent, person-level, not tied to a tenant (follows the person across transfers; used by helpdesk instead of the national ID) | `OFR-0482913-L` (no issuer or period) |
 
 The code list and formats live in a versioned **numbering scheme registry** (configuration data), so EACC can add record types or adjust formats without code changes. **Issued numbers are never changed, renumbered or reused.**
@@ -60,7 +60,7 @@ The code list and formats live in a versioned **numbering scheme registry** (con
 
 ### 4. Relationships and external numbers
 
-- Child records store and display their parent reference: a clarification shows "re: `DCB-TSC-2027-0012345-K`".
+- Child records store and display their parent reference: a clarification shows "re: `DCB-TSC-2027-0012345-A`".
 - **External references** are stored alongside ours and searchable, with the source system recorded:
   - numbers from federated Commissions' own systems (ADR-009)
   - **ICMS case numbers** returned when a referral is accepted
@@ -71,7 +71,7 @@ The code list and formats live in a versioned **numbering scheme registry** (con
 
 - **Documents:** header ("Ref:") and footer of every page, next to the QR verification code (ADR-010)
 - **UI:** page titles, breadcrumbs, lists, copy-to-clipboard button
-- **Notifications:** emails and SMS ("Declaration DCB-TSC-2027-0012345-K received")
+- **Notifications:** emails and SMS ("Declaration DCB-TSC-2027-0012345-A received")
 - **APIs, webhooks, exports:** a `reference` field on every resource (ADR-009); Form M non-filer lists; CSV/XLSX exports
 - **Audit events:** `resource.reference` (ADR-008), so investigators can search the trail by number
 

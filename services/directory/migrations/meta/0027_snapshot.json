@@ -1,5 +1,5 @@
 {
-  "id": "a9db880f-f744-489a-95b6-11a5e56577e2",
+  "id": "d42a311e-9dd7-4001-a4f2-6a278796c8ef",
   "prevId": "2625aa1b-d636-4213-91ef-42137916ed5e",
   "version": "7",
   "dialect": "postgresql",
@@ -493,6 +493,173 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.agencies": {
+      "name": "agencies",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "legal_basis": {
+          "name": "legal_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "agencies_code_pattern": {
+          "name": "agencies_code_pattern",
+          "value": "\"agencies\".\"code\" ~ '^[A-Z][A-Z0-9]{1,9}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.law_enforcement_officers": {
+      "name": "law_enforcement_officers",
+      "schema": "",
+      "columns": {
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agency_code": {
+          "name": "agency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_at": {
+          "name": "invited_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activated_at": {
+          "name": "activated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "law_enforcement_officers_agency_code_idx": {
+          "name": "law_enforcement_officers_agency_code_idx",
+          "columns": [
+            {
+              "expression": "agency_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "law_enforcement_officers_person_id_persons_id_fk": {
+          "name": "law_enforcement_officers_person_id_persons_id_fk",
+          "tableFrom": "law_enforcement_officers",
+          "tableTo": "persons",
+          "columnsFrom": [
+            "person_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "law_enforcement_officers_agency_code_agencies_code_fk": {
+          "name": "law_enforcement_officers_agency_code_agencies_code_fk",
+          "tableFrom": "law_enforcement_officers",
+          "tableTo": "agencies",
+          "columnsFrom": [
+            "agency_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "law_enforcement_officers_state_check": {
+          "name": "law_enforcement_officers_state_check",
+          "value": "\"law_enforcement_officers\".\"state\" in ('invited', 'activated', 'revoked')"
+        },
+        "law_enforcement_officers_activated_at_check": {
+          "name": "law_enforcement_officers_activated_at_check",
+          "value": "\"law_enforcement_officers\".\"state\" <> 'activated' or \"law_enforcement_officers\".\"activated_at\" is not null"
+        },
+        "law_enforcement_officers_revoked_at_check": {
+          "name": "law_enforcement_officers_revoked_at_check",
+          "value": "(\"law_enforcement_officers\".\"state\" = 'revoked') = (\"law_enforcement_officers\".\"revoked_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.onboarding_failures": {
       "name": "onboarding_failures",
       "schema": "",
@@ -916,11 +1083,18 @@
           "notNull": true,
           "default": "uuidv7()"
         },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'declarant'"
+        },
         "national_id": {
           "name": "national_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "full_name": {
           "name": "full_name",
@@ -932,7 +1106,7 @@
           "name": "ofr",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "keycloak_user_id": {
           "name": "keycloak_user_id",
@@ -1018,7 +1192,16 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "persons_kind_check": {
+          "name": "persons_kind_check",
+          "value": "\"persons\".\"kind\" in ('declarant', 'law-enforcement')"
+        },
+        "persons_declarant_identity_check": {
+          "name": "persons_declarant_identity_check",
+          "value": "\"persons\".\"kind\" <> 'declarant' or (\"persons\".\"national_id\" is not null and \"persons\".\"ofr\" is not null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.roster_api_credentials": {
@@ -1806,12 +1989,6 @@
         "reporting_entity_id": {
           "name": "reporting_entity_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "employer_code": {
-          "name": "employer_code",
-          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

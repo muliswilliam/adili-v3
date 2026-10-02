@@ -146,3 +146,18 @@ export const internalRosterRecordPageSchema = z.object({
     .meta({ description: 'Pass as `cursor` for the next page; null on the last page' }),
 });
 export type InternalRosterRecordPage = z.infer<typeof internalRosterRecordPageSchema>;
+
+/**
+ * An invitation to set up a declarant account sent to a roster record's contacts (spec 10): which
+ * channels it went out on, never the contacts themselves.
+ */
+export const onboardingInvitationSchema = z.object({
+  id: z.uuid(),
+  rosterRecordId: z.uuid(),
+  channels: z.array(z.enum(['email', 'sms'])).meta({
+    description:
+      'The channels notifications sent it on; empty when the roster holds no contact, or none could be reached',
+  }),
+  sentAt: z.iso.datetime(),
+});
+export type OnboardingInvitation = z.infer<typeof onboardingInvitationSchema>;

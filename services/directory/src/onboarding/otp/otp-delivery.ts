@@ -6,11 +6,11 @@ export interface OtpMessage {
   /** The email address, or the phone number in E.164. */
   to: string;
   code: string;
-  /** The Commission the declarant onboards with, named in the message. */
-  commissionName: string;
+  /** The Commission the declarant onboards with, named in the message; none for an applicant. */
+  commissionName?: string;
   expiresInMinutes: number;
-  /** The Commission's slug, for the message record. */
-  tenant: string;
+  /** The Commission's slug, for the message record; none for an applicant (a platform message). */
+  tenant?: string;
 }
 
 /** The code could not be sent; nothing about the session changes (the caller rolls back). */

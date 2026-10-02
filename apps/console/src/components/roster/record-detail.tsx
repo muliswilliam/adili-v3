@@ -9,6 +9,7 @@ import {
   formatDateTime,
   Icon,
   Skeleton,
+  formatPhone,
 } from '@adili/ui';
 import {
   Clock01Icon,
@@ -20,7 +21,6 @@ import {
 import type { ReactNode } from 'react';
 
 import type { RosterRecord } from '../../server/directory/client';
-import { formatPhone } from '../commissions/phone';
 import { Page, PageHead, SectionCard } from '../page';
 import { IdentityMismatchBadge, IdentityMismatchCallout } from './identity-mismatch';
 import { messages as m } from './messages';

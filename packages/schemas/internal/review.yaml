@@ -1403,6 +1403,108 @@ paths:
       x-audited-read:
         action: review.clarifications.details.read
         resource: clarification
+  /internal/v1/review/clarifications/disclosures:
+    post:
+      tags:
+        - internal
+      summary: The clarifications an access grant discloses with the declarations (audited)
+      description: "Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1), Regulation 22(1)) discloses those issued on the declarations it disclosed: every clarification issued on each named declaration of the person at the Commission (never a draft or a withdrawn one), oldest issued first, each item as its letter put it with the declarant's answer (text and the names of the files attached; not the files), cut to the granted household members and sections. An item goes out only when everything it can concern is granted: a spouse's or child's needs them included; `bio` needs bio, `household` bio with spouses and children, `other` other information, a financial statement's income, assets and liabilities, the declaration as a whole every section and both household members. A clarification with no item in the scope is left out; the reviewer's resolution note never goes out. Audited (`audit.read.v1`, action `clarification.disclosed`) with the legal basis, the grant reference, the recipient and the clarifications served. A read: no Idempotency-Key, safe to retry."
+      operationId: internalDiscloseClarifications
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Acting-Subject
+          in: header
+          description: The access officer who decided the grant; recorded in the audit event
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationDisclosureRequest'
+      responses:
+        '200':
+          description: The clarifications in the granted scope, oldest issued first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationDisclosure'
+        '400':
+          description: Body failed validation, a legal basis that does not go with the grant reference, or no X-Acting-Subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope review:disclosures
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: clarification.disclosed
+        resource: clarification
+  /internal/v1/review/clarifications/disclosure-counts:
+    post:
+      tags:
+        - internal
+      summary: How many clarifications a scope would disclose (audited, no content)
+      description: 'Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees what the scope holds: per declaration named, how many clarifications a grant of the scope would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one with none). Counts only, never content. Audited (`audit.read.v1`, action `clarification.disclosure-counted`) with the legal basis, the request reference, the officer as recipient and the clarifications counted. A read: no Idempotency-Key.'
+      operationId: internalCountClarificationDisclosure
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Acting-Subject
+          in: header
+          description: The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClarificationCountsRequest'
+      responses:
+        '200':
+          description: Per declaration named, the clarifications in the scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClarificationCounts'
+        '400':
+          description: Body failed validation, a legal basis that does not go with the request reference, or no X-Acting-Subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope review:disclosures
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: clarification.disclosure-counted
+        resource: clarification
   /v1/review/cases/{caseId}/determinations:
     post:
       tags:
@@ -4763,6 +4865,219 @@ components:
         - issuedAt
         - dueAt
         - portalUrl
+    ClarificationDisclosureRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        grantReference:
+          type: string
+          pattern: ^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
+        legalBasis:
+          type: string
+          enum:
+            - act-s36-1
+            - act-s36-2
+        declarationReferences:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            type: string
+            enum:
+              - bio
+              - income
+              - assets
+              - liabilities
+              - other
+        recipientSubject:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+        - personId
+        - grantReference
+        - legalBasis
+        - declarationReferences
+        - includeSpouses
+        - includeChildren
+        - sections
+        - recipientSubject
+      additionalProperties: false
+    ClarificationDisclosure:
+      type: object
+      properties:
+        grantReference:
+          type: string
+        clarifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosedClarification'
+          description: Oldest issued first; empty when none was issued or none is in the scope
+      required:
+        - grantReference
+        - clarifications
+    DisclosedClarification:
+      type: object
+      properties:
+        declarationReference:
+          type: string
+          description: The declaration it was issued on
+        reference:
+          type: string
+          description: '`CLR-...`'
+        status:
+          type: string
+          enum:
+            - issued
+            - overdue
+            - responded
+            - resolved
+        issuedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        respondedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        responseLate:
+          type: boolean
+        resolvedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        items:
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosedClarificationItem'
+      required:
+        - declarationReference
+        - reference
+        - status
+        - issuedAt
+        - dueAt
+        - respondedAt
+        - responseLate
+        - resolvedAt
+        - items
+    DisclosedClarificationItem:
+      type: object
+      properties:
+        label:
+          type: string
+          description: What the item concerns, as the letter put it
+        requirementLabel:
+          type: string
+          description: What Act s.35(4) required of the declarant
+        text:
+          type: string
+          description: The reviewer's request
+        response:
+          anyOf:
+            - type: object
+              properties:
+                text:
+                  type: string
+                attachmentNames:
+                  type: array
+                  items:
+                    type: string
+                  description: Names of the files attached to the answer; the files are not disclosed
+              required:
+                - text
+                - attachmentNames
+            - type: 'null'
+          description: The declarant's answer; null when not answered
+      required:
+        - label
+        - requirementLabel
+        - text
+        - response
+    ClarificationCountsRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+        grantReference:
+          type: string
+          pattern: ^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
+        legalBasis:
+          type: string
+          enum:
+            - act-s36-1
+            - act-s36-2
+        declarationReferences:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            type: string
+            enum:
+              - bio
+              - income
+              - assets
+              - liabilities
+              - other
+      required:
+        - personId
+        - grantReference
+        - legalBasis
+        - declarationReferences
+        - includeSpouses
+        - includeChildren
+        - sections
+      additionalProperties: false
+    ClarificationCounts:
+      type: object
+      properties:
+        counts:
+          type: array
+          items:
+            type: object
+            properties:
+              declarationReference:
+                type: string
+              clarifications:
+                type: integer
+                minimum: 0
+            required:
+              - declarationReference
+              - clarifications
+          description: One per declaration named, in the order named
+      required:
+        - counts
     RegistrySystem:
       type: string
       enum:
@@ -6160,6 +6475,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -6169,6 +6485,18 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - no-applicant-record
+            - request-decided
+            - request-closed
+            - officer-resolved
+            - not-under-decision
+            - not-pending-verification
+            - lea-account-inactive
+            - declarant-notified
+            - representations-closed
+            - download-window-closed
+            - scope-exceeds-request
+            - grounds-required
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

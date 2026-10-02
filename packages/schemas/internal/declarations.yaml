@@ -1028,6 +1028,183 @@ paths:
       x-audited-read:
         action: declaration.acknowledgement-payload.pulled
         resource: declaration-version
+  /internal/v1/declarations/disclosures:
+    post:
+      tags:
+        - internal
+      summary: Render the scoped disclosure of a person's submitted declarations for a grant (audited)
+      description: Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.
+      operationId: internalRenderDisclosure
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Acting-Subject
+          in: header
+          description: The access officer who decided the grant; recorded in the audit event
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureRequest'
+      responses:
+        '200':
+          description: The disclosure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureDocument'
+        '400':
+          description: Invalid scope, a legal basis that does not go with the grant reference, or no X-Acting-Subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:disclosures
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No version of the person's declarations at the acting Commission in the granted years
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.disclosed
+        resource: declaration
+  /internal/v1/declarations/disclosure-counts:
+    post:
+      tags:
+        - internal
+      summary: Count what a scope would disclose of a person's declarations (audited, no content)
+      description: "Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each year of the scope, the person's versions in force at the Commission and, per section and included household member kind, how many entries and persons the disclosure of that scope would let out: counts only, never content, so the access officer can see before deciding whether a grant would disclose anything. A year with none, or a person who is not the Commission's declarant, counts zero. Audited (`audit.read.v1`, action `declaration.disclosure-counted`) with the legal basis, the request reference and the officer as recipient."
+      operationId: internalCountDisclosure
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Acting-Subject
+          in: header
+          description: The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureCountsRequest'
+      responses:
+        '200':
+          description: The counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureCounts'
+        '400':
+          description: Invalid scope, a legal basis that does not go with the request reference, or no X-Acting-Subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:disclosures
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.disclosure-counted
+        resource: declaration
+  /internal/v1/declarations/{declarationId}/versions/{version}/full-document:
+    post:
+      tags:
+        - internal
+      summary: The full immutable document of a version for the declarant's certified copy (audited as self-access)
+      description: "Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. A read, posted so that the recipient, possibly a representative's name, stays out of the URL. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32): X-Acting-Subject is who asked, `recipient` whom the copy is handed to (the declarant, or their representative)."
+      operationId: internalGetFullDocumentForCertifiedCopy
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          required: true
+          in: path
+          schema:
+            type: integer
+            minimum: 1
+        - name: X-Acting-Subject
+          in: header
+          description: 'Who asked for the certified copy: the declarant online, or the access officer recording their written application; recorded in the audit event as the actor'
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FullDocumentRequest'
+      responses:
+        '200':
+          description: The version in full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullVersionDocument'
+        '400':
+          description: version is not a positive integer, the body failed validation, or no X-Acting-Subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:disclosures
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such version of the person's declarations at the acting Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.full-document.pulled
+        resource: declaration-version
   /v1/help/search:
     get:
       tags:
@@ -1778,63 +1955,51 @@ paths:
       x-audited-read:
         action: obligation.officers.pulled
         resource: filing-obligation
-  /internal/v1/declarations/disclosures:
-    post:
-      tags:
-        - internal
-      summary: Render the scoped disclosure of a person's submitted declarations for a grant (audited)
-      description: |
-        Only the versions, household members and sections in the granted scope are decrypted and
-        returned. The read is audited with the grant reference as legal basis and the recipient.
-      operationId: internalRenderDisclosure
-      x-draft: true
-      parameters:
-        - name: X-Acting-Subject
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DisclosureRequest'
-      responses:
-        '200':
-          description: Disclosure document
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DisclosureDocument'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/declarations/{declarationId}/versions/{version}/full-document:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-      - name: X-Acting-Subject
-        in: header
-        required: true
-        schema:
-          type: string
+  /internal/v1/persons/{personId}/declaration-versions:
     get:
       tags:
         - internal
-      summary: The full immutable document of a version for the declarant's certified copy (audited as self-access)
-      operationId: internalGetFullDocumentForCertifiedCopy
-      x-draft: true
+      summary: A person's submitted versions at the Commission (for certified copies)
+      description: "Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant; audited. Latest submitted first: declaration, version, reference, type, statement date, when submitted and whether a later version replaced it; no content. The access service lists them for the access officer recording a written self-access application. Empty when the acting tenant holds none of the person's."
+      operationId: internalListPersonVersions
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
-          description: Document
+          description: Versions
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/InternalVersionDocument'
-        '404':
-          $ref: '#/components/responses/NotFound'
+                type: array
+                items:
+                  $ref: '#/components/schemas/InternalPersonVersion'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.versions.listed
+        resource: declaration-version
   /v1/declarations/{declarationId}/suggestions/lookups:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -3565,6 +3730,304 @@ components:
       required:
         - declarantPersonId
         - slip
+    DisclosureSection:
+      type: string
+      enum:
+        - bio
+        - income
+        - assets
+        - liabilities
+        - other
+      description: "`bio`: the officer's particulars, with the included spouses' and children's; `income`, `assets`, `liabilities`: those parts of the included persons' statements; `other`: other information"
+    LegalBasis:
+      type: string
+      enum:
+        - act-s36-1
+        - act-s36-2
+      description: Act s.36(1) for a Form K grant (ARQ), s.36(2) for a law-enforcement grant (LEA)
+    GrantReference:
+      type: string
+      pattern: ^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$
+      description: "ADR-011: the access request's ARQ (Form K) or LEA (law enforcement) reference"
+      examples:
+        - ARQ-PSC-2028-0000012-N
+    DisclosureRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: The declarant whose declarations are disclosed
+        grantReference:
+          $ref: '#/components/schemas/GrantReference'
+        legalBasis:
+          $ref: '#/components/schemas/LegalBasis'
+        recipientSubject:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The account the disclosure is handed to (the applicant, the law-enforcement officer); recorded in the audit event
+        years:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+          description: "Declaration years: the statement dates' years"
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosureSection'
+      required:
+        - personId
+        - grantReference
+        - legalBasis
+        - recipientSubject
+        - years
+        - includeSpouses
+        - includeChildren
+        - sections
+      additionalProperties: false
+      description: The granted scope of an access request, and whom it is disclosed to
+    DisclosedVersion:
+      type: object
+      properties:
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        version:
+          type: integer
+          minimum: 1
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        content:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: 'The declaration.v1 document cut to the granted scope: always `schemaVersion`, `type`, `statementDate` and `attestation`; with `bio`, `officer` (and `spouses`, `children` when included, without their national IDs, KRA PINs or dates of birth); with `income`, `assets` or `liabilities`, `statements` of the included persons holding only those parts (`incomePeriod` too with `income`); with `other`, `otherInformation` (material changes of the included persons). A key that is absent was not granted'
+      required:
+        - reference
+        - version
+        - type
+        - statementDate
+        - submittedAt
+        - content
+    DisclosureDocument:
+      type: object
+      properties:
+        schemaVersion:
+          type: string
+          const: disclosure.v1
+        grantReference:
+          $ref: '#/components/schemas/GrantReference'
+        personName:
+          type: string
+          description: The declarant as named in the latest disclosed version
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        versions:
+          minItems: 1
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosedVersion'
+          description: Per granted year, the version in force of each of the person's declarations at the Commission, by statement date. A granted year with none has no entry
+      required:
+        - schemaVersion
+        - grantReference
+        - personName
+        - commission
+        - versions
+      description: "disclosure.v1: what a grant discloses of a declarant's declarations"
+    DisclosureCountsRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: The declarant whose declarations are counted
+        grantReference:
+          $ref: '#/components/schemas/GrantReference'
+        legalBasis:
+          $ref: '#/components/schemas/LegalBasis'
+        years:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+          description: "Declaration years: the statement dates' years"
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosureSection'
+      required:
+        - personId
+        - grantReference
+        - legalBasis
+        - years
+        - includeSpouses
+        - includeChildren
+        - sections
+      additionalProperties: false
+      description: A scope an access officer is about to decide on, to be counted
+    DisclosureYearCounts:
+      type: object
+      properties:
+        year:
+          type: integer
+          description: "A year of the scope: the statement dates' year"
+        declarations:
+          type: integer
+          minimum: 0
+          description: The person's declarations at the Commission that year (versions in force)
+        declarationReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeclarationReference'
+          description: Their reference numbers, for counting the clarifications issued on them; the access service never shows them
+        sections:
+          type: object
+          properties:
+            bio:
+              type: integer
+              minimum: 0
+            income:
+              type: integer
+              minimum: 0
+            assets:
+              type: integer
+              minimum: 0
+            liabilities:
+              type: integer
+              minimum: 0
+            other:
+              type: integer
+              minimum: 0
+          description: "Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out, `income`, `assets`, `liabilities` the entries of the included persons' statements, `other` the material changes, directorships, memberships, pending cases and a written statement"
+        spouses:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The spouses anything would go out about; null when not included
+        children:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The children anything would go out about; null when not included
+      required:
+        - year
+        - declarations
+        - declarationReferences
+        - sections
+        - spouses
+        - children
+    DisclosureCounts:
+      type: object
+      properties:
+        years:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosureYearCounts'
+          description: Every year of the scope, ascending, with zero counts for a year with none
+      required:
+        - years
+      description: "How much a scope would disclose of a person's declarations, in counts only: never content"
+    FullDocumentRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: 'The declarant asking for the copy: the version must be theirs'
+        recipient:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: "Whom the certified copy is handed to, recorded in the audit event: the declarant's account (token subject) when they asked online; for a written application made in person, the representative's name when made through one, else the declarant"
+      required:
+        - personId
+        - recipient
+      additionalProperties: false
+      description: Whose version is asked for in full, and whom the certified copy goes to
+    FullVersionDocument:
+      type: object
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        versionId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        personId:
+          type: string
+          format: uuid
+          description: The declarant
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        canonicalSha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+          description: Hex SHA-256 of the document's RFC 8785 canonical JSON
+        commission:
+          $ref: '#/components/schemas/CommissionRef'
+        declarantName:
+          type: string
+          description: As declared in the version (first, other and surname)
+        document:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+          description: The immutable declaration.v1 document as submitted, decrypted
+      required:
+        - declarationId
+        - versionId
+        - version
+        - personId
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - canonicalSha256
+        - commission
+        - declarantName
+        - document
+      description: A submitted version in full, for the declarant's certified copy
     HelpLanguage:
       type: string
       enum:
@@ -3912,6 +4375,36 @@ components:
         - personnelFileNumber
         - document
         - attachments
+    InternalPersonVersion:
+      type: object
+      properties:
+        declarationId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        reference:
+          $ref: '#/components/schemas/DeclarationReference'
+        type:
+          $ref: '#/components/schemas/ObligationType'
+        statementDate:
+          type: string
+          format: date
+        submittedAt:
+          type: string
+          format: date-time
+        superseded:
+          type: boolean
+          description: A later version of the declaration replaced it
+      required:
+        - declarationId
+        - version
+        - reference
+        - type
+        - statementDate
+        - submittedAt
+        - superseded
     InternalPreviousVersion:
       type: object
       properties:
@@ -4067,6 +4560,7 @@ components:
             - iprs-unavailable
             - identity-unavailable
             - email-in-use
+            - identity-mismatch
             - step-up-required
             - incomplete
             - before-statement-date
@@ -4076,6 +4570,18 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - no-applicant-record
+            - request-decided
+            - request-closed
+            - officer-resolved
+            - not-under-decision
+            - not-pending-verification
+            - lea-account-inactive
+            - declarant-notified
+            - representations-closed
+            - download-window-closed
+            - scope-exceeds-request
+            - grounds-required
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -4098,99 +4604,6 @@ components:
         - type
         - title
         - status
-    DisclosureRequest:
-      type: object
-      required:
-        - personId
-        - tenant
-        - grantReference
-        - legalBasis
-        - recipientSubject
-        - years
-        - includeSpouses
-        - includeChildren
-        - sections
-      properties:
-        personId:
-          type: string
-          format: uuid
-        tenant:
-          type: string
-        grantReference:
-          type: string
-          description: ARQ or LEA reference
-        legalBasis:
-          type: string
-          enum:
-            - act-s36-1
-            - act-s36-2
-        recipientSubject:
-          type: string
-        years:
-          type: array
-          minItems: 1
-          items:
-            type: integer
-        includeSpouses:
-          type: boolean
-        includeChildren:
-          type: boolean
-        sections:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            enum:
-              - bio
-              - income
-              - assets
-              - liabilities
-              - other
-    DisclosureDocument:
-      type: object
-      required:
-        - schemaVersion
-        - grantReference
-        - personName
-        - commission
-        - versions
-      properties:
-        schemaVersion:
-          const: disclosure.v1
-        grantReference:
-          type: string
-        personName:
-          type: string
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        versions:
-          type: array
-          items:
-            type: object
-            required:
-              - reference
-              - version
-              - type
-              - statementDate
-              - submittedAt
-              - content
-            properties:
-              reference:
-                $ref: '#/components/schemas/DeclarationReference'
-              version:
-                type: integer
-              type:
-                $ref: '#/components/schemas/ObligationType'
-              statementDate:
-                type: string
-                format: date
-              submittedAt:
-                type: string
-                format: date-time
-              content:
-                type: object
-                description: Subset of the declaration.v1 document limited to the granted persons and sections
-                additionalProperties: true
     SuggestionSource:
       type: string
       enum:
@@ -4414,13 +4827,6 @@ components:
       schema:
         type: string
         format: uuid
-    VersionNumber:
-      name: version
-      in: path
-      required: true
-      schema:
-        type: integer
-        minimum: 1
     SuggestionId:
       name: suggestionId
       in: path
@@ -4435,14 +4841,6 @@ components:
       schema:
         type: string
         format: uuid
-    ActingTenant:
-      name: X-Acting-Tenant
-      in: header
-      required: true
-      description: Tenant the calling service acts for; the resource must belong to it
-      schema:
-        type: string
-        pattern: ^[a-z][a-z0-9]{1,19}$
     IdempotencyKey:
       name: Idempotency-Key
       in: header

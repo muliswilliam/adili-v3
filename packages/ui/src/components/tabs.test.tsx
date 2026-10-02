@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs';
+import { Tabs, TabsContent, TabsLink, TabsList, TabsNav, TabsTrigger } from './tabs';
 
 function RosterTabs() {
   return (
@@ -148,5 +148,27 @@ describe('Tabs', () => {
       expect(element.className).toContain('outline-hidden');
       expect(element.className).toContain('focus-visible:outline-solid');
     }
+  });
+});
+
+describe('TabsNav', () => {
+  it('is a named row of links, the current page marked', () => {
+    render(
+      <TabsNav aria-label="Request types">
+        <TabsLink href="/all" current>
+          All
+        </TabsLink>
+        <TabsLink asChild>
+          <a href="/lea">Law enforcement</a>
+        </TabsLink>
+      </TabsNav>,
+    );
+
+    const nav = screen.getByRole('navigation', { name: 'Request types' });
+    expect(nav.querySelectorAll('li')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'All' }).getAttribute('aria-current')).toBe('page');
+    const lea = screen.getByRole('link', { name: 'Law enforcement' });
+    expect(lea.getAttribute('aria-current')).toBeNull();
+    expect(lea.className).toContain('border-b-2');
   });
 });

@@ -2,14 +2,28 @@
  * The onboarding session's state machine and timing rules (spec 03). Pure: the repository
  * (`sessions.repository.ts`) applies them, and every step module goes through it.
  *
+ * A declarant's session (spec 03):
+ *
  *     identified ─┬─> email-pending ──────────────┬─> email-verified ─┬─> phone-pending ─────────────┬─> phone-verified ─┬─> confirmed
  *                 └─> email-contact-required ─> ──┘                   └─> phone-contact-required ─> ─┘                  └─> identity-mismatch
+ *
+ * An applicant's session (spec 10): the phone only, its code sent at start, and no mismatch
+ * (IPRS answers before the session starts):
+ *
+ *     identified ─> phone-pending ─> phone-verified ─> confirmed
  *
  * Any live state may also end as `expired` (session past `expiresAt`, or codes or resends
  * exhausted). `confirmed`, `identity-mismatch` and `expired` are terminal. A terminal session
  * stays readable until its `expiresAt`; a `confirmed` one with a new account lives as long as
  * its set-password link (`confirmedExpiry`), for resend-password-email.
  */
+
+/**
+ * Who a session onboards: a `declarant`, against a roster record of a Commission (spec 03), or an
+ * `applicant`, a member of the public with no Commission (spec 10).
+ */
+export const ONBOARDING_KINDS = ['declarant', 'applicant'] as const;
+export type OnboardingKind = (typeof ONBOARDING_KINDS)[number];
 
 export const ONBOARDING_STATES = [
   'identified',
@@ -68,7 +82,7 @@ export const IPRS_OUTCOMES = ['match', 'mismatch', 'not-found'] as const;
 export type IprsOutcome = (typeof IPRS_OUTCOMES)[number];
 
 /** The states each state may move to; `expired` is reachable from every live state. */
-const TRANSITIONS: Record<OnboardingState, readonly OnboardingState[]> = {
+const DECLARANT_TRANSITIONS: Record<OnboardingState, readonly OnboardingState[]> = {
   identified: ['email-pending', 'email-contact-required'],
   'email-contact-required': ['email-pending'],
   'email-pending': ['email-verified'],
@@ -81,13 +95,45 @@ const TRANSITIONS: Record<OnboardingState, readonly OnboardingState[]> = {
   expired: [],
 };
 
+const APPLICANT_TRANSITIONS: Record<OnboardingState, readonly OnboardingState[]> = {
+  identified: ['phone-pending'],
+  'email-contact-required': [],
+  'email-pending': [],
+  'email-verified': [],
+  'phone-contact-required': [],
+  'phone-pending': ['phone-verified'],
+  'phone-verified': ['confirmed'],
+  confirmed: [],
+  'identity-mismatch': [],
+  expired: [],
+};
+
+const TRANSITIONS: Record<OnboardingKind, Record<OnboardingState, readonly OnboardingState[]>> = {
+  declarant: DECLARANT_TRANSITIONS,
+  applicant: APPLICANT_TRANSITIONS,
+};
+
+/** The states an applicant's session passes through. */
+export const APPLICANT_STATES = [
+  'identified',
+  'phone-pending',
+  'phone-verified',
+  'confirmed',
+  'expired',
+] as const satisfies readonly OnboardingState[];
+export type ApplicantState = (typeof APPLICANT_STATES)[number];
+
 export function isTerminal(state: OnboardingState): state is TerminalState {
   return (TERMINAL_STATES as readonly OnboardingState[]).includes(state);
 }
 
-export function canTransition(from: OnboardingState, to: OnboardingState): boolean {
+export function canTransition(
+  from: OnboardingState,
+  to: OnboardingState,
+  kind: OnboardingKind = 'declarant',
+): boolean {
   if (to === 'expired') return !isTerminal(from);
-  return TRANSITIONS[from].includes(to);
+  return TRANSITIONS[kind][from].includes(to);
 }
 
 /** Whether the session shows the roster details (the confirm step and after). */

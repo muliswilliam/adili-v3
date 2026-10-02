@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatPhone, normalisePhone } from './phone';
+import { normalisePhone } from './phone';
 
 describe('normalisePhone (S20)', () => {
   it.each([
@@ -42,15 +42,5 @@ describe('normalisePhone (S20)', () => {
     ['0712 ABC 678', 'letters'],
   ])('rejects %s (%s)', (input) => {
     expect(normalisePhone(input)).toBeNull();
-  });
-});
-
-describe('formatPhone', () => {
-  it('groups Kenyan numbers', () => {
-    expect(formatPhone('+254712345678')).toBe('+254 712 345 678');
-  });
-
-  it('leaves other numbers as stored', () => {
-    expect(formatPhone('+442079460958')).toBe('+442079460958');
   });
 });

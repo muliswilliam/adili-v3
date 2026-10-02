@@ -39,6 +39,13 @@ export const envSchema = bffEnvSchema.extend({
    * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
   REVIEW_MOCK: z.stringbool().default(false),
+  ACCESS_API_URL: z.url(),
+  /**
+   * Serve the applicant's access requests (Form K, My requests, withdraw) and the Commissions
+   * open to them from in-memory fixtures, to work on the portal without the access service.
+   * Honoured in `vite dev` and tests only, like the other mocks.
+   */
+  ACCESS_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

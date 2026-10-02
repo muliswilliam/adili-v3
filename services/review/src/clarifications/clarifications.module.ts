@@ -4,6 +4,8 @@ import { ClockModule } from '../clock.module.js';
 import { DeclarationsModule } from '../declarations/declarations.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
+import { ClarificationDisclosureController } from './clarification-disclosure.controller.js';
+import { ClarificationDisclosureService } from './clarification-disclosure.service.js';
 import { ClarificationDetailsController } from './clarification-details.controller.js';
 import { ClarificationDetailsService } from './clarification-details.service.js';
 import { ClarificationWorkflows } from './clarification-workflows.js';
@@ -16,8 +18,9 @@ import { LetterPayloadService } from './letter-payload.service.js';
 
 /**
  * Clarifications (spec 07a): drafts, issue, resolve, follow-up and withdraw for the case's
- * assignee, the declarant's reads and response, and the letter payload the documents service
- * pulls. `ClarificationWorkflow` and its activities run on the review worker (ProcessingModule).
+ * assignee, the declarant's reads and response, the letter payload the documents service pulls,
+ * and what an access grant discloses of them (spec 10). `ClarificationWorkflow` and its
+ * activities run on the review worker (ProcessingModule).
  */
 @Module({
   imports: [ClockModule, DeclarationsModule, DirectoryModule, DocumentsModule],
@@ -26,6 +29,7 @@ import { LetterPayloadService } from './letter-payload.service.js';
     DeclarantClarificationsController,
     LetterPayloadController,
     ClarificationDetailsController,
+    ClarificationDisclosureController,
   ],
   providers: [
     ClarificationsService,
@@ -33,6 +37,7 @@ import { LetterPayloadService } from './letter-payload.service.js';
     DeclarantClarificationsService,
     LetterPayloadService,
     ClarificationDetailsService,
+    ClarificationDisclosureService,
   ],
 })
 export class ClarificationsModule {}

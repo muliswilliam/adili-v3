@@ -40,6 +40,31 @@ export const tenantPolicyVersionSchema = z.object({
     description: 'Form M compliance report due, month-day (Regs r.25(2))',
     examples: ['07-31'],
   }),
+  access: z
+    .object({
+      decisionDays: z.int().meta({
+        description: 'Days to decide a Form K request from its receipt (Act s.36(1), Regs r.22)',
+        examples: [30],
+      }),
+      leaDecisionDays: z.int().meta({
+        description:
+          'Days to decide a law enforcement request from its receipt (Act s.36(2), Regs r.23)',
+        examples: [14],
+      }),
+      representationWindowDays: z.int().meta({
+        description:
+          'Days the declarant has for representations once notified (Administrative Mechanisms 28-34)',
+        examples: [7],
+      }),
+      packageDownloadDays: z.int().meta({
+        description: 'Days a granted access package stays downloadable by its recipient',
+        examples: [14],
+      }),
+    })
+    .meta({
+      description:
+        'Periods of access to declarations (spec 10). Each clock reads the version in force when it starts.',
+    }),
   createdBy: z.string().meta({ description: '`sub` of who created the version' }),
   createdByName: z
     .string()

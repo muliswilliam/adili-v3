@@ -56,6 +56,11 @@ export const PROBLEM_CODES = {
    */
   'email-in-use': { status: HttpStatus.CONFLICT, title: 'Email belongs to another account' },
   /**
+   * Applicant onboarding: IPRS has no person with this national ID under these names, so no
+   * session starts; nothing changed.
+   */
+  'identity-mismatch': { status: HttpStatus.CONFLICT, title: 'Identity does not match IPRS' },
+  /**
    * Submission: the token lacks the step-up ACR, or its one-time code is more than five minutes
    * old; `stepUpUrl` starts a fresh step-up and returns to the declaration.
    */
@@ -79,6 +84,45 @@ export const PROBLEM_CODES = {
     status: HttpStatus.CONFLICT,
     title: 'Acknowledgement in progress',
   },
+  /**
+   * Access (spec 10): the applicant's account carries no person record, so a request cannot be
+   * filed under it; the account must finish applicant onboarding.
+   */
+  'no-applicant-record': { status: HttpStatus.FORBIDDEN, title: 'No applicant record' },
+  /** Access: the request is decided already, and a decision is final (withdraw, decide again). */
+  'request-decided': { status: HttpStatus.CONFLICT, title: 'Request already decided' },
+  /** Access: the request is closed (withdrawn, or the officer could not be identified). */
+  'request-closed': { status: HttpStatus.CONFLICT, title: 'Request closed' },
+  /** Access: the officer named in the request is resolved (or recorded unidentifiable) already. */
+  'officer-resolved': { status: HttpStatus.CONFLICT, title: 'Officer already resolved' },
+  /** Access: the request is not ready for a decision (the declarant's window is still open). */
+  'not-under-decision': { status: HttpStatus.CONFLICT, title: 'Not under decision' },
+  /** Access: the applicant's identity is verified already, or never needed manual verification. */
+  'not-pending-verification': {
+    status: HttpStatus.CONFLICT,
+    title: 'Applicant not pending verification',
+  },
+  /**
+   * Access: the law enforcement request came from an account that is no longer an active officer
+   * account of its agency (revoked, or moved since it was filed); verify no more, deny instead.
+   */
+  'lea-account-inactive': {
+    status: HttpStatus.CONFLICT,
+    title: 'Officer account no longer active',
+  },
+  /** Access: the declarant is notified of the request already (online, or in writing). */
+  'declarant-notified': { status: HttpStatus.CONFLICT, title: 'Declarant already notified' },
+  /** Access: the declarant's window for representations has closed. */
+  'representations-closed': { status: HttpStatus.CONFLICT, title: 'Representations closed' },
+  /**
+   * Documents: the document's download window has ended (an access package, nil letter or other
+   * document issued with a window); it is not served any more.
+   */
+  'download-window-closed': { status: HttpStatus.GONE, title: 'Download window closed' },
+  /** Access: a partial grant's scope reaches beyond the scope the request asked for. */
+  'scope-exceeds-request': { status: HttpStatus.BAD_REQUEST, title: 'Scope exceeds the request' },
+  /** Access: denials and partial grants must cite Regulation 24 grounds. */
+  'grounds-required': { status: HttpStatus.BAD_REQUEST, title: 'Grounds required' },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;

@@ -50,13 +50,21 @@ class ThingsController {
   get(@Param('id') id: string, @CurrentReadAudit() audit: ReadAudit) {
     if (id === 'mine') audit.ownRecord();
     else if (id === 'for-a-case') {
-      audit.resource({
-        tenant: 'tsc',
-        subjectPersonId: 'person-1',
-        legalBasis: 'review-case:case-1',
-      });
+      audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
+      audit.legalBasis({ basis: 'review-case', reference: 'case-1' });
     } else if (id === 'a-batch') audit.resource({ tenant: 'tsc', ids: ['thing-2', 'thing-3'] });
-    else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
+    else if (id === 'a-mixed-batch') {
+      audit.resources([
+        { tenant: 'tsc', ids: ['thing-2'] },
+        { tenant: 'tsc', type: 'other-thing', ids: ['other-1', 'other-2'] },
+      ]);
+    } else if (id === 'downloaded') {
+      audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
+      audit.alongside({ type: 'thing.downloaded.v1', subject: id, tenant: 'tsc', data: { id } });
+    } else if (id === 'mine-downloaded') {
+      audit.ownRecord();
+      audit.alongside({ type: 'thing.downloaded.v1', subject: id, tenant: 'tsc', data: { id } });
+    } else audit.resource({ tenant: 'tsc', subjectPersonId: 'person-1' });
     return { id };
   }
 }
@@ -68,6 +76,18 @@ class InternalRecordsController {
   @Get(':recordId')
   @AuditedRead({ action: 'roster.record.viewed', resource: 'roster-record' })
   get(@Param('recordId') recordId: string) {
+    return { id: recordId };
+  }
+
+  @Get(':recordId/disclosure')
+  @AuditedRead({ action: 'roster.record.disclosed', resource: 'roster-record' })
+  disclose(@Param('recordId') recordId: string, @CurrentReadAudit() audit: ReadAudit) {
+    audit.resource({ tenant: 'psc', subjectPersonId: 'person-1' });
+    audit.disclosure({
+      basis: 'act-s36-1',
+      reference: 'ARQ-PSC-2028-0000012-N',
+      recipient: 'applicant-7',
+    });
     return { id: recordId };
   }
 }
@@ -108,12 +128,15 @@ class TestAuthGuard implements CanActivate {
 }
 
 const recorded: NewEvent[] = [];
+/** The events of each outbox insert: one insert is written whole or not at all. */
+const inserts: NewEvent[][] = [];
 let failing = false;
 const publisher = {
-  record: (_tx: unknown, event: NewEvent) => {
+  recordAll: (_tx: unknown, events: readonly NewEvent[]) => {
     if (failing) return Promise.reject(new Error('outbox unavailable'));
-    recorded.push(event);
-    return Promise.resolve(event);
+    if (events.length > 0) inserts.push([...events]);
+    recorded.push(...events);
+    return Promise.resolve(events);
   },
 };
 
@@ -147,6 +170,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   recorded.length = 0;
+  inserts.length = 0;
   failing = false;
 });
 
@@ -203,6 +227,33 @@ describe('AuditedReadInterceptor', () => {
             roles: [],
             onBehalfOf: 'analyst-e',
           },
+        },
+      },
+    ]);
+  });
+
+  it('names the legal basis, the reference and the recipient of a disclosure', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/internal/v1/records/rec-1/disclosure',
+      headers: {
+        authorization: 'service',
+        'x-acting-subject': 'access-officer-3',
+        'x-acting-tenant': 'psc',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded).toMatchObject([
+      {
+        type: AUDIT_READ,
+        tenant: 'psc',
+        data: {
+          action: 'roster.record.disclosed',
+          resource: { subjectPersonId: 'person-1' },
+          actor: { subject: 'service-account-records', onBehalfOf: 'access-officer-3' },
+          legalBasis: { basis: 'act-s36-1', reference: 'ARQ-PSC-2028-0000012-N' },
+          recipient: 'applicant-7',
         },
       },
     ]);
@@ -280,9 +331,14 @@ describe('AuditedReadInterceptor', () => {
     await app.inject({ method: 'GET', url: '/v1/things/for-a-case' });
     await app.inject({ method: 'GET', url: '/v1/things/thing-1' });
 
-    expect(recorded.map((event) => (event.data as { legalBasis?: string }).legalBasis)).toEqual([
-      'review-case:case-1',
-      undefined,
+    expect(
+      recorded.map((event) => {
+        const data = event.data as { legalBasis?: unknown; recipient?: unknown };
+        return { legalBasis: data.legalBasis, recipient: data.recipient };
+      }),
+    ).toEqual([
+      { legalBasis: { basis: 'review-case', reference: 'case-1' }, recipient: undefined },
+      { legalBasis: undefined, recipient: undefined },
     ]);
   });
 
@@ -295,10 +351,57 @@ describe('AuditedReadInterceptor', () => {
     ).toEqual([['thing-2', 'thing-3'], undefined]);
   });
 
+  it('records one event per resource type a batch read names, each with its own ids', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/things/a-mixed-batch' });
+
+    expect(response.statusCode).toBe(200);
+    expect(
+      recorded.map((event) => {
+        const { resource } = event.data as { resource: { type: string; ids?: string[] } };
+        return [event.tenant, resource.type, resource.ids];
+      }),
+    ).toEqual([
+      ['tsc', 'thing', ['thing-2']],
+      ['tsc', 'other-thing', ['other-1', 'other-2']],
+    ]);
+    // One insert: every audit event of the read, or none.
+    expect(inserts).toHaveLength(1);
+  });
+
   it('records nothing when the caller read their own record', async () => {
     const response = await app.inject({ method: 'GET', url: '/v1/things/mine' });
 
     expect(response.statusCode).toBe(200);
+    expect(recorded).toEqual([]);
+  });
+
+  it('records the events the read causes with its audit event, in one insert', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/things/downloaded' });
+
+    expect(response.statusCode).toBe(200);
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]?.map((event) => event.type)).toEqual([AUDIT_READ, 'thing.downloaded.v1']);
+    expect(inserts[0]?.[1]).toEqual({
+      type: 'thing.downloaded.v1',
+      subject: 'downloaded',
+      tenant: 'tsc',
+      data: { id: 'downloaded' },
+    });
+  });
+
+  it('records the events a read of their own record causes, without an audit event', async () => {
+    const response = await app.inject({ method: 'GET', url: '/v1/things/mine-downloaded' });
+
+    expect(response.statusCode).toBe(200);
+    expect(recorded.map((event) => event.type)).toEqual(['thing.downloaded.v1']);
+  });
+
+  it('fails the read, recording neither, when the audit trail cannot record it', async () => {
+    failing = true;
+
+    const response = await app.inject({ method: 'GET', url: '/v1/things/downloaded' });
+
+    expect(response.statusCode).toBe(500);
     expect(recorded).toEqual([]);
   });
 

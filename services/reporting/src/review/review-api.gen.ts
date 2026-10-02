@@ -449,6 +449,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/review/clarifications/disclosures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The clarifications an access grant discloses with the declarations (audited)
+         * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1), Regulation 22(1)) discloses those issued on the declarations it disclosed: every clarification issued on each named declaration of the person at the Commission (never a draft or a withdrawn one), oldest issued first, each item as its letter put it with the declarant's answer (text and the names of the files attached; not the files), cut to the granted household members and sections. An item goes out only when everything it can concern is granted: a spouse's or child's needs them included; `bio` needs bio, `household` bio with spouses and children, `other` other information, a financial statement's income, assets and liabilities, the declaration as a whole every section and both household members. A clarification with no item in the scope is left out; the reviewer's resolution note never goes out. Audited (`audit.read.v1`, action `clarification.disclosed`) with the legal basis, the grant reference, the recipient and the clarifications served. A read: no Idempotency-Key, safe to retry.
+         */
+        post: operations["internalDiscloseClarifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/review/clarifications/disclosure-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * How many clarifications a scope would disclose (audited, no content)
+         * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees what the scope holds: per declaration named, how many clarifications a grant of the scope would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one with none). Counts only, never content. Audited (`audit.read.v1`, action `clarification.disclosure-counted`) with the legal basis, the request reference, the officer as recipient and the clarifications counted. A read: no Idempotency-Key.
+         */
+        post: operations["internalCountClarificationDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/cases/{caseId}/determinations": {
         parameters: {
             query?: never;
@@ -1554,6 +1594,71 @@ export interface components {
             /** Format: uri */
             portalUrl: string;
         };
+        ClarificationDisclosureRequest: {
+            /** Format: uuid */
+            personId: string;
+            grantReference: string;
+            /** @enum {string} */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            declarationReferences: string[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+            recipientSubject: string;
+        };
+        ClarificationDisclosure: {
+            grantReference: string;
+            /** @description Oldest issued first; empty when none was issued or none is in the scope */
+            clarifications: components["schemas"]["DisclosedClarification"][];
+        };
+        DisclosedClarification: {
+            /** @description The declaration it was issued on */
+            declarationReference: string;
+            /** @description `CLR-...` */
+            reference: string;
+            /** @enum {string} */
+            status: "issued" | "overdue" | "responded" | "resolved";
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            dueAt: string;
+            respondedAt: string | null;
+            responseLate: boolean;
+            resolvedAt: string | null;
+            items: components["schemas"]["DisclosedClarificationItem"][];
+        };
+        DisclosedClarificationItem: {
+            /** @description What the item concerns, as the letter put it */
+            label: string;
+            /** @description What Act s.35(4) required of the declarant */
+            requirementLabel: string;
+            /** @description The reviewer's request */
+            text: string;
+            /** @description The declarant's answer; null when not answered */
+            response: {
+                text: string;
+                /** @description Names of the files attached to the answer; the files are not disclosed */
+                attachmentNames: string[];
+            } | null;
+        };
+        ClarificationCountsRequest: {
+            /** Format: uuid */
+            personId: string;
+            grantReference: string;
+            /** @enum {string} */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            declarationReferences: string[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+        };
+        ClarificationCounts: {
+            /** @description One per declaration named, in the order named */
+            counts: {
+                declarationReference: string;
+                clarifications: number;
+            }[];
+        };
         /** @enum {string} */
         RegistrySystem: "kra" | "ntsa" | "brs" | "ardhisasa";
         /** @enum {string} */
@@ -2012,7 +2117,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -3423,6 +3528,100 @@ export interface operations {
                 };
             };
             /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalDiscloseClarifications: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer who decided the grant; recorded in the audit event */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationDisclosureRequest"];
+            };
+        };
+        responses: {
+            /** @description The clarifications in the granted scope, oldest issued first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationDisclosure"];
+                };
+            };
+            /** @description Body failed validation, a legal basis that does not go with the grant reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:disclosures */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalCountClarificationDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationCountsRequest"];
+            };
+        };
+        responses: {
+            /** @description Per declaration named, the clarifications in the scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationCounts"];
+                };
+            };
+            /** @description Body failed validation, a legal basis that does not go with the request reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:disclosures */
             403: {
                 headers: {
                     [name: string]: unknown;

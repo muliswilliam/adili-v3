@@ -1,9 +1,17 @@
 import {
+  type DeclarationType,
   declarationSchemes,
   InvalidReferenceError,
   type NumberingScheme,
   parse,
 } from '@adili/numbering/references';
+import { z } from 'zod';
+
+/** The declaration types, as the reference schemes name them. */
+export const DECLARATION_TYPES = Object.keys(declarationSchemes) as [
+  DeclarationType,
+  ...DeclarationType[],
+];
 
 const DECLARATION_SCHEMES = Object.values(declarationSchemes);
 
@@ -18,7 +26,7 @@ export function isReferenceOf(reference: string, schemes: readonly NumberingSche
   }
 }
 
-/** A valid declaration reference number, e.g. `DCB-PSC-2027-0000001-1`. */
+/** A valid ADR-011 declaration reference number, e.g. `DCB-PSC-2027-0000001-1`. */
 export function isDeclarationReference(reference: string): boolean {
   return isReferenceOf(reference, DECLARATION_SCHEMES);
 }
@@ -30,3 +38,11 @@ export function declarationSchemeOf(reference: string): NumberingScheme {
   if (!found) throw new Error(`${reference} is not a declaration reference number`);
   return found;
 }
+
+/** The issuing Commission as the declarations service names it (`CommissionRef`). */
+export const commissionRefSchema = z.strictObject({
+  slug: z.string().min(1).max(20),
+  /** As in the reference numbers, e.g. `PSC`. */
+  issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
+  name: z.string().trim().min(1).max(200),
+});

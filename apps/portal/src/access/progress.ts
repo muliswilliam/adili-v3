@@ -1,0 +1,187 @@
+import {
+  daysBetween,
+  DECIDED_ACCESS_STATUSES as DECIDED,
+  type DeadlineState,
+  deadlineSoonDays,
+  deadlineStatus,
+  formatDate,
+  formatDateTime,
+  OPEN_ACCESS_STATUSES,
+} from '@adili/ui';
+
+import type { AccessRequest, RegisterEntry } from '../server/access/types';
+import { REQUEST_COPY as COPY, PACKAGE_COPY as PACKAGE } from './copy';
+import { packageView } from './package';
+
+/**
+ * The stages of a Form K request as the applicant follows them, from its status and its
+ * register timeline: received, the passport check (for a passport applicant), the officer
+ * identified, the officer notified, the decision. A withdrawn or closed request ends where it
+ * stopped.
+ */
+
+/** `stopped`: the Commission closed it there; `ended`: the applicant withdrew it. */
+export type StageState = 'done' | 'current' | 'upcoming' | 'stopped' | 'ended';
+
+export interface Stage {
+  id: string;
+  title: string;
+  detail: string | null;
+  state: StageState;
+}
+
+/** Requests the applicant can still withdraw: any before a decision or closure. */
+export const WITHDRAWABLE = OPEN_ACCESS_STATUSES;
+
+function at(timeline: RegisterEntry[], kind: RegisterEntry['kind']): string | null {
+  return timeline.filter((entry) => entry.kind === kind).at(-1)?.at ?? null;
+}
+
+/** The order each status has reached: 0 received ... 4 decided. */
+const REACHED: Record<AccessRequest['status'], number> = {
+  'pending-applicant-verification': 1,
+  submitted: 2,
+  'officer-unresolved': 2,
+  'awaiting-representations': 3,
+  'under-decision': 4,
+  granted: 5,
+  'partially-granted': 5,
+  denied: 5,
+  'cannot-identify': 2,
+  withdrawn: 0,
+};
+
+function stateOf(order: number, reached: number): StageState {
+  if (order < reached) return 'done';
+  return order === reached ? 'current' : 'upcoming';
+}
+
+/**
+ * A granted request's package follows the decision: being prepared, ready until its window
+ * ends at `now` (epoch milliseconds), or its window closed (also once `windowClosed`, the
+ * documents service having said so).
+ */
+export function requestStages(request: AccessRequest, now: number, windowClosed = false): Stage[] {
+  const { status, timeline, commission } = request;
+  const received = at(timeline, 'received') ?? request.submittedAt;
+  const passport = status === 'pending-applicant-verification' || at(timeline, 'verified') !== null;
+  const stages: Stage[] = [
+    {
+      id: 'received',
+      title: COPY.received,
+      detail: COPY.receivedDetail(formatDateTime(received)),
+      state: 'done',
+    },
+  ];
+
+  if (status === 'withdrawn' || status === 'cannot-identify') {
+    const closed = at(timeline, status);
+    stages.push({
+      id: status,
+      title: status === 'withdrawn' ? COPY.withdrawnStep : COPY.officerNotIdentified,
+      detail: closed ? formatDate(closed) : null,
+      state: status === 'withdrawn' ? 'ended' : 'stopped',
+    });
+    return stages;
+  }
+
+  const reached = REACHED[status];
+  if (passport) {
+    const verified = at(timeline, 'verified');
+    stages.push({
+      id: 'verified',
+      title: COPY.passportCheck,
+      detail: verified ? formatDate(verified) : COPY.passportWaiting(commission.name),
+      state: stateOf(1, reached),
+    });
+  }
+  const identified = at(timeline, 'identified');
+  const notified = at(timeline, 'notified');
+  const officerState = stateOf(2, reached);
+  stages.push({
+    id: 'identified',
+    title: COPY.officerIdentified,
+    // Done: the day the register recorded the identification.
+    detail:
+      officerState === 'current'
+        ? COPY.officerChecking(commission.name)
+        : identified
+          ? formatDate(identified)
+          : null,
+    state: officerState,
+  });
+  const notifiedState = stateOf(3, reached);
+  stages.push({
+    id: 'notified',
+    title: COPY.officerNotified,
+    detail:
+      notifiedState === 'upcoming'
+        ? COPY.officerNotifiedFuture
+        : notifiedState === 'current'
+          ? COPY.officerResponding
+          : notified
+            ? formatDate(notified)
+            : null,
+    state: notifiedState,
+  });
+  stages.push({
+    id: 'decision',
+    title: COPY.decided,
+    detail:
+      DECIDED.has(status) && request.decision
+        ? formatDate(request.decision.decidedAt)
+        : COPY.decisionDueOn(formatDate(request.decisionDeadlineAt)),
+    state: DECIDED.has(status) ? 'done' : stateOf(4, reached),
+  });
+  const pkg = packageView(request, now, windowClosed);
+  if (pkg?.state === 'preparing') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stagePreparing,
+      detail: PACKAGE.stagePreparingDetail,
+      state: 'current',
+    });
+  } else if (pkg?.state === 'failed') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stagePreparing,
+      detail: PACKAGE.stageFailedDetail,
+      state: 'stopped',
+    });
+  } else if (pkg?.state === 'ready') {
+    stages.push({
+      id: 'package',
+      title: pkg.package.kind === 'nil-letter' ? PACKAGE.stageNilLetterReady : PACKAGE.stageReady,
+      detail: PACKAGE.stageReadyDetail(formatDateTime(pkg.package.downloadExpiresAt)),
+      state: 'current',
+    });
+  } else if (pkg?.state === 'expired') {
+    stages.push({
+      id: 'package',
+      title: PACKAGE.stageClosed,
+      detail: formatDate(pkg.package.downloadExpiresAt),
+      state: 'done',
+    });
+  }
+  return stages;
+}
+
+/**
+ * Where the decision clock stands, for an open request; null once it has stopped. Its length is
+ * the Commission's decision period, from submission to the request's deadline. Days
+ * count in Kenyan calendar days, as the deadline chips do, so the clock moves on at midnight.
+ */
+export function decisionClock(
+  request: AccessRequest,
+  now: number,
+): { day: number; of: number; daysLeft: number; state: DeadlineState } | null {
+  if (!WITHDRAWABLE.has(request.status)) return null;
+  const today = new Date(now).toISOString();
+  const of = daysBetween(request.submittedAt, request.decisionDeadlineAt);
+  const day = Math.max(0, daysBetween(request.submittedAt, today));
+  const { state, days } = deadlineStatus(request.decisionDeadlineAt, {
+    now,
+    soonDays: deadlineSoonDays.decision,
+  });
+  return { day: Math.min(day, of), of, daysLeft: days, state };
+}

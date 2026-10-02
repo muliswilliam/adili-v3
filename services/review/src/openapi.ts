@@ -26,6 +26,14 @@ import {
   timelineEntrySchema,
 } from './cases/representation.js';
 import {
+  clarificationCountsRequest,
+  clarificationCountsSchema,
+  clarificationDisclosureRequest,
+  clarificationDisclosureSchema,
+  disclosedClarificationItemSchema,
+  disclosedClarificationSchema,
+} from './clarifications/disclosure.js';
+import {
   clarificationInput,
   clarificationItemInput,
   responseInput,
@@ -119,6 +127,12 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarantClarification: declarantClarificationSchema,
   InternalClarificationDetails: clarificationDetailsSchema,
   ClarificationLetterPayload: clarificationLetterPayloadSchema,
+  ClarificationDisclosureRequest: clarificationDisclosureRequest,
+  ClarificationDisclosure: clarificationDisclosureSchema,
+  DisclosedClarification: disclosedClarificationSchema,
+  DisclosedClarificationItem: disclosedClarificationItemSchema,
+  ClarificationCountsRequest: clarificationCountsRequest,
+  ClarificationCounts: clarificationCountsSchema,
   RegistrySystem: registrySystemSchema,
   RegistryCheckStatus: registryCheckStatusSchema,
   RegistryCheck: registryCheckSchema,

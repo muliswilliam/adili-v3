@@ -2,8 +2,17 @@ import { TENANT_KEY as API_KIT_TENANT_KEY } from '@adili/api-kit';
 import { describe, expect, it } from 'vitest';
 
 import { ALPHABET, hasValidCheckCharacter } from './check-character.js';
-import { format, InvalidReferenceError, issuerCode, parse, TENANT_KEY } from './reference.js';
-import { ADM, CLR, CMP, DCB, DCF, DCI, NCR, OFR, RFL, RPT } from './schemes.js';
+import {
+  format,
+  GRANT_REFERENCE_PATTERN,
+  InvalidReferenceError,
+  grantLegalBasis,
+  isGrantReference,
+  issuerCode,
+  parse,
+  TENANT_KEY,
+} from './reference.js';
+import { ADM, ARQ, CLR, CMP, DCB, DCF, DCI, LEA, NCR, OFR, RFL, RPT } from './schemes.js';
 
 const schemes = [OFR, DCB];
 
@@ -176,6 +185,26 @@ describe('parse', () => {
     });
   });
 
+  it.each([
+    { scheme: ARQ, issuer: 'JSC', sequence: 12 },
+    { scheme: LEA, issuer: 'PSC', sequence: 4 },
+  ])(
+    'knows $scheme.code by default, with issuer and year of submission',
+    ({ scheme, issuer, sequence }) => {
+      const reference = format(scheme, { issuer, period: 2028, sequence });
+      expect(reference).toMatch(
+        new RegExp(`^${scheme.code}-${issuer}-2028-${String(sequence).padStart(7, '0')}-[0-9A-Z]$`),
+      );
+      expect(hasValidCheckCharacter(reference)).toBe(true);
+      expect(parse(reference)).toMatchObject({
+        scheme: scheme.code,
+        issuer,
+        period: 2028,
+        sequence,
+      });
+    },
+  );
+
   it('knows OFR by default', () => {
     expect(parse('OFR-0482913-L')).toMatchObject({ scheme: 'OFR', sequence: 482_913 });
   });
@@ -292,5 +321,52 @@ describe('the tenant key', () => {
   it("is api-kit's, which this browser-safe package repeats rather than imports", () => {
     expect(TENANT_KEY.source).toBe(API_KIT_TENANT_KEY.source);
     expect(TENANT_KEY.flags).toBe(API_KIT_TENANT_KEY.flags);
+  });
+});
+
+describe('isGrantReference', () => {
+  const arq = format(ARQ, { issuer: 'PSC', period: 2028, sequence: 12 });
+  const lea = format(LEA, { issuer: 'PSC', period: 2028, sequence: 4 });
+
+  /** The reference with another check character than its own. */
+  function withWrongCheck(reference: string): string {
+    const check = reference.at(-1);
+    return `${reference.slice(0, -1)}${check === '0' ? '1' : '0'}`;
+  }
+
+  it('takes an ARQ or LEA reference whose check character verifies', () => {
+    expect(isGrantReference(arq)).toBe(true);
+    expect(isGrantReference(lea)).toBe(true);
+    expect(arq).toMatch(GRANT_REFERENCE_PATTERN);
+    expect(lea).toMatch(GRANT_REFERENCE_PATTERN);
+  });
+
+  it('refuses one whose check character does not verify, though the pattern matches it', () => {
+    expect(withWrongCheck(arq)).toMatch(GRANT_REFERENCE_PATTERN);
+    expect(isGrantReference(withWrongCheck(arq))).toBe(false);
+    expect(isGrantReference(withWrongCheck(lea))).toBe(false);
+  });
+
+  it('refuses references of other schemes and malformed ones', () => {
+    expect(isGrantReference(format(DCB, { issuer: 'PSC', period: 2028, sequence: 1 }))).toBe(false);
+    expect(isGrantReference(format(OFR, { sequence: 1 }))).toBe(false);
+    expect(isGrantReference('ARQ-PSC-2028-12-X')).toBe(false);
+    expect(isGrantReference('')).toBe(false);
+  });
+});
+
+describe('grantLegalBasis', () => {
+  it('reads Act s.36(1) off an ARQ reference and s.36(2) off an LEA reference', () => {
+    expect(grantLegalBasis(format(ARQ, { issuer: 'PSC', period: 2028, sequence: 12 }))).toBe(
+      'act-s36-1',
+    );
+    expect(grantLegalBasis(format(LEA, { issuer: 'PSC', period: 2028, sequence: 4 }))).toBe(
+      'act-s36-2',
+    );
+  });
+
+  it('has none for anything that is not a valid grant reference', () => {
+    expect(grantLegalBasis(format(OFR, { sequence: 1 }))).toBeUndefined();
+    expect(grantLegalBasis('ARQ-PSC-2028-0000012-0')).toBeUndefined();
   });
 });

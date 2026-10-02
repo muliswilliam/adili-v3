@@ -31,10 +31,14 @@ export type ReserveResult =
   | { status: 'rejected'; reason: 'type' | 'size' }
   | Unavailable;
 
-/** Purposes whose files the declarant attaches: PDF, JPEG, PNG or HEIC up to 20 MB each. */
+/**
+ * Purposes whose files the declarant attaches (a declaration item, a clarification response, the
+ * representations on an access request): PDF, JPEG, PNG or HEIC up to 20 MB each.
+ */
 export const ATTACHMENT_PURPOSES = [
   'declaration-attachment',
   'clarification-attachment',
+  'access-representation',
 ] as const satisfies readonly UploadPurpose[];
 
 export type AttachmentPurpose = (typeof ATTACHMENT_PURPOSES)[number];

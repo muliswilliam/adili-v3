@@ -217,7 +217,7 @@ export interface paths {
         };
         /**
          * A Commission's staff holding a role, with their names and emails (services)
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff, their names and emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the review service lists the reviewers and supervisors a case can be assigned to (spec 07a).
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited, naming the accounts read (it gives staff, their names and emails). Only enabled accounts with a verified email. The reporting service reminds supervisors and commission admins of the Form M deadlines, and chases reporting officers about a late report (spec 09); the review service lists the reviewers and supervisors a case can be assigned to (spec 07a); the access service reminds access officers of the requests awaiting them (spec 10).
          */
         get: operations["internalListCommissionStaff"];
         put?: never;
@@ -236,8 +236,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Slug, issuer code and name of every Commission (services)
-         * @description Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary.
+         * Slug, issuer code, name, status and obligations start of every Commission (services)
+         * @description Service tokens with scope directory:internal; no X-Acting-Tenant (platform reference data, no personal data). E.g. declarations lists Commissions without a roster yet in the national obligations summary; access offers applicants the active Commissions and the declaration years each can hold (from its earliest obligations-start date).
          */
         get: operations["internalListCommissions"];
         put?: never;
@@ -488,8 +488,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Roster records touched by an import or an exit batch (services)
-         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId and exitBatchId. Each record as it is now, up to 1,000 per page.
+         * Roster records touched by an import or an exit batch, or matching a search (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. Exactly one of importId, exitBatchId and search. Each record as it is now, up to 1,000 per page (50 for a search).
          */
         get: operations["internalListRosterRecords"];
         put?: never;
@@ -514,6 +514,26 @@ export interface paths {
         get: operations["internalGetRosterRecord"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/commissions/{slug}/roster/records/{recordId}/onboarding-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invite a roster record's officer to set up their declarant account (services)
+         * @description Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. By email and SMS to the contacts the roster holds (whichever it has), templates `onboarding-invitation-email` and `onboarding-invitation-sms`, linking the portal's onboarding for the Commission; the contacts are never returned. The access service calls it when a request names an officer who has not onboarded (spec 10). Once per Idempotency-Key.
+         */
+        post: operations["internalInviteRosterRecord"];
         delete?: never;
         options?: never;
         head?: never;
@@ -780,6 +800,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/onboarding/applicants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification)
+         * @description Public, rate-limited per client IP (the budget of identify, which a session that runs out of codes or resends also uses up). A national ID is checked with IPRS against the names entered first (`identity-mismatch` if IPRS disagrees); a passport is not checked, and the account will be `pending-verification` until an access officer verifies it. The phone's code is sent at once. On success the response carries the session and, once only, the session secret the BFF stores in an httpOnly cookie.
+         */
+        post: operations["startApplicantOnboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/applicants/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Current step, masked contacts and the identity status the account gets
+         * @description Public, with the session secret; rate-limited per client IP.
+         */
+        get: operations["getApplicantOnboardingSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/applicants/{sessionId}/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify the phone's 6-digit code
+         * @description Public, with the session secret; rate-limited per client IP. The right code verifies the phone (`phone-verified`, the complete step). Five wrong codes end the session (410), which also uses up a start attempt of the client IP.
+         */
+        post: operations["verifyApplicantOnboardingOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/applicants/{sessionId}/otp/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a new phone code (60-second cooldown, at most 3)
+         * @description Public, with the session secret; rate-limited per client IP. The new code replaces the old one. A fourth resend ends the session (410), which also uses up a start attempt of the client IP. Re-read the session for the next `resendAvailableAt` and `resendsLeft`.
+         */
+        post: operations["resendApplicantOnboardingOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/applicants/{sessionId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create the applicant account and send its set-password email
+         * @description Public, with the session secret; rate-limited per client IP. From `phone-verified` only. Creates the person (kind `applicant`) and the account (role `applicant`, no tenant, `identityStatus` `verified` for a national ID, `pending-verification` for a passport), then sends the set-password email; should that fail the account stands and the session says `setPasswordEmail: failed`. Idempotent per Idempotency-Key: a retry gets the first answer back.
+         */
+        post: operations["completeApplicantOnboarding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/onboarding/applicants/{sessionId}/resend-password-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the set-password email again
+         * @description Public, with the session secret; rate-limited per client IP. Only for a completed session, a minute after the last email, until 24 hours after complete (the session `expiresAt`, then 410); the session then says when the next may be sent (`otp.resendAvailableAt`). Idempotent per Idempotency-Key: a retry sends no second email.
+         */
+        post: operations["resendApplicantSetPasswordEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/declarant": {
         parameters: {
             query?: never;
@@ -829,7 +969,7 @@ export interface paths {
         };
         /**
          * Verified contacts of a person (notifications)
-         * @description Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. The email and phone verified at the latest onboarding, null where none. 404 when the person is unknown or not onboarded at that tenant.
+         * @description Service tokens with scope directory:person-contacts (the notifications service only), acting for the tenant a message is sent for; audited. A declarant's email and phone verified at the latest onboarding, null where none; a law-enforcement officer's official email and phone as provisioned, and an applicant's as entered at applicant onboarding, whatever the acting tenant (officers and applicants request from any Commission). 404 when the person is unknown, or a declarant not onboarded at that tenant.
          */
         get: operations["internalGetPersonContacts"];
         put?: never;
@@ -840,7 +980,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/onboarding/applicants": {
+    "/v1/me/applicant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in applicant's particulars and identity status
+         * @description Applicants only, their own: the person is the one whose account is the token's subject. The portal pre-fills Part I of Form K from it.
+         */
+        get: operations["getMyApplicantProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/applicants/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An applicant's particulars and identity status (access)
+         * @description Service tokens with scope directory:applicants (the access service only); audited. The identity document, names and contacts entered at applicant onboarding, and whether the identity is verified: Form K of a `pending-verification` applicant is held until an access officer verifies it.
+         */
+        get: operations["internalGetApplicant"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/applicants/{personId}/identity-verification": {
         parameters: {
             query?: never;
             header?: never;
@@ -849,8 +1029,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start onboarding as a public applicant (national ID with IPRS check, or passport pending manual verification) */
-        post: operations["startApplicantOnboarding"];
+        /**
+         * Record an access officer's verification of an applicant's identity (access)
+         * @description Service tokens with scope directory:applicants (the access service only), acting for the officer's Commission. The applicant's identity status becomes `verified`, on the person and on the account (`identityStatus` attribute), and `applicant.identity-verified.v1` is recorded. Idempotent: an applicant already verified (by IPRS, or before) is returned unchanged.
+         */
+        post: operations["internalVerifyApplicantIdentity"];
         delete?: never;
         options?: never;
         head?: never;
@@ -864,7 +1047,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Registered law-enforcement agencies (reference data) */
+        /**
+         * Registered law-enforcement agencies (reference data)
+         * @description Any staff role and law-enforcement officers. Seeded reference data in display order.
+         */
         get: operations["listAgencies"];
         put?: never;
         post?: never;
@@ -878,15 +1064,19 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                code: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Provisioned officer accounts for an agency (platform-admin) */
+        /**
+         * Provisioned officer accounts for an agency (platform-admin)
+         * @description platform-admin only. Every officer ever provisioned for the agency, by name.
+         */
         get: operations["listAgencyOfficers"];
         put?: never;
-        /** Provision a law-enforcement officer account (platform-admin); one activation email */
+        /**
+         * Provision a law-enforcement officer account (platform-admin); one activation email
+         * @description platform-admin only. Creates the officer's directory person (kind `law-enforcement`) and Keycloak account: the email as username, role `law-enforcement`, tenant `lea`, the `agency` and `person_id` attributes, and the staff required actions (verify email, set a password, enrol TOTP); then, once recorded, sends exactly one activation email. Provisioning an officer of this agency again updates their name and phone (and resends the email while they are `invited`); a revoked officer is enabled and invited again. Idempotent per Idempotency-Key.
+         */
         post: operations["provisionAgencyOfficer"];
         delete?: never;
         options?: never;
@@ -898,15 +1088,36 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                officerId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Disable a law-enforcement officer account (platform-admin) */
+        /**
+         * Disable a law-enforcement officer account (platform-admin)
+         * @description platform-admin only. Disables the Keycloak account, so the officer signs in no more, and records the officer as `revoked`. Revoking a revoked officer changes nothing, so no Idempotency-Key is needed.
+         */
         post: operations["revokeAgencyOfficer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/law-enforcement/officers/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A law-enforcement officer's account and agency (access)
+         * @description Service tokens with scope directory:law-enforcement (the access service only), acting for any tenant; audited. The officer's agency, the Keycloak account their tokens are issued to, and its state: the access service records a request's provenance from it and refuses requests from accounts that are not, or no longer, active.
+         */
+        get: operations["internalGetLeaOfficer"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -942,7 +1153,7 @@ export interface components {
             tokenId: string | null;
         };
         /**
-         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
+         * @description Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. Reserved: `platform`, `lea`, `new`.
          * @example psc
          * @example tsc
          * @example cpsb047
@@ -1053,8 +1264,27 @@ export interface components {
             issuerCode: string;
             name: string;
         };
+        InternalCommissionListItem: {
+            slug: components["schemas"]["Slug"];
+            /**
+             * @description slug upper-cased
+             * @example TSC
+             */
+            issuerCode: string;
+            name: string;
+            /**
+             * @description Only active Commissions take declarations and requests; more states may follow
+             * @enum {string}
+             */
+            status: "active";
+            /**
+             * Format: date
+             * @description The earliest obligations-start date of any of its policy versions: no declaration on Adili has an earlier statement date
+             */
+            obligationsStartDate: string;
+        };
         InternalCommissionList: {
-            items: components["schemas"]["InternalCommission"][];
+            items: components["schemas"]["InternalCommissionListItem"][];
         };
         InternalStaffList: {
             items: {
@@ -1117,6 +1347,29 @@ export interface components {
              * @example 07-31
              */
             formMDue: string;
+            /** @description Periods of access to declarations (spec 10). Each clock reads the version in force when it starts. */
+            access: {
+                /**
+                 * @description Days to decide a Form K request from its receipt (Act s.36(1), Regs r.22)
+                 * @example 30
+                 */
+                decisionDays: number;
+                /**
+                 * @description Days to decide a law enforcement request from its receipt (Act s.36(2), Regs r.23)
+                 * @example 14
+                 */
+                leaDecisionDays: number;
+                /**
+                 * @description Days the declarant has for representations once notified (Administrative Mechanisms 28-34)
+                 * @example 7
+                 */
+                representationWindowDays: number;
+                /**
+                 * @description Days a granted access package stays downloadable by its recipient
+                 * @example 14
+                 */
+                packageDownloadDays: number;
+            };
             /** @description `sub` of who created the version */
             createdBy: string;
             /** @description Their display name at the time; null when unknown */
@@ -1354,7 +1607,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors */
@@ -1374,7 +1627,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1602,6 +1855,16 @@ export interface components {
              * @description Last change to the record
              */
             updatedAt: string;
+        };
+        OnboardingInvitation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            rosterRecordId: string;
+            /** @description The channels notifications sent it on; empty when the roster holds no contact, or none could be reached */
+            channels: ("email" | "sms")[];
+            /** Format: date-time */
+            sentAt: string;
         };
         InternalRosterRecordPage: {
             items: components["schemas"]["InternalRosterRecord"][];
@@ -1843,7 +2106,7 @@ export interface components {
         PersonContacts: {
             /** Format: uuid */
             personId: string;
-            /** @description Verified at onboarding; null when none */
+            /** @description Verified at onboarding (an applicant's: as entered, proved by the set-password link); null when none */
             email: string | null;
             /** @description E.164, verified at onboarding; null when none */
             phone: string | null;
@@ -1857,6 +2120,268 @@ export interface components {
             /** @description An email address, or a phone number (E.164, or a Kenyan number such as 0712345678) */
             value: string;
         };
+        /**
+         * @description Upper-case agency code
+         * @example DCI
+         * @example ODPP
+         * @example ARA
+         * @example FRC
+         */
+        AgencyCode: string;
+        Agency: {
+            code: components["schemas"]["AgencyCode"];
+            /** @example Directorate of Criminal Investigations */
+            name: string;
+            /**
+             * @description The statute that gives the agency its mandate
+             * @example National Police Service Act, 2011, s.35
+             */
+            legalBasis: string;
+        };
+        /**
+         * @description `invited` once provisioned; `activated` when the officer's account first makes an authenticated request to the directory (in practice the console's `/v1/me` after their first sign-in); `revoked` once disabled.
+         * @enum {string}
+         */
+        LeaOfficerState: "invited" | "activated" | "revoked";
+        LeaOfficerAccount: {
+            /**
+             * Format: uuid
+             * @description The officer's directory person id, which services address notifications and packages to
+             */
+            id: string;
+            agencyCode: components["schemas"]["AgencyCode"];
+            name: string;
+            /**
+             * Format: email
+             * @description Official email; the username they sign in with
+             */
+            email: string;
+            /**
+             * @description E.164
+             * @example +254712345678
+             */
+            phone: string;
+            state: components["schemas"]["LeaOfficerState"];
+            /**
+             * Format: date-time
+             * @description When the account was provisioned (or provisioned again)
+             */
+            invitedAt: string;
+            /** @description First authenticated request of the officer's account; null until then */
+            activatedAt: string | null;
+            revokedAt: string | null;
+        };
+        InternalLeaOfficer: {
+            /**
+             * Format: uuid
+             * @description The officer's directory person id (token `person_id`)
+             */
+            personId: string;
+            /** @description The officer's Keycloak account: the `sub` of the tokens they request with */
+            keycloakUserId: string;
+            name: string;
+            agency: components["schemas"]["Agency"];
+            state: components["schemas"]["LeaOfficerState"];
+            activatedAt: string | null;
+            revokedAt: string | null;
+        };
+        ProvisionAgencyOfficer: {
+            name: string;
+            /** Format: email */
+            email: string;
+            /**
+             * @description E.164
+             * @example +254712345678
+             */
+            phone: string;
+        };
+        /** @enum {string} */
+        IdentityDocumentKind: "national-id" | "passport";
+        /**
+         * @description `verified`: by IPRS at onboarding (national ID) or by an access officer (passport). `pending-verification`: a passport applicant whose first Form K is held until an access officer verifies the particulars entered
+         * @enum {string}
+         */
+        IdentityStatus: "verified" | "pending-verification";
+        StartApplicantOnboarding: {
+            identityDocument: {
+                kind: components["schemas"]["IdentityDocumentKind"];
+                /** @description A national ID: 5 to 10 digits. A passport: 5 to 20 letters and digits, compared upper-cased. Spaces are ignored */
+                number: string;
+                /**
+                 * @description A passport's issuing country, ISO 3166-1 alpha-2 (e.g. `UG`); required for a passport, not sent for a national ID
+                 * @example UG
+                 */
+                country?: string;
+            };
+            names: {
+                surname: string;
+                firstName: string;
+                otherNames?: string;
+            };
+            /** @description E.164, or a Kenyan number such as 0712345678; its code is sent at once */
+            phone: string;
+            /** @description The account username; the set-password email goes here when onboarding completes */
+            email: string;
+        };
+        /** @enum {string} */
+        ApplicantOnboardingState: "identified" | "phone-pending" | "phone-verified" | "confirmed" | "expired";
+        ApplicantOnboardingSession: {
+            /** Format: uuid */
+            id: string;
+            state: components["schemas"]["ApplicantOnboardingState"];
+            /** @description The names entered at start, first and other names then surname, as the account will have them */
+            fullName: string;
+            /** @description The document entered at start, so the applicant can check it before the account is created; only the holder of the session secret sees it */
+            identityDocument: {
+                kind: components["schemas"]["IdentityDocumentKind"];
+                /** @description As entered at start, normalised (national ID digits, passport upper-cased) */
+                number: string;
+                /** @description A passport's issuing country (ISO 3166-1 alpha-2); null for a national ID */
+                country: string | null;
+            };
+            /** @description The identity status the account gets: `verified` for a national ID IPRS matched at start, `pending-verification` for a passport */
+            identityStatus: components["schemas"]["IdentityStatus"];
+            contacts: {
+                phone: {
+                    /** @description e.g. 07** *** 123 */
+                    masked: string;
+                    verified: boolean;
+                } | null;
+                email: {
+                    /** @description e.g. j***@example.com */
+                    masked: string;
+                } | null;
+            };
+            /** @description The phone code while `phone-pending`; once confirmed, `resendAvailableAt` is when the set-password email may be sent again (null: now) */
+            otp: {
+                channel: "phone" | null;
+                resendAvailableAt: string | null;
+                resendsLeft: number;
+                attemptsLeft: number;
+            };
+            /** @description Set once confirmed: the account was created */
+            outcome: "account-created" | null;
+            /** @description Once confirmed: `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null before */
+            setPasswordEmail: ("sent" | "failed") | null;
+            /**
+             * Format: date-time
+             * @description When the session ends: 30 minutes after start, 10 more per successful step, at most 60 minutes after start. Once confirmed, 24 hours after (the set-password link lifespan)
+             */
+            expiresAt: string;
+        };
+        ApplicantOnboardingSessionCreated: {
+            /** Format: uuid */
+            id: string;
+            state: components["schemas"]["ApplicantOnboardingState"];
+            /** @description The names entered at start, first and other names then surname, as the account will have them */
+            fullName: string;
+            /** @description The document entered at start, so the applicant can check it before the account is created; only the holder of the session secret sees it */
+            identityDocument: {
+                kind: components["schemas"]["IdentityDocumentKind"];
+                /** @description As entered at start, normalised (national ID digits, passport upper-cased) */
+                number: string;
+                /** @description A passport's issuing country (ISO 3166-1 alpha-2); null for a national ID */
+                country: string | null;
+            };
+            /** @description The identity status the account gets: `verified` for a national ID IPRS matched at start, `pending-verification` for a passport */
+            identityStatus: components["schemas"]["IdentityStatus"];
+            contacts: {
+                phone: {
+                    /** @description e.g. 07** *** 123 */
+                    masked: string;
+                    verified: boolean;
+                } | null;
+                email: {
+                    /** @description e.g. j***@example.com */
+                    masked: string;
+                } | null;
+            };
+            /** @description The phone code while `phone-pending`; once confirmed, `resendAvailableAt` is when the set-password email may be sent again (null: now) */
+            otp: {
+                channel: "phone" | null;
+                resendAvailableAt: string | null;
+                resendsLeft: number;
+                attemptsLeft: number;
+            };
+            /** @description Set once confirmed: the account was created */
+            outcome: "account-created" | null;
+            /** @description Once confirmed: `sent`, the set-password email went; `failed`, the account stands but the email could not be sent, so the portal offers resend-password-email at once. Null before */
+            setPasswordEmail: ("sent" | "failed") | null;
+            /**
+             * Format: date-time
+             * @description When the session ends: 30 minutes after start, 10 more per successful step, at most 60 minutes after start. Once confirmed, 24 hours after (the set-password link lifespan)
+             */
+            expiresAt: string;
+            /** @description Returned once; the BFF stores it in an httpOnly cookie and sends it back in X-Onboarding-Secret */
+            secret: string;
+        };
+        ApplicantOnboardingProblem: {
+            type: string;
+            title: string;
+            status: number;
+            /** @enum {string} */
+            code: "identity-mismatch" | "already-onboarded" | "otp-invalid" | "otp-expired" | "otp-send-failed" | "resend-cooldown" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "rate-limit-exceeded" | "wrong-step";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
+            attemptsLeft?: number;
+            retryAfterSeconds?: number;
+            /** @description Present for already-onboarded */
+            links?: {
+                /** Format: uri */
+                signIn?: string;
+                /** Format: uri */
+                recoverAccess?: string;
+            };
+        };
+        ApplicantIdentityDocument: {
+            /** @enum {string} */
+            kind: "national-id" | "passport";
+            /** @description National ID digits, or the passport number upper-cased without spaces */
+            number: string;
+            /** @description A passport's issuing country, ISO 3166-1 alpha-2; null for a national ID */
+            country: string | null;
+        };
+        ApplicantProfile: {
+            /** Format: uuid */
+            personId: string;
+            /** @description First, other and surname as entered */
+            fullName: string;
+            identityDocument: components["schemas"]["ApplicantIdentityDocument"];
+            /** @enum {string} */
+            identityStatus: "verified" | "pending-verification";
+            contacts: {
+                email: string | null;
+                /** @description E.164, verified at onboarding */
+                phone: string | null;
+            };
+        };
+        InternalApplicant: {
+            /** Format: uuid */
+            personId: string;
+            /** @description First, other and surname as entered */
+            fullName: string;
+            identityDocument: components["schemas"]["ApplicantIdentityDocument"];
+            /** @enum {string} */
+            identityStatus: "verified" | "pending-verification";
+            contacts: {
+                email: string | null;
+                /** @description E.164, verified at onboarding */
+                phone: string | null;
+            };
+            /** @description When the identity became verified; null while pending */
+            identityVerifiedAt: string | null;
+            /** @description Subject of the access officer who verified a passport applicant's particulars; null when IPRS verified a national ID, or while pending */
+            identityVerifiedBy: string | null;
+        };
+        VerifyApplicantIdentity: {
+            /** @description Subject (`sub`) of the access officer who checked the particulars entered */
+            verifiedBy: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1865,7 +2390,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1874,88 +2399,9 @@ export interface components {
                 message: string;
             }[];
         };
-        Agency: {
-            /**
-             * @example DCI
-             * @example ODPP
-             * @example ARA
-             * @example FRC
-             */
-            code: string;
-            name: string;
-            legalBasis: string;
-        };
-        LeaOfficerAccount: {
-            /** Format: uuid */
-            id: string;
-            agencyCode: string;
-            name: string;
-            /** Format: email */
-            email: string;
-            /** @enum {string} */
-            state: "invited" | "activated" | "revoked";
-            /** Format: date-time */
-            invitedAt: string;
-            /** Format: date-time */
-            activatedAt: string | null;
-            /** Format: date-time */
-            revokedAt: string | null;
-        };
     };
-    responses: {
-        /** @description Problem code `rate-limit-exceeded`; RateLimit-* headers present */
-        RateLimited: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["OnboardingProblem"];
-            };
-        };
-        /** @description Problem code `session-expired`; the cookie is cleared */
-        SessionEnded: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["OnboardingProblem"];
-            };
-        };
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Request failed validation */
-        ValidationProblem: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-    };
-    parameters: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        IdempotencyKey: string;
-        SessionId: string;
-        /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
-        OnboardingSecret: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -2521,7 +2967,7 @@ export interface operations {
     internalListCommissionStaff: {
         parameters: {
             query: {
-                role: "reporting-officer" | "reviewer" | "supervisor" | "commission-admin";
+                role: "reporting-officer" | "reviewer" | "supervisor" | "commission-admin" | "access-officer";
             };
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
@@ -3599,8 +4045,11 @@ export interface operations {
                 importId?: string;
                 /** @description The records the exit confirmation exited (`roster.exits.confirmed.v1` `batchId`), in id order */
                 exitBatchId?: string;
+                /** @description A personnel file number or its beginning, or part of a name (both case-insensitive): the records that match, ordered by full name, up to 50 per page. E.g. the access service resolving the officer a Form K names (spec 10). No national ID search. */
+                search?: string;
                 /** @description `nextCursor` of the previous page; omit for the first page */
                 cursor?: string;
+                /** @description Records per page: up to 1000 (default) for an import or exit batch, 50 (default) for a search */
                 limit?: number;
             };
             header: {
@@ -3623,7 +4072,7 @@ export interface operations {
                     "application/json": components["schemas"]["InternalRosterRecordPage"];
                 };
             };
-            /** @description Query failed validation: not exactly one of importId and exitBatchId, or an unknown cursor */
+            /** @description Query failed validation: not exactly one of importId, exitBatchId and search, or an unknown cursor */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3696,6 +4145,88 @@ export interface operations {
             };
             /** @description No such record in the acting tenant's Commission */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalInviteRosterRecord: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                slug: components["schemas"]["Slug"];
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invitation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingInvitation"];
+                };
+            };
+            /** @description recordId is not a UUID, or no Idempotency-Key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such record in the acting tenant's Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `already-onboarded`: the officer has an account */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The notifications service cannot be reached; nothing was recorded */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4710,6 +5241,501 @@ export interface operations {
             };
         };
     };
+    startApplicantOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartApplicantOnboarding"];
+            };
+        };
+        responses: {
+            /** @description Session started; the code sent to the phone (`phone-pending`) */
+            201: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicantOnboardingSessionCreated"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `identity-mismatch`: IPRS has no person with this national ID under these names; or `already-onboarded` (with `links`): an applicant account has this document */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /**
+             * @description Problem code `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After)
+             *
+             *     Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After
+             */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `otp-send-failed`: the code could not be sent; no session was created */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `iprs-unavailable`: IPRS could not be checked; try again later */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+        };
+    };
+    getApplicantOnboardingSession: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The session */
+            200: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicantOnboardingSession"];
+                };
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    verifyApplicantOnboardingOtp: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyOnboardingOtp"];
+            };
+        };
+        responses: {
+            /** @description Verified; the session moved on */
+            200: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicantOnboardingSession"];
+                };
+            };
+            /** @description Problem code `otp-invalid` (with `attemptsLeft`) or `otp-expired`; a body failing validation has no code */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step`: the session is not waiting for the phone's code; re-read it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    resendApplicantOnboardingOtp: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description New code sent */
+            202: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step`: the session is not waiting for the phone's code; re-read it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Problem code `resend-cooldown` (with `retryAfterSeconds`) or `rate-limit-exceeded` (with `retryAfterSeconds` and Retry-After) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `otp-send-failed`: the code could not be sent; nothing changed, try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+        };
+    };
+    completeApplicantOnboarding: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account created; the session as it now is */
+            200: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicantOnboardingSession"];
+                };
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step` (the BFF re-reads the session), `already-onboarded` (an applicant account has this document) or `email-in-use` (the email belongs to another account); nothing changed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `identity-unavailable`: the account could not be created; nothing changed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+        };
+    };
+    resendApplicantSetPasswordEmail: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Session secret returned once at creation; held by the portal BFF in an httpOnly cookie */
+                "X-Onboarding-Secret": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Email requested */
+            202: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such session, or the secret is missing or wrong */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `wrong-step`: the session is not waiting for a set-password email (it is not completed); re-read it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `session-expired`: the session ended or ran out of time; the BFF clears its cookie */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `resend-cooldown` with `retryAfterSeconds` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+            /** @description Problem code `identity-unavailable`: the email could not be sent; try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ApplicantOnboardingProblem"];
+                };
+            };
+        };
+    };
     getMyDeclarantProfile: {
         parameters: {
             query?: never;
@@ -4852,7 +5878,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No person has this id, or not one onboarded at the acting tenant */
+            /** @description No person has this id, or a declarant not onboarded at the acting tenant */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4863,54 +5889,183 @@ export interface operations {
             };
         };
     };
-    startApplicantOnboarding: {
+    getMyApplicantProfile: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    identityDocument: {
-                        /** @enum {string} */
-                        kind: "national-id" | "passport";
-                        number: string;
-                        country?: string;
-                    };
-                    names: {
-                        surname: string;
-                        firstName: string;
-                        otherNames?: string;
-                    };
-                    phone: string;
-                    /** Format: email */
-                    email?: string;
+        requestBody?: never;
+        responses: {
+            /** @description Profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicantProfile"];
+                };
+            };
+            /** @description Missing, expired or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Not an applicant
+             *
+             *     Requires one of the roles: applicant
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The account has the applicant role but no applicant person */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
+    };
+    internalGetApplicant: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
-            /** @description Session created; phone OTP sent */
-            201: {
+            /** @description The applicant */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["OnboardingSessionCreated"];
+                    "application/json": components["schemas"]["InternalApplicant"];
                 };
             };
-            400: components["responses"]["ValidationProblem"];
-            /** @description The identity document does not match IPRS, or belongs to an existing account */
-            409: {
+            /** @description personId is not a UUID */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["OnboardingProblem"];
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            429: components["responses"]["RateLimited"];
+            /** @description Requires a service token with scope directory:applicants */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No applicant has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalVerifyApplicantIdentity: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyApplicantIdentity"];
+            };
+        };
+        responses: {
+            /** @description The applicant, verified */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalApplicant"];
+                };
+            };
+            /** @description personId is not a UUID, or the body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:applicants */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No applicant has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `identity-unavailable`: the account could not be changed; nothing changed, try again */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listAgencies: {
@@ -4931,7 +6086,19 @@ export interface operations {
                     "application/json": components["schemas"]["Agency"][];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /**
+             * @description Declarants and applicants have no access
+             *
+             *     Requires one of the roles: platform-admin, eacc-analyst, eacc-supervisor, reporting-officer, reviewer, supervisor, commission-admin, access-officer, auditor, helpdesk, law-enforcement
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listAgencyOfficers: {
@@ -4939,7 +6106,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                code: string;
+                code: components["schemas"]["AgencyCode"];
             };
             cookie?: never;
         };
@@ -4954,7 +6121,28 @@ export interface operations {
                     "application/json": components["schemas"]["LeaOfficerAccount"][];
                 };
             };
-            403: components["responses"]["Forbidden"];
+            /**
+             * @description Only platform admins manage officer accounts
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No agency has this code */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     provisionAgencyOfficer: {
@@ -4962,25 +6150,20 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                code: string;
+                code: components["schemas"]["AgencyCode"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    name: string;
-                    /** Format: email */
-                    email: string;
-                    phone: string;
-                };
+                "application/json": components["schemas"]["ProvisionAgencyOfficer"];
             };
         };
         responses: {
-            /** @description Provisioned */
+            /** @description The officer account, `invited` when new or provisioned again */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -4989,9 +6172,57 @@ export interface operations {
                     "application/json": components["schemas"]["LeaOfficerAccount"];
                 };
             };
-            403: components["responses"]["Forbidden"];
-            /** @description Email belongs to an account in another tenant */
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only platform admins manage officer accounts
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No agency has this code */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `email-belongs-to-other-tenant` with `errors[0].path = email`: the email belongs to an account that is not a law-enforcement officer. Problem type `lea-officer-of-other-agency`: it belongs to an officer of another agency. Problem type `lea-officer-busy`: another change to this officer is still in progress; try again shortly. Nothing changed. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and nothing was provisioned. Problem type `invitation-not-sent`: the officer was provisioned but the activation email was not sent; provision them again to resend it. Both are safe to retry. */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5021,8 +6252,107 @@ export interface operations {
                     "application/json": components["schemas"]["LeaOfficerAccount"];
                 };
             };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+            /** @description officerId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description Only platform admins manage officer accounts
+             *
+             *     Requires one of the roles: platform-admin
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No officer has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `lea-officer-busy`: another change to this officer is still in progress; try again shortly. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `identity-unavailable`: the identity provider failed and the officer was not revoked. Safe to retry. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetLeaOfficer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The officer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InternalLeaOfficer"];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:law-enforcement */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No law-enforcement officer has this id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
 }

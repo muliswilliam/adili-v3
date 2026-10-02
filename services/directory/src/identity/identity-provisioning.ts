@@ -1,7 +1,8 @@
 /**
  * Identity provisioning: the directory's only seam onto the identity provider (Keycloak).
  * Staff accounts are created, activated and retired through this interface, declarant accounts
- * are created or linked to further Commissions when onboarding confirms, and so are the API
+ * are created or linked to further Commissions when onboarding confirms, applicant accounts are
+ * created when applicant onboarding completes (and verified later), and so are the API
  * clients Commissions' HR systems authenticate with; the Keycloak adapter is used in every
  * environment and the in-memory adapter in API tests.
  */
@@ -18,6 +19,18 @@ export const STAFF_REQUIRED_ACTIONS: readonly RequiredAction[] = [
 
 /** What a new declarant account must do before first sign-in: set a password. */
 export const DECLARANT_REQUIRED_ACTIONS: readonly RequiredAction[] = ['UPDATE_PASSWORD'];
+
+/**
+ * What a new applicant account must do before first sign-in: set a password, through the link
+ * emailed to it, which also proves the email.
+ */
+export const APPLICANT_REQUIRED_ACTIONS: readonly RequiredAction[] = ['UPDATE_PASSWORD'];
+
+/**
+ * An applicant account's `identityStatus` attribute (spec 10): `verified` (IPRS, or an access
+ * officer for a passport) or `pending-verification`.
+ */
+export type ApplicantIdentityStatus = 'verified' | 'pending-verification';
 
 /** An existing account, as far as provisioning decisions need to know. */
 export interface IdentityUser {
@@ -70,6 +83,45 @@ export interface CreateDeclarantUserInput {
   tenant: string;
   /** The directory's person id: the `person_id` attribute. */
   personId: string;
+}
+
+/**
+ * A law-enforcement officer's account (spec 10), provisioned by a platform admin for an agency.
+ * A staff account in all but its attributes: the email as username, tenant `lea`, the
+ * `law-enforcement` role and the staff required actions, so the officer verifies the email, sets
+ * a password and enrols TOTP, which the staff flow then asks for at every sign-in.
+ */
+export interface CreateLawEnforcementUserInput {
+  /** Official email; the username. */
+  email: string;
+  /** Full name as entered; adapters split it into given and family names. */
+  name: string;
+  /** E.164. */
+  phone: string;
+  /** Agency code, e.g. `DCI`: the `agency` attribute. */
+  agency: string;
+  /** The directory's person id: the `person_id` attribute (and token claim). */
+  personId: string;
+}
+
+/**
+ * An applicant's account (spec 10), created when applicant onboarding completes. No tenant: an
+ * applicant may ask any Commission. The phone was verified during onboarding; the email is proved
+ * by the set-password link.
+ */
+export interface CreateApplicantUserInput {
+  /** The account's username and email, not yet verified. */
+  email: string;
+  /** Given names (first and other names) as entered. */
+  firstName: string;
+  /** Surname as entered. */
+  lastName: string;
+  /** E.164, verified during onboarding: the `phone` attribute, where sign-in codes go. */
+  phone: string;
+  /** The directory's person id: the `person_id` attribute. */
+  personId: string;
+  /** The `identityStatus` attribute. */
+  identityStatus: ApplicantIdentityStatus;
 }
 
 /** How a staff member is named and reached, as entered by the admin who assigned them. */
@@ -202,6 +254,14 @@ export abstract class IdentityProvisioning {
   abstract createStaffUser(input: CreateStaffUserInput): Promise<string>;
 
   /**
+   * Creates an enabled law-enforcement account (see CreateLawEnforcementUserInput): the email as
+   * username, the `tenant` (`lea`), `agency`, `person_id` and `phone` attributes, the
+   * `law-enforcement` role and the staff required actions. Returns the new user id.
+   * @throws EmailTaken when an account with that email (or username) exists.
+   */
+  abstract createLawEnforcementUser(input: CreateLawEnforcementUserInput): Promise<string>;
+
+  /**
    * Creates an enabled declarant account: the OFR as username, the verified email, the `tenant`,
    * `tenants`, `ofr`, `person_id` and `phone` attributes, the `declarant` role and the
    * `UPDATE_PASSWORD` required action. Returns the new user id.
@@ -214,6 +274,24 @@ export abstract class IdentityProvisioning {
    * @throws UsernameTaken when an account that is not such a leftover has the OFR as username.
    */
   abstract createDeclarantUser(input: CreateDeclarantUserInput): Promise<string>;
+
+  /**
+   * Creates an enabled applicant account: the email as username (not yet verified), the given
+   * and family names, the `person_id`, `phone` and `identityStatus` attributes, no tenant, the
+   * `applicant` role and the `UPDATE_PASSWORD` required action. Returns the new user id.
+   * @throws EmailTaken when an account with that email (or username) exists.
+   */
+  abstract createApplicantUser(input: CreateApplicantUserInput): Promise<string>;
+
+  /**
+   * Sets the applicant account's `identityStatus` attribute, keeping everything else. Returns the
+   * call that puts the previous value back, or null when the account already had `status`.
+   * @throws IdentityUserNotFound
+   */
+  abstract setIdentityStatus(
+    userId: string,
+    status: ApplicantIdentityStatus,
+  ): Promise<Restore | null>;
 
   /**
    * Adds `tenant` to the account's multi-valued `tenants` attribute (a person onboarded with

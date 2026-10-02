@@ -585,6 +585,10 @@ describe('S13 downloading', () => {
     const fetched = await fetch(body.downloadUrl);
     expect(fetched.status).toBe(200);
     expect(fetched.headers.get('content-type')).toBe('application/pdf');
+    // Saved, not opened in place of the page that asked for it.
+    expect(fetched.headers.get('content-disposition')).toBe(
+      'attachment; filename="acknowledgement-slip-DCB-PSC-2027-0000001-1.pdf"',
+    );
     expect(sha256(new Uint8Array(await fetched.arrayBuffer()))).toBe(document.sha256);
 
     const audits = (

@@ -1,0 +1,1 @@
+ALTER TABLE "issued_documents" ADD COLUMN "additional_downloaders" text[] DEFAULT '{}'::text[] NOT NULL;

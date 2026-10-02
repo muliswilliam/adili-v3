@@ -15,13 +15,8 @@ import {
   SOFT,
   signatureNote,
 } from './page.js';
-import { isDeclarationReference } from './references.js';
+import { DECLARATION_TYPES, isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
-
-const DECLARATION_TYPES = Object.keys(declarationSchemes) as [
-  DeclarationType,
-  ...DeclarationType[],
-];
 
 /**
  * What the declarations service's acknowledgement payload endpoint returns for a submitted

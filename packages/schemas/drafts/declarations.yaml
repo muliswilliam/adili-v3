@@ -1,64 +1,10 @@
-# Drafted operations of the declarations API for specs not implemented yet: 07a (internal reads
-# for review), 08 (person obligation history) and 09 (Form M officer details), with suggestions,
-# the assistant and help. `pnpm --filter @adili/declarations contracts` merges them into
+# Drafted operations of the declarations API for specs not implemented yet: suggestions, the
+# assistant and help. `pnpm --filter @adili/declarations contracts` merges them into
 # packages/schemas/internal/declarations.yaml, where they may reference the implemented
 # components (e.g. `#/components/schemas/Obligation`, `CommissionRef`, `ObligationType`,
 # `ProblemDetails`). When an operation or component is implemented, delete it here: the export
 # fails while both define it.
 paths:
-  /internal/v1/declarations/disclosures:
-    post:
-      tags: [internal]
-      operationId: internalRenderDisclosure
-      summary: Render the scoped disclosure of a person's submitted declarations for a grant (audited)
-      description: |
-        Only the versions, household members and sections in the granted scope are decrypted and
-        returned. The read is audited with the grant reference as legal basis and the recipient.
-      parameters:
-        - name: X-Acting-Subject
-          in: header
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DisclosureRequest'
-      responses:
-        '200':
-          description: Disclosure document
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DisclosureDocument'
-        '400':
-          $ref: '#/components/responses/ValidationProblem'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /internal/v1/declarations/{declarationId}/versions/{version}/full-document:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - $ref: '#/components/parameters/VersionNumber'
-      - name: X-Acting-Subject
-        in: header
-        required: true
-        schema:
-          type: string
-    get:
-      tags: [internal]
-      operationId: internalGetFullDocumentForCertifiedCopy
-      summary: The full immutable document of a version for the declarant's certified copy (audited as self-access)
-      responses:
-        '200':
-          description: Document
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InternalVersionDocument'
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/declarations/{declarationId}/suggestions/lookups:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'
@@ -495,13 +441,6 @@ components:
       schema:
         type: string
         format: uuid
-    VersionNumber:
-      name: version
-      in: path
-      required: true
-      schema:
-        type: integer
-        minimum: 1
     SuggestionId:
       name: suggestionId
       in: path
@@ -516,14 +455,6 @@ components:
       schema:
         type: string
         format: uuid
-    ActingTenant:
-      name: X-Acting-Tenant
-      in: header
-      required: true
-      description: Tenant the calling service acts for; the resource must belong to it
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]{1,19}$'
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -552,83 +483,6 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
-    DisclosureRequest:
-      type: object
-      required:
-        [
-          personId,
-          tenant,
-          grantReference,
-          legalBasis,
-          recipientSubject,
-          years,
-          includeSpouses,
-          includeChildren,
-          sections,
-        ]
-      properties:
-        personId:
-          type: string
-          format: uuid
-        tenant:
-          type: string
-        grantReference:
-          type: string
-          description: ARQ or LEA reference
-        legalBasis:
-          type: string
-          enum: [act-s36-1, act-s36-2]
-        recipientSubject:
-          type: string
-        years:
-          type: array
-          minItems: 1
-          items:
-            type: integer
-        includeSpouses:
-          type: boolean
-        includeChildren:
-          type: boolean
-        sections:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            enum: [bio, income, assets, liabilities, other]
-    DisclosureDocument:
-      type: object
-      required: [schemaVersion, grantReference, personName, commission, versions]
-      properties:
-        schemaVersion:
-          const: disclosure.v1
-        grantReference:
-          type: string
-        personName:
-          type: string
-        commission:
-          $ref: '#/components/schemas/CommissionRef'
-        versions:
-          type: array
-          items:
-            type: object
-            required: [reference, version, type, statementDate, submittedAt, content]
-            properties:
-              reference:
-                $ref: '#/components/schemas/DeclarationReference'
-              version:
-                type: integer
-              type:
-                $ref: '#/components/schemas/ObligationType'
-              statementDate:
-                type: string
-                format: date
-              submittedAt:
-                type: string
-                format: date-time
-              content:
-                type: object
-                description: Subset of the declaration.v1 document limited to the granted persons and sections
-                additionalProperties: true
     SuggestionSource:
       type: string
       enum: [kra, ntsa, brs, ardhisasa, document]

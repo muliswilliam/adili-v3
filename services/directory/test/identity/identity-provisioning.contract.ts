@@ -5,9 +5,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import {
   type ActivationEmailOptions,
   ApiClientExists,
+  type CreateApplicantUserInput,
   ApiClientNotFound,
   type CreateApiClientInput,
   type CreateDeclarantUserInput,
+  type CreateLawEnforcementUserInput,
   type CreateStaffUserInput,
   EmailTaken,
   type ExecuteActionsEmailOptions,
@@ -28,7 +30,11 @@ export interface InspectedUser {
   tenants: string[];
   ofr: string | null;
   personId: string | null;
+  /** A law-enforcement officer's agency code attribute. */
+  agency: string | null;
   phone: string | null;
+  /** Applicants' `identityStatus` attribute. */
+  identityStatus: string | null;
   realmRoles: string[];
   requiredActions: string[];
   enabled: boolean;
@@ -121,6 +127,30 @@ export function declarant(email: string, ofr = uniqueOfr()): CreateDeclarantUser
     phone: '+254712345123',
     tenant: 'tsc',
     personId: randomUUID(),
+  };
+}
+
+export function lawEnforcementOfficer(email: string): CreateLawEnforcementUserInput {
+  return {
+    email,
+    name: 'Achieng Wafula Njoroge',
+    phone: '+254712345987',
+    agency: 'DCI',
+    personId: randomUUID(),
+  };
+}
+
+export function applicant(
+  email: string,
+  identityStatus: CreateApplicantUserInput['identityStatus'] = 'pending-verification',
+): CreateApplicantUserInput {
+  return {
+    email,
+    firstName: 'Amina Nakato',
+    lastName: 'Okello',
+    phone: '+256772123456',
+    personId: randomUUID(),
+    identityStatus,
   };
 }
 
@@ -418,6 +448,46 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       });
     });
 
+    it('S11: creates a law-enforcement officer with tenant lea, agency, person id, role and the staff required actions', async () => {
+      const email = uniqueEmail('S11-lea');
+      const input = lawEnforcementOfficer(email.toUpperCase());
+
+      const userId = await harness().adapter.createLawEnforcementUser(input);
+      created.push(userId);
+
+      const user = await harness().inspect(userId);
+      expect(user).toMatchObject({
+        username: email,
+        email,
+        emailVerified: false,
+        name: 'Achieng Wafula Njoroge',
+        tenant: 'lea',
+        agency: 'DCI',
+        personId: input.personId,
+        ofr: null,
+        phone: '+254712345987',
+        enabled: true,
+      });
+      expect(user.realmRoles).toContain('law-enforcement');
+      expect([...user.requiredActions].sort()).toEqual(
+        ['CONFIGURE_TOTP', 'UPDATE_PASSWORD', 'VERIFY_EMAIL'].sort(),
+      );
+      await expect(harness().adapter.findByEmail(email)).resolves.toMatchObject({
+        userId,
+        tenant: 'lea',
+        roles: ['law-enforcement'],
+      });
+    });
+
+    it('reports a law-enforcement officer whose email has an account as EmailTaken', async () => {
+      const email = uniqueEmail('lea-taken');
+      await create(reportingOfficer(email));
+
+      await expect(
+        harness().adapter.createLawEnforcementUser(lawEnforcementOfficer(email)),
+      ).rejects.toBeInstanceOf(EmailTaken);
+    });
+
     it('reports a declarant whose email has an account as EmailTaken', async () => {
       const email = uniqueEmail('declarant-taken');
       await create(reportingOfficer(email));
@@ -487,6 +557,68 @@ export function identityProvisioningContract(name: string, harness: () => Contra
       expect(again).toBeNull();
       expect(await harness().inspect(userId)).toMatchObject({ tenant: 'tsc', tenants: ['tsc'] });
       await expect(harness().adapter.addTenantToUser(userId, 'tsc')).resolves.toBeNull();
+    });
+
+    it('S1: creates an applicant with the email as username, unverified, no tenant, attributes, role and UPDATE_PASSWORD', async () => {
+      const email = uniqueEmail('S1-applicant');
+      const input = applicant(email.toUpperCase());
+
+      const userId = await harness().adapter.createApplicantUser(input);
+      created.push(userId);
+
+      expect(await harness().inspect(userId)).toMatchObject({
+        username: email,
+        email,
+        emailVerified: false,
+        name: 'Amina Nakato Okello',
+        tenant: null,
+        tenants: [],
+        ofr: null,
+        personId: input.personId,
+        phone: '+256772123456',
+        identityStatus: 'pending-verification',
+        enabled: true,
+        requiredActions: ['UPDATE_PASSWORD'],
+      });
+      await expect(harness().adapter.findById(userId)).resolves.toMatchObject({
+        tenant: null,
+        roles: ['applicant'],
+      });
+    });
+
+    it('reports an applicant whose email has an account as EmailTaken', async () => {
+      const email = uniqueEmail('applicant-taken');
+      await create(reportingOfficer(email));
+
+      await expect(
+        harness().adapter.createApplicantUser(applicant(email.toUpperCase())),
+      ).rejects.toBeInstanceOf(EmailTaken);
+    });
+
+    it('S2: sets the identity status, idempotently, keeping everything else, and restores it exactly', async () => {
+      const userId = await harness().adapter.createApplicantUser(
+        applicant(uniqueEmail('identity-status')),
+      );
+      created.push(userId);
+
+      const restore = await harness().adapter.setIdentityStatus(userId, 'verified');
+      const verified = await harness().inspect(userId);
+      const again = await harness().adapter.setIdentityStatus(userId, 'verified');
+      await restore?.();
+
+      expect(verified).toMatchObject({
+        identityStatus: 'verified',
+        phone: '+256772123456',
+        tenant: null,
+      });
+      expect(verified.realmRoles).toContain('applicant');
+      expect(again).toBeNull();
+      expect(await harness().inspect(userId)).toMatchObject({
+        identityStatus: 'pending-verification',
+      });
+      await expect(
+        harness().adapter.setIdentityStatus(UNKNOWN_USER_ID, 'verified'),
+      ).rejects.toBeInstanceOf(IdentityUserNotFound);
     });
 
     it('S11, S17: sends an execute-actions email each time it is asked, recording nothing on the account', async () => {

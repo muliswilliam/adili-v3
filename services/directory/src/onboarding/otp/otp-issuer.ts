@@ -15,8 +15,8 @@ import { OtpDelivery, OtpDeliveryFailed, type OtpMessage } from './otp-delivery.
 export interface IssueOptions {
   /** A resend: counts against the channel's resends. The first code of a channel is not one. */
   resend?: boolean;
-  /** The Commission named in the message. */
-  commissionName: string;
+  /** The Commission named in the message; none for an applicant's code. */
+  commissionName?: string;
   now: Date;
 }
 
@@ -100,9 +100,9 @@ export class OtpIssuer {
       channel,
       to,
       code,
-      commissionName,
+      ...(commissionName === undefined ? {} : { commissionName }),
       expiresInMinutes: ONBOARDING_TIMING.otpTtlMs / 60_000,
-      tenant: session.tenant,
+      ...(session.tenant === null ? {} : { tenant: session.tenant }),
     };
   }
 

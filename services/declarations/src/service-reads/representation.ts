@@ -58,6 +58,22 @@ export const internalPreviousVersionSchema = z.object({
 });
 export type InternalPreviousVersion = z.infer<typeof internalPreviousVersionSchema>;
 
+/**
+ * One of a person's submitted versions at the Commission, as the access officer chooses the
+ * version a written self-access application asks a certified copy of (`internalListPersonVersions`,
+ * spec 10). Identifiers, dates and the reference only: no content.
+ */
+export const internalPersonVersionSchema = z.object({
+  declarationId: z.uuid(),
+  version: z.int().min(1),
+  reference: declarationReferenceSchema,
+  type: obligationTypeSchema,
+  statementDate: z.iso.date(),
+  submittedAt: z.iso.datetime(),
+  superseded: z.boolean().meta({ description: 'A later version of the declaration replaced it' }),
+});
+export type InternalPersonVersion = z.infer<typeof internalPersonVersionSchema>;
+
 export const previousVersionQuery = z.object({
   personId: z.uuid(),
   beforeVersionId: z.uuid(),

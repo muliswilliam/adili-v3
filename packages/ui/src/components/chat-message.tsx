@@ -2,7 +2,7 @@ import { Alert02Icon, Clock01Icon, HelpCircleIcon } from '@hugeicons/core-free-i
 import { type ComponentProps, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
-import { focusRing } from '../lib/focus';
+import { textLink } from '../lib/focus';
 import { Button } from './button';
 import { type Citation, CitationList, type CitationMessages } from './citation-chip';
 import { Icon } from './icon';
@@ -200,10 +200,7 @@ const noticeClassName = cn(
 
 const warningClassName = cn(noticeClassName, 'bg-warning-subtle text-warning-subtle-foreground');
 
-const contactLinkClassName = cn(
-  focusRing,
-  'rounded-sm text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground',
-);
+const contactLinkClassName = textLink;
 
 function AssistantBody({
   status,
