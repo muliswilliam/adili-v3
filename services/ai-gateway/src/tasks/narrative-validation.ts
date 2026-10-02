@@ -114,6 +114,12 @@ interface Mention {
   /** Decimal places as written: the precision a figure was rounded to. */
   decimals: number;
   percent: boolean;
+  /**
+   * A unit carried back from the end of a range ("8.2 to 16.4%"). It is a second reading, not a
+   * replacement: "670 – 8.2%" may be a count next to a share, so the number is stated if the input
+   * holds it as written or as a percentage.
+   */
+  carried: boolean;
   /** Four digits, no separator, no decimals or unit: a year. */
   year: boolean;
 }
@@ -123,8 +129,8 @@ const RANGE_JOIN = /^\s*(?:to|and|[-–—])\s*$/iu;
 
 /**
  * The numbers in `text`. A unit written once, after a range's last number, is carried to the
- * numbers before it: "from 8.2 to 16.4 per cent" states two percentages. A year is not part of a
- * range of figures ("in FY2024 to 35.3% in FY2025").
+ * numbers before it: "from 8.2 to 16.4 per cent" may state two percentages. A year is not part of
+ * a range of figures ("in FY2024 to 35.3% in FY2025").
  */
 function mentions(text: string): Mention[] {
   const matches = [...text.matchAll(NUMBER)];
@@ -134,6 +140,7 @@ function mentions(text: string): Mention[] {
       value,
       decimals: fraction?.length ?? 0,
       percent: Boolean(unit),
+      carried: false,
       year:
         /^\d{4}$/.test(integer) && !fraction && !unit && value >= YEARS.from && value <= YEARS.to,
     };
@@ -143,9 +150,9 @@ function mentions(text: string): Mention[] {
     const [current, next] = [found[at], found[at + 1]];
     const [written, following] = [matches[at], matches[at + 1]];
     if (!current || !next || !written || !following) continue;
-    if (current.percent || current.year || !next.percent) continue;
+    if (current.percent || current.year || !(next.percent || next.carried)) continue;
     const between = text.slice(written.index + written[0].length, following.index);
-    current.percent = RANGE_JOIN.test(between);
+    current.carried = RANGE_JOIN.test(between);
   }
   return found;
 }
@@ -190,10 +197,15 @@ function same(a: number, b: number): boolean {
 /**
  * Whether the input states a mention. A percentage matches a rate ×100 rounded as written, to at
  * most two places; a year matches an input FY; another whole number matches exactly; a
- * decimal matches rounded as written. Nothing derived: a difference or ratio passes only when
- * the input carries it.
+ * decimal matches rounded as written. A number with a carried unit matches either way. Nothing
+ * derived: a difference or ratio passes only when the input carries it.
  */
-function stated(
+function stated(mention: Mention, known: InputNumbers, years: ReadonlySet<number>): boolean {
+  if (mention.carried && statedAs({ ...mention, percent: true }, known, years)) return true;
+  return statedAs(mention, known, years);
+}
+
+function statedAs(
   { value, decimals, percent, year }: Mention,
   known: InputNumbers,
   years: ReadonlySet<number>,
@@ -220,7 +232,13 @@ function foreignNumbers(text: string, known: InputNumbers, years: ReadonlySet<nu
       ([, start = '', end = '']) =>
         !labelYears(Number(start), end).every((year) => years.has(year)),
     )
-    .map((): Mention => ({ value: Number.NaN, decimals: 0, percent: false, year: true }));
+    .map((): Mention => ({
+      value: Number.NaN,
+      decimals: 0,
+      percent: false,
+      carried: false,
+      year: true,
+    }));
   const rest = text.replaceAll(FY_LABEL, ' ');
   return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known, years))];
 }

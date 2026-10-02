@@ -106,6 +106,32 @@ describe('narrative validation', () => {
       expect(foreign('Of 960, 16.4% were late.')).toEqual([]);
     });
 
+    it('reads a number before a carried unit as written or as a percentage, never neither', () => {
+      const counted = {
+        ...input,
+        totals: { ...input.totals, filed: 14_854 },
+        rates: { ...input.rates, filingRate: 0.9336 },
+        commissionTable: input.commissionTable.map((row) =>
+          row.code === 'tsc'
+            ? { ...row, figures: { ...row.figures, nonFilers: 670, nonFilerRate: 0.0817 } }
+            : row,
+        ),
+      };
+      const kinds = (text: string) =>
+        narrativeViolations(counted, withParagraph(0, { text })).map((each) => each.kind);
+      // A count next to a share, both in the input.
+      expect(kinds('Non-filers numbered 670 – 8.2% of the 8,200 expected.')).toEqual([]);
+      expect(kinds('Filings reached 14,854 and 93.4% of declarations were filed on time.')).toEqual(
+        [],
+      );
+      // Neither 671 nor 6.71% is in the input.
+      expect(kinds('Non-filers numbered 671 – 8.2% of the 8,200 expected.')).toEqual([
+        'foreign-number',
+      ]);
+      // A count before a range does not let a count ×100 through at its end.
+      expect(kinds('Non-filers numbered 670 – 67000%.')).toEqual(['foreign-number']);
+    });
+
     it('strips thousands separators, comma, thin or narrow no-break space', () => {
       expect(foreign('Filed: 11,204, 11\u2009204 and 11\u202f204.')).toEqual([]);
     });
