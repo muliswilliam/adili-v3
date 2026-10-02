@@ -9,8 +9,9 @@ import { FieldError } from './form-field';
 
 /**
  * What an access request asks for, or a decision grants: declaration years, whether the
- * declarant's spouses and children are included, and which sections. The declarant is always
- * included. The `scope` of `form-k.v1`.
+ * declarant's spouses and children are included, which sections, and whether the clarifications
+ * the declarant gave on those declarations are included (Form K only: always false for a
+ * law-enforcement request). The declarant is always included. The `scope` of `form-k.v1`.
  */
 export type Scope = FormKV1['scope'];
 
@@ -27,7 +28,7 @@ export const scopeSectionLabels: Record<ScopeSection, string> = {
 
 export const SCOPE_SECTIONS = Object.keys(scopeSectionLabels) as ScopeSection[];
 
-type ScopeFlag = 'includeSpouses' | 'includeChildren';
+type ScopeFlag = 'includeSpouses' | 'includeChildren' | 'includeClarifications';
 
 /** True when `scope` asks for nothing beyond `requested`: a grant can only narrow a request. */
 export function isScopeWithin(scope: Scope, requested: Scope): boolean {
@@ -35,11 +36,12 @@ export function isScopeWithin(scope: Scope, requested: Scope): boolean {
     scope.years.every((year) => requested.years.includes(year)) &&
     scope.sections.every((section) => requested.sections.includes(section)) &&
     (!scope.includeSpouses || requested.includeSpouses) &&
-    (!scope.includeChildren || requested.includeChildren)
+    (!scope.includeChildren || requested.includeChildren) &&
+    (!scope.includeClarifications || requested.includeClarifications)
   );
 }
 
-/** True when both scopes cover the same years, people and sections. */
+/** True when both scopes cover the same years, people, sections and clarifications. */
 export function isSameScope(a: Scope, b: Scope): boolean {
   return isScopeWithin(a, b) && isScopeWithin(b, a);
 }
@@ -69,15 +71,23 @@ export function formatScopeSections(scope: Pick<Scope, 'sections'>): string {
 }
 
 /**
- * `2025, 2026 · Declarant and spouses · Income, assets`. `people` words the household for
- * another reader (the console names the officer, the declarant's notices say "You").
+ * `2025, 2026 · Declarant and spouses · Income, assets, clarifications`. `people` words the
+ * household for another reader (the console names the officer, the declarant's notices say
+ * "You").
  */
 export function formatScope(
   scope: Scope,
   people: (scope: Scope) => string = formatScopePeople,
 ): string {
-  return [formatScopeYears(scope), people(scope), formatScopeSections(scope)].join(' · ');
+  const contents = [
+    formatScopeSections(scope),
+    ...(scope.includeClarifications ? ['clarifications'] : []),
+  ].join(', ');
+  return [formatScopeYears(scope), people(scope), contents].join(' · ');
 }
+
+/** The name of the clarifications a scope can include, as the picker and the views show it. */
+export const SCOPE_CLARIFICATIONS_LABEL = 'Clarifications';
 
 export interface ScopePickerProps {
   value: Scope;
@@ -92,6 +102,11 @@ export interface ScopePickerProps {
    * marked "Not requested", so a partial grant can only narrow the request.
    */
   restrictTo?: Scope;
+  /**
+   * Offer the declarant's clarifications (Form K, Act s.36(1)). Law-enforcement requests do not
+   * cover them: leave this off and `includeClarifications` false.
+   */
+  clarifications?: boolean;
   errors?: { years?: ReactNode; sections?: ReactNode };
   disabled?: boolean;
   /** Prefix for the checkboxes' `name`s, when several pickers share a form. */
@@ -101,14 +116,16 @@ export interface ScopePickerProps {
 
 /**
  * Chooses the scope of an access request or grant: years, people (the declarant, spouses and
- * children) and sections, each a fieldset with a legend. Side by side from
- * 600px of its own width, stacked below (the prototype shows three columns inside a card).
+ * children) and sections, each a fieldset with a legend, side by side from 600px of its own
+ * width and stacked below (the prototype shows three columns inside a card); with
+ * `clarifications`, a fourth fieldset across them offers the declarant's clarifications.
  */
 export function ScopePicker({
   value,
   onChange,
   years,
   restrictTo,
+  clarifications = false,
   errors = {},
   disabled = false,
   name,
@@ -120,6 +137,7 @@ export function ScopePicker({
     field,
     option,
     label,
+    description,
     checked,
     requested,
     onToggle,
@@ -127,6 +145,8 @@ export function ScopePicker({
     field: keyof Scope;
     option?: string;
     label: string;
+    /** A line under the label saying what the option covers. */
+    description?: string;
     checked: boolean;
     /** False when restricted and the request did not ask for it. */
     requested: boolean;
@@ -142,7 +162,11 @@ export function ScopePicker({
         // A stray choice outside the request stays enabled so it can be unticked.
         disabled={disabled || (!requested && !checked)}
         hint={
-          requested ? undefined : <span className="text-[11.5px] font-medium">Not requested</span>
+          requested ? (
+            description
+          ) : (
+            <span className="text-[11.5px] font-medium">Not requested</span>
+          )
         }
         onChange={(event) => {
           onToggle(event.currentTarget.checked);
@@ -151,10 +175,11 @@ export function ScopePicker({
     );
   }
 
-  const flag = (key: ScopeFlag, label: string) =>
+  const flag = (key: ScopeFlag, label: string, description?: string) =>
     item({
       field: key,
       label,
+      description,
       checked: value[key],
       requested: !restrictTo || restrictTo[key],
       onToggle: (on) => {
@@ -218,6 +243,15 @@ export function ScopePicker({
             }),
           )}
         </ScopeGroup>
+        {clarifications ? (
+          <ScopeGroup legend={SCOPE_CLARIFICATIONS_LABEL} className="@min-[600px]:col-span-3">
+            {flag(
+              'includeClarifications',
+              "The declarant's clarifications",
+              'Their answers to the Commission’s requests for clarification on these declarations',
+            )}
+          </ScopeGroup>
+        ) : null}
       </div>
     </div>
   );
@@ -226,10 +260,12 @@ export function ScopePicker({
 function ScopeGroup({
   legend,
   error,
+  className,
   children,
 }: {
   legend: string;
   error?: ReactNode;
+  className?: string;
   children: ReactNode;
 }) {
   const ids = useFieldIds({ error });
@@ -240,6 +276,7 @@ function ScopeGroup({
       className={cn(
         'grid min-w-0 content-start gap-2.5 rounded-lg bg-card px-3.5 py-3',
         error ? 'shadow-control-error' : 'shadow-control',
+        className,
       )}
     >
       {/* Floated so it lays out inside the padded box like any other row. */}

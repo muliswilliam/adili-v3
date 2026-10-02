@@ -16,6 +16,7 @@ const requested: Scope = {
   includeSpouses: true,
   includeChildren: false,
   sections: ['income', 'assets', 'liabilities'],
+  includeClarifications: true,
 };
 
 const empty: Scope = {
@@ -23,6 +24,7 @@ const empty: Scope = {
   includeSpouses: false,
   includeChildren: false,
   sections: [],
+  includeClarifications: false,
 };
 
 function renderPicker(props: Partial<Parameters<typeof ScopePicker>[0]> = {}) {
@@ -88,10 +90,36 @@ describe('ScopePicker', () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...empty, includeChildren: true });
   });
 
-  it('offers no clarifications: a scope covers declarations only', () => {
+  it("offers the declarant's clarifications under their own legend, for Form K", () => {
+    const onChange = renderPicker({ clarifications: true });
+
+    const group = screen.getByRole('group', { name: 'Clarifications' });
+    const box = within(group).getByRole('checkbox', { name: "The declarant's clarifications" });
+    expect(box.getAttribute('aria-describedby')).toBe(
+      within(group).getByText(/answers to the Commission’s requests/).closest('p')?.id,
+    );
+    fireEvent.click(box);
+    expect(onChange).toHaveBeenLastCalledWith({ ...empty, includeClarifications: true });
+  });
+
+  it('leaves clarifications out when the request cannot include them (law enforcement)', () => {
     renderPicker();
 
     expect(screen.queryByRole('checkbox', { name: /clarification/i })).toBeNull();
+  });
+
+  it('offers clarifications to grant only when they were requested', () => {
+    renderPicker({
+      clarifications: true,
+      value: { ...requested, includeClarifications: false },
+      restrictTo: { ...requested, includeClarifications: false },
+    });
+
+    const box = screen.getByRole('checkbox', { name: "The declarant's clarifications" });
+    expect(box).toHaveProperty('disabled', true);
+    expect(
+      within(screen.getByRole('group', { name: 'Clarifications' })).getByText('Not requested'),
+    ).toBeDefined();
   });
 
   it('offers only what was requested when restricted, and says why the rest is off', () => {
@@ -197,6 +225,12 @@ describe('isScopeWithin', () => {
     expect(isScopeWithin({ ...requested, years: [2024] }, requested)).toBe(false);
     expect(isScopeWithin({ ...requested, includeChildren: true }, requested)).toBe(false);
     expect(isScopeWithin({ ...requested, sections: ['bio'] }, requested)).toBe(false);
+    expect(
+      isScopeWithin(
+        { ...requested, includeClarifications: true },
+        { ...requested, includeClarifications: false },
+      ),
+    ).toBe(false);
   });
 });
 
@@ -210,18 +244,19 @@ describe('isSameScope', () => {
       }),
     ).toBe(true);
     expect(isSameScope(requested, { ...requested, sections: ['income'] })).toBe(false);
+    expect(isSameScope(requested, { ...requested, includeClarifications: false })).toBe(false);
   });
 });
 
 describe('formatScope', () => {
-  it('summarises years, people and sections', () => {
+  it('summarises years, people, sections and clarifications', () => {
     expect(formatScope(requested)).toBe(
-      '2025, 2026 · Declarant and spouses · Income, assets, liabilities',
+      '2025, 2026 · Declarant and spouses · Income, assets, liabilities, clarifications',
     );
     expect(
       formatScope({ ...empty, years: [2026], includeChildren: true, sections: ['bio', 'other'] }),
     ).toBe('2026 · Declarant and children · Personal details, other information');
-    expect(formatScope({ ...requested, includeChildren: true })).toBe(
+    expect(formatScope({ ...requested, includeChildren: true, includeClarifications: false })).toBe(
       '2025, 2026 · Declarant, spouses and children · Income, assets, liabilities',
     );
     expect(formatScope({ ...empty, years: [2026], sections: ['income'] })).toBe(
@@ -231,7 +266,7 @@ describe('formatScope', () => {
 
   it("takes another reader's words for the people", () => {
     expect(formatScope(requested, () => 'You and spouse')).toBe(
-      '2025, 2026 · You and spouse · Income, assets, liabilities',
+      '2025, 2026 · You and spouse · Income, assets, liabilities, clarifications',
     );
   });
 
