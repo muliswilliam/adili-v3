@@ -15,7 +15,9 @@ export interface ClarificationLetterPayload {
   declarationReference: string;
   clarificationReference: string;
   opening: string | null;
-  items: { label: string; requirementLabel: string; text: string }[];
+  /** Some of the text was drafted with AI and approved by the issuing reviewer (ADR-007). */
+  aiAssisted: boolean;
+  items: { label: string; requirementLabel: string; text: string; aiAssisted: boolean }[];
   issuedAt: string;
   dueAt: string;
   portalUrl: string;
@@ -59,7 +61,9 @@ export class LetterPayloadService {
       declarationReference,
       clarificationReference: reference,
       opening: letter.opening ?? null,
-      items: letter.items,
+      // Letters issued before the label was recorded had no AI-drafted text to mark.
+      aiAssisted: letter.aiAssisted ?? false,
+      items: letter.items.map((item) => ({ ...item, aiAssisted: item.aiAssisted ?? false })),
       issuedAt: issuedAt.toISOString(),
       dueAt: dueAt.toISOString(),
       portalUrl: portalClarificationUrl(clarificationId),

@@ -24,6 +24,7 @@ import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { caseTenant } from '../cases/access.js';
 import { withUpstream } from '../internal-api/upstream.js';
+import { reviewCopilotDrafts } from '../copilot/draft-schema.js';
 import { requireAssignee } from './access.js';
 import type {
   ClarificationInput,
@@ -82,6 +83,7 @@ export class ClarificationsService {
         .where(eq(reviewCases.id, caseId));
       const reviewCase = notFoundIfInvisible(found);
       requireAssignee(principal, reviewCase.assignee);
+      await requireDraftedOnCase(tx, caseId, input);
       const [created] = await tx
         .insert(clarifications)
         .values({
@@ -92,6 +94,7 @@ export class ClarificationsService {
           status: 'draft',
           items: storedItems(input),
           opening: input.opening,
+          openingAiJobId: input.openingAiJobId,
           createdBy: principal.subject,
         })
         .returning();
@@ -109,9 +112,14 @@ export class ClarificationsService {
       const { clarification, reviewCase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, reviewCase.assignee);
       if (clarification.status !== 'draft') throw notADraft();
+      await requireDraftedOnCase(tx, reviewCase.id, input, aiJobIdsOf(clarification));
       const [updated] = await tx
         .update(clarifications)
-        .set({ items: storedItems(input), opening: input.opening })
+        .set({
+          items: storedItems(input),
+          opening: input.opening,
+          openingAiJobId: input.openingAiJobId,
+        })
         .where(eq(clarifications.id, clarificationId))
         .returning();
       return clarificationView(notFoundIfInvisible(updated));
@@ -297,6 +305,7 @@ export class ClarificationsService {
           status: 'draft',
           items: clarification.items.map((item) => ({ ...item, id: uuidv7() })),
           opening: clarification.opening,
+          openingAiJobId: clarification.openingAiJobId,
           followUpOf: clarificationId,
           createdBy: principal.subject,
         })
@@ -428,7 +437,59 @@ function storedItems(input: ClarificationInput): ClarificationItem[] {
     itemId: item.itemId ?? null,
     requirement: item.requirement,
     text: item.text,
+    aiJobId: item.aiJobId ?? null,
   }));
+}
+
+/** The Draft with AI jobs a clarification's text came from. */
+function aiJobIdsOf(clarification: {
+  items: ClarificationItem[];
+  openingAiJobId: string | null;
+}): Set<string> {
+  return new Set(
+    [...clarification.items.map((item) => item.aiJobId), clarification.openingAiJobId].filter(
+      (id): id is string => id != null,
+    ),
+  );
+}
+
+/**
+ * Every Draft with AI job the input names (`aiJobId`, `openingAiJobId`) drafted on this case: a
+ * ready draft of the case's, or one the clarification already names (its drafts may be purged
+ * since). 400 otherwise, so the AI label (ADR-007) always points at a draft of the case.
+ */
+async function requireDraftedOnCase(
+  tx: ReviewTransaction,
+  caseId: string,
+  input: ClarificationInput,
+  known = new Set<string>(),
+): Promise<void> {
+  const named = [
+    ...aiJobIdsOf({ items: storedItems(input), openingAiJobId: input.openingAiJobId }),
+  ];
+  const unknown = named.filter((id) => !known.has(id));
+  if (unknown.length === 0) return;
+  const drafted = await tx
+    .selectDistinct({ jobId: reviewCopilotDrafts.jobId })
+    .from(reviewCopilotDrafts)
+    .where(
+      and(
+        eq(reviewCopilotDrafts.caseId, caseId),
+        eq(reviewCopilotDrafts.status, 'ready'),
+        inArray(reviewCopilotDrafts.jobId, unknown),
+      ),
+    );
+  if (drafted.length < unknown.length) {
+    throw new ProblemException(
+      {
+        type: 'ai-draft-not-on-case',
+        title: 'Bad Request',
+        status: HttpStatus.BAD_REQUEST,
+        detail: 'An AI-drafted item or opening names no Draft with AI of this case.',
+      },
+      { code: 'ai-draft-not-on-case' },
+    );
+  }
 }
 
 function notADraft(): ProblemException {

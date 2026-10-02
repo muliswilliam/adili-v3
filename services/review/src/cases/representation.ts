@@ -131,7 +131,7 @@ export interface ClarificationView {
   caseId: string;
   reference: string | null;
   status: ClarificationStatus;
-  items: Omit<ClarificationItem, 'id'>[];
+  items: (Omit<ClarificationItem, 'id' | 'aiJobId'> & { aiJobId: string | null })[];
   issuedAt: string | null;
   dueAt: string | null;
   respondedAt: string | null;
@@ -146,6 +146,8 @@ export interface ClarificationView {
   followUpOf: string | null;
   /** The letter's opening paragraph, before the items; null when it has none. */
   opening: string | null;
+  /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
+  openingAiJobId: string | null;
   response: {
     items: {
       index: number;

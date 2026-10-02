@@ -375,6 +375,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Clarification'
+        '400':
+          description: 'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
@@ -414,6 +420,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Clarification'
+        '400':
+          description: 'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
