@@ -1904,7 +1904,7 @@ paths:
                 $ref: '#/components/schemas/CommissionAiStatus'
         '404':
           $ref: '#/components/responses/NotFound'
-        '502':
+        '503':
           description: Problem type `ai-gateway-unavailable`; the status could not be read
           content:
             application/problem+json:

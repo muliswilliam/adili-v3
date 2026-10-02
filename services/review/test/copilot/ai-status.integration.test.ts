@@ -87,14 +87,15 @@ describe('Commission AI status', () => {
     }
   });
 
-  it('answers 502 when the ai-gateway cannot be reached', async () => {
+  it('answers 503 when the ai-gateway cannot be reached, as every copilot endpoint does', async () => {
     api.ai.failCalls(1);
 
     const response = await api.get(path('psc'), pscAdmin);
 
-    expect(response.statusCode).toBe(502);
+    expect(response.statusCode).toBe(503);
     expect(response.json()).toMatchObject({
       type: expect.stringContaining('ai-gateway-unavailable') as string,
+      status: 503,
     });
   });
 });

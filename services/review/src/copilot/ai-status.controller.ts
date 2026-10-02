@@ -11,8 +11,8 @@ import {
 import { COMMISSION_ADMIN } from '@adili/roles';
 
 import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
-import { upstreamUnavailable } from '../internal-api/upstream.js';
 import { dataClassOf } from './copilot-requests.js';
+import { aiGatewayUnavailable } from './problems.js';
 
 /** review.yaml `CommissionAiStatus`. */
 export interface CommissionAiStatus {
@@ -40,7 +40,7 @@ export class AiStatusController {
   })
   @ApiOkResponse({ description: 'Status', schema: schemaRef('CommissionAiStatus') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
-  @ApiProblemResponse(502, 'Problem type `ai-gateway-unavailable`')
+  @ApiProblemResponse(503, 'Problem type `ai-gateway-unavailable`')
   async status(
     @CurrentPrincipal() principal: Principal,
     @Param('slug') slug: string,
@@ -54,8 +54,7 @@ export class AiStatusController {
     );
     const status = await this.gateway.tenantStatus(tenant).catch((error: unknown) => {
       if (error instanceof AiGatewayUnavailable) {
-        throw upstreamUnavailable(
-          'ai-gateway',
+        throw aiGatewayUnavailable(
           'The AI status could not be read from the ai-gateway. Try again shortly.',
         );
       }

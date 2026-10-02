@@ -4157,7 +4157,7 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
-            502: {
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
