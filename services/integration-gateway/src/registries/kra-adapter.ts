@@ -14,16 +14,21 @@ import { REGISTRY_URLS, type RegistryUrls } from './registry-urls.js';
 export const KRA_CALLS_PER_LOOKUP = 2;
 
 /**
- * Lookups a case's registry check sends KRA at once: the declarant's and their spouse's, the
- * common household (children are rarely of an age to hold a national ID).
+ * KRA lookups of one household the burst takes without queueing: the declarant's, then their
+ * spouse's, the common household (children are rarely of an age to hold a national ID). A case's
+ * registry check looks its people up one after the other, the spouse's well within the seconds
+ * the declarant's slots take to free up at the slowest rate.
  */
-export const KRA_CONCURRENT_LOOKUPS = 2;
+export const KRA_HOUSEHOLD_LOOKUPS = 2;
 
 /**
- * KRA's least burst: a household's lookups go out together, none queueing for the rate limit,
- * whatever the rate (at 60 a minute, one second's worth would be a single call).
+ * KRA's least burst: a household's consecutive lookups go out without queueing for the rate
+ * limit, whatever the rate (at 60 a minute, one second's worth would be a single call). A third
+ * person's lookup, another case's or one after a second PIN's charged call shares the bucket: it
+ * queues up to the max wait, or is answered `rate-limited` and looked up again by the check's
+ * retries.
  */
-export const KRA_BURST = KRA_CALLS_PER_LOOKUP * KRA_CONCURRENT_LOOKUPS;
+export const KRA_BURST = KRA_CALLS_PER_LOOKUP * KRA_HOUSEHOLD_LOOKUPS;
 
 /** The compliance of a PIN KRA listed but holds no compliance record for. */
 const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
@@ -37,7 +42,8 @@ const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
  * KRA (external/kra.yaml): the PINs of a national ID (`findTaxpayersByIdNumber`), then each
  * PIN's compliance and declared annual income (`getTaxCompliance`), all within the one timeout
  * the kit gives the lookup. A lookup spends 1 + one per PIN of KRA's rate limit: the kit
- * reserves two (most IDs have one PIN), and a second PIN's call is charged. No PIN is not found.
+ * reserves two (most IDs have one PIN), a second PIN's call is charged and, with no PIN, the
+ * unused compliance slot returned. No PIN is not found.
  */
 @Injectable()
 export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
@@ -60,8 +66,9 @@ export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
       kraPinsSchema,
       signal,
     );
+    // The PINs' call, then one per PIN, against the calls the kit reserved.
+    await calls.charge(1 + (pins?.length ?? 0) - KRA_CALLS_PER_LOOKUP);
     if (!pins || pins.length === 0) return null;
-    await calls.charge(pins.length - (KRA_CALLS_PER_LOOKUP - 1));
     const taxpayers = await Promise.all(
       pins.map(async ({ pin, registered_on }) => {
         const compliance = await getFromRegistry(

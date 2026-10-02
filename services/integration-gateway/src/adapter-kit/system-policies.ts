@@ -13,7 +13,7 @@ export interface SystemPolicy {
   /**
    * Calls that may go out at once on an idle bucket (`burstOf`): at least a lookup's reserved
    * calls (`RegistryAdapter.callsPerLookup`), so they never queue behind each other, and for
-   * KRA those of a household's lookups at once (`KRA_BURST`).
+   * KRA those of a household's consecutive lookups (`KRA_BURST`).
    */
   burst: number;
   /** Longest a lookup queues for the rate limit before it is answered `rate-limited`. */

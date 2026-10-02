@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { Controller, Get } from '@nestjs/common';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { type BaseEnv, CoreModule, Public, TokenVerifier } from '../src/index.js';
 import { redactUrl } from '../src/log-redaction.js';
@@ -29,16 +29,12 @@ class QueueController {
 describe('request log redaction', () => {
   let app: NestFastifyApplication;
   const written: string[] = [];
+  // Read back exactly what pino writes, whatever stdout looks like in the runner.
+  const logDestination = { write: (line: string) => void written.push(line) };
 
   beforeAll(async () => {
-    // Under vitest pino logs through process.stdout.write; capture it instead of printing.
-    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
-      written.push(chunk.toString());
-      return true;
-    });
-
     const moduleRef = await Test.createTestingModule({
-      imports: [CoreModule.forRoot({ serviceName: 'test', config })],
+      imports: [CoreModule.forRoot({ serviceName: 'test', config, logDestination })],
       controllers: [QueueController],
     })
       .overrideProvider(TokenVerifier)
@@ -51,7 +47,6 @@ describe('request log redaction', () => {
 
   afterAll(async () => {
     await app.close();
-    vi.restoreAllMocks();
   });
 
   it('logs a queue search request without the searched name', async () => {
@@ -62,6 +57,7 @@ describe('request log redaction', () => {
 
     expect(response.statusCode).toBe(200);
     const logged = written.join('');
+    expect(logged).toContain('"statusCode":200');
     expect(logged).toContain('/v1/queue?search=[redacted]&status=pending');
     expect(logged).not.toContain('Wanjiku');
     expect(logged).not.toContain('Kamau');
