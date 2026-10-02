@@ -3063,6 +3063,14 @@ components:
             $ref: '#/components/schemas/CompletenessIssue'
         notIncluded:
           $ref: '#/components/schemas/NotIncluded'
+        prefilledFields:
+          type: array
+          items:
+            type: string
+          description: "Bio only: the editable fields pre-filled from the Commission's roster (job group, appointment date, work station, marital status) that still hold the roster's value, as JSON pointers into `contents`, e.g. `/employment/jobGroup`. A save that changes or clears one drops it for good. Fields the roster locks are not listed."
+          examples:
+            - - /employment/jobGroup
+              - /maritalStatus
         draftVersion:
           type: integer
       required:
@@ -3086,6 +3094,14 @@ components:
             $ref: '#/components/schemas/CompletenessIssue'
         notIncluded:
           $ref: '#/components/schemas/NotIncluded'
+        prefilledFields:
+          type: array
+          items:
+            type: string
+          description: "Bio only: the editable fields pre-filled from the Commission's roster (job group, appointment date, work station, marital status) that still hold the roster's value, as JSON pointers into `contents`, e.g. `/employment/jobGroup`. A save that changes or clears one drops it for good. Fields the roster locks are not listed."
+          examples:
+            - - /employment/jobGroup
+              - /maritalStatus
         sectionsChanged:
           type: array
           items:

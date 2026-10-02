@@ -1256,6 +1256,14 @@ export interface components {
             contents: components["schemas"]["SectionContents"];
             issues: components["schemas"]["CompletenessIssue"][];
             notIncluded?: components["schemas"]["NotIncluded"];
+            /**
+             * @description Bio only: the editable fields pre-filled from the Commission's roster (job group, appointment date, work station, marital status) that still hold the roster's value, as JSON pointers into `contents`, e.g. `/employment/jobGroup`. A save that changes or clears one drops it for good. Fields the roster locks are not listed.
+             * @example [
+             *       "/employment/jobGroup",
+             *       "/maritalStatus"
+             *     ]
+             */
+            prefilledFields?: string[];
             draftVersion: number;
         };
         SectionSaveResult: {
@@ -1264,6 +1272,14 @@ export interface components {
             draftVersion: number;
             issues: components["schemas"]["CompletenessIssue"][];
             notIncluded?: components["schemas"]["NotIncluded"];
+            /**
+             * @description Bio only: the editable fields pre-filled from the Commission's roster (job group, appointment date, work station, marital status) that still hold the roster's value, as JSON pointers into `contents`, e.g. `/employment/jobGroup`. A save that changes or clears one drops it for good. Fields the roster locks are not listed.
+             * @example [
+             *       "/employment/jobGroup",
+             *       "/maritalStatus"
+             *     ]
+             */
+            prefilledFields?: string[];
             /** @description Statement sections created, archived or restored by a household save; an archived statement is kept until the draft is discarded */
             sectionsChanged: {
                 key: components["schemas"]["SectionKey"];

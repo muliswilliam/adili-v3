@@ -113,12 +113,19 @@ export const notIncludedSchema = z
       'Household only: children listed who get no financial statement, with the reason (eighteen or older on the statement date)',
   });
 
+const prefilledFieldsSchema = z.array(z.string()).meta({
+  description:
+    "Bio only: the editable fields pre-filled from the Commission's roster (job group, appointment date, work station, marital status) that still hold the roster's value, as JSON pointers into `contents`, e.g. `/employment/jobGroup`. A save that changes or clears one drops it for good. Fields the roster locks are not listed.",
+  examples: [['/employment/jobGroup', '/maritalStatus']],
+});
+
 export const sectionEnvelopeSchema = z.object({
   key: sectionKeySchema,
   completeness: completenessSchema,
   contents: sectionContentsSchema,
   issues: z.array(completenessIssueSchema),
   notIncluded: notIncludedSchema.optional(),
+  prefilledFields: prefilledFieldsSchema.optional(),
   draftVersion: z.int(),
 });
 export type SectionEnvelope = z.infer<typeof sectionEnvelopeSchema>;
@@ -129,6 +136,7 @@ export const sectionSaveResultSchema = z.object({
   draftVersion: z.int(),
   issues: z.array(completenessIssueSchema),
   notIncluded: notIncludedSchema.optional(),
+  prefilledFields: prefilledFieldsSchema.optional(),
   sectionsChanged: z
     .array(
       z.object({

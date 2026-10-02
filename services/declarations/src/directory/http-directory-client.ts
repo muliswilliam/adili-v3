@@ -5,6 +5,7 @@ import type { paths } from './directory-api.gen.js';
 import {
   DirectoryClient,
   DirectoryUnavailable,
+  MARITAL_STATUSES,
   type PulledCommission,
   type PulledPolicy,
   type PulledRosterRecord,
@@ -37,6 +38,9 @@ const rosterRecordSchema = z.object({
   personnelFileNumber: z.string(),
   fullName: z.string(),
   designation: z.string().nullable(),
+  jobGroup: z.string().nullable(),
+  workStation: z.string().nullable(),
+  maritalStatus: z.enum(MARITAL_STATUSES).nullable(),
   reportingEntity: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   state: z.enum(['not_onboarded', 'onboarded', 'exited']),
   appointmentDate: civilDate.nullable(),

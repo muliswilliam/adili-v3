@@ -52,13 +52,19 @@ export interface StoredEnvelope {
 /**
  * Clear facts about a section, derived on save: item counts by category, nil flags, whether a
  * statement is archived (its person removed from the household), and the bio fields pre-filled
- * from the roster that the declarant cannot change (JSON pointers, no values).
+ * from the roster: those the declarant cannot change and those still as the roster gave them
+ * (JSON pointers, no values).
  */
 export interface SectionMetadata {
   counts?: Record<string, number>;
   nil?: Record<string, boolean>;
   archived?: boolean;
   lockedFields?: string[];
+  /**
+   * Bio: the editable fields pre-filled from the roster (spec 05b) that still hold its value
+   * (JSON pointers); a save that changes one drops it.
+   */
+  prefilledFields?: string[];
   /** Household: the children who get no statement, by person key, with the reason. */
   notIncluded?: { personKey: string; reason: string }[];
 }

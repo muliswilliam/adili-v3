@@ -1,3 +1,7 @@
+/** The marital statuses of `declaration.v1`, which the roster keeps to. */
+export const MARITAL_STATUSES = ['single', 'married', 'separated', 'divorced', 'widowed'] as const;
+export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
+
 /**
  * A roster record as the directory's internal pulls give it (`InternalRosterRecord`), the fields
  * the declarations service keeps.
@@ -9,6 +13,12 @@ export interface PulledRosterRecord {
   fullName: string;
   /** Pre-fills the declaration's bio (locked there); null when the roster gives none. */
   designation: string | null;
+  /** Pre-fills the bio (editable there, spec 05b); null when the roster gives none. */
+  jobGroup: string | null;
+  /** Pre-fills the bio (editable there, spec 05b); null when the roster gives none. */
+  workStation: string | null;
+  /** Pre-fills the bio (editable there, spec 05b); null when the roster gives none. */
+  maritalStatus: MaritalStatus | null;
   /** The declarant's reporting entity as the roster names it; null when the roster gives none. */
   reportingEntity: { id: string; name: string } | null;
   state: 'not_onboarded' | 'onboarded' | 'exited';
