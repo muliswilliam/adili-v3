@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
+import { asReviewer } from './as-viewer.server';
 import { getBff } from './bff.server';
 import {
   type ClarificationDetail,
@@ -14,7 +15,7 @@ import {
   withdraw,
 } from './clarifications.server';
 import { documentsClient } from './documents/client.server';
-import { reviewClient, type ReviewClient } from './review/client.server';
+import { reviewClient } from './review/client.server';
 import type { Clarification } from './review/types';
 import { callService, type ServiceResult } from './service-call';
 
@@ -23,14 +24,6 @@ import { callService, type ServiceResult } from './service-call';
  * signed-in reviewer or supervisor. Tokens stay on the server; downloads come back as
  * short-lived links.
  */
-
-async function asReviewer<T>(
-  work: (client: ReviewClient, subject: string, accessToken: string) => Promise<ServiceResult<T>>,
-): Promise<ServiceResult<T>> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
-  return work(reviewClient(session.accessToken), session.user.subject, session.accessToken);
-}
 
 const id = z.uuid();
 
@@ -41,7 +34,7 @@ export const getClarificationDetail = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<ClarificationDetailLoad> => {
     const now = new Date().toISOString();
     return {
-      ...(await asReviewer((client, subject) =>
+      ...(await asReviewer((client, { subject }) =>
         loadClarificationDetail(client, data.caseId, data.clarificationId, subject, now),
       )),
       now,
@@ -144,7 +137,7 @@ export const getResponseAttachmentLink = createServerFn({ method: 'GET' })
 export const getLetterLink = createServerFn({ method: 'GET' })
   .validator(z.object({ documentId: id }))
   .handler(({ data }): Promise<ServiceResult<DownloadLink>> =>
-    asReviewer((_client, _subject, accessToken) =>
+    asReviewer((_client, { accessToken }) =>
       callService(() =>
         documentsClient(accessToken).GET('/v1/documents/{documentId}/download', {
           params: { path: { documentId: data.documentId } },
