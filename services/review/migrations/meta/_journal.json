@@ -134,6 +134,13 @@
       "when": 1790928716333,
       "tag": "0018_clarification_opening",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790931554464,
+      "tag": "0019_copilot_draft_content",
+      "breakpoints": true
     }
   ]
 }

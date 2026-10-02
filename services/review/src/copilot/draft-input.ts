@@ -151,12 +151,15 @@ const draftOutput = z.object({
   ),
 });
 
-/** What a succeeded draft job gives the reviewer; null when its output breaks the contract. */
-export function draftOfOutput(output: Record<string, unknown> | null): {
+/** What a succeeded draft job gives the reviewer. */
+export interface DraftContent {
   label: DraftClarificationOutput['label'];
   opening: string | null;
   items: DraftItem[];
-} | null {
+}
+
+/** What a succeeded draft job gives the reviewer; null when its output breaks the contract. */
+export function draftOfOutput(output: Record<string, unknown> | null): DraftContent | null {
   const parsed = draftOutput.safeParse(output);
   if (!parsed.success) return null;
   return {

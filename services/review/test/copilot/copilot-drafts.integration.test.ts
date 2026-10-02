@@ -167,6 +167,7 @@ describe('review copilot drafts', () => {
           itemId: raised.id,
           requirement: 'explain-discrepancy',
           text: DRAFTED,
+          aiJobId: api.ai.jobsOf('draft-clarification')[0]?.id,
         },
       ],
       failureReason: null,
@@ -206,7 +207,7 @@ describe('review copilot drafts', () => {
       expect.objectContaining({ action: 'review.copilot.drafted' }),
     ]);
 
-    // No clarification is created, and the drafted text is not stored.
+    // No clarification is created, and the drafted text is stored only encrypted.
     expect(await api.asPlatform((tx) => tx.select().from(clarifications))).toEqual([]);
     const rows = await draftRows();
     expect(rows).toEqual([
@@ -253,6 +254,59 @@ describe('review copilot drafts', () => {
     });
     expect((await draftRows())[0]).toMatchObject({ status: 'ready' });
     expect(await api.asPlatform((tx) => tx.select().from(clarifications))).toEqual([]);
+  });
+
+  it('serves a ready draft from its own encrypted copy, also once the gateway purged the job output', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    const pending = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
+    const job = api.ai.jobsOf('draft-clarification')[0];
+    if (!job) throw new Error('no job');
+    api.ai.succeed(job.id, output(api.ai.calls[0]?.request.input as DraftClarificationInput));
+    expect((await api.get(draftPath(pending.id), assignee)).json()).toMatchObject({
+      status: 'ready',
+    });
+
+    // The gateway's retention purged the output (or lost the job): the draft still reads.
+    job.output = null;
+    job.status = 'failed';
+    const later = await api.get(draftPath(pending.id), assignee);
+    expect(later.statusCode).toBe(200);
+    expect(later.json()).toMatchObject({
+      status: 'ready',
+      opening: 'Tume inaomba ufafanuzi.',
+      items: [{ itemId: raised.id, text: DRAFTED, aiJobId: job.id }],
+    });
+    const [row] = await draftRows();
+    expect(row?.ciphertext).toEqual(expect.any(String));
+    const stored = await api.asPlatform((tx) =>
+      tx.execute<{ row: string }>(sql`select t::text as row from review_copilot_drafts t`),
+    );
+    expect(stored.rows.map((r) => r.row).join('\n')).not.toContain('Karen');
+  });
+
+  it('a retry of a pending draft whose job has ended since answers the ended draft', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    const key = randomUUID();
+    const pending = (await post(caseId, draftInput(flagId), assignee, key)).json<CopilotDraft>();
+    api.ai.succeed(
+      pending.jobId ?? '',
+      output(api.ai.calls[0]?.request.input as DraftClarificationInput),
+    );
+
+    const retry = await post(caseId, draftInput(flagId), assignee, key);
+    expect(retry.statusCode).toBe(200);
+    expect(retry.json()).toMatchObject({ id: pending.id, status: 'ready' });
+  });
+
+  it('a draft is polled only while its requester is still the assignee', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    const draft = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-b' }).where(eq(reviewCases.id, caseId)),
+    );
+
+    expect((await api.get(draftPath(draft.id), assignee)).statusCode).toBe(404);
+    expect((await api.get(draftPath(draft.id), otherReviewer)).statusCode).toBe(404);
   });
 
   it('reports a failed job with its reason, and a request the gateway refuses as rejected', async () => {
@@ -343,7 +397,11 @@ describe('review copilot drafts', () => {
     expect(blocked.statusCode).toBe(409);
     expect(blocked.json()).toMatchObject({ type: 'ai-not-enabled' });
 
-    // Known from the case's copilot, without asking the gateway again.
+    expect(await draftRows()).toEqual([]);
+  });
+
+  it('asks the gateway even when the case copilot was not enabled: a policy change applies at once', async () => {
+    const { caseId, flagId } = await flaggedCase();
     await api.asPlatform((tx) =>
       tx.insert(reviewCopilots).values({
         caseId,
@@ -355,10 +413,10 @@ describe('review copilot drafts', () => {
         failureReason: 'policy',
       }),
     );
-    const calls = api.ai.calls.length;
-    expect((await post(caseId, draftInput(flagId))).statusCode).toBe(409);
-    expect(api.ai.calls).toHaveLength(calls);
-    expect(await draftRows()).toEqual([]);
+
+    const response = await post(caseId, draftInput(flagId));
+    expect(response.statusCode).toBe(202);
+    expect(api.ai.jobsOf('draft-clarification')).toHaveLength(1);
   });
 
   it('is 503 when the gateway cannot be reached, and stores nothing', async () => {

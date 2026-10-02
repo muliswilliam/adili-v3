@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import type { DeclarationV1 } from '@adili/forms';
 import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
@@ -14,7 +14,7 @@ import {
 } from '../ai-gateway/ai-gateway-client.js';
 import { caseTenant } from '../cases/access.js';
 import { findCase } from '../cases/case-lookup.js';
-import { reviewFlags } from '../cases/schema.js';
+import { reviewCases, reviewFlags } from '../cases/schema.js';
 import { requireAssignee } from '../clarifications/access.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
@@ -24,7 +24,7 @@ import {
 import { DirectoryClient } from '../directory/directory-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, withUpstream } from '../internal-api/upstream.js';
-import { COPILOT_FAILURES, copilotOf, dataClassOf } from './copilot-requests.js';
+import { COPILOT_FAILURES, dataClassOf } from './copilot-requests.js';
 import {
   COPILOT_DRAFT_TTL_HOURS,
   type CopilotDraftRow,
@@ -33,6 +33,7 @@ import {
 } from './draft-schema.js';
 import {
   type CopilotDraftInput,
+  type DraftContent,
   type DraftItem,
   draftClarificationInput,
   draftOfOutput,
@@ -49,7 +50,8 @@ export interface CopilotDraft {
   /** ai-gateway `AiLabel`; null until ready. */
   label: Record<string, unknown> | null;
   opening: string | null;
-  items: DraftItem[];
+  /** Each item names the job that drafted it (`aiJobId`), which the composer keeps. */
+  items: (DraftItem & { aiJobId: string })[];
   failureReason: string | null;
 }
 
@@ -59,12 +61,23 @@ export const DRAFT_WAIT_SECONDS = MAX_TASK_WAIT_SECONDS;
 /** Names the drafts (UUID v5, RFC 9562): one per assignee, case and Idempotency-Key. */
 const DRAFT_NAMESPACE = '3f0c2b8e-71d4-4a52-9a1e-6c0f5d2e8b47';
 
+/** How a draft's job ended, with the drafted text once ready. */
+interface Outcome {
+  status: CopilotDraftStatus;
+  reason: string | null;
+  content: DraftContent | null;
+}
+
+/** The sealed columns of a draft's outcome. */
+type Sealed = Pick<CopilotDraftRow, 'status' | 'failureReason' | 'ciphertext' | 'envelope'>;
+
 /**
  * Clarification drafts by the ai-gateway's `draft-clarification` task (spec 07c S12): the case's
  * assignee selects flags and items, the service builds the task input from the case's version
  * and asks the gateway, waiting up to `DRAFT_WAIT_SECONDS`; a draft not ready by then is polled.
- * A draft is a suggestion for the composer only: nothing here creates or changes a
- * clarification, and it can be polled for `COPILOT_DRAFT_TTL_HOURS`.
+ * A ready draft's text is stored encrypted and served from here, never read from the gateway
+ * again. A draft is a suggestion for the composer only: nothing here creates or changes a
+ * clarification, and it can be read for `COPILOT_DRAFT_TTL_HOURS`.
  */
 @Injectable()
 export class CopilotDraftsService {
@@ -73,13 +86,15 @@ export class CopilotDraftsService {
     private readonly declarations: DeclarationsClient,
     private readonly directory: DirectoryClient,
     private readonly gateway: AiGatewayClient,
+    private readonly cipher: FieldCipher,
   ) {}
 
   /**
    * Drafts the items of a clarification from the assignee's selection: `ready` (or `failed`)
-   * when the job ended within the wait, `pending` otherwise. Only the assignee (403); 409 when AI
-   * is not enabled for the Commission; 400 for a selection not on the case. The declaration is
-   * read for the caller. A retry with the same Idempotency-Key gets the same draft.
+   * when the job ended within the wait, `pending` otherwise. Only the assignee (403); 409 when the
+   * gateway's classification gate blocks the Commission; 400 for a selection not on the case. The
+   * declaration is read for the caller. A retry with the same Idempotency-Key gets the same draft,
+   * as it is now.
    */
   async draft(
     principal: Principal,
@@ -88,24 +103,19 @@ export class CopilotDraftsService {
     idempotencyKey: string,
   ): Promise<CopilotDraft> {
     const tenant = caseTenant(principal);
-    const { row, flags, copilot } = await withTenant(
-      this.db,
-      { tenant, subject: principal.subject },
-      async (tx) => {
-        const found = await findCase(tx, tenant, caseId);
-        return {
-          row: found,
-          flags: await tx
-            .select()
-            .from(reviewFlags)
-            .where(eq(reviewFlags.caseId, found.id))
-            .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
-          copilot: await copilotOf(tx, found.id),
-        };
-      },
-    );
+    const context = { tenant, subject: principal.subject };
+    const { row, flags } = await withTenant(this.db, context, async (tx) => {
+      const found = await findCase(tx, tenant, caseId);
+      return {
+        row: found,
+        flags: await tx
+          .select()
+          .from(reviewFlags)
+          .where(eq(reviewFlags.caseId, found.id))
+          .orderBy(asc(reviewFlags.createdAt), asc(reviewFlags.id)),
+      };
+    });
     requireAssignee(principal, row.assignee);
-    if (copilot?.status === 'not-enabled') throw aiNotEnabled();
 
     const document = await this.document(principal, tenant, row);
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
@@ -133,6 +143,7 @@ export class CopilotDraftsService {
     const id = uuidv5([row.id, principal.subject, idempotencyKey].join('|'), DRAFT_NAMESPACE);
     let job: AiJob | null;
     try {
+      // The gateway decides whether the Commission may use AI now: a policy change applies at once.
       job = await this.gateway.runTask(
         'draft-clarification',
         { tenant, dataClass: dataClassOf(tenant), subjectRef: caseSubjectRef(row.id), input },
@@ -148,85 +159,138 @@ export class CopilotDraftsService {
 
     const outcome: Outcome = job
       ? outcomeOf(job)
-      : { status: 'failed', reason: COPILOT_FAILURES.rejected };
-    const [stored] = await withTenant(
-      this.db,
-      { tenant, subject: principal.subject },
-      async (tx) => {
-        await tx
-          .insert(reviewCopilotDrafts)
-          .values({
-            id,
-            tenant,
-            caseId: row.id,
-            requestedBy: principal.subject,
-            jobId: job?.id ?? null,
-            status: outcome.status,
-            failureReason: outcome.reason,
-            expiresAt: sql`now() + make_interval(hours => ${COPILOT_DRAFT_TTL_HOURS})`,
-          })
-          .onConflictDoNothing();
-        return tx.select().from(reviewCopilotDrafts).where(eq(reviewCopilotDrafts.id, id));
-      },
-    );
+      : { status: 'failed', reason: COPILOT_FAILURES.rejected, content: null };
+    const sealed = await this.seal(tenant, id, job?.id ?? null, outcome);
+    const [stored] = await withTenant(this.db, context, async (tx) => {
+      await tx
+        .insert(reviewCopilotDrafts)
+        .values({
+          id,
+          tenant,
+          caseId: row.id,
+          requestedBy: principal.subject,
+          jobId: job?.id ?? null,
+          ...sealed,
+          expiresAt: sql`now() + make_interval(hours => ${COPILOT_DRAFT_TTL_HOURS})`,
+        })
+        // A retry of a pending draft records how its job has ended since; an ended draft stays.
+        .onConflictDoUpdate({
+          target: reviewCopilotDrafts.id,
+          set: sealed,
+          setWhere: eq(reviewCopilotDrafts.status, 'pending'),
+        });
+      return tx.select().from(reviewCopilotDrafts).where(eq(reviewCopilotDrafts.id, id));
+    });
     if (!stored) throw new Error(`Draft ${id} not stored`);
-    return this.viewOf(stored, job);
+    return this.viewOf(stored);
   }
 
   /**
-   * A draft as it is now, for the assignee who asked; anyone else, and a draft past its day,
-   * 404. A pending draft is read from the gateway, and recorded once its job has ended.
+   * A draft as it is now, for the reviewer who asked while they are still the case's assignee;
+   * anyone else, and a draft past its day, 404. A pending draft is read from the gateway, and
+   * recorded (its text sealed) once its job has ended.
    */
   async get(principal: Principal, draftId: string): Promise<CopilotDraft> {
     const tenant = caseTenant(principal);
     const context = { tenant, subject: principal.subject };
-    const row = await withTenant(this.db, context, async (tx) => {
-      const [found] = await tx
-        .select()
+    const found = await withTenant(this.db, context, async (tx) => {
+      const [joined] = await tx
+        .select({ draft: reviewCopilotDrafts, assignee: reviewCases.assignee })
         .from(reviewCopilotDrafts)
+        .innerJoin(reviewCases, eq(reviewCases.id, reviewCopilotDrafts.caseId))
         .where(
           and(eq(reviewCopilotDrafts.id, draftId), gt(reviewCopilotDrafts.expiresAt, sql`now()`)),
         );
-      return found;
+      return joined;
     });
-    const draft = notFoundIfInvisible(row?.requestedBy === principal.subject ? row : null);
-    if (draft.status === 'failed' || draft.jobId === null) return this.viewOf(draft, null);
+    const draft = notFoundIfInvisible(
+      found?.draft.requestedBy === principal.subject && found.assignee === principal.subject
+        ? found.draft
+        : null,
+    );
+    if (draft.status !== 'pending' || draft.jobId === null) return this.viewOf(draft);
 
     const job = await this.gateway.getJob(draft.jobId).catch((error: unknown) => {
       throw error instanceof AiGatewayUnavailable ? gatewayUnavailable() : error;
     });
-    if (draft.status === 'pending' && (job === null || isFinished(job))) {
-      // A job the gateway no longer has: its outcome cannot be known.
-      const outcome: Outcome = job ? outcomeOf(job) : { status: 'failed', reason: 'missing' };
-      const [updated] = await withTenant(this.db, context, (tx) =>
-        tx
-          .update(reviewCopilotDrafts)
-          .set({ status: outcome.status, failureReason: outcome.reason })
-          .where(
-            and(eq(reviewCopilotDrafts.id, draft.id), eq(reviewCopilotDrafts.status, 'pending')),
-          )
-          .returning(),
-      );
-      return this.viewOf(updated ?? draft, job);
-    }
-    return this.viewOf(draft, job);
+    // A job the gateway no longer has: its outcome cannot be known.
+    const outcome: Outcome = job
+      ? outcomeOf(job)
+      : { status: 'failed', reason: 'missing', content: null };
+    if (outcome.status === 'pending') return this.viewOf(draft);
+
+    const sealed = await this.seal(tenant, draft.id, draft.jobId, outcome);
+    const updated = await withTenant(this.db, context, async (tx) => {
+      const [changed] = await tx
+        .update(reviewCopilotDrafts)
+        .set(sealed)
+        .where(and(eq(reviewCopilotDrafts.id, draft.id), eq(reviewCopilotDrafts.status, 'pending')))
+        .returning();
+      if (changed) return changed;
+      // Recorded meanwhile by another poll or a retry.
+      const [current] = await tx
+        .select()
+        .from(reviewCopilotDrafts)
+        .where(eq(reviewCopilotDrafts.id, draft.id));
+      return current;
+    });
+    return this.viewOf(updated ?? draft);
   }
 
-  /** The draft's answer: its items from the job once it is ready. */
-  private viewOf(draft: CopilotDraftRow, job: AiJob | null): CopilotDraft {
-    const empty = { label: null, opening: null, items: [] };
-    const content = draft.status === 'ready' && job ? draftOfOutput(job.output) : null;
-    if (draft.status === 'ready' && !content) {
-      // A ready job whose output the gateway no longer gives, or breaks its contract.
-      throw gatewayUnavailable();
-    }
+  /** The draft's answer: its stored text once it is ready. */
+  private async viewOf(draft: CopilotDraftRow): Promise<CopilotDraft> {
+    const content = await this.open(draft);
+    const { jobId } = draft;
     return {
       id: draft.id,
       status: draft.status,
       jobId: draft.jobId,
-      ...(content ?? empty),
+      label: content?.label ?? null,
+      opening: content?.opening ?? null,
+      items: content && jobId ? content.items.map((item) => ({ ...item, aiJobId: jobId })) : [],
       failureReason: draft.failureReason,
     };
+  }
+
+  /** The columns of an outcome, the drafted text encrypted under the Commission's key. */
+  private async seal(
+    tenant: string,
+    draftId: string,
+    jobId: string | null,
+    outcome: Outcome,
+  ): Promise<Sealed> {
+    if (outcome.status !== 'ready' || outcome.content === null || jobId === null) {
+      return {
+        status: outcome.status,
+        failureReason: outcome.reason,
+        ciphertext: null,
+        envelope: null,
+      };
+    }
+    const sealed = await this.cipher.encrypt({
+      tenant,
+      recordId: copilotDraftRecordId(draftId, jobId),
+      plaintext: JSON.stringify(outcome.content),
+    });
+    return {
+      status: 'ready',
+      failureReason: null,
+      ciphertext: sealed.ciphertext,
+      envelope: sealed.envelope,
+    };
+  }
+
+  private async open(draft: CopilotDraftRow): Promise<DraftContent | null> {
+    if (draft.status !== 'ready' || !draft.jobId || !draft.ciphertext || !draft.envelope) {
+      return null;
+    }
+    const plaintext = await this.cipher.decrypt({
+      tenant: draft.tenant,
+      recordId: copilotDraftRecordId(draft.id, draft.jobId),
+      ciphertext: draft.ciphertext,
+      envelope: draft.envelope,
+    });
+    return JSON.parse(plaintext.toString('utf8')) as DraftContent;
   }
 
   /** The case's current version, read for the caller (declarations audits the pull). */
@@ -254,14 +318,22 @@ export class CopilotDraftsService {
   }
 }
 
-interface Outcome {
-  status: CopilotDraftStatus;
-  reason: string | null;
+/** The AAD record id of a stored draft: the draft and the job that drafted it. */
+export function copilotDraftRecordId(draftId: string, jobId: string): string {
+  return `review-copilot-draft:${draftId}:${jobId}`;
 }
 
-/** A draft's status and failure reason from its job. */
+/**
+ * A draft's status and failure reason from its job, with its text once it succeeded; a succeeded
+ * job whose output breaks the contract (or that the gateway no longer gives) failed `validation`.
+ */
 function outcomeOf(job: AiJob): Outcome {
-  if (job.status === 'succeeded') return { status: 'ready', reason: null };
-  if (isFinished(job)) return { status: 'failed', reason: job.reason ?? 'provider' };
-  return { status: 'pending', reason: null };
+  if (job.status === 'succeeded') {
+    const content = draftOfOutput(job.output);
+    return content
+      ? { status: 'ready', reason: null, content }
+      : { status: 'failed', reason: 'validation', content: null };
+  }
+  if (isFinished(job)) return { status: 'failed', reason: job.reason ?? 'provider', content: null };
+  return { status: 'pending', reason: null, content: null };
 }
