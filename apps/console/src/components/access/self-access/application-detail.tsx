@@ -1,5 +1,6 @@
 import {
   Alert,
+  AttachmentList,
   AlertDescription,
   Badge,
   Button,
@@ -19,12 +20,12 @@ import {
   formatDate,
   formatDateTime,
   Icon,
+  IconTile,
   Spinner,
   useToast,
 } from '@adili/ui';
 import {
   AlertCircleIcon,
-  Attachment01Icon,
   Certificate01Icon,
   PrinterIcon,
   SentIcon,
@@ -190,25 +191,17 @@ function ApplicationCard({
       </Part>
       {representative ? (
         <Part label={m.representativeDocuments}>
-          <ul className="grid gap-2">
-            {[representative.authority, representative.identification].map((upload) => (
-              <li
-                key={upload.uploadId}
-                className="flex items-center gap-3 rounded-xl bg-card px-3 py-2.5 shadow-card"
-              >
-                <span
-                  aria-hidden="true"
-                  className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground"
-                >
-                  <Icon icon={Attachment01Icon} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{upload.fileName}</div>
-                  <div className="text-[12.5px] text-muted-foreground">{m.scannedClean}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <AttachmentList
+            label={m.representativeDocuments}
+            attachments={[representative.authority, representative.identification].map(
+              (upload) => ({
+                id: upload.uploadId,
+                name: upload.fileName,
+                status: 'linked',
+                detail: m.scannedClean,
+              }),
+            )}
+          />
         </Part>
       ) : null}
       <Part>
@@ -225,12 +218,9 @@ function CopyRow({ application }: { application: SelfAccessApplicationDetail }) 
   const { certifiedCopy } = application;
   return (
     <div className="flex items-center gap-3 rounded-xl bg-card px-3 py-2.5 shadow-card">
-      <span
-        aria-hidden="true"
-        className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground"
-      >
+      <IconTile className="size-9">
         <Icon icon={Certificate01Icon} />
-      </span>
+      </IconTile>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{m.copyName(application.version)}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted-foreground">

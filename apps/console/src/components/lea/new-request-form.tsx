@@ -12,6 +12,7 @@ import {
   ReferenceChip,
   ScopePicker,
   Spinner,
+  StatusMark,
   Textarea,
 } from '@adili/ui';
 import {
@@ -377,12 +378,7 @@ function RequestSent({ request }: { request: LeaRequest }) {
   return (
     <Card className="px-6 py-10 text-center">
       <div className="mx-auto grid max-w-[460px] justify-items-center gap-3" role="status">
-        <span
-          aria-hidden="true"
-          className="mb-2 grid size-16 place-items-center rounded-full bg-success-subtle text-success [&_svg]:size-[30px]"
-        >
-          <Icon icon={Tick02Icon} strokeWidth={2.6} />
-        </span>
+        <StatusMark icon={Tick02Icon} tone="success" className="mb-2" />
         <h2 className="text-[20px] font-semibold tracking-[-0.01em]">{m.sentTitle}</h2>
         <ReferenceChip reference={request.reference} size="lg" copyable />
         <p className="text-[14.5px] text-muted-foreground">

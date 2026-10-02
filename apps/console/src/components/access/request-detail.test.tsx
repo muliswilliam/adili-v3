@@ -240,11 +240,13 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(card.textContent).toContain('Edited');
     const files = within(card).getByRole('list', { name: 'Attachments' });
     expect(within(files).getAllByRole('listitem')).toHaveLength(2);
-    fireEvent.click(
+    fireEvent.keyDown(
       within(files).getByRole('button', {
-        name: 'Download Declaration of interest to tender committee.pdf',
+        name: 'Actions for Declaration of interest to tender committee.pdf',
       }),
+      { key: 'Enter' },
     );
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Download' }));
     expect(await screen.findByText('The attachment could not be opened. Try again.')).toBeTruthy();
   });
 
