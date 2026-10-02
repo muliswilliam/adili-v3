@@ -224,15 +224,18 @@ function followsSelections(input: Record<string, unknown>, output: Output): Scor
 }
 
 /**
- * What the letter around the opening already says (`apps/console` letter `heading` and `intro`,
- * and the issued `clarification-letter.v1`): the heading cites the Act, the introduction says the
- * Commission analysed the declaration and asks for the items below. An opening that says it again
- * gives the letter two introductions.
+ * What the letter around the opening already says, in English or Swahili (`apps/console`
+ * `letterCopy` `heading` and `intro`, and the issued `clarification-letter.v1`): the heading
+ * cites the Act, the introduction says the Commission analysed the declaration and asks for the
+ * items below. An opening that says it again gives the letter two introductions. The Act is
+ * matched as a citation ("section 35", "the Act", "kifungu cha 35", "Sheria ya ..."), not as the
+ * words "act" or "sheria" on their own ("we will act on your reply").
  */
 const REPEATS_THE_LETTER: { what: string; pattern: RegExp }[] = [
   {
     what: 'cites the Act',
-    pattern: /\b(?:section|sections|s\.\s?\d|act|kifungu|vifungu|sheria)\b/i,
+    pattern:
+      /\b(?:sections?\s+\d|s\.\s?\d|(?:the|this|conflict of interest)\s+act\b(?!\s+(?:of|on)\b)|(?:kifungu|vifungu)\s+(?:cha|vya)\s+\d|sheria\s+ya\b)/i,
   },
   { what: 'greets the declarant', pattern: /^\s*(?:dear|ndugu|mpendwa|bw\.|bi\.)\b/i },
   {

@@ -170,5 +170,24 @@ describe('golden sets', () => {
       ).toEqual([]);
       expect(openingFailures(null)).toEqual([]);
     });
+
+    it('tells a citation of the Act from the words "act" and "sheria" (N22)', () => {
+      expect(
+        openingFailures('Thank you for your declaration. We will act on your reply promptly.'),
+      ).toEqual([]);
+      expect(openingFailures('Asante kwa tamko lako. Tutafuata sheria katika kila hatua.')).toEqual(
+        [],
+      );
+      for (const citation of [
+        'The points below are raised under the Act.',
+        'As required by s. 35, the points below need your answer.',
+        'Hoja zifuatazo zinahusu kifungu cha 35.',
+        'Kwa mujibu wa Sheria ya Mgongano wa Maslahi, hoja zifuatazo zinahitaji jibu.',
+      ]) {
+        expect(openingFailures(citation)).toEqual([
+          expect.stringMatching(/^opening-lead-in: \/opening cites the Act: /),
+        ]);
+      }
+    });
   });
 });
