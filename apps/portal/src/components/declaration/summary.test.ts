@@ -223,6 +223,10 @@ describe('issueText', () => {
     expect(
       issueText(issue('household', '/children/items/0/dateOfBirth', 'is required'), document),
     ).toBe('Child 1: Date of birth is required');
+    // An issue with the spouse's entry itself names only the spouse (N31).
+    expect(issueText(issue('household', '/spouses/items/0', 'is required'), document)).toBe(
+      'Mary Wanjiru: is required',
+    );
     expect(issueText(issue('bio', '/placeOfBirth', 'is required'), document)).toBe(
       'Place of birth is required',
     );

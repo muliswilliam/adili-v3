@@ -164,7 +164,8 @@ export function issueText(issue: CompletenessIssue, document: SummaryDocument): 
     if (index === 'items' && Number.isInteger(position)) {
       const name = fullName(document[category]?.items?.[position]?.name);
       const person = name || `${PERSON_NOUNS[category]} ${String(position + 1)}`;
-      return `${person}: ${field} ${message}`;
+      // An issue with the entry itself, not one of its fields, names the person only.
+      return last === 'items' ? `${person}: ${message}` : `${person}: ${field} ${message}`;
     }
   }
   return `${field} ${message}`;
