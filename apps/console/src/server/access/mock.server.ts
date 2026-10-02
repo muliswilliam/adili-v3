@@ -7,7 +7,10 @@
  * - `verify`: a passport applicant's request, held for the access officer's check.
  * - `identify`: received today, Josephine Akinyi Ouma sought (search "Ouma").
  * - `unresolved`: officer-unresolved after its day-5 reminder, "Mrs Kamau" sought.
- * - `window`: the declarant notified two days ago; no representations yet.
+ * - `window`: the declarant notified two days ago; no representations yet. Form K names the
+ *   officer "Peter Kamau"; the roster record is Peter Mwangi Kamau.
+ * - `lateWindow`: identified only after its decision deadline passed; the declarant notified
+ *   yesterday, so it is late while representations are still open.
  * - `objection`: under decision, the declarant objected with two attachments; due in 3 days.
  * - `consent`: the declarant consented, which closed the window early.
  * - `late`: under decision with context, 7 days past its decision deadline.
@@ -76,6 +79,7 @@ export const MOCK_REQUEST_IDS = {
   expired: 'a11c0000-0000-4000-8000-000000000015',
   preparing: 'a11c0000-0000-4000-8000-000000000016',
   noPackage: 'a11c0000-0000-4000-8000-000000000017',
+  lateWindow: 'a11c0000-0000-4000-8000-000000000018',
 } as const;
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
@@ -457,7 +461,7 @@ const SEEDS: Seed[] = [
     reference: 'ARQ-PSC-2026-0000142-Y',
     applicant: MERCY,
     sought: {
-      name: 'Peter Mwangi Kamau',
+      name: 'Peter Kamau',
       entity: 'State Department for Housing and Urban Development',
       workStation: 'Ardhi House, Nairobi',
     },
@@ -765,6 +769,23 @@ const SEEDS: Seed[] = [
       afterDays: -0.001,
       reasons: 'A legitimate research interest in public procurement.',
     },
+  },
+  {
+    id: R.lateWindow,
+    reference: 'ARQ-PSC-2026-0000143-W',
+    applicant: PAUL,
+    sought: {
+      name: 'Lilian Wairimu Njoroge',
+      entity: 'The National Treasury',
+      workStation: 'Treasury Building, Nairobi',
+    },
+    informationSought: 'Income declared in 2026.',
+    reason: 'A supplier payment audit.',
+    scope: { ...SCOPE_2026_ASSETS, sections: ['income'] },
+    receivedDaysAgo: 32,
+    status: 'awaiting-representations',
+    resolved: K.lilian,
+    notifiedAfterDays: 31,
   },
   {
     id: R.noPackage,

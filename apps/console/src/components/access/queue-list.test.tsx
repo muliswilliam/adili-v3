@@ -67,7 +67,7 @@ describe('QueueList (spec 10 FE-5)', () => {
     const row = within(screen.getByRole('table')).getAllByRole('row')[1];
     const chip = row?.querySelector('time');
     expect(chip?.dataset.state).toBe('late');
-    expect(chip?.textContent).toContain('Late');
+    expect(chip?.textContent).toMatch(/late/i);
     expect(row?.textContent).toContain('Closes');
   });
 

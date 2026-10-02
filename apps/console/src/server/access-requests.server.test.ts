@@ -66,8 +66,8 @@ describe('the queue (S16)', () => {
   });
 
   it('filters: needs action, awaiting representations, late, decided, closed, and search', async () => {
-    expect(await ids({ kind: 'form-k', filter: 'late' })).toEqual([R.late]);
-    expect(await ids({ filter: 'window' })).toEqual([R.window]);
+    expect(await ids({ kind: 'form-k', filter: 'late' })).toEqual([R.late, R.lateWindow]);
+    expect(await ids({ filter: 'window' })).toEqual([R.lateWindow, R.window]);
     expect(await ids({ kind: 'form-k', filter: 'closed' })).toEqual([R.withdrawn, R.cannot]);
     expect(await ids({ filter: 'action' })).toEqual(
       expect.arrayContaining([R.verify, R.identify, R.unresolved, R.objection]),
@@ -85,7 +85,7 @@ describe('the queue (S16)', () => {
     expect(all).toEqual(expect.arrayContaining([R.late, L.received, L.breach, L.verified]));
     // Not another Commission's.
     expect(all).not.toContain(L.tsc);
-    expect(await ids({ filter: 'late' })).toEqual([R.late, L.breach]);
+    expect(await ids({ filter: 'late' })).toEqual([R.late, R.lateWindow, L.breach]);
     const lea = await loadQueue(officer(), 'psc', { kind: 'lea' }, 100);
     if (!lea.ok) throw new Error('not ok');
     expect(lea.data.items.every((item) => item.kind === 'lea')).toBe(true);
