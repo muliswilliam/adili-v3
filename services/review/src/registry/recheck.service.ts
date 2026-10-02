@@ -10,11 +10,9 @@ import { findCase } from '../cases/case-lookup.js';
 import { reviewTimeline } from '../cases/schema.js';
 import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
-import { RECHECK_COOLDOWN_MINUTES } from './contract.js';
+import { RECHECK_COOLDOWN_MINUTES, recheckAvailableAt } from './contract.js';
 import { type CaseRecheckedData, REVIEW_CASE_RECHECKED } from './events.js';
 import { RegistryWorkflows } from './registry-workflows.js';
-
-const COOLDOWN_MS = RECHECK_COOLDOWN_MINUTES * 60_000;
 
 /**
  * A re-check of a case's registries (spec 07b S11), asked for by the case's assignee or a
@@ -62,7 +60,7 @@ export class RecheckService {
         )
         .orderBy(desc(reviewTimeline.at))
         .limit(1);
-      const wait = last ? last.at.getTime() + COOLDOWN_MS - now.getTime() : 0;
+      const wait = last ? recheckAvailableAt(last.at).getTime() - now.getTime() : 0;
       if (wait > 0) {
         throw new ProblemException(
           {

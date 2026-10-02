@@ -38,10 +38,12 @@ const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } 
 
 /** What the pause dialog lists for a system: registries feed review cases, IPRS onboarding. */
 function pauseEffects(row: SystemCoverage): string[] {
-  const name = systemInfo(row.system).name;
+  const system = systemInfo(row.system);
   const effects =
-    row.system === 'iprs' ? [m.pauseOnboarding] : [m.pauseCasesFlow(name), m.pauseRechecked];
-  return [m.pauseNothingSent(name), ...effects, m.pauseCached, m.auditNote];
+    row.system === 'iprs'
+      ? [m.pauseOnboarding]
+      : [m.pauseCasesFlow(system), m.pauseRechecked(system)];
+  return [m.pauseNothingSent(system), ...effects, m.pauseCached, m.auditNote];
 }
 
 /**
@@ -63,7 +65,8 @@ export function PauseControl({
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const name = systemInfo(row.system).name;
+  const system = systemInfo(row.system);
+  const { name } = system;
   const pausing = !row.paused;
 
   const confirm = async () => {
@@ -123,7 +126,7 @@ export function PauseControl({
             <div className="grid gap-2 text-[15px] text-secondary-foreground">
               {pausing ? (
                 <>
-                  <p>{m.pauseText(name)}</p>
+                  <p>{m.pauseText(system)}</p>
                   <ul className="grid list-disc gap-1 pl-5 text-sm">
                     {pauseEffects(row).map((effect) => (
                       <li key={effect}>{effect}</li>
@@ -132,7 +135,7 @@ export function PauseControl({
                 </>
               ) : (
                 <>
-                  <p>{m.resumeText(name, row.rateLimitPerMinute)}</p>
+                  <p>{m.resumeText(system, row.rateLimitPerMinute)}</p>
                   <p className="text-sm text-muted-foreground">{m.auditNote}</p>
                 </>
               )}

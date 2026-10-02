@@ -37,6 +37,46 @@ describe('Tabs', () => {
     expect(screen.getByRole('tabpanel').textContent).toBe('Import history');
   });
 
+  it('fades out at an edge with more tabs past it, as the list scrolls', () => {
+    render(<RosterTabs />);
+    const list = screen.getByRole('tablist');
+    expect(list.dataset.moreAfter).toBeUndefined();
+    expect(list.style.maskImage).toBe('');
+
+    // 390px wide: the tabs run on 200px past the right edge.
+    let scrollLeft = 0;
+    Object.defineProperty(list, 'clientWidth', { value: 358 });
+    Object.defineProperty(list, 'scrollWidth', { value: 558 });
+    Object.defineProperty(list, 'scrollLeft', { get: () => scrollLeft });
+    fireEvent.scroll(list);
+    expect(list.dataset.moreBefore).toBeUndefined();
+    expect(list.dataset.moreAfter).toBe('true');
+    expect(list.style.maskImage).toContain('linear-gradient(to right, #000, #000 40px');
+    expect(list.style.maskImage).toContain('calc(100% - 40px), transparent)');
+
+    scrollLeft = 100;
+    fireEvent.scroll(list);
+    expect(list.dataset.moreBefore).toBe('true');
+    expect(list.dataset.moreAfter).toBe('true');
+
+    scrollLeft = 200;
+    fireEvent.scroll(list);
+    expect(list.dataset.moreBefore).toBe('true');
+    expect(list.dataset.moreAfter).toBeUndefined();
+    expect(list.style.maskImage).toContain('linear-gradient(to right, transparent, #000 40px');
+
+    // With 8px of padding at each end, only padding left to scroll is nothing more to see.
+    list.style.paddingLeft = '8px';
+    list.style.paddingRight = '8px';
+    scrollLeft = 193;
+    fireEvent.scroll(list);
+    expect(list.dataset.moreAfter).toBeUndefined();
+    scrollLeft = 7;
+    fireEvent.scroll(list);
+    expect(list.dataset.moreBefore).toBeUndefined();
+    expect(list.dataset.moreAfter).toBe('true');
+  });
+
   it('keeps a visible focus outline on tabs and panels', () => {
     render(<RosterTabs />);
 

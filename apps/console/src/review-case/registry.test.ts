@@ -17,9 +17,11 @@ import {
 } from './fixtures';
 import {
   cooldownMinutes,
+  cooldownText,
   kraLines,
   matchRows,
   recheckAccess,
+  recheckAvailableAt,
   recheckLanded,
   type RegistryRow,
   registryLayout,
@@ -65,6 +67,13 @@ describe('statusDescription', () => {
     expect(statusDescription('ardhisasa', 'unavailable', { records: null, indicators: 0 })).toBe(
       'Could not reach ArdhiSasa. Re-checked automatically every hour.',
     );
+    expect(
+      statusDescription('brs', 'unavailable', {
+        records: null,
+        indicators: 0,
+        reason: 'supplier-check-unavailable',
+      }),
+    ).toBe("Could not reach the employer's supplier list. Re-checked automatically every hour.");
     expect(statusDescription('kra', 'not-checked', { records: null, indicators: 0 })).toBe(
       'Checks run after submission.',
     );
@@ -172,6 +181,24 @@ describe('registryLayout', () => {
     expect(row?.description).toBe('1 indicator');
   });
 
+  it("orders a registry's open flags by severity, highest first", () => {
+    const view = registryView();
+    const brs = view.persons[0]?.systems[2];
+    const undeclared = flag({
+      id: '0192f1a0-0000-7000-8000-0000000f0198',
+      ruleId: 'registry-directorship-undeclared',
+      severity: 'medium',
+    });
+    if (brs) brs.flags = [DISSOLVED_FLAG, undeclared, SUPPLIER_FLAG];
+
+    const row = registryLayout(view, [], true).persons[0]?.systems[2];
+    expect(row?.flags.map((each) => each.id)).toEqual([
+      SUPPLIER_FLAG.id,
+      undeclared.id,
+      DISSOLVED_FLAG.id,
+    ]);
+  });
+
   it('says nobody can be checked when no one has a national ID', () => {
     const view = registryView();
     view.persons = view.persons.filter((person) => !person.hasNationalId);
@@ -210,6 +237,7 @@ describe('summaryView', () => {
   it("rebuilds the statuses from the case's last check when the records cannot be read", () => {
     const summary = {
       checkedAt: CHECKED_AT,
+      recheckAvailableAt: null,
       checks: [
         {
           personKey: 'officer',
@@ -245,7 +273,12 @@ describe('summaryView', () => {
   });
 
   it('names the declarant from the case when the declaration could not be read either', () => {
-    const view = summaryView({ checkedAt: null, checks: [] }, null, [], 'Wanjiku Kamau');
+    const view = summaryView(
+      { checkedAt: null, checks: [], recheckAvailableAt: null },
+      null,
+      [],
+      'Wanjiku Kamau',
+    );
 
     expect(view.persons.map((person) => [person.personName, person.hasNationalId])).toEqual([
       ['Wanjiku Kamau', true],
@@ -266,14 +299,22 @@ describe('registryNeedsAttention', () => {
     expect(
       registryNeedsAttention(
         caseData({
-          registry: { checkedAt: CHECKED_AT, checks: [{ ...check, status: 'unavailable' }] },
+          registry: {
+            checkedAt: CHECKED_AT,
+            checks: [{ ...check, status: 'unavailable' }],
+            recheckAvailableAt: null,
+          },
         }),
       ),
     ).toBe(true);
     expect(
       registryNeedsAttention(
         caseData({
-          registry: { checkedAt: CHECKED_AT, checks: [{ ...check, status: 'matched' }] },
+          registry: {
+            checkedAt: CHECKED_AT,
+            checks: [{ ...check, status: 'matched' }],
+            recheckAvailableAt: null,
+          },
         }),
       ),
     ).toBe(false);
@@ -486,6 +527,26 @@ describe('re-check', () => {
     expect(cooldownMinutes(60)).toBe(1);
     expect(cooldownMinutes(61)).toBe(2);
     expect(cooldownMinutes(599)).toBe(10);
+  });
+
+  it("takes the later of the case's next re-check and a refusal's wait", () => {
+    const at = Date.parse('2026-10-02T09:10:00.000Z');
+    const summary = { recheckAvailableAt: '2026-10-02T09:10:00.000Z' };
+    expect(recheckAvailableAt({ recheckAvailableAt: null }, null)).toBeNull();
+    expect(recheckAvailableAt(summary, null)).toBe(at);
+    expect(recheckAvailableAt({ recheckAvailableAt: null }, at + 1)).toBe(at + 1);
+    expect(recheckAvailableAt(summary, at - 60_000)).toBe(at);
+    expect(recheckAvailableAt(summary, at + 60_000)).toBe(at + 60_000);
+  });
+
+  it('says how many whole minutes are left of the cooldown, and nothing once it is over', () => {
+    const at = Date.parse('2026-10-02T09:10:00.000Z');
+    expect(cooldownText(null, at)).toBeNull();
+    expect(cooldownText(at, at)).toBeNull();
+    expect(cooldownText(at, at - 1000)).toBe('Re-checked recently. Try again in 1\u00a0minute.');
+    expect(cooldownText(at, at - 9 * 60_000 - 1)).toBe(
+      'Re-checked recently. Try again in 10\u00a0minutes.',
+    );
   });
 
   it('knows the re-check landed once the latest check changed', () => {

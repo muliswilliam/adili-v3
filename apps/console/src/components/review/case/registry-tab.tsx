@@ -41,6 +41,7 @@ import {
 } from '../../../review-case/registry';
 import type { RegistrySystem } from '../../../server/review/types';
 import { FlagCard, type FlagActions } from './flags-tab';
+import { useCooldown } from './use-case-registry';
 
 const copy = REGISTRY_COPY;
 
@@ -74,7 +75,14 @@ function KraTable({ row }: { row: SystemRow }) {
     declared: line.badge ? (
       <Badge variant={BADGE_TONES[line.badge.tone]}>{line.badge.text}</Badge>
     ) : (
-      <span className={cn(line.warning ? 'font-semibold text-warning' : 'font-normal')}>
+      // A sentence that can wrap: tighter lines than the cell's single-line leading-6, with its
+      // first line still level with the record label.
+      <span
+        className={cn(
+          'block py-[3px] leading-[18px]',
+          line.warning ? 'font-semibold text-warning' : 'font-normal',
+        )}
+      >
         {line.text}
       </span>
     ),
@@ -265,6 +273,18 @@ function LoadingRows() {
   );
 }
 
+/** How long until review accepts a re-check it refused; nothing once it does. */
+function CooldownAlert({ until, now }: { until: number | null; now: number }) {
+  const cooldown = useCooldown(until, now);
+  if (!cooldown) return null;
+  return (
+    <Alert variant="warning">
+      <Icon icon={Clock01Icon} />
+      <AlertDescription>{cooldown}</AlertDescription>
+    </Alert>
+  );
+}
+
 export interface RegistryTabProps extends FlagContext {
   /** Null until the registry is read the first time. */
   layout: RegistryLayout | null;
@@ -274,8 +294,13 @@ export interface RegistryTabProps extends FlagContext {
   onRetry: () => void;
   /** A re-check is running: every row says "Checking…". */
   checking: boolean;
-  /** Review refused a re-check for its cooldown: the words to show. */
-  cooldown: string | null;
+  /**
+   * Review refused a re-check for its cooldown (429) since the page loaded: when the wait ends
+   * (epoch ms), for the tab to say how long is left. Null before any refusal.
+   */
+  refusedUntil: number | null;
+  /** The page's time (epoch ms), as the server rendered it. */
+  now: number;
   onGoToItem: (itemId: string) => void;
 }
 
@@ -293,7 +318,8 @@ export function RegistryTab({
   retrying,
   onRetry,
   checking,
-  cooldown,
+  refusedUntil,
+  now,
   onGoToItem,
   ...flags
 }: RegistryTabProps) {
@@ -309,12 +335,7 @@ export function RegistryTab({
           {layout.checkedAt ? copy.lastChecked(layout.checkedAt) : copy.notCheckedYet}
         </p>
       ) : null}
-      {cooldown ? (
-        <Alert variant="warning">
-          <Icon icon={Clock01Icon} />
-          <AlertDescription>{cooldown}</AlertDescription>
-        </Alert>
-      ) : null}
+      <CooldownAlert until={refusedUntil} now={now} />
       {failed ? (
         <Alert variant="warning">
           <Icon icon={WifiDisconnected01Icon} />

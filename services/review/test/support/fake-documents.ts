@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 
 import {
+  type DocumentDownload,
   DocumentsClient,
   DocumentsUnavailable,
   type IssuedDocument,
@@ -47,6 +48,8 @@ export interface FakeUpload {
  */
 export class FakeDocuments extends DocumentsClient {
   readonly downloads: { uploadId: string; tenant: string }[] = [];
+  /** Every issued document's download link handed out, for which Commission. */
+  readonly documentDownloads: { documentId: string; tenant: string }[] = [];
   readonly issued: IssuedLetter[] = [];
   readonly revoked: { documentId: string; tenant: string; reason: RevocationReason }[] = [];
   payloadSource: PayloadSource | undefined;
@@ -99,6 +102,7 @@ export class FakeDocuments extends DocumentsClient {
   reset(): void {
     this.refusals = 0;
     this.downloads.length = 0;
+    this.documentDownloads.length = 0;
     this.issued.length = 0;
     this.known.clear();
     this.revoked.length = 0;
@@ -123,6 +127,21 @@ export class FakeDocuments extends DocumentsClient {
       purpose: upload.purpose,
       fileName: upload.fileName,
       sha256: upload.sha256,
+    });
+  }
+
+  getIssuedDocumentDownload(documentId: string, tenant: string): Promise<DocumentDownload | null> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    const found = this.known.get(documentId);
+    if (found?.tenant !== tenant) return Promise.resolve(null);
+    this.documentDownloads.push({ documentId, tenant });
+    return Promise.resolve({
+      downloadUrl: `https://objects.test/issued/${documentId}?signature=test`,
+      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      sha256: found.sha256,
     });
   }
 

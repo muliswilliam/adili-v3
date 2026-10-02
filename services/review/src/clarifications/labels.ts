@@ -50,9 +50,12 @@ export function itemLabel(item: ClarificationItem, document: DeclarationV1 | nul
       }
     }
   }
+  // A section other than a statement names itself, whoever the item concerns.
+  const section = item.sectionKey ? SECTION_LABELS[item.sectionKey] : undefined;
+  if (section) return section;
   if (statement) return [STATEMENT_LABEL, fullName(statement.personName)].join(' · ');
   if (item.personKey !== null || item.sectionKey?.startsWith('statement:')) return STATEMENT_LABEL;
-  return (item.sectionKey && SECTION_LABELS[item.sectionKey]) ?? 'Declaration';
+  return 'Declaration';
 }
 
 function personKeyOf(sectionKey: string | null): string | null {

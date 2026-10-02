@@ -46,7 +46,7 @@ export const STATUSES = {
 export const COPY = {
   back: 'Your dashboard',
   title: (followUp: boolean) => (followUp ? 'Further clarification' : 'Clarification'),
-  declaration: (reference: string) => `Declaration ${reference}`,
+  declaration: 'Declaration',
   askedOpen: 'What your Commission asks',
   askedAnswered: 'What was asked and your response',
   askedClosed: 'What was asked',

@@ -45,8 +45,9 @@ interface Reply {
 
 /**
  * Issued documents for the person they are about (the declarant): metadata and a short-lived
- * download. Anyone else gets 404, as if the document did not exist; staff access comes with the
- * review slices.
+ * download. Anyone else gets 404, as if the document did not exist. Staff read a document
+ * through the service that owns the record it is about (a reviewer a clarification letter
+ * through the review service, which checks the case), which asks the internal download below.
  */
 @ApiTags('documents')
 @Controller('v1/documents')
@@ -140,6 +141,35 @@ export class InternalDocumentsController {
     });
     reply.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return document;
+  }
+
+  @Get(':documentId/download')
+  @AuditedRead({ action: 'document.downloaded', resource: 'issued-document' })
+  @ApiDocumentIdParam()
+  @ApiOperation({
+    operationId: 'internalGetDocumentDownload',
+    summary: 'Short-lived presigned download of an issued PDF (services)',
+    description:
+      "Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant and naming the person the document is about.",
+  })
+  @ApiOkResponse({
+    description: 'Download URL valid for five minutes',
+    schema: schemaRef('DocumentDownload'),
+  })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
+  async download(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('documentId', documentId) id: string,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<DocumentDownload> {
+    const { download, document } = await this.issuance.downloadForTenant(
+      tenant,
+      principal.subject,
+      id,
+    );
+    audit.resource({ tenant: document.tenant, subjectPersonId: document.subjectPersonId });
+    return download;
   }
 
   @Post(':documentId/supersede')

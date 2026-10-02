@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
 import {
   cooldownMinutes,
+  cooldownText,
   minutesWords,
+  recheckAvailableAt,
   recheckLanded,
   type RegistryLayout,
   registryLayout,
@@ -19,6 +21,34 @@ import type { CaseLoad, CaseRegistryView } from '../../../server/review-case.ser
 import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../../server/service-call';
 import { goToSignIn } from '../../sign-in-redirect';
 import { failureText } from '../assignment';
+
+/**
+ * The cooldown words ("Re-checked recently. Try again in {m} minutes.") until `availableAt`,
+ * updated as the minutes go by; null from then on, or when there is no cooldown. Starts from
+ * `initialNow` (the page's time, as the server rendered it) so the first render matches it.
+ */
+export function useCooldown(availableAt: number | null, initialNow: number): string | null {
+  const [now, setNow] = useState(initialNow);
+  useEffect(() => {
+    if (availableAt === null) return;
+    const tick = () => {
+      setNow(Date.now());
+    };
+    tick();
+    const left = availableAt - Date.now();
+    if (left <= 0) return;
+    const every = window.setInterval(tick, COOLDOWN_TICK_MS);
+    const end = window.setTimeout(tick, left + 50);
+    return () => {
+      window.clearInterval(every);
+      window.clearTimeout(end);
+    };
+  }, [availableAt]);
+  return cooldownText(availableAt, now);
+}
+
+/** How often the cooldown's minutes are worked out again. */
+const COOLDOWN_TICK_MS = 15_000;
 
 /**
  * Waits between reads of the registry status after a re-check: the lookups take seconds (more
@@ -43,8 +73,13 @@ export interface CaseRegistry {
   retry: () => void;
   /** A re-check is running. */
   checking: boolean;
-  /** "Re-checked recently. Try again in {m} minutes." after a 429; null otherwise. */
-  cooldown: string | null;
+  /**
+   * When the next re-check is accepted (epoch ms; null when one is): ten minutes after the case's
+   * last re-check, or later when review refused one (429) since the page loaded.
+   */
+  availableAt: number | null;
+  /** The end of a refusal's wait (429) seen on this page, for the tab to say so; null before. */
+  refusedUntil: number | null;
   /** The Re-check confirmation is open. */
   confirming: boolean;
   setConfirming: (open: boolean) => void;
@@ -79,7 +114,7 @@ export function useCaseRegistry({
   });
   const [retrying, setRetrying] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [cooldown, setCooldown] = useState<string | null>(null);
+  const [refusedUntil, setRefusedUntil] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const requested = useRef(false);
   const mounted = useRef(true);
@@ -152,7 +187,7 @@ export function useCaseRegistry({
     const result = await recheckCaseRegistries({ data: { caseId } });
     if (result.ok) {
       setConfirming(false);
-      setCooldown(null);
+      setRefusedUntil(null);
       setChecking(true);
       void awaitRecheck(before);
       return null;
@@ -160,11 +195,12 @@ export function useCaseRegistry({
     if (result.refusal === null) return failureText(result.error);
     setConfirming(false);
     if (result.refusal.kind === 'cooldown') {
-      const text = REGISTRY_COPY.recheck.cooldown(
-        minutesWords(cooldownMinutes(result.refusal.retryAfterSeconds)),
-      );
-      setCooldown(text);
-      toast({ title: text, urgency: 'assertive' });
+      const seconds = result.refusal.retryAfterSeconds;
+      setRefusedUntil(Date.now() + seconds * 1000);
+      toast({
+        title: REGISTRY_COPY.recheck.cooldown(minutesWords(cooldownMinutes(seconds))),
+        urgency: 'assertive',
+      });
       return null;
     }
     // Someone else holds the case now, or it was determined: the page is out of date.
@@ -197,7 +233,8 @@ export function useCaseRegistry({
       });
     },
     checking,
-    cooldown,
+    availableAt: recheckAvailableAt(detail.registry, refusedUntil),
+    refusedUntil,
     confirming,
     setConfirming,
     recheck,

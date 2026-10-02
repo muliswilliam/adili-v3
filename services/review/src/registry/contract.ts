@@ -32,6 +32,11 @@ export function registrySweepCheckWorkflowId(caseId: string, sweepRunId: string)
 /** How long after a re-check of a case the next one is refused (429), in minutes. */
 export const RECHECK_COOLDOWN_MINUTES = 10;
 
+/** When the next re-check of a case is accepted, after one asked for at `last`. */
+export function recheckAvailableAt(last: Date): Date {
+  return new Date(last.getTime() + RECHECK_COOLDOWN_MINUTES * 60_000);
+}
+
 /** Checks a sweep run has going at once at most. */
 export const SWEEP_CONCURRENCY = 4;
 

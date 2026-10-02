@@ -269,7 +269,9 @@ describe('CaseView', () => {
     render(view(load({ document: null, documentUnavailable: true })));
 
     expect(screen.getByText('The declaration could not be loaded.')).toBeTruthy();
-    expect(screen.getByText('Assets grew faster than declared income')).toBeTruthy();
+    expect(
+      screen.getByRole('heading', { name: /^Assets grew faster than declared income/ }),
+    ).toBeTruthy();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
       await Promise.resolve();
@@ -430,6 +432,7 @@ describe('CaseView: Registry tab', () => {
       flags: [SUPPLIER_NOT_RUN_FLAG],
       registry: {
         checkedAt: CHECKED_AT,
+        recheckAvailableAt: null,
         checks: [
           {
             personKey: 'officer',
@@ -456,6 +459,7 @@ describe('CaseView: Registry tab', () => {
       case: caseItem({ assignee: ME, status: 'assigned' }),
       registry: {
         checkedAt: CHECKED_AT,
+        recheckAvailableAt: null,
         checks: [
           {
             personKey: 'officer',
@@ -577,6 +581,41 @@ describe('CaseView: Registry tab', () => {
       2,
     );
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('disables Re-check within ten minutes of the last one, saying when it is accepted, then enables it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(NOW);
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
+    const detail = caseData({
+      case: caseItem({ assignee: ME, status: 'assigned' }),
+      registry: {
+        ...caseData().registry,
+        recheckAvailableAt: new Date(NOW + 6 * 60_000 + 20_000).toISOString(),
+      },
+    });
+    render(view(load({ detail }), reviewer, 'registry'));
+
+    const button = screen.getByRole('button', { name: 'Re-check' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByLabelText('Re-checked recently. Try again in 7 minutes.')).toBeTruthy();
+    // Nothing was refused on this page: the tab does not repeat it.
+    expect(screen.queryByText('Re-checked recently. Try again in 7 minutes.')).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(screen.getByLabelText('Re-checked recently. Try again in 6 minutes.')).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5 * 60_000 + 30_000);
+    });
+    expect(screen.queryByLabelText(/Re-checked recently/)).toBeNull();
+    const enabled = screen.getByRole('button', { name: 'Re-check' });
+    expect((enabled as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(enabled);
+    expect(await screen.findByRole('dialog', { name: 'Re-check registries' })).toBeTruthy();
+    vi.useRealTimers();
   });
 
   it('disables Re-check for a reviewer who does not hold the case', () => {

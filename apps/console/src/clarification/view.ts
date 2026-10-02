@@ -1,5 +1,6 @@
 import { daysBetween, formatDate, formatDateTime, plural } from '@adili/ui';
 
+import type { CrumbTrail } from '../components/shell/breadcrumbs';
 import type { Clarification } from '../server/review/types';
 import type { Tone } from './labels';
 import { lateDays, reminderAt, reminderSent } from './period';
@@ -120,4 +121,23 @@ export function historyOf(
     });
   }
   return entries;
+}
+
+/**
+ * The clarification page's crumb, from loader data the router only knows as `unknown`: the case
+ * it is on (a link back to it), then the clarification's reference or "Draft clarification";
+ * "Clarification" when it could not be loaded, nothing while it is loading.
+ */
+export function clarificationCrumb(loaderData: unknown): CrumbTrail | string | null {
+  if (typeof loaderData !== 'object' || loaderData === null || !('ok' in loaderData)) return null;
+  if (!loaderData.ok || !('data' in loaderData)) return 'Clarification';
+  const data = loaderData.data as {
+    clarification?: { reference?: string | null };
+    case?: { id?: string; reference?: string };
+  };
+  const label = data.clarification?.reference ?? 'Draft clarification';
+  const { id, reference } = data.case ?? {};
+  return id && reference
+    ? { before: [{ label: reference, to: `/review/cases/${id}` }], label }
+    : label;
 }

@@ -286,6 +286,30 @@ describe('registry re-checks and the sweep', () => {
     expect(await eventsOf('review.case.rechecked.v1')).toHaveLength(2);
   });
 
+  it('the case detail says when the next re-check is accepted: null before the first, ten minutes after the last', async () => {
+    const { caseId } = await checkedCase();
+    await claim(caseId);
+    const availableAt = async () => {
+      const response = await api.get(`/v1/review/cases/${caseId}`, assignee);
+      expect(response.statusCode, response.body).toBe(200);
+      expect(
+        contractErrors(okResponse('/v1/review/cases/{caseId}', 'get'), response.json()),
+      ).toEqual([]);
+      return response.json<CaseDetail>().registry.recheckAvailableAt;
+    };
+    expect(await availableAt()).toBeNull();
+
+    api.clock.set('2027-12-11T09:00:00.000Z');
+    expect((await api.send('POST', recheckPath(caseId), assignee)).statusCode).toBe(202);
+    await recheckRun(caseId);
+    expect(await availableAt()).toBe('2027-12-11T09:10:00.000Z');
+
+    api.clock.set('2027-12-11T09:25:00.000Z');
+    expect((await api.send('POST', recheckPath(caseId), supervisor)).statusCode).toBe(202);
+    await recheckRun(caseId);
+    expect(await availableAt()).toBe('2027-12-11T09:35:00.000Z');
+  });
+
   it('accepts an Idempotency-Key: a retry with it replays the 202 instead of meeting the cooldown (ADR-013 §7.5)', async () => {
     const { caseId } = await checkedCase();
     await claim(caseId);
@@ -397,7 +421,7 @@ describe('registry re-checks and the sweep', () => {
     const detail = (
       await api.get(`/v1/review/cases/${request.caseId}`, supervisor)
     ).json<CaseDetail>();
-    expect(detail.registry).toEqual({ checkedAt: null, checks: [] });
+    expect(detail.registry).toEqual({ checkedAt: null, checks: [], recheckAvailableAt: null });
 
     // Even a status of version 1 left behind is not shown against version 2's document.
     await api.asPlatform((tx) => tx.insert(registryChecks).values({ ...first, id: randomUUID() }));

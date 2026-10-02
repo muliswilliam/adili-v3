@@ -601,4 +601,77 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     // Staff tokens carry no person id.
     expect((await api.get('/v1/me/clarifications', reviewerA)).statusCode).toBe(404);
   });
+
+  it("staff: the Commission's reviewers and supervisors download an issued letter through documents, audited naming the declarant", async () => {
+    const letterPath = '/v1/review/clarifications/{clarificationId}/letter/download';
+    const caseId = await givenAssignedCase(api, version);
+    const unissued = (await draft(caseId)).json<ClarificationView>();
+    const { id } = (await draft(caseId)).json<ClarificationView>();
+    expect((await issue(id)).statusCode).toBe(200);
+    const letter = `/v1/review/clarifications/${id}/letter/download`;
+    // Before documents has produced the letter there is nothing to download.
+    expect((await api.get(letter, reviewerA)).statusCode).toBe(404);
+    await vi.waitFor(
+      async () => {
+        const [row] = await api.asPlatform((tx) =>
+          tx.select().from(clarifications).where(eq(clarifications.id, id)),
+        );
+        expect(row?.letterDocumentId).toBeTruthy();
+      },
+      { timeout: 45_000, interval: 250 },
+    );
+    const documentId = api.documents.issued[0]?.document.id ?? '';
+    const audits = async () =>
+      (
+        await api.asPlatform((tx) =>
+          tx.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1')),
+        )
+      )
+        .map((row) => row.envelope)
+        .filter((envelope) => JSON.stringify(envelope).includes('letter.downloaded'));
+
+    // Not only the assignee: anyone of the Commission's review staff who can see the case.
+    for (const caller of [reviewerA, reviewerB, supervisor]) {
+      const response = await api.get(letter, caller);
+      expect(response.statusCode, response.body).toBe(200);
+      expect(contractErrors(okResponse(letterPath, 'get'), response.json())).toEqual([]);
+      expect(response.json()).toMatchObject({
+        downloadUrl: expect.stringContaining(documentId) as unknown,
+      });
+    }
+    expect(api.documents.documentDownloads).toEqual(
+      Array.from({ length: 3 }, () => ({ documentId, tenant: 'psc' })),
+    );
+    const recorded = await audits();
+    expect(recorded).toHaveLength(3);
+    expect(recorded[0]).toMatchObject({
+      tenant: 'psc',
+      data: {
+        action: 'review.clarification.letter.downloaded',
+        resource: {
+          type: 'clarification',
+          params: { clarificationId: id },
+          tenant: 'psc',
+          subjectPersonId: version.personId,
+        },
+        actor: { subject: reviewerA.sub },
+      },
+    });
+
+    // A draft has no letter; outsiders see no clarification at all.
+    const draftLetter = `/v1/review/clarifications/${unissued.id}/letter/download`;
+    expect((await api.get(draftLetter, reviewerA)).statusCode).toBe(404);
+    for (const caller of [tscReviewer, declarant, { tenant: 'psc', roles: ['helpdesk'] }]) {
+      expect((await api.get(letter, caller)).statusCode).toBe(404);
+    }
+    expect(api.documents.documentDownloads).toHaveLength(3);
+    expect(await audits()).toHaveLength(3);
+
+    // Documents down: 502, and nothing audited as read.
+    api.documents.failCalls(1);
+    const down = await api.get(letter, reviewerA);
+    expect(down.statusCode).toBe(502);
+    expect(down.json()).toMatchObject({ type: 'documents-unavailable' });
+    expect(await audits()).toHaveLength(3);
+  });
 });

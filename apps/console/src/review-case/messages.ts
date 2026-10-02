@@ -214,6 +214,8 @@ export const REGISTRY_COPY = {
     mismatchedNoCount: 'Mismatches found',
     unavailable: (system: string) =>
       `Could not reach ${system}. Re-checked automatically every hour.`,
+    supplierListUnavailable:
+      "Could not reach the employer's supplier list. Re-checked automatically every hour.",
     notChecked: 'Checks run after submission.',
   },
 

@@ -242,7 +242,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="destructive">
           <Icon icon={BanIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.notResponding(systemInfo(row.system).name)}</b>{' '}
+            <b className="font-semibold">{m.notResponding(systemInfo(row.system))}</b>{' '}
             {m.notRespondingDetail(
               formatLastSuccess(row.lastSuccessAt, now, m.never).toLowerCase(),
             )}
@@ -253,7 +253,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="warning" role="status">
           <Icon icon={Activity01Icon} />
           <AlertDescription>
-            <b className="font-semibold">{m.recovering(systemInfo(row.system).name)}</b>{' '}
+            <b className="font-semibold">{m.recovering(systemInfo(row.system))}</b>{' '}
             {m.recoveringDetail}
           </AlertDescription>
         </Alert>
@@ -262,11 +262,11 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="info" role="status">
           <Icon icon={PauseIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.paused(systemInfo(row.system).name)}</b>{' '}
+            <b className="font-semibold">{m.paused(systemInfo(row.system))}</b>{' '}
             {row.pausedBy && row.pausedAt
               ? `${m.pausedSince(row.pausedBy, formatTime(row.pausedAt))} `
               : null}
-            {m.pausedDetail}
+            {m.pausedDetail(systemInfo(row.system))}
           </AlertDescription>
         </Alert>
       ))}
@@ -285,7 +285,7 @@ function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; actio
       metrics={<Metrics row={row} now={now} />}
       action={action}
       badge={
-        <span className="flex w-[178px] items-center justify-end gap-2 max-sm:w-auto max-sm:justify-start">
+        <span className="flex w-auto items-center justify-start gap-2 @min-[1056px]:w-[178px] @min-[1056px]:justify-end">
           {/* Paused takes the breaker's place: nothing is sent, so its state says nothing now. */}
           {row.paused ? (
             <Badge variant="warning">
@@ -298,7 +298,7 @@ function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; actio
         </span>
       }
     >
-      <Details row={row} />
+      <Details row={row} withAction={action !== undefined && action !== null} />
     </SystemStatusRow>
   );
 }
@@ -343,14 +343,14 @@ function Metric({ term, children }: { term: string; children: ReactNode }) {
   );
 }
 
-function Details({ row }: { row: SystemCoverage }) {
+function Details({ row, withAction }: { row: SystemCoverage; withAction: boolean }) {
   const callout = row.paused ? (
     <Alert variant="warning" role="status">
       <Icon icon={PauseIcon} />
       <AlertDescription>
         {row.pausedBy && row.pausedAt
-          ? m.pausedByCallout(row.pausedBy, formatDateTime(row.pausedAt))
-          : m.pausedCallout}
+          ? m.pausedByCallout(systemInfo(row.system), row.pausedBy, formatDateTime(row.pausedAt))
+          : m.pausedCallout(systemInfo(row.system))}
       </AlertDescription>
     </Alert>
   ) : row.breaker === 'open' ? (
@@ -365,27 +365,39 @@ function Details({ row }: { row: SystemCoverage }) {
     </Alert>
   ) : null;
   const { owner } = systemInfo(row.system);
-  const items: [string, string][] = [
-    ...(owner === null ? [] : [[m.operatedBy, owner] satisfies [string, string]]),
-    [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute)],
-    [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds))],
-    [m.failedCalls, formatNumber(row.failures24h)],
-    // The row shows Paused in the breaker's place; the breaker's own state is kept here.
-    ...(row.paused
-      ? [[m.breaker, BREAKER_BADGE_MESSAGES[row.breaker]] satisfies [string, string]]
-      : []),
+  // Each in the row's column above it (when the row has its figures beside the name): who runs it and its failures under
+  // the name, the rate limit and timeout under Calls, the cache and breaker under Last success.
+  const items: [string, string, DetailColumn][] = [
+    ...(owner === null ? [] : [[m.operatedBy, owner, 'name'] satisfies DetailItem]),
+    [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute), 'calls'],
+    [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds)), 'last'],
+    [m.failedCalls, formatNumber(row.failures24h), 'name'],
+    [m.timeout, m.timeoutValue(formatDuration(row.timeoutMs / 1000)), 'calls'],
     [
       m.breakerRule,
       m.breakerRuleValue(row.breakerFailureThreshold, formatDuration(row.breakerCooldownSeconds)),
+      'last',
     ],
-    [m.timeout, m.timeoutValue(formatDuration(row.timeoutMs / 1000))],
+    // The row shows Paused in the breaker's place; the breaker's own state is kept here.
+    ...(row.paused
+      ? [[m.breaker, BREAKER_BADGE_MESSAGES[row.breaker], 'name'] satisfies DetailItem]
+      : []),
   ];
   return (
     <div className="grid gap-3.5 pl-10 max-sm:pl-0">
       {callout}
-      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,1fr)]">
-        {items.map(([term, value]) => (
-          <div key={term} className="min-w-0">
+      <dl
+        className={cn(
+          'grid gap-x-2.5 gap-y-3 sm:grid-cols-2 sm:gap-x-6',
+          withAction ? DETAIL_COLUMNS_WITH_ACTION : DETAIL_COLUMNS,
+        )}
+      >
+        {items.map(([term, value, column]) => (
+          <div
+            key={term}
+            data-column={column}
+            className={cn('min-w-0 @min-[1056px]:pr-4', COLUMN_START[column])}
+          >
             <dt className="text-xs text-muted-foreground">{term}</dt>
             <dd className="text-sm">{value}</dd>
           </div>
@@ -394,6 +406,29 @@ function Details({ row }: { row: SystemCoverage }) {
     </div>
   );
 }
+
+/** The row's column a detail sits under: the name, Calls, or Last success. */
+type DetailColumn = 'name' | 'calls' | 'last';
+type DetailItem = [string, string, DetailColumn];
+
+const COLUMN_START: Record<DetailColumn, string> = {
+  name: '@min-[1056px]:col-start-1',
+  calls: '@min-[1056px]:col-start-2',
+  last: '@min-[1056px]:col-start-3',
+};
+
+/**
+ * The details' columns, when the list is wide enough for the row's figures beside its name
+ * (1056px, as SystemStatusRow), lined up with the row above: the
+ * first under the name; the second from Calls to Cache hit rate (`Metrics`: 92px, 20px gap,
+ * 128px, 20px gap, less the 10px gap between columns); the third from Last success (124px) over
+ * the badge (178px), the Pause or Resume button (104px) and the chevron (16px), with the row's
+ * 10px gaps between them.
+ */
+const DETAIL_COLUMNS =
+  '@min-[1056px]:grid-cols-[minmax(0,1fr)_250px_338px] @min-[1056px]:gap-x-2.5';
+const DETAIL_COLUMNS_WITH_ACTION =
+  '@min-[1056px]:grid-cols-[minmax(0,1fr)_250px_452px] @min-[1056px]:gap-x-2.5';
 
 function CoverageSkeleton() {
   return (

@@ -163,6 +163,27 @@ describe('SystemStatusRow', () => {
     expect(metrics.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('puts metrics beside the name only in a list wide enough for them, so the name never runs under them', () => {
+    inList(
+      <>
+        <SystemStatusRow
+          name="KRA iTax"
+          badge={<span>Closed</span>}
+          metrics={<span>6 calls</span>}
+        />
+        <SystemStatusRow name="NTSA" status="matched" />
+      </>,
+    );
+
+    const list = screen.getByRole('list').parentElement;
+    expect(list?.className).toContain('@container');
+    const row = (text: string) => screen.getByText(text).closest('li')?.querySelector('.flex-col');
+    // A list query (1056px for name, figures, badge and action), not the viewport's sm.
+    expect(row('6 calls')?.className).toContain('@min-[1056px]:flex-row');
+    expect(row('6 calls')?.className).not.toContain('sm:flex-row');
+    expect(row('NTSA')?.className).toContain('sm:flex-row');
+  });
+
   it('says it is checking instead of its copy and badge', () => {
     inList(<SystemStatusRow name="NTSA" status="mismatched" count={2} checking />);
 

@@ -57,7 +57,43 @@ import { flagAnchorId, FlagsTab } from './flags-tab';
 import { NotesTab } from './notes-tab';
 import { RegistryTab } from './registry-tab';
 import { TimelineTab } from './timeline-tab';
-import { useCaseRegistry } from './use-case-registry';
+import { useCaseRegistry, useCooldown } from './use-case-registry';
+
+/**
+ * The registry Re-check (spec 07b FE-2): for the assignee or a supervisor, disabled while a
+ * re-check runs, and disabled within ten minutes of the last one with a tooltip saying when the
+ * next is accepted (review refuses it until then). Another reviewer sees it disabled, with why.
+ */
+function RecheckButton({
+  forbidden,
+  checking,
+  availableAt,
+  now,
+  onClick,
+}: {
+  forbidden: boolean;
+  checking: boolean;
+  availableAt: number | null;
+  now: number;
+  onClick: () => void;
+}) {
+  const cooldown = useCooldown(availableAt, now);
+  const reason = forbidden ? REGISTRY_COPY.recheck.forbidden : checking ? null : cooldown;
+  const button = (
+    <Button size="sm" variant="secondary" disabled={reason !== null || checking} onClick={onClick}>
+      {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
+      {checking ? REGISTRY_COPY.recheck.running : REGISTRY_COPY.recheck.action}
+    </Button>
+  );
+  if (reason === null) return button;
+  return (
+    <Tooltip content={reason}>
+      <span tabIndex={0} aria-label={reason} className={cn(focusRing, 'inline-flex rounded-lg')}>
+        {button}
+      </span>
+    </Tooltip>
+  );
+}
 
 function scrollToId(id: string) {
   const element = document.getElementById(id);
@@ -214,7 +250,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
     }).catch(() => ({ ok: false }) as const);
     setDownloads((all) => ({ ...all, [attachment.uploadId]: result.ok ? 'done' : 'idle' }));
     if (result.ok) window.location.assign(result.data.downloadUrl);
-    else toast({ title: CASE_COPY.declaration.downloadFailed });
+    else toast({ title: CASE_COPY.declaration.downloadFailed, urgency: 'assertive' });
   }
 
   const ACTION_BUTTONS: Record<AssignmentAction, ReactNode> = {
@@ -287,30 +323,17 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
   const actions = assignmentActions(item, viewer).map((action) => ACTION_BUTTONS[action]);
   const recheck = recheckAccess(item, viewer);
   if (recheck !== 'hidden') {
-    const button = (
-      <Button
+    actions.push(
+      <RecheckButton
         key="recheck"
-        size="sm"
-        variant="secondary"
-        disabled={recheck === 'forbidden' || checking}
+        forbidden={recheck === 'forbidden'}
+        checking={checking}
+        availableAt={registry.availableAt}
+        now={now}
         onClick={() => {
           registry.setConfirming(true);
         }}
-      >
-        {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
-        {checking ? REGISTRY_COPY.recheck.running : REGISTRY_COPY.recheck.action}
-      </Button>
-    );
-    actions.push(
-      recheck === 'forbidden' ? (
-        <Tooltip key="recheck" content={REGISTRY_COPY.recheck.forbidden}>
-          <span tabIndex={0} className={cn(focusRing, 'inline-flex rounded-lg')}>
-            {button}
-          </span>
-        </Tooltip>
-      ) : (
-        button
-      ),
+      />,
     );
   }
 
@@ -351,7 +374,8 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         retrying={registry.retrying}
         onRetry={registry.retry}
         checking={checking}
-        cooldown={registry.cooldown}
+        refusedUntil={registry.refusedUntil}
+        now={now}
         onGoToItem={goToItem}
         document={document}
         previousVersion={previousVersion}
@@ -382,25 +406,31 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       }}
       className="rounded-2xl bg-card shadow-card"
     >
-      <TabsList
-        aria-label={CASE_COPY.tabsLabel}
-        className="sticky top-0 z-[3] rounded-t-2xl bg-card px-2"
-      >
-        {CASE_TABS.map((key) => {
-          const count = tabCount(key, detail);
-          return (
-            <TabsTrigger key={key} value={key} className="gap-[5px] px-[7px] text-[13.5px]">
-              {CASE_TAB_LABELS[key]}
-              {count ? <TabsCount>{count}</TabsCount> : null}
-              {key === 'registry' && registryNeedsAttention(detail) ? (
-                <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
-                  <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
-                </span>
-              ) : null}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
+      {/* The card behind the sticky tabs, so their edge fade (when they scroll sideways, on
+          narrow screens) shows the card, not the panel scrolling under them. */}
+      <div className="sticky top-0 z-[3] rounded-t-2xl bg-card">
+        <TabsList
+          aria-label={CASE_COPY.tabsLabel}
+          // Five tabs with counts and the registry's attention icon fit the pane at its default
+          // width: no gaps between them, tight padding.
+          className="gap-0 px-2"
+        >
+          {CASE_TABS.map((key) => {
+            const count = tabCount(key, detail);
+            return (
+              <TabsTrigger key={key} value={key} className="gap-[5px] px-[6px] text-[13.5px]">
+                {CASE_TAB_LABELS[key]}
+                {count ? <TabsCount>{count}</TabsCount> : null}
+                {key === 'registry' && registryNeedsAttention(detail) ? (
+                  <span role="img" aria-label={REGISTRY_COPY.attention} className="inline-flex">
+                    <Icon icon={Alert02Icon} strokeWidth={2.2} className="size-3.5 text-warning" />
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </div>
       {CASE_TABS.map((key) => (
         <TabsContent key={key} value={key} className="mt-0 rounded-b-2xl p-4">
           {panels[key]}

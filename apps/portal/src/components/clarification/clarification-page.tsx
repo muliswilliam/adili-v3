@@ -128,7 +128,9 @@ function Header({
         <Badge variant={status.variant}>{status.label.en}</Badge>
         {clarification.responseLate ? <Badge variant="warning">Late</Badge> : null}
         <span>{clarification.commission.name}</span>
-        <span className="font-mono">{COPY.declaration(clarification.declarationReference)}</span>
+        <span>
+          {COPY.declaration} <span className="font-mono">{clarification.declarationReference}</span>
+        </span>
       </div>
     </div>
   );
@@ -509,7 +511,7 @@ function LetterCard({ clarification }: { clarification: DeclarantClarification }
         <>
           <div className="grid gap-1">
             <p className="text-sm text-muted-foreground">{COPY.verificationCode}</p>
-            <p className="font-mono text-sm font-semibold break-all">{letter.verificationId}</p>
+            <p className="font-mono text-sm font-semibold break-words">{letter.verificationId}</p>
             {letter.status === 'revoked' ? (
               <Badge variant="destructive">{COPY.revoked}</Badge>
             ) : (

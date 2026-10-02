@@ -10,7 +10,6 @@ import {
   resolve,
   withdraw,
 } from './clarifications.server';
-import { documentsClient } from './documents/client.server';
 import { reviewClient, type ReviewClient } from './review/client.server';
 import type { Clarification } from './review/types';
 import { callService, type ServiceResult } from './service-call';
@@ -80,14 +79,17 @@ export const getResponseAttachmentLink = createServerFn({ method: 'GET' })
     ),
   );
 
-/** The clarification letter PDF from the documents service. */
+/**
+ * The clarification letter PDF, through the review service's audited letter download (which
+ * asks the documents service for the Commission). Any review staff who can see the case.
+ */
 export const getLetterLink = createServerFn({ method: 'GET' })
-  .validator(z.object({ documentId: id }))
+  .validator(z.object({ clarificationId: id }))
   .handler(({ data }): Promise<ServiceResult<DownloadLink>> =>
-    asReviewer((_client, _subject, accessToken) =>
+    asReviewer((client) =>
       callService(() =>
-        documentsClient(accessToken).GET('/v1/documents/{documentId}/download', {
-          params: { path: { documentId: data.documentId } },
+        client.GET('/v1/review/clarifications/{clarificationId}/letter/download', {
+          params: { path: { clarificationId: data.clarificationId } },
         }),
       ),
     ),

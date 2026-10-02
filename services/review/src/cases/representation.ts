@@ -187,7 +187,14 @@ export type RegistryCheckView = z.infer<typeof registryCheckSchema>;
  * registry; none before the first check (every registry `not-checked`).
  */
 export const registrySummarySchema = z
-  .object({ checkedAt: z.iso.datetime().nullable(), checks: z.array(registryCheckSchema) })
+  .object({
+    checkedAt: z.iso.datetime().nullable(),
+    checks: z.array(registryCheckSchema),
+    recheckAvailableAt: z.iso.datetime().nullable().meta({
+      description:
+        'When the next manual re-check is accepted: 10 minutes after the last one asked for, which a re-check before then is refused with 429 `recheck-cooldown`; null before the first. A time in the past means one is accepted now',
+    }),
+  })
   .meta({
     description:
       "The case's latest registry check, per person with an entry per registry; empty with checkedAt null before the first check (every registry not checked)",

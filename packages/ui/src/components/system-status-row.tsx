@@ -105,7 +105,8 @@ export type SystemStatusRowProps = Omit<ComponentProps<'li'>, 'children'> & {
   checking?: boolean;
   /**
    * Figures between the row copy and the badge, e.g. call volume and cache hit rate on the
-   * Integrations page. Under the name on narrow screens.
+   * Integrations page. Under the name, with the badge under them, when the list is narrower than
+   * 1056px (a container query on SystemStatusList), so a long name never runs under them.
    */
   metrics?: ReactNode;
   /** An action at the end of the row, e.g. a Pause button. Stays outside the expand button. */
@@ -209,7 +210,16 @@ export function SystemStatusRow({
             <Icon icon={icon} />
           </IconTile>
         ) : null}
-        <div className="flex min-w-0 flex-1 flex-col gap-x-2.5 gap-y-1.5 sm:flex-row sm:items-center">
+        <div
+          className={cn(
+            'flex min-w-0 flex-1 flex-col gap-x-2.5 gap-y-1.5',
+            // With figures, the row needs 1056px of list for them beside the name and badge;
+            // narrower, they go under the name (a container query on SystemStatusList).
+            metrics
+              ? '@min-[1056px]:flex-row @min-[1056px]:items-center'
+              : 'sm:flex-row sm:items-center',
+          )}
+        >
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold">
               {expandable ? (
@@ -300,7 +310,7 @@ export function SystemStatusList({
   ...props
 }: SystemStatusListProps) {
   return (
-    <div className={cn('overflow-hidden rounded-item bg-card shadow-card', className)}>
+    <div className={cn('@container overflow-hidden rounded-item bg-card shadow-card', className)}>
       {header ? (
         <div className="flex items-center gap-2.5 border-b bg-background/60 px-3.5 py-[11px]">
           {header}

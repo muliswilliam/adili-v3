@@ -1,5 +1,15 @@
 import { formatNumber } from '../format';
 
+/** A system as the copy names it: "HR supplier lists" is plural ("are paused", "until they are"). */
+export interface SystemName {
+  name: string;
+  plural?: boolean;
+}
+
+const is = (system: SystemName) => `${system.name} ${system.plural ? 'are' : 'is'}`;
+const itIs = (system: SystemName) => (system.plural ? 'they are' : 'it is');
+const its = (system: SystemName) => (system.plural ? 'their' : 'its');
+
 /**
  * Copy of the Integrations page (spec 07b frontend, FE-3; prototype 07b-registry). One English
  * string per key; the Swahili slot stays empty until translations are reviewed by EACC. System
@@ -25,13 +35,14 @@ export const en = {
   noneHint: 'None',
   // Alerts
   allWorking: 'All systems are working normally.',
-  notResponding: (system: string) => `${system} is not responding.`,
+  notResponding: (system: SystemName) => `${is(system)} not responding.`,
   notRespondingDetail: (lastSuccess: string) => `Breaker open. Last success ${lastSuccess}.`,
-  recovering: (system: string) => `${system} is recovering.`,
+  recovering: (system: SystemName) => `${is(system)} recovering.`,
   recoveringDetail: 'Breaker half-open, testing with a few calls.',
-  paused: (system: string) => `${system} is paused.`,
+  paused: (system: SystemName) => `${is(system)} paused.`,
   pausedSince: (by: string, time: string) => `Paused by ${by} since ${time}.`,
-  pausedDetail: 'Lookups are marked unavailable until it is resumed. Cached answers still serve.',
+  pausedDetail: (system: SystemName) =>
+    `Lookups are marked unavailable until ${itIs(system)} resumed. Cached answers still serve.`,
   // Coverage
   coverageLabel: 'Integration coverage',
   calls: 'Calls (24 h)',
@@ -45,21 +56,24 @@ export const en = {
     'Opened after repeated failures. Calls are not being sent until the breaker lets a probe through.',
   breakerHalfOpenCallout:
     'Testing recovery: the next call is a probe. One success closes the breaker.',
-  pausedCallout: 'Paused by a platform administrator. Nothing is sent until it is resumed.',
-  pausedByCallout: (by: string, at: string) =>
-    `Paused by ${by} on ${at}. Nothing is sent until it is resumed.`,
+  pausedCallout: (system: SystemName) =>
+    `Paused by a platform administrator. Nothing is sent until ${itIs(system)} resumed.`,
+  pausedByCallout: (system: SystemName, by: string, at: string) =>
+    `Paused by ${by} on ${at}. Nothing is sent until ${itIs(system)} resumed.`,
   // Pause and resume
   pause: 'Pause',
   resume: 'Resume',
   pauseLabel: (system: string) => `Pause ${system}`,
   resumeLabel: (system: string) => `Resume ${system}`,
   pauseTitle: (system: string) => `Pause ${system}?`,
-  pauseText: (system: string) =>
-    `Lookups to ${system} will be marked unavailable until it is resumed.`,
-  pauseNothingSent: (system: string) => `Nothing is sent to ${system} while it is paused.`,
-  pauseCasesFlow: (system: string) =>
-    `Cases keep flowing. Their Registry tab shows ${system} as unavailable.`,
-  pauseRechecked: 'Affected cases are re-checked every hour until it answers.',
+  pauseText: (system: SystemName) =>
+    `Lookups to ${system.name} will be marked unavailable until ${itIs(system)} resumed.`,
+  pauseNothingSent: (system: SystemName) =>
+    `Nothing is sent to ${system.name} while ${itIs(system)} paused.`,
+  pauseCasesFlow: (system: SystemName) =>
+    `Cases keep flowing. Their Registry tab shows ${system.name} as unavailable.`,
+  pauseRechecked: (system: SystemName) =>
+    `Affected cases are re-checked every hour until ${system.plural ? 'they answer' : 'it answers'}.`,
   pauseOnboarding: 'Declarants cannot confirm their identity at onboarding until it is resumed.',
   pauseCached: 'Answers already in the cache are still served.',
   auditNote: 'Recorded in the audit trail with your name.',
@@ -67,8 +81,8 @@ export const en = {
   pauseFailed: (system: string) => `Could not pause ${system}. Try again.`,
   pausedToast: (system: string) => `${system} paused`,
   resumeTitle: (system: string) => `Resume ${system}?`,
-  resumeText: (system: string, perMinute: number) =>
-    `Lookups to ${system} start again, within its rate limit of ${formatNumber(perMinute)} calls a minute.`,
+  resumeText: (system: SystemName, perMinute: number) =>
+    `Lookups to ${system.name} start again, within ${its(system)} rate limit of ${formatNumber(perMinute)} calls a minute.`,
   resuming: 'Resuming…',
   resumeFailed: (system: string) => `Could not resume ${system}. Try again.`,
   resumedToast: (system: string) => `${system} resumed`,
