@@ -29,8 +29,20 @@ function renderList() {
   const loads: { search: string | undefined; resolve: () => void }[] = [];
   const history = createMemoryHistory({ initialEntries: ['/list'] });
   const root = createRootRoute({ component: Outlet });
-  const list = createRoute({
+  // A layout loading once per visit, as the queue's counts do.
+  const layoutLoads: number[] = [];
+  const layout = createRoute({
     getParentRoute: () => root,
+    id: 'layout',
+    staleTime: Infinity,
+    loader: () => {
+      layoutLoads.push(layoutLoads.length);
+      return null;
+    },
+    component: Outlet,
+  });
+  const list = createRoute({
+    getParentRoute: () => layout,
     path: '/list',
     validateSearch: listSearch,
     shouldReload: true,
@@ -60,11 +72,11 @@ function renderList() {
     },
   });
   const router = createRouter({
-    routeTree: root.addChildren([list]),
+    routeTree: root.addChildren([layout.addChildren([list])]),
     history,
   });
   render(<RouterProvider router={router} />);
-  return { loads };
+  return { loads, layoutLoads };
 }
 
 describe('useReloadingInPlace', () => {
@@ -99,7 +111,7 @@ describe('useReloadingInPlace', () => {
   });
 
   it('Q6: shows the latest search when a second change comes while the first loads', async () => {
-    const { loads } = renderList();
+    const { loads, layoutLoads } = renderList();
     await waitFor(() => {
       expect(loads).toHaveLength(1);
     });
@@ -132,5 +144,7 @@ describe('useReloadingInPlace', () => {
     });
     expect(await screen.findByText('results for Pub')).toBeTruthy();
     expect(document.activeElement).toBe(box);
+    // Q14: loading again reloads the list alone, not the layout around it.
+    expect(layoutLoads).toHaveLength(1);
   });
 });

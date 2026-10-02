@@ -1,7 +1,12 @@
 import { useLocation, useMatch, useRouter, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
 
-/** How long a finished load's data may take to show before an older answer counts as stale. */
+/**
+ * How long a finished load's data may take to show before an older answer counts as stale. The
+ * router can publish that a background load ended a render before its data lands. Too short only
+ * costs a needless reload (the right answer stops it); too long only delays the one that is
+ * needed. Never a wrong list: the list shows as loading until an answer for its search is in.
+ */
 const SETTLE_MS = 100;
 
 /** What a list's loader returns beside its data: the search it loaded for (`location.searchStr`). */
@@ -22,12 +27,14 @@ export interface LoadedFor {
  *
  * The match being the same, a change made while a load is under way does not load again: the
  * router hands the load already running to the newer navigation, so its answer is for the older
- * search. Given what the loader says it `loadedFor`, this loads again for the search on show
- * (`current`, the location's by default) once the router settles, and counts as loading until
- * then, so the list never shows the answer to an older search.
+ * search. Given what the loader says it `loadedFor`, this loads that match again (and nothing
+ * around it) for the search on show (`current`, the location's by default) once the router
+ * settles, and counts as loading until then, so the list never shows the answer to an older
+ * search.
  */
 export function useReloadingInPlace(loaded?: LoadedFor | null, current?: string): boolean {
   const fetching = useMatch({ strict: false, select: (match) => match.isFetching !== false });
+  const matchId = useMatch({ strict: false, select: (match) => match.id });
   const searchStr = useLocation({ select: (location) => location.searchStr });
   const idle = useRouterState({ select: (state) => state.status === 'idle' });
   const router = useRouter();
@@ -37,10 +44,14 @@ export function useReloadingInPlace(loaded?: LoadedFor | null, current?: string)
   const settled = idle && !fetching;
   useEffect(() => {
     if (!stale || !settled) return;
-    const timer = setTimeout(() => void router.invalidate(), SETTLE_MS);
+    // This match alone: the layouts around it (the queue's counts) keep what they loaded.
+    const timer = setTimeout(
+      () => void router.invalidate({ filter: (match) => match.id === matchId }),
+      SETTLE_MS,
+    );
     return () => {
       clearTimeout(timer);
     };
-  }, [stale, settled, router]);
+  }, [stale, settled, router, matchId]);
   return fetching || stale;
 }
