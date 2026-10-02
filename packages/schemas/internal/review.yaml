@@ -2184,7 +2184,7 @@ components:
           format: date-time
         failureReason:
           type: [string, 'null']
-          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, or `declarations-unavailable` when the declaration could not be read"
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error`"
         summary:
           type: [object, 'null']
           description: ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention)

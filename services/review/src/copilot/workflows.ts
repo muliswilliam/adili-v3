@@ -12,6 +12,7 @@ import {
 import type { CopilotActivities } from './activities.js';
 import {
   COPILOT_UNAVAILABLE,
+  COPILOT_UNAVAILABLE_BY_ERROR,
   type CopilotActivityRequest,
   type CopilotJobFinished,
   type CopilotPolicyChanged,
@@ -41,9 +42,8 @@ const { copilotUnavailable, notEnabledCopilots } = proxyActivities<CopilotActivi
 
 /**
  * `requestCopilot(caseId)` as a step of a workflow (`DeclarationProcessingWorkflow`, spec 07b's
- * re-check): the record is `pending` (or `stale`) with the jobs, or `failed` when the declaration
- * could not be pulled (`declarations-unavailable`) or the gateway reached
- * (`ai-gateway-unavailable`).
+ * re-check): the record is `pending` (or `stale`) with the jobs, or `failed` with the reason the
+ * request could not be made (`unavailableOf`).
  */
 export async function requestCaseCopilot(request: CopilotActivityRequest): Promise<void> {
   try {
@@ -58,11 +58,13 @@ export async function requestCaseCopilot(request: CopilotActivityRequest): Promi
   }
 }
 
-/** Which service stayed unreachable: the declaration's pull, or (by default) the ai-gateway. */
+/**
+ * Which service stayed unreachable (the declaration's pull, the gateway, the key service), by the
+ * error the activity last threw; any other error is the review service's own.
+ */
 function unavailableOf(error: ActivityFailure): CopilotUnavailableReason {
-  return error.cause instanceof ApplicationFailure && error.cause.type === 'DeclarationsUnavailable'
-    ? COPILOT_UNAVAILABLE.declarations
-    : COPILOT_UNAVAILABLE.aiGateway;
+  const type = error.cause instanceof ApplicationFailure ? error.cause.type : undefined;
+  return (type && COPILOT_UNAVAILABLE_BY_ERROR[type]) ?? COPILOT_UNAVAILABLE.internal;
 }
 
 /** Not-enabled copilots one page of `copilotPolicyChanged` requests again. */
@@ -104,6 +106,6 @@ export async function copilotJobFinished(job: CopilotJobFinished): Promise<void>
     await recordCopilotJob(job);
   } catch (error) {
     if (!(error instanceof ActivityFailure)) throw error;
-    await copilotUnavailable(job);
+    await copilotUnavailable({ ...job, reason: unavailableOf(error) });
   }
 }

@@ -1,8 +1,10 @@
 import { fileURLToPath } from 'node:url';
 
+import { FieldCipherError } from '@adili/data-access';
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { AiGatewayUnavailable } from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotActivities } from '../../src/copilot/activities.js';
 import {
   COPILOT_POLICY_PAGE,
@@ -52,12 +54,28 @@ describe('copilotJobFinished', () => {
 
   it('retries a gateway outage with backoff, then records the copilot as failed for that job', async () => {
     const mocks = activities({
-      recordCopilotJob: vi.fn(() => Promise.reject(new Error('ai-gateway unreachable'))),
+      recordCopilotJob: vi.fn(() =>
+        Promise.reject(new AiGatewayUnavailable('ai-gateway unreachable')),
+      ),
     });
     await env.execute(copilotJobFinished, { workflowsPath, activities: mocks, args: [job] });
     expect(mocks.recordCopilotJob).toHaveBeenCalledTimes(10);
-    expect(mocks.copilotUnavailable).toHaveBeenCalledWith(job);
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({
+      ...job,
+      reason: 'ai-gateway-unavailable',
+    });
   }, 60_000);
+
+  it('records what stayed unavailable: the key service, or an error of its own, not the gateway', async () => {
+    for (const [error, reason] of [
+      [new FieldCipherError('unavailable', 'OpenBao is sealed'), 'key-service-unavailable'],
+      [new TypeError('a bug'), 'internal-error'],
+    ] as const) {
+      const mocks = activities({ recordCopilotJob: vi.fn(() => Promise.reject(error)) });
+      await env.execute(copilotJobFinished, { workflowsPath, activities: mocks, args: [job] });
+      expect(mocks.copilotUnavailable).toHaveBeenCalledWith({ ...job, reason });
+    }
+  }, 120_000);
 });
 
 describe('copilotPolicyChanged', () => {
@@ -77,7 +95,7 @@ describe('copilotPolicyChanged', () => {
       notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: cases, next: null })),
       requestCopilot: vi.fn((request: { caseId: string }) =>
         request.caseId === cases[1]
-          ? Promise.reject(new Error('ai-gateway unreachable'))
+          ? Promise.reject(new AiGatewayUnavailable('ai-gateway unreachable'))
           : Promise.resolve(),
       ),
     });
@@ -96,9 +114,11 @@ describe('copilotPolicyChanged', () => {
       caseId: cases[0],
       trigger: 'policy-change',
     });
-    expect(mocks.copilotUnavailable).toHaveBeenCalledWith(
-      expect.objectContaining({ tenant: 'psc', caseId: cases[1] }),
-    );
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: cases[1],
+      reason: 'ai-gateway-unavailable',
+    });
   }, 120_000);
 
   it('pages through the not-enabled copilots and continues as new, so a large Commission fits in history', async () => {
