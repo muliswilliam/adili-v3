@@ -143,10 +143,12 @@ ${letterMeta(`<b>The Accounting Officer</b><br />${esc(payload.commissionName)}`
 <dt>Submitted</dt><dd>${esc(filedThrough)}</dd>
 <dt>Content hash</dt><dd>${twoLineHash(payload.sha256)}<span class="fine" style="display:block;margin-top:1mm">SHA-256 of the form-m.v1 document as received</span></dd>
 </dl>
+<section class="close">
 <p>The Ethics and Anti-Corruption Commission acknowledges receipt of the compliance report above. The hash identifies the exact content received; any change to the report would change it.</p>
 <p class="fine">This receipt confirms the time of receipt and the content received. It does not confirm that the report is complete or correct.</p>
 ${restrictedVerifyNote(verificationId, 'receipt')}
-<div class="signed">${signatureNote(signerName, issuedAt)}</div>`;
+<div class="signed">${signatureNote(signerName, issuedAt)}</div>
+</section>`;
     return htmlDocument(`Acknowledgement of receipt ${payload.reference}`, STYLES, body);
   },
 };

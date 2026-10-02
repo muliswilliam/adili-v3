@@ -176,10 +176,12 @@ ${subjectLine(`Compliance determination: ${declaration} ${payload.declarationRef
 <div class="outcome ${copy.tone}"><span class="ic">${copy.icon}</span><div class="lbl">Determination</div><div class="v">${esc(payload.outcomeLabel)}</div></div>
 ${copy.body(payload.reasons)}
 ${facts([['On Adili Online', `Sign in at ${portalLink(payload.portalUrl)} and open Decisions to see this determination and download this letter again.`]])}
+<section class="close">
 <p>Keep this letter for your records. Anyone you share it with can check that it is genuine with the code at the foot of each page.</p>
 ${produced}
 ${restrictedVerifyNote(verificationId)}
-${letterClose(payload.commission.name, signerName, issuedAt)}`;
+${letterClose(payload.commission.name, signerName, issuedAt)}
+</section>`;
     return htmlDocument(`Compliance determination ${payload.determinationReference}`, STYLES, body);
   },
 };

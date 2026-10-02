@@ -202,6 +202,7 @@ const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYL
 .skv{margin:3mm 0}
 .skv dt,.skv dd{padding:1.1mm 0}
 .vpanel{padding:4mm 5mm;margin:4mm 0 3mm}
+.close{break-inside:avoid}
 .prose{white-space:pre-line;overflow-wrap:anywhere}
 .conf{margin:4mm 0;padding:3mm 4mm;border:0.3mm solid #f1c2be;border-left:1.2mm solid #c9291e;border-radius:1mm;font-size:8.4pt;color:#5c1510;break-inside:avoid}
 .part{break-before:page}
@@ -266,7 +267,7 @@ function clarificationsPart(clarifications: ReferralPackagePayload['clarificatio
         })
         .join('');
       const dates = [
-        clarification.issuedAt ? `issued ${formatDate(clarification.issuedAt)}` : null,
+        clarification.issuedAt ? `Issued ${formatDate(clarification.issuedAt)}` : null,
         clarification.dueAt ? `due ${formatDate(clarification.dueAt)}` : null,
         clarification.respondedAt ? `responded ${formatDate(clarification.respondedAt)}` : null,
       ].filter((each): each is string => each !== null);
@@ -377,8 +378,10 @@ export const referralPackageV1: DocumentTemplate<ReferralPackagePayload> = {
 <h2 class="lbl">Narrative</h2>
 <p class="prose">${esc(payload.narrative)}</p>
 <div class="conf"><b>Confidential.</b> The public officer has not been told about this referral. Use it only for investigation and do not disclose it. The public verify page shows only whether this document is valid.</div>
+<div class="close">
 ${verificationPanel('package', verificationId, 'The check shows only whether the package is valid, never its contents or who it is about.')}
 <div class="signed">${signatureNote(signerName, issuedAt)}</div>
+</div>
 <section class="part"><h2 class="ph">Manifest</h2>
 <p>Each item the referral rests on, with the SHA-256 of its content as included here (canonical JSON for records, the file's own hash for uploads and letters). Recompute a hash to confirm nothing changed. This package's own hash is in its verification record.</p>
 ${manifestTable(payload.manifest)}</section>

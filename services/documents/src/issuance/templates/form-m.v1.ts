@@ -107,9 +107,9 @@ p{margin:0 0 2mm}
 .fl.wide{grid-template-columns:74mm 1fr}
 .fl.wide .val{text-align:left;overflow-wrap:anywhere}
 .nc{color:#9a9894;font-weight:400;font-style:italic}
-.box{display:inline-block;width:3.2mm;height:3.2mm;border:0.3mm solid #1a1a1a;vertical-align:-0.5mm;margin:0 1mm 0 3mm;text-align:center;line-height:2.6mm;font-size:7pt;font-weight:800}
+.box{display:inline-block;width:3.2mm;height:3.2mm;border:0.3mm solid #1a1a1a;vertical-align:middle;margin:0 1mm 0 3mm;text-align:center;line-height:2.6mm;overflow:hidden;font-size:7pt;font-weight:800}
 .marker{margin:1mm 0 2mm;padding:2mm 3mm;border-left:0.9mm solid ${ACCENT};background:#fdf4ee;font-size:8.2pt}
-.record{margin-top:5mm;padding:3mm 4mm;border-radius:1.6mm;background:#f6f5f3;font-size:8pt;break-inside:avoid}
+.record{margin:5mm 0 3mm;padding:3mm 4mm;border-radius:1.6mm;background:#f6f5f3;font-size:8pt;break-inside:avoid}
 .record .h{font-weight:700;margin-bottom:1.5mm}
 .record dl{display:grid;grid-template-columns:34mm 1fr;gap:0.8mm 3mm;margin:0}
 .record dt{color:${MUTED}}
@@ -126,6 +126,14 @@ function value(text: string | null | undefined): string {
 /** A form line: the prescribed wording on the left, the Commission's entry on the right. */
 function line(label: string, entry: string, wide = false): string {
   return `<div class="fl${wide ? ' wide' : ''}"><span>${esc(label)}</span><span class="val">${entry}</span></div>`;
+}
+
+/**
+ * A staff, file, ID or passport number: kept on one line when it is as short as such numbers are
+ * (`PF-2027-000341`), so a narrow column does not break it at a hyphen.
+ */
+function identifierCell(identifier: string): string {
+  return `<td class="mono${identifier.length <= 20 ? ' nw' : ''}">${esc(identifier)}</td>`;
 }
 
 type Section = FormMV1['partII']['initial'];
@@ -145,7 +153,7 @@ function nonFilers(section: Section, caption: string, dateHeading: string): stri
     ? section.nonFilers
         .map(
           (row, index) =>
-            `<tr><td class="n">${index + 1}.</td><td>${esc(row.name)}</td><td>${esc(row.designation)}</td><td class="mono">${esc(row.identifier)}</td><td class="nw">${esc(formatDate(row.date))}</td><td><b>${esc(ACTION_TAKEN[row.actionTaken])}</b> · Complied: ${esc(COMPLIED[row.complied])}${row.remarks ? `<span class="sub">${esc(row.remarks)}</span>` : ''}</td></tr>`,
+            `<tr><td class="n">${index + 1}.</td><td>${esc(row.name)}</td><td>${esc(row.designation)}</td>${identifierCell(row.identifier)}<td class="nw">${esc(formatDate(row.date))}</td><td><b>${esc(ACTION_TAKEN[row.actionTaken])}</b> · Complied: ${esc(COMPLIED[row.complied])}${row.remarks ? `<span class="sub">${esc(row.remarks)}</span>` : ''}</td></tr>`,
         )
         .join('')
     : '<tr class="none"><td colspan="6">None</td></tr>';
@@ -204,7 +212,7 @@ function clarificationsSection(document: FormMV1): string {
     ? items
         .map(
           (item, index) =>
-            `<tr><td class="n">${index + 1}.</td><td>${esc(item.name)}</td><td>${esc(item.designation)}</td><td class="mono">${esc(item.identifier)}</td><td>${esc(item.natureInGeneralTerms)}${item.clarificationReference ? `<span class="sub mono">${esc(item.clarificationReference)}</span>` : ''}</td><td>${esc(CLARIFICATION_STATUS[item.statusOfCompliance])}</td></tr>`,
+            `<tr><td class="n">${index + 1}.</td><td>${esc(item.name)}</td><td>${esc(item.designation)}</td>${identifierCell(item.identifier)}<td>${esc(item.natureInGeneralTerms)}${item.clarificationReference ? `<span class="sub mono">${esc(item.clarificationReference)}</span>` : ''}</td><td>${esc(CLARIFICATION_STATUS[item.statusOfCompliance])}</td></tr>`,
         )
         .join('')
     : '<tr class="none"><td colspan="6">None</td></tr>';
@@ -212,11 +220,19 @@ function clarificationsSection(document: FormMV1): string {
 <table class="ft"><caption>List of public officers from whom clarification was sought and status of compliance</caption><thead><tr><th class="n">No.</th><th>Name</th><th>Designation</th><th>Staff/File/ID Passport No.</th><th>Nature of Clarification Sought (state in general terms)</th><th>Status of Compliance</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+/** `(r. 24(b))` on one line, so a reason never breaks inside its citation. */
+function regulationKeptWhole(html: string): string {
+  return html.replace(/\(r\. \d+\([a-z]\)\)/g, (cite) => `<span class="nw">${cite}</span>`);
+}
+
 function accessSection(document: FormMV1): string {
   const access = document.partII.accessRequests;
   const reasons = access.declineReasons.length
     ? access.declineReasons
-        .map((each) => `${esc(DECLINE_REASON[each.reason])}: ${formatCount(each.count)}`)
+        .map(
+          (each) =>
+            `${regulationKeptWhole(esc(DECLINE_REASON[each.reason]))}: ${formatCount(each.count)}`,
+        )
         .join('<br />')
     : 'None';
   const unavailable = access.dataUnavailable
@@ -246,14 +262,14 @@ function complaintsPart(document: FormMV1): string {
     ? items
         .map(
           (item, index) =>
-            `<tr><td class="n">${index + 1}.</td><td>${esc(item.name)}</td><td>${esc(item.designation)}</td><td class="mono">${esc(item.identifier)}</td><td>${esc(item.nature)}</td><td>${esc(item.status)}</td></tr>`,
+            `<tr><td class="n">${index + 1}.</td><td>${esc(item.name)}</td><td>${esc(item.designation)}</td>${identifierCell(item.identifier)}<td>${esc(item.nature)}</td><td>${esc(item.status)}</td></tr>`,
         )
         .join('')
     : `<tr class="none"><td colspan="6">${empty}</td></tr>`;
   return `<h2 class="fm-part">B. COMPLAINTS AND INVESTIGATIONS</h2>
 <p>6. Does the responsible commission maintain a register of complaints on allegations of violation of the provisions of the Act?</p>
 <p>${register}</p>
-<p>7. Indicate the number of complaints received within the reporting period, and action taken-</p>
+<p>7. Indicate the number of complaints received within the reporting period, and action taken:</p>
 <table class="ft"><thead><tr><th class="n">No</th><th>Name</th><th>Designation</th><th>Staff/File/ID Passport No</th><th>Nature of complaint</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 

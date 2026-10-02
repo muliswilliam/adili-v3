@@ -37,7 +37,7 @@ a{color:inherit}
 h2{font-size:9.8pt;font-weight:700;margin:4mm 0 1.5mm;break-after:avoid}
 .meta{display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin:6mm 0}
 .meta address{font-style:normal;line-height:1.5}
-.refs{display:grid;grid-template-columns:auto auto;gap:0.8mm 4mm;margin:0;font-size:9pt}
+.refs{flex:none;display:grid;grid-template-columns:auto auto;gap:0.8mm 4mm;margin:0;font-size:9pt}
 .refs dt{color:${MUTED}}
 .refs dd{margin:0;font-weight:500}
 .subj{font-weight:700;text-transform:uppercase;letter-spacing:0.02em;text-decoration:underline;text-underline-offset:1.2mm;text-decoration-thickness:0.3mm;margin:0 0 4mm;font-size:9.8pt;line-height:1.45}
@@ -53,6 +53,7 @@ h2{font-size:9.8pt;font-weight:700;margin:4mm 0 1.5mm;break-after:avoid}
 .banner.danger{background:#fdeceb;color:#8a1c14}
 .prose{white-space:pre-line;overflow-wrap:anywhere}
 .fine{font-size:8.2pt;color:${SOFT}}
+.close{break-inside:avoid}
 .sign{display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;margin-top:7mm;break-inside:avoid}
 .sign .nm{font-weight:700;margin-top:2mm}
 .ink{color:${INK}}`;

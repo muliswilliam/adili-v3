@@ -233,8 +233,10 @@ ${subjectLine(`${payload.stepLabel}: ${subject}`)}
 <p>Dear ${esc(payload.declarantName)},</p>
 ${copy.banner}
 ${facts([['What happened', esc(whatHappened(payload, what))], ...copy.rows(payload, esc(act))])}
+<section class="close">
 ${restrictedVerifyNote(verificationId)}
-${letterClose(payload.commission.name, signerName, issuedAt)}`;
+${letterClose(payload.commission.name, signerName, issuedAt)}
+</section>`;
   return htmlDocument(`${payload.stepLabel} ${payload.reference}`, LETTER_STYLES, body);
 }
 

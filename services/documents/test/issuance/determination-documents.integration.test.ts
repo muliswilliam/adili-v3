@@ -427,6 +427,21 @@ describe('S1 the decision letter', () => {
     expect(letter).not.toContain('Proposed by the system');
     expect(letter).toContain('This letter was produced on request on');
   });
+
+  it('keeps the closing with the text before it when long reasons run onto a second page', async () => {
+    const paragraph =
+      'The payment schedule from the Ministry of Lands shows KES 14,500,000 paid on 3 March 2027 for Plot Kapsaret/Simat/1234 in Uasin Gishu County. Your declaration states the value as KES 1,200,000 and lists no loan or other source of funds for the difference.';
+    const { texts: pages } = await issued(
+      decisionBody(
+        determination(decisionPayload({ reasons: Array(4).fill(paragraph).join('\n\n') })),
+      ),
+    );
+    expect(pages.length).toBeGreaterThan(1);
+    const last = pages.at(-1) ?? '';
+    expect(last).toContain('Yours faithfully');
+    expect(last).toContain('Keep this letter for your records');
+    expect(last).toContain('Check that this letter is genuine');
+  });
 });
 
 describe('S5, S6, S10 the administrative action ladder letters', () => {
