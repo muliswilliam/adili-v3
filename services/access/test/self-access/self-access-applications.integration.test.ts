@@ -258,13 +258,15 @@ describe('Written self-access applications (#303)', () => {
     });
     expect(contractErrors(okResponse(APPLICATION, 'get', 200), issued)).toEqual([]);
 
-    // Read in full for Anne with the officer as who asked; issued as her Restricted copy.
+    // Read in full for Anne with the officer as who asked and Joseph, who collects it, as
+    // recipient; issued as her Restricted copy.
     expect(api.declarations.fullDocumentCalls).toEqual([
       expect.objectContaining({
         tenant: 'psc',
         version: 1,
         personId: anne.personId,
         actingSubject: officer.sub,
+        recipient: 'Joseph Kiprono',
       }),
     ]);
     expect(api.documents.issued).toEqual([
@@ -351,6 +353,14 @@ describe('Written self-access applications (#303)', () => {
     );
     expect(entry?.details).toMatchObject({ applicationId: recorded.id, representativeName: null });
     expect(api.documents.linked).toEqual([]);
+    // Declarations audits the read as handed to Anne herself, asked by the officer.
+    expect(api.declarations.fullDocumentCalls).toEqual([
+      expect.objectContaining({
+        personId: anne.personId,
+        actingSubject: officer.sub,
+        recipient: `person:${anne.personId}`,
+      }),
+    ]);
   });
 
   it('S13: the issued copy is marked collected once; not before it is issued', async () => {

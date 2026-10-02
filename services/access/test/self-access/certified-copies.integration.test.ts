@@ -129,6 +129,7 @@ describe('Certified copies (S13)', () => {
         version: 1,
         personId: anne.personId,
         actingSubject: anne.sub,
+        recipient: anne.sub,
       },
     ]);
     // Issued as her Restricted certified copy: she alone may download it; no watermark, no window.

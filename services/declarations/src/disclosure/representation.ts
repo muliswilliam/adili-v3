@@ -109,6 +109,19 @@ export const disclosureDocumentSchema = z
   .meta({ description: "disclosure.v1: what a grant discloses of a declarant's declarations" });
 export type DisclosureDocument = z.infer<typeof disclosureDocumentSchema>;
 
+export const fullDocumentRequestSchema = z
+  .strictObject({
+    personId: z
+      .uuid()
+      .meta({ description: 'The declarant asking for the copy: the version must be theirs' }),
+    recipient: z.string().trim().min(1).max(255).meta({
+      description:
+        "Whom the certified copy is handed to, recorded in the audit event: the declarant's account (token subject) when they asked online; for a written application made in person, the representative's name when made through one, else the declarant",
+    }),
+  })
+  .meta({ description: 'Whose version is asked for in full, and whom the certified copy goes to' });
+export type FullDocumentRequest = z.infer<typeof fullDocumentRequestSchema>;
+
 export const fullVersionDocumentSchema = z
   .object({
     declarationId: z.uuid(),

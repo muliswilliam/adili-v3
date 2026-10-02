@@ -55,7 +55,8 @@ const none = (): null => null;
  * (packages/schemas/internal/declarations.yaml → declarations-api.gen.ts via
  * `pnpm generate:api`), with the access service's own token (`declarations:internal`), the
  * Commission in `X-Acting-Tenant` and, in `X-Acting-Subject`, the deciding officer (disclosure)
- * or who asked for a certified copy (full document), whom declarations audits the read for.
+ * or who asked for a certified copy (full document), whom declarations audits the read for; the
+ * recipient a read hands the declaration to goes in the body.
  */
 export class HttpDeclarationsClient extends DeclarationsClient {
   private readonly declarations: ServiceClient<paths>;
@@ -92,20 +93,20 @@ export class HttpDeclarationsClient extends DeclarationsClient {
   async fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
     const document = await this.declarations.call(
       (api) =>
-        api.GET('/internal/v1/declarations/{declarationId}/versions/{version}/full-document', {
+        api.POST('/internal/v1/declarations/{declarationId}/versions/{version}/full-document', {
           params: {
             path: { declarationId: request.declarationId, version: request.version },
-            query: { personId: request.personId },
             header: {
               'X-Acting-Tenant': request.tenant,
               'X-Acting-Subject': request.actingSubject,
             },
           },
+          body: { personId: request.personId, recipient: request.recipient },
         }),
       {
         status: 200,
         schema: versionDocumentSchema,
-        otherwise: { 404: none, ...refusedWith('declarations', [403]) },
+        otherwise: { 404: none, ...refusedWith('declarations', [400, 403]) },
       },
     );
     return document as VersionDocument | null;

@@ -306,22 +306,27 @@ function fullDocument(
     personId = WANJIKU,
     tenant = 'psc',
     actingSubject = `account-${WANJIKU}`,
+    recipient = `account-${WANJIKU}`,
   }: {
     version?: number;
     personId?: string | null;
     tenant?: string;
     actingSubject?: string | null;
+    recipient?: string | null;
   } = {},
 ) {
-  const query = personId === null ? '' : `?personId=${personId}`;
   return api.request(
-    'GET',
-    `/internal/v1/declarations/${declarationId}/versions/${String(version)}/full-document${query}`,
+    'POST',
+    `/internal/v1/declarations/${declarationId}/versions/${String(version)}/full-document`,
     ACCESS,
     {
       headers: {
         'x-acting-tenant': tenant,
         ...(actingSubject === null ? {} : { 'x-acting-subject': actingSubject }),
+      },
+      body: {
+        ...(personId === null ? {} : { personId }),
+        ...(recipient === null ? {} : { recipient }),
       },
     },
   );
@@ -574,7 +579,7 @@ describe("the full document of a version for the declarant's certified copy (S13
 
     expect(response.statusCode, response.body).toBe(200);
     const body = response.json<FullVersionDocument>();
-    expect(contractErrors(okResponse(FULL_DOCUMENT, 'get'), body)).toEqual([]);
+    expect(contractErrors(okResponse(FULL_DOCUMENT, 'post'), body)).toEqual([]);
     const [row] = await api.asPlatform((tx) =>
       tx
         .select()
@@ -621,6 +626,27 @@ describe("the full document of a version for the declarant's certified copy (S13
     expect(JSON.stringify(event)).not.toContain('Shamba');
   });
 
+  it('names the representative as recipient of a copy an access officer recorded for them, the officer as actor', async () => {
+    const version = await submitted();
+
+    const response = await fullDocument(version, {
+      actingSubject: ACCESS_OFFICER,
+      recipient: 'Peter Kamau',
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    const [event, ...more] = await audited();
+    expect(more).toEqual([]);
+    expect(event?.data).toMatchObject({
+      action: 'declaration.full-document.pulled',
+      resource: { subjectPersonId: WANJIKU },
+      actor: { subject: 'service-account-access', onBehalfOf: ACCESS_OFFICER },
+      legalBasis: { basis: 'self-access', reference: null },
+      recipient: 'Peter Kamau',
+      request: { method: 'POST' },
+    });
+  });
+
   it("S13: is 404 for another person, another Commission's or an unknown version", async () => {
     const version = await submitted();
 
@@ -631,11 +657,13 @@ describe("the full document of a version for the declarant's certified copy (S13
     expect(await audited()).toEqual([]);
   });
 
-  it('is 400 without the declarant or the acting subject', async () => {
+  it('is 400 without the declarant, the recipient or the acting subject', async () => {
     const version = await submitted();
 
     expect((await fullDocument(version, { personId: null })).statusCode).toBe(400);
     expect((await fullDocument(version, { personId: 'not-a-uuid' })).statusCode).toBe(400);
     expect((await fullDocument(version, { actingSubject: null })).statusCode).toBe(400);
+    expect((await fullDocument(version, { recipient: null })).statusCode).toBe(400);
+    expect((await fullDocument(version, { recipient: ' ' })).statusCode).toBe(400);
   });
 });

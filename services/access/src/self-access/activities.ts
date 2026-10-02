@@ -49,7 +49,7 @@ export class CertifiedCopyActivities {
 
   /**
    * Issues the certified copy, once: declarations renders the version in full for the declarant
-   * (audited there as self-access, with who asked as recipient) and documents issues it as their
+   * (audited there as self-access: who asked, and the declarant or representative it goes to) and documents issues it as their
    * Restricted `certified-copy`, which they may download, and for an in-person application also
    * the officer who recorded it, to hand it over. Both calls run in this one activity, so the
    * declaration never enters the workflow's history; only the document's ids are kept. The copy is recorded `issued` with its `self-access` register entry and
@@ -71,6 +71,7 @@ export class CertifiedCopyActivities {
         version: copy.version,
         personId: copy.personId,
         actingSubject: copy.requestedBy,
+        recipient: await recipientOf(this.db, tenant, copy),
       });
     } catch (error) {
       logRefusal(this.logger, error, context, 'Full document refused by declarations');
@@ -207,6 +208,28 @@ async function load(
     tx.select().from(certifiedCopies).where(eq(certifiedCopies.id, copyId)),
   );
   return found;
+}
+
+/**
+ * Whom the certified copy is handed to, as declarations audits it: the declarant who asked
+ * online (their token subject); for an application an access officer recorded, the
+ * representative it was made through, else the declarant (`person:<personId>`, as their token
+ * subject is not known there). Never the officer, who is the actor.
+ */
+async function recipientOf(
+  db: AccessDatabase,
+  tenant: string,
+  copy: CertifiedCopyRow,
+): Promise<string> {
+  if (copy.applicationId === null) return copy.requestedBy;
+  const applicationId = copy.applicationId;
+  const [application] = await withTenant(db, systemContext(tenant), (tx) =>
+    tx
+      .select({ representative: selfAccessApplications.representative })
+      .from(selfAccessApplications)
+      .where(eq(selfAccessApplications.id, applicationId)),
+  );
+  return application?.representative?.name ?? `person:${copy.personId}`;
 }
 
 /**
