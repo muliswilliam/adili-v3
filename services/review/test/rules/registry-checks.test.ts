@@ -458,7 +458,7 @@ describe('matchRegistries: companies (BRS)', () => {
       null,
     ],
     ['not on the supplier list', supplierCheck(false), [], 'matched', null],
-    ['not checked (no employer code)', undefined, [], 'matched', null],
+    ['a company left out of the checks', undefined, [], 'matched', null],
     [
       'the supplier check unavailable',
       { outcome: 'unavailable', reason: 'timeout' } as const,
@@ -477,6 +477,35 @@ describe('matchRegistries: companies (BRS)', () => {
       summary(match.flags.filter((flag) => flag.ruleId === 'directorship-employer-supplier')),
     ).toEqual(expected);
     expect([brs?.status, brs?.reason]).toEqual([status, reason]);
+  });
+
+  it('S3: says when the supplier check could not run, the officer having no employer code', () => {
+    const input = wanjiku();
+    input.suppliers = null;
+
+    const match = run(input);
+
+    expect(
+      match.flags
+        .filter((flag) => flag.ruleId.includes('supplier'))
+        .map(({ ruleId, severity, evidence, itemRefs }) => ({
+          ruleId,
+          severity,
+          evidence,
+          itemRefs,
+        })),
+    ).toEqual([
+      {
+        ruleId: 'registry-supplier-check-not-run',
+        severity: 'info',
+        evidence: { companies: 1 },
+        itemRefs: [{ personKey: 'officer', itemId: null, sectionKey: 'statement:officer' }],
+      },
+    ]);
+    // Only the officer's companies are checked against the employer, so only the officer's note.
+    expect(match.flags.filter((flag) => flag.itemRefs.some((r) => r.personKey === SPOUSE))).toEqual(
+      [],
+    );
   });
 
   it('checks the supplier list for the officer only, not a spouse in the same company', () => {

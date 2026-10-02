@@ -54,6 +54,7 @@ export const RULE_SYSTEMS: Partial<Record<CaseFlag['ruleId'], RegistrySystem>> =
   'registry-vehicle-registration-missing': 'ntsa',
   'registry-company-registration-missing': 'brs',
   'registry-company-dissolved': 'brs',
+  'registry-supplier-check-not-run': 'brs',
 };
 
 type ViewSystem = RegistryView['persons'][number]['systems'][number];

@@ -3127,6 +3127,7 @@ components:
         - registry-parcel-number-missing
         - registry-vehicle-registration-missing
         - registry-company-registration-missing
+        - registry-supplier-check-not-run
         - registry-company-dissolved
     ClarificationStatus:
       type: string

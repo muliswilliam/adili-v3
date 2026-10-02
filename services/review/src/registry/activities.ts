@@ -112,10 +112,12 @@ export class RegistryCheckActivities {
       caseRef: check.caseId,
       subjectPersonId: found.personId,
     };
+    const employerCode = roster?.employerCode ?? null;
     const lookups: RegistryLookups = {
       sequence,
       persons: {},
       suppliers: { ...previous?.suppliers },
+      ...(employerCode === null ? { noEmployer: true } : {}),
     };
     let officerCompanies: string[] | undefined;
 
@@ -138,7 +140,6 @@ export class RegistryCheckActivities {
       }
     }
 
-    const employerCode = roster?.employerCode ?? null;
     if (employerCode !== null) {
       // Companies BRS named now are checked; those of an earlier attempt are known by number.
       const companies = officerCompanies ?? Object.keys(lookups.suppliers);
@@ -183,7 +184,13 @@ export class RegistryCheckActivities {
         : unavailable(supplier.reason, supplier.resultId);
     }
 
-    const match = matchRegistries({ document, householdIds: ids, results, suppliers });
+    const match = matchRegistries({
+      document,
+      householdIds: ids,
+      results,
+      // No employer to check the officer's companies against: the match says so.
+      suppliers: lookups.noEmployer ? null : suppliers,
+    });
     return storeRegistryCheck(this.db, this.events, check, match, lookups.sequence);
   }
 

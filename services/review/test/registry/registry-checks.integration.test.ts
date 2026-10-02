@@ -329,6 +329,26 @@ describe('registry checks', () => {
     expect(again?.suppliers).toEqual(first?.suppliers);
   });
 
+  it('S3: an officer without an employer code gets an info flag that the supplier check did not run', async () => {
+    const version = wanjikuVersion();
+    api.directory.givenRosterRecord('psc', version.rosterRecordId, {
+      personalNumber: 'KEMSA/2016/0311',
+      nationalId: WANJIKU.nationalId,
+      employerCode: null,
+      reportingEntityId: null,
+    });
+    const request = await caseOf(version);
+
+    await check(request);
+
+    expect(api.gateway.lookups.filter((l) => l.operation === 'supplies')).toEqual([]);
+    expect(await registryFlags(request.caseId)).toEqual([
+      'registry-parcel-undeclared high',
+      'registry-supplier-check-not-run info',
+      'registry-vehicle-undeclared medium',
+    ]);
+  });
+
   it('a lookup the gateway refuses is unavailable (gateway-rejected) and not looked up again', async () => {
     const request = await caseOf(wanjikuVersion());
     api.gateway.failRegistry('ntsa', { kind: 'refused' }, 1);

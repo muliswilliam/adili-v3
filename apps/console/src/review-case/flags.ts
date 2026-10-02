@@ -156,6 +156,10 @@ export function evidenceLine(
         (difference) =>
           `Income declared to KRA ${e.direction === 'below' ? 'lower' : 'higher'} by ${difference}`,
       );
+    case 'registry-supplier-check-not-run':
+      return typeof e.companies === 'number'
+        ? `${String(e.companies)} ${e.companies === 1 ? 'company' : 'companies'} listed at BRS`
+        : null;
     case 'registry-company-dissolved':
       return around(text(e.companyRegistrationNumber), (company) => `Company ${company} dissolved`);
     // The item it points at is the fact: it carries no identifier to compare.

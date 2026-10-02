@@ -129,6 +129,11 @@ export const RULES = {
     indicator:
       'This company carries no registration number and its name is not one BRS lists for this person, so it could not be compared.',
   },
+  'registry-supplier-check-not-run': {
+    title: "Companies not compared with the employer's suppliers",
+    indicator:
+      "The declarant's roster record names no employer, so the companies BRS lists for them could not be compared with an employer's supplier list.",
+  },
   'registry-company-dissolved': {
     title: 'Declared company dissolved at BRS',
     indicator:

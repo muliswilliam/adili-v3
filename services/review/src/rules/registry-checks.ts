@@ -114,9 +114,10 @@ export interface RegistryMatchInput {
   results: Readonly<Record<string, PersonRegistryResults | undefined>>;
   /**
    * Whether each of the officer's BRS companies supplies the officer's employer, by company
-   * registration number. A company left out was not checked (no employer code, say).
+   * registration number. A company left out was not checked. Null when the officer has no
+   * employer code to check against: an `info` flag says the supplier check could not run.
    */
-  suppliers?: Readonly<Record<string, SupplierCheckResult | Unavailable>>;
+  suppliers?: Readonly<Record<string, SupplierCheckResult | Unavailable>> | null;
 }
 
 /** One person's status in one registry, as stored on the case (`registry_checks`). */
@@ -187,7 +188,7 @@ export function matchRegistries(input: RegistryMatchInput): RegistryMatch {
           : system === 'ntsa'
             ? vehicles(person, result as NtsaResult)
             : system === 'brs'
-              ? companies(person, result as BrsResult, input.suppliers ?? {})
+              ? companies(person, result as BrsResult, input.suppliers)
               : parcels(person, result as ArdhisasaResult);
       match.flags.push(...found.flags);
       // An info flag is a note on what could not be compared, not a mismatch.
@@ -344,7 +345,7 @@ function declaredCompanies({ statement, document }: Person): DeclaredCompany[] {
 function companies(
   person: Person,
   result: BrsResult,
-  suppliers: NonNullable<RegistryMatchInput['suppliers']>,
+  suppliers: RegistryMatchInput['suppliers'] = {},
 ): SystemMatch {
   const { personKey } = person.statement;
   const declared = declaredCompanies(person);
@@ -397,7 +398,13 @@ function companies(
   }
 
   let unavailable: string | undefined;
-  if (personKey === 'officer') {
+  if (personKey === 'officer' && suppliers === null && registry.length > 0) {
+    flags.push(
+      flag('registry-supplier-check-not-run', 'info', { companies: registry.length }, [
+        statementRef(personKey),
+      ]),
+    );
+  } else if (personKey === 'officer' && suppliers !== null) {
     for (const record of registry) {
       const supplier = Object.entries(suppliers).find(([number]) =>
         sameIdentifier(number, record.companyRegistrationNumber),
@@ -551,6 +558,7 @@ export const REGISTRY_RULE_SYSTEMS = {
   'registry-vehicle-registration-missing': 'ntsa',
   'registry-company-registration-missing': 'brs',
   'registry-company-dissolved': 'brs',
+  'registry-supplier-check-not-run': 'brs',
 } as const satisfies Partial<Record<RuleId, RegistrySystem>>;
 
 export type RegistryRuleId = keyof typeof REGISTRY_RULE_SYSTEMS;

@@ -105,6 +105,7 @@ describe('evidenceLine', () => {
       null,
       'Income declared to KRA lower by 40%',
     ],
+    ['registry-supplier-check-not-run', { companies: 2 }, null, '2 companies listed at BRS'],
     [
       'registry-company-dissolved',
       { companyRegistrationNumber: 'PVT-9XYZ2L4Q' },
