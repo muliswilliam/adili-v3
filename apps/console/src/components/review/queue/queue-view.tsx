@@ -1,4 +1,4 @@
-import { Card, Skeleton } from '@adili/ui';
+import { Card } from '@adili/ui';
 
 import type { CaseViewer } from '../../../review-case/view';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
@@ -10,7 +10,7 @@ import type { ServiceResult } from '../../../server/service-call';
 import { LoadError } from '../../load-error';
 import { Page, PageHead } from '../../page';
 import { useCaseAssignment } from '../assignment';
-import { QueueResults, QueueTableSkeleton } from './queue-results';
+import { QueueResults, QueueResultsSkeleton } from './queue-results';
 import { QueueTiles } from './queue-tiles';
 import { QueueToolbar } from './queue-toolbar';
 
@@ -75,7 +75,7 @@ export function QueueView(props: QueueViewProps) {
             href={props.href}
           />
           {list === null ? (
-            <ListSkeleton />
+            <QueueResultsSkeleton />
           ) : (
             <QueueResults
               // A new first page (other filters, or a reload) starts the list again.
@@ -112,24 +112,5 @@ function OverdueLine({ count }: { count: number }) {
       <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />
       {m.overdue(count)}
     </p>
-  );
-}
-
-function ListSkeleton() {
-  return (
-    <>
-      <div className="hidden @[960px]:block">
-        <QueueTableSkeleton />
-      </div>
-      <ul aria-busy="true" aria-label={m.loadingCaption} className="@[960px]:hidden">
-        {Array.from({ length: 4 }, (_, index) => (
-          <li key={index} className="flex flex-col gap-2.5 border-b px-4 py-4 last:border-b-0">
-            <Skeleton className="w-48" />
-            <Skeleton className="w-40" />
-            <Skeleton className="w-64 max-w-full" />
-          </li>
-        ))}
-      </ul>
-    </>
   );
 }

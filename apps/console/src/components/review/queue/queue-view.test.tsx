@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { caseItem, ME, WAFULA } from '../../../review-case/fixtures';
+import { QUEUE_COPY as m } from '../../../review-queue/messages';
 import type { QueueSearch } from '../../../review-queue/query';
 import type { QueueSummary } from '../../../review-queue/rows';
 import { claimCase, reassignCase } from '../../../server/review-case';
@@ -253,6 +254,31 @@ describe('QueueView', () => {
       'true',
     );
     expect(screen.getByRole('table', { name: 'Loading review cases' })).toBeTruthy();
+  });
+
+  it('M8: switches the skeleton between table and cards where the list does, so loading keeps the layout', () => {
+    // The container query that shows or hides an element: its own, or its nearest ancestor's.
+    const breakpoint = (element: Element | undefined) => {
+      for (let at: Element | null = element ?? null; at; at = at.parentElement) {
+        const query = /\S*@\[\d+px\]\S*/u.exec(at.className)?.[0];
+        if (query) return query;
+      }
+      return null;
+    };
+    const { unmount } = render(view({ list: null }));
+    const loading = {
+      table: breakpoint(screen.getByRole('table', { name: m.loadingCaption })),
+      cards: breakpoint(screen.getByRole('list', { name: m.loadingCaption })),
+    };
+    unmount();
+    render(view());
+    const loaded = {
+      table: breakpoint(screen.getByRole('table', { name: m.caption })),
+      cards: breakpoint(screen.getByRole('list', { name: m.caption })),
+    };
+
+    expect(loading.table).toBe('@[1120px]:block');
+    expect(loading).toEqual(loaded);
   });
 
   it('says there are no cases yet when nothing is filtered', () => {
