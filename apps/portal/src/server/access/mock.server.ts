@@ -632,6 +632,7 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
     entry('received', submittedAt, reference, 'Request received', partI.name),
   ];
   if (seed.notified !== undefined) {
+    timeline.push(entry('identified', ago(seed.notified, 10), reference, 'Officer identified'));
     timeline.push(entry('notified', ago(seed.notified, 11), reference, 'Officer notified'));
   }
   let decision: AccessRequest['decision'] = null;
