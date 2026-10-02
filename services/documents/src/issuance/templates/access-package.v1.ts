@@ -13,6 +13,7 @@ import {
   disclosedDeclarationSchema,
 } from './declaration-content.js';
 import {
+  DECLARATION_DOCUMENT_STYLES,
   esc,
   formatDate,
   formatDateTime,
@@ -20,10 +21,8 @@ import {
   INK,
   LETTERHEAD_STYLES,
   letterhead,
-  LINE,
-  MUTED,
-  SOFT,
   signatureNote,
+  verificationPanel,
 } from './page.js';
 import { commissionRefSchema, DECLARATION_TYPES, isDeclarationReference } from './references.js';
 import type { DocumentTemplate } from './template.js';
@@ -101,30 +100,13 @@ export const accessPackagePayload = z
 
 export type AccessPackagePayload = z.infer<typeof accessPackagePayload>;
 
-const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}
-body{font-size:9.2pt;line-height:1.45}
-p{margin:0 0 2.5mm}
-.doc-h{margin:7mm 0 5mm}
-.doc-h .t1{font-size:17pt;font-weight:700;letter-spacing:-0.01em;line-height:1.2}
-.doc-sub{color:${SOFT};font-size:10pt;margin-top:1mm}
-.fine{font-size:8.2pt;color:${SOFT}}
-.ref{display:flex;align-items:center;justify-content:space-between;gap:4mm;padding:4.5mm 5mm;border:0.35mm solid ${INK};border-radius:2mm}
-.lbl{font-size:7.4pt;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED}}
-.ref .big{font-size:16pt;font-weight:700;margin-top:0.5mm}
+const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYLES}
 .cpill{flex:none;padding:1.2mm 3.2mm;border-radius:999px;background:${INK};color:#fff;font-weight:700;font-size:8pt;letter-spacing:0.14em}
-.skv{display:grid;grid-template-columns:44mm 1fr;margin:5mm 0}
-.skv dt,.skv dd{margin:0;padding:1.6mm 0;border-bottom:0.25mm solid ${LINE}}
-.skv dt{color:${MUTED}}
-.skv dd{font-weight:500}
 .warn{padding:4mm 5mm;border-radius:2mm;background:#fdf3ec;border:0.3mm solid #f1c3a6;margin:4mm 0}
 .warn .t{font-weight:700;margin-bottom:1mm}
 .version{margin-top:8mm;break-before:page}
 .version .vh{display:flex;align-items:baseline;justify-content:space-between;gap:4mm;padding:3mm 0;border-bottom:0.6mm solid ${INK}}
-.version .vh .t{font-size:12.5pt;font-weight:700}
-.vpanel{padding:5mm;border-radius:2mm;background:#f6f5f3;margin:6mm 0 4mm;break-inside:avoid}
-.vpanel .t{font-size:11pt;font-weight:700;margin-bottom:1.5mm}
-.vpanel .vcode{font-size:12pt;font-weight:700;letter-spacing:0.03em;margin:1.5mm 0 2mm}
-.signed{display:flex;justify-content:flex-end;break-inside:avoid}`;
+.version .vh .t{font-size:12.5pt;font-weight:700}`;
 
 const LEGAL_BASIS: Record<AccessPackagePayload['legalBasis'], string> = {
   'act-s36-1': 'Access request under section 36(1) of the Act (Form K)',
@@ -202,7 +184,7 @@ export const accessPackageV1: DocumentTemplate<AccessPackagePayload> = {
 <dt>Scope granted</dt><dd>${scopeText(payload.scope).map(esc).join('<br />')}</dd>
 </dl>
 <div class="warn"><div class="t">For the recipient named above only</div><div>This package discloses only what the Commission granted. Publishing or sharing its contents is an offence under section 36(4) of the Act. Every page carries the recipient's name, the request reference and the date of issue.</div></div>
-<div class="vpanel"><div class="t">Check that this package is genuine</div><div>Scan the QR code at the foot of any page, or go to the Adili Online verify page and enter:</div><div class="vcode mono nw">${esc(verificationId)}</div><div class="fine">The check shows only whether the package is valid, never its contents or who it was issued to.</div></div>
+${verificationPanel('package', verificationId, 'The check shows only whether the package is valid, never its contents or who it was issued to.')}
 <div class="signed">${signatureNote(signerName, issuedAt)}</div>
 ${versions}`;
     return htmlDocument(`Access package ${disclosure.grantReference}`, STYLES, body);
