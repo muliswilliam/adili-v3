@@ -782,10 +782,10 @@ describe('review copilot', () => {
           { jobId: explanations, block: null, rating: 'helpful' },
         ]),
       );
-      // The feedback in the view is the assignee's, who rates: a supervisor (and any other
-      // reviewer) reads it, read-only.
+      // The feedback in the view is the assignee's, who rates: a supervisor reads it, read-only
+      // (#285 S15). The Commission's other reviewers read the panel without it (Q22).
       expect((await view(caseId, supervisor)).feedback).toEqual(mine);
-      expect((await view(caseId, reviewerB)).feedback).toEqual(mine);
+      expect((await view(caseId, reviewerB)).feedback).toEqual([]);
       // Once the case is someone else's, theirs: the earlier assignee's ratings are not shown.
       await assign(caseId, 'reviewer-b');
       expect((await view(caseId, supervisor)).feedback).toEqual([]);

@@ -1192,7 +1192,7 @@ export interface components {
                 /** Format: uuid */
                 explain: string | null;
             };
-            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's other reviewers and supervisors. Empty while the case has no assignee */
+            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee */
             feedback: {
                 /** Format: uuid */
                 jobId: string;

@@ -61,8 +61,13 @@ export class CopilotService {
         return {
           row: found,
           record: copilot,
-          // The assignee rates; everyone else who reads the panel sees their ratings, read-only.
-          feedback: found.assignee === null ? [] : await ratingsOf(tx, found.assignee, shown),
+          // The assignee rates; a supervisor reads their ratings, read-only (#285 S15). The
+          // Commission's other reviewers read the panel without them.
+          feedback:
+            found.assignee !== null &&
+            (found.assignee === principal.subject || isSupervisor(principal))
+              ? await ratingsOf(tx, found.assignee, shown)
+              : [],
         };
       },
     );
