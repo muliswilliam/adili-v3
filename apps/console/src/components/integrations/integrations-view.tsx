@@ -3,6 +3,7 @@ import {
   AlertDescription,
   AlertTitle,
   Badge,
+  BREAKER_BADGE_MESSAGES,
   BreakerBadge,
   Button,
   Card,
@@ -183,8 +184,9 @@ function Coverage({
         <StatTile
           label={m.hitRateTile}
           value={summary.cacheHitRate}
-          format={formatPercent}
-          description={m.hitRateHint}
+          // Without calls there is no rate: 0% would read as a cache that never hits.
+          format={summary.calls24h > 0 ? formatPercent : () => m.noCalls}
+          description={summary.calls24h > 0 ? m.hitRateHint : m.noCallsHint}
         />
         <StatTile
           label={m.openTile}
@@ -284,13 +286,15 @@ function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; actio
       action={action}
       badge={
         <span className="flex w-[178px] items-center justify-end gap-2 max-sm:w-auto max-sm:justify-start">
+          {/* Paused takes the breaker's place: nothing is sent, so its state says nothing now. */}
           {row.paused ? (
             <Badge variant="warning">
               <Icon icon={PauseIcon} strokeWidth={2.2} />
               {m.pausedBadge}
             </Badge>
-          ) : null}
-          <BreakerBadge state={row.breaker} />
+          ) : (
+            <BreakerBadge state={row.breaker} />
+          )}
         </span>
       }
     >
@@ -306,10 +310,14 @@ function Metrics({ row, now }: { row: SystemCoverage; now: Date }) {
     <dl className="grid grid-cols-[minmax(0,92px)_minmax(0,128px)_minmax(0,124px)] gap-x-5">
       <Metric term={m.calls}>{formatNumber(row.calls24h)}</Metric>
       <Metric term={m.hitRate}>
-        <span className="flex items-center gap-2">
-          <span className="w-10">{formatPercent(row.cacheHitRate)}</span>
-          <Meter value={row.cacheHitRate} />
-        </span>
+        {row.calls24h > 0 ? (
+          <span className="flex items-center gap-2">
+            <span className="w-10">{formatPercent(row.cacheHitRate)}</span>
+            <Meter value={row.cacheHitRate} />
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{m.noCalls}</span>
+        )}
       </Metric>
       <Metric term={m.lastSuccess}>
         <span className={cn(stale && 'font-semibold text-destructive')}>
@@ -362,6 +370,10 @@ function Details({ row }: { row: SystemCoverage }) {
     [m.rateLimit, m.rateLimitValue(row.rateLimitPerMinute)],
     [m.cacheLifetime, m.cacheLifetimeValue(formatDuration(row.cacheTtlSeconds))],
     [m.failedCalls, formatNumber(row.failures24h)],
+    // The row shows Paused in the breaker's place; the breaker's own state is kept here.
+    ...(row.paused
+      ? [[m.breaker, BREAKER_BADGE_MESSAGES[row.breaker]] satisfies [string, string]]
+      : []),
     [
       m.breakerRule,
       m.breakerRuleValue(row.breakerFailureThreshold, formatDuration(row.breakerCooldownSeconds)),

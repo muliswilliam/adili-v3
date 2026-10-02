@@ -17,6 +17,8 @@ export const en = {
     `Across ${formatNumber(systems)} ${systems === 1 ? 'system' : 'systems'}`,
   hitRateTile: 'Cache hit rate',
   hitRateHint: 'Answers served from the cache',
+  noCalls: 'No calls',
+  noCallsHint: 'No lookups in the last 24 hours',
   openTile: 'Breakers open',
   halfOpenCount: (count: number) => `${formatNumber(count)} half-open`,
   pausedTile: 'Paused',
@@ -37,6 +39,7 @@ export const en = {
   lastSuccess: 'Last success',
   never: 'Never',
   pausedBadge: 'Paused',
+  breaker: 'Breaker',
   // Details
   breakerOpenCallout:
     'Opened after repeated failures. Calls are not being sent until the breaker lets a probe through.',

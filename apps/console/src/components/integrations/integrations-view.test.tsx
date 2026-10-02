@@ -145,8 +145,12 @@ describe('S15 Integrations page', () => {
     );
     screen.getByText('KRA iTax is recovering.');
     screen.getByText('NTSA TIMS is paused.');
+    // Paused takes the breaker's place in the row; its state is in the details.
     within(row('ntsa')).getByText('Paused');
-    within(row('ntsa')).getByText('Open');
+    expect(row('ntsa').querySelector('[data-state]')).toBeNull();
+    expect(row('kra').querySelector('[data-state]')?.textContent).toBe('Half-open');
+    fireEvent.click(screen.getByRole('button', { name: 'NTSA TIMS' }));
+    expect(within(row('ntsa')).getByText('Breaker').nextElementSibling?.textContent).toBe('Open');
     within(row('kra')).getByText('Half-open');
     // A failing registry silent for hours stands out.
     expect(within(row('ardhisasa')).getByText('2 hours ago').closest('.text-destructive')).not.toBe(
@@ -188,7 +192,12 @@ describe('S15 Integrations page', () => {
     renderView({ result: ok([coverage({ system: 'brs' })]) });
 
     within(row('brs')).getByText('Never');
-    within(screen.getByRole('group', { name: 'Summary' })).getByText('0%');
+    // No calls, no rate: not 0%, which would read as a cache that never hits.
+    within(row('brs')).getByText('No calls');
+    const tiles = within(screen.getByRole('group', { name: 'Summary' }));
+    tiles.getByText('No calls');
+    tiles.getByText('No lookups in the last 24 hours');
+    expect(screen.queryByText('0%')).toBeNull();
   });
 
   it('refreshes on demand', () => {
