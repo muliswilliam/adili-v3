@@ -19,8 +19,6 @@ export const envSchema = baseEnvSchema
     TEMPORAL_NAMESPACE: z.string().min(1),
     /** Temporal task queue this service's activities and job workflows run on (ADR-013 §4). */
     AI_TASK_QUEUE: z.string().min(1).default('ai'),
-    /** Model for every task until the routing table (spec 07c BE-3) lands. */
-    AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
     /**
      * Days a finished job keeps its output. The calling service stores what it shows; after this
      * the job is only hashes and counts, and no longer serves the cache.

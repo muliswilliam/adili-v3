@@ -22,9 +22,19 @@ import {
 
 const PROVIDER = 'anthropic';
 
+/**
+ * How structured output is obtained. `native` sends the schema as `output_config.format`, which
+ * the API enforces. `prompted` is for Anthropic-compatible gateways that drop that field: the
+ * schema goes into the system prompt and a single fenced JSON answer is accepted. The job
+ * validates the output against the task schema either way.
+ */
+export type StructuredOutputMode = 'native' | 'prompted';
+
 export interface AnthropicAdapterOptions {
   /** A configured SDK client; tests pass one with an in-process `fetch`. */
   client: Anthropic;
+  /** Defaults to `native`. */
+  structuredOutput?: StructuredOutputMode;
 }
 
 /** Adapter over the official Anthropic SDK. Vendor types stay inside this file. */
@@ -39,24 +49,30 @@ export class AnthropicAdapter implements ModelProvider {
     attachments: ['image', 'pdf', 'text'],
   };
   private readonly client: Anthropic;
+  private readonly mode: StructuredOutputMode;
 
   constructor(options: AnthropicAdapterOptions) {
     this.client = options.client;
+    this.mode = options.structuredOutput ?? 'native';
   }
 
   async generate(request: GenerateRequest): Promise<GenerateResult> {
-    const response = await this.call(() => this.client.messages.create(toParams(request)));
+    const response = await this.call(() =>
+      this.client.messages.create(toParams(request, this.mode)),
+    );
     return toGenerateResult(response);
   }
 
   async generateStructured(request: StructuredRequest): Promise<StructuredResult> {
-    const response = await this.call(() => this.client.messages.create(toParams(request)));
-    return toStructuredResult(response);
+    const response = await this.call(() =>
+      this.client.messages.create(toParams(request, this.mode)),
+    );
+    return toStructuredResult(response, this.mode);
   }
 
   async *stream(request: GenerateRequest): AsyncIterable<StreamEvent> {
     try {
-      const stream = this.client.messages.stream(toParams(request));
+      const stream = this.client.messages.stream(toParams(request, this.mode));
       for await (const event of stream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           yield { type: 'delta', text: event.delta.text };
@@ -73,7 +89,7 @@ export class AnthropicAdapter implements ModelProvider {
       this.client.messages.batches.create({
         requests: items.map((item) => ({
           custom_id: item.customId,
-          params: toParams(item.request),
+          params: toParams(item.request, this.mode),
         })),
       }),
     );
@@ -88,7 +104,7 @@ export class AnthropicAdapter implements ModelProvider {
     const outcomes = await this.call(async () => {
       const all: BatchItemOutcome[] = [];
       for await (const entry of await this.client.messages.batches.results(batchId)) {
-        all.push(toBatchOutcome(entry));
+        all.push(toBatchOutcome(entry, this.mode));
       }
       return all;
     });
@@ -106,9 +122,11 @@ export class AnthropicAdapter implements ModelProvider {
 
 function toParams(
   request: GenerateRequest | StructuredRequest,
+  mode: StructuredOutputMode,
 ): Anthropic.MessageCreateParamsNonStreaming {
   const outputConfig: Anthropic.OutputConfig = {};
-  if ('schema' in request) {
+  const prompted = 'schema' in request && mode === 'prompted';
+  if ('schema' in request && !prompted) {
     // Structured outputs enforce a subset of JSON Schema; the SDK moves the rest (length and
     // count limits, unsupported formats) into descriptions. The job validates them afterwards.
     outputConfig.format = { type: 'json_schema', schema: transformJSONSchema(request.schema) };
@@ -116,17 +134,31 @@ function toParams(
   if (request.effort) {
     outputConfig.effort = request.effort;
   }
+  const system = prompted
+    ? [request.system, schemaInstruction(request.schema)].filter(Boolean).join('\n\n')
+    : request.system;
   return {
     model: request.model,
     max_tokens: request.maxOutputTokens,
     // The system prompt is the stable prefix shared by every job of a task version; cache it.
-    ...(request.system !== undefined && {
-      system: [{ type: 'text', text: request.system, cache_control: { type: 'ephemeral' } }],
+    ...(system !== undefined && {
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     }),
     messages: request.messages.map(toMessageParam),
     ...(Object.keys(outputConfig).length > 0 && { output_config: outputConfig }),
   };
 }
+
+/** Prompted structured output: the schema the API would otherwise enforce, stated as a rule. */
+function schemaInstruction(schema: StructuredRequest['schema']): string {
+  return [
+    'Reply with exactly one JSON object that conforms to this JSON Schema, and nothing else:',
+    JSON.stringify(schema),
+  ].join('\n');
+}
+
+/** A whole answer in one Markdown code fence, as models write JSON when nothing enforces it. */
+const FENCED = /^\s*```(?:json)?\s*\n([\s\S]*?)\n?```\s*$/;
 
 function toMessageParam(message: ChatMessage): Anthropic.MessageParam {
   if (typeof message.content === 'string') {
@@ -210,7 +242,10 @@ function toGenerateResult(message: Anthropic.Message): GenerateResult {
   };
 }
 
-function toStructuredResult(message: Anthropic.Message): StructuredResult {
+function toStructuredResult(
+  message: Anthropic.Message,
+  mode: StructuredOutputMode,
+): StructuredResult {
   const base = { model: message.model, usage: toUsage(message.usage) };
   if (message.stop_reason === 'refusal') {
     return { ...base, status: 'refused', refusal: refusalOf(message) };
@@ -218,8 +253,10 @@ function toStructuredResult(message: Anthropic.Message): StructuredResult {
   if (isTruncated(message)) {
     return { ...base, status: 'truncated' };
   }
+  const text = textOf(message);
+  const json = mode === 'prompted' ? (FENCED.exec(text)?.[1] ?? text) : text;
   try {
-    return { ...base, status: 'completed', output: JSON.parse(textOf(message)) as unknown };
+    return { ...base, status: 'completed', output: JSON.parse(json) as unknown };
   } catch (error) {
     throw new ProviderError('invalid-response', PROVIDER, 'Structured output is not valid JSON', {
       cause: error,
@@ -229,12 +266,13 @@ function toStructuredResult(message: Anthropic.Message): StructuredResult {
 
 function toBatchOutcome(
   entry: Anthropic.Messages.MessageBatchIndividualResponse,
+  mode: StructuredOutputMode,
 ): BatchItemOutcome {
   const customId = entry.custom_id;
   switch (entry.result.type) {
     case 'succeeded':
       try {
-        return { customId, result: toStructuredResult(entry.result.message) };
+        return { customId, result: toStructuredResult(entry.result.message, mode) };
       } catch (error) {
         return { customId, error: toProviderError(error).kind };
       }

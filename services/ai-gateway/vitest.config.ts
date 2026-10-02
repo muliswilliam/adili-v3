@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     isolate: false,
-    include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'test/**/*.test.ts', 'evals/**/*.test.ts'],
     exclude: ['**/*.integration.test.ts'],
     // Config is validated at import; tests use the committed local defaults.
     env: { ...parseEnv(readFileSync('.env.example', 'utf8')), LOG_LEVEL: 'fatal' },

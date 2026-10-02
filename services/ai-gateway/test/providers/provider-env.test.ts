@@ -21,6 +21,14 @@ describe('provider environment', () => {
     expect(provider).toBeInstanceOf(AnthropicAdapter);
   });
 
+  it('enforces structured output natively unless a gateway needs it prompted', () => {
+    expect(parse({}).ANTHROPIC_STRUCTURED_OUTPUT).toBe('native');
+    expect(parse({ ANTHROPIC_STRUCTURED_OUTPUT: 'prompted' }).ANTHROPIC_STRUCTURED_OUTPUT).toBe(
+      'prompted',
+    );
+    expect(() => parse({ ANTHROPIC_STRUCTURED_OUTPUT: 'loose' })).toThrow();
+  });
+
   it('records from Anthropic in record mode', () => {
     const provider = createModelProvider(
       parse({ AI_REPLAY_MODE: 'record', ANTHROPIC_API_KEY: 'sk-test' }),
