@@ -73,7 +73,7 @@ const CASES: { key: keyof typeof IDS; status: AccessRequestStatus; badge: string
       key: 'notified',
       status: 'awaiting-representations',
       badge: 'Declarant notified',
-      lead: /Public Service Commission has notified the officer\./,
+      lead: /Public Service Commission has notified the declarant\./,
     },
     {
       key: 'deciding',

@@ -335,10 +335,10 @@ export const STATUS_BANNERS: Record<
   },
   'officer-unresolved': {
     lead: en((commission: string) => `${commission} is identifying the officer on its roster.`),
-    next: en(() => 'It notifies the officer once they are identified.'),
+    next: en(() => 'It notifies the declarant once they are identified.'),
   },
   'awaiting-representations': {
-    lead: en((commission: string) => `${commission} has notified the officer.`),
+    lead: en((commission: string) => `${commission} has notified the declarant.`),
     next: en((commission: string) => `They can respond before ${commission} decides.`),
   },
   'under-decision': {
