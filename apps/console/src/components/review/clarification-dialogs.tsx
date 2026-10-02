@@ -30,20 +30,23 @@ import { resolveNoteError, resolveOutcome, withdrawReasonError } from '../../cla
  * buttons, not under the field.
  */
 
+/** Why a request failed: one sentence, or a title with what it means for the record. */
+export type SubmitFailureText = string | { title: string; detail: string };
+
 interface TextDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reference: string | null;
-  onSubmit: (text: string) => Promise<string | null>;
+  onSubmit: (text: string) => Promise<SubmitFailureText | null>;
 }
 
 function useTextDialog(
-  onSubmit: (text: string) => Promise<string | null>,
+  onSubmit: (text: string) => Promise<SubmitFailureText | null>,
   check: (text: string) => string | null,
 ) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<SubmitFailureText | null>(null);
   const [busy, setBusy] = useState(false);
   return {
     text,
@@ -77,12 +80,13 @@ function useTextDialog(
 }
 
 /** A request that failed, above the dialog's buttons. */
-function SubmitFailure({ text }: { text: string | null }) {
+function SubmitFailure({ text }: { text: SubmitFailureText | null }) {
   if (!text) return null;
   return (
     <Alert variant="destructive" role="alert">
       <Icon icon={AlertCircleIcon} />
-      <AlertTitle>{text}</AlertTitle>
+      <AlertTitle>{typeof text === 'string' ? text : text.title}</AlertTitle>
+      {typeof text === 'string' ? null : <AlertDescription>{text.detail}</AlertDescription>}
     </Alert>
   );
 }

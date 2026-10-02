@@ -43,7 +43,7 @@ import { clarificationActions } from '../../clarification/actions';
 import { CLARIFICATION_STATUSES, REQUIREMENT_LABELS, type Tone } from '../../clarification/labels';
 import { historyOf, statusLine } from '../../clarification/view';
 import { Page, PageHead, SectionCard } from '../page';
-import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
+import { ResolveDialog, type SubmitFailureText, WithdrawDialog } from './clarification-dialogs';
 
 /**
  * One clarification on a review case (spec 07a FE-4, S15): each item beside the declarant's
@@ -90,9 +90,12 @@ function failureText(error: ServiceError): string {
  * Why a withdrawal failed. Documents could not revoke the letter (503 `documents-unavailable`):
  * review withdraws nothing then, so say the letter stands and nothing changed.
  */
-function withdrawFailureText(error: ServiceError): string {
+function withdrawFailureText(error: ServiceError): SubmitFailureText {
   if (error.kind === 'unavailable' && error.problemType === 'documents-unavailable') {
-    return 'The letter could not be revoked, so nothing changed. Try again later.';
+    return {
+      title: 'The letter could not be revoked.',
+      detail: 'Nothing changed: the clarification is still issued. Try again later.',
+    };
   }
   return failureText(error);
 }
@@ -124,8 +127,8 @@ export function ClarificationDetailView({
   async function done(
     result: Awaited<ReturnType<typeof resolveClarification>>,
     success: string,
-    failure: (error: ServiceError) => string = failureText,
-  ): Promise<string | null> {
+    failure: (error: ServiceError) => SubmitFailureText = failureText,
+  ): Promise<SubmitFailureText | null> {
     if (!result.ok) {
       if (isStale(result.error)) {
         setDialog(null);

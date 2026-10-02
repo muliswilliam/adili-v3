@@ -325,7 +325,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
     });
     const alert = within(dialog).getByRole('alert');
     expect(alert.textContent).toBe(
-      'The letter could not be revoked, so nothing changed. Try again later.',
+      'The letter could not be revoked.Nothing changed: the clarification is still issued. Try again later.',
     );
     expect(reason.getAttribute('aria-invalid')).toBeNull();
     expect(reason.getAttribute('aria-describedby')).toBeNull();
