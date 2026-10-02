@@ -4,6 +4,8 @@ import { formatRelativeTime } from '../format';
 /** Who runs a system and what Adili asks it, as the Integrations page describes it. */
 export interface SystemInfo {
   name: string;
+  /** The name is plural ("HR supplier lists are paused"). */
+  plural?: boolean;
   /** Null for a system the page has no description of. */
   owner: string | null;
   use: string | null;
@@ -41,6 +43,7 @@ const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
   },
   'hr-suppliers': {
     name: 'HR supplier lists',
+    plural: true,
     owner: 'Employers (HR systems)',
     use: "Whether a declarant's company supplies their employer",
   },

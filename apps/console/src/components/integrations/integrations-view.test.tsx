@@ -161,6 +161,25 @@ describe('S15 Integrations page', () => {
     tiles.getByText('NTSA TIMS');
   });
 
+  it('says HR supplier lists are paused, not is', () => {
+    renderView({
+      result: ok([
+        coverage({
+          system: 'hr-suppliers',
+          paused: true,
+          pausedBy: 'Juma Omondi',
+          pausedAt: '2026-09-26T07:18:00Z',
+        }),
+      ]),
+    });
+
+    expect(screen.getByRole('status').textContent).toMatch(
+      /^HR supplier lists are paused\. Paused by Juma Omondi since \d\d:\d\d\. Lookups are marked unavailable until they are resumed\. Cached answers still serve\.$/,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'HR supplier lists' }));
+    within(row('hr-suppliers')).getByText(/Nothing is sent until they are resumed\.$/);
+  });
+
   it('expands a system to its configuration and breaker rule', () => {
     renderView({
       result: ok([
@@ -271,6 +290,20 @@ describe('S15 Integrations page', () => {
 
       within(row('kra')).getByRole('button', { name: 'Pause KRA iTax' });
       within(row('ntsa')).getByRole('button', { name: 'Resume NTSA TIMS' });
+    });
+
+    it('words the pause dialog of HR supplier lists in the plural', () => {
+      renderActions([coverage({ system: 'hr-suppliers' })]);
+
+      fireEvent.click(
+        within(row('hr-suppliers')).getByRole('button', { name: 'Pause HR supplier lists' }),
+      );
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByText(
+        'Lookups to HR supplier lists will be marked unavailable until they are resumed.',
+      );
+      dialog.getByText('Nothing is sent to HR supplier lists while they are paused.');
+      dialog.getByText('Affected cases are re-checked every hour until they answer.');
     });
 
     it('has no actions when the page cannot pause', () => {

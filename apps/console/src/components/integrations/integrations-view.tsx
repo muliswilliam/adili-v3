@@ -242,7 +242,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="destructive">
           <Icon icon={BanIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.notResponding(systemInfo(row.system).name)}</b>{' '}
+            <b className="font-semibold">{m.notResponding(systemInfo(row.system))}</b>{' '}
             {m.notRespondingDetail(
               formatLastSuccess(row.lastSuccessAt, now, m.never).toLowerCase(),
             )}
@@ -253,7 +253,7 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="warning" role="status">
           <Icon icon={Activity01Icon} />
           <AlertDescription>
-            <b className="font-semibold">{m.recovering(systemInfo(row.system).name)}</b>{' '}
+            <b className="font-semibold">{m.recovering(systemInfo(row.system))}</b>{' '}
             {m.recoveringDetail}
           </AlertDescription>
         </Alert>
@@ -262,11 +262,11 @@ function Alerts({ rows, now }: { rows: SystemCoverage[]; now: Date }) {
         <Alert key={row.system} variant="info" role="status">
           <Icon icon={PauseIcon} />
           <AlertDescription>
-            <b className="font-semibold">{m.paused(systemInfo(row.system).name)}</b>{' '}
+            <b className="font-semibold">{m.paused(systemInfo(row.system))}</b>{' '}
             {row.pausedBy && row.pausedAt
               ? `${m.pausedSince(row.pausedBy, formatTime(row.pausedAt))} `
               : null}
-            {m.pausedDetail}
+            {m.pausedDetail(systemInfo(row.system))}
           </AlertDescription>
         </Alert>
       ))}
@@ -349,8 +349,8 @@ function Details({ row }: { row: SystemCoverage }) {
       <Icon icon={PauseIcon} />
       <AlertDescription>
         {row.pausedBy && row.pausedAt
-          ? m.pausedByCallout(row.pausedBy, formatDateTime(row.pausedAt))
-          : m.pausedCallout}
+          ? m.pausedByCallout(systemInfo(row.system), row.pausedBy, formatDateTime(row.pausedAt))
+          : m.pausedCallout(systemInfo(row.system))}
       </AlertDescription>
     </Alert>
   ) : row.breaker === 'open' ? (
