@@ -4,16 +4,16 @@
  * (#283, #284). Also the declaration document and flags the mock's case `mine` carries, so the
  * summary's source refs and flag explanations resolve against them.
  *
- * - Case `mine`: ready, generated 3 hours before the store was seeded.
- * - Case `windowClosed`: pending; ready 8 seconds after its first read.
- * - Case `peters`: ready, held by Peter Mwangi (view only for everyone else).
+ * Each case's starting state comes from the review mock's seeds (`resetCopilotMock`): e.g. case
+ * `mine` ready, generated 3 hours before the store was seeded, and case `windowClosed` pending,
+ * ready 8 seconds after its first read.
  *
  * Refresh (the holder only, else 403; 409 while pending or stale, or when AI is not enabled)
  * starts new jobs that are ready 6 seconds later. Ratings are kept per caller and job, and the
  * view lists the caller's own. Tests put a case in any state with `setMockCopilot`.
  */
 import { isRecord, json, problem, readJson } from '../mock-http';
-import type { Assignee, CaseDetail, CopilotView, Flag } from './types';
+import type { Assignee, CopilotView, Flag } from './types';
 
 export const MOCK_COPILOT_DELAY_MS = 6_000;
 
@@ -44,16 +44,38 @@ export const MOCK_FLAG_IDS = {
 } as const;
 
 const I = MOCK_ITEM_IDS;
+const STATEMENT = `statement:${OFFICER}`;
 const F = MOCK_FLAG_IDS;
 const kes = (shillings: number) => ({ kesCents: shillings * 100 });
 const unchanged = { changed: false };
+const kenya = (county: string, detail?: string) => ({
+  inKenya: true,
+  county,
+  ...(detail ? { detail } : {}),
+});
+const sole = { isJoint: false };
+const period = { from: '2024-01-01', to: '2025-12-31' };
+const statementDates = { statementDate: '2025-12-31', incomePeriod: period };
+const attachment = (n: number, fileName: string) => ({
+  attachmentId: `a77a0000-0000-4000-8000-0000000002${String(n).padStart(2, '0')}`,
+  uploadId: `0b10ad00-0000-4000-8000-0000000002${String(n).padStart(2, '0')}`,
+  fileName,
+  sha256: 'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78',
+});
 
-/** A trimmed `declaration.v1` document: the parts the review screens read. */
+/** Uploads of the mock declaration's attachments, for the download links. */
+export const MOCK_ATTACHMENTS = {
+  titleDeed: attachment(1, 'Title deed Kisumu-Manyatta-1234.pdf'),
+  valuation: attachment(2, 'Valuation report Milimani 2025.pdf'),
+  saccoStatement: attachment(3, 'Mwalimu SACCO share statement Dec 2025.pdf'),
+} as const;
+
+/** A `declaration.v1` document, as the declarations service gives it to the review service. */
 export const MOCK_DECLARATION: Record<string, unknown> = {
   schemaVersion: 'declaration.v1',
   type: 'biennial',
   statementDate: '2025-12-31',
-  incomePeriod: { from: '2024-01-01', to: '2025-12-31', fromSource: 'declared' },
+  incomePeriod: { ...period, fromSource: 'declared' },
   officer: {
     name: { surname: 'Otieno', firstName: 'John', otherNames: 'Kennedy' },
     birth: { date: '1979-05-04', place: 'Kisumu' },
@@ -73,6 +95,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
       {
         id: SPOUSE.slice('spouse:'.length),
         name: { surname: 'Otieno', firstName: 'Lilian', otherNames: 'Akoth' },
+        nationalId: '23456789',
         occupationSector: 'private',
         separated: false,
       },
@@ -93,6 +116,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
     {
       personKey: OFFICER,
       personName: { surname: 'Otieno', firstName: 'John', otherNames: 'Kennedy' },
+      ...statementDates,
       incomeNil: false,
       income: [
         {
@@ -100,6 +124,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'salary-emoluments',
           description: 'Salary from the Teachers Service Commission',
           amount: kes(3_120_000),
+          location: kenya('Kisumu'),
           change: unchanged,
         },
         {
@@ -107,6 +132,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'rent',
           description: 'Rent from a bedsitter block in Kondele',
           amount: kes(480_000),
+          location: kenya('Kisumu', 'Kondele'),
           change: { changed: true, kind: 'new-source' },
         },
       ],
@@ -116,39 +142,52 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           id: I.plot,
           type: 'land',
           description: 'Plot Kisumu/Manyatta/1234',
+          details: { parcelNumber: 'KISUMU/MANYATTA/1234', size: '0.25 acres' },
           value: kes(4_500_000),
+          location: kenya('Kisumu', 'Manyatta'),
+          joint: sole,
           change: unchanged,
+          attachments: [MOCK_ATTACHMENTS.titleDeed],
         },
         {
           id: I.house,
           type: 'building',
           description: 'Three-bedroom house in Milimani',
           value: kes(9_800_000),
+          location: kenya('Kisumu', 'Milimani'),
+          joint: { isJoint: true, sharePercent: 50, coOwner: 'Lilian Akoth Otieno' },
           change: unchanged,
+          attachments: [MOCK_ATTACHMENTS.valuation],
         },
         {
           id: I.fund,
           type: 'securities',
           description: 'CIC Money Market Fund units',
           value: kes(850_000),
+          location: kenya('Nairobi'),
+          joint: sole,
           change: unchanged,
         },
         {
           id: I.saccoShares,
-          type: 'shares',
+          type: 'shareholding',
           description: 'Shares in Mwalimu National SACCO',
           value: kes(1_200_000),
-          location: { inKenya: false, country: 'UG' },
+          location: { inKenya: false, country: 'UG', detail: 'Kampala' },
+          joint: sole,
           change: unchanged,
+          attachments: [MOCK_ATTACHMENTS.saccoStatement],
         },
       ],
       liabilitiesNil: false,
       liabilities: [
         {
           id: I.mortgage,
-          type: 'loan',
+          type: 'mortgage',
           description: 'Mortgage from KCB Bank',
-          amount: kes(3_400_000),
+          creditor: 'KCB Bank',
+          outstanding: kes(3_400_000),
+          location: kenya('Kisumu'),
           change: unchanged,
         },
       ],
@@ -156,6 +195,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
     {
       personKey: SPOUSE,
       personName: { surname: 'Otieno', firstName: 'Lilian', otherNames: 'Akoth' },
+      ...statementDates,
       incomeNil: false,
       income: [
         {
@@ -163,6 +203,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'business',
           description: 'Profit from a cereals shop in Kibuye market',
           amount: kes(960_000),
+          location: kenya('Kisumu', 'Kibuye market'),
           change: unchanged,
         },
       ],
@@ -173,6 +214,8 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'other',
           description: 'Shop stock',
           value: kes(350_000),
+          location: kenya('Kisumu', 'Kibuye market'),
+          joint: sole,
           change: unchanged,
         },
       ],
@@ -182,6 +225,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
     {
       personKey: CHILD,
       personName: { surname: 'Otieno', firstName: 'Brenda' },
+      ...statementDates,
       incomeNil: true,
       income: [],
       assetsNil: false,
@@ -191,6 +235,8 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'securities',
           description: 'Unit trust savings for school fees',
           value: kes(120_000),
+          location: kenya('Kisumu'),
+          joint: sole,
           change: unchanged,
         },
       ],
@@ -198,8 +244,23 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
       liabilities: [],
     },
   ],
+  otherInformation: {
+    materialChanges: [],
+    registrableInterests: {
+      directorships: [],
+      memberships: [],
+      dualCitizenship: { holds: false, pendingApplication: false },
+      pendingCases: [],
+    },
+    freeText:
+      'The Milimani house is held jointly with my wife. The rent is from a bedsitter block built in 2025 on family land in Kondele.',
+  },
+  attestation: {
+    text: 'I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.',
+    declaredAt: '2026-03-28T07:42:00.000Z',
+    reference: 'DCI-TSC-2026-0003418-P',
+  },
 };
-
 /** The flags on case `mine`, as review.yaml's `Flag`, for the version `versionId`. */
 export function mockFlags(versionId: string): Flag[] {
   const flag = (
@@ -230,8 +291,8 @@ export function mockFlags(versionId: string): Flag[] {
       'high',
       'Value changed by 150% since the previous declaration',
       'The plot is valued 150% higher than in the 2024 declaration.',
-      [{ personKey: OFFICER, itemId: I.plot, sectionKey: 'assets' }],
-      { percent: 150 },
+      [{ personKey: OFFICER, itemId: I.plot, sectionKey: STATEMENT }],
+      { changePercent: 150, direction: 'up' },
     ),
     flag(
       F.acquisition,
@@ -239,7 +300,8 @@ export function mockFlags(versionId: string): Flag[] {
       'medium',
       'New item not marked as acquired',
       'The money market fund units appear for the first time, without an acquisition mark.',
-      [{ personKey: OFFICER, itemId: I.fund, sectionKey: 'assets' }],
+      [{ personKey: OFFICER, itemId: I.fund, sectionKey: STATEMENT }],
+      { category: 'assets' },
     ),
     flag(
       F.growth,
@@ -247,8 +309,8 @@ export function mockFlags(versionId: string): Flag[] {
       'medium',
       'Assets grew faster than income',
       'Declared assets grew by more than the income declared for the period.',
-      [{ personKey: OFFICER, itemId: null, sectionKey: 'assets' }],
-      { percent: 38 },
+      [],
+      { growthToIncome: 1.4 },
     ),
     flag(
       F.foreign,
@@ -256,7 +318,8 @@ export function mockFlags(versionId: string): Flag[] {
       'info',
       'Holdings outside Kenya',
       'One asset is held outside Kenya.',
-      [{ personKey: OFFICER, itemId: I.saccoShares, sectionKey: 'assets' }],
+      [{ personKey: OFFICER, itemId: I.saccoShares, sectionKey: STATEMENT }],
+      { items: 1, countries: ['UG'] },
     ),
     {
       ...flag(
@@ -266,7 +329,7 @@ export function mockFlags(versionId: string): Flag[] {
         'Filed after the due date',
         'The declaration was submitted 4 days after the due date.',
         [],
-        { days: 4 },
+        { dueDate: '2026-03-31', submittedOn: '2026-04-04', daysLate: 4 },
       ),
       reviewed: {
         at: '2026-09-20T09:12:00.000Z',
@@ -432,38 +495,38 @@ function readyView(versionId: string, generatedAt: string): CopilotView {
   };
 }
 
+/** How a mock case's copilot starts: ready, pending (ready `readyAfterMs` after its first read), or AI off. */
+export interface CopilotSeed {
+  caseId: string;
+  state: 'ready' | 'pending' | 'not-enabled';
+  readyAfterMs?: number;
+}
+
 /**
- * Seeds the copilot of each mock case (`caseIds`: `mine`, `windowClosed`, `peters`); the case id
- * stands in for its version id, as in the review mock.
+ * Seeds the copilot of each mock case; the case's current version id is the case id, as in the
+ * review mock. Ready outputs were generated 3 hours before `now`.
  */
-export function resetCopilotMock(
-  now: number,
-  caseIds: { mine: string; windowClosed: string; peters: string },
-) {
+export function resetCopilotMock(now: number, seeds: CopilotSeed[]) {
   store.clear();
+  delayOnFirstRead = null;
   const generatedAt = new Date(now - 3 * 3_600_000).toISOString();
-  store.set(caseIds.mine, {
-    view: readyView(caseIds.mine, generatedAt),
-    readyAt: null,
-    ratings: new Map(),
-  });
-  store.set(caseIds.windowClosed, {
-    view: {
-      ...readyView(caseIds.windowClosed, generatedAt),
-      status: 'pending',
-      generatedAt: null,
-      summary: null,
-      explanations: null,
-    },
-    readyAt: null,
-    ratings: new Map(),
-  });
-  delayOnFirstRead = { caseId: caseIds.windowClosed, ms: 8_000 };
-  store.set(caseIds.peters, {
-    view: readyView(caseIds.peters, generatedAt),
-    readyAt: null,
-    ratings: new Map(),
-  });
+  for (const { caseId, state, readyAfterMs } of seeds) {
+    const ready = readyView(caseId, generatedAt);
+    const view: CopilotView =
+      state === 'ready'
+        ? ready
+        : {
+            ...ready,
+            status: state,
+            generatedAt: null,
+            summary: null,
+            explanations: null,
+          };
+    store.set(caseId, { view, readyAt: null, ratings: new Map() });
+    if (state === 'pending' && readyAfterMs !== undefined) {
+      delayOnFirstRead = { caseId, ms: readyAfterMs };
+    }
+  }
 }
 
 /**
@@ -479,13 +542,6 @@ export function setMockCopilot(
   if (!stored) throw new Error(`No mock copilot for case ${caseId}`);
   stored.view = { ...stored.view, ...view };
   stored.readyAt = readyAt;
-}
-
-/** The mock case's flags and document for the case detail, when it has a copilot. */
-export function mockCaseContent(caseId: string): Pick<CaseDetail, 'flags' | 'document'> {
-  return store.has(caseId)
-    ? { flags: mockFlags(caseId), document: MOCK_DECLARATION }
-    : { flags: [], document: null };
 }
 
 function current(caseId: string, stored: StoredCopilot, now: number): CopilotView {
