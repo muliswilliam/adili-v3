@@ -70,7 +70,8 @@ export class SuggestionCipher {
   }
 }
 
-function reasonRecordId(declarationId: string, suggestionId: string): string {
+/** The record id a dismissal's reason is sealed under, bound into its AAD. */
+export function reasonRecordId(declarationId: string, suggestionId: string): string {
   return `${recordId(declarationId, suggestionId)}/reason`;
 }
 

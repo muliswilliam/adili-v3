@@ -417,7 +417,7 @@ describe('who can be checked, and registries that do not answer (S2)', () => {
     expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(suggestionConsents))).toEqual([]);
   });
 
-  it('marks every registry no-id for an officer the directory gives no national ID', async () => {
+  it('marks every registry no-id for a declarant the directory gives no national ID', async () => {
     const draft = await givenDraft(ACHIENG, achieng, { nationalId: null });
     givenOfficerRegistries();
 

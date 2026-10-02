@@ -109,7 +109,7 @@ export class RegistryLookupSteps {
   }
 
   /**
-   * The person's national ID: the officer's from their person record, as verified at onboarding
+   * The person's national ID: the declarant's from their person record, as verified at onboarding
    * (an audited read in the directory), a spouse's or child's from Household as saved now. Null
    * when there is none any more (the person was taken out, or their ID removed, since the request).
    */

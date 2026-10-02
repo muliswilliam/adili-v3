@@ -5,8 +5,9 @@ import type { SectionContents } from '../drafts/sections.js';
 import type { StatementItem } from './match-keys.js';
 
 /**
- * Who a lookup can be for, and by which national ID (spec 05b, pure). The officer is looked up by
- * the national ID on their person record; a spouse or child by the one entered in Household.
+ * Who a lookup can be for, and by which national ID (spec 05b, pure). The declarant (`officer`) is
+ * looked up by the national ID on their person record; a spouse or child by the one entered in
+ * Household.
  */
 
 const HOUSEHOLD_PERSON = /^(spouse|child):([0-9a-f-]{36})$/;
@@ -42,7 +43,7 @@ export function isHouseholdPersonKey(
   return HOUSEHOLD_PERSON.test(personKey);
 }
 
-/** The officer, a spouse or a child. */
+/** The declarant (`officer`), a spouse or a child. */
 export function isPersonKey(personKey: string): personKey is PersonKey {
   return isOfficer(personKey) || isHouseholdPersonKey(personKey);
 }

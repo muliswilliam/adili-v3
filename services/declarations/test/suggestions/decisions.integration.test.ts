@@ -12,6 +12,7 @@ import {
 } from '../../src/db/schema.js';
 import type { Declaration, SectionEnvelope } from '../../src/drafts/representation.js';
 import type { Suggestion, SuggestionSet } from '../../src/suggestions/representation.js';
+import { reasonRecordId } from '../../src/suggestions/suggestion-cipher.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
   type Caller,
@@ -643,7 +644,7 @@ describe('dismissing, and checking again (S5)', () => {
       (
         await api.app.get(FieldCipher).decrypt({
           tenant: 'psc',
-          recordId: `${draft.id}/suggestions/${suggestionId}/reason`,
+          recordId: reasonRecordId(draft.id, suggestionId),
           ...sealed,
         })
       ).toString('utf8');
@@ -684,7 +685,7 @@ describe('dismissing, and checking again (S5)', () => {
 
     const responses = await Promise.all([
       dismiss(draft.id, dmax.id, { reason: 'Sold' }),
-      dismiss(draft.id, dmax.id, { reason: 'Sold' }),
+      dismiss(draft.id, dmax.id, { reason: 'Written off' }),
     ]);
 
     expect(responses.map((response) => response.statusCode)).toEqual([200, 200]);
@@ -693,6 +694,18 @@ describe('dismissing, and checking again (S5)', () => {
       'dismissed',
     ]);
     expect(await eventsOf('declaration.suggestion-dismissed.v1')).toHaveLength(1);
+    // The first dismissal's reason is the one kept.
+    const [row] = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(suggestions).where(eq(suggestions.id, dmax.id)),
+    );
+    if (!row?.reasonCiphertext || !row.reasonEnvelope) throw new Error('No sealed reason');
+    const reason = await api.app.get(FieldCipher).decrypt({
+      tenant: 'psc',
+      recordId: reasonRecordId(draft.id, dmax.id),
+      ciphertext: row.reasonCiphertext.toString('base64'),
+      envelope: row.reasonEnvelope,
+    });
+    expect(['Sold', 'Written off']).toContain(reason.toString('utf8'));
   });
 
   it('refuses to dismiss an accepted suggestion (409 not-new), or with an overlong reason (400)', async () => {
