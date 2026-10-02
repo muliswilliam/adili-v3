@@ -131,18 +131,28 @@ function mentions(text: string): Mention[] {
   });
 }
 
-/** The figures the input states, unsigned: a fall of 0.12 reads as "fell by 12%". */
-function inputNumbers(input: NarrateInput): number[] {
+type InputNumbers = Readonly<Record<'all' | 'rates', readonly number[]>>;
+
+/**
+ * The figures the input states, unsigned: a fall of 0.12 reads as "fell by 12%". `rates` are the
+ * figures a percentage may state: every national rate, and any other figure that is not a whole
+ * number above 1, since counts are whole and rates are fractions. A Commission's figures and a
+ * candidate's values hold both, so a count of 0 or 1 still reads as 0% or 100%.
+ */
+function inputNumbers(input: NarrateInput): InputNumbers {
   const years = [input, ...input.priorYears];
-  const figures = years.flatMap((year) => [
-    ...Object.values(year.totals),
-    ...Object.values(year.rates),
-    ...year.commissionTable.flatMap((row) => Object.values(row.figures)),
+  const unsigned = (values: readonly (number | string | null)[]) =>
+    values.filter((value): value is number => typeof value === 'number').map(Math.abs);
+  const national = unsigned(years.flatMap((year) => Object.values(year.rates)));
+  const counts = unsigned(years.flatMap((year) => Object.values(year.totals)));
+  const mixed = unsigned([
+    ...years.flatMap((year) => year.commissionTable.flatMap((row) => Object.values(row.figures))),
+    ...input.candidates.flatMap((candidate) => Object.values(candidate.values)),
   ]);
-  const values = input.candidates.flatMap((candidate) => Object.values(candidate.values));
-  return [...figures, ...values]
-    .filter((value): value is number => typeof value === 'number')
-    .map((value) => Math.abs(value));
+  return {
+    all: [...national, ...counts, ...mixed],
+    rates: [...national, ...mixed.filter((value) => !Number.isInteger(value) || value <= 1)],
+  };
 }
 
 /**
@@ -159,36 +169,32 @@ function same(a: number, b: number): boolean {
 }
 
 /**
- * Whether the input states a mention. A percentage matches a fraction ×100 rounded as written,
- * to at most two places; a year matches an input FY; another whole number matches exactly; a
+ * Whether the input states a mention. A percentage matches a rate ×100 rounded as written, to at
+ * most two places; a year matches an input FY; another whole number matches exactly; a
  * decimal matches rounded as written. Nothing derived: a difference or ratio passes only when
  * the input carries it.
  */
 function stated(
   { value, decimals, percent, year }: Mention,
-  known: readonly number[],
+  known: InputNumbers,
   years: ReadonlySet<number>,
 ): boolean {
   if (percent) {
     return (
       decimals <= MAX_PERCENT_DECIMALS &&
-      known.some((each) => same(round(each * 100, decimals), value))
+      known.rates.some((each) => same(round(each * 100, decimals), value))
     );
   }
   if (year) return years.has(value);
-  if (decimals === 0) return known.some((each) => same(each, value));
-  return known.some((each) => same(round(each, decimals), value));
+  if (decimals === 0) return known.all.some((each) => same(each, value));
+  return known.all.some((each) => same(round(each, decimals), value));
 }
 
 /**
  * The mentions in `text` the input does not state; a year or FY label counts when it is an input
  * FY, and a range of years ("2024–2026") when both its years are.
  */
-function foreignNumbers(
-  text: string,
-  known: readonly number[],
-  years: ReadonlySet<number>,
-): Mention[] {
+function foreignNumbers(text: string, known: InputNumbers, years: ReadonlySet<number>): Mention[] {
   const labels = [...text.matchAll(FY_LABEL)];
   const foreignLabels = labels
     .filter(

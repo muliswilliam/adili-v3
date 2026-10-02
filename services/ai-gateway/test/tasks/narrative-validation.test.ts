@@ -33,9 +33,48 @@ describe('narrative validation', () => {
       expect(foreign('The non-filer rate was 16.41%.')).toEqual(['foreign-number']);
     });
 
-    it('reads a percentage only as a rate ×100, never a count or a rate as written', () => {
+    it('reads a percentage only as a rate ×100, never a rate as written', () => {
       expect(foreign('Late filings were 960%.')).toEqual(['foreign-number']);
       expect(foreign('The late rate was 0.08%.')).toEqual(['foreign-number']);
+    });
+
+    it('never reads a percentage as a count ×100, wherever the count is', () => {
+      const counted = {
+        ...input,
+        totals: { ...input.totals, notReported: 3 },
+        commissionTable: input.commissionTable.map((row) => ({
+          ...row,
+          figures: { ...row.figures, reportedLate: 4 },
+        })),
+        candidates: input.candidates.map((each) => ({
+          ...each,
+          values: { ...each.values, years: 5 },
+        })),
+      };
+      const text = 'Late filings rose by 300%, 400% and 500%.';
+      expect(
+        narrativeViolations(counted, withParagraph(0, { text })).map((each) => each.kind),
+      ).toEqual(['foreign-number', 'foreign-number', 'foreign-number']);
+      expect(narrativeViolations(counted, withParagraph(0, { text: 'Of 3, 4 and 5.' }))).toEqual(
+        [],
+      );
+    });
+
+    it('reads a whole-number percentage of a rate, and a rate of 0 or 1 in a mixed row', () => {
+      const whole = {
+        ...input,
+        rates: { ...input.rates, nonFilerRate: 0.25 },
+        commissionTable: [
+          ...input.commissionTable,
+          {
+            code: 'src',
+            commissionName: 'Salaries and Remuneration Commission',
+            figures: { filingRate: 1, nonFilerRate: 0 },
+          },
+        ],
+      };
+      const text = 'Non-filers were 25% nationally, and 0% at SRC, which filed 100%.';
+      expect(narrativeViolations(whole, withParagraph(0, { text }))).toEqual([]);
     });
 
     it('rounds half up in decimal, as a reader would', () => {
