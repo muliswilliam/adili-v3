@@ -2,13 +2,15 @@
  * The copilot's workflow steps (spec 07c). Bundled into Temporal's deterministic sandbox through
  * the processing workflows module: import only `@temporalio/workflow` and types.
  */
-import { ActivityFailure, proxyActivities } from '@temporalio/workflow';
+import { ActivityFailure, ApplicationFailure, proxyActivities } from '@temporalio/workflow';
 
 import type { CopilotActivities } from './activities.js';
-import type {
-  CopilotActivityRequest,
-  CopilotJobFinished,
-  CopilotPolicyChanged,
+import {
+  COPILOT_UNAVAILABLE,
+  type CopilotActivityRequest,
+  type CopilotJobFinished,
+  type CopilotPolicyChanged,
+  type CopilotUnavailableReason,
 } from './contract.js';
 
 /**
@@ -34,16 +36,28 @@ const { copilotUnavailable, notEnabledCopilots } = proxyActivities<CopilotActivi
 
 /**
  * `requestCopilot(caseId)` as a step of a workflow (`DeclarationProcessingWorkflow`, spec 07b's
- * re-check): the record is `pending` (or `stale`) with the jobs, or `failed` when the gateway
- * could not be reached.
+ * re-check): the record is `pending` (or `stale`) with the jobs, or `failed` when the declaration
+ * could not be pulled (`declarations-unavailable`) or the gateway reached
+ * (`ai-gateway-unavailable`).
  */
 export async function requestCaseCopilot(request: CopilotActivityRequest): Promise<void> {
   try {
     await requestCopilot(request);
   } catch (error) {
     if (!(error instanceof ActivityFailure)) throw error;
-    await copilotUnavailable({ tenant: request.tenant, caseId: request.caseId });
+    await copilotUnavailable({
+      tenant: request.tenant,
+      caseId: request.caseId,
+      reason: unavailableOf(error),
+    });
   }
+}
+
+/** Which service stayed unreachable: the declaration's pull, or (by default) the ai-gateway. */
+function unavailableOf(error: ActivityFailure): CopilotUnavailableReason {
+  return error.cause instanceof ApplicationFailure && error.cause.type === 'DeclarationsUnavailable'
+    ? COPILOT_UNAVAILABLE.declarations
+    : COPILOT_UNAVAILABLE.aiGateway;
 }
 
 /**

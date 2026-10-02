@@ -20,6 +20,14 @@ export interface CopilotActivityRequest {
   registryCheckedAt?: string | null;
 }
 
+/** Why the copilot of a case could not be requested: which service stayed unreachable. */
+export const COPILOT_UNAVAILABLE = {
+  declarations: 'declarations-unavailable',
+  aiGateway: 'ai-gateway-unavailable',
+} as const;
+export type CopilotUnavailableReason =
+  (typeof COPILOT_UNAVAILABLE)[keyof typeof COPILOT_UNAVAILABLE];
+
 /** A job of a case's copilot that has ended, from its `ai.job.*` event. */
 export interface CopilotJobFinished {
   tenant: string;

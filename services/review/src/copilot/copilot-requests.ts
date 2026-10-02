@@ -25,7 +25,7 @@ import {
 } from '../declarations/declarations-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { systemContext } from '../system-context.js';
-import type { CopilotActivityRequest } from './contract.js';
+import { COPILOT_UNAVAILABLE, type CopilotActivityRequest } from './contract.js';
 import { copilotInputs } from './copilot-inputs.js';
 import { COPILOT_PROMPT_VERSIONS } from './prompt-versions.js';
 import { caseSubjectRef, type CopilotUpdatedData, REVIEW_COPILOT_UPDATED } from './events.js';
@@ -42,7 +42,9 @@ export const COPILOT_FAILURES = {
   /** The gateway refused the request (400, 404, 422): sending it again does not help. */
   rejected: 'rejected',
   /** The gateway could not be reached for as long as the workflow tried. */
-  unavailable: 'ai-gateway-unavailable',
+  unavailable: COPILOT_UNAVAILABLE.aiGateway,
+  /** The declaration could not be pulled for as long as the workflow tried. */
+  declarationsUnavailable: COPILOT_UNAVAILABLE.declarations,
 } as const;
 
 /** Names the idempotency keys of the copilot's task calls (UUID v5, RFC 9562). */
