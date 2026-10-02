@@ -13,8 +13,6 @@ import {
   declarationOf,
   DeclarationOutsideContract,
   DeclarationsClient,
-  DeclarationsUnavailable,
-  type PulledVersion,
 } from '../declarations/declarations-client.js';
 import {
   IntegrationGatewayClient,
@@ -23,11 +21,8 @@ import {
 import { REGISTRY_RECORDS } from '../integration-gateway/registry-records.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
-import {
-  VIEW_DECLARATIONS_BUDGET_MS,
-  VIEW_REGISTRY_RECORDS_BUDGET_MS,
-  within,
-} from '../internal-api/view-budget.js';
+import { VIEW_REGISTRY_RECORDS_BUDGET_MS, within } from '../internal-api/view-budget.js';
+import { pullViewedVersion } from '../internal-api/view-declaration.js';
 import {
   householdIds,
   REGISTRY_RULE_IDS,
@@ -152,27 +147,7 @@ export class RegistryViewService {
     principal: Principal,
     row: { tenant: string } & CaseKeys,
   ): Promise<DeclarationV1> {
-    let pulled: PulledVersion | null;
-    try {
-      pulled = await within(
-        VIEW_DECLARATIONS_BUDGET_MS,
-        () =>
-          this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
-            tenant: row.tenant,
-            actingSubject: principal.subject,
-            caseId: row.id,
-          }),
-        () => new DeclarationsUnavailable('The declarations service did not answer in time'),
-      );
-    } catch (error) {
-      if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
-      throw error;
-    }
-    if (pulled === null) {
-      throw declarationsUnavailable(
-        'The declarations service does not have the version under review.',
-      );
-    }
+    const pulled = await pullViewedVersion(this.declarations, principal, row);
     try {
       return declarationOf(pulled);
     } catch (error) {

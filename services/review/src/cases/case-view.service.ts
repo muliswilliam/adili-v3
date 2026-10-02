@@ -8,15 +8,11 @@ import { clarificationItems } from '../clarifications/representation.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { determinationView } from '../determinations/representation.js';
 import { determinations } from '../determinations/schema.js';
-import {
-  DeclarationsClient,
-  DeclarationsUnavailable,
-  type PulledVersion,
-} from '../declarations/declarations-client.js';
+import { DeclarationsClient, type PulledVersion } from '../declarations/declarations-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
-import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
-import { VIEW_DECLARATIONS_BUDGET_MS, within } from '../internal-api/view-budget.js';
+import { upstreamUnavailable } from '../internal-api/upstream.js';
+import { pullViewedVersion } from '../internal-api/view-declaration.js';
 import { registrySummary } from '../registry/representation.js';
 import { registryChecks } from '../registry/schema.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
@@ -124,29 +120,8 @@ export class CaseViewService {
   }
 
   /** The current version as the declarations service gives it, read for the viewer and case. */
-  private async pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
-    let pulled: PulledVersion | null;
-    try {
-      pulled = await within(
-        VIEW_DECLARATIONS_BUDGET_MS,
-        () =>
-          this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
-            tenant: row.tenant,
-            actingSubject: principal.subject,
-            caseId: row.id,
-          }),
-        () => new DeclarationsUnavailable('The declarations service did not answer in time'),
-      );
-    } catch (error) {
-      if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
-      throw error;
-    }
-    if (pulled === null) {
-      throw declarationsUnavailable(
-        'The declarations service does not have the version under review.',
-      );
-    }
-    return pulled;
+  private pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
+    return pullViewedVersion(this.declarations, principal, row);
   }
 }
 
