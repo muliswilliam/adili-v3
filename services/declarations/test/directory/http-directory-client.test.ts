@@ -106,6 +106,12 @@ describe('HttpDirectoryClient', () => {
       reminderOffsetsDays: [30, 14, 7],
       clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
       formMDue: '07-31',
+      access: {
+        decisionDays: 30,
+        leaDecisionDays: 14,
+        representationWindowDays: 7,
+        packageDownloadDays: 7,
+      },
       createdBy: 'sub',
       createdByName: null,
       createdAt: '2026-09-28T18:00:00.000Z',
