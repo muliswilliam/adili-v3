@@ -84,7 +84,9 @@ describe('determination and enforcement templates (spec 08)', () => {
       expect(rendered.subject).toContain(values.reference);
       expect(rendered.text).toContain(`Sign in to Adili Online at ${values.portalUrl}`);
       expect(rendered.html).toContain(`<a href="${values.portalUrl}">`);
-      expect(rendered.text).toContain('It is not attached to this email');
+      // The reinstatement has no letter: nothing to say is not attached.
+      if (name === 'salary-reinstated') expect(rendered.text).not.toContain('not attached');
+      else expect(rendered.text).toContain('It is not attached to this email');
       const sms = renderTemplate(`${name}-sms` as TemplateId, 'en', values).text;
       expect(sms).toMatch(/^Adili: /);
       expect(sms).toContain(values.reference);
@@ -130,13 +132,13 @@ describe('determination and enforcement templates (spec 08)', () => {
     const rendered = renderTemplate('decision-email', 'en', params('decision'));
     expect(rendered.subject).toBe(`Decision on your declaration: ${CMP}`);
     expect(rendered.text).toContain(
-      `${PSC} has made its compliance determination on your declaration: Non-compliant. Its reference number is ${CMP}.`,
+      `${PSC} has made its compliance determination on your declaration. The outcome is Non-compliant. Its reference number is ${CMP}.`,
     );
     expect(rendered.text).toContain(
       'Your Commission may take administrative action. Check Notices',
     );
     expect(renderTemplate('decision-sms', 'en', params('decision')).text).toBe(
-      `Adili: ${PSC} has decided on your declaration: Non-compliant (${CMP}). Read the decision at ${PORTAL}/decisions/1`,
+      `Adili: ${PSC} has decided on your declaration (${CMP}). The outcome is Non-compliant. Read it at ${PORTAL}/decisions/1`,
     );
   });
 
@@ -144,7 +146,7 @@ describe('determination and enforcement templates (spec 08)', () => {
     'tells the declarant of a %s decision without warning of administrative action',
     (outcome) => {
       const rendered = renderTemplate('decision-email', 'en', { ...params('decision'), outcome });
-      expect(rendered.text).toContain(`on your declaration: ${outcome}.`);
+      expect(rendered.text).toContain(`The outcome is ${outcome}.`);
       expect(rendered.text).not.toContain('administrative action');
     },
   );

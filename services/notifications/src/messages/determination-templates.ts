@@ -65,7 +65,7 @@ type DecisionParams = z.infer<typeof decisionParams>;
 function decisionEmail(params: DecisionParams): RenderedEmail {
   return email(`Decision on your declaration: ${params.reference}`, [
     paragraph(
-      `${params.commission} has made its compliance determination on your declaration: ${params.outcome}. Its reference number is ${params.reference}.`,
+      `${params.commission} has made its compliance determination on your declaration. The outcome is ${params.outcome}. Its reference number is ${params.reference}.`,
     ),
     ...(params.outcome === 'Non-compliant'
       ? [
@@ -152,7 +152,7 @@ function salaryReinstatedEmail(params: SalaryReinstatedParams): RenderedEmail {
       `${params.commission} sent your salary reinstatement to payroll on ${longDate(params.reinstatedOn)}. It ends the salary stoppage ${params.reference}.`,
     ),
     paragraph('Your payroll applies it; ask your employer if your next payslip does not show it.'),
-    signInParagraph(params.portalUrl, `to see your notices. ${NOT_ATTACHED}`),
+    signInParagraph(params.portalUrl, 'to see your notices.'),
     paragraph(QUESTIONS),
   ]);
 }
@@ -168,7 +168,7 @@ export const determinationTemplates = {
     params: decisionParams,
     copy: {
       en: (params) => ({
-        text: `Adili: ${params.commission} has decided on your declaration: ${params.outcome} (${params.reference}). Read the decision at ${params.portalUrl}`,
+        text: `Adili: ${params.commission} has decided on your declaration (${params.reference}). The outcome is ${params.outcome}. Read it at ${params.portalUrl}`,
       }),
     },
   }),
