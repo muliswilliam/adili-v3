@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
+import {
+  accessRequestDecidedDataSchema,
+  accessRequestReceivedDataSchema,
+} from '@adili/events/contracts/schemas';
 import { hasValidCheckCharacter } from '@adili/numbering';
 import { APPLICANT, DECLARANT, LAW_ENFORCEMENT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
@@ -124,7 +128,8 @@ describe('Law enforcement requests (S11)', () => {
         officerPersonId: peter.personId,
         officerSubject: peter.sub,
       });
-      expect(await api.events('lea.request.received.v1')).toEqual([
+      const received = await api.events('lea.request.received.v1');
+      expect(received).toEqual([
         expect.objectContaining({
           tenant: 'psc',
           subject: body.id,
@@ -139,6 +144,8 @@ describe('Law enforcement requests (S11)', () => {
           }) as unknown,
         }),
       ]);
+      // Reporting validates Form K and law enforcement receipts with the same schema (S14).
+      expect(accessRequestReceivedDataSchema.safeParse(received[0]?.data).success).toBe(true);
       // The declarant is not told: only after a grant (r.23(2)).
       expect(api.notifications.sent).toEqual([]);
       const run = await api.temporal.workflow.getHandle(leaRequestWorkflowId(body.id)).describe();
@@ -603,7 +610,8 @@ describe('Law enforcement requests (S11)', () => {
           decidedBy: { subject: officer.sub, name: officer.name },
         },
       });
-      expect(await api.events('lea.request.decided.v1')).toEqual([
+      const decided = await api.events('lea.request.decided.v1');
+      expect(decided).toEqual([
         expect.objectContaining({
           data: expect.objectContaining({
             outcome: 'partial-grant',
@@ -613,6 +621,7 @@ describe('Law enforcement requests (S11)', () => {
           }) as unknown,
         }),
       ]);
+      expect(accessRequestDecidedDataSchema.safeParse(decided[0]?.data).success).toBe(true);
       const again = await decideLea(api, id, {
         outcome: 'deny',
         grounds: ['public-interest'],

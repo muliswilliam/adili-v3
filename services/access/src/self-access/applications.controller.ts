@@ -170,6 +170,8 @@ export class SelfAccessApplicationsController {
   @ApiOperation({
     operationId: 'getSelfAccessApplication',
     summary: "A written self-access application, with the representative's ID number",
+    description:
+      "The Commission's access officer and supervisor read it; another Commission's application, and EACC, get 404. `recordedByCaller`: the caller recorded it, so may download the issued certified copy to hand it over.",
   })
   @ApiOkResponse({ description: 'Application', schema: schemaRef('SelfAccessApplicationDetail') })
   @ApiProblemResponse(400, 'applicationId is not a UUID')

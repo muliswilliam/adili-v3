@@ -77,6 +77,8 @@ export class OfficerController {
   @ApiOperation({
     operationId: 'getAccessRequestForOfficer',
     summary: 'Full request for the access officer (Form K, representations, register)',
+    description:
+      "The Commission's access officer and supervisor read it; another Commission's request, and EACC, get 404. The timeline is the request's whole access register, actors named.",
   })
   @ApiOkResponse({ description: 'Request', schema: schemaRef('OfficerRequestView') })
   @ApiProblemResponse(400, 'requestId is not a UUID')
