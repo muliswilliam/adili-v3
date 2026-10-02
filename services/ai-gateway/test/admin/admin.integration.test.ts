@@ -597,6 +597,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         tenant: 'fresh',
         enabled: false,
         providerClass: 'external',
+        provider: 'scripted',
         dataClasses: [],
       });
 
@@ -605,6 +606,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         tenant: 'fresh',
         enabled: true,
         providerClass: 'external',
+        provider: 'scripted',
         dataClasses: ['synthetic'],
       });
     });
@@ -627,6 +629,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         tenant: 'shut',
         enabled: false,
         providerClass: 'external',
+        provider: 'scripted',
         dataClasses: [],
       });
     });
@@ -648,6 +651,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         tenant: 'onprem',
         enabled: true,
         providerClass: 'self-hosted',
+        provider: 'local',
         dataClasses: ['synthetic', 'restricted', 'highly-confidential'],
       });
 
@@ -655,6 +659,7 @@ describe('admin API', { timeout: 90_000 }, () => {
       await t.seedDemoGate('mixed');
       expect(await status('mixed')).toMatchObject({
         providerClass: 'external',
+        provider: 'scripted',
         dataClasses: ['synthetic'],
       });
     });
@@ -676,6 +681,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         tenant: 'kcomm',
         enabled: false,
         providerClass: null,
+        provider: null,
         dataClasses: [],
       });
     });

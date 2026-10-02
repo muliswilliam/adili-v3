@@ -18,6 +18,10 @@ export const tenantAiStatusSchema = z.object({
     description:
       "The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach",
   }),
+  provider: z.string().nullable().meta({
+    description:
+      "The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is",
+  }),
   dataClasses: z.array(dataClassSchema).meta({
     description: 'Data classes every routed provider class may process, in DataClass order',
   }),
@@ -43,15 +47,15 @@ export class TenantStatus {
       Promise.all(TASK_NAMES.map((task) => this.routing.route(tenant, task))),
       this.gate.effective(tenant),
     ]);
-    const classes = new Set(
-      routes.flatMap((route) => {
-        const provider = this.providers.get(route.provider);
-        return provider ? [provider.providerClass] : [];
-      }),
-    );
+    const reachable = routes.flatMap((route) => {
+      const provider = this.providers.get(route.provider);
+      return provider ? [provider] : [];
+    });
+    const classes = new Set(reachable.map((provider) => provider.providerClass));
     if (classes.size === 0) {
-      return { tenant, enabled: false, providerClass: null, dataClasses: [] };
+      return { tenant, enabled: false, providerClass: null, provider: null, dataClasses: [] };
     }
+    const providerClass = classes.has('external') ? 'external' : 'self-hosted';
     const admits = (dataClass: DataClass, providerClass: ProviderClass) =>
       gate.some(
         (cell) =>
@@ -63,7 +67,8 @@ export class TenantStatus {
     return {
       tenant,
       enabled: dataClasses.length > 0,
-      providerClass: classes.has('external') ? 'external' : 'self-hosted',
+      providerClass,
+      provider: reachable.find((each) => each.providerClass === providerClass)?.name ?? null,
       dataClasses,
     };
   }

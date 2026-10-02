@@ -444,6 +444,8 @@ export interface components {
             enabled: boolean;
             /** @description The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
             providerClass: components["schemas"]["ProviderClass"] | null;
+            /** @description The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is */
+            provider: string | null;
             /** @description Data classes every routed provider class may process, in DataClass order */
             dataClasses: components["schemas"]["DataClass"][];
         };
