@@ -216,9 +216,8 @@ describe('S16 AI status line', () => {
         dataClasses: ['synthetic'],
       },
     });
-    expect(aiRow()).toBe(
-      'AI assistanceEnabled(external provider, synthetic data only) · Anthropic',
-    );
+    // The badge says Enabled; the detail reads on from it, no brackets (e2e 33).
+    expect(aiRow()).toBe('AI assistanceEnabledExternal provider Anthropic, synthetic data only');
     expect(screen.queryByRole('button', { name: /edit|change/i })).toBeNull();
   });
 
@@ -227,7 +226,7 @@ describe('S16 AI status line', () => {
       ok: true,
       data: { enabled: false, providerClass: null, provider: null, dataClasses: [] },
     });
-    expect(aiRow()).toBe('AI assistanceNot enabled(no declaration data is sent to an AI provider)');
+    expect(aiRow()).toBe('AI assistanceNot enabledNo declaration data is sent to an AI provider');
   });
 
   it('says when the status could not be checked', () => {

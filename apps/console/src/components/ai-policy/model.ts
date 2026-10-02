@@ -83,12 +83,17 @@ export function accessText(access: readonly ProviderAccess[]): string | null {
   if (access.length === 0) return null;
   const text = access
     .map(({ providerClass, dataClasses }) => {
-      const data = joinAnd(dataClasses.map((dataClass) => m.dataClass[dataClass].toLowerCase()));
+      const data = dataClassesText(dataClasses);
       const only = dataClasses.length === 1 && dataClasses[0] === 'synthetic';
       return m.aiEnabledText(m.providerClass[providerClass].toLowerCase(), data, only);
     })
     .join('; ');
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "synthetic and restricted": the data classes in running text. */
+export function dataClassesText(dataClasses: readonly DataClass[]): string {
+  return joinAnd(dataClasses.map((dataClass) => m.dataClass[dataClass].toLowerCase()));
 }
 
 function joinAnd(words: readonly string[]): string {
