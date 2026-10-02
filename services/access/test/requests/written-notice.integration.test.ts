@@ -414,6 +414,7 @@ describe('An officer with no account: written notice and representations receive
         requestId: id,
         reference,
         notifiedAt: NOTIFIED_AT,
+        noticeChannel: 'written',
         windowEndsAt: WINDOW_ENDS_AT,
         canRespond: true,
         representations: {

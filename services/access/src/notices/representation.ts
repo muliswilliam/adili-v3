@@ -59,6 +59,12 @@ export const representationsInputSchema = z
 
 export type RepresentationsInput = z.infer<typeof representationsInputSchema>;
 
+/** How the declarant was told of a request: online, or in writing while they had no account. */
+const noticeChannelSchema = z.enum(['online', 'written']).meta({
+  description:
+    'How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served',
+});
+
 /**
  * access.yaml `FormKDeclarantNotice`: a Form K request about the declarant they have been notified
  * of, with who asked, why (the applicant's reason, verbatim), for what, until when they may
@@ -76,6 +82,7 @@ export const formKDeclarantNoticeSchema = z.object({
   purposeInGeneralTerms: z.string(),
   scope: scopeSchema,
   notifiedAt: z.iso.datetime({ offset: true }),
+  noticeChannel: noticeChannelSchema,
   windowEndsAt: z.iso.datetime({ offset: true }).nullable(),
   /** The window is open: representations can be made or changed now. */
   canRespond: z.boolean(),
@@ -105,6 +112,7 @@ export const leaDeclarantNoticeSchema = z.object({
   decidedAt: z.iso.datetime({ offset: true }),
   /** When the declarant was told of the grant. */
   notifiedAt: z.iso.datetime({ offset: true }),
+  noticeChannel: noticeChannelSchema,
 });
 
 export type LeaDeclarantNotice = z.infer<typeof leaDeclarantNoticeSchema>;
@@ -143,6 +151,7 @@ export function toDeclarantNotice(
     purposeInGeneralTerms: formK.partIII.reason,
     scope: row.scope,
     notifiedAt: row.notifiedAt.toISOString(),
+    noticeChannel: row.writtenNotice === null ? 'online' : 'written',
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
     canRespond: windowOpen(row, now),
     representations:
@@ -169,5 +178,6 @@ export function toLeaDeclarantNotice(row: LeaRequestRow): LeaDeclarantNotice {
     outcome: decision.outcome,
     decidedAt: decision.decidedAt,
     notifiedAt: declarantNotifiedAt.toISOString(),
+    noticeChannel: row.writtenNotice === null ? 'online' : 'written',
   };
 }

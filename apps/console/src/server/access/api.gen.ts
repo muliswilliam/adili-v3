@@ -848,6 +848,11 @@ export interface components {
             scope: components["schemas"]["Scope"];
             /** Format: date-time */
             notifiedAt: string;
+            /**
+             * @description How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served
+             * @enum {string}
+             */
+            noticeChannel: "online" | "written";
             windowEndsAt: string | null;
             canRespond: boolean;
             representations: components["schemas"]["Representations"] | null;
@@ -880,6 +885,11 @@ export interface components {
             decidedAt: string;
             /** Format: date-time */
             notifiedAt: string;
+            /**
+             * @description How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served
+             * @enum {string}
+             */
+            noticeChannel: "online" | "written";
         };
         WrittenNotice: {
             /**

@@ -205,7 +205,13 @@ describe('Law enforcement grants to an officer with no account: written notice',
       personId,
     });
     expect(notices.json<DeclarantNotice[]>()).toEqual([
-      expect.objectContaining({ requestId: id, reference, kind: 'lea', notifiedAt: NOTIFIED_AT }),
+      expect.objectContaining({
+        requestId: id,
+        reference,
+        kind: 'lea',
+        notifiedAt: NOTIFIED_AT,
+        noticeChannel: 'written',
+      }),
     ]);
   });
 });

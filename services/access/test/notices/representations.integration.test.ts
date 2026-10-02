@@ -76,6 +76,7 @@ describe("The declarant's notices and representations (S4)", () => {
             sections: ['income', 'assets', 'liabilities'],
           },
           notifiedAt: NOTIFIED_AT,
+          noticeChannel: 'online',
           windowEndsAt: '2027-03-12T09:00:00.000Z',
           canRespond: true,
           representations: null,

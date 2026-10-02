@@ -2538,6 +2538,12 @@ components:
         notifiedAt:
           type: string
           format: date-time
+        noticeChannel:
+          type: string
+          enum:
+            - online
+            - written
+          description: 'How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served'
         windowEndsAt:
           anyOf:
             - type: string
@@ -2563,6 +2569,7 @@ components:
         - purposeInGeneralTerms
         - scope
         - notifiedAt
+        - noticeChannel
         - windowEndsAt
         - canRespond
         - representations
@@ -2616,6 +2623,12 @@ components:
         notifiedAt:
           type: string
           format: date-time
+        noticeChannel:
+          type: string
+          enum:
+            - online
+            - written
+          description: 'How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served'
       required:
         - requestId
         - reference
@@ -2627,6 +2640,7 @@ components:
         - outcome
         - decidedAt
         - notifiedAt
+        - noticeChannel
     WrittenNotice:
       type: object
       properties:
