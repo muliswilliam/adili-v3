@@ -7,7 +7,7 @@ import { auditRecords, jobs } from '../../src/db/schema.js';
 import type { StructuredResult } from '../../src/providers/port.js';
 import type { NarrateInput, NarrateOutput } from '../../src/tasks/narrate-compliance-report.js';
 import { contractErrors } from '../support/contract.js';
-import { narrateInput, narrateOutput, usage } from '../support/inputs.js';
+import { actingFor, narrateInput, narrateOutput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -46,9 +46,8 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
     t.app.inject({
       method: 'POST',
       url: '/internal/v1/tasks/narrate-compliance-report',
-      headers: { ...auth, 'idempotency-key': randomUUID() },
+      headers: { ...auth, ...actingFor('eacc'), 'idempotency-key': randomUUID() },
       payload: {
-        tenant: 'eacc',
         dataClass: 'synthetic',
         subjectRef: `ncr:${randomUUID()}`,
         waitSeconds: 10,

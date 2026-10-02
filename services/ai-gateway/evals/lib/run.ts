@@ -52,15 +52,19 @@ export async function runTask(
  */
 export const EVAL_MODEL = DEFAULT_AI_MODEL;
 
-export function evalModel(): string {
-  return process.env.AI_MODEL ?? EVAL_MODEL;
+/** The model a suite runs on: `AI_MODEL`, else the model its fixtures were recorded on. */
+export function evalModel(suite: { model?: string } = {}): string {
+  return process.env.AI_MODEL ?? suite.model ?? EVAL_MODEL;
 }
 
-/** The provider and model the eval run uses, from the environment the eval config sets. */
-export function evalProvider(): { provider: ModelProvider; model: string } {
+/** The provider and model a suite's run uses, from the environment the eval config sets. */
+export function evalProvider(suite: { model?: string } = {}): {
+  provider: ModelProvider;
+  model: string;
+} {
   return {
     provider: createModelProvider(providerEnvSchema.parse(process.env)),
-    model: evalModel(),
+    model: evalModel(suite),
   };
 }
 

@@ -225,6 +225,8 @@ function candidateCoverage(input: NarrateInput, output: NarrateOutput): Score[] 
 
 export const narrateSuite: EvalSuite<Expected> = {
   task: narrateComplianceReport,
+  // Recorded before the default moved to claude-opus-5-5 (evals/README.md); re-record with v2.
+  model: 'claude-sonnet-5',
   cases: [
     golden('FY2024, all sections, no prior year', 2024, 'all'),
     golden('FY2025, all sections, one prior year', 2025, 'all'),

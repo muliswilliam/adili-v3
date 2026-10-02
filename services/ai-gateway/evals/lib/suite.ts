@@ -20,6 +20,11 @@ export interface EvalSuite<TExpected> {
   score(input: Record<string, unknown>, output: unknown, expected: TExpected): Score[];
   /** Mean each soft scorer must reach over the cases. */
   thresholds: Readonly<Record<string, number>>;
+  /**
+   * The model the suite's fixtures were recorded on, when not `EVAL_MODEL`. Dropped once they are
+   * recorded again on the default model.
+   */
+  model?: string;
 }
 
 /**
@@ -27,7 +32,7 @@ export interface EvalSuite<TExpected> {
  * the soft thresholds. Outputs come from the replay adapter (record mode refreshes them).
  */
 export function evalSuite<TExpected>(suite: EvalSuite<TExpected>): void {
-  const { provider, model } = evalProvider();
+  const { provider, model } = evalProvider(suite);
   const results: CaseResult[] = [];
 
   describe(`${suite.task.name} v${suite.task.currentPromptVersion}`, () => {

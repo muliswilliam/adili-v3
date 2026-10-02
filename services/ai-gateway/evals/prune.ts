@@ -11,12 +11,10 @@ import { evalModel, evalRequest } from './lib/run.js';
  */
 
 const FIXTURES_DIR = 'evals/fixtures';
-const AI_MODEL = evalModel();
-
 const wanted = new Set(
   SUITES.flatMap((suite) =>
     suite.cases.map((golden) => {
-      const request = evalRequest(suite.task, golden.input, AI_MODEL);
+      const request = evalRequest(suite.task, golden.input, evalModel(suite));
       return `${fixtureKey('generateStructured', request)}.json`;
     }),
   ),
