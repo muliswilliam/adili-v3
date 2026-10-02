@@ -10,6 +10,7 @@ import {
 } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
+import { declarantAccount } from '../declarant-account.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { type AccessPackagePayload, DocumentsClient } from '../documents/documents-client.js';
@@ -22,6 +23,7 @@ import { systemContext } from '../system-context.js';
 import type {
   LeaBreachOutcome,
   LeaDecisionNoticeOutcome,
+  LeaDeclarantNoticeOutcome,
   LeaPackageOutcome,
   LeaReminderOutcome,
   LeaRequestState,
@@ -222,15 +224,30 @@ export class LeaRequestActivities {
    * After a grant, and only then (r.23(2)): the declarant is told a law enforcement agency was
    * granted access, by email and SMS; the request records when, with the `notified` register
    * entry and its event, once. The case and the reason wait behind sign-in.
+   *
+   * A declarant with no account (spec 10 decision 2): linked first if the directory says they
+   * have onboarded since; otherwise invited to onboard (once), and `awaiting-notice` until they
+   * do or the access officer records the written notice (then `notified`).
    */
   async notifyDeclarantOfLeaGrant({
     tenant,
     requestId,
-  }: LeaRequestWorkflowInput): Promise<'notified' | 'missing'> {
-    const found = await loadLea(this.db, tenant, requestId);
+  }: LeaRequestWorkflowInput): Promise<LeaDeclarantNoticeOutcome> {
+    let found = await loadLea(this.db, tenant, requestId);
     if (!found) return 'missing';
+    if (decidedStatusOf(found) !== 'granted' || found.resolvedRosterRecordId === null) {
+      throw invariantBroken('The request has no grant to tell the declarant of');
+    }
+    // Told in writing already.
+    if (found.writtenNotice !== null) return 'notified';
+    if (found.resolvedPersonId === null) {
+      const account = await declarantAccount(this.db, this.directory, this.logger, 'lea', found);
+      if (account === 'none') return 'awaiting-notice';
+      found = await loadLea(this.db, tenant, requestId);
+      if (!found) return 'missing';
+    }
     const { decision, resolvedPersonId } = found;
-    if (decidedStatusOf(found) !== 'granted' || decision === null || resolvedPersonId === null) {
+    if (decision === null || resolvedPersonId === null) {
       throw invariantBroken('The request has no grant to tell the declarant of');
     }
     const notified = await withTenant(this.db, systemContext(tenant), async (tx) => {
@@ -250,6 +267,8 @@ export class LeaRequestActivities {
         kind: 'notified',
         actor: null,
         at: now,
+        details: { channel: 'online' },
+        eventData: { channel: 'online', notifiedOn: null },
       });
       return updated;
     });
@@ -292,11 +311,16 @@ export class LeaRequestActivities {
     }
     const { decision, resolvedPersonId } = found;
     const scope = decision?.grantedScope;
-    if (decidedStatusOf(found) !== 'granted' || !decision || !scope || resolvedPersonId === null) {
+    if (decidedStatusOf(found) !== 'granted' || !decision || !scope) {
       throw invariantBroken('The request has no grant to issue a package for');
     }
 
     const context = { requestId };
+    if (resolvedPersonId === null) {
+      // An officer with no account has filed no declaration on Adili: nothing to disclose.
+      this.logger.warn(context, 'The declarant has no account: no package issued');
+      return { outcome: 'nothing-to-disclose' };
+    }
     let disclosure;
     try {
       disclosure = await this.declarations.renderDisclosure({

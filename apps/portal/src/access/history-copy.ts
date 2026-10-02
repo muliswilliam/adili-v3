@@ -55,6 +55,8 @@ const HISTORY = {
   responded: en('You responded'),
   edited: en('You edited your response'),
   you: en('You'),
+  youInWriting: en('You · received in writing'),
+  notifiedInWriting: en((commission: string) => `Notified in writing by ${commission}`),
   decided: en((commission: string, verb: string) => `${commission} ${verb}`),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
   agencyGranted: en((agency: string, verb: string) => `${agency} was ${verb}`),

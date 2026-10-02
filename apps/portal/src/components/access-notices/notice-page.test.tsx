@@ -106,6 +106,8 @@ describe('a request waiting for the declarant (S4)', () => {
           attachments: [],
           submittedAt: NOW,
           updatedAt: NOW,
+          receivedInWriting: false,
+          recordedBy: null,
         },
       }),
     );
@@ -155,6 +157,8 @@ describe('a request waiting for the declarant (S4)', () => {
           attachments: [],
           submittedAt: NOW,
           updatedAt: NOW,
+          receivedInWriting: false,
+          recordedBy: null,
         },
       }),
     );
@@ -247,6 +251,21 @@ describe('a request waiting for the declarant (S4)', () => {
     expect(screen.getByText('notice.pdf')).toBeTruthy();
     await press('Send response');
     expect(submitMock.mock.calls[0]?.[0].data.attachments).toEqual([uploadId]);
+  });
+});
+
+describe('a notice served in writing (spec 10 decision 2)', () => {
+  it('shows the representations the Commission recorded from the letter as received in writing, still editable', async () => {
+    renderPage(await seededNotice(IDS.inWriting));
+    expect(screen.getByText('Received in writing')).toBeTruthy();
+    expect(screen.getByText(/^Your letter, recorded by the Commission /)).toBeTruthy();
+    expect(screen.getByText('Letter to the Commission, scanned.pdf')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
+    expect(document.body.textContent).toContain('You · received in writing');
+    expect(document.body.textContent).toContain(
+      'Notified in writing by Teachers Service Commission',
+    );
+    expect(document.body.textContent).toMatch(/Notified in writing \d/);
   });
 });
 

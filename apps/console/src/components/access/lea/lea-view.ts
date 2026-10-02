@@ -33,6 +33,20 @@ export function leaStep(request: Pick<LeaRequest, 'status'>, readOnly: boolean):
   }
 }
 
+/**
+ * A grant whose declarant has no account and is not told yet: the access officer serves the
+ * notice in writing and records it (spec 10 decision 2).
+ */
+export function awaitingLeaNotice(
+  request: Pick<LeaRequest, 'status' | 'declarantOnboarded' | 'declarantNotifiedAt'>,
+): boolean {
+  return (
+    request.status === 'granted' &&
+    request.declarantOnboarded === false &&
+    request.declarantNotifiedAt === null
+  );
+}
+
 /** Whether the request still waits for a decision. */
 export function isOpenLea(request: Pick<LeaRequest, 'status'>): boolean {
   return request.status === 'received' || request.status === 'verified';
@@ -84,7 +98,10 @@ export function leaTimelineOf(request: LeaRequest): TimelineEntry[] {
               : undefined,
         };
       case 'notified':
-        return { ...base, title: m.notifiedAfterGrant };
+        return {
+          ...base,
+          title: entry.inWriting ? m.notifiedAfterGrantInWriting : m.notifiedAfterGrant,
+        };
       case 'downloaded':
         return { ...base, actor: entry.actor ? officerOf(request) : null };
       default:
@@ -112,8 +129,7 @@ const ACTION_COPY = {
   closed: 'The request is closed. The page shows it now.',
   accountInactive:
     'The account this request came from is no longer an active officer account of its agency. Nothing was recorded: deny the request instead.',
-  notOnboarded:
-    'The officer has not onboarded, so they cannot be told after a grant. Choose an onboarded record.',
+  notOnRoster: "That record is not on the Commission's roster. Search again.",
   directoryUnavailable:
     'The directory cannot be reached right now. Nothing was recorded. Try again.',
   saveFailed: 'We could not save this. Try again.',
@@ -123,6 +139,8 @@ const CONFLICTS: Record<string, string> = {
   'officer-resolved': ACTION_COPY.verifiedAlready,
   'request-decided': ACTION_COPY.decided,
   'request-closed': ACTION_COPY.closed,
+  'declarant-notified': 'The declarant is told already. The page shows it now.',
+  'not-under-decision': ACTION_COPY.stale,
 };
 
 export function leaActionFailure(error: ServiceError<AccessProblem>): LeaActionFailure {
@@ -152,7 +170,7 @@ export function leaActionFailure(error: ServiceError<AccessProblem>): LeaActionF
       : { ...failure, message: ACTION_COPY.accountInactive };
   }
   if (problem.status === 400 && problem.errors?.some((each) => each.path === 'rosterRecordId')) {
-    return { ...failure, message: ACTION_COPY.notOnboarded, record: true };
+    return { ...failure, message: ACTION_COPY.notOnRoster, record: true };
   }
   return { ...failure, message: ACTION_COPY.saveFailed };
 }

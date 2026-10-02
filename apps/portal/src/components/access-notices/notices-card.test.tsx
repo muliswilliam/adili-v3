@@ -71,7 +71,7 @@ describe('Access requests', () => {
     const notices = await seededNotices();
     render(<NoticesList notices={notices} page={1} now={NOW} onPage={vi.fn()} />);
     const open = screen.getByRole('list', { name: 'Open' });
-    expect(within(open).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(open).getAllByRole('listitem')).toHaveLength(3);
     const earlier = within(screen.getByRole('list', { name: 'Earlier' })).getAllByRole('link');
     expect(earlier).toHaveLength(8);
     expect(earlier.map((link) => link.textContent)).toEqual([

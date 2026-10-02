@@ -51,6 +51,7 @@ describe('listNotices', () => {
     if (result.status !== 'ok') throw new Error(result.status);
     expect(result.notices.map((notice) => notice.requestId)).toEqual([
       IDS.awaiting,
+      IDS.inWriting,
       IDS.closing,
       IDS.closedNone,
       IDS.closedObjected,
@@ -73,6 +74,7 @@ describe('listNotices', () => {
       'commission',
       'decidedAt',
       'kind',
+      'noticeChannel',
       'notifiedAt',
       'outcome',
       'reference',

@@ -265,9 +265,10 @@ function packageReadyEmail(params: PackageReadyParams) {
 
 /**
  * What the access officer is reminded to do: verify a passport applicant (a request held until
- * they do), identify the officer a request names, or decide.
+ * they do), identify the officer a request names, record the written notice served on an officer
+ * with no account (r.22(2)), or decide.
  */
-const OFFICER_TASKS = ['verify-applicant', 'identify-officer', 'decide'] as const;
+const OFFICER_TASKS = ['verify-applicant', 'identify-officer', 'record-notice', 'decide'] as const;
 
 const officerReminderParams = z.strictObject({
   reference: requestReference,
@@ -288,12 +289,14 @@ function officerReminderEmail(params: OfficerReminderParams) {
   const task = {
     'verify-applicant': `Request ${params.reference} to ${params.commissionName} is waiting for you to verify the applicant's identity. The officer it names cannot be identified, nor the request decided, until you do.`,
     'identify-officer': `Request ${params.reference} to ${params.commissionName} is waiting for you to identify the officer it names. The declarant cannot be notified, nor the request decided, until you do.`,
+    'record-notice': `Request ${params.reference} to ${params.commissionName} names an officer who has no Adili account. Serve them a written notice and record the day you did: their window for representations runs from it, and the request cannot be decided before it closes.`,
     decide: `Request ${params.reference} to ${params.commissionName} is waiting for your decision.`,
   }[params.task];
   return email(
     {
       'verify-applicant': `Reminder: verify the applicant for ${params.reference}`,
       'identify-officer': `Reminder: identify the officer for ${params.reference}`,
+      'record-notice': `Reminder: record the written notice for ${params.reference}`,
       decide: `Reminder: decide ${params.reference} by ${longDate(params.dueDate)}`,
     }[params.task],
     [
@@ -459,6 +462,7 @@ export const accessTemplates = {
         text: {
           'verify-applicant': `Adili: verify the applicant for request ${params.reference}. Decision due ${longDate(params.dueDate)}.`,
           'identify-officer': `Adili: identify the officer for request ${params.reference}. Decision due ${longDate(params.dueDate)}.`,
+          'record-notice': `Adili: record the written notice for request ${params.reference}. Decision due ${longDate(params.dueDate)}.`,
           decide: `Adili: decide request ${params.reference} by ${longDate(params.dueDate)} (${daysLeft(params.daysLeft)}).`,
         }[params.task],
       }),

@@ -1717,6 +1717,82 @@ paths:
       x-audited-read:
         action: roster.record.pulled
         resource: roster-record
+  /internal/v1/commissions/{slug}/roster/records/{recordId}/onboarding-invitations:
+    post:
+      tags:
+        - internal
+      summary: Invite a roster record's officer to set up their declarant account (services)
+      description: Service tokens with scope directory:internal, acting for the Commission in X-Acting-Tenant; audited. By email and SMS to the contacts the roster holds (whichever it has), templates `onboarding-invitation-email` and `onboarding-invitation-sms`, linking the portal's onboarding for the Commission; the contacts are never returned. The access service calls it when a request names an officer who has not onboarded (spec 10). Once per Idempotency-Key.
+      operationId: internalInviteRosterRecord
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: slug
+          required: true
+          in: path
+          schema:
+            $ref: '#/components/schemas/Slug'
+        - name: recordId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OnboardingInvitation'
+        '400':
+          description: recordId is not a UUID, or no Idempotency-Key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such record in the acting tenant's Commission
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: 'Problem code `already-onboarded`: the officer has an account'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The notifications service cannot be reached; nothing was recorded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /internal/v1/commissions/{slug}/roster/records/{recordId}/national-id:
     get:
       tags:
@@ -4786,6 +4862,7 @@ components:
             - not-under-decision
             - not-pending-verification
             - lea-account-inactive
+            - declarant-notified
             - representations-closed
             - download-expired
             - scope-exceeds-request
@@ -4859,6 +4936,7 @@ components:
             - not-under-decision
             - not-pending-verification
             - lea-account-inactive
+            - declarant-notified
             - representations-closed
             - download-expired
             - scope-exceeds-request
@@ -5450,6 +5528,31 @@ components:
         - ofr
         - onboardedAt
         - updatedAt
+    OnboardingInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rosterRecordId:
+          type: string
+          format: uuid
+        channels:
+          type: array
+          items:
+            type: string
+            enum:
+              - email
+              - sms
+          description: The channels notifications sent it on; empty when the roster holds no contact, or none could be reached
+        sentAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - rosterRecordId
+        - channels
+        - sentAt
     InternalRosterRecordPage:
       type: object
       properties:
@@ -6718,6 +6821,7 @@ components:
             - not-under-decision
             - not-pending-verification
             - lea-account-inactive
+            - declarant-notified
             - representations-closed
             - download-expired
             - scope-exceeds-request

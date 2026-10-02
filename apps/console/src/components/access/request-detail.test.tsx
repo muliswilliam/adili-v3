@@ -5,12 +5,20 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  enterWrittenRepresentations,
   findRosterCandidates,
   getRepresentationAttachmentLink,
+  recordAccessWrittenNotice,
   resolveRequestedOfficer,
   verifyApplicantIdentity,
 } from '../../server/access-requests';
-import { loadRequest, resolveOfficer, searchRoster } from '../../server/access-requests.server';
+import {
+  enterRepresentations,
+  loadRequest,
+  recordWrittenNotice,
+  resolveOfficer,
+  searchRoster,
+} from '../../server/access-requests.server';
 import {
   MOCK_REQUEST_IDS as R,
   mockAccessClient,
@@ -50,6 +58,10 @@ vi.mock('../../server/access-requests', () => ({
   resolveRequestedOfficer: vi.fn(),
   verifyApplicantIdentity: vi.fn(),
   getRepresentationAttachmentLink: vi.fn(),
+  recordAccessWrittenNotice: vi.fn(),
+  enterWrittenRepresentations: vi.fn(),
+  createRepresentationScanUpload: vi.fn(),
+  completeRepresentationScan: vi.fn(),
 }));
 
 const client = () => mockAccessClient([ACCESS_OFFICER]);
@@ -95,7 +107,17 @@ beforeEach(() => {
   vi.mocked(resolveRequestedOfficer).mockImplementation(({ data }) =>
     resolveOfficer(client(), data.requestId, data.rosterRecordId, data.idempotencyKey),
   );
+  vi.mocked(recordAccessWrittenNotice).mockImplementation(({ data }) =>
+    recordWrittenNotice(client(), data.requestId, data.notifiedOn, data.idempotencyKey),
+  );
+  vi.mocked(enterWrittenRepresentations).mockImplementation(({ data }) =>
+    enterRepresentations(client(), data.requestId, data.input, data.idempotencyKey),
+  );
 });
+
+/** Today in Nairobi, `YYYY-MM-DD`, and as the date field takes it. */
+const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
+const typed = (iso: string) => iso.split('-').reverse().join('/');
 
 describe('RequestDetailView (spec 10 FE-5)', () => {
   it('renders Form K by part, with how the applicant was identified', async () => {
@@ -124,10 +146,10 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     });
     fireEvent.submit(formOf(within(card).getByRole('searchbox')));
     const results = await within(card).findByRole('list', { name: 'Roster records' });
-    // A record that has not onboarded cannot be chosen: no declarant to notify.
+    // A record that has not onboarded is marked; it can be chosen, to be served in writing.
     const adhiambo = within(results).getByText('Josephine Adhiambo Ouma').closest('li');
     expect(adhiambo?.textContent).toContain('Not onboarded');
-    expect(within(adhiambo as HTMLElement).queryByRole('button')).toBeNull();
+    expect(adhiambo?.textContent).toContain('you serve the notice in writing');
 
     fireEvent.click(within(results).getByRole('button', { name: 'Select Josephine Akinyi Ouma' }));
     const dialog = await screen.findByRole('dialog', {
@@ -203,7 +225,128 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(await screen.findByText('Request closed. The applicant has been told.')).toBeTruthy();
   });
 
-  it('keeps the dialog open with the reason when the record cannot be notified', async () => {
+  it('decision 2: identifying an officer with no account says they are invited and served in writing', async () => {
+    renderDetail(await viewOf(R.identify));
+    const search = within(side()).getByRole('searchbox');
+    fireEvent.change(search, { target: { value: 'Adhiambo' } });
+    fireEvent.submit(formOf(search));
+    fireEvent.click(await screen.findByRole('button', { name: 'Select Josephine Adhiambo Ouma' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Identify as Josephine Adhiambo Ouma?',
+    });
+    expect(dialog.textContent).toContain('They are invited to onboard');
+    expect(dialog.textContent).toContain('You serve the notice in writing');
+    expect(dialog.textContent).not.toContain('The declarant is notified');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Identify' }));
+    expect(
+      await screen.findByText(
+        'Josephine Adhiambo Ouma identified. Serve the notice in writing next.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('decision 2: records the day the written notice was served, within its bounds', async () => {
+    renderDetail(await viewOf(R.noAccount));
+    const card = within(side()).getByRole('region', { name: 'Notify in writing' });
+    expect(card.textContent).toContain('Samuel Kiprotich Rotich has no Adili account');
+    expect(card.textContent).toMatch(/Invited to onboard on /);
+    const officer = within(side()).getByRole('region', { name: 'officer' });
+    expect(officer.textContent).toContain('Not onboarded');
+    expect(officer.textContent).toContain('Awaiting written notice');
+    // No "Notifying the declarant" spinner: nothing polls.
+    expect(within(side()).queryByText(/Notifying the declarant/)).toBeNull();
+
+    const field = within(card).getByRole('textbox', { name: /Day the notice was served/ });
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    expect(within(card).getByText('Enter the day the notice was served.')).toBeTruthy();
+    fireEvent.change(field, { target: { value: '01/01/2099' } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    expect(within(card).getByText('The day cannot be in the future.')).toBeTruthy();
+    fireEvent.change(field, { target: { value: '01/01/2020' } });
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    expect(
+      within(card).getByText(/cannot be before .*when the officer was identified/),
+    ).toBeTruthy();
+    expect(vi.mocked(recordAccessWrittenNotice)).not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: typed(TODAY) } });
+    expect(within(card).getByText(/Representations will close at the end of /)).toBeTruthy();
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    await waitFor(() => {
+      expect(vi.mocked(recordAccessWrittenNotice)).toHaveBeenCalledWith({
+        data: {
+          requestId: R.noAccount,
+          notifiedOn: TODAY,
+          idempotencyKey: expect.any(String) as unknown,
+        },
+      });
+    });
+    expect(
+      await screen.findByText('Written notice recorded. The window for representations is open.'),
+    ).toBeTruthy();
+  });
+
+  it('decision 2: the supervisor waits for the written notice and takes no step', async () => {
+    renderDetail(await viewOf(R.noAccount), true);
+    expect(
+      within(side()).getByText('Waiting for the access officer to record the written notice.'),
+    ).toBeTruthy();
+    expect(within(side()).queryByRole('button')).toBeNull();
+  });
+
+  it('decision 2: notified in writing, with the representations received in writing', async () => {
+    renderDetail(await viewOf(R.writtenNotice));
+    const officer = within(side()).getByRole('region', { name: 'officer' });
+    expect(officer.textContent).toMatch(/In writing, served /);
+    expect(officer.textContent).toMatch(/Recorded by Lucy Wambui/);
+    const reps = within(side()).getByRole('region', { name: 'Representations' });
+    expect(within(reps).getByText('Received in writing')).toBeTruthy();
+    expect(within(reps).getByText(/^Entered by Lucy Wambui · /)).toBeTruthy();
+    const register = screen.getByRole('list', { name: 'Access register' });
+    expect(within(register).getByText('Declarant notified in writing')).toBeTruthy();
+    expect(within(register).getByText('Representations received in writing')).toBeTruthy();
+
+    fireEvent.click(within(reps).getByRole('button', { name: 'Update from a new letter' }));
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Representations received in writing',
+    });
+    expect(within(dialog).getByRole<HTMLInputElement>('radio', { name: /Object/ }).checked).toBe(
+      true,
+    );
+    fireEvent.click(within(dialog).getByRole('radio', { name: /Add context/ }));
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Representations/ }), {
+      target: { value: '' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save representations' }));
+    expect(within(dialog).getByText('Enter the representations, or choose Consent.')).toBeTruthy();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: /Representations/ }), {
+      target: { value: 'A second letter adds context.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save representations' }));
+    await waitFor(() => {
+      expect(vi.mocked(enterWrittenRepresentations)).toHaveBeenCalledWith({
+        data: {
+          requestId: R.writtenNotice,
+          input: {
+            stance: 'context',
+            text: 'A second letter adds context.',
+            attachments: ['a11e0000-0000-4000-8000-000000000031'],
+          },
+          idempotencyKey: expect.any(String) as unknown,
+        },
+      });
+    });
+    expect(await screen.findByText('Representations saved as received in writing.')).toBeTruthy();
+  });
+
+  it('decision 2: the supervisor reads representations received in writing but enters none', async () => {
+    renderDetail(await viewOf(R.writtenNotice), true);
+    const reps = within(side()).getByRole('region', { name: 'Representations' });
+    expect(within(reps).getByText('Received in writing')).toBeTruthy();
+    expect(within(reps).queryByRole('button', { name: /letter|received in writing/ })).toBeNull();
+  });
+
+  it("keeps the dialog open with the reason when the record is not the Commission's", async () => {
     vi.mocked(resolveRequestedOfficer).mockResolvedValueOnce({
       ok: false,
       error: {
@@ -212,7 +355,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
           type: 'about:blank',
           title: 'Bad Request',
           status: 400,
-          errors: [{ path: 'rosterRecordId', message: 'not onboarded' }],
+          errors: [{ path: 'rosterRecordId', message: 'is not a roster record' }],
         },
       },
     });
@@ -223,7 +366,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Select Peter Omondi Ouma' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Identify and notify' }));
-    expect(await within(dialog).findByText(/has not onboarded/)).toBeTruthy();
+    expect(await within(dialog).findByText(/not on the Commission's roster/)).toBeTruthy();
     expect(invalidate).not.toHaveBeenCalled();
   });
 

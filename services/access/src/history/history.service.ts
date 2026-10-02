@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Principal } from '@adili/api-kit';
 import { DATABASE, withPerson } from '@adili/data-access';
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, or } from 'drizzle-orm';
 
 import { declarantPersonId } from '../access.js';
 import type { AccessDatabase } from '../db/database.js';
@@ -24,7 +24,9 @@ import {
  * register entries about the declarant, as they may see them. Read through the person axis, so
  * row-level security already hides requests about others, Form K requests not yet notified and
  * law enforcement requests not granted; the kinds and times each subject shows from are applied
- * here on top.
+ * here on top. A request's entries are the declarant's by the request (resolved to them), not by
+ * each entry's person: entries recorded before an officer with no account onboarded carry none
+ * (spec 10 decision 2), and show once the request is linked to them.
  */
 @Injectable()
 export class HistoryService {
@@ -34,10 +36,30 @@ export class HistoryService {
   async list(principal: Principal): Promise<AccessHistoryEntry[]> {
     const personId = declarantPersonId(principal);
     return withPerson(this.db, { personId, subject: principal.subject }, async (tx) => {
+      const formKAbout = tx
+        .select({ id: accessRequests.id })
+        .from(accessRequests)
+        .where(eq(accessRequests.resolvedPersonId, personId));
+      const leaAbout = tx
+        .select({ id: leaRequests.id })
+        .from(leaRequests)
+        .where(eq(leaRequests.resolvedPersonId, personId));
       const entries = await tx
         .select()
         .from(accessRegister)
-        .where(eq(accessRegister.personId, personId))
+        .where(
+          or(
+            eq(accessRegister.personId, personId),
+            and(
+              eq(accessRegister.subjectKind, 'access-request'),
+              inArray(accessRegister.subjectId, formKAbout),
+            ),
+            and(
+              eq(accessRegister.subjectKind, 'lea-request'),
+              inArray(accessRegister.subjectId, leaAbout),
+            ),
+          ),
+        )
         .orderBy(desc(accessRegister.at), desc(accessRegister.id));
       const ids = (kind: RegisterRow['subjectKind']) => [
         ...new Set(entries.filter((row) => row.subjectKind === kind).map((row) => row.subjectId)),

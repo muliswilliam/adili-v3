@@ -12,9 +12,10 @@ import {
   setAccessMockLatency,
 } from '../../../server/access/mock.server';
 import type { LeaRequest } from '../../../server/access/types';
-import { findLeaRosterCandidates, verifyLea } from '../../../server/lea-requests';
+import { findLeaRosterCandidates, recordLeaNotice, verifyLea } from '../../../server/lea-requests';
 import {
   loadLeaRequest,
+  recordLeaWrittenNotice,
   searchLeaRoster,
   verifyLeaRequest,
   withdrawLeaRequest,
@@ -50,6 +51,7 @@ vi.mock('../../../server/access-requests', () => ({}));
 vi.mock('../../../server/lea-requests', () => ({
   findLeaRosterCandidates: vi.fn(),
   verifyLea: vi.fn(),
+  recordLeaNotice: vi.fn(),
 }));
 
 const client = () => mockAccessClient([ACCESS_OFFICER]);
@@ -81,6 +83,9 @@ afterAll(() => {
 });
 beforeEach(() => {
   resetAccessMock();
+  vi.mocked(recordLeaNotice).mockImplementation(({ data }) =>
+    recordLeaWrittenNotice(client(), data.requestId, data.notifiedOn, data.idempotencyKey),
+  );
   invalidate.mockClear();
   vi.mocked(findLeaRosterCandidates).mockImplementation(({ data }) =>
     searchLeaRoster(client(), data.requestId, data.q),
@@ -203,5 +208,55 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(within(side()).queryByRole('region', { name: 'Verify' })).toBeNull();
     expect(side().textContent).toContain('Waiting for the access officer to verify.');
     expect(screen.getByText('Read only')).toBeTruthy();
+  });
+
+  it('decision 2: a grant to an officer with no account: the access officer records the written notice', async () => {
+    renderDetail(await requestOf(L.noAccount));
+    expect(
+      screen.getByText(
+        'The declarant has no Adili account: serve them a written notice of the grant and record the day.',
+      ),
+    ).toBeTruthy();
+    const card = within(side()).getByRole('region', { name: 'Notify in writing' });
+    expect(card.textContent).toContain('Samuel Kiprotich Rotich has no Adili account');
+    expect(card.textContent).toContain('never its reason');
+    // No window for representations after a law enforcement grant.
+    const field = within(card).getByRole('textbox', { name: /Day the notice was served/ });
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(
+      new Date(),
+    );
+    fireEvent.change(field, { target: { value: today.split('-').reverse().join('/') } });
+    expect(within(card).queryByText(/Representations will close/)).toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'Record written notice' }));
+    await waitFor(() => {
+      expect(vi.mocked(recordLeaNotice)).toHaveBeenCalledWith({
+        data: {
+          requestId: L.noAccount,
+          notifiedOn: today,
+          idempotencyKey: expect.any(String) as unknown,
+        },
+      });
+    });
+    expect(await screen.findByText('Written notice recorded.')).toBeTruthy();
+    const after = await requestOf(L.noAccount);
+    expect(after.declarantNotice).toMatchObject({ channel: 'written', notifiedOn: today });
+  });
+
+  it('decision 2: the supervisor waits for the written notice of the grant', async () => {
+    renderDetail(await requestOf(L.noAccount), true);
+    expect(side().textContent).toContain(
+      'Waiting for the access officer to record the written notice of the grant.',
+    );
+    expect(within(side()).queryByRole('region', { name: 'Notify in writing' })).toBeNull();
+  });
+
+  it('decision 2: verifies to a roster record with no account', async () => {
+    renderDetail(await requestOf(L.received));
+    const search = within(side()).getByRole('searchbox');
+    fireEvent.change(search, { target: { value: 'Adhiambo' } });
+    const form = search.closest('form');
+    if (form) fireEvent.submit(form);
+    const option = await within(side()).findByRole('radio', { name: /Josephine Adhiambo Ouma/ });
+    expect((option as HTMLInputElement).disabled).toBe(false);
   });
 });

@@ -21,7 +21,21 @@ export const en = {
   // Who is told
   toldAfterGrant: 'The declarant is told only after a grant.',
   declarantNotified: (date: string) => `Declarant notified after grant, on ${date}.`,
+  declarantNotifiedInWriting: (date: string) =>
+    `Declarant notified in writing after grant, served ${date}.`,
   declarantBeingNotified: 'The declarant is being notified of the grant.',
+  declarantNoAccount:
+    'The declarant has no Adili account: serve them a written notice of the grant and record the day.',
+
+  // Written notice of the grant (officer with no account)
+  noticeIntro: (name: string) =>
+    `${name} has no Adili account, so the grant is told on paper (Regulation 23(2)): the agency and that access was granted, never its reason. Serve the notice, then record the day it was served.`,
+  noticeDayEarly: (date: string) =>
+    `The day cannot be before ${date}, when the request was granted.`,
+  noticeDayHint: 'Not in the future, nor before the grant.',
+  noticeRecorded: 'Written notice recorded.',
+  waitingNotice: 'Waiting for the access officer to record the written notice of the grant.',
+  notifiedAfterGrantInWriting: 'Declarant notified in writing after grant',
   notToldDenied: (agency: string) => `The declarant was not told. ${agency} received the reasons.`,
   notToldWithdrawn: 'The declarant was not told. The request was withdrawn before a decision.',
 
@@ -71,7 +85,7 @@ export const en = {
   provenanceRequired: 'Confirm the request comes from the agency account it shows.',
   reasonRequired: 'Confirm the request states its reason.',
   onTheRoster: 'Officer on the roster',
-  notOnboardedHint: 'Has no declarant account to be told on.',
+  notOnboardedHint: 'No account yet: you tell them in writing after a grant.',
   recordRequired: 'Choose the roster record of the officer sought.',
   note: 'Note',
   notePlaceholder: 'What you checked',

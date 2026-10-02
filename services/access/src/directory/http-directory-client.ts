@@ -12,6 +12,7 @@ import {
   DirectoryClient,
   DirectoryUnavailable,
   type LeaOfficerFacts,
+  type OnboardingInvitationFacts,
   type RosterCandidateFacts,
   type RosterRecordFacts,
   ROSTER_SEARCH_LIMIT,
@@ -70,6 +71,11 @@ const rosterPageSchema = z.object({
       state: z.string(),
     }),
   ),
+});
+
+const invitationSchema = z.object({
+  channels: z.array(z.enum(['email', 'sms'])),
+  sentAt: z.iso.datetime({ offset: true }),
 });
 
 const staffSchema = z.object({
@@ -233,6 +239,32 @@ export class HttpDirectoryClient extends DirectoryClient {
     if (found === null) return null;
     const { id, personnelFileNumber, fullName, personId } = found;
     return { id, personnelFileNumber, fullName, personId: personId ?? null };
+  }
+
+  async inviteToOnboard(
+    slug: string,
+    recordId: string,
+    idempotencyKey: string,
+  ): Promise<OnboardingInvitationFacts | 'onboarded' | null> {
+    const found = await this.directory.call(
+      (api) =>
+        api.POST(
+          '/internal/v1/commissions/{slug}/roster/records/{recordId}/onboarding-invitations',
+          {
+            params: {
+              path: { slug, recordId },
+              header: { 'X-Acting-Tenant': slug, 'Idempotency-Key': idempotencyKey },
+            },
+          },
+        ),
+      {
+        status: 200,
+        schema: invitationSchema,
+        otherwise: { 404: none, 409: (): 'onboarded' => 'onboarded' },
+      },
+    );
+    if (found === null || found === 'onboarded') return found;
+    return { channels: [...found.channels], sentAt: new Date(found.sentAt) };
   }
 
   async searchRoster(slug: string, search: string): Promise<RosterCandidateFacts[]> {

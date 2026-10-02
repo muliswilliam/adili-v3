@@ -58,6 +58,8 @@ export const MOCK_NOTICE_IDS = {
   withdrawn: 'b7e10000-0000-4000-8000-000000000008',
   lea: 'b7e10000-0000-4000-8000-000000000009',
   leaPartial: 'b7e10000-0000-4000-8000-000000000010',
+  /** Served on paper before the declarant had an account; their letter entered by the officer. */
+  inWriting: 'b7e10000-0000-4000-8000-000000000011',
 } as const;
 
 const scope = (
@@ -97,8 +99,17 @@ function sent(
   text: string,
   at: string,
   attachments: Representations['attachments'] = [],
+  receivedInWriting = false,
 ): Representations {
-  return { stance, text, attachments, submittedAt: at, updatedAt: at };
+  return {
+    stance,
+    text,
+    attachments,
+    submittedAt: at,
+    updatedAt: at,
+    receivedInWriting,
+    recordedBy: null,
+  };
 }
 
 function seed(now: number) {
@@ -122,6 +133,7 @@ function seed(now: number) {
     canRespond: false,
     representations: null,
     decision: null,
+    noticeChannel: 'online',
     ...fields,
   });
   const lea = (
@@ -138,6 +150,7 @@ function seed(now: number) {
     decidedAt,
     // The declarant hears of a grant shortly after it.
     notifiedAt: new Date(Date.parse(decidedAt) + HOUR).toISOString(),
+    noticeChannel: 'online',
     ...fields,
   });
   const ids = MOCK_NOTICE_IDS;
@@ -153,6 +166,26 @@ function seed(now: number) {
       applicantName: 'Daniel Ochieng Otieno',
       purposeInGeneralTerms: 'A tenant’s claim over rent paid to a school staff housing scheme',
       scope: scope([2025, 2026], false, false, ['income', 'assets']),
+    }),
+    notice(ids.inWriting, 51, ago(4, 9), {
+      status: 'awaiting-representations',
+      noticeChannel: 'written',
+      canRespond: true,
+      applicantName: 'Peter Kiprono Langat',
+      purposeInGeneralTerms: 'Reporting on bursary allocations by school boards in Nakuru',
+      scope: scope([2026], false, false, ['income', 'assets']),
+      representations: sent(
+        'object',
+        'I received the Commission’s letter on my return from leave. The bursary funds were never in my account: they were paid to the schools directly by the county.',
+        ago(2, 6),
+        [
+          {
+            uploadId: 'c0de0000-0000-4000-8000-000000000010',
+            fileName: 'Letter to the Commission, scanned.pdf',
+          },
+        ],
+        true,
+      ),
     }),
     notice(ids.closedNone, 47, ago(9), {
       applicantName: 'Grace Njeri Mwangi',
@@ -312,6 +345,9 @@ function save(id: string, body: unknown, key: string | null): Response {
     })),
     submittedAt: found.representations?.submittedAt ?? at,
     updatedAt: at,
+    // Saved online by the declarant now, whoever entered the previous ones.
+    receivedInWriting: false,
+    recordedBy: null,
   };
   if (stance === 'consent') {
     found.status = 'under-decision';

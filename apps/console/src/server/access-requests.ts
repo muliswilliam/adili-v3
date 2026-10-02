@@ -2,7 +2,16 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { queueSearchSchema } from '../components/access/queue-query';
-import { decisionInputSchema } from './access/schemas';
+import {
+  PROOF_CONTENT_TYPES,
+  PROOF_MAX_BYTES,
+} from '../components/access/self-access/proof-upload';
+import { selfAccessDocumentsClient } from './access/documents-client.server';
+import {
+  decisionInputSchema,
+  representationsInputSchema,
+  writtenNoticeSchema,
+} from './access/schemas';
 import type {
   AttachmentDownload,
   OfficerRequestView,
@@ -13,14 +22,22 @@ import {
   type AccessResult,
   attachmentLink,
   decideRequest,
+  enterRepresentations,
   loadQueue,
   loadRequest,
+  recordWrittenNotice,
   resolveOfficer,
   searchRoster,
   verifyApplicant,
 } from './access-requests.server';
-import { asAccessViewer } from './as-viewer.server';
+import { asAccessViewer, withViewerClient } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
+import type { Upload, UploadReservation } from './documents/client';
+import {
+  completeProofUpload,
+  reserveProofUpload,
+  type SelfAccessResult,
+} from './self-access.server';
 
 /**
  * Server functions of the Access requests workspace (spec 10 FE-5), called as the signed-in
@@ -72,6 +89,49 @@ export const decideAccessRequest = createServerFn({ method: 'POST' })
   .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
     asAccessViewer((client) =>
       decideRequest(client, data.requestId, data.input, data.idempotencyKey),
+    ),
+  );
+
+export const recordAccessWrittenNotice = createServerFn({ method: 'POST' })
+  .validator(writtenNoticeSchema.extend({ requestId: id, idempotencyKey: id }))
+  .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
+    asAccessViewer((client) =>
+      recordWrittenNotice(client, data.requestId, data.notifiedOn, data.idempotencyKey),
+    ),
+  );
+
+export const enterWrittenRepresentations = createServerFn({ method: 'POST' })
+  .validator(z.object({ requestId: id, input: representationsInputSchema, idempotencyKey: id }))
+  .handler(({ data }): Promise<AccessResult<OfficerRequestView>> =>
+    asAccessViewer((client) =>
+      enterRepresentations(client, data.requestId, data.input, data.idempotencyKey),
+    ),
+  );
+
+/**
+ * A scan of the declarant's letter, uploaded as the access officer's own `access-representation`
+ * file (scanned by documents) before it is attached to representations received in writing.
+ */
+export const createRepresentationScanUpload = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      contentType: z.enum(PROOF_CONTENT_TYPES),
+      declaredSize: z.int().min(1).max(PROOF_MAX_BYTES),
+      fileName: z.string().min(1).max(255),
+      idempotencyKey: id,
+    }),
+  )
+  .handler(({ data: { idempotencyKey, ...input } }): Promise<SelfAccessResult<UploadReservation>> =>
+    withViewerClient(selfAccessDocumentsClient, (client) =>
+      reserveProofUpload(client, input, idempotencyKey),
+    ),
+  );
+
+export const completeRepresentationScan = createServerFn({ method: 'POST' })
+  .validator(z.object({ id, idempotencyKey: id }))
+  .handler(({ data }): Promise<SelfAccessResult<Upload>> =>
+    withViewerClient(selfAccessDocumentsClient, (client) =>
+      completeProofUpload(client, data.id, data.idempotencyKey),
     ),
   );
 

@@ -1,4 +1,4 @@
-import type { RegisterEntry as TimelineEntry } from '@adili/ui';
+import { formatDate, type RegisterEntry as TimelineEntry } from '@adili/ui';
 
 import type { AccessProblem, OfficerRequestView, RegisterEntry } from '../../server/access/types';
 import type { ServiceError } from '../../server/service-call';
@@ -16,6 +16,8 @@ export type RequestStep =
   | { kind: 'identify' }
   /** Identified; the workflow is notifying the declarant. */
   | { kind: 'notifying' }
+  /** Identified as an officer with no account: the access officer records the written notice. */
+  | { kind: 'notice' }
   /** The declarant's window for representations is open; the decision waits for it. */
   | { kind: 'window'; windowEndsAt: string }
   /** Representations are closed; the access officer decides. */
@@ -32,7 +34,10 @@ export function requestStep(view: OfficerRequestView, readOnly: boolean): Reques
       return readOnly ? { kind: 'waiting', text: m.waitingVerification } : { kind: 'verify' };
     case 'submitted':
     case 'officer-unresolved':
-      if (view.resolvedRosterRecordId !== null) return { kind: 'notifying' };
+      if (view.resolvedRosterRecordId !== null) {
+        if (!awaitingNotice(view)) return { kind: 'notifying' };
+        return readOnly ? { kind: 'waiting', text: m.waitingNotice } : { kind: 'notice' };
+      }
       return readOnly ? { kind: 'waiting', text: m.waitingIdentify } : { kind: 'identify' };
     case 'awaiting-representations':
       return view.windowEndsAt
@@ -49,6 +54,25 @@ export function requestStep(view: OfficerRequestView, readOnly: boolean): Reques
     case 'withdrawn':
       return { kind: 'withdrawn' };
   }
+}
+
+/**
+ * Resolved to an officer with no account and not notified yet: the access officer serves the
+ * notice in writing and records it (spec 10 decision 2).
+ */
+export function awaitingNotice(
+  view: Pick<OfficerRequestView, 'resolvedRosterRecordId' | 'declarantOnboarded' | 'notice'>,
+): boolean {
+  return (
+    view.resolvedRosterRecordId !== null &&
+    view.declarantOnboarded === false &&
+    view.notice === null
+  );
+}
+
+/** Whether the declarant was notified on paper: the access officer enters what they answer. */
+export function notifiedInWriting(view: Pick<OfficerRequestView, 'notice'>): boolean {
+  return view.notice?.channel === 'written';
 }
 
 /** Whether the request is still running: neither decided nor closed. */
@@ -70,21 +94,73 @@ function actorOf(entry: RegisterEntry): string | null {
   if (entry.kind === 'received' || entry.kind === 'withdrawn' || entry.kind === 'downloaded') {
     return `${entry.actor} (applicant)`;
   }
-  if (entry.kind === 'representations') return `${entry.actor} (declarant)`;
+  // Representations received in writing are entered by the access officer.
+  if (entry.kind === 'representations' && !entry.inWriting) return `${entry.actor} (declarant)`;
   return entry.actor;
 }
+
+/** The register's line for a step done on paper (r.22(2)); the default copy otherwise. */
+export const IN_WRITING_TITLES: Partial<Record<RegisterEntry['kind'], string>> = {
+  notified: 'Declarant notified in writing',
+  representations: 'Representations received in writing',
+};
 
 /** The access register as the timeline primitive draws it. */
 export function timelineOf(
   view: Pick<OfficerRequestView, 'timeline' | 'decision'>,
 ): TimelineEntry[] {
-  return view.timeline.map((entry) => ({
-    id: entry.id,
-    kind: entry.kind,
-    at: entry.at,
-    actor: actorOf(entry),
-    ...(entry.kind === 'decided' && view.decision ? { outcome: view.decision.outcome } : {}),
-  }));
+  return view.timeline.map((entry) => {
+    const title = entry.inWriting ? IN_WRITING_TITLES[entry.kind] : undefined;
+    return {
+      id: entry.id,
+      kind: entry.kind,
+      at: entry.at,
+      actor: actorOf(entry),
+      ...(title ? { title } : {}),
+      ...(entry.kind === 'decided' && view.decision ? { outcome: view.decision.outcome } : {}),
+    };
+  });
+}
+
+/**
+ * The last instant of a window ending at `endsAt`: a window ending at midnight (a written
+ * notice's) shows as the day before, its last day, not the day it ends at.
+ */
+export function lastInstantOf(endsAt: string): string {
+  return new Date(Date.parse(endsAt) - 1).toISOString();
+}
+
+/** The Nairobi calendar day of an instant, `YYYY-MM-DD`. */
+export function nairobiDay(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date(iso));
+}
+
+/** `days` calendar days after `day` (`YYYY-MM-DD`). */
+export function dayAfter(day: string, days: number): string {
+  const at = new Date(`${day}T12:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
+/** A calendar day (`YYYY-MM-DD`) as the console writes dates. */
+export function formatDay(day: string): string {
+  return formatDate(`${day}T12:00:00+03:00`);
+}
+
+/**
+ * What is wrong with the day a written notice was served: none given, not a real date, in the
+ * future, or before `earliest` (`YYYY-MM-DD`, with the words for it); null when it is fine.
+ */
+export function noticeDayError(
+  day: string | null,
+  details: { invalid: boolean },
+  bounds: { today: string; earliest: string; earliestMessage: (date: string) => string },
+): string | null {
+  if (details.invalid) return m.noticeDayInvalid;
+  if (!day) return m.noticeDayRequired;
+  if (day > bounds.today) return m.noticeDayFuture;
+  if (day < bounds.earliest) return bounds.earliestMessage(formatDay(bounds.earliest));
+  return null;
 }
 
 /** What a failed command says, and whether the page is out of date (reload, do not retry). */
@@ -101,6 +177,8 @@ const CONFLICTS: Record<string, string> = {
   'request-closed': m.requestClosed,
   'request-decided': m.requestDecided,
   'not-pending-verification': m.notPendingVerification,
+  'declarant-notified': m.declarantNotified,
+  'representations-closed': m.representationsClosed,
 };
 
 export function actionFailure(error: ServiceError<AccessProblem>): ActionFailure {
@@ -125,7 +203,7 @@ export function actionFailure(error: ServiceError<AccessProblem>): ActionFailure
     };
   }
   if (problem.status === 400 && problem.errors?.some((each) => each.path === 'rosterRecordId')) {
-    return { message: m.notOnboardedProblem, stale: false, signIn: false };
+    return { message: m.rosterRecordProblem, stale: false, signIn: false };
   }
   return { message: m.saveFailed, stale: false, signIn: false };
 }

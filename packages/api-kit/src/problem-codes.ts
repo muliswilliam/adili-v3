@@ -110,6 +110,8 @@ export const PROBLEM_CODES = {
     status: HttpStatus.CONFLICT,
     title: 'Officer account no longer active',
   },
+  /** Access: the declarant is notified of the request already (online, or in writing). */
+  'declarant-notified': { status: HttpStatus.CONFLICT, title: 'Declarant already notified' },
   /** Access: the declarant's window for representations has closed. */
   'representations-closed': { status: HttpStatus.CONFLICT, title: 'Representations closed' },
   /** Access: the granted package's download window has ended. */

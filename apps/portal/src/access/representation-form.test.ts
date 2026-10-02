@@ -91,6 +91,8 @@ describe('the representations form (S4)', () => {
       attachments: [{ uploadId: UPLOAD, fileName: 'Minutes.pdf' }],
       submittedAt: '2026-09-30T07:00:00Z',
       updatedAt: '2026-09-30T07:00:00Z',
+      receivedInWriting: false,
+      recordedBy: null,
     });
     expect(attachmentRows(form)).toEqual([{ id: UPLOAD, name: 'Minutes.pdf', status: 'linked' }]);
     expect(checkRepresentations(form)).toEqual({

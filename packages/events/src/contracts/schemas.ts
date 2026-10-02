@@ -16,8 +16,12 @@ import {
   type AccessRequestCannotIdentifyData,
   type AccessRequestIdentifiedData,
   type AccessRequestDecidedData,
+  type AccessRequestNotifiedData,
   type AccessRequestReceivedData,
+  type AccessRequestRepresentationsData,
   CANNOT_IDENTIFY_DECLINE_REASON,
+  type LeaRequestNotifiedData,
+  NOTICE_CHANNELS,
 } from './access.js';
 import {
   DISCLOSURE_LEVELS,
@@ -127,6 +131,30 @@ export const accessRequestIdentifiedDataSchema = accessRegisterEventDataSchema.e
   kind: z.literal('identified'),
   rosterRecordId: z.uuid(),
 }) satisfies z.ZodType<AccessRequestIdentifiedData>;
+
+const declarantNoticeFacts = {
+  channel: z.enum(NOTICE_CHANNELS),
+  notifiedOn: z.iso.date().nullable(),
+};
+
+/** `access.request.notified.v1` data: how the declarant was told, and when their window ends. */
+export const accessRequestNotifiedDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('notified'),
+  ...declarantNoticeFacts,
+  windowEndsAt: timestamp,
+}) satisfies z.ZodType<AccessRequestNotifiedData>;
+
+/** `lea.request.notified.v1` data: how the declarant was told of the grant. */
+export const leaRequestNotifiedDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('notified'),
+  ...declarantNoticeFacts,
+}) satisfies z.ZodType<LeaRequestNotifiedData>;
+
+/** `access.request.representations.v1` data: made online, or received in writing. */
+export const accessRequestRepresentationsDataSchema = accessRegisterEventDataSchema.extend({
+  kind: z.literal('representations'),
+  receivedInWriting: z.boolean(),
+}) satisfies z.ZodType<AccessRequestRepresentationsData>;
 
 /**
  * `access.request.cannot-identify.v1` data: Form M section 5 counts the request declined for

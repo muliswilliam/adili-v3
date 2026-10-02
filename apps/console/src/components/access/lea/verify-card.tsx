@@ -38,7 +38,8 @@ interface Errors {
 /**
  * "Verify" (S11, Regs r.23(1)): the access officer confirms the request comes from the agency
  * account it shows and states its reason, finds the officer sought on the Commission's roster
- * (an onboarded record: their declarant is told after a grant) and notes what they checked. A
+ * (their declarant is told after a grant: online, or in writing when they have no account) and
+ * notes what they checked. A
  * request that cannot be verified is denied instead.
  */
 export function LeaVerifyCard({ request }: { request: LeaRequest }) {
@@ -154,6 +155,7 @@ export function LeaVerifyCard({ request }: { request: LeaRequest }) {
             },
           }}
           notOnboardedHint={m.notOnboardedHint}
+          allowNotOnboarded
           withEntity
         />
       </div>

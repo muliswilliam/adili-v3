@@ -48,7 +48,9 @@ function dateLine(notice: DeclarantNotice): string {
   if (notice.kind === 'lea') return COPY.notifiedOn(formatDate(notice.notifiedAt));
   return notice.decision
     ? COPY.decidedOn(formatDate(notice.decision.decidedAt))
-    : COPY.notifiedOn(formatDate(notice.notifiedAt));
+    : notice.noticeChannel === 'written'
+      ? COPY.notifiedInWritingOn(formatDate(notice.notifiedAt))
+      : COPY.notifiedOn(formatDate(notice.notifiedAt));
 }
 
 /**

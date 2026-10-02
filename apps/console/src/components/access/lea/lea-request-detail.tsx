@@ -18,6 +18,7 @@ import {
 } from '@adili/ui';
 import {
   Alert02Icon,
+  File01Icon,
   InformationCircleIcon,
   JusticeScale01Icon,
   Notification03Icon,
@@ -27,6 +28,7 @@ import {
 import { Link } from '@tanstack/react-router';
 
 import type { LeaRequest } from '../../../server/access/types';
+import { recordLeaNotice } from '../../../server/lea-requests';
 import { ReadOnlyBadge } from '../../commissions/badges';
 import { Page } from '../../page';
 import { usePollWhile } from '../../use-poll-while';
@@ -36,7 +38,9 @@ import { StatusBadge } from '../queue-list';
 import { Muted, OutcomeLine, SideCard, WaitingCard } from '../side-cards';
 import { DecidedCard } from '../decision/decided-card';
 import { PackageCard, usePackageState } from '../decision/package-card';
-import { isBreached, isOpenLea, leaStep, leaTimelineOf } from './lea-view';
+import { formatDay, nairobiDay } from '../request-view';
+import { WrittenNoticeCard } from '../written-notice-card';
+import { awaitingLeaNotice, isBreached, isOpenLea, leaStep, leaTimelineOf } from './lea-view';
 import { messages as m } from './messages';
 import { LeaVerifyCard } from './verify-card';
 
@@ -130,6 +134,24 @@ export function LeaRequestDetail({
           {step.kind === 'waiting' ? <WaitingCard text={step.text} /> : null}
           {step.kind === 'decide' ? <DecideCard request={request} readOnly={readOnly} /> : null}
           {step.kind === 'withdrawn' ? <WithdrawnCard request={request} /> : null}
+          {awaitingLeaNotice(request) && request.decision ? (
+            readOnly ? (
+              <WaitingCard text={m.waitingNotice} />
+            ) : (
+              <WrittenNoticeCard
+                intro={m.noticeIntro(request.resolvedName ?? m.officerIdentified)}
+                invitedAt={request.declarantInvitedAt}
+                earliest={nairobiDay(request.decision.decidedAt)}
+                earliestMessage={m.noticeDayEarly}
+                hint={m.noticeDayHint}
+                now={now}
+                success={m.noticeRecorded}
+                record={(notifiedOn, idempotencyKey) =>
+                  recordLeaNotice({ data: { requestId: request.id, notifiedOn, idempotencyKey } })
+                }
+              />
+            )
+          ) : null}
           {request.decision ? <DecidedCard decision={request.decision} /> : null}
           {pkg ? (
             <PackageCard
@@ -147,14 +169,25 @@ export function LeaRequestDetail({
 
 /** Who knows of the request: the declarant only after a grant; the agency always hears. */
 function WhoIsTold({ request }: { request: LeaRequest }) {
+  if (request.status === 'granted' && awaitingLeaNotice(request)) {
+    return (
+      <Alert variant="warning" role="status" className="mb-4">
+        <Icon icon={File01Icon} />
+        <AlertDescription>{m.declarantNoAccount}</AlertDescription>
+      </Alert>
+    );
+  }
   if (request.status === 'granted') {
+    const notice = request.declarantNotice;
     return (
       <Alert variant="success" role="status" className="mb-4">
         <Icon icon={Notification03Icon} />
         <AlertDescription>
-          {request.declarantNotifiedAt
-            ? m.declarantNotified(formatDate(request.declarantNotifiedAt))
-            : m.declarantBeingNotified}
+          {notice?.channel === 'written' && notice.notifiedOn
+            ? m.declarantNotifiedInWriting(formatDay(notice.notifiedOn))
+            : request.declarantNotifiedAt
+              ? m.declarantNotified(formatDate(request.declarantNotifiedAt))
+              : m.declarantBeingNotified}
         </AlertDescription>
       </Alert>
     );

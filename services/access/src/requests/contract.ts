@@ -39,14 +39,17 @@ export interface AccessRequestWorkflowInput {
 /**
  * The signals that tell the workflow the request changed, sent once the transaction that changed
  * it commits: the access officer verified a passport applicant, resolved the officer named (or
- * recorded that they cannot be identified), the declarant consented, the applicant withdrew, the
- * access officer decided. They only save waiting: every wait also reads the request every
+ * recorded that they cannot be identified), the officer resolved to had no account and has
+ * `onboarded` since, the access officer recorded the written notice served on them (`notified`),
+ * the declarant consented, the applicant withdrew, the access officer decided. They only save waiting: every wait also reads the request every
  * `REQUEST_CHECK_INTERVAL` (`requestState`), and the activities read it before acting, so a lost
  * signal delays the workflow, never stalls it.
  */
 export const ACCESS_REQUEST_SIGNALS = [
   'verified',
   'resolved',
+  'onboarded',
+  'notified',
   'consented',
   'withdrawn',
   'decided',
@@ -83,11 +86,13 @@ export type OfficerReminderOutcome = 'sent' | 'skipped' | 'missing';
  * What became of a resolution: the declarant `notified` and their window for representations
  * open until `windowEndsAt`; the officer `cannot-identify` and the applicant told; nothing to do
  * because the request is still `unresolved` (a signal without a resolution behind it), was
- * `withdrawn` meanwhile, or is `missing`.
+ * `withdrawn` meanwhile, or is `missing`; or `awaiting-notice`: the officer resolved to has no
+ * account (invited to onboard), and the declarant is notified once they onboard or the access
+ * officer records the written notice served on them (spec 10 decision 2).
  */
 export type ResolutionOutcome =
   | { outcome: 'notified'; windowEndsAt: string }
-  | { outcome: 'cannot-identify' | 'unresolved' | 'withdrawn' | 'missing' };
+  | { outcome: 'cannot-identify' | 'unresolved' | 'awaiting-notice' | 'withdrawn' | 'missing' };
 
 /**
  * What closing the window did: the request is now `under-decision`, or was `unchanged` (the

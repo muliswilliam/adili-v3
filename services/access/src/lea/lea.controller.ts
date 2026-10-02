@@ -31,6 +31,7 @@ import {
   type RosterCandidatesQuery,
   rosterCandidatesQuery,
 } from '../requests/officer-representation.js';
+import { type WrittenNoticeBody, writtenNoticeBody } from '../written-notice.js';
 import { LeaService } from './lea.service.js';
 import {
   type LeaRequest,
@@ -191,7 +192,7 @@ export class LeaController {
   @ApiOkResponse({ description: 'Verified', schema: schemaRef('LeaRequest') })
   @ApiProblemResponse(
     400,
-    'leaRequestId is not a UUID, the body failed validation, or `rosterRecordId` is not an onboarded roster record of the Commission',
+    'leaRequestId is not a UUID, the body failed validation, or `rosterRecordId` is not a roster record of the Commission',
   )
   @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -206,6 +207,38 @@ export class LeaController {
     @Body(new ZodValidationPipe(verifyLeaRequestBody)) body: VerifyLeaRequestBody,
   ): Promise<LeaRequest> {
     return this.lea.verify(principal, requestId, body);
+  }
+
+  @Post(':leaRequestId/written-notice')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @AcceptIdempotencyKey()
+  @ApiTags('officer')
+  @ApiParam(LEA_REQUEST_ID)
+  @ApiOperation({
+    operationId: 'recordLeaWrittenNotice',
+    summary: 'Record the written notice of a grant served on a declarant with no account',
+    description:
+      'r.23(2), spec 10 decision 2: the officer identified has no declarant account, so the access officer tells them of the grant in writing and records the day it was served (not in the future, not before the grant). The request records the declarant told (`declarantNotice.channel` `written`; `lea.request.notified.v1`). They were invited to onboard; once they do, the notice shows in their account.',
+  })
+  @ApiBody({ required: true, schema: schemaRef('WrittenNotice') })
+  @ApiOkResponse({ description: 'Recorded', schema: schemaRef('LeaRequest') })
+  @ApiProblemResponse(
+    400,
+    'leaRequestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the grant',
+  )
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(
+    409,
+    'Problem code `declarant-notified` (told already), `not-under-decision` (not granted yet) or `request-closed`; or the request was denied, or the declarant has an account (told online)',
+  )
+  recordWrittenNotice(
+    @CurrentPrincipal() principal: Principal,
+    @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Body(new ZodValidationPipe(writtenNoticeBody)) body: WrittenNoticeBody,
+  ): Promise<LeaRequest> {
+    return this.lea.recordWrittenNotice(principal, requestId, body);
   }
 
   @Post(':leaRequestId/decision')

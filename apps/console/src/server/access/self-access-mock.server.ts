@@ -786,6 +786,12 @@ export async function mockSelfAccessDocumentsFetch(request: Request): Promise<Re
   return problem(404, 'Not found');
 }
 
+/** An officer's upload the mock holds (a scan of a letter, a proof), for its file name. */
+export function mockUploadOf(id: string): { fileName: string; uploadedBy: string } | undefined {
+  const upload = uploads.get(id);
+  return upload ? { fileName: upload.fileName, uploadedBy: upload.uploadedBy } : undefined;
+}
+
 /** The bytes of a proof the browser PUT to `/api/mock-uploads/{id}`. */
 export function receiveMockProof(id: string, size: number): Response {
   const upload = uploads.get(id);

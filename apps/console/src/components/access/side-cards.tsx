@@ -19,6 +19,7 @@ import {
 import {
   CheckmarkCircle02Icon,
   Download01Icon,
+  File01Icon,
   JusticeScale01Icon,
   Message01Icon,
   SquareLock02Icon,
@@ -27,7 +28,7 @@ import {
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { getRepresentationAttachmentLink } from '../../server/access-requests';
 import type { OfficerRequestView, Representations } from '../../server/access/types';
@@ -35,7 +36,15 @@ import { downloadFrom } from '../download';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
 import { Muted } from './muted';
-import { lastEntry } from './request-view';
+import {
+  awaitingNotice,
+  formatDay,
+  lastEntry,
+  lastInstantOf,
+  nairobiDay,
+  notifiedInWriting,
+} from './request-view';
+import { WrittenRepresentationsDialog } from './written-representations-dialog';
 
 /** A side card: a title on a hairline header, then its body (the prototype's `.sec-h`/`.sec-b`). */
 export function SideCard({
@@ -107,7 +116,7 @@ export function DecisionCard({
     <SideCard id="decision" title={m.decisionTitle} actions={decisionChip(view)}>
       {windowEndsAt ? (
         <p className="text-sm text-muted-foreground">
-          {m.decisionOpensWhen(formatDate(windowEndsAt))}
+          {m.decisionOpensWhen(formatDate(lastInstantOf(windowEndsAt)))}
         </p>
       ) : readOnly ? (
         <Muted>{m.decisionReadOnly}</Muted>
@@ -172,10 +181,14 @@ export function ClosedCard({ view }: { view: OfficerRequestView }) {
   );
 }
 
-/** The roster record the officer Form K names was identified as, and when they were notified. */
+/**
+ * The roster record the officer Form K names was identified as, and when and how they were
+ * notified: online, or in writing (an officer with no account, invited to onboard meanwhile).
+ */
 export function OfficerCard({ view }: { view: OfficerRequestView }) {
   if (!view.resolvedName) return null;
   const notified = lastEntry(view, 'notified');
+  const notice = view.notice;
   return (
     <SideCard id="officer">
       <dl className="grid gap-3.5 text-sm">
@@ -188,11 +201,38 @@ export function OfficerCard({ view }: { view: OfficerRequestView }) {
             </dd>
           ) : null}
         </div>
+        {view.declarantOnboarded === false ? (
+          <div>
+            <dt className="text-[13px] text-muted-foreground">{m.declarantAccount}</dt>
+            <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+              <Badge variant="warning">{m.accountNone}</Badge>
+              {view.declarantInvitedAt ? (
+                <span className="text-[13px] text-muted-foreground">
+                  {m.accountInvited(formatDay(nairobiDay(view.declarantInvitedAt)))}
+                </span>
+              ) : null}
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt className="text-[13px] text-muted-foreground">{m.notified}</dt>
           <dd className="mt-0.5 font-medium">
-            {notified ? (
+            {notice?.channel === 'written' && notice.notifiedOn ? (
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <Icon icon={File01Icon} className="size-3.5 text-muted-foreground" />
+                  {m.notifiedInWriting(formatDay(notice.notifiedOn))}
+                </span>
+                {notice.recordedBy && notified ? (
+                  <span className="block text-[13px] font-normal text-muted-foreground">
+                    {m.recordedBy(notice.recordedBy, formatDateTime(notified.at))}
+                  </span>
+                ) : null}
+              </>
+            ) : notified ? (
               formatDateTime(notified.at)
+            ) : awaitingNotice(view) ? (
+              <span className="font-normal text-muted-foreground">{m.awaitingNotice}</span>
             ) : (
               <span
                 className="inline-flex items-center gap-2 font-normal text-muted-foreground"
@@ -221,12 +261,27 @@ const STANCE_STYLE: Record<
 /**
  * The declarant's representations (s.36(3)) once they were notified: stance, text and files, or
  * that there are none yet, or none came before the window closed. The supervisor reads them too.
+ * Representations received in writing say so, with who entered them; on a request notified in
+ * writing the access officer enters them while the window is open.
  */
-export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
+export function RepresentationsCard({
+  view,
+  readOnly,
+}: {
+  view: OfficerRequestView;
+  readOnly: boolean;
+}) {
   const { toast } = useToast();
+  const [entering, setEntering] = useState(false);
   if (!view.windowEndsAt) return null;
   const reps = view.representations;
   const open = view.status === 'awaiting-representations';
+  const canEnter = !readOnly && open && notifiedInWriting(view);
+  const when = !reps
+    ? ''
+    : reps.updatedAt !== reps.submittedAt
+      ? m.edited(formatDateTime(reps.updatedAt))
+      : formatDateTime(reps.submittedAt);
 
   const download = async (uploadId: string) => {
     const result = await getRepresentationAttachmentLink({
@@ -245,11 +300,14 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
 
   return (
     <SideCard id="representations" title={m.representationsTitle}>
+      {canEnter && entering ? (
+        <WrittenRepresentationsDialog view={view} open={entering} onOpenChange={setEntering} />
+      ) : null}
       {!reps ? (
         <Muted>
           {open
-            ? m.noneYet(formatDate(view.windowEndsAt))
-            : m.noneReceived(formatDate(view.windowEndsAt))}
+            ? m.noneYet(formatDate(lastInstantOf(view.windowEndsAt)))
+            : m.noneReceived(formatDate(lastInstantOf(view.windowEndsAt)))}
         </Muted>
       ) : (
         <>
@@ -258,12 +316,21 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
               <Icon icon={STANCE_STYLE[reps.stance].icon} strokeWidth={2.2} />
               {m.stance[reps.stance]}
             </Badge>
-            <span className="text-[13px] text-muted-foreground">
-              {reps.updatedAt !== reps.submittedAt
-                ? m.edited(formatDateTime(reps.updatedAt))
-                : formatDateTime(reps.submittedAt)}
-            </span>
+            {reps.receivedInWriting ? (
+              <Badge>
+                <Icon icon={File01Icon} strokeWidth={2.2} />
+                {m.receivedInWriting}
+              </Badge>
+            ) : null}
+            {reps.receivedInWriting ? null : (
+              <span className="text-[13px] text-muted-foreground">{when}</span>
+            )}
           </div>
+          {reps.receivedInWriting ? (
+            <p className="-mt-1 text-[13px] text-muted-foreground">
+              {reps.recordedBy ? `${m.enteredBy(reps.recordedBy)} · ${when}` : when}
+            </p>
+          ) : null}
           {reps.text ? (
             <p className="text-sm leading-relaxed whitespace-pre-line">{reps.text}</p>
           ) : null}
@@ -294,6 +361,17 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
           ) : null}
         </>
       )}
+      {canEnter ? (
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setEntering(true);
+          }}
+        >
+          <Icon icon={File01Icon} />
+          {reps ? m.updateWritten : m.enterWritten}
+        </Button>
+      ) : null}
     </SideCard>
   );
 }

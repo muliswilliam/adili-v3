@@ -138,6 +138,7 @@ function entry(
     actor,
     summary,
     reference,
+    inWriting: false,
   };
 }
 

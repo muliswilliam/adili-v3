@@ -99,17 +99,18 @@ export function toRegisterEntry(
       return {
         ...base,
         title: COPY.askedToSee(who),
-        actor: COPY.notifiedBy(commission),
+        actor: entry.inWriting ? COPY.notifiedInWriting(commission) : COPY.notifiedBy(commission),
         tone: 'brand',
       };
     case 'representations': {
-      if (!isFirstResponse(entry, all)) return { ...base, title: COPY.edited, actor: COPY.you };
+      const actor = entry.inWriting ? COPY.youInWriting : COPY.you;
+      if (!isFirstResponse(entry, all)) return { ...base, title: COPY.edited, actor };
       const notice = notices.find((each) => each.requestId === entry.subjectId);
       const stance = notice?.kind === 'form-k' ? notice.representations?.stance : undefined;
       return {
         ...base,
         title: stance ? STANCES[stance].done.en : COPY.responded,
-        actor: COPY.you,
+        actor,
       };
     }
     case 'decided':

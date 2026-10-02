@@ -35,3 +35,13 @@ export const decisionInputSchema = z.strictObject({
   grounds: groundsSchema.optional(),
   reasons: z.string().trim().min(1).max(DECISION_REASONS_MAX),
 });
+
+/** access.yaml `WrittenNotice`: the day a written notice was served, `YYYY-MM-DD`. */
+export const writtenNoticeSchema = z.strictObject({ notifiedOn: z.iso.date() });
+
+/** access.yaml `RepresentationsInput`, as the officer enters representations received in writing. */
+export const representationsInputSchema = z.strictObject({
+  stance: z.enum(['object', 'consent', 'context']),
+  text: z.string().trim().max(8000),
+  attachments: z.array(z.uuid()).max(10),
+});

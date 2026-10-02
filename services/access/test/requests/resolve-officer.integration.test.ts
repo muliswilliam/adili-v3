@@ -191,23 +191,18 @@ describe('Resolving the officer a request names (S3)', () => {
       expect(cannot.statusCode).toBe(409);
     });
 
-    it('answers 400 at rosterRecordId for a record the Commission does not have, or one not onboarded, and changes nothing', async () => {
+    it('answers 400 at rosterRecordId for a record the Commission does not have, and changes nothing', async () => {
       givenCommissions(api, NOW);
-      const notOnboarded = api.directory.givenRosterRecord('psc', { personId: null });
       const tscRecord = api.directory.givenRosterRecord('tsc');
       const { id } = await submitRequest(api);
 
       const unknown = await resolve(api, id, randomUUID());
       const otherCommission = await resolve(api, id, tscRecord.id);
-      const pending = await resolve(api, id, notOnboarded.id);
 
-      for (const response of [unknown, otherCommission, pending]) {
+      for (const response of [unknown, otherCommission]) {
         expect(response.statusCode, response.body).toBe(400);
         expect(response.json()).toMatchObject({ errors: [{ path: 'rosterRecordId' }] });
       }
-      expect(pending.json<{ errors: { message: string }[] }>().errors[0]?.message).toMatch(
-        /has not onboarded/,
-      );
       expect((await rowOf(api, id)).resolvedRosterRecordId).toBeNull();
     });
 

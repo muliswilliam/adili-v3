@@ -230,6 +230,7 @@ describe('LeaRequestWorkflow and its activities (S11)', () => {
         outcome: 'grant',
         decidedAt: DECIDED_AT,
         notifiedAt: DECIDED_AT,
+        noticeChannel: 'online',
       },
     ]);
     expect(notices.body).not.toContain(GRANT_REASONS);

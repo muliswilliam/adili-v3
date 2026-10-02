@@ -16,9 +16,11 @@ import {
   type AccessRequestIdentifiedData,
   type AccessRequestNotifiedData,
   type AccessRequestReceivedData,
+  type AccessRequestRepresentationsData,
   type AccessSubjectKind,
   LEA_REQUEST_EVENTS,
   type LeaRequestEventKind,
+  type LeaRequestNotifiedData,
 } from '@adili/events/contracts';
 import { v7 as uuidv7 } from 'uuid';
 
@@ -53,6 +55,7 @@ interface EventExtras {
     received: Extra<AccessRequestReceivedData>;
     identified: Extra<AccessRequestIdentifiedData>;
     notified: Extra<AccessRequestNotifiedData>;
+    representations: Extra<AccessRequestRepresentationsData>;
     decided: Extra<AccessRequestDecidedData>;
     'package-issued': Extra<AccessPackageIssuedData>;
     downloaded: Extra<AccessPackageDownloadedData>;
@@ -61,6 +64,7 @@ interface EventExtras {
   };
   'lea-request': {
     received: Extra<AccessRequestReceivedData>;
+    notified: Extra<LeaRequestNotifiedData>;
     decided: Extra<AccessRequestDecidedData>;
     'package-issued': Extra<AccessPackageIssuedData>;
     downloaded: Extra<AccessPackageDownloadedData>;

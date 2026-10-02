@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
@@ -6,8 +6,10 @@ import {
   ApiQueryParameters,
   AuditedRead,
   CurrentPrincipal,
+  IdempotencyKey,
   InternalApi,
   type Principal,
+  RequireIdempotencyKey,
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
@@ -20,8 +22,10 @@ import {
   internalListRosterRecordsQuery,
 } from './internal-query.js';
 import { InternalRosterRecordsService } from './internal-records.service.js';
+import { OnboardingInvitationsService } from './onboarding-invitations.service.js';
 import type {
   InternalRosterRecord,
+  OnboardingInvitation,
   InternalRosterRecordPage,
   RosterNationalId,
 } from './representation.js';
@@ -38,7 +42,10 @@ const CALLERS =
 @ApiParam({ name: 'slug', schema: schemaRef('Slug') })
 @DirectoryInternalApi()
 export class InternalRosterRecordsController {
-  constructor(private readonly records: InternalRosterRecordsService) {}
+  constructor(
+    private readonly records: InternalRosterRecordsService,
+    private readonly invitations: OnboardingInvitationsService,
+  ) {}
 
   @Get()
   @AuditedRead({ action: 'roster.records.pulled', resource: 'roster-record' })
@@ -86,6 +93,30 @@ export class InternalRosterRecordsController {
     @Param('recordId', new ZodValidationPipe(z.uuid())) recordId: string,
   ): Promise<InternalRosterRecord> {
     return this.records.get(principal, tenant, slug, recordId);
+  }
+
+  @Post(':recordId/onboarding-invitations')
+  @HttpCode(HttpStatus.OK)
+  @RequireIdempotencyKey()
+  @ApiParam({ name: 'recordId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'internalInviteRosterRecord',
+    summary: "Invite a roster record's officer to set up their declarant account (services)",
+    description: `${CALLERS} By email and SMS to the contacts the roster holds (whichever it has), templates \`onboarding-invitation-email\` and \`onboarding-invitation-sms\`, linking the portal's onboarding for the Commission; the contacts are never returned. The access service calls it when a request names an officer who has not onboarded (spec 10). Once per Idempotency-Key.`,
+  })
+  @ApiOkResponse({ description: 'Invitation', schema: schemaRef('OnboardingInvitation') })
+  @ApiProblemResponse(400, 'recordId is not a UUID, or no Idempotency-Key')
+  @ApiProblemResponse(404, "No such record in the acting tenant's Commission")
+  @ApiProblemResponse(409, 'Problem code `already-onboarded`: the officer has an account')
+  @ApiProblemResponse(503, 'The notifications service cannot be reached; nothing was recorded')
+  invite(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('slug') slug: string,
+    @Param('recordId', new ZodValidationPipe(z.uuid())) recordId: string,
+    @IdempotencyKey() idempotencyKey: string,
+  ): Promise<OnboardingInvitation> {
+    return this.invitations.invite(principal, tenant, slug, recordId, idempotencyKey);
   }
 }
 

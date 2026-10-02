@@ -97,6 +97,13 @@ export async function accessRequest(
     resolved: () => {
       state.resolved = true;
     },
+    // The declarant's account or notice changed: the resolution step runs again.
+    onboarded: () => {
+      state.resolved = true;
+    },
+    notified: () => {
+      state.resolved = true;
+    },
     consented: () => {
       state.consented = true;
     },
@@ -220,7 +227,10 @@ async function untilVerified(
  * Waits for the officer named to be resolved (the `resolved` signal, or the request read as
  * resolved), then has the declarant notified: the end of their window, or how the run ended when
  * the officer cannot be identified or the request closed. Notifying that fails after its retries
- * is tried again at the next check.
+ * is tried again at the next check. An officer with no account is invited to onboard, and the
+ * wait goes on until they do (`onboarded`, or the directory read at a check) or the access
+ * officer records the written notice served on them (`notified`); the window then runs from
+ * that notice.
  */
 async function untilNotified(
   input: AccessRequestWorkflowInput,
@@ -254,6 +264,7 @@ async function untilNotified(
       case 'missing':
         return { outcome: resolved.outcome };
       case 'unresolved':
+      case 'awaiting-notice':
         continue;
     }
   }

@@ -157,7 +157,7 @@ export interface paths {
         };
         /**
          * Search the Commission's roster for the officer a request names (access officer; audited)
-         * @description By personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen: its declarant is notified.
+         * @description By personnel file number (its beginning) or part of the name, at most 20 records by full name. Any can be chosen: an `onboarded` record's declarant is notified online; the officer of one not onboarded is invited to onboard and served a written notice (spec 10 decision 2).
          */
         get: operations["listRosterCandidates"];
         put?: never;
@@ -179,9 +179,49 @@ export interface paths {
         put?: never;
         /**
          * Identify the officer on the roster, or record that they cannot be identified
-         * @description A roster record: the declarant is notified next (`awaiting-representations`, with the window for representations). `rosterRecordId: null`: the request closes as `cannot-identify` (`access.request.cannot-identify.v1`, Form M decline reason `other`) and the applicant is told.
+         * @description A roster record: the declarant is notified next (`awaiting-representations`, with the window for representations). A record whose officer has not onboarded (`declarantOnboarded: false`): they are invited to onboard, and the request waits for the access officer to record the written notice served on them (`recordWrittenNotice`), or for them to onboard. `rosterRecordId: null`: the request closes as `cannot-identify` (`access.request.cannot-identify.v1`, Form M decline reason `other`) and the applicant is told.
          */
         post: operations["resolveRequestedOfficer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/requests/{requestId}/written-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record the written notice served on a declarant with no account (r.22(2))
+         * @description Spec 10 decision 2: the officer identified has not onboarded, so the access officer serves the notice in writing and records the day (not in the future, not before the officer was identified). The request becomes `awaiting-representations`, notified from the start of that day (`notice.channel` `written`, `access.request.notified.v1`), and the window for representations ends at the end of the seventh day after it. The declarant's representations received in writing are entered with `enterRepresentationsReceivedInWriting`.
+         */
+        post: operations["recordWrittenNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/access/requests/{requestId}/representations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enter the declarant's representations received in writing, on their behalf
+         * @description Spec 10 decision 2: on a request notified in writing, while the window is open, the access officer enters what the declarant answered on paper: stance, text, and the letter's scans (the officer's clean uploads of purpose `access-representation`). They show as received in writing (`representations.receivedInWriting`), with the officer who entered them (`access.request.representations.v1`); `consent` sends the request `under-decision` at once. Entering them again replaces them, as the declarant's own do.
+         */
+        put: operations["enterRepresentationsReceivedInWriting"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -326,6 +366,26 @@ export interface paths {
          * @description r.23(1): the access officer confirms the request comes from the agency account it shows (checked again against the directory) and states its reason, and identifies the officer sought on the Commission's roster. The request becomes `verified` (`lea.request.verified.v1`).
          */
         post: operations["verifyLeaRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/lea/requests/{leaRequestId}/written-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record the written notice of a grant served on a declarant with no account
+         * @description r.23(2), spec 10 decision 2: the officer identified has no declarant account, so the access officer tells them of the grant in writing and records the day it was served (not in the future, not before the grant). The request records the declarant told (`declarantNotice.channel` `written`; `lea.request.notified.v1`). They were invited to onboard; once they do, the notice shows in their account.
+         */
+        post: operations["recordLeaWrittenNotice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -647,6 +707,7 @@ export interface components {
             actor: string | null;
             summary: string;
             reference: string;
+            inWriting: boolean;
         };
         Representations: {
             /** @enum {string} */
@@ -661,6 +722,10 @@ export interface components {
             submittedAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** @description Received in writing and entered by the access officer on the declarant's behalf (a declarant served a written notice); false when the declarant made them online */
+            receivedInWriting: boolean;
+            /** @description The access officer who entered representations received in writing, by name (Commission staff only); null when made online, and always null for the declarant */
+            recordedBy: string | null;
         };
         OfficerRequestView: {
             /** Format: uuid */
@@ -690,6 +755,12 @@ export interface components {
             windowEndsAt: string | null;
             /** @description Days the declarant would have for representations if notified now (the Commission's policy in force), for the access officer identifying the officer; null once notified (see `windowEndsAt`), or when the policy cannot be read */
             representationWindowDays: number | null;
+            /** @description Whether the officer resolved to has a declarant account (notified online); false: notified in writing, and invited to onboard (spec 10 decision 2); null until resolved */
+            declarantOnboarded: boolean | null;
+            /** @description When the officer with no account was invited to onboard; null when not invited */
+            declarantInvitedAt: string | null;
+            /** @description How and when the declarant was notified; null before */
+            notice: components["schemas"]["Notice"] | null;
         };
         VerifyApplicantIdentity: {
             verified: boolean;
@@ -760,7 +831,7 @@ export interface components {
             stance: "object" | "consent" | "context";
             /** @description The declarant's representations; may be empty only with `consent` */
             text: string;
-            /** @description Clean uploads of purpose `access-representation` by the declarant */
+            /** @description Clean uploads of purpose `access-representation` by the caller (the declarant; the access officer for representations received in writing), or ones attached already */
             attachments: string[];
         };
         FormKDeclarantNotice: {
@@ -779,6 +850,11 @@ export interface components {
             scope: components["schemas"]["Scope"];
             /** Format: date-time */
             notifiedAt: string;
+            /**
+             * @description How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served
+             * @enum {string}
+             */
+            noticeChannel: "online" | "written";
             windowEndsAt: string | null;
             canRespond: boolean;
             representations: components["schemas"]["Representations"] | null;
@@ -811,6 +887,34 @@ export interface components {
             decidedAt: string;
             /** Format: date-time */
             notifiedAt: string;
+            /**
+             * @description How the declarant was told: `online` at their account, or `written`: a notice served on paper while they had no account (spec 10 decision 2), `notifiedAt` the start of the day it was served
+             * @enum {string}
+             */
+            noticeChannel: "online" | "written";
+        };
+        WrittenNotice: {
+            /**
+             * Format: date
+             * @description The day the written notice was served on the declarant (`YYYY-MM-DD`, Nairobi): not in the future, and not before the officer was identified (Form K) or the grant (law enforcement)
+             */
+            notifiedOn: string;
+        };
+        Notice: {
+            /**
+             * @description `online`: the service told the declarant at their account; `written`: the access officer served a notice in writing and recorded the day
+             * @enum {string}
+             */
+            channel: "online" | "written";
+            /**
+             * Format: date-time
+             * @description When told; for a written notice, the start of the day it was served (Nairobi)
+             */
+            notifiedAt: string;
+            /** @description The day a written notice was served (`YYYY-MM-DD`); null when told online */
+            notifiedOn: string | null;
+            /** @description The access officer who recorded the written notice, by name; null online */
+            recordedBy: string | null;
         };
         DeclarantNotice: components["schemas"]["FormKDeclarantNotice"] | components["schemas"]["LeaDeclarantNotice"];
         AccessCommission: {
@@ -830,6 +934,7 @@ export interface components {
             actor: string | null;
             summary: string;
             reference: string;
+            inWriting: boolean;
             /** @enum {string} */
             subjectKind: "access-request" | "lea-request" | "self-access";
             /** Format: uuid */
@@ -933,7 +1038,7 @@ export interface components {
             reasonConfirmed: true;
             /**
              * Format: uuid
-             * @description The onboarded roster record of the Commission the officer sought is: their declarant is told after a grant
+             * @description The roster record of the Commission the officer sought is: their declarant is told after a grant (online, or in writing when they have no account)
              */
             rosterRecordId: string;
             /** @description What the access officer checked */
@@ -985,6 +1090,12 @@ export interface components {
             decision: components["schemas"]["Decision"] | null;
             /** @description When the declarant was told of the grant (only after a grant, r.23(2)) */
             declarantNotifiedAt: string | null;
+            /** @description Whether the officer identified has a declarant account (told of a grant online); false: told in writing, and invited to onboard (spec 10 decision 2); null until verified, and for the agency's officer */
+            declarantOnboarded: boolean | null;
+            /** @description When the officer with no account was invited to onboard; null when not invited, and for the agency's officer */
+            declarantInvitedAt: string | null;
+            /** @description How and when the declarant was told of the grant; null before, and for the agency's officer */
+            declarantNotice: components["schemas"]["Notice"] | null;
             package: components["schemas"]["Package"] | null;
             timeline: components["schemas"]["RegisterEntry"][];
         };
@@ -1159,7 +1270,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "representations-closed" | "download-expired" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-expired" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1734,7 +1845,7 @@ export interface operations {
                     "application/json": components["schemas"]["OfficerRequestView"];
                 };
             };
-            /** @description requestId is not a UUID, the body failed validation, or `rosterRecordId` is not an onboarded roster record of the Commission */
+            /** @description requestId is not a UUID, the body failed validation, or `rosterRecordId` is not a roster record of the Commission */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1784,6 +1895,171 @@ export interface operations {
                 };
             };
             /** @description The directory cannot be reached; nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    recordWrittenNotice: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WrittenNotice"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfficerRequestView"];
+                };
+            };
+            /** @description requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the officer was identified */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `declarant-notified` (notified already, online or in writing), `request-closed` or `request-decided`; or the officer is not identified yet, or has an account (notified online) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    enterRepresentationsReceivedInWriting: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepresentationsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfficerRequestView"];
+                };
+            };
+            /** @description requestId is not a UUID, the body failed validation, or an attachment is not a clean `access-representation` upload of the caller (`attachments.<n>`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `representations-closed` (the window is closed, or not open yet), `request-closed` or `request-decided`; or the declarant was notified online (they make their own) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service cannot be reached; nothing was saved */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -2278,7 +2554,7 @@ export interface operations {
                     "application/json": components["schemas"]["LeaRequest"];
                 };
             };
-            /** @description leaRequestId is not a UUID, the body failed validation, or `rosterRecordId` is not an onboarded roster record of the Commission */
+            /** @description leaRequestId is not a UUID, the body failed validation, or `rosterRecordId` is not a roster record of the Commission */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2329,6 +2605,84 @@ export interface operations {
             };
             /** @description The directory cannot be reached; nothing was recorded */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    recordLeaWrittenNotice: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WrittenNotice"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaRequest"];
+                };
+            };
+            /** @description leaRequestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the grant */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `declarant-notified` (told already), `not-under-decision` (not granted yet) or `request-closed`; or the request was denied, or the declarant has an account (told online) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

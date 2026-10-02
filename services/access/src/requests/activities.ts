@@ -5,6 +5,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 import { requireTransactionEnded } from '../activity-failures.js';
 import { addDays, Clock, nairobiDate } from '../clock.js';
+import { declarantAccount } from '../declarant-account.js';
 import type { AccessDatabase } from '../db/database.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
@@ -82,9 +83,14 @@ export class AccessRequestActivities {
    * the declarant is told by email and SMS (a person recipient: notifications reads their
    * contacts from the directory), without who asked or why, which wait behind sign-in. Recorded
    * as unidentifiable: the applicant is told the request closed.
+   *
+   * A record whose officer has no account (spec 10 decision 2): linked first if the directory
+   * says they have onboarded since; otherwise they are invited to onboard (once) and the request
+   * is `awaiting-notice` until they onboard or the access officer records the written notice
+   * (r.22(2)), whose window this returns once recorded.
    */
   async resolution({ tenant, requestId }: AccessRequestWorkflowInput): Promise<ResolutionOutcome> {
-    const found = await load(this.db, tenant, requestId);
+    let found = await load(this.db, tenant, requestId);
     if (!found) return { outcome: 'missing' };
     if (found.status === 'cannot-identify') {
       for (const channel of CHANNELS) {
@@ -105,7 +111,21 @@ export class AccessRequestActivities {
       return { outcome: 'cannot-identify' };
     }
     if (found.status === 'withdrawn') return { outcome: 'withdrawn' };
-    if (found.resolvedPersonId === null) return { outcome: 'unresolved' };
+    if (found.resolvedRosterRecordId === null) return { outcome: 'unresolved' };
+    if (found.resolvedPersonId === null) {
+      // Told in writing already: the window runs from the day it was served.
+      if (found.writtenNotice !== null && found.windowEndsAt !== null) {
+        return { outcome: 'notified', windowEndsAt: found.windowEndsAt.toISOString() };
+      }
+      const account = await declarantAccount(this.db, this.directory, this.logger, 'form-k', found);
+      if (account === 'none') return { outcome: 'awaiting-notice' };
+      found = await load(this.db, tenant, requestId);
+      if (!found) return { outcome: 'missing' };
+    }
+    if (found.writtenNotice !== null && found.windowEndsAt !== null) {
+      // Onboarded after the written notice: notified already, in writing.
+      return { outcome: 'notified', windowEndsAt: found.windowEndsAt.toISOString() };
+    }
 
     // The window is the Commission's in force as it opens: the request keeps it.
     const { representationWindowDays } = await this.directory.accessPolicy(tenant);
@@ -179,6 +199,9 @@ export class AccessRequestActivities {
     if (!found) return 'missing';
     const held = found.status === HELD;
     const unresolved = found.resolvedRosterRecordId === null;
+    // Resolved to an officer with no account, and no written notice recorded yet.
+    const awaitingNotice =
+      !unresolved && found.resolvedPersonId === null && found.notifiedAt === null;
     const waiting =
       day === IDENTIFY_REMINDER_DAY
         ? unresolved && (held || AWAITING_RESOLUTION.includes(found.status))
@@ -199,7 +222,13 @@ export class AccessRequestActivities {
         params: {
           reference: found.reference,
           commissionName: found.commissionName,
-          task: held ? 'verify-applicant' : unresolved ? 'identify-officer' : 'decide',
+          task: held
+            ? 'verify-applicant'
+            : unresolved
+              ? 'identify-officer'
+              : awaitingNotice
+                ? 'record-notice'
+                : 'decide',
           dueDate: nairobiDate(found.decisionDeadlineAt),
           daysLeft,
           signInUrl: officerRequestUrl(requestId),
@@ -297,8 +326,8 @@ async function recordNotified(
       kind: 'notified',
       actor: null,
       at: now,
-      details: { windowEndsAt: windowEndsAt.toISOString() },
-      eventData: { windowEndsAt: windowEndsAt.toISOString() },
+      details: { channel: 'online', windowEndsAt: windowEndsAt.toISOString() },
+      eventData: { channel: 'online', notifiedOn: null, windowEndsAt: windowEndsAt.toISOString() },
     });
     return updated;
   });

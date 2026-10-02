@@ -34,11 +34,13 @@ export interface LeaRequestWorkflowInput {
 
 /**
  * The signals that tell the workflow the request changed, sent once the transaction that changed
- * it commits: the access officer decided, or the request was withdrawn. They only save waiting:
- * the activities read the request before acting, and the workflow reads it every
- * `LEA_REQUEST_CHECK_INTERVAL` without a signal, so a lost signal delays it, never stalls it.
+ * it commits: the access officer decided, or the request was withdrawn; after a grant to an
+ * officer with no account, they `onboarded`, or the access officer recorded the written notice
+ * (`notified`). They only save waiting: the activities read the request before acting, and the
+ * workflow reads it every `LEA_REQUEST_CHECK_INTERVAL` without a signal, so a lost signal delays
+ * it, never stalls it.
  */
-export const LEA_REQUEST_SIGNALS = ['decided', 'withdrawn'] as const;
+export const LEA_REQUEST_SIGNALS = ['decided', 'withdrawn', 'onboarded', 'notified'] as const;
 export type LeaRequestSignal = (typeof LEA_REQUEST_SIGNALS)[number];
 
 /**
@@ -70,6 +72,13 @@ export type LeaRequestState = 'undecided' | 'decided' | 'withdrawn' | 'missing';
  * `decided` or `withdrawn` signal was lost (milliseconds, six hours).
  */
 export const LEA_REQUEST_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+
+/**
+ * What telling the declarant of a grant did: `notified` (online, or in writing already),
+ * `awaiting-notice` (they have no account: invited to onboard, and told once they do or the
+ * access officer records the written notice), or the request is `missing`.
+ */
+export type LeaDeclarantNoticeOutcome = 'notified' | 'awaiting-notice' | 'missing';
 
 /** What the decision's notice to the agency found: a grant (full or partial), a denial, or none. */
 export type LeaDecisionNoticeOutcome = 'granted' | 'denied' | 'missing';

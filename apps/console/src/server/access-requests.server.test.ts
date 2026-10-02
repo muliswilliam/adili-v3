@@ -5,8 +5,10 @@ import {
   asOfficerView,
   attachmentLink,
   decideRequest,
+  enterRepresentations,
   loadQueue,
   loadRequest,
+  recordWrittenNotice,
   resolveOfficer,
   searchRoster,
   verifyApplicant,
@@ -23,6 +25,8 @@ import { MOCK_LEA_IDS as L } from './access/lea-mock.server';
 const officer = () => mockAccessClient([ACCESS_OFFICER]);
 const supervisor = () => mockAccessClient([SUPERVISOR]);
 const key = () => crypto.randomUUID();
+const todayInNairobi = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
 
 beforeAll(() => {
   setAccessMockLatency(0);
@@ -67,7 +71,7 @@ describe('the queue (S16)', () => {
 
   it('filters: needs action, awaiting representations, late, decided, closed, and search', async () => {
     expect(await ids({ kind: 'form-k', filter: 'late' })).toEqual([R.late, R.lateWindow]);
-    expect(await ids({ filter: 'window' })).toEqual([R.lateWindow, R.window]);
+    expect(await ids({ filter: 'window' })).toEqual([R.lateWindow, R.writtenNotice, R.window]);
     expect(await ids({ kind: 'form-k', filter: 'closed' })).toEqual([R.withdrawn, R.cannot]);
     expect(await ids({ filter: 'action' })).toEqual(
       expect.arrayContaining([R.verify, R.identify, R.unresolved, R.objection]),
@@ -154,11 +158,54 @@ describe('a request (S3)', () => {
     });
   });
 
-  it('refuses a record that has not onboarded at rosterRecordId', async () => {
+  it('decision 2: identifies a record that has not onboarded, to be served in writing', async () => {
     const result = await resolveOfficer(officer(), R.identify, K.josephineAdhiambo, key());
-    expect(result).toMatchObject({
+    if (!result.ok) throw new Error('not ok');
+    expect(result.data).toMatchObject({
+      status: 'submitted',
+      resolvedRosterRecordId: K.josephineAdhiambo,
+      declarantOnboarded: false,
+      declarantInvitedAt: expect.any(String) as unknown,
+      notice: null,
+    });
+  });
+
+  it('decision 2: records the written notice, then representations received in writing', async () => {
+    const served = await recordWrittenNotice(officer(), R.noAccount, todayInNairobi(), key());
+    if (!served.ok) throw new Error('not ok');
+    expect(served.data).toMatchObject({
+      status: 'awaiting-representations',
+      notice: { channel: 'written', notifiedOn: todayInNairobi(), recordedBy: 'Lucy Wambui' },
+    });
+    expect(served.data.timeline.at(-1)).toMatchObject({ kind: 'notified', inWriting: true });
+    const again = await recordWrittenNotice(officer(), R.noAccount, todayInNairobi(), key());
+    expect(again).toMatchObject({
       ok: false,
-      error: { kind: 'problem', problem: { status: 400, errors: [{ path: 'rosterRecordId' }] } },
+      error: { kind: 'problem', problem: { status: 409, code: 'declarant-notified' } },
+    });
+
+    const entered = await enterRepresentations(
+      officer(),
+      R.noAccount,
+      { stance: 'context', text: 'From the letter.', attachments: [] },
+      key(),
+    );
+    if (!entered.ok) throw new Error('not ok');
+    expect(entered.data.representations).toMatchObject({
+      stance: 'context',
+      receivedInWriting: true,
+      recordedBy: 'Lucy Wambui',
+    });
+    // Notified online: the declarant makes their own.
+    const online = await enterRepresentations(
+      officer(),
+      R.window,
+      { stance: 'context', text: 'x', attachments: [] },
+      key(),
+    );
+    expect(online).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409 } },
     });
   });
 

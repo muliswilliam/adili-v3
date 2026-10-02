@@ -1,29 +1,25 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { errorType, notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { DATABASE, FieldCipher, switchTenant, withPerson } from '@adili/data-access';
 import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import { declarantPersonId } from '../access.js';
 import { Clock } from '../clock.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
-import {
-  ACCESS_REPRESENTATION_PURPOSE,
-  DocumentsClient,
-  DocumentsUnavailable,
-  UploadNotClean,
-  UploadNotFound,
-} from '../documents/documents-client.js';
-import { badRequest, documentsUnavailable, problem, type ProblemError } from '../problems.js';
+import { DocumentsClient } from '../documents/documents-client.js';
+import { problem } from '../problems.js';
 import { leaRequests } from '../lea/schema.js';
 import { AccessRegister } from '../register/access-register.js';
 import { openFormK } from '../requests/form-k.js';
+import {
+  cleanAttachments,
+  linkUploads,
+  releasedUploads,
+  releaseUploads,
+} from '../requests/representation-attachments.js';
 import { AccessRequestWorkflows } from '../requests/request-workflows.js';
 import type { AccessRequestRow } from '../requests/representation.js';
-import {
-  accessRequests,
-  type RepresentationAttachment,
-  representations,
-} from '../requests/schema.js';
+import { accessRequests, representations } from '../requests/schema.js';
 import {
   type DeclarantNotice,
   type FormKDeclarantNotice,
@@ -119,10 +115,11 @@ export class NoticesService {
    * Makes or changes the declarant's representations on a request about them (S4), while the
    * window is open: after it closes (or once they consented, or the request closed), 409
    * `representations-closed`. Attachments must be clean uploads of purpose
-   * `access-representation` the declarant made (400 at `attachments.<n>` otherwise); they are
-   * marked linked in documents before the save, and the ones taken off are released after it.
-   * Each save is a `representations` register entry and event. `consent` sends the request
-   * `under-decision` at once and ends the window.
+   * `access-representation` the declarant made, or ones attached already (e.g. the scans of
+   * representations the access officer entered from their letter): 400 at `attachments.<n>`
+   * otherwise. They are marked linked in documents before the save, and the ones taken off are
+   * released after it. Each save is a `representations` register entry and event. `consent`
+   * sends the request `under-decision` at once and ends the window.
    */
   async submit(
     principal: Principal,
@@ -131,12 +128,23 @@ export class NoticesService {
   ): Promise<FormKDeclarantNotice> {
     const personId = declarantPersonId(principal);
     const person = { personId, subject: principal.subject };
-    const notice = notFoundIfInvisible(
-      await withPerson(this.db, person, (tx) => noticeRow(tx, personId, requestId)),
-    );
+    const { notice, attached } = await withPerson(this.db, person, async (tx) => {
+      const notice = notFoundIfInvisible(await noticeRow(tx, personId, requestId));
+      const [made] = await tx
+        .select({ attachments: representations.attachments })
+        .from(representations)
+        .where(eq(representations.requestId, notice.id));
+      return { notice, attached: made?.attachments ?? [] };
+    });
     requireOpen(notice, this.clock.now());
-    const attachments = await this.cleanAttachments(principal, notice.tenant, input.attachments);
-    await this.link(notice.tenant, input.attachments);
+    const attachments = await cleanAttachments(
+      this.documents,
+      notice.tenant,
+      input.attachments,
+      principal.subject,
+      attached,
+    );
+    await linkUploads(this.documents, notice.tenant, input.attachments);
 
     const { row, saved, released } = await withPerson(this.db, person, async (tx) => {
       const own = notFoundIfInvisible(await noticeRow(tx, personId, requestId));
@@ -149,7 +157,14 @@ export class NoticesService {
         .from(representations)
         .where(eq(representations.requestId, own.id))
         .for('update');
-      const values = { stance: input.stance, text: input.text, attachments };
+      const values = {
+        stance: input.stance,
+        text: input.text,
+        attachments,
+        receivedInWriting: false,
+        recordedBy: null,
+        recordedByName: null,
+      };
       const [saved] = await tx
         .insert(representations)
         .values({
@@ -192,77 +207,20 @@ export class NoticesService {
           stance: input.stance,
           attachments: attachments.length,
           amended: previous !== undefined,
+          receivedInWriting: false,
         },
+        eventData: { receivedInWriting: false },
       });
-      const kept = new Set(input.attachments);
       return {
         row,
         saved,
-        released: (previous?.attachments ?? [])
-          .map((attachment) => attachment.uploadId)
-          .filter((uploadId) => !kept.has(uploadId)),
+        released: releasedUploads(previous?.attachments ?? [], input.attachments),
       };
     });
 
-    await this.release(row.tenant, released);
+    await releaseUploads(this.documents, this.logger, row.tenant, released);
     if (input.stance === 'consent') await this.workflows.signal(row.id, 'consented');
     return toDeclarantNotice(row, await openFormK(this.cipher, row), saved, this.clock.now());
-  }
-
-  /** Each upload, checked: clean, of purpose `access-representation`, and the declarant's own. */
-  private async cleanAttachments(
-    principal: Principal,
-    tenant: string,
-    uploadIds: readonly string[],
-  ): Promise<RepresentationAttachment[]> {
-    const errors: ProblemError[] = [];
-    const attachments: RepresentationAttachment[] = [];
-    for (const [index, uploadId] of uploadIds.entries()) {
-      const path = `attachments.${String(index)}`;
-      try {
-        const upload = await this.documents.getCleanUpload(tenant, uploadId);
-        if (upload.purpose !== ACCESS_REPRESENTATION_PURPOSE) {
-          errors.push({ path, message: `is not an upload for ${ACCESS_REPRESENTATION_PURPOSE}` });
-        } else if (upload.uploadedBy !== principal.subject) {
-          errors.push({ path, message: 'is not an upload of yours' });
-        } else {
-          attachments.push({ uploadId, fileName: upload.fileName ?? 'attachment' });
-        }
-      } catch (error) {
-        if (error instanceof UploadNotFound) {
-          errors.push({ path, message: 'is not an upload of yours' });
-        } else if (error instanceof UploadNotClean) {
-          errors.push({ path, message: 'is not clean: still being scanned, or refused' });
-        } else if (error instanceof DocumentsUnavailable) {
-          throw documentsUnavailable();
-        } else {
-          throw error;
-        }
-      }
-    }
-    if (errors.length > 0) throw badRequest('Some attachments cannot be used.', errors);
-    return attachments;
-  }
-
-  /** Keeps the uploads from documents' orphan sweep; before the save, so none is lost after it. */
-  private async link(tenant: string, uploadIds: readonly string[]): Promise<void> {
-    try {
-      for (const uploadId of uploadIds) await this.documents.markLinked(tenant, uploadId);
-    } catch (error) {
-      if (error instanceof DocumentsUnavailable) throw documentsUnavailable();
-      throw error;
-    }
-  }
-
-  /** Releases uploads taken off to the orphan sweep; a failure only leaves them kept. */
-  private async release(tenant: string, uploadIds: readonly string[]): Promise<void> {
-    for (const uploadId of uploadIds) {
-      try {
-        await this.documents.markUnlinked(tenant, uploadId);
-      } catch (error) {
-        this.logger.warn({ uploadId, err: errorType(error) }, 'Could not release an attachment');
-      }
-    }
   }
 }
 

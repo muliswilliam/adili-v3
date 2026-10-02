@@ -11,6 +11,10 @@
  *   officer "Peter Kamau"; the roster record is Peter Mwangi Kamau.
  * - `lateWindow`: identified only after its decision deadline passed; the declarant notified
  *   yesterday, so it is late while representations are still open.
+ * - `noAccount`: identified as Samuel Kiprotich Rotich, who has no account: invited to onboard,
+ *   waiting for the access officer to record the written notice (spec 10 decision 2).
+ * - `writtenNotice`: Beatrice Achieng Otieno, no account, served in writing two days ago; her
+ *   objection received in writing, with a scan of her letter, entered by the access officer.
  * - `objection`: under decision, the declarant objected with two attachments; due in 3 days.
  * - `consent`: the declarant consented, which closed the window early.
  * - `late`: under decision with context, 7 days past its decision deadline.
@@ -22,9 +26,10 @@
  *   granted two days ago and never issued one (as a grant with nothing to disclose, #259).
  * - Older decided requests fill a second page.
  *
- * Only the access officer acts (roster search, resolve, verify); a supervisor gets 403, as the
- * service answers. Resolving to a record leaves the request as it was until the workflow notifies
- * the declarant, two seconds later. Searching the queue for `slow` answers after four seconds
+ * Only the access officer acts (roster search, resolve, verify, written notice, representations
+ * received in writing); a supervisor gets 403, as the service answers. Resolving to a record
+ * leaves the request as it was until the workflow notifies the declarant, two seconds later; to a
+ * record not onboarded, it waits for the written notice instead. Searching the queue for `slow` answers after four seconds
  * (the loading state); for `offline`, 503. Searching the roster for `offline` is 503 too.
  * Attachment links point at `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`). Written
  * self-access applications are answered by `self-access-mock.server.ts`.
@@ -41,7 +46,11 @@ import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
-import { mockSelfAccessFetch, mockSelfAccessFileTitle } from './self-access-mock.server';
+import {
+  mockSelfAccessFetch,
+  mockSelfAccessFileTitle,
+  mockUploadOf,
+} from './self-access-mock.server';
 import {
   leaQueueItems,
   mockLeaFetch,
@@ -80,6 +89,8 @@ export const MOCK_REQUEST_IDS = {
   preparing: 'a11c0000-0000-4000-8000-000000000016',
   noPackage: 'a11c0000-0000-4000-8000-000000000017',
   lateWindow: 'a11c0000-0000-4000-8000-000000000018',
+  noAccount: 'a11c0000-0000-4000-8000-000000000019',
+  writtenNotice: 'a11c0000-0000-4000-8000-000000000020',
 } as const;
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
@@ -181,12 +192,21 @@ interface Seed {
   resolved?: string;
   /** Days after receipt the declarant was notified. */
   notifiedAfterDays?: number;
+  /** Resolved days after receipt (to show when the officer was identified); else not shown. */
+  resolvedAfterDays?: number;
+  /**
+   * The officer resolved to has no account: invited to onboard when resolved; served in writing
+   * the day `notifiedAfterDays` gives (the notice recorded the day after), if at all.
+   */
+  noAccount?: { served: boolean };
   representations?: {
     stance: 'object' | 'consent' | 'context';
     text: string;
     attachments?: { uploadId: string; fileName: string }[];
     afterNotifiedDays: number;
     editedAfterDays?: number;
+    /** Received in writing, entered by the access officer. */
+    inWriting?: boolean;
   };
   closedAfterDays?: number;
   decision?: {
@@ -258,8 +278,25 @@ function entry(
   at: string,
   actor: string | null,
   reference: string,
+  inWriting = false,
 ): RegisterEntry {
-  return { id: randomUUID(), kind, at, actor, summary: kind, reference };
+  return { id: randomUUID(), kind, at, actor, summary: kind, reference, inWriting };
+}
+
+/** The Nairobi calendar day of an instant, `YYYY-MM-DD`. */
+function nairobiDay(at: string): string {
+  return new Date(Date.parse(at) + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** The instant a Nairobi calendar day starts. */
+function startOfNairobiDay(day: string): string {
+  return new Date(`${day}T00:00:00+03:00`).toISOString();
+}
+
+/** A written notice served on `day`: notified from its start, window to the end of day + 7. */
+function writtenWindow(day: string): { notifiedAt: string; windowEndsAt: string } {
+  const notifiedAt = startOfNairobiDay(day);
+  return { notifiedAt, windowEndsAt: iso(Date.parse(notifiedAt), WINDOW_DAYS + 1) };
 }
 
 const OFFICER_NAME = 'Lucy Wambui';
@@ -279,12 +316,26 @@ function build(seed: Seed, now: number): Stored {
   const timeline: RegisterEntry[] = [
     entry('received', submittedAt, seed.applicant.name, seed.reference),
   ];
-  const notifiedAt =
-    seed.notifiedAfterDays === undefined
+  const resolvedAt =
+    seed.resolvedAfterDays === undefined
       ? null
-      : hoursLater(iso(Date.parse(submittedAt), seed.notifiedAfterDays), 1);
-  if (notifiedAt) timeline.push(entry('notified', notifiedAt, null, seed.reference));
-  const windowEndsAt = notifiedAt ? iso(Date.parse(notifiedAt), WINDOW_DAYS) : null;
+      : hoursLater(iso(Date.parse(submittedAt), seed.resolvedAfterDays), 2);
+  if (resolvedAt) timeline.push(entry('identified', resolvedAt, OFFICER_NAME, seed.reference));
+  let notifiedAt: string | null = null;
+  let windowEndsAt: string | null = null;
+  let notice: OfficerRequestView['notice'] = null;
+  if (seed.notifiedAfterDays !== undefined && seed.noAccount?.served) {
+    const servedOn = nairobiDay(iso(Date.parse(submittedAt), seed.notifiedAfterDays));
+    ({ notifiedAt, windowEndsAt } = writtenWindow(servedOn));
+    const recordedAt = hoursLater(iso(Date.parse(submittedAt), seed.notifiedAfterDays + 1), 1);
+    timeline.push(entry('notified', recordedAt, OFFICER_NAME, seed.reference, true));
+    notice = { channel: 'written', notifiedAt, notifiedOn: servedOn, recordedBy: OFFICER_NAME };
+  } else if (seed.notifiedAfterDays !== undefined) {
+    notifiedAt = hoursLater(iso(Date.parse(submittedAt), seed.notifiedAfterDays), 1);
+    windowEndsAt = iso(Date.parse(notifiedAt), WINDOW_DAYS);
+    timeline.push(entry('notified', notifiedAt, null, seed.reference));
+    notice = { channel: 'online', notifiedAt, notifiedOn: null, recordedBy: null };
+  }
   let representations: OfficerRequestView['representations'] = null;
   if (seed.representations && notifiedAt) {
     const submitted = hoursLater(
@@ -295,16 +346,20 @@ function build(seed: Seed, now: number): Stored {
       seed.representations.editedAfterDays === undefined
         ? submitted
         : hoursLater(iso(Date.parse(notifiedAt), seed.representations.editedAfterDays), 5);
+    const inWriting = seed.representations.inWriting ?? false;
     representations = {
       stance: seed.representations.stance,
       text: seed.representations.text,
       attachments: seed.representations.attachments ?? [],
       submittedAt: submitted,
       updatedAt: updated,
+      receivedInWriting: inWriting,
+      recordedBy: inWriting ? OFFICER_NAME : null,
     };
-    timeline.push(entry('representations', submitted, record?.fullName ?? null, seed.reference));
+    const actor = inWriting ? OFFICER_NAME : (record?.fullName ?? null);
+    timeline.push(entry('representations', submitted, actor, seed.reference, inWriting));
     if (updated !== submitted) {
-      timeline.push(entry('representations', updated, record?.fullName ?? null, seed.reference));
+      timeline.push(entry('representations', updated, actor, seed.reference, inWriting));
     }
   }
   let closedAt: string | null = null;
@@ -407,6 +462,9 @@ function build(seed: Seed, now: number): Stored {
       representations,
       windowEndsAt,
       representationWindowDays: windowEndsAt === null ? WINDOW_DAYS : null,
+      declarantOnboarded: record ? record.onboarded : null,
+      declarantInvitedAt: record && !record.onboarded ? (resolvedAt ?? submittedAt) : null,
+      notice,
     },
   };
 }
@@ -816,6 +874,55 @@ const SEEDS: Seed[] = [
       reasons: 'A legitimate research interest in public finance.',
     },
   },
+  {
+    id: R.noAccount,
+    reference: referenceOf(152),
+    applicant: DENNIS,
+    sought: {
+      name: 'Samuel Rotich',
+      entity: 'Ministry of Lands and Physical Planning',
+      workStation: 'Ardhi House, Nairobi',
+      personnelFileNumber: '20118802',
+    },
+    informationSought: 'Assets declared in the 2026 initial declaration, including land.',
+    reason:
+      'Our coalition follows land valuations for public projects. The declaration shows whether the officer declared land near the valuations he approved.',
+    scope: { ...SCOPE_2026_ASSETS, includeSpouses: true },
+    receivedDaysAgo: 4,
+    status: 'submitted',
+    resolved: K.samuel,
+    resolvedAfterDays: 1,
+    noAccount: { served: false },
+  },
+  {
+    id: R.writtenNotice,
+    reference: referenceOf(146),
+    applicant: MERCY,
+    sought: {
+      name: 'Beatrice Achieng Otieno',
+      entity: 'State Department for Public Works',
+      workStation: 'Works Building, Nairobi',
+    },
+    informationSought: 'Income and liabilities declared in 2025 and 2026.',
+    reason:
+      'A road maintenance contractor shares directors with a firm the officer is linked to. The declarations show whether she declared that interest.',
+    scope: { ...SCOPE_2026_ASSETS, years: [2025, 2026], sections: ['income', 'liabilities'] },
+    receivedDaysAgo: 6,
+    status: 'awaiting-representations',
+    resolved: K.beatrice,
+    resolvedAfterDays: 1,
+    notifiedAfterDays: 3,
+    noAccount: { served: true },
+    representations: {
+      stance: 'object',
+      text: 'I object to the disclosure. I left the board of the firm in 2023, before I joined the procurement unit, and I declared it then. The applicant has my resignation letter on public record already.',
+      attachments: [
+        { uploadId: 'a11e0000-0000-4000-8000-000000000031', fileName: 'Letter from B. Otieno.pdf' },
+      ],
+      afterNotifiedDays: 2,
+      inWriting: true,
+    },
+  },
 ];
 
 /** Ten minutes before the end of the Kenyan day of `now`, or five minutes on when that passed. */
@@ -898,6 +1005,7 @@ function advance(stored: Stored, now: number) {
     status: 'awaiting-representations',
     windowEndsAt: iso(Date.parse(at), WINDOW_DAYS),
     representationWindowDays: null,
+    notice: { channel: 'online', notifiedAt: at, notifiedOn: null, recordedBy: null },
     timeline: [...stored.view.timeline, entry('notified', at, null, stored.view.reference)],
   };
 }
@@ -1040,20 +1148,123 @@ async function resolve(request: Request, stored: Stored, caller: Caller): Promis
     return json(200, stored.view);
   }
   const record = MOCK_ROSTER.find((each) => each.id === rosterRecordId);
-  if (!record?.onboarded) {
+  if (!record) {
     return json(400, {
       type: 'about:blank',
       title: 'Bad Request',
       status: 400,
-      errors: [{ path: 'rosterRecordId', message: 'is not an onboarded roster record' }],
+      errors: [{ path: 'rosterRecordId', message: 'is not a roster record of the Commission' }],
     });
   }
-  stored.notifyAt = Date.now() + NOTIFY_AFTER_MS;
+  // An officer with no account is invited to onboard and served in writing.
+  if (record.onboarded) stored.notifyAt = Date.now() + NOTIFY_AFTER_MS;
   stored.view = {
     ...view,
     resolvedRosterRecordId: record.id,
     resolvedName: record.fullName,
     resolvedFileNumber: record.personnelFileNumber,
+    declarantOnboarded: record.onboarded,
+    declarantInvitedAt: record.onboarded ? null : now,
+    timeline: [...view.timeline, entry('identified', now, caller.name, view.reference)],
+  };
+  return json(200, stored.view);
+}
+
+/** `POST .../written-notice`: as the access service rules (decision 2, r.22(2)). */
+async function writtenNotice(request: Request, stored: Stored, caller: Caller): Promise<Response> {
+  const body = await readJson(request);
+  const notifiedOn = isRecord(body) && typeof body.notifiedOn === 'string' ? body.notifiedOn : '';
+  const { view } = stored;
+  if (CLOSED.includes(view.status)) {
+    return problem(
+      409,
+      'The request is closed',
+      view.decision ? 'request-decided' : 'request-closed',
+    );
+  }
+  if (view.notice) return problem(409, 'Notified already', 'declarant-notified');
+  if (view.resolvedRosterRecordId === null || view.declarantOnboarded !== false) {
+    return problem(409, 'Nothing to notify in writing');
+  }
+  const identified = view.timeline.filter((each) => each.kind === 'identified').at(-1);
+  const now = new Date().toISOString();
+  const badDay = (message: string) =>
+    json(400, {
+      type: 'about:blank',
+      title: 'Bad Request',
+      status: 400,
+      errors: [{ path: 'notifiedOn', message }],
+    });
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(notifiedOn)) return badDay('is not a date');
+  if (notifiedOn > nairobiDay(now)) return badDay('is in the future');
+  if (identified && notifiedOn < nairobiDay(identified.at)) {
+    return badDay('is before the officer was identified');
+  }
+  const { notifiedAt, windowEndsAt } = writtenWindow(notifiedOn);
+  const passed = Date.parse(windowEndsAt) <= Date.now();
+  stored.view = {
+    ...view,
+    status: passed ? 'under-decision' : 'awaiting-representations',
+    windowEndsAt,
+    notice: { channel: 'written', notifiedAt, notifiedOn, recordedBy: caller.name },
+    timeline: [...view.timeline, entry('notified', now, caller.name, view.reference, true)],
+  };
+  return json(200, stored.view);
+}
+
+/** `PUT .../representations`: received in writing, entered by the access officer. */
+async function enterRepresentations(
+  request: Request,
+  stored: Stored,
+  caller: Caller,
+): Promise<Response> {
+  const body = await readJson(request);
+  const { view } = stored;
+  if (CLOSED.includes(view.status)) {
+    return problem(
+      409,
+      'The request is closed',
+      view.decision ? 'request-decided' : 'request-closed',
+    );
+  }
+  if (view.notice?.channel !== 'written') {
+    return problem(409, 'The declarant was notified online');
+  }
+  if (
+    view.status !== 'awaiting-representations' ||
+    !view.windowEndsAt ||
+    Date.now() >= Date.parse(view.windowEndsAt)
+  ) {
+    return problem(409, 'The window is closed', 'representations-closed');
+  }
+  const stance = isRecord(body) ? body.stance : undefined;
+  const text = isRecord(body) && typeof body.text === 'string' ? body.text.trim() : '';
+  const ids = isRecord(body) && Array.isArray(body.attachments) ? body.attachments : [];
+  if (stance !== 'object' && stance !== 'consent' && stance !== 'context') {
+    return problem(400, 'A stance is required');
+  }
+  if (!text && stance !== 'consent') return problem(400, 'Text is required');
+  if (text.includes('offline')) return problem(503, 'Service unavailable');
+  const kept = view.representations?.attachments ?? [];
+  const attachments = ids.map((uploadId) => {
+    const id = String(uploadId);
+    const known = kept.find((each) => each.uploadId === id);
+    return { uploadId: id, fileName: known?.fileName ?? mockUploadOf(id)?.fileName ?? 'scan.pdf' };
+  });
+  const now = new Date().toISOString();
+  stored.view = {
+    ...view,
+    status: stance === 'consent' ? 'under-decision' : view.status,
+    representations: {
+      stance,
+      text,
+      attachments,
+      submittedAt: view.representations?.submittedAt ?? now,
+      updatedAt: now,
+      receivedInWriting: true,
+      recordedBy: caller.name,
+    },
+    timeline: [...view.timeline, entry('representations', now, caller.name, view.reference, true)],
   };
   return json(200, stored.view);
 }
@@ -1260,6 +1471,14 @@ export async function mockAccessFetch(request: Request): Promise<Response> {
   if (method === 'POST' && action === 'decision') {
     await delay(700);
     return decide(request, stored, caller);
+  }
+  if (method === 'POST' && action === 'written-notice') {
+    await delay(500);
+    return writtenNotice(request, stored, caller);
+  }
+  if (method === 'PUT' && action === 'representations') {
+    await delay(600);
+    return enterRepresentations(request, stored, caller);
   }
   return problem(404, 'Not found');
 }
