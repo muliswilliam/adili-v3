@@ -42,7 +42,7 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   maxOutputTokens: number;
   /**
    * Hours a finished job keeps this task's output, when shorter than the service-wide
-   * `AI_OUTPUT_RETENTION_DAYS` (a clarification draft is kept 24 hours, spec 07c).
+   * `AI_OUTPUT_RETENTION_HOURS` (a clarification draft is kept 24 hours, spec 07c).
    */
   outputRetentionHours?: number;
 }
