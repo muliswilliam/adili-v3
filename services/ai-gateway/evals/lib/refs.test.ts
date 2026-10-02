@@ -34,14 +34,12 @@ describe('refProblem against declaration documents', () => {
   });
 
   it('rejects parts that do not exist', () => {
-    expect(refProblem(ref({ personKey: 'declarant' }), [document])).toMatch(/personKey/);
+    expect(refProblem(ref({ personKey: 'declarant' }), [document])).toMatch(/^person /);
     expect(refProblem(ref({ itemId: '0192f1a0-5a11-7000-8000-00000000ffff' }), [document])).toMatch(
-      /itemId/,
+      /^item /,
     );
-    expect(refProblem(ref({ sectionKey: 'land' }), [document])).toMatch(/sectionKey/);
-    expect(refProblem(ref({ fieldPath: '/statements/0/assets/7' }), [document])).toMatch(
-      /fieldPath/,
-    );
+    expect(refProblem(ref({ sectionKey: 'land' }), [document])).toMatch(/^section /);
+    expect(refProblem(ref({ fieldPath: '/statements/0/assets/7' }), [document])).toMatch(/^field /);
   });
 
   it('rejects real parts that do not belong together', () => {
