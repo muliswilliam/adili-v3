@@ -113,6 +113,8 @@ export function statusDescription(
     indicators: number;
     /** KRA: the income declared to KRA was compared (false when it could not be). */
     incomeCompared?: boolean;
+    /** The person checked, by first name, for the no-ID copy. */
+    personName?: string;
   },
 ): string {
   const copy = REGISTRY_COPY.rows;
@@ -130,7 +132,7 @@ export function statusDescription(
     case 'not-checked':
       return copy.notChecked;
     case 'no-id':
-      return copy.noIdRow;
+      return REGISTRY_COPY.noIdBody(counts.personName ?? '');
   }
 }
 
@@ -138,6 +140,7 @@ function systemRow(
   personKey: string,
   entry: ViewSystem,
   context: {
+    personName: string;
     checkedAt: string | null;
     recordsLoaded: boolean;
     latest: ReadonlyMap<string, CaseFlag>;
@@ -159,12 +162,18 @@ function systemRow(
         context.recordsLoaded && entry.system === 'kra'
           ? entry.rows.some((row) => typeof row.registryRecord.incomeDifferencePercent === 'number')
           : undefined,
+      personName: context.personName,
     }),
     checkedAt: entry.checkedAt && entry.checkedAt !== context.checkedAt ? entry.checkedAt : null,
     expandable: answered && context.recordsLoaded,
     rows: entry.rows,
     flags,
   };
+}
+
+/** "Imani" of "Imani Wairimu Kamau", as the no-ID copy names a person. */
+export function firstName(name: string): string {
+  return name.split(' ')[0] ?? name;
 }
 
 /**
@@ -186,6 +195,7 @@ export function registryLayout(
     systems: person.hasNationalId
       ? person.systems.map((entry) =>
           systemRow(person.personKey, entry, {
+            personName: firstName(person.personName),
             checkedAt: view.checkedAt,
             recordsLoaded,
             latest,

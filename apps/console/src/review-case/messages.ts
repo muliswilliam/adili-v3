@@ -181,7 +181,8 @@ export const REGISTRY_COPY = {
   notCheckedYet: 'Not checked yet',
   personLabel: (name: string) => `Registry checks for ${name}`,
   relation: { declarant: 'Declarant', spouse: 'Spouse', child: 'Child' },
-  noIdTitle: 'Not checked: no national ID declared',
+  /** The one row of someone without a national ID: no registry can be asked. */
+  noIdRegistries: 'All registries',
   noIdBody: (name: string) => `Registries cannot be checked for ${name} without an ID.`,
   loadFailed: 'Registry records could not be loaded. Status is shown from the last check.',
   loading: 'Loading registry checks',
@@ -200,7 +201,6 @@ export const REGISTRY_COPY = {
     unavailable: (system: string) =>
       `Could not reach ${system}. Re-checked automatically every hour.`,
     notChecked: 'Checks run after submission.',
-    noIdRow: 'No national ID declared',
   },
 
   table: {

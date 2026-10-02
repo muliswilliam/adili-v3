@@ -356,7 +356,8 @@ describe('CaseView: Registry tab', () => {
     ).toBeTruthy();
     expect(within(wanjiku).getAllByText('Mismatched')).toHaveLength(2);
     const imani = screen.getByRole('list', { name: 'Registry checks for Imani Wairimu Kamau' });
-    expect(within(imani).getByText('Not checked: no national ID declared')).toBeTruthy();
+    expect(within(imani).getByText('All registries')).toBeTruthy();
+    expect(within(imani).getByText('No national ID declared')).toBeTruthy();
     expect(
       within(imani).getByText('Registries cannot be checked for Imani without an ID.'),
     ).toBeTruthy();

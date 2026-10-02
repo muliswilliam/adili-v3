@@ -66,6 +66,9 @@ describe('statusDescription', () => {
     expect(statusDescription('kra', 'not-checked', { records: null, indicators: 0 })).toBe(
       'Checks run after submission.',
     );
+    expect(
+      statusDescription('ntsa', 'no-id', { records: null, indicators: 0, personName: 'Imani' }),
+    ).toBe('Registries cannot be checked for Imani without an ID.');
   });
 });
 

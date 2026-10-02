@@ -32,6 +32,7 @@ import { useState } from 'react';
 
 import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
 import {
+  firstName,
   kraLines,
   matchRows,
   type RegistryLayout,
@@ -188,7 +189,6 @@ function PersonChecks({
   flags: FlagContext;
   onGoToItem: (itemId: string) => void;
 }) {
-  const firstName = person.name.split(' ')[0] ?? person.name;
   return (
     <SystemStatusList
       label={copy.personLabel(person.name)}
@@ -224,9 +224,10 @@ function PersonChecks({
         ))
       ) : (
         <SystemStatusRow
-          name={copy.noIdTitle}
+          name={copy.noIdRegistries}
           icon={Shield01Icon}
-          description={copy.noIdBody(firstName)}
+          status="no-id"
+          description={copy.noIdBody(firstName(person.name))}
         />
       )}
     </SystemStatusList>
