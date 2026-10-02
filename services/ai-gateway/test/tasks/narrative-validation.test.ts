@@ -151,6 +151,25 @@ describe('narrative validation', () => {
       expect(foreign('Filed: 11,204, 11\u2009204 and 11\u202f204.')).toEqual([]);
     });
 
+    it('checks digits after a comma that makes no thousands group as a number of their own', () => {
+      const small = {
+        ...input,
+        totals: { ...input.totals, filed: 120 },
+        rates: { ...input.rates, lateRate: 0.1235 },
+        // No input rate rounds to 5%.
+        commissionTable: input.commissionTable.map((row) => ({
+          ...row,
+          figures: { expected: 17, nonFilerRate: 0.164 },
+        })),
+      };
+      const kinds = (text: string) =>
+        narrativeViolations(small, withParagraph(0, { text })).map((each) => each.kind);
+
+      expect(kinds('17,5% of filers.')).toEqual(['foreign-number']);
+      expect(kinds('From 120,45 and 17.')).toEqual(['foreign-number']);
+      expect(kinds('From 120, 17 and 12.35%.')).toEqual([]);
+    });
+
     it('fails a whole number that rounds a decimal figure', () => {
       expect(foreign('16 Commissions had rates near 16.4%.')).toEqual(['foreign-number']);
       expect(foreign('About 8,000 were expected at TSC.')).toEqual(['foreign-number']);
