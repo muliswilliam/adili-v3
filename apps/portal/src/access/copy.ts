@@ -195,6 +195,15 @@ const REQUESTS = {
   expiresToday: en('Expires today'),
   downloadExpired: en('Download expired'),
   packageNotIssued: en('Package not issued'),
+  download: en('Download'),
+  downloadLetter: en('Download letter'),
+  downloadFor: en(
+    (what: 'package' | 'letter', reference: string, date: string) =>
+      `Download the ${what} for ${reference}, expires ${date}`,
+  ),
+  downloading: en('Starting download…'),
+  withdraw: en('Withdraw'),
+  withdrawFor: en((reference: string) => `Withdraw request ${reference}`),
 };
 
 export const REQUESTS_COPY = english(REQUESTS);
