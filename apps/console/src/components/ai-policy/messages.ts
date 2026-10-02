@@ -102,7 +102,7 @@ export const en = {
   perMinute: (limit: number) => `${formatNumber(limit)} a minute`,
   usageLoadError: 'Usage could not be loaded. Try again in a moment.',
   changes: 'Changes',
-  noChanges: 'No changes. The default applies: external providers see synthetic data only.',
+  noChanges: 'No changes. The default applies: external providers see no data.',
   defaultRule: 'Default',
   changeAllowed: (provider: string, data: string) =>
     `Allowed ${provider.toLowerCase()} providers for ${data.toLowerCase()} data`,

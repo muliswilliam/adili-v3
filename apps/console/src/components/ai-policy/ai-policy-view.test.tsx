@@ -24,14 +24,14 @@ const allowSynthetic: GateRule = {
   changedAt: '2026-09-01T08:40:00Z',
 };
 
-/** The gateway's default gate: self-hosted sees everything, external synthetic data only. */
+/** The gateway's default gate: self-hosted sees everything, external nothing. */
 const DEFAULTS: GateRuleInput[] = (
   ['synthetic', 'restricted', 'highly-confidential'] as const
 ).flatMap((dataClass) =>
   (['external', 'self-hosted'] as const).map((providerClass) => ({
     dataClass,
     providerClass,
-    allowed: providerClass === 'self-hosted' || dataClass === 'synthetic',
+    allowed: providerClass === 'self-hosted',
   })),
 );
 
@@ -234,7 +234,7 @@ describe('S16 AI policy: a Commission', () => {
     renderView();
     fireEvent.click(screen.getByRole('button', { name: 'Teachers Service Commission' }));
     const drawer = within(screen.getByRole('dialog', { name: 'Teachers Service Commission' }));
-    expect(drawer.getByText('Not enabled')).toBeTruthy();
+    expect(drawer.getByText('No declaration data is sent to an AI provider')).toBeTruthy();
     expect(drawer.getByText('No declaration data is sent to an AI provider')).toBeTruthy();
     expect(drawer.getByText('Blocked external providers for synthetic data')).toBeTruthy();
     // The rule names the account when the gateway has no display name for it.
@@ -252,11 +252,9 @@ describe('S16 AI policy: a Commission', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Teachers Service Commission' }));
     const drawer = within(screen.getByRole('dialog', { name: 'Teachers Service Commission' }));
-    expect(drawer.getByText('External provider, synthetic data only')).toBeTruthy();
+    expect(drawer.getByText('No declaration data is sent to an AI provider')).toBeTruthy();
     expect(
-      drawer.getByText(
-        'No changes. The default applies: external providers see synthetic data only.',
-      ),
+      drawer.getByText('No changes. The default applies: external providers see no data.'),
     ).toBeTruthy();
   });
 

@@ -141,7 +141,7 @@ describe('admin API', { timeout: 90_000 }, () => {
       expect(contractErrors('GatePolicyList', before.json())).toEqual([]);
       expect(before.json()).toMatchObject({
         defaults: [
-          { dataClass: 'synthetic', providerClass: 'external', allowed: true },
+          { dataClass: 'synthetic', providerClass: 'external', allowed: false },
           { dataClass: 'synthetic', providerClass: 'self-hosted', allowed: true },
           { dataClass: 'restricted', providerClass: 'external', allowed: false },
           { dataClass: 'restricted', providerClass: 'self-hosted', allowed: true },
@@ -259,6 +259,7 @@ describe('admin API', { timeout: 90_000 }, () => {
       });
       expect(set.statusCode).toBe(200);
       expect(contractErrors('TenantUsage', set.json())).toEqual([]);
+      await t.seedDemoGate('kcomm');
 
       await run('kcomm', 'synthetic', 'en');
       await run('kcomm', 'synthetic', 'sw');
@@ -380,7 +381,15 @@ describe('admin API', { timeout: 90_000 }, () => {
     const setGate = (tenant: string, rules: object[]) =>
       request('PUT', `/v1/ai/policies/${tenant}`, admin, { rules, approvalRef: 'EACC/AI/9' });
 
-    it('reads the default gate for the routed provider class', async () => {
+    it('is not enabled on an external route until the tenant has a rule', async () => {
+      expect(await status('fresh')).toEqual({
+        tenant: 'fresh',
+        enabled: false,
+        providerClass: 'external',
+        dataClasses: [],
+      });
+
+      await t.seedDemoGate('fresh');
       expect(await status('fresh')).toEqual({
         tenant: 'fresh',
         enabled: true,
@@ -395,9 +404,11 @@ describe('admin API', { timeout: 90_000 }, () => {
       ]);
       expect(await status('opened')).toMatchObject({
         enabled: true,
-        dataClasses: ['synthetic', 'highly-confidential'],
+        dataClasses: ['highly-confidential'],
       });
 
+      // A rule blocking what an earlier rule allowed.
+      await t.seedDemoGate('shut');
       await setGate('shut', [
         { dataClass: 'synthetic', providerClass: 'external', allowed: false },
       ]);
@@ -430,6 +441,7 @@ describe('admin API', { timeout: 90_000 }, () => {
       });
 
       await routeAll('mixed', ['explain-flags']);
+      await t.seedDemoGate('mixed');
       expect(await status('mixed')).toMatchObject({
         providerClass: 'external',
         dataClasses: ['synthetic'],
