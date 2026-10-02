@@ -256,7 +256,8 @@
   --shadow-art-item: var(--elevation-art-item);
 }
 
-/* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in and the chat's typing marks. */
+/* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in, the chat's typing marks
+   and the highlight on a row a reviewer jumped to. */
 @theme {
   --animate-shimmer: shimmer 1.2s linear infinite;
   --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
@@ -264,6 +265,22 @@
   /* A streaming answer's caret and the three dots while Adili is thinking. */
   --animate-caret: caret 1s steps(2) infinite;
   --animate-typing: typing 1.2s infinite;
+  /* A row a reviewer was sent to ("Go to item"), and a card they came back to: one pulse that
+     settles on the row's tint (the kit's .ditem.hl hlpulse and .flag.pulse flagpulse). */
+  --animate-highlight: highlight 1.6s ease-out;
+  --animate-ring-pulse: ring-pulse 1.6s ease-out;
+
+  @keyframes highlight {
+    from {
+      background-color: var(--brand-subtle);
+    }
+  }
+
+  @keyframes ring-pulse {
+    from {
+      box-shadow: 0 0 0 3px var(--brand);
+    }
+  }
 
   @keyframes caret {
     50% {
