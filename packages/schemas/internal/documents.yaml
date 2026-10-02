@@ -1155,19 +1155,119 @@ components:
                   - assets
                   - liabilities
                   - other
+            includeClarifications:
+              type: boolean
           required:
             - years
             - includeSpouses
             - includeChildren
             - sections
+            - includeClarifications
           additionalProperties: false
+        clarifications:
+          anyOf:
+            - maxItems: 1000
+              type: array
+              items:
+                type: object
+                properties:
+                  declarationReference:
+                    type: string
+                  reference:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  status:
+                    type: string
+                    enum:
+                      - issued
+                      - overdue
+                      - responded
+                      - resolved
+                  issuedAt:
+                    type: string
+                    format: date-time
+                  dueAt:
+                    type: string
+                    format: date-time
+                  respondedAt:
+                    anyOf:
+                      - type: string
+                        format: date-time
+                      - type: 'null'
+                  responseLate:
+                    type: boolean
+                  resolvedAt:
+                    anyOf:
+                      - type: string
+                        format: date-time
+                      - type: 'null'
+                  items:
+                    minItems: 1
+                    maxItems: 50
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label:
+                          type: string
+                          minLength: 1
+                          maxLength: 500
+                        requirementLabel:
+                          type: string
+                          minLength: 1
+                          maxLength: 200
+                        text:
+                          type: string
+                          minLength: 1
+                          maxLength: 2000
+                        response:
+                          anyOf:
+                            - type: object
+                              properties:
+                                text:
+                                  type: string
+                                  minLength: 1
+                                  maxLength: 4000
+                                attachmentNames:
+                                  maxItems: 50
+                                  type: array
+                                  items:
+                                    type: string
+                                    minLength: 1
+                                    maxLength: 255
+                              required:
+                                - text
+                                - attachmentNames
+                              additionalProperties: false
+                            - type: 'null'
+                      required:
+                        - label
+                        - requirementLabel
+                        - text
+                        - response
+                      additionalProperties: false
+                required:
+                  - declarationReference
+                  - reference
+                  - status
+                  - issuedAt
+                  - dueAt
+                  - respondedAt
+                  - responseLate
+                  - resolvedAt
+                  - items
+                additionalProperties: false
+            - type: 'null'
+          description: The clarifications of the disclosed declarations, as the review service disclosed them for the grant (oldest issued first; empty when none was issued in the scope); null when the grant does not include clarifications
       required:
         - disclosure
         - legalBasis
         - recipient
         - grantedAt
         - scope
-      description: "Payload of access-package v1: the declarations service's scoped disclosure for the grant and what the grant decided"
+        - clarifications
+      description: "Payload of access-package v1: the declarations service's scoped disclosure for the grant, the clarifications disclosed with it, and what the grant decided"
     CertifiedCopyPayload:
       type: object
       properties:
