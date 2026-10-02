@@ -1,6 +1,6 @@
 import type { DeclarationV1 } from '@adili/forms';
 
-import type { ClarificationItem, ClarificationLetter } from '../cases/schema.js';
+import type { ClarificationItem, ClarificationLetter, LetterLanguage } from '../cases/schema.js';
 import {
   type DeclarationsClient,
   DeclarationsUnavailable,
@@ -18,16 +18,30 @@ export interface LetterCase {
 }
 
 /**
- * The letter of a clarification being issued: each item labelled from the case's current version
- * as filed, read from declarations on the reviewer's behalf (audited there). A declarations outage
- * is a 502: nothing is issued, and the reviewer issues again.
+ * The letter of a clarification being issued, in its language: its opening paragraph, and each
+ * item labelled from the case's current version as filed, read from declarations on the reviewer's behalf (audited
+ * there), each marked when drafted with AI (ADR-007). A declarations outage is a 502: nothing is
+ * issued, and the reviewer issues again.
  */
 export async function composeLetter(
   declarations: DeclarationsClient,
   read: Omit<ReadContext, 'caseId'>,
   reviewCase: LetterCase,
   commission: CommissionFacts,
-  items: ClarificationItem[],
+  {
+    items,
+    opening,
+    openingAiJobId,
+    aiAssisted,
+    language,
+  }: {
+    items: ClarificationItem[];
+    language: LetterLanguage;
+    opening: string | null;
+    openingAiJobId: string | null;
+    /** The clarification's sticky marker: some save named AI-drafted text. */
+    aiAssisted: boolean;
+  },
 ): Promise<ClarificationLetter> {
   let document: DeclarationV1 | null;
   try {
@@ -41,12 +55,20 @@ export async function composeLetter(
     if (!(error instanceof DeclarationsUnavailable)) throw error;
     throw declarationsUnavailable();
   }
+  const lines = items.map((item) => ({
+    label: itemLabel(item, document, language),
+    requirementLabel: REQUIREMENT_LABELS[language][item.requirement],
+    text: item.text,
+    aiAssisted: item.aiJobId != null,
+  }));
   return {
     commission: { name: commission.name, issuerCode: commission.issuerCode },
-    items: items.map((item) => ({
-      label: itemLabel(item, document),
-      requirementLabel: REQUIREMENT_LABELS[item.requirement],
-      text: item.text,
-    })),
+    language,
+    opening,
+    aiAssisted:
+      aiAssisted ||
+      (opening !== null && openingAiJobId !== null) ||
+      lines.some((l) => l.aiAssisted),
+    items: lines,
   };
 }

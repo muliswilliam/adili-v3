@@ -4,6 +4,8 @@
  * appear in this module or be re-exported through it.
  */
 
+import { z } from 'zod';
+
 export type JsonSchema = Record<string, unknown>;
 
 export type AttachmentKind = 'image' | 'pdf' | 'text';
@@ -115,7 +117,9 @@ export interface ProviderCapabilities {
  * API); `self-hosted` keeps them on infrastructure the platform controls. The classification
  * gate decides which data classes each may see.
  */
-export type ProviderClass = 'external' | 'self-hosted';
+export const PROVIDER_CLASSES = ['external', 'self-hosted'] as const;
+export type ProviderClass = (typeof PROVIDER_CLASSES)[number];
+export const providerClassSchema = z.enum(PROVIDER_CLASSES);
 
 export interface ModelProvider {
   /** Provider id recorded on jobs (`anthropic`, `replay`...). */

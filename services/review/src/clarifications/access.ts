@@ -1,20 +1,11 @@
-import { createParamDecorator, type ExecutionContext, HttpStatus } from '@nestjs/common';
-import {
-  type AuthenticatedRequest,
-  notFoundIfInvisible,
-  type Principal,
-  ProblemException,
-} from '@adili/api-kit';
+import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
+import { type AuthenticatedRequest, notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { notTheAssignee } from '../cases/access.js';
 
 /** Only the case's assignee composes and issues its clarifications (spec 07a authorisation). */
 export function requireAssignee(principal: Principal, assignee: string | null): void {
   if (assignee !== principal.subject) {
-    throw new ProblemException({
-      type: 'not-the-assignee',
-      title: 'Forbidden',
-      status: HttpStatus.FORBIDDEN,
-      detail: "Only the case's assignee can compose and issue its clarifications.",
-    });
+    throw notTheAssignee("Only the case's assignee can compose and issue its clarifications.");
   }
 }
 

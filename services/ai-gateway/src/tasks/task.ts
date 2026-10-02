@@ -12,6 +12,23 @@ export const TASK_NAMES = [
   'draft-clarification',
 ] as const;
 export type TaskName = (typeof TASK_NAMES)[number];
+export const taskNameSchema = z.enum(TASK_NAMES);
+
+/** Contract `AiLabel`: present on every job output. */
+export const aiLabelSchema = z
+  .object({
+    aiAssisted: z.literal(true),
+    task: taskNameSchema,
+    promptVersion: z.number().int(),
+    provider: z.string(),
+    model: z.string(),
+    generatedAt: z.iso.datetime(),
+    disclaimer: z
+      .string()
+      .meta({ description: 'Fixed text: indicators, not findings; a named reviewer decides' }),
+  })
+  .meta({ description: 'Present on every output' });
+export type AiLabel = z.infer<typeof aiLabelSchema>;
 
 interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   name: TaskName;
@@ -23,6 +40,11 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   promptVersions: readonly [number, ...number[]];
   /** Output limit of every call for this task. */
   maxOutputTokens: number;
+  /**
+   * Hours a finished job keeps this task's output, when shorter than the service-wide
+   * `AI_OUTPUT_RETENTION_HOURS` (a clarification draft is kept 24 hours, spec 07c).
+   */
+  outputRetentionHours?: number;
 }
 
 export interface TaskDefinition<
@@ -32,6 +54,8 @@ export interface TaskDefinition<
   currentPromptVersion: number;
   /** `output` as JSON Schema, sent to the provider for structured output. */
   outputJsonSchema: JsonSchema;
+  /** The job's output (contract `<Task>Output`): `output` with the gateway's `label` first. */
+  jobOutput: z.ZodObject;
   /** The system prompt of a version; throws for a version the task does not have. */
   prompt(version: number): string;
 }
@@ -58,6 +82,7 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
     ...spec,
     currentPromptVersion: Math.max(...spec.promptVersions),
     outputJsonSchema,
+    jobOutput: z.object({ label: aiLabelSchema, ...spec.output.shape }),
     prompt(version) {
       const prompt = prompts.get(version);
       if (prompt === undefined) {
@@ -68,20 +93,9 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
   };
 }
 
-/** Contract `AiLabel`: present on every job output. */
-export interface AiLabel {
-  aiAssisted: true;
-  task: TaskName;
-  promptVersion: number;
-  provider: string;
-  model: string;
-  generatedAt: string;
-  disclaimer: string;
-}
-
 const DISCLAIMERS: Record<Language, string> = {
-  en: 'AI-assisted. These are indicators, not findings: a named officer reviews the record and decides.',
-  sw: 'Imesaidiwa na AI. Hivi ni viashiria, si matokeo: afisa aliyetajwa hukagua rekodi na kuamua.',
+  en: 'AI-assisted. These are indicators, not findings: a named reviewer examines the record and decides.',
+  sw: 'Imesaidiwa na AI. Hivi ni viashiria, si matokeo: mkaguzi aliyetajwa huchunguza rekodi na kuamua.',
 };
 
 export function aiLabel(

@@ -3,7 +3,7 @@ import { notFoundIfInvisible } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, ne } from 'drizzle-orm';
 
-import { clarifications, reviewCases } from '../cases/schema.js';
+import { clarifications, type LetterLanguage, reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { systemContext } from '../system-context.js';
 import { portalClarificationUrl } from './links.js';
@@ -14,7 +14,12 @@ export interface ClarificationLetterPayload {
   commission: { name: string; issuerCode: string };
   declarationReference: string;
   clarificationReference: string;
-  items: { label: string; requirementLabel: string; text: string }[];
+  /** The template prints its own text in it; labels and requirements already are. */
+  language: LetterLanguage;
+  opening: string | null;
+  /** Some of the text was drafted with AI and approved by the issuing reviewer (ADR-007). */
+  aiAssisted: boolean;
+  items: { label: string; requirementLabel: string; text: string; aiAssisted: boolean }[];
   issuedAt: string;
   dueAt: string;
   portalUrl: string;
@@ -57,7 +62,12 @@ export class LetterPayloadService {
       commission: letter.commission,
       declarationReference,
       clarificationReference: reference,
-      items: letter.items,
+      // Letters issued before the language was recorded are English.
+      language: letter.language ?? 'en',
+      opening: letter.opening ?? null,
+      // Letters issued before the label was recorded had no AI-drafted text to mark.
+      aiAssisted: letter.aiAssisted ?? false,
+      items: letter.items.map((item) => ({ ...item, aiAssisted: item.aiAssisted ?? false })),
       issuedAt: issuedAt.toISOString(),
       dueAt: dueAt.toISOString(),
       portalUrl: portalClarificationUrl(clarificationId),
