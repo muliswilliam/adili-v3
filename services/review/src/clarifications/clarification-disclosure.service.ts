@@ -5,6 +5,8 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { clarificationResponses, clarifications, reviewCases } from '../cases/schema.js';
 import type { ReviewSchema } from '../db/schema.js';
 import {
+  type ClarificationCounts,
+  type ClarificationCountsRequest,
   type ClarificationDisclosure,
   type ClarificationDisclosureRequest,
   DISCLOSED_STATUSES,
@@ -28,63 +30,10 @@ export class ClarificationDisclosureService {
     read: TenantContext,
     request: ClarificationDisclosureRequest,
   ): Promise<{ disclosure: ClarificationDisclosure; clarificationIds: string[] }> {
-    const rows = await withTenant(this.db, read, (tx) =>
-      tx
-        .select({
-          id: clarifications.id,
-          declarationReference: reviewCases.reference,
-          reference: clarifications.reference,
-          status: clarifications.status,
-          issuedAt: clarifications.issuedAt,
-          dueAt: clarifications.dueAt,
-          respondedAt: clarifications.respondedAt,
-          responseLate: clarifications.responseLate,
-          resolvedAt: clarifications.resolvedAt,
-          items: clarifications.items,
-          letter: clarifications.letter,
-          responseItems: clarificationResponses.items,
-          responseAttachments: clarificationResponses.attachments,
-        })
-        .from(clarifications)
-        .innerJoin(reviewCases, eq(reviewCases.id, clarifications.caseId))
-        .leftJoin(
-          clarificationResponses,
-          eq(clarificationResponses.clarificationId, clarifications.id),
-        )
-        .where(
-          and(
-            eq(clarifications.tenant, read.tenant),
-            eq(reviewCases.personId, request.personId),
-            eq(clarifications.personId, request.personId),
-            inArray(reviewCases.reference, request.declarationReferences),
-            inArray(clarifications.status, DISCLOSED_STATUSES),
-          ),
-        )
-        .orderBy(asc(clarifications.issuedAt), asc(clarifications.id)),
-    );
+    const rows = await issuedClarifications(this.db, read, request);
 
     const disclosed = rows.flatMap((row) => {
-      // Issued ones carry their reference, issue and due dates; a row without is not issued.
-      if (row.reference === null || row.issuedAt === null || row.dueAt === null) return [];
-      const clarification = disclosedClarification(
-        {
-          declarationReference: row.declarationReference,
-          reference: row.reference,
-          status: row.status as DisclosedStatus,
-          issuedAt: row.issuedAt,
-          dueAt: row.dueAt,
-          respondedAt: row.respondedAt,
-          responseLate: row.responseLate,
-          resolvedAt: row.resolvedAt,
-          items: row.items,
-          letter: row.letter,
-          response:
-            row.responseItems === null
-              ? null
-              : { items: row.responseItems, attachments: row.responseAttachments ?? [] },
-        },
-        request,
-      );
+      const clarification = inScope(row, request);
       return clarification === null ? [] : [{ id: row.id, clarification }];
     });
 
@@ -96,4 +45,100 @@ export class ClarificationDisclosureService {
       clarificationIds: disclosed.map(({ id }) => id),
     };
   }
+
+  /**
+   * How many clarifications a grant of the scope would disclose (decision 1), per declaration
+   * named, zero for one with none; with the ids counted, for the audit trail. Counted on what
+   * `disclose` would let out, so a clarification outside the scope never counts.
+   */
+  async count(
+    read: TenantContext,
+    request: ClarificationCountsRequest,
+  ): Promise<{ counts: ClarificationCounts; clarificationIds: string[] }> {
+    const rows = await issuedClarifications(this.db, read, request);
+    const counted = rows.flatMap((row) => {
+      const clarification = inScope(row, request);
+      return clarification === null ? [] : [{ id: row.id, clarification }];
+    });
+    return {
+      counts: {
+        counts: [...new Set(request.declarationReferences)].map((declarationReference) => ({
+          declarationReference,
+          clarifications: counted.filter(
+            ({ clarification }) => clarification.declarationReference === declarationReference,
+          ).length,
+        })),
+      },
+      clarificationIds: counted.map(({ id }) => id),
+    };
+  }
+}
+
+/** The clarifications issued on the declarations named, of the person, at the Commission. */
+function issuedClarifications(
+  db: Database<ReviewSchema>,
+  read: TenantContext,
+  request: ClarificationCountsRequest,
+) {
+  return withTenant(db, read, (tx) =>
+    tx
+      .select({
+        id: clarifications.id,
+        declarationReference: reviewCases.reference,
+        reference: clarifications.reference,
+        status: clarifications.status,
+        issuedAt: clarifications.issuedAt,
+        dueAt: clarifications.dueAt,
+        respondedAt: clarifications.respondedAt,
+        responseLate: clarifications.responseLate,
+        resolvedAt: clarifications.resolvedAt,
+        items: clarifications.items,
+        letter: clarifications.letter,
+        responseItems: clarificationResponses.items,
+        responseAttachments: clarificationResponses.attachments,
+      })
+      .from(clarifications)
+      .innerJoin(reviewCases, eq(reviewCases.id, clarifications.caseId))
+      .leftJoin(
+        clarificationResponses,
+        eq(clarificationResponses.clarificationId, clarifications.id),
+      )
+      .where(
+        and(
+          eq(clarifications.tenant, read.tenant),
+          eq(reviewCases.personId, request.personId),
+          eq(clarifications.personId, request.personId),
+          inArray(reviewCases.reference, request.declarationReferences),
+          inArray(clarifications.status, DISCLOSED_STATUSES),
+        ),
+      )
+      .orderBy(asc(clarifications.issuedAt), asc(clarifications.id)),
+  );
+}
+
+type IssuedRow = Awaited<ReturnType<typeof issuedClarifications>>[number];
+
+/** The row as a grant of the scope would disclose it; null when not issued or none of it is in scope. */
+function inScope(row: IssuedRow, scope: ClarificationCountsRequest) {
+  // Issued ones carry their reference, issue and due dates; a row without is not issued.
+  if (row.reference === null || row.issuedAt === null || row.dueAt === null) return null;
+  return disclosedClarification(
+    {
+      declarationReference: row.declarationReference,
+      reference: row.reference,
+      status: row.status as DisclosedStatus,
+      issuedAt: row.issuedAt,
+      dueAt: row.dueAt,
+      respondedAt: row.respondedAt,
+      responseLate: row.responseLate,
+      resolvedAt: row.resolvedAt,
+      items: row.items,
+      letter: row.letter,
+      response:
+        row.responseItems === null
+          ? null
+          : { items: row.responseItems, attachments: row.responseAttachments ?? [] },
+    },
+    scope,
+  );
 }

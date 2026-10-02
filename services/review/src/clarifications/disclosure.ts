@@ -54,25 +54,48 @@ export type DisclosedStatus = (typeof DISCLOSED_STATUSES)[number];
 /** The most declarations one disclosure names: a grant's versions, at most 50 years of them. */
 const MAX_DECLARATIONS = 200;
 
+const grantScopeFields = {
+  personId: z.uuid(),
+  grantReference: z
+    .string()
+    .regex(GRANT_REFERENCE_PATTERN)
+    .refine(isGrantReference, { message: 'not a valid ARQ or LEA reference (check character)' }),
+  legalBasis: z.enum(LEGAL_BASES),
+  declarationReferences: z.array(z.string().min(1).max(64)).min(1).max(MAX_DECLARATIONS),
+  includeSpouses: z.boolean(),
+  includeChildren: z.boolean(),
+  sections: z.array(z.enum(DISCLOSURE_SECTIONS)).min(1).max(DISCLOSURE_SECTIONS.length),
+};
+
+const LEGAL_BASIS_OF_REFERENCE = {
+  path: ['legalBasis'],
+  message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
+};
+
 export const clarificationDisclosureRequest = z
-  .strictObject({
-    personId: z.uuid(),
-    grantReference: z
-      .string()
-      .regex(GRANT_REFERENCE_PATTERN)
-      .refine(isGrantReference, { message: 'not a valid ARQ or LEA reference (check character)' }),
-    legalBasis: z.enum(LEGAL_BASES),
-    recipientSubject: z.string().min(1).max(255),
-    declarationReferences: z.array(z.string().min(1).max(64)).min(1).max(MAX_DECLARATIONS),
-    includeSpouses: z.boolean(),
-    includeChildren: z.boolean(),
-    sections: z.array(z.enum(DISCLOSURE_SECTIONS)).min(1).max(DISCLOSURE_SECTIONS.length),
-  })
-  .refine((request) => basisOf(request.grantReference) === request.legalBasis, {
-    path: ['legalBasis'],
-    message: 'act-s36-1 goes with an ARQ reference, act-s36-2 with an LEA reference',
-  });
+  .strictObject({ ...grantScopeFields, recipientSubject: z.string().min(1).max(255) })
+  .refine(
+    (request) => basisOf(request.grantReference) === request.legalBasis,
+    LEGAL_BASIS_OF_REFERENCE,
+  );
 export type ClarificationDisclosureRequest = z.infer<typeof clarificationDisclosureRequest>;
+
+/**
+ * A scope the access officer is weighing before deciding (decision 1), to be counted: the
+ * disclosure's request without a recipient, as the officer asking is the one who sees the counts.
+ */
+export const clarificationCountsRequest = z
+  .strictObject(grantScopeFields)
+  .refine(
+    (request) => basisOf(request.grantReference) === request.legalBasis,
+    LEGAL_BASIS_OF_REFERENCE,
+  );
+export type ClarificationCountsRequest = z.infer<typeof clarificationCountsRequest>;
+
+/** review.yaml `ClarificationCounts`: per declaration named, the clarifications a grant would disclose. */
+export interface ClarificationCounts {
+  counts: { declarationReference: string; clarifications: number }[];
+}
 
 /** The household members and sections a grant allows. */
 export type DisclosureScope = Pick<
