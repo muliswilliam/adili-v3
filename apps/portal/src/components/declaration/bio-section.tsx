@@ -102,7 +102,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
     invalid: false,
   });
 
-  const issues = bioIssues(officer, declaration.statementDate);
+  const issues = bioIssues(officer, declaration.statementDate, declaration.type);
   if (birthDateText.invalid) {
     issues.birthDate = { kind: 'invalid', message: BIO_MESSAGES.dateFormat };
   }

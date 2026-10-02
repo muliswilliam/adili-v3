@@ -4,7 +4,6 @@ import {
   type AttachmentState,
   Button,
   cn,
-  focusRing,
   Icon,
   SegmentedChoice,
   SplitPane,
@@ -26,7 +25,7 @@ import {
   UserRemove01Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useId, useState } from 'react';
 import { flushSync } from 'react-dom';
 
 import { flagTarget, pinsByItem, pinsBySection } from '../../../review-case/flags';
@@ -79,19 +78,39 @@ function RecheckButton({
 }) {
   const cooldown = useCooldown(availableAt, now);
   const reason = forbidden ? REGISTRY_COPY.recheck.forbidden : checking ? null : cooldown;
-  const button = (
-    <Button size="sm" variant="secondary" disabled={reason !== null || checking} onClick={onClick}>
+  const reasonId = useId();
+  const content = (
+    <>
       {checking ? <Spinner /> : <Icon icon={RefreshIcon} />}
       {checking ? REGISTRY_COPY.recheck.running : REGISTRY_COPY.recheck.action}
-    </Button>
+    </>
   );
-  if (reason === null) return button;
+  if (reason === null) {
+    return (
+      <Button size="sm" variant="secondary" disabled={checking} onClick={onClick}>
+        {content}
+      </Button>
+    );
+  }
+  // Blocked, with why: still focusable (aria-disabled, no click handler) so keyboard and screen
+  // reader users reach the button, hear the reason as its description, and get the tooltip.
   return (
-    <Tooltip content={reason}>
-      <span tabIndex={0} aria-label={reason} className={cn(focusRing, 'inline-flex rounded-lg')}>
-        {button}
+    <>
+      <Tooltip content={reason}>
+        <Button
+          size="sm"
+          variant="secondary"
+          aria-disabled="true"
+          aria-describedby={reasonId}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:bg-card aria-disabled:active:translate-y-0"
+        >
+          {content}
+        </Button>
+      </Tooltip>
+      <span id={reasonId} className="sr-only">
+        {reason}
       </span>
-    </Tooltip>
+    </>
   );
 }
 

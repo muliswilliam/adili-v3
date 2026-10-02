@@ -8,7 +8,7 @@ export function bioCompleteness(
   officer: Draft<Officer>,
   context: RuleContext,
 ): CompletenessIssue[] {
-  const issues = bioIssues(officer, context.statementDate);
+  const issues = bioIssues(officer, context.statementDate, context.type);
   return BIO_FIELD_ORDER.flatMap((field) => {
     const found = issues[field];
     return found ? [issue(context, BIO_FIELD_PATHS[field], found.kind, found.message)] : [];
