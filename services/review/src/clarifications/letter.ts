@@ -18,7 +18,7 @@ export interface LetterCase {
 }
 
 /**
- * The letter of a clarification being issued: each item labelled from the case's current version
+ * The letter of a clarification being issued: its opening paragraph, and each item labelled from the case's current version
  * as filed, read from declarations on the reviewer's behalf (audited there). A declarations outage
  * is a 502: nothing is issued, and the reviewer issues again.
  */
@@ -27,7 +27,7 @@ export async function composeLetter(
   read: Omit<ReadContext, 'caseId'>,
   reviewCase: LetterCase,
   commission: CommissionFacts,
-  items: ClarificationItem[],
+  { items, opening }: { items: ClarificationItem[]; opening: string | null },
 ): Promise<ClarificationLetter> {
   let document: DeclarationV1 | null;
   try {
@@ -43,6 +43,7 @@ export async function composeLetter(
   }
   return {
     commission: { name: commission.name, issuerCode: commission.issuerCode },
+    opening,
     items: items.map((item) => ({
       label: itemLabel(item, document),
       requirementLabel: REQUIREMENT_LABELS[item.requirement],

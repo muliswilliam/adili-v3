@@ -229,7 +229,7 @@ export interface paths {
         };
         /** Clarification with items, letter and response */
         get: operations["getClarification"];
-        /** Update a draft's items */
+        /** Update a draft's items and opening paragraph */
         put: operations["updateClarificationDraft"];
         post?: never;
         delete?: never;
@@ -1343,6 +1343,8 @@ export interface components {
         };
         ClarificationInput: {
             items: components["schemas"]["ClarificationItemInput"][];
+            /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
+            opening?: string | null;
         };
         ClarificationResponseInput: {
             items: {
@@ -1383,6 +1385,8 @@ export interface components {
             } | null;
             /** Format: uuid */
             followUpOf: string | null;
+            /** @description The letter's opening paragraph, printed before the items; null when it has none */
+            opening: string | null;
             response: {
                 items: {
                     index: number;
@@ -1427,6 +1431,8 @@ export interface components {
             };
             declarationReference: string;
             clarificationReference: string;
+            /** @description Printed before the items; null when the letter has no opening paragraph */
+            opening: string | null;
             items: {
                 label: string;
                 requirementLabel: string;

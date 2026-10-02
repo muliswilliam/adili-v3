@@ -272,6 +272,8 @@ export interface ClarificationItem {
  */
 export interface ClarificationLetter {
   commission: { name: string; issuerCode: string };
+  /** The opening paragraph, before the items; absent from letters issued before it existed. */
+  opening?: string | null;
   items: { label: string; requirementLabel: string; text: string }[];
 }
 
@@ -289,6 +291,8 @@ export const clarifications = pgTable(
     reference: text(),
     status: text({ enum: CLARIFICATION_STATUSES }).notNull(),
     items: jsonb().$type<ClarificationItem[]>().notNull(),
+    /** The letter's opening paragraph, before the items (e.g. from Draft with AI); null for none. */
+    opening: text(),
     issuedAt: timestamp({ withTimezone: true }),
     dueAt: timestamp({ withTimezone: true }),
     respondedAt: timestamp({ withTimezone: true }),

@@ -91,6 +91,7 @@ export class ClarificationsService {
           personId: reviewCase.personId,
           status: 'draft',
           items: storedItems(input),
+          opening: input.opening,
           createdBy: principal.subject,
         })
         .returning();
@@ -110,7 +111,7 @@ export class ClarificationsService {
       if (clarification.status !== 'draft') throw notADraft();
       const [updated] = await tx
         .update(clarifications)
-        .set({ items: storedItems(input) })
+        .set({ items: storedItems(input), opening: input.opening })
         .where(eq(clarifications.id, clarificationId))
         .returning();
       return clarificationView(notFoundIfInvisible(updated));
@@ -173,7 +174,7 @@ export class ClarificationsService {
         { tenant, actingSubject: principal.subject },
         reviewCase,
         commission,
-        clarification.items,
+        clarification,
       );
       const reference = await allocateReference(tx, CLR, {
         issuer: commission.issuerCode,
@@ -295,6 +296,7 @@ export class ClarificationsService {
           personId: clarification.personId,
           status: 'draft',
           items: clarification.items.map((item) => ({ ...item, id: uuidv7() })),
+          opening: clarification.opening,
           followUpOf: clarificationId,
           createdBy: principal.subject,
         })

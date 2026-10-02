@@ -172,6 +172,7 @@ function clarification(
       status: 'issued',
     },
     followUpOf: null,
+    opening: null,
     response: null,
     ...overrides,
   };
@@ -338,6 +339,7 @@ function draftOf(
     resolutionNote: null,
     letter: null,
     followUpOf,
+    opening: null,
     response: null,
   };
 }
@@ -565,7 +567,10 @@ async function act(
   }
 
   // follow-up
-  const draft = draftOf(randomUUID(), found.caseId, found.items, found.id);
+  const draft = {
+    ...draftOf(randomUUID(), found.caseId, found.items, found.id),
+    opening: found.opening,
+  };
   clarifications.set(draft.id, draft);
   return json(201, draft);
 }
@@ -592,10 +597,16 @@ async function once(request: Request, work: () => Promise<Response>): Promise<Re
 }
 
 /** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
-async function itemsOf(request: Request): Promise<Item[] | null> {
+async function contentOf(
+  request: Request,
+): Promise<{ items: Item[]; opening: string | null } | null> {
   const body = await readJson(request);
   const items = isRecord(body) ? body.items : null;
   if (!Array.isArray(items) || items.length > 50) return null;
+  const opening = isRecord(body) ? (body.opening ?? null) : null;
+  if (opening !== null && (typeof opening !== 'string' || opening.trim().length > 800)) {
+    return null;
+  }
   const valid: Item[] = [];
   const optional = (value: unknown) => (typeof value === 'string' ? value : null);
   for (const item of items) {
@@ -611,7 +622,7 @@ async function itemsOf(request: Request): Promise<Item[] | null> {
       text: text.trim(),
     });
   }
-  return valid;
+  return { items: valid, opening: opening?.trim() || null };
 }
 
 async function createDraft(request: Request, caseId: string, caller: Assignee) {
@@ -620,9 +631,9 @@ async function createDraft(request: Request, caseId: string, caller: Assignee) {
   if (holderOf(stored, caller).subject !== caller.subject) {
     return problem(403, 'Only the officer holding the case can write its clarifications');
   }
-  const items = await itemsOf(request);
-  if (items === null) return problem(400, 'Items are not valid');
-  const draft = draftOf(randomUUID(), caseId, items, null);
+  const content = await contentOf(request);
+  if (content === null) return problem(400, 'Items are not valid');
+  const draft = { ...draftOf(randomUUID(), caseId, content.items, null), opening: content.opening };
   clarifications.set(draft.id, draft);
   return json(201, draft);
 }
@@ -635,9 +646,9 @@ async function updateDraft(request: Request, id: string, caller: Assignee) {
     return problem(403, 'Only the officer holding the case can write its clarifications');
   }
   if (found.status !== 'draft') return problem(409, 'Not a draft', 'not-a-draft');
-  const items = await itemsOf(request);
-  if (items === null) return problem(400, 'Items are not valid');
-  const updated = { ...found, items };
+  const content = await contentOf(request);
+  if (content === null) return problem(400, 'Items are not valid');
+  const updated = { ...found, ...content };
   clarifications.set(id, updated);
   return json(200, updated);
 }

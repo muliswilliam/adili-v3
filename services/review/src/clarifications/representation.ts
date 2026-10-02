@@ -33,6 +33,8 @@ export interface ClarificationView {
   resolutionNote: string | null;
   letter: { documentId: string; verificationId: string; status: 'issued' | 'revoked' } | null;
   followUpOf: string | null;
+  /** The letter's opening paragraph, before the items; null when it has none. */
+  opening: string | null;
   response: {
     items: {
       index: number;
@@ -76,6 +78,7 @@ export function clarificationView(
             status: row.status === 'withdrawn' ? 'revoked' : 'issued',
           },
     followUpOf: row.followUpOf,
+    opening: row.opening,
     response: response === null ? null : responseView(row.items, response),
   };
 }

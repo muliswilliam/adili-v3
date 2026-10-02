@@ -110,9 +110,9 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
   });
 
   /** A clarification of the case, drafted and issued by reviewer A. */
-  async function issued(caseId: string): Promise<ClarificationView> {
+  async function issued(caseId: string, body: object = twoItems): Promise<ClarificationView> {
     const { id } = (
-      await api.send('POST', `/v1/review/cases/${caseId}/clarifications`, reviewerA, twoItems)
+      await api.send('POST', `/v1/review/cases/${caseId}/clarifications`, reviewerA, body)
     ).json<ClarificationView>();
     const response = await issue(id);
     expect(response.statusCode, response.body).toBe(200);
@@ -552,9 +552,10 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
       expect((await row(clarification.id))?.status).toBe('issued');
     });
 
-    it('a follow-up is a new draft with followUpOf and the same items; issued, it takes a new CLR', async () => {
+    it('a follow-up is a new draft with followUpOf, the same items and opening paragraph; issued, it takes a new CLR', async () => {
       const caseId = await givenAssignedCase(api, version);
-      const clarification = await issued(caseId);
+      const opening = 'The points below relate to registry records.';
+      const clarification = await issued(caseId, { ...twoItems, opening });
       expect((await respond(clarification.id)).statusCode).toBe(201);
 
       const response = await api.send(
@@ -577,6 +578,7 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
         reference: null,
         followUpOf: clarification.id,
         items: twoItems.items,
+        opening,
       });
       // In the same transaction as the draft: the timeline says who raised it, of which.
       expect((await timeline(caseId)).at(-1)).toEqual([

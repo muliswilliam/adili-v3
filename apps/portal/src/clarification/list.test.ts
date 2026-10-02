@@ -30,6 +30,7 @@ function clarification(overrides: Partial<DeclarantClarification> = {}): Declara
     resolutionNote: null,
     letter: null,
     followUpOf: null,
+    opening: null,
     response: null,
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     declarationReference: 'DCI-TSC-2026-0003418-P',

@@ -116,6 +116,7 @@ function clarification(
       status: 'issued',
     },
     followUpOf: null,
+    opening: null,
     response: null,
     commission: COMMISSION,
     declarationReference: DECLARATION_REFERENCE,

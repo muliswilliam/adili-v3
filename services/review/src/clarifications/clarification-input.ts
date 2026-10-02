@@ -18,10 +18,18 @@ export const clarificationItemInput = z.object({
 
 /**
  * review.yaml `ClarificationInput`. A draft may have no items yet; issuing one needs at least
- * one.
+ * one. The opening paragraph is optional: left out or blank, the letter has none.
  */
 export const clarificationInput = z.object({
   items: z.array(clarificationItemInput).max(50),
+  opening: z
+    .string()
+    .trim()
+    .max(800)
+    .nullish()
+    .transform((opening) =>
+      opening === undefined || opening === null || opening === '' ? null : opening,
+    ),
 });
 
 export type ClarificationInput = z.infer<typeof clarificationInput>;

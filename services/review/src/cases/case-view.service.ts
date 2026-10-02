@@ -285,6 +285,7 @@ function clarificationView(
                   : 'issued',
           },
     followUpOf: row.followUpOf,
+    opening: row.opening,
     response:
       response === undefined
         ? null
