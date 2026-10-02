@@ -1,3 +1,4 @@
+import { maxWorkers } from '@adili/vitest-config';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
@@ -5,6 +6,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
+    maxWorkers: maxWorkers(),
     isolate: false,
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     exclude: ['**/*.integration.test.ts'],

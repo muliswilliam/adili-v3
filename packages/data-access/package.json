@@ -32,6 +32,7 @@
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@nestjs/common": "^12.1.0",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",

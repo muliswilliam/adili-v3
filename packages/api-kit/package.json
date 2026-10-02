@@ -48,6 +48,7 @@
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^12.1.0",
     "@nestjs/microservices": "^12.1.0",

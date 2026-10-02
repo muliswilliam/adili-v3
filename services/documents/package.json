@@ -53,6 +53,7 @@
     "@adili/eslint-config": "workspace:*",
     "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@napi-rs/canvas": "^1.0.9",
     "@nestjs/platform-fastify": "^12.1.0",
     "@nestjs/testing": "^12.1.0",

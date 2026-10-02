@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 
+import { maxWorkers } from '@adili/vitest-config';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
@@ -19,6 +20,7 @@ function localProvider(): Record<string, string> {
 export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
+    maxWorkers: maxWorkers(),
     include: ['evals/**/*.eval.ts'],
     // A recorded call can take most of a minute.
     testTimeout: recording ? 180_000 : 5_000,

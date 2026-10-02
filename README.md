@@ -32,6 +32,8 @@ pnpm health         # readiness of everything
 
 `pnpm check` runs formatting, lint, type checks, tests and module-boundary rules. `pnpm test:integration` runs the tests that need the infrastructure (Postgres, Valkey, RabbitMQ, Keycloak, Mailpit). They connect as `adili_test`, which like the services' roles owns its database but is not a superuser, so row-level security applies to them; CI creates it with the same `infra/compose/postgres/init-databases.sh`. `pnpm infra:down` stops the infrastructure. `pnpm infra:down -- --volumes` (or `pnpm infra:reset`) also deletes its data. `pnpm infra:health` checks compose health. Docker Compose and Podman Compose are both accepted.
 
+Under Turborepo the test runs share the cores: each Vitest run gets the cores divided by the number of tasks Turborepo runs at once (10 by default, `TURBO_CONCURRENCY` when set, `@adili/vitest-config`), so a repo-wide run does not oversubscribe the machine and starve timing-sensitive tests. Set the concurrency with `TURBO_CONCURRENCY=4 pnpm test`, not `--concurrency`, which the Vitest runs cannot see. A single package (`pnpm --filter @adili/console test`, watch mode) keeps every core but one, and `VITEST_MAX_WORKERS` overrides both.
+
 Keycloak imports the realm (`infra/compose/keycloak/adili-realm.json`) only when it does not exist yet, so after a realm change run `pnpm infra:reset` before `pnpm infra:up`.
 
 Government-system mocks run on the host via `pnpm dev` (or `pnpm --filter @adili/mocks dev`) against the `mocks` database created by `infra:up`.

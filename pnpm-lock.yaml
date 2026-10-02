@@ -70,6 +70,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.1)
@@ -164,6 +167,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.1)
@@ -246,6 +252,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.1)
@@ -340,6 +349,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.3.1)
@@ -442,6 +454,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
@@ -512,6 +527,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -573,6 +591,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -604,6 +625,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
@@ -677,6 +701,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
@@ -744,6 +771,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -781,6 +811,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
@@ -903,6 +936,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
@@ -1002,6 +1038,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@storybook/addon-a11y':
         specifier: ^10.6.0
         version: 10.6.0(storybook@10.6.0)
@@ -1060,6 +1099,27 @@ importers:
         specifier: ^5.0.1
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
 
+  packages/vitest-config:
+    devDependencies:
+      '@adili/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@adili/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.6
+      eslint:
+        specifier: ^10.11.0
+        version: 10.11.0(jiti@2.7.0)(supports-color@10.2.2)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(jsdom@30.1.1)(vite@8.3.1)
+
   services/access:
     dependencies:
       '@adili/api-kit':
@@ -1108,6 +1168,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/testing':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
@@ -1205,6 +1268,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -1305,6 +1371,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/testing':
         specifier: ^12.1.0
         version: 12.1.0(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)(@nestjs/microservices@12.1.0)
@@ -1414,6 +1483,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -1565,6 +1637,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -1707,6 +1782,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@napi-rs/canvas':
         specifier: ^1.0.9
         version: 1.0.9
@@ -1831,6 +1909,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -1940,6 +2021,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -2058,6 +2142,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -2185,6 +2272,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)
@@ -2285,6 +2375,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../../packages/vitest-config
       '@nestjs/platform-fastify':
         specifier: ^12.1.0
         version: 12.1.0(@fastify/static@10.1.4)(@nestjs/common@12.1.0)(@nestjs/core@12.1.0)

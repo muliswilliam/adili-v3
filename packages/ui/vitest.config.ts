@@ -1,3 +1,4 @@
+import { maxWorkers } from '@adili/vitest-config';
 import { defineConfig } from 'vitest/config';
 
 import { hugeiconsPerIcon } from './vitest.icons.ts';
@@ -5,6 +6,7 @@ import { hugeiconsPerIcon } from './vitest.icons.ts';
 export default defineConfig({
   plugins: [hugeiconsPerIcon()],
   test: {
+    maxWorkers: maxWorkers(),
     isolate: false,
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],

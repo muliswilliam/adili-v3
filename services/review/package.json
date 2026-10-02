@@ -48,6 +48,7 @@
     "@adili/eslint-config": "workspace:*",
     "@adili/schemas": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@nestjs/platform-fastify": "^12.1.0",
     "@nestjs/testing": "^12.1.0",
     "@swc-node/register": "^1.12.1",

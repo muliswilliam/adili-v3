@@ -30,6 +30,7 @@
   "devDependencies": {
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@types/node": "^24.0.0",
     "eslint": "^10.11.0",
     "json-schema-to-typescript": "^16.0.0",
