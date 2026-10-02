@@ -1,6 +1,16 @@
 import type { FieldEnvelope } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
-import { check, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { reviewCases } from '../cases/schema.js';
 
@@ -65,9 +75,43 @@ export const reviewCopilots = pgTable(
   },
   (table) => [
     check('review_copilots_status_check', sql`${table.status} in (${inList(COPILOT_STATUSES)})`),
+    // A rating names the output by its job.
+    index('review_copilots_summary_job_id_idx').on(table.summaryJobId),
+    index('review_copilots_explanations_job_id_idx').on(table.explanationsJobId),
   ],
 );
 
 export type CopilotRow = typeof reviewCopilots.$inferSelect;
 
-export const copilotSchema = { reviewCopilots };
+/** review.yaml `CopilotFeedbackInput.rating`. */
+export const COPILOT_RATINGS = ['helpful', 'not-helpful'] as const;
+export type CopilotRating = (typeof COPILOT_RATINGS)[number];
+
+/**
+ * An officer's rating of a copilot output (spec 07c S13), one per officer per output (job). The
+ * ai-gateway holds the rating of record, with the reason and note, and announces it for
+ * reporting; the review service keeps the rating so the copilot view can show the officer their
+ * own.
+ */
+export const reviewCopilotRatings = pgTable(
+  'review_copilot_ratings',
+  {
+    jobId: uuid().notNull(),
+    reviewerSubject: text().notNull(),
+    tenant: text().notNull(),
+    caseId: uuid()
+      .notNull()
+      .references(() => reviewCases.id),
+    rating: text({ enum: COPILOT_RATINGS }).notNull(),
+    ratedAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.jobId, table.reviewerSubject] }),
+    check(
+      'review_copilot_ratings_rating_check',
+      sql`${table.rating} in (${inList(COPILOT_RATINGS)})`,
+    ),
+  ],
+);
+
+export const copilotSchema = { reviewCopilots, reviewCopilotRatings };
