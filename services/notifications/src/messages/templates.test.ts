@@ -3,6 +3,15 @@ import { ZodError } from 'zod';
 
 import { renderTemplate } from './templates.js';
 
+function clarificationParams() {
+  return {
+    reference: 'CLR-PSC-2028-0000451-1',
+    commissionName: 'Public Service Commission',
+    dueDate: '2028-09-30',
+    portalUrl: 'https://portal.adili.go.ke/clarifications/1',
+  };
+}
+
 describe('renderTemplate', () => {
   it('escapes params in the HTML body but not in the text body', () => {
     const rendered = renderTemplate('onboarding-otp-email', 'en', {
@@ -51,6 +60,31 @@ describe('renderTemplate', () => {
       renderTemplate('login-otp-sms', 'en', params),
     );
   });
+
+  it.each([
+    ['clarification-issued-sms', clarificationParams()],
+    ['clarification-reminder-email', { ...clarificationParams(), daysLeft: 3 }],
+  ] as const)(
+    'refuses an http portal link in %s where links must be https, and takes it otherwise',
+    (id, params) => {
+      const http = { ...params, portalUrl: 'http://portal.adili.go.ke/clarifications/1' };
+
+      expect(() => renderTemplate(id, 'en', http, { httpsLinksOnly: true })).toThrow(
+        'must be an https URL',
+      );
+      try {
+        renderTemplate(id, 'en', http, { httpsLinksOnly: true });
+      } catch (error) {
+        expect((error as ZodError).issues.map((issue) => issue.path.join('.'))).toEqual([
+          'params.portalUrl',
+        ]);
+      }
+      expect(renderTemplate(id, 'en', params, { httpsLinksOnly: true }).text).toContain(
+        params.portalUrl,
+      );
+      expect(renderTemplate(id, 'en', http).text).toContain(http.portalUrl);
+    },
+  );
 
   it('reports invalid params with paths under params', () => {
     expect(() => renderTemplate('login-otp-sms', 'en', { code: 'abc' })).toThrow(ZodError);
