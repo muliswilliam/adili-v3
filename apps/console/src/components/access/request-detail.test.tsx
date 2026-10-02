@@ -252,7 +252,8 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     const card = within(side()).getByRole('region', { name: 'Notify in writing' });
     expect(card.textContent).toContain('Samuel Kiprotich Rotich has no Adili account');
     expect(card.textContent).toMatch(/Invited to onboard on /);
-    const officer = within(side()).getByRole('region', { name: 'officer' });
+    const officer = within(side()).getByRole('region', { name: 'Officer identified' });
+    expect(within(officer).getByText('Declarant')).toBeTruthy();
     expect(officer.textContent).toContain('Not onboarded');
     expect(officer.textContent).toContain('Awaiting written notice');
     // No "Notifying the declarant" spinner: nothing polls.
@@ -344,7 +345,7 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
 
   it('decision 2: notified in writing, with the representations received in writing', async () => {
     renderDetail(await viewOf(R.writtenNotice));
-    const officer = within(side()).getByRole('region', { name: 'officer' });
+    const officer = within(side()).getByRole('region', { name: 'Officer identified' });
     expect(officer.textContent).toMatch(/In writing, served /);
     expect(officer.textContent).toMatch(/Recorded by Lucy Wambui/);
     const reps = within(side()).getByRole('region', { name: 'Representations' });

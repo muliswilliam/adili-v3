@@ -208,6 +208,7 @@ export const en = {
 
   // Officer identified
   officerIdentified: 'Officer identified',
+  declarant: 'Declarant',
   notified: 'Notified',
   notifying: 'Notifying the declarant…',
   declarantAccount: 'Declarant account',

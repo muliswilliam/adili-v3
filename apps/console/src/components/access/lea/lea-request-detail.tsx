@@ -316,7 +316,7 @@ function VerificationCard({ request }: { request: LeaRequest }) {
   const { verification } = request;
   if (!verification) return null;
   return (
-    <SideCard id="verification">
+    <SideCard id="verification" title={m.verificationTitle}>
       <dl className="grid gap-3.5 text-sm">
         <div>
           <dt className="text-[13px] text-muted-foreground">{m.verifiedLabel}</dt>

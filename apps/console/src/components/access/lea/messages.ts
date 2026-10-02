@@ -114,7 +114,8 @@ export const en = {
   waitingVerify: 'Waiting for the access officer to verify.',
 
   // Verification record
-  verifiedLabel: 'Verified',
+  verificationTitle: 'Verification',
+  verifiedLabel: 'Verified by',
   officerIdentified: 'Officer identified',
 
   // Decision side card

@@ -181,9 +181,12 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     expect(within(side()).getByRole('link', { name: 'Decide' }).getAttribute('href')).toBe(
       `/access/lea-requests/${L.verified}/decide`,
     );
-    // The verification: who, and the officer identified.
-    expect(side().textContent).toContain('Lucy Wambui');
-    expect(side().textContent).toContain('Peter Mwangi Kamau');
+    // The verification, under its own title: who, and the officer identified.
+    const verification = within(side()).getByRole('region', { name: 'Verification' });
+    expect(within(verification).getByText('Verified by')).toBeTruthy();
+    expect(verification.textContent).toContain('Lucy Wambui');
+    expect(within(verification).getByText('Officer identified')).toBeTruthy();
+    expect(verification.textContent).toContain('Peter Mwangi Kamau');
   });
 
   it('S11: after a grant, says the declarant was notified and shows the package', async () => {
