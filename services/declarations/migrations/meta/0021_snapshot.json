@@ -2511,9 +2511,15 @@
           "notNull": true,
           "default": "'new'"
         },
-        "reason": {
-          "name": "reason",
-          "type": "text",
+        "reason_ciphertext": {
+          "name": "reason_ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_envelope": {
+          "name": "reason_envelope",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2548,9 +2554,9 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         },
         "suggestions_declaration_id_idx": {
           "name": "suggestions_declaration_id_idx",
@@ -2563,37 +2569,37 @@
             }
           ],
           "isUnique": false,
-          "with": {},
+          "concurrently": false,
           "method": "btree",
-          "concurrently": false
+          "with": {}
         }
       },
       "foreignKeys": {
         "suggestions_set_id_suggestion_sets_id_fk": {
           "name": "suggestions_set_id_suggestion_sets_id_fk",
           "tableFrom": "suggestions",
+          "tableTo": "suggestion_sets",
           "columnsFrom": [
             "set_id"
           ],
-          "tableTo": "suggestion_sets",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "suggestions_declaration_id_declarations_id_fk": {
           "name": "suggestions_declaration_id_declarations_id_fk",
           "tableFrom": "suggestions",
+          "tableTo": "declarations",
           "columnsFrom": [
             "declaration_id"
           ],
-          "tableTo": "declarations",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},

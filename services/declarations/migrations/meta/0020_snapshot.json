@@ -2511,9 +2511,15 @@
           "notNull": true,
           "default": "'new'"
         },
-        "reason": {
-          "name": "reason",
-          "type": "text",
+        "reason_ciphertext": {
+          "name": "reason_ciphertext",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason_envelope": {
+          "name": "reason_envelope",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },

@@ -68,21 +68,6 @@ export class SuggestionCipher {
     });
     return { ciphertext: Buffer.from(ciphertext, 'base64'), envelope };
   }
-
-  async openReason(
-    tenant: string,
-    declarationId: string,
-    suggestionId: string,
-    sealed: SealedSection,
-  ): Promise<string> {
-    const plaintext = await this.cipher.decrypt({
-      tenant,
-      recordId: reasonRecordId(declarationId, suggestionId),
-      ciphertext: sealed.ciphertext.toString('base64'),
-      envelope: sealed.envelope,
-    });
-    return plaintext.toString('utf8');
-  }
 }
 
 function reasonRecordId(declarationId: string, suggestionId: string): string {

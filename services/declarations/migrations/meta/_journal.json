@@ -148,13 +148,6 @@
       "when": 1790920516590,
       "tag": "0021_registry_suggestions_rls",
       "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1790929928752,
-      "tag": "0022_suggestion_reason_sealed",
-      "breakpoints": true
     }
   ]
 }

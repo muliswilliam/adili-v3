@@ -67,6 +67,8 @@ export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
 export const IMPORT_ROW_OUTCOMES = ['created', 'updated', 'unchanged'] as const;
 export type ImportRowOutcome = (typeof IMPORT_ROW_OUTCOMES)[number];
 
+const maritalStatusList = sql.raw(MARITAL_STATUSES.map((status) => `'${status}'`).join(', '));
+
 /**
  * A school, ministry, department or station named in roster rows; created on first sight during
  * an import and never deleted by one. Unique per tenant by normalised name.
@@ -209,7 +211,7 @@ export const rosterRecords = pgTable(
     check('roster_records_source_check', sql`${table.source} in ('file', 'api')`),
     check(
       'roster_records_marital_status_check',
-      sql`${table.maritalStatus} is null or ${table.maritalStatus} in ('single', 'married', 'separated', 'divorced', 'widowed')`,
+      sql`${table.maritalStatus} is null or ${table.maritalStatus} in (${maritalStatusList})`,
     ),
     check(
       'roster_records_exit_date_check',

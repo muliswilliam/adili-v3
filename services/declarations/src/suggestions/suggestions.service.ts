@@ -24,7 +24,7 @@ import {
   declarationSuggestionAccepted,
   declarationSuggestionDismissed,
 } from './events.js';
-import { householdPerson, isHouseholdPersonKey, isOfficer } from './persons.js';
+import { householdPerson, isHouseholdPersonKey, isOfficer, isPersonKey } from './persons.js';
 import { RegistryLookupWorkflows } from './registry-lookup-workflows.js';
 import {
   acceptSuggestionRequestSchema,
@@ -35,11 +35,8 @@ import {
   type SuggestionAcceptance,
   type SuggestionSet,
 } from './representation.js';
-import { suggestionConsents, suggestions, suggestionSets } from './schema.js';
+import { SUGGESTION_SOURCES, suggestionConsents, suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
-
-/** Registries in the order the portal shows them. */
-const REGISTRY_ORDER = ['kra', 'ntsa', 'brs', 'ardhisasa', 'document'];
 
 export interface SuggestionsQuery {
   personKey?: string;
@@ -167,18 +164,21 @@ export class SuggestionsService {
     query: SuggestionsQuery,
   ): Promise<SuggestionSet[]> {
     const person = personOf(principal);
+    const { personKey } = query;
     const found = await withPerson(this.db, person, async (tx) => {
       const declaration = await liveDeclaration(tx, declarationId);
       if (!declaration) return null;
+      // No person of a household has such a key, so none has sets.
+      if (personKey !== undefined && !isPersonKey(personKey)) {
+        return { declaration, sets: [], rows: [] };
+      }
       const sets = await tx
         .select()
         .from(suggestionSets)
         .where(
           and(
             eq(suggestionSets.declarationId, declaration.id),
-            query.personKey === undefined
-              ? undefined
-              : eq(suggestionSets.personKey, query.personKey as PersonKey),
+            personKey === undefined ? undefined : eq(suggestionSets.personKey, personKey),
           ),
         )
         .orderBy(asc(suggestionSets.requestedAt), asc(suggestionSets.id));
@@ -210,7 +210,8 @@ export class SuggestionsService {
       .sort(
         (a, b) =>
           a.requestedAt.getTime() - b.requestedAt.getTime() ||
-          REGISTRY_ORDER.indexOf(a.source) - REGISTRY_ORDER.indexOf(b.source),
+          // Registries in the order the portal shows them.
+          SUGGESTION_SOURCES.indexOf(a.source) - SUGGESTION_SOURCES.indexOf(b.source),
       )
       .flatMap((set) => {
         const own = opened.filter((suggestion) => suggestion.setId === set.id);
@@ -266,7 +267,10 @@ export class SuggestionsService {
           return applied.contents;
         },
         async (tx) => {
-          decided = await decide(tx, row.id, { status: 'accepted', acceptedItemId: itemId });
+          ({ row: decided } = await decide(tx, row.id, {
+            status: 'accepted',
+            acceptedItemId: itemId,
+          }));
           await this.events.record(
             tx,
             declarationSuggestionAccepted(declaration.tenant, {
@@ -302,8 +306,9 @@ export class SuggestionsService {
   /**
    * Sets a `new` suggestion aside with the declarant's reason, if they gave one (S5), recording
    * `declaration.suggestion-dismissed.v1` (identifiers only; the reason stays with the
-   * suggestion, sealed with the Commission's key). Dismissing it again changes nothing; 409 `not-new` when it was accepted or
-   * superseded; 404 when it is not the caller's. The draft is untouched.
+   * suggestion, sealed with the Commission's key). Dismissing it again, or at the same time,
+   * changes nothing and answers it as it is; 409 `not-new` when it was accepted or superseded;
+   * 404 when it is not the caller's. The draft is untouched.
    */
   async dismiss(
     principal: Principal,
@@ -332,6 +337,8 @@ export class SuggestionsService {
               reasonCiphertext: sealed?.ciphertext ?? null,
               reasonEnvelope: sealed?.envelope ?? null,
             });
+            // Another dismissal got there first: it made the change and the event.
+            if (!updated.changed) return updated.row;
             await this.events.record(
               tx,
               declarationSuggestionDismissed(declaration.tenant, {
@@ -341,7 +348,7 @@ export class SuggestionsService {
                 source: set.source,
               }),
             );
-            return updated;
+            return updated.row;
           });
     return suggestionView(
       dismissed,
@@ -454,7 +461,9 @@ type SuggestionRow = typeof suggestions.$inferSelect;
 
 /**
  * In the deciding transaction: the suggestion, locked, becomes `status` if it is still `new`;
- * 409 `not-new` if another request decided it first (or a re-check superseded it).
+ * 409 `not-new` if another request decided it first (or a re-check superseded it), except that a
+ * dismissal finding it dismissed already answers it unchanged (dismiss is idempotent by state,
+ * ADR-013 §8.9).
  */
 async function decide(
   tx: Transaction,
@@ -466,12 +475,15 @@ async function decide(
         reasonCiphertext: Buffer | null;
         reasonEnvelope: StoredEnvelope | null;
       },
-): Promise<SuggestionRow> {
+): Promise<{ row: SuggestionRow; changed: boolean }> {
   const [current] = await tx
-    .select({ status: suggestions.status })
+    .select()
     .from(suggestions)
     .where(eq(suggestions.id, suggestionId))
     .for('update');
+  if (current?.status === 'dismissed' && decision.status === 'dismissed') {
+    return { row: current, changed: false };
+  }
   if (current?.status !== 'new') throw notNew();
   const [updated] = await tx
     .update(suggestions)
@@ -479,7 +491,7 @@ async function decide(
     .where(eq(suggestions.id, suggestionId))
     .returning();
   if (!updated) throw notNew();
-  return updated;
+  return { row: updated, changed: true };
 }
 
 function notNew(): ProblemException {

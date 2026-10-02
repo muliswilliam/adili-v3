@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { FieldCipher } from '@adili/data-access';
 import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -11,7 +12,6 @@ import {
 } from '../../src/db/schema.js';
 import type { Declaration, SectionEnvelope } from '../../src/drafts/representation.js';
 import type { Suggestion, SuggestionSet } from '../../src/suggestions/representation.js';
-import { SuggestionCipher } from '../../src/suggestions/suggestion-cipher.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
   type Caller,
@@ -635,15 +635,20 @@ describe('dismissing, and checking again (S5)', () => {
     // The declarant's words are sealed with the Commission's key, bound to the suggestion.
     if (!row?.reasonCiphertext || !row.reasonEnvelope) throw new Error('No sealed reason');
     expect(row.reasonCiphertext.toString('latin1')).not.toContain('brother');
-    const sealed = { ciphertext: row.reasonCiphertext, envelope: row.reasonEnvelope };
-    expect(await api.app.get(SuggestionCipher).openReason('psc', draft.id, dmax.id, sealed)).toBe(
-      'Sold to my brother in 2025',
-    );
-    await expect(
-      api.app
-        .get(SuggestionCipher)
-        .openReason('psc', draft.id, suggestionOf(set, 'vehicle').id, sealed),
-    ).rejects.toThrow();
+    const sealed = {
+      ciphertext: row.reasonCiphertext.toString('base64'),
+      envelope: row.reasonEnvelope,
+    };
+    const openReason = async (suggestionId: string) =>
+      (
+        await api.app.get(FieldCipher).decrypt({
+          tenant: 'psc',
+          recordId: `${draft.id}/suggestions/${suggestionId}/reason`,
+          ...sealed,
+        })
+      ).toString('utf8');
+    expect(await openReason(dmax.id)).toBe('Sold to my brother in 2025');
+    await expect(openReason(suggestionOf(set, 'vehicle').id)).rejects.toThrow();
     const events = await eventsOf('declaration.suggestion-dismissed.v1');
     expect(events.map((event) => event.data)).toEqual([
       { declarationId: draft.id, suggestionId: dmax.id, setId: set?.id, source: 'ntsa' },
@@ -668,6 +673,25 @@ describe('dismissing, and checking again (S5)', () => {
       tx.select().from(suggestions).where(eq(suggestions.id, dmax.id)),
     );
     expect(row).toMatchObject({ reasonCiphertext: null, reasonEnvelope: null });
+    expect(await eventsOf('declaration.suggestion-dismissed.v1')).toHaveLength(1);
+  });
+
+  it('answers both of two dismissals at once with the dismissed suggestion, making one change and one event (ADR-013 8.9)', async () => {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const dmax = suggestionOf(set, 'vehicle', 1);
+
+    const responses = await Promise.all([
+      dismiss(draft.id, dmax.id, { reason: 'Sold' }),
+      dismiss(draft.id, dmax.id, { reason: 'Sold' }),
+    ]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([200, 200]);
+    expect(responses.map((response) => response.json<Suggestion>().status)).toEqual([
+      'dismissed',
+      'dismissed',
+    ]);
     expect(await eventsOf('declaration.suggestion-dismissed.v1')).toHaveLength(1);
   });
 
