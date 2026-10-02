@@ -5,11 +5,11 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ReplayAdapter, ReplayFixtureMissingError } from '../src/providers/replay.adapter.js';
-import { ScriptedProvider } from '../test/support/scripted-provider.js';
+import { ScriptedProvider, ScriptedStreamProvider } from '../test/support/scripted-provider.js';
 import { IDS, PEOPLE } from './golden/declarations.js';
 import { itemRef } from './golden/flags.js';
 import { SUITES } from './golden/suites.js';
-import { runTask } from './lib/run.js';
+import { runCase, runTask } from './lib/run.js';
 import { type Score, hardFailures } from './lib/score.js';
 
 /**
@@ -267,5 +267,50 @@ describe('recorded fixtures', () => {
       ReplayFixtureMissingError,
     );
     await expect(runTask(suite.task, golden.input, replay, MODEL)).resolves.toBeDefined();
+  });
+});
+
+describe('a streamed answer (ADR-019)', () => {
+  /** Records `text`, cut into small chunks, as the stream for a golden case; replays and scores it. */
+  async function scoreStreamed(caseName: string, text: string): Promise<Score[]> {
+    const { suite, golden } = goldenCase('answer-declarant-question', caseName);
+    const dir = await mkdtemp(join(fixturesDir, 'stream-'));
+    const inner = new ScriptedStreamProvider('external');
+    inner.scripts = [{ chunks: text.match(/[\s\S]{1,9}/g) ?? [], end: { status: 'completed' } }];
+    await runCase(
+      suite.task,
+      golden.input,
+      new ReplayAdapter({ fixturesDir: dir, mode: 'record', inner }),
+      MODEL,
+    );
+    const { output, violations } = await runCase(
+      suite.task,
+      golden.input,
+      new ReplayAdapter({ fixturesDir: dir, mode: 'replay' }),
+      MODEL,
+    );
+    return suite.score(golden.input, output, golden.expected, violations);
+  }
+
+  it('passes a sound answer and fails one that cites, values and judges what it should not', async () => {
+    const sound =
+      '<block>Yes. Joint assets should be declared, in Kenya or outside it. <cite ids="act-sch1-note-13"/></block>';
+    expect(failingHard(await scoreStreamed('matatu co-owned with a brother (en)', sound))).toEqual(
+      [],
+    );
+
+    const broken =
+      '<block>Yes, it is worth about 850,000 and you are fully compliant. <cite ids="act-s99"/></block>';
+    expect(failingHard(await scoreStreamed('matatu co-owned with a brother (en)', broken))).toEqual(
+      ['no-invented-numbers', 'no-judgement', 'passages-resolve'],
+    );
+  });
+
+  it('fails an answer to a question the corpus cannot answer', async () => {
+    const answered = '<block>Rent is taxed as income. <cite ids="act-sch1-para-8"/></block>';
+    expect(failingHard(await scoreStreamed('tax rate on rent (en)', answered))).toEqual([
+      'decline-cases-decline',
+    ]);
+    expect(failingHard(await scoreStreamed('tax rate on rent (en)', '<declined/>'))).toEqual([]);
   });
 });

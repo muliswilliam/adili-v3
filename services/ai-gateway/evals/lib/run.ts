@@ -1,10 +1,16 @@
 import { appendFile } from 'node:fs/promises';
 
-import type { ModelProvider, StructuredRequest } from '../../src/providers/port.js';
+import type {
+  GenerateRequest,
+  GenerateResult,
+  ModelProvider,
+  StructuredRequest,
+} from '../../src/providers/port.js';
 import { DEFAULT_AI_MODEL, providerEnvSchema } from '../../src/providers/provider-env.js';
 import { createModelProvider } from '../../src/providers/providers.module.js';
-import { type PreparedPrompt, preparePrompt } from '../../src/policy/prompt.js';
-import type { TaskDefinition } from '../../src/tasks/task.js';
+import { type PreparedPrompt, preparePrompt, streamedRequest } from '../../src/policy/prompt.js';
+import { TaggedAnswerReader } from '../../src/tasks/tagged-answer.js';
+import type { OutputViolation, TaskDefinition } from '../../src/tasks/task.js';
 import type { CaseResult, SoftResult } from './score.js';
 
 /**
@@ -16,13 +22,78 @@ export function evalPrompt(task: TaskDefinition, input: unknown, model: string):
   return preparePrompt(task, task.currentPromptVersion, task.input.parse(input), model);
 }
 
-/** The provider request a job for this golden input makes. */
+/**
+ * The provider request a job for this golden input makes: a streamed task's input (ADR-0019) asks
+ * for tagged text, without the output schema.
+ */
 export function evalRequest(
   task: TaskDefinition,
   input: unknown,
   model: string,
-): StructuredRequest {
-  return evalPrompt(task, input, model).request;
+): StructuredRequest | GenerateRequest {
+  const { request } = evalPrompt(task, input, model);
+  return streamed(task, input) ? streamedRequest(request) : request;
+}
+
+/** Whether the gateway answers this input over the stream endpoint rather than as a job. */
+export function streamed(task: TaskDefinition, input: unknown): boolean {
+  return task.streamed?.(task.input.parse(input)) ?? false;
+}
+
+/** What a case produced: its output, and what the gateway's checks would find in it. */
+export interface CaseOutput {
+  output: unknown;
+  /** The task's own checks, or why a streamed answer could not be read (a decline then). */
+  violations: OutputViolation[];
+}
+
+/** A streamed answer the gateway could not read, or that was cut off, is stored as a decline. */
+const DECLINED = { declined: true, blocks: [], followUps: [] };
+
+/** Runs a case as the gateway would: streamed when the task streams the input, else as a job. */
+export async function runCase(
+  task: TaskDefinition,
+  input: unknown,
+  provider: ModelProvider,
+  model: string,
+): Promise<CaseOutput> {
+  if (streamed(task, input)) return runStreamed(task, input, provider, model);
+  const output = await runTask(task, input, provider, model);
+  return { output, violations: checks(task, input, output) };
+}
+
+/**
+ * Runs a streamed golden input as the stream endpoint does: the deltas read as tagged text, the
+ * answer restored and checked against the schema. The output is the answer as written, before the
+ * gateway's checks replace a failing one with a decline, so the hard scorers judge the model; an
+ * answer that cannot be read is a decline, with the reasons as violations.
+ */
+export async function runStreamed(
+  task: TaskDefinition,
+  input: unknown,
+  provider: ModelProvider,
+  model: string,
+): Promise<CaseOutput> {
+  const prompt = evalPrompt(task, input, model);
+  const reader = new TaggedAnswerReader();
+  let result: GenerateResult | undefined;
+  for await (const event of provider.stream(streamedRequest(prompt.request))) {
+    if (event.type === 'delta') reader.push(event.text);
+    else result = event.result;
+  }
+  if (result?.status === 'truncated')
+    return { output: DECLINED, violations: [{ kind: 'truncated' }] };
+  if (result?.status !== 'completed') {
+    throw new Error(`${task.name}: the provider returned ${result?.status ?? 'no result'}`);
+  }
+  const { answer } = reader.end();
+  if (!answer.ok) return { output: DECLINED, violations: answer.problems };
+  const output = task.output.parse(prompt.restore(task.output.parse(answer.answer)));
+  return { output, violations: checks(task, input, output) };
+}
+
+function checks(task: TaskDefinition, input: unknown, output: unknown): OutputViolation[] {
+  return task.validate?.(task.input.parse(input), task.output.parse(output)) ?? [];
 }
 
 /**

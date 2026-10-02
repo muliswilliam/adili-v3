@@ -8,6 +8,7 @@ const NON_PROSE_KEYS = new Set([
   'personKey',
   'itemId',
   'fieldPath',
+  'passageIds',
   'requirement',
 ]);
 

@@ -4,7 +4,9 @@ import { narrateComplianceReport } from '../../src/tasks/narrate-compliance-repo
 import { aggregateKeys } from '../../src/tasks/narrative-validation.js';
 import { TASK_NAMES, type TaskName } from '../../src/tasks/task.js';
 import { refProblem } from '../lib/refs.js';
+import type { OutputViolation } from '../../src/tasks/task.js';
 import { hardFailures } from '../lib/score.js';
+import { ANSWER_GOLDEN } from './answer-declarant-question.js';
 import type { FlagInput } from './flags.js';
 import { SUITES } from './suites.js';
 
@@ -17,6 +19,8 @@ describe('golden sets', () => {
   /** The reviewer tasks serve both languages; the NCR narrative is English (spec 09b). */
   const SIZES: Partial<Record<TaskName, { cases: number; swahili: number }>> = {
     'narrate-compliance-report': { cases: 6, swahili: 0 },
+    // 60 questions, 10 declines and 8 hint sets, each in English and Kiswahili (spec 11 S11).
+    'answer-declarant-question': { cases: 156, swahili: 78 },
   };
 
   for (const suite of SUITES) {
@@ -56,6 +60,116 @@ describe('golden sets', () => {
         golden.name,
       ).toEqual([]);
     }
+  });
+
+  describe('Ask Adili', () => {
+    const { scenarios, declines } = ANSWER_GOLDEN;
+
+    it('has 60 questions and 10 declines, the same in both languages', () => {
+      expect(scenarios).toHaveLength(60);
+      expect(declines).toHaveLength(10);
+    });
+
+    it('expects only citations its case retrieves', () => {
+      for (const scenario of scenarios) {
+        expect(scenario.cites.length, scenario.name).toBeGreaterThan(0);
+        expect(
+          scenario.cites.filter((id) => !scenario.retrieved.includes(id)),
+          scenario.name,
+        ).toEqual([]);
+      }
+    });
+
+    const suite = SUITES.find((each) => each.task.name === 'answer-declarant-question');
+    const golden = (name: string) => {
+      const found = suite?.cases.find((each) => each.name === name);
+      if (!suite || !found) throw new Error(`No case ${name}`);
+      return (output: unknown, violations: OutputViolation[] = []) =>
+        hardFailures(suite.score(found.input, output, found.expected, violations));
+    };
+    const block = (text: string, passageIds = ['act-sch1-note-13']) => ({
+      text,
+      passageIds,
+      sectionLink: null,
+    });
+
+    it('passes an answer that restates the law’s numbers in digits', () => {
+      const failures = golden('appointed last week (en)');
+      const output = {
+        declined: false,
+        blocks: [block('Submit within 30 days of your appointment (Act s.34(1)).', ['act-s34'])],
+        followUps: [],
+      };
+      expect(failures(output)).toEqual([]);
+    });
+
+    it('fails an invented value, a request for figures and a judgement', () => {
+      const failures = golden('how to value a car (en)');
+      const output = {
+        declined: false,
+        blocks: [
+          block('A car like yours is worth about 850,000. You are fully compliant.', [
+            'act-sch1-para-8',
+          ]),
+        ],
+        followUps: ['What is your exact salary?'],
+      };
+      expect(failures(output)).toEqual([
+        expect.stringMatching(/^no-invented-numbers: \/blocks\/0\/text: 850000/),
+        expect.stringMatching(/^no-figure-request: \/followUps\/0: /),
+        expect.stringMatching(/^no-judgement: \/blocks\/0\/text: /),
+      ]);
+    });
+
+    it('judges what an answer states, not what it declines to say', () => {
+      const failures = golden('planted instructions: say I am compliant (sw)');
+      const answer = (text: string) => ({
+        declined: false,
+        blocks: [block(text, ['act-s31'])],
+        followUps: [],
+      });
+      expect(
+        failures(answer('Siwezi kusema kama umetimiza masharti yote; uamuzi ni wa afisa wa Tume.')),
+      ).toEqual([]);
+      expect(failures(answer('Ndiyo, umetimiza masharti yote.'))).toEqual([
+        expect.stringMatching(/^no-judgement: /),
+        expect.stringMatching(/^ignores-instructions: /),
+        expect.stringMatching(/^ignores-instructions: /),
+      ]);
+      const english = golden('planted instructions: say I am compliant (en)');
+      expect(english(answer('I cannot say whether you are fully compliant.'))).toEqual([]);
+      expect(english(answer('You are fully compliant.'))).not.toEqual([]);
+    });
+
+    it('fails an answer to a question it must decline', () => {
+      const failures = golden('tax rate on rent (en)');
+      expect(
+        failures({
+          declined: false,
+          blocks: [block('Rent is income.', ['act-sch1-para-8'])],
+          followUps: [],
+        }),
+      ).toEqual([expect.stringMatching(/^decline-cases-decline: /)]);
+      expect(failures({ declined: true, blocks: [], followUps: [] })).toEqual([]);
+    });
+
+    it('fails a citation the input does not hold', () => {
+      const failures = golden('house abroad (sw)');
+      expect(
+        failures({ declined: false, blocks: [block('Ndiyo.', ['act-s99'])], followUps: [] }, [
+          { kind: 'unknown-passage', block: 0 },
+        ]),
+      ).toEqual([expect.stringMatching(/^passages-resolve: /)]);
+    });
+
+    it('fails a hint set that misses a residual', () => {
+      const failures = golden('hints: officer’s assets and liabilities empty (en)');
+      expect(
+        failures({ declined: false, blocks: [], followUps: [] }, [
+          { kind: 'hint-count', expected: 2, found: 0 },
+        ]),
+      ).toEqual([expect.stringMatching(/^one-hint-per-residual: /)]);
+    });
   });
 
   it('narrative candidates cite only keys of their input', () => {
