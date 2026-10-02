@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { FieldEnvelope } from '@adili/data-access';
 import { FakeCipher } from '@adili/data-access/testing';
 import { outbox } from '@adili/events';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { feedback } from '../../src/db/schema.js';
@@ -44,8 +44,9 @@ describe('feedback', () => {
       payload,
     });
 
+  // In the order they were written: a select without one may answer them in any order.
   const announced = async (jobId: string) =>
-    (await t.db.select().from(outbox))
+    (await t.db.select().from(outbox).orderBy(asc(outbox.createdAt), asc(outbox.id)))
       .map((row) => row.envelope)
       .filter((envelope) => envelope.type === 'ai.feedback.recorded.v1')
       .filter((envelope) => (envelope.data as { jobId: string }).jobId === jobId);
