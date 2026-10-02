@@ -223,6 +223,8 @@ for (const name of [
   'declarations:internal',
   'directory:roster-national-id',
   'directory:applicants',
+  'directory:law-enforcement',
+  'declarations:disclosures',
   'reports:submit',
 ]) {
   const scope = scopes.get(name);
@@ -271,12 +273,25 @@ if (directory) {
 // policy after roster events, reminders through notifications, and declaration attachments in
 // documents, spec 05) and notifications (a person's verified contacts).
 // The documents service pulls a submitted version's acknowledgement slip payload from
-// declarations (spec 06).
+// declarations (spec 06). The access service (spec 10) reads Commissions, applicants and
+// law-enforcement officers from the directory, asks declarations for disclosures, issues packages
+// and certified copies with documents and sends messages.
 for (const [id, needed] of [
   ['declarations', ['directory:internal', 'messages', 'documents:internal']],
   ['notifications', ['directory:person-contacts']],
   ['documents', ['declarations:internal']],
-  ['access', ['directory:internal', 'directory:applicants', 'declarations:internal', 'messages']],
+  [
+    'access',
+    [
+      'directory:internal',
+      'directory:applicants',
+      'directory:law-enforcement',
+      'declarations:internal',
+      'declarations:disclosures',
+      'documents:internal',
+      'messages',
+    ],
+  ],
 ]) {
   const client = clients.get(id);
   if (!client) {
@@ -306,6 +321,15 @@ for (const client of realm.clients ?? []) {
   // Applicants' particulars likewise: only access reads them and records verifications (spec 10).
   if (client.clientId !== 'access' && scopesOf.includes('directory:applicants')) {
     fail(`${client.clientId} must not get directory:applicants (access only)`);
+  }
+  // Law-enforcement officers' accounts likewise: only access checks a request's provenance.
+  if (client.clientId !== 'access' && scopesOf.includes('directory:law-enforcement')) {
+    fail(`${client.clientId} must not get directory:law-enforcement (access only)`);
+  }
+  // Declarations decrypted for a third party: only access asks for disclosures and certified
+  // copies; nothing else in the platform does (spec 10).
+  if (client.clientId !== 'access' && scopesOf.includes('declarations:disclosures')) {
+    fail(`${client.clientId} must not get declarations:disclosures (access only)`);
   }
 }
 // API clients the directory creates get `basic` (the `sub` claim) with their own scope.

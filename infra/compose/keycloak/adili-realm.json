@@ -413,9 +413,11 @@
       "defaultClientScopes": [
         "basic",
         "declarations:internal",
+        "declarations:disclosures",
         "directory:internal",
         "documents:internal",
         "directory:applicants",
+        "directory:law-enforcement",
         "messages"
       ],
       "optionalClientScopes": []
@@ -1228,6 +1230,28 @@
       ]
     },
     {
+      "name": "directory:law-enforcement",
+      "description": "Service tokens that may read law-enforcement officers' accounts (names, agency, Keycloak account and state) from the directory: the access service only, which checks a law-enforcement request's provenance (spec 10)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "directory:roster-national-id",
       "description": "Service tokens that may read a roster record's national ID from the directory: the review service only, for payroll's salary stoppage and the ICMS referral (spec 08)",
       "protocol": "openid-connect",
@@ -1252,6 +1276,28 @@
     {
       "name": "declarations:internal",
       "description": "Service tokens for the declarations service's internal API: a submitted version's acknowledgement slip payload (spec 06), and a submitted version's document and the version before it for review (spec 07a), acting for a tenant",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "declarations:disclosures",
+      "description": "Service tokens that may ask the declarations service for what an access grant discloses and for a version in full for a certified copy, decrypted for a third party: the access service only (spec 10)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

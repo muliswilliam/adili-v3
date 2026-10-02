@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
 import {
+  DECLARATIONS_DISCLOSURES_SCOPE,
   DECLARATIONS_INTERNAL_SCOPE,
   DIRECTORY_APPLICANTS_SCOPE,
   DIRECTORY_INTERNAL_SCOPE,
+  DIRECTORY_LAW_ENFORCEMENT_SCOPE,
   DOCUMENTS_INTERNAL_SCOPE,
   MESSAGES_SCOPE,
 } from '@adili/roles';
@@ -42,6 +44,7 @@ const tokens = (scope: string) =>
           directoryUrl: config.DIRECTORY_URL,
           tokens: tokens(DIRECTORY_INTERNAL_SCOPE),
           applicantTokens: tokens(DIRECTORY_APPLICANTS_SCOPE),
+          lawEnforcementTokens: tokens(DIRECTORY_LAW_ENFORCEMENT_SCOPE),
         }),
     },
     {
@@ -50,6 +53,7 @@ const tokens = (scope: string) =>
         new HttpDeclarationsClient({
           declarationsUrl: config.DECLARATIONS_URL,
           tokens: tokens(DECLARATIONS_INTERNAL_SCOPE),
+          disclosureTokens: tokens(DECLARATIONS_DISCLOSURES_SCOPE),
         }),
     },
     {

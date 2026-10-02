@@ -35,6 +35,10 @@ function clientAnswering(answer: () => Response) {
   const client = new HttpDirectoryClient({
     directoryUrl: 'http://directory.test',
     tokens: { token: () => Promise.resolve('reference-token'), invalidate: () => undefined },
+    lawEnforcementTokens: {
+      token: () => Promise.resolve('law-enforcement-token'),
+      invalidate: () => undefined,
+    },
     applicantTokens: {
       token: () => Promise.resolve('applicants-token'),
       invalidate: () => undefined,
@@ -236,7 +240,7 @@ describe('HttpDirectoryClient: law enforcement officers', () => {
     revokedAt: null,
   };
 
-  it("reads an officer's account and agency for the Commission addressed, with the reference token", async () => {
+  it("reads an officer's account and agency for the Commission addressed, with the law-enforcement token", async () => {
     const { client, sent } = clientAnswering(() => json(OFFICER, 200));
 
     await expect(client.leaOfficer(PERSON, 'psc')).resolves.toEqual({
@@ -251,7 +255,7 @@ describe('HttpDirectoryClient: law enforcement officers', () => {
       `http://directory.test/internal/v1/law-enforcement/officers/${PERSON}`,
     );
     expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
-    expect(sent[0]?.headers.get('authorization')).toBe('Bearer reference-token');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer law-enforcement-token');
   });
 
   it('an unknown officer is null; an answer outside the contract is an outage', async () => {

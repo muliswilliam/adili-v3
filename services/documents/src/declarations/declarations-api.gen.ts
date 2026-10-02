@@ -437,7 +437,7 @@ export interface paths {
         put?: never;
         /**
          * Render the scoped disclosure of a person's submitted declarations for a grant (audited)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (the access service). For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.
          */
         post: operations["internalRenderDisclosure"];
         delete?: never;
@@ -457,7 +457,7 @@ export interface paths {
         put?: never;
         /**
          * The full immutable document of a version for the declarant's certified copy (audited as self-access)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (the access service). Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. A read, posted so that the recipient, possibly a representative's name, stays out of the URL. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32): X-Acting-Subject is who asked, `recipient` whom the copy is handed to (the declarant, or their representative).
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. A read, posted so that the recipient, possibly a representative's name, stays out of the URL. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32): X-Acting-Subject is who asked, `recipient` whom the copy is handed to (the declarant, or their representative).
          */
         post: operations["internalGetFullDocumentForCertifiedCopy"];
         delete?: never;
@@ -3004,7 +3004,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope declarations:internal */
+            /** @description Requires a service token with scope declarations:disclosures */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3063,7 +3063,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope declarations:internal */
+            /** @description Requires a service token with scope declarations:disclosures */
             403: {
                 headers: {
                     [name: string]: unknown;

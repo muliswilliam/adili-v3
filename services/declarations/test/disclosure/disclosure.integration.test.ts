@@ -43,7 +43,7 @@ const ACCESS_OFFICER = 'access-officer-3';
 const ACCESS: Caller = {
   sub: 'service-account-access',
   azp: 'access',
-  scope: 'declarations:internal',
+  scope: 'declarations:disclosures',
 };
 
 let api: DeclarationsApi;
@@ -547,7 +547,7 @@ describe('the scoped disclosure of a grant (S9)', () => {
     });
   });
 
-  it('refuses any token but a service with declarations:internal', async () => {
+  it('refuses any token but a service with declarations:disclosures', async () => {
     await seeded(WANJIKU, [householdDeclaration(2027)]);
 
     const officer: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['access-officer'] };
@@ -555,6 +555,10 @@ describe('the scoped disclosure of a grant (S9)', () => {
     expect((await disclosure({}, { caller: declarant(WANJIKU) })).statusCode).toBe(403);
     expect(
       (await disclosure({}, { caller: { ...ACCESS, scope: 'documents:internal' } })).statusCode,
+    ).toBe(403);
+    // The documents and review services read declarations for Commission staff, never this.
+    expect(
+      (await disclosure({}, { caller: { ...ACCESS, scope: 'declarations:internal' } })).statusCode,
     ).toBe(403);
   });
 });
@@ -665,5 +669,26 @@ describe("the full document of a version for the declarant's certified copy (S13
     expect((await fullDocument(version, { actingSubject: null })).statusCode).toBe(400);
     expect((await fullDocument(version, { recipient: null })).statusCode).toBe(400);
     expect((await fullDocument(version, { recipient: ' ' })).statusCode).toBe(400);
+  });
+
+  it('refuses a service token without declarations:disclosures', async () => {
+    const version = await submitted();
+
+    const reviewToken: Caller = {
+      sub: 'service-account-review',
+      azp: 'review',
+      scope: 'declarations:internal',
+    };
+    const response = await api.request(
+      'POST',
+      `/internal/v1/declarations/${version.declarationId}/versions/1/full-document`,
+      reviewToken,
+      {
+        headers: { 'x-acting-tenant': 'psc', 'x-acting-subject': 'someone' },
+        body: { personId: WANJIKU, recipient: 'someone' },
+      },
+    );
+    expect(response.statusCode).toBe(403);
+    expect(await audited()).toEqual([]);
   });
 });

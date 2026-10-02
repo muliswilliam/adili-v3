@@ -437,7 +437,7 @@ export interface paths {
         put?: never;
         /**
          * Render the scoped disclosure of a person's submitted declarations for a grant (audited)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (the access service). For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each granted year, the version in force of each of the person's declarations at the Commission, decrypted and cut to the granted household members and sections (`disclosure.v1`); nothing outside the scope is returned. Audited (`audit.read.v1`, action `declaration.disclosed`) with the legal basis, the grant reference and the recipient. A granted year with no version has no entry; 404 when there is none in any granted year, or the person is not the Commission's declarant.
          */
         post: operations["internalRenderDisclosure"];
         delete?: never;
@@ -453,13 +453,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * The full immutable document of a version for the declarant's certified copy (audited as self-access)
-         * @description Service tokens with scope declarations:internal, acting for the Commission in X-Acting-Tenant (the access service). Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32), the declarant its recipient.
+         * @description Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Any submitted version of the declarant `personId`, decrypted in full with what the certified copy prints of it. A read, posted so that the recipient, possibly a representative's name, stays out of the URL. Audited (`audit.read.v1`, action `declaration.full-document.pulled`) as self-access (Administrative Mechanism 32): X-Acting-Subject is who asked, `recipient` whom the copy is handed to (the declarant, or their representative).
          */
-        get: operations["internalGetFullDocumentForCertifiedCopy"];
-        put?: never;
-        post?: never;
+        post: operations["internalGetFullDocumentForCertifiedCopy"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1536,6 +1536,16 @@ export interface components {
             commission: components["schemas"]["CommissionRef"];
             /** @description Per granted year, the version in force of each of the person's declarations at the Commission, by statement date. A granted year with none has no entry */
             versions: components["schemas"]["DisclosedVersion"][];
+        };
+        /** @description Whose version is asked for in full, and whom the certified copy goes to */
+        FullDocumentRequest: {
+            /**
+             * Format: uuid
+             * @description The declarant asking for the copy: the version must be theirs
+             */
+            personId: string;
+            /** @description Whom the certified copy is handed to, recorded in the audit event: the declarant's account (token subject) when they asked online; for a written application made in person, the representative's name when made through one, else the declarant */
+            recipient: string;
         };
         /** @description A submitted version in full, for the declarant's certified copy */
         FullVersionDocument: {
@@ -2994,7 +3004,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope declarations:internal */
+            /** @description Requires a service token with scope declarations:disclosures */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3016,14 +3026,11 @@ export interface operations {
     };
     internalGetFullDocumentForCertifiedCopy: {
         parameters: {
-            query: {
-                /** @description The declarant asking for the copy: the version must be theirs */
-                personId: string;
-            };
+            query?: never;
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description The declarant asking for the certified copy, who receives it; recorded in the audit event */
+                /** @description Who asked for the certified copy: the declarant online, or the access officer recording their written application; recorded in the audit event as the actor */
                 "X-Acting-Subject": string;
             };
             path: {
@@ -3032,7 +3039,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FullDocumentRequest"];
+            };
+        };
         responses: {
             /** @description The version in full */
             200: {
@@ -3043,7 +3054,7 @@ export interface operations {
                     "application/json": components["schemas"]["FullVersionDocument"];
                 };
             };
-            /** @description version is not a positive integer, personId is not a UUID, or no X-Acting-Subject */
+            /** @description version is not a positive integer, the body failed validation, or no X-Acting-Subject */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3052,7 +3063,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope declarations:internal */
+            /** @description Requires a service token with scope declarations:disclosures */
             403: {
                 headers: {
                     [name: string]: unknown;

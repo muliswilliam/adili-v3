@@ -455,7 +455,7 @@ describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance f
     sub: 'service-account-access',
     tenant: 'platform',
     azp: 'access',
-    scope: 'profile directory:internal',
+    scope: 'profile directory:law-enforcement',
   };
   const ACTING_PSC = { 'x-acting-tenant': 'psc' };
   const path = (personId: string) => `/internal/v1/law-enforcement/officers/${personId}`;
@@ -518,6 +518,21 @@ describe('S11 GET /internal/v1/law-enforcement/officers/{personId} (provenance f
     expect((await api.get(path(officer.id), ACCESS)).statusCode).toBe(400);
     expect(
       (await api.get(path(officer.id), { ...ACCESS, scope: 'profile' }, ACTING_PSC)).statusCode,
+    ).toBe(403);
+    // Officers' names and accounts are not reference data: directory:internal does not open them.
+    expect(
+      (
+        await api.get(
+          path(officer.id),
+          {
+            ...ACCESS,
+            sub: 'service-account-reporting',
+            azp: 'reporting',
+            scope: 'directory:internal',
+          },
+          ACTING_PSC,
+        )
+      ).statusCode,
     ).toBe(403);
     expect((await api.get(path(officer.id), ACCESS_OFFICER, ACTING_PSC)).statusCode).toBe(403);
   });

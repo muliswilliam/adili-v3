@@ -24,6 +24,10 @@ function clientAnswering(answer: () => Response) {
   const client = new HttpDeclarationsClient({
     declarationsUrl: 'http://declarations.test',
     tokens: { token: () => Promise.resolve('internal-token'), invalidate: () => undefined },
+    disclosureTokens: {
+      token: () => Promise.resolve('disclosures-token'),
+      invalidate: () => undefined,
+    },
     fetch: async (input: Request | string | URL, init?: RequestInit) => {
       const request = new Request(input, init);
       sent.push({
@@ -61,6 +65,7 @@ describe('HttpDeclarationsClient: full document for a certified copy', () => {
     );
     expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
     expect(sent[0]?.headers.get('x-acting-subject')).toBe('officer-1');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer disclosures-token');
     expect(JSON.parse(sent[0]?.body ?? 'null')).toEqual({
       personId: PERSON,
       recipient: 'Joseph Kiprono',
@@ -80,5 +85,43 @@ describe('HttpDeclarationsClient: full document for a certified copy', () => {
         recipient: `person:${PERSON}`,
       }),
     ).resolves.toBeNull();
+  });
+});
+
+describe('HttpDeclarationsClient: tokens', () => {
+  it("asks for a grant's disclosure with the disclosures token, the officer as acting subject", async () => {
+    const { client, sent } = clientAnswering(() =>
+      json(
+        {
+          schemaVersion: 'disclosure.v1',
+          grantReference: 'ARQ-PSC-2026-0000012-H',
+          versions: [{ reference: 'DCB-PSC-2027-0000001-1', version: 1 }],
+        },
+        200,
+      ),
+    );
+
+    await client.renderDisclosure({
+      personId: PERSON,
+      tenant: 'psc',
+      officerSubject: 'officer-1',
+      grantReference: 'ARQ-PSC-2026-0000012-H',
+      legalBasis: 'act-s36-1',
+      recipientSubject: 'applicant-1',
+      years: [2027],
+      includeSpouses: false,
+      includeChildren: false,
+      sections: ['assets'],
+    });
+    expect(sent[0]?.url).toBe('http://declarations.test/internal/v1/declarations/disclosures');
+    expect(sent[0]?.headers.get('x-acting-subject')).toBe('officer-1');
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer disclosures-token');
+  });
+
+  it("lists a declarant's versions with the internal token, decrypting nothing", async () => {
+    const { client, sent } = clientAnswering(() => json([], 200));
+
+    await expect(client.personVersions('psc', PERSON)).resolves.toEqual([]);
+    expect(sent[0]?.headers.get('authorization')).toBe('Bearer internal-token');
   });
 });
