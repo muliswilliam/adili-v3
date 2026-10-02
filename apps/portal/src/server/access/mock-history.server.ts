@@ -31,7 +31,7 @@ import { bearerClaims } from '../declarations/mock/obligations';
 import { store } from '../declarations/mock/store';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
-import { mockNotices } from './mock-notices.server';
+import { MOCK_NOTICE_IDS, mockNotices } from './mock-notices.server';
 import type { AccessHistoryEntry, CertifiedCopy, DeclarantNotice } from './types';
 
 const MINUTE = 60_000;
@@ -221,6 +221,9 @@ function requestCopy(request: Request, body: unknown, now: number): Response {
   return json(202, answer);
 }
 
+/** Notices whose grant found nothing in its scope: the nil letter was issued (decision 1). */
+const NIL_LETTER_NOTICES: ReadonlySet<string> = new Set([MOCK_NOTICE_IDS.leaPartial]);
+
 /** The history entries a notice gives, as the service's register would hold them. */
 function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry[] {
   const base = {
@@ -254,6 +257,7 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
       actor: null,
       outcome: null,
       inWriting: inWriting ?? false,
+      packageKind: null,
       ...extra,
     });
   };
@@ -288,17 +292,23 @@ function noticeEntries(notice: DeclarantNotice, now: number): AccessHistoryEntry
   if (decided) {
     add('decided', decided.decidedAt, 'Decision recorded', { outcome: decided.outcome });
     if (decided.outcome !== 'deny') {
+      const nil = NIL_LETTER_NOTICES.has(notice.requestId);
+      const packageKind = nil ? ('nil-letter' as const) : ('access-package' as const);
+      const what = nil ? 'Nil letter' : 'Package';
       const issuedAt = Date.parse(decided.decidedAt) + 4 * MINUTE;
-      add('package-issued', new Date(issuedAt).toISOString(), 'Package issued');
+      add('package-issued', new Date(issuedAt).toISOString(), `${what} issued`, { packageKind });
       const downloadedAt = issuedAt + DAY - 3 * HOUR;
       if (downloadedAt < now) {
-        add('downloaded', new Date(downloadedAt).toISOString(), 'Package downloaded', {
+        add('downloaded', new Date(downloadedAt).toISOString(), `${what} downloaded`, {
           actor: notice.kind === 'lea' ? null : notice.applicantName,
+          packageKind,
         });
       }
       const expiresAt = issuedAt + PACKAGE_DAYS * DAY;
       if (expiresAt < now)
-        add('expired', new Date(expiresAt).toISOString(), 'Download window closed');
+        add('expired', new Date(expiresAt).toISOString(), 'Download window closed', {
+          packageKind,
+        });
     }
   }
   return entries;
@@ -320,6 +330,7 @@ function copyEntry(copy: MockCopy): AccessHistoryEntry | null {
     requester: null,
     caseReference: null,
     outcome: null,
+    packageKind: null,
     certifiedCopy: {
       id: copy.id,
       declarationId: copy.declarationId,

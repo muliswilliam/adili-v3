@@ -26,6 +26,7 @@ function entry(fields: Partial<AccessHistoryEntry>): AccessHistoryEntry {
     outcome: null,
     certifiedCopy: null,
     inWriting: false,
+    packageKind: null,
     ...fields,
   };
 }
@@ -86,6 +87,24 @@ describe('Who accessed in the declarant’s words', () => {
       title: 'Asset Recovery Agency downloaded the package',
       actor: 'Law-enforcement agency',
     });
+  });
+
+  it('reads a nil letter as the letter it is, not a package (decision 1)', () => {
+    const issued = entry({ kind: 'package-issued', packageKind: 'nil-letter' });
+    expect(toRegisterEntry(issued, [issued], [])).toMatchObject({
+      title: 'Nil letter issued to Wanjiru Kamau',
+      actor: 'Watermarked',
+    });
+    const downloaded = entry({
+      kind: 'downloaded',
+      packageKind: 'nil-letter',
+      actor: 'Wanjiru Kamau',
+    });
+    expect(toRegisterEntry(downloaded, [downloaded], []).title).toBe(
+      'Wanjiru Kamau downloaded the nil letter',
+    );
+    const packaged = entry({ kind: 'package-issued', packageKind: 'access-package' });
+    expect(toRegisterEntry(packaged, [packaged], []).title).toBe('Package issued to Wanjiru Kamau');
   });
 
   it('tells the first response, in its stance, from later edits', async () => {

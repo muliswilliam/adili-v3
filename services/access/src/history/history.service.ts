@@ -87,6 +87,7 @@ export class HistoryService {
             commission: { slug: row.tenant, name: row.commissionName },
             requester: row.applicantName,
             caseReference: null,
+            packageKind: row.packageKind,
             from: row.notifiedAt,
           });
         }
@@ -109,6 +110,7 @@ export class HistoryService {
             commission: { slug: row.tenant, name: row.commissionName },
             requester: row.agencyName,
             caseReference: row.caseReference,
+            packageKind: row.packageKind,
             from: null,
           });
         }
@@ -125,6 +127,7 @@ export class HistoryService {
             commission: { slug: row.tenant, name: row.commissionName },
             requester: null,
             caseReference: null,
+            packageKind: null,
             from: null,
           });
         }

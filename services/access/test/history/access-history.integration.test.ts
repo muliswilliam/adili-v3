@@ -106,6 +106,7 @@ describe('Who accessed my declaration (S12)', () => {
           caseReference: null,
           outcome: null,
           certifiedCopy: null,
+          packageKind: null,
         },
       ]);
       // The applicant's receipt (and anything else before the notice) never shows.
@@ -153,10 +154,55 @@ describe('Who accessed my declaration (S12)', () => {
       ]);
       const byKind = new Map(entries.map((entry) => [entry.kind, entry]));
       expect(byKind.get('decided')).toMatchObject({ outcome: 'grant', actor: null });
+      expect(byKind.get('package-issued')).toMatchObject({
+        summary: 'Package issued',
+        packageKind: 'access-package',
+      });
+      expect(byKind.get('decided')?.packageKind).toBeNull();
       // The applicant is named on their own steps; the access officer never is.
       expect(byKind.get('downloaded')).toMatchObject({ actor: 'Mercy Wanjiku Kamau' });
       expect(JSON.stringify(entries)).not.toContain(callers.officer.name);
       expect(entries.every((entry) => entry.requester === 'Mercy Wanjiku Kamau')).toBe(true);
+    });
+
+    it('S12: a grant that found nothing in its scope reads as the nil letter, not a package (decision 1)', async () => {
+      const { anne } = givenCommissions(api, NOW);
+      const row = await underDecisionRequest(api, anne);
+      // No disclosure of Anne within the scope: the grant issues the nil letter.
+      api.clock.set(DECIDED_AT);
+      const decided = await decide(api, row.id, { outcome: 'grant', reasons: 'Shown.' });
+      expect(decided.statusCode, decided.body).toBe(200);
+      const packaged = await api.eventually(async () => {
+        const found = await rowOf(api, row.id);
+        return found.packageDocumentId === null ? undefined : found;
+      });
+      expect(packaged.packageKind).toBe('nil-letter');
+      await api.endWorkflows([accessRequestWorkflowId(row.id)]);
+      await record({
+        subjectKind: 'access-request',
+        subjectId: row.id,
+        reference: row.reference,
+        personId: anne.personId,
+        kind: 'downloaded',
+        actor: { subject: callers.mercy.sub, name: row.applicantName },
+        at: new Date('2027-03-21T08:00:00.000Z'),
+        details: { documentId: packaged.packageDocumentId },
+        eventData: { documentId: packaged.packageDocumentId ?? '' },
+      });
+
+      const byKind = new Map(
+        (await historyOf(declarantOf(anne))).map((entry) => [entry.kind, entry]),
+      );
+
+      expect(byKind.get('package-issued')).toMatchObject({
+        summary: 'Nil letter issued',
+        packageKind: 'nil-letter',
+      });
+      expect(byKind.get('downloaded')).toMatchObject({
+        summary: 'Nil letter downloaded',
+        packageKind: 'nil-letter',
+      });
+      expect(byKind.get('decided')?.packageKind).toBeNull();
     });
 
     it('S12: another declarant sees nothing of a request about Anne', async () => {
@@ -356,6 +402,7 @@ describe('Who accessed my declaration (S12)', () => {
             documentId: issued.documentId,
             representativeName: null,
           },
+          packageKind: null,
         },
       ]);
       expect(await historyOf(otieno)).toEqual([]);

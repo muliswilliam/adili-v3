@@ -93,6 +93,8 @@ export function toRegisterEntry(
   const commission = entry.commission.name;
   const who = entry.requester ?? COPY.someone;
   const lea = entry.subjectKind === 'lea-request';
+  // A grant that found nothing in its scope delivered the nil letter, not a package (decision 1).
+  const nilLetter = entry.packageKind === 'nil-letter';
   const base = { id: entry.id, kind: entry.kind, at: entry.at, reference: entry.reference };
   switch (entry.kind) {
     case 'notified':
@@ -131,11 +133,16 @@ export function toRegisterEntry(
           }
         : { ...base, actor: COPY.officerOf(commission) };
     case 'package-issued':
-      return { ...base, title: COPY.packageIssued(who), actor: COPY.watermarked, tone: 'default' };
+      return {
+        ...base,
+        title: nilLetter ? COPY.nilLetterIssued(who) : COPY.packageIssued(who),
+        actor: COPY.watermarked,
+        tone: 'default',
+      };
     case 'downloaded':
       return {
         ...base,
-        title: COPY.downloaded(entry.actor ?? who),
+        title: (nilLetter ? COPY.downloadedNilLetter : COPY.downloaded)(entry.actor ?? who),
         actor: lea ? COPY.agency : COPY.applicant,
       };
     case 'expired':
