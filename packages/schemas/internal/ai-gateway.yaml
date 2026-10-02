@@ -159,7 +159,7 @@ paths:
       tags:
         - internal
       summary: Record or update a reviewer's rating of a job's output (caller service only)
-      description: 'One rating per reviewer per job: a second rating by the same reviewer replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).'
+      description: 'One rating per reviewer per block of the output (`block`; null for the output as a whole): a second rating by the same reviewer of the same block replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).'
       operationId: recordFeedback
       parameters:
         - name: X-Acting-Tenant
@@ -1033,7 +1033,15 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: The officer rating the output, as the calling service knows them (token `sub`)
+          description: The reviewer rating the output, as the calling service knows them (token `sub`)
+        block:
+          default: null
+          description: "The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole"
+          anyOf:
+            - type: string
+              maxLength: 64
+              pattern: ^(overview|changes|sections|worth-attention|flag:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$
+            - type: 'null'
         rating:
           type: string
           enum:
@@ -1069,7 +1077,15 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-          description: The officer rating the output, as the calling service knows them (token `sub`)
+          description: The reviewer rating the output, as the calling service knows them (token `sub`)
+        block:
+          default: null
+          description: "The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole"
+          anyOf:
+            - type: string
+              maxLength: 64
+              pattern: ^(overview|changes|sections|worth-attention|flag:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$
+            - type: 'null'
         rating:
           type: string
           enum:

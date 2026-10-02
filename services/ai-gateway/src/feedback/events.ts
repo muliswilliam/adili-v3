@@ -3,8 +3,9 @@ import type { NewEvent } from '@adili/events';
 import type { FeedbackRating, FeedbackReason, FeedbackRow, Job } from '../db/schema.js';
 
 /**
- * Announces a reviewer's rating of a job's output (spec 07c), so reporting can count ratings per
- * Commission and task. The rating and reason only: never the note, never who rated. A rating
+ * Announces a reviewer's rating of a job's output, or of one block of it (spec 07c), so reporting
+ * can count ratings per Commission and task. The rating, reason and block only: never the note,
+ * never who rated. A rating
  * changed later is announced again under the same `feedbackId`; the latest `recordedAt` holds.
  * Documented here until the AsyncAPI file lands.
  */
@@ -15,6 +16,8 @@ export interface AiFeedbackRecordedData extends Record<string, unknown> {
   jobId: string;
   task: string;
   tenant: string;
+  /** The block rated (`overview`, `flag:<id>`, ...); null for the output as a whole. */
+  block: string | null;
   rating: FeedbackRating;
   reason: FeedbackReason | null;
   recordedAt: string;
@@ -34,6 +37,7 @@ export function feedbackRecorded(
       jobId: job.id,
       task: job.task,
       tenant: job.tenant,
+      block: row.block,
       rating: row.rating,
       reason: row.reason,
       recordedAt: row.at.toISOString(),

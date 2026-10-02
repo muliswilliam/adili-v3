@@ -51,7 +51,7 @@ export interface paths {
         get?: never;
         /**
          * Record or update a reviewer's rating of a job's output (caller service only)
-         * @description One rating per reviewer per job: a second rating by the same reviewer replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).
+         * @description One rating per reviewer per block of the output (`block`; null for the output as a whole): a second rating by the same reviewer of the same block replaces the first. Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).
          */
         put: operations["recordFeedback"];
         post?: never;
@@ -373,8 +373,13 @@ export interface components {
             }[];
         };
         FeedbackInput: {
-            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
+            /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
+            /**
+             * @description The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole
+             * @default null
+             */
+            block: string | null;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
@@ -383,8 +388,13 @@ export interface components {
         Feedback: {
             /** Format: uuid */
             jobId: string;
-            /** @description The officer rating the output, as the calling service knows them (token `sub`) */
+            /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
+            /**
+             * @description The block rated: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null or left out: the output as a whole
+             * @default null
+             */
+            block: string | null;
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;

@@ -9,6 +9,7 @@ import { contractErrors } from '../support/contract.js';
 import {
   actingFor,
   explainInput,
+  FLAG_ID,
   summarizeInput,
   summarizeOutput,
   taskCall,
@@ -80,6 +81,7 @@ describe('feedback', () => {
     expect(body).toEqual({
       jobId: succeeded,
       reviewerSubject: 'reviewer-a',
+      block: null,
       rating: 'not-helpful',
       reason: 'missed-something',
       note: 'It left out the second plot.',
@@ -134,6 +136,37 @@ describe('feedback', () => {
     expect(ids[0]).toBe(ids[1]);
     expect(ids[2]).not.toBe(ids[0]);
     expect(events[1]?.data).toMatchObject({ rating: 'helpful', reason: null });
+  });
+
+  it('keeps one rating per block of the output, and announces the block', async () => {
+    const rating = { reviewerSubject: 'reviewer-c', reason: null, note: null };
+    const flagBlock = `flag:${FLAG_ID}`;
+    for (const [block, value] of [
+      ['overview', 'helpful'],
+      [flagBlock, 'not-helpful'],
+      ['overview', 'not-helpful'],
+    ] as const) {
+      const response = await rate(succeeded, { ...rating, block, rating: value });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ block, rating: value });
+    }
+
+    const rows = await t.db
+      .select()
+      .from(feedback)
+      .where(eq(feedback.reviewerSubject, 'reviewer-c'));
+    expect(rows.map((row) => [row.block, row.rating]).sort()).toEqual([
+      [flagBlock, 'not-helpful'],
+      ['overview', 'not-helpful'],
+    ]);
+    const blocks = (await announced(succeeded))
+      .map((event) => event.data as { block: string | null })
+      .map((data) => data.block);
+    expect(blocks).toEqual(expect.arrayContaining(['overview', flagBlock]));
+    // Not a block a copilot output has.
+    expect(
+      (await rate(succeeded, { ...rating, block: 'Grace', rating: 'helpful' })).statusCode,
+    ).toBe(400);
   });
 
   it("is 404 for another caller's job, a job without an output and an unknown job", async () => {

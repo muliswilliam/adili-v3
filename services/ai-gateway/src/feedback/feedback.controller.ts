@@ -42,8 +42,9 @@ export class FeedbackController {
     operationId: 'recordFeedback',
     summary: "Record or update a reviewer's rating of a job's output (caller service only)",
     description:
-      'One rating per reviewer per job: a second rating by the same reviewer replaces the first. ' +
-      'Each rating announces ai.feedback.recorded.v1 (no note, no reviewer).',
+      'One rating per reviewer per block of the output (`block`; null for the output as a whole): ' +
+      'a second rating by the same reviewer of the same block replaces the first. Each rating ' +
+      'announces ai.feedback.recorded.v1 (no note, no reviewer).',
   })
   @ApiParam({ name: 'jobId', schema: { type: 'string', format: 'uuid' } })
   @ApiBody({ required: true, schema: schemaRef('FeedbackInput') })
