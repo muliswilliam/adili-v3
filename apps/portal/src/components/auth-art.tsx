@@ -32,7 +32,7 @@ const ART = {
     items: [
       [SecurityCheckIcon, 'Identity checked once'],
       [File02Icon, 'Form K online, no paperwork'],
-      [Clock01Icon, 'A decision within 30 days'],
+      [Clock01Icon, 'A decision by the Commission’s deadline'],
     ],
   },
 } as const;

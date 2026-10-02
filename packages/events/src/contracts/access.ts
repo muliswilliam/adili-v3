@@ -37,6 +37,7 @@ export const ACCESS_REGISTER_KINDS = [
   'notified',
   'representations',
   'decided',
+  'decision-notified',
   'package-issued',
   'downloaded',
   'expired',
@@ -76,6 +77,7 @@ export const ACCESS_REQUEST_EVENTS = {
   notified: 'access.request.notified.v1',
   representations: 'access.request.representations.v1',
   decided: 'access.request.decided.v1',
+  'decision-notified': 'access.request.decision-notified.v1',
   'package-issued': 'access.request.package-issued.v1',
   downloaded: 'access.request.downloaded.v1',
   expired: 'access.request.expired.v1',
@@ -107,6 +109,7 @@ export const ACCESS_REQUEST_IDENTIFIED = ACCESS_REQUEST_EVENTS.identified;
 export const ACCESS_REQUEST_NOTIFIED = ACCESS_REQUEST_EVENTS.notified;
 export const ACCESS_REQUEST_REPRESENTATIONS = ACCESS_REQUEST_EVENTS.representations;
 export const ACCESS_REQUEST_DECIDED = ACCESS_REQUEST_EVENTS.decided;
+export const ACCESS_REQUEST_DECISION_NOTIFIED = ACCESS_REQUEST_EVENTS['decision-notified'];
 export const ACCESS_REQUEST_PACKAGE_ISSUED = ACCESS_REQUEST_EVENTS['package-issued'];
 export const ACCESS_REQUEST_DOWNLOADED = ACCESS_REQUEST_EVENTS.downloaded;
 export const ACCESS_REQUEST_EXPIRED = ACCESS_REQUEST_EVENTS.expired;
@@ -264,6 +267,17 @@ export interface AccessPackageDownloadedData extends AccessRegisterEventData {
 export interface AccessPackageExpiredData extends AccessRegisterEventData {
   kind: 'expired';
   documentId: string;
+}
+
+/**
+ * `access.request.decision-notified.v1`: the declarant, who has no account, was told the
+ * decision in writing (spec 10 decision 2, as their notice of the request): the access officer
+ * served it on `notifiedOn` and recorded it (the entry's actor). A declarant with an account is
+ * told online, by the decision's messages, and records no such entry.
+ */
+export interface AccessRequestDecisionNotifiedData
+  extends AccessRegisterEventData, DeclarantNoticeFacts {
+  kind: 'decision-notified';
 }
 
 /**

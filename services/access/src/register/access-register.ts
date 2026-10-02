@@ -12,6 +12,7 @@ import {
   type AccessRegisterEventData,
   type AccessRequestCannotIdentifyData,
   type AccessRequestDecidedData,
+  type AccessRequestDecisionNotifiedData,
   type AccessRequestEventKind,
   type AccessRequestIdentifiedData,
   type AccessRequestNotifiedData,
@@ -57,6 +58,7 @@ interface EventExtras {
     notified: Extra<AccessRequestNotifiedData>;
     representations: Extra<AccessRequestRepresentationsData>;
     decided: Extra<AccessRequestDecidedData>;
+    'decision-notified': Extra<AccessRequestDecisionNotifiedData>;
     'package-issued': Extra<AccessPackageIssuedData>;
     downloaded: Extra<AccessPackageDownloadedData>;
     expired: Extra<AccessPackageExpiredData>;

@@ -24,13 +24,14 @@ export class HistoryController {
     operationId: 'getMyAccessHistory',
     summary: 'Who accessed my declaration (register entries visible to the declarant)',
     description:
-      'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Staff and law enforcement officers are not named.',
+      'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it); those about a law enforcement request only the agency and case. Staff and law enforcement officers are not named.',
   })
   @ApiOkResponse({
     description: 'Entries',
     schema: { type: 'array', items: schemaRef('AccessHistoryEntry') },
   })
   @ApiProblemResponse(404, 'Not a declarant')
+  @ApiProblemResponse(503, 'The key service cannot be reached')
   list(@CurrentPrincipal() principal: Principal): Promise<AccessHistoryEntry[]> {
     return this.history.list(principal);
   }

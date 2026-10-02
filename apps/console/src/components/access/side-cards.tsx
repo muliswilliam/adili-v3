@@ -246,6 +246,25 @@ export function OfficerCard({ view }: { view: OfficerRequestView }) {
             )}
           </dd>
         </div>
+        {view.decisionNotice?.notifiedOn ? (
+          <div>
+            <dt className="text-[13px] text-muted-foreground">{m.decisionToldTerm}</dt>
+            <dd className="mt-0.5 font-medium">
+              <span className="inline-flex items-center gap-1.5">
+                <Icon icon={File01Icon} className="size-3.5 text-muted-foreground" />
+                {m.notifiedInWriting(formatDay(view.decisionNotice.notifiedOn))}
+              </span>
+              {view.decisionNotice.recordedBy ? (
+                <span className="block text-[13px] font-normal text-muted-foreground">
+                  {m.recordedBy(
+                    view.decisionNotice.recordedBy,
+                    formatDateTime(lastEntry(view, 'decision-notified')?.at ?? ''),
+                  )}
+                </span>
+              ) : null}
+            </dd>
+          </div>
+        ) : null}
       </dl>
     </SideCard>
   );

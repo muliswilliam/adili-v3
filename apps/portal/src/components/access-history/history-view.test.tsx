@@ -112,6 +112,18 @@ describe('Who accessed my declaration', () => {
     expect(within(drawer).getByRole('link', { name: 'Open access request' })).toBeDefined();
   });
 
+  it('without the notice, still says why and for what, from the register', async () => {
+    renderView({ page: 2, notices: [] });
+    await click(
+      screen.getByRole('button', { name: /Teachers Service Commission partially granted access/ }),
+    );
+    const drawer = screen.getByRole('dialog', { name: 'Access request' });
+    expect(drawer.textContent).toContain('Joseph Maina Kariuki');
+    expect(drawer.textContent).toContain('Suspected conflict of interest in a supplies contract');
+    expect(drawer.textContent).toMatch(/Scope asked.*2025, 2026/);
+    expect(drawer.textContent).toContain('Scope granted2026 · You only · Income, assets');
+  });
+
   it('opens a law-enforcement grant without naming any officer', async () => {
     renderView({ filter: 'lea' });
     await click(screen.getByRole('button', { name: /Asset Recovery Agency was granted access/ }));

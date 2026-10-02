@@ -230,6 +230,37 @@ export class OfficerController {
     return this.officer.recordWrittenNotice(principal, requestId, body);
   }
 
+  @Post('v1/access/requests/:requestId/decision-written-notice')
+  @HttpCode(HttpStatus.OK)
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @AcceptIdempotencyKey()
+  @ApiParam(REQUEST_ID)
+  @ApiOperation({
+    operationId: 'recordDecisionWrittenNotice',
+    summary: 'Record the decision served in writing on a declarant with no account',
+    description:
+      'Spec 10 decision 2: a declarant with no account cannot be told the decision online, so the access officer serves it in writing and records the day (not in the future, not before the decision): `decisionNotice` on the request, `access.request.decision-notified.v1`. The declarant who onboards later is also told the outcome online.',
+  })
+  @ApiBody({ required: true, schema: schemaRef('WrittenNotice') })
+  @ApiOkResponse({ description: 'Recorded', schema: schemaRef('OfficerRequestView') })
+  @ApiProblemResponse(
+    400,
+    'requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the decision',
+  )
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_THE_COMMISSIONS)
+  @ApiProblemResponse(
+    409,
+    'Problem code `not-under-decision` (not decided yet), `declarant-notified` (recorded already) or `request-closed`; or the declarant has an account (told online)',
+  )
+  recordDecisionWrittenNotice(
+    @CurrentPrincipal() principal: Principal,
+    @Param('requestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Body(new ZodValidationPipe(writtenNoticeBody)) body: WrittenNoticeBody,
+  ): Promise<OfficerRequestView> {
+    return this.officer.recordDecisionWrittenNotice(principal, requestId, body);
+  }
+
   @Put('v1/access/requests/:requestId/representations')
   @Roles(...OFFICER_ROUTE_ROLES)
   @AcceptIdempotencyKey()

@@ -2,31 +2,37 @@ import {
   Badge,
   Button,
   Card,
-  cn,
   DeadlineChip,
   deadlineSoonDays,
   deadlineStatus,
   DECIDED_ACCESS_STATUSES,
   EmptyState,
-  focusRingInset,
   GRANTED_ACCESS_STATUSES,
   groundMeta,
   Icon,
   OPEN_ACCESS_STATUSES,
+  Spinner,
+  useToast,
 } from '@adili/ui';
 import {
   Add01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
   Calendar03Icon,
+  Download01Icon,
   File01Icon,
   PackageRemoveIcon,
   SquareLock02Icon,
+  Undo02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
-import { day, REQUESTS_COPY as COPY } from '../../access/copy';
-import type { RequestSummary } from '../../server/access-requests.server';
+import { day, PACKAGE_COPY, REQUESTS_COPY as COPY } from '../../access/copy';
+import { WITHDRAWABLE } from '../../access/progress';
+import type { PackageDownloadResult, RequestSummary } from '../../server/access-requests.server';
+import type { Unauthenticated } from '../../server/results';
+import { downloadFrom } from '../download';
 import { RequestStatusBadge, RequestStatusTile } from './request-status';
 
 export const REQUESTS_PAGE_SIZE = 10;
@@ -145,17 +151,137 @@ function DecisionSummary({ decision }: { decision: NonNullable<RequestSummary['d
   );
 }
 
-function RequestRow({ request, now }: { request: RequestSummary; now: number }) {
+/** What a row can do from the list: withdraw an open request, reload when one moved on. */
+export interface RowActions {
+  onWithdraw: (request: RequestSummary) => void;
+  /** A download link for the applicant's own package (documents), as the request page gets it. */
+  download: (documentId: string) => Promise<PackageDownloadResult | Unauthenticated>;
+  /** The list is stale (a download window closed meanwhile): read it again. */
+  onChanged: () => void;
+}
+
+/**
+ * Downloads a granted row's package (or nil letter) while its window is open, as the request
+ * page does: each download is recorded; a window closed meanwhile reloads the list.
+ */
+function RowDownload({
+  request,
+  documentId,
+  expiresAt,
+  actions,
+}: {
+  request: RequestSummary;
+  documentId: string;
+  expiresAt: string;
+  actions: RowActions;
+}) {
+  const { toast } = useToast();
+  const [pending, setPending] = useState(false);
+  const letter = request.packageKind === 'nil-letter';
+
+  async function download() {
+    setPending(true);
+    const link = await actions.download(documentId).catch(() => null);
+    setPending(false);
+    if (link?.status === 'ok') {
+      downloadFrom(link.downloadUrl);
+      toast({ title: PACKAGE_COPY.downloadStarted });
+    } else if (link?.status === 'window-closed') {
+      actions.onChanged();
+    } else {
+      toast({ title: PACKAGE_COPY.downloadFailed, urgency: 'assertive' });
+    }
+  }
+
   return (
-    <li className="border-b border-border last:border-b-0">
-      <Link
-        to="/access/requests/$id"
-        params={{ id: request.id }}
-        aria-label={COPY.open(request.reference)}
-        className={cn(focusRingInset, 'flex items-start gap-4 px-5 py-4 hover:bg-muted/60 sm:px-6')}
-      >
-        <RequestStatusTile status={request.status} />
-        <span className="grid min-w-0 flex-1 gap-0.5">
+    <Button
+      type="button"
+      size="sm"
+      variant="secondary"
+      disabled={pending}
+      aria-busy={pending || undefined}
+      aria-label={COPY.downloadFor(
+        letter ? 'letter' : 'package',
+        request.reference,
+        day(expiresAt),
+      )}
+      onClick={() => void download()}
+    >
+      {pending ? <Spinner /> : <Icon icon={Download01Icon} />}
+      {pending ? COPY.downloading : letter ? COPY.downloadLetter : COPY.download}
+    </Button>
+  );
+}
+
+function RowActionsBar({
+  request,
+  now,
+  actions,
+}: {
+  request: RequestSummary;
+  now: number;
+  actions: RowActions;
+}) {
+  const { packageDocumentId: documentId, downloadExpiresAt: expiresAt } = request;
+  const downloadable =
+    GRANTED_ACCESS_STATUSES.has(request.status) &&
+    documentId !== null &&
+    expiresAt !== null &&
+    Date.parse(expiresAt) > now;
+  const withdrawable = WITHDRAWABLE.has(request.status);
+  if (!downloadable && !withdrawable) return null;
+  return (
+    // Above the row's link, which covers the whole row.
+    <span className="relative z-10 mt-2.5 flex flex-wrap items-center gap-2">
+      {downloadable ? (
+        <RowDownload
+          request={request}
+          documentId={documentId}
+          expiresAt={expiresAt}
+          actions={actions}
+        />
+      ) : null}
+      {withdrawable ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive-ghost"
+          // A ghost button: its icon lines up with the row's text, not its padding.
+          className="-ml-3"
+          aria-label={COPY.withdrawFor(request.reference)}
+          onClick={() => {
+            actions.onWithdraw(request);
+          }}
+        >
+          <Icon icon={Undo02Icon} />
+          {COPY.withdraw}
+        </Button>
+      ) : null}
+    </span>
+  );
+}
+
+function RequestRow({
+  request,
+  now,
+  actions,
+}: {
+  request: RequestSummary;
+  now: number;
+  actions: RowActions;
+}) {
+  // The link covers the row (its ::after), so the whole row opens the request; the row's own
+  // buttons sit above it.
+  return (
+    <li className="relative flex items-start gap-4 border-b border-border px-5 py-4 last:border-b-0 hover:bg-muted/60 sm:px-6">
+      <RequestStatusTile status={request.status} />
+      <span className="grid min-w-0 flex-1">
+        <Link
+          to="/access/requests/$id"
+          params={{ id: request.id }}
+          aria-label={COPY.open(request.reference)}
+          className="grid min-w-0 gap-0.5 outline-hidden after:absolute after:inset-0 focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring focus-visible:after:outline-solid"
+        >
           <span className="truncate text-[15px] font-semibold">{request.officerName}</span>
           <span className="truncate text-[13px] text-muted-foreground">
             <span className="font-mono">{request.reference}</span> · {request.commission.name}
@@ -167,13 +293,14 @@ function RequestRow({ request, now }: { request: RequestSummary; now: number }) 
             <DownloadBy request={request} now={now} />
           </span>
           {request.decision ? <DecisionSummary decision={request.decision} /> : null}
-        </span>
-        <Icon
-          icon={ArrowRight01Icon}
-          className="mt-3 size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      </Link>
+        </Link>
+        <RowActionsBar request={request} now={now} actions={actions} />
+      </span>
+      <Icon
+        icon={ArrowRight01Icon}
+        className="mt-3 size-4 shrink-0 text-muted-foreground"
+        aria-hidden="true"
+      />
     </li>
   );
 }
@@ -265,19 +392,22 @@ export function NewRequestButton() {
  * My requests (spec 10 FE-3): the applicant's Form K requests, latest first, ten to a page,
  * each with its officer, reference, Commission, status and, while open, the decision clock;
  * once decided, the grounds and the start of the reasons, and once granted, the package's
- * download window. Withdrawing is on the request's page.
+ * download window. A row withdraws an open request (the caller confirms it) and downloads a
+ * granted package while its window is open, as the request's page does.
  */
 export function RequestsList({
   requests,
   page,
   now,
   onPage,
+  actions,
 }: {
   requests: RequestSummary[];
   page: number;
   /** Epoch milliseconds from the server, so the clocks read the same on both sides. */
   now: number;
   onPage: (page: number) => void;
+  actions: RowActions;
 }) {
   if (requests.length === 0) {
     return (
@@ -299,7 +429,7 @@ export function RequestsList({
     <Card className="overflow-hidden p-0 sm:p-0">
       <ul aria-label={COPY.title}>
         {rows.map((request) => (
-          <RequestRow key={request.id} request={request} now={now} />
+          <RequestRow key={request.id} request={request} now={now} actions={actions} />
         ))}
       </ul>
       <Pager page={shown} total={requests.length} onPage={onPage} />

@@ -125,7 +125,12 @@ function RequestContent({
         {lea ? (
           <LeaFacts entry={entry} all={all} notice={notice?.kind === 'lea' ? notice : null} />
         ) : (
-          <FormKFacts entry={entry} notice={notice?.kind === 'form-k' ? notice : null} now={now} />
+          <FormKFacts
+            entry={entry}
+            all={all}
+            notice={notice?.kind === 'form-k' ? notice : null}
+            now={now}
+          />
         )}
         <section className="mt-1 grid gap-3">
           <h3 className="text-[15px] font-semibold">{COPY.timeline}</h3>
@@ -155,17 +160,31 @@ function RequestContent({
 
 function FormKFacts({
   entry,
+  all,
   notice,
   now,
 }: {
   entry: AccessHistoryEntry;
+  all: AccessHistoryEntry[];
   notice: FormKDeclarantNotice | null;
   now: string;
 }) {
   if (!notice) {
+    // The notice is gone from the list: the register's entries still say who asked, why and
+    // for what (requested before the decision, granted on it).
+    const steps = entriesOfSubject(entry, all);
+    const asked = steps.find((step) => step.kind === 'notified')?.scope ?? null;
+    const decided = steps.find((step) => step.kind === 'decided');
     return (
       <Facts>
         <Fact term={COPY.applicantTerm}>{entry.requester ?? COPY.someone}</Fact>
+        {entry.purposeInGeneralTerms ? (
+          <Fact term={COPY.purpose}>{entry.purposeInGeneralTerms}</Fact>
+        ) : null}
+        {asked ? <Fact term={COPY.scopeAsked}>{scopeLine(asked)}</Fact> : null}
+        {decided?.outcome === 'partial-grant' && decided.scope ? (
+          <Fact term={COPY.scopeGranted}>{scopeLine(decided.scope)}</Fact>
+        ) : null}
       </Facts>
     );
   }

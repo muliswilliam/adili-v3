@@ -191,6 +191,26 @@ export function recordWrittenNotice(
 }
 
 /**
+ * `POST .../decision-written-notice`: the day the decision was served in writing on a declarant
+ * who has no account (spec 10 decision 2). The key makes a retry safe.
+ */
+export function recordDecisionWrittenNotice(
+  client: AccessClient,
+  requestId: string,
+  notifiedOn: string,
+  idempotencyKey: string,
+): Promise<AccessResult<OfficerRequestView>> {
+  return asOfficerView(
+    callService(() =>
+      client.POST('/v1/access/requests/{requestId}/decision-written-notice', {
+        params: { path: { requestId }, header: { 'Idempotency-Key': idempotencyKey } },
+        body: { notifiedOn },
+      }),
+    ),
+  );
+}
+
+/**
  * `PUT .../representations`: the representations a declarant served in writing made on paper,
  * entered by the access officer on their behalf (stance, text, the letter's scans).
  */

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { decisionSchema } from '../decision.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import type { RegisterEntry } from '../register/representation.js';
-import { noticeOf, noticeSchema } from '../written-notice.js';
+import { noticeOf, noticeSchema, startOfNairobiDay } from '../written-notice.js';
 import { type AccessRequestRow, accessRequestSchema, toAccessRequest } from './representation.js';
 import {
   APPLICANT_IDENTITY_STATUSES,
@@ -59,6 +59,10 @@ export const officerRequestViewSchema = accessRequestSchema.extend({
   }),
   notice: noticeSchema.nullable().meta({
     description: 'How and when the declarant was notified; null before',
+  }),
+  decisionNotice: noticeSchema.nullable().meta({
+    description:
+      'The decision served in writing on a declarant with no account (spec 10 decision 2, `recordDecisionWrittenNotice`): always `written`; null until recorded, and for a declarant with an account (told the decision online)',
   }),
 });
 
@@ -122,5 +126,12 @@ export function toOfficerRequestView(
     declarantOnboarded: row.resolvedRosterRecordId === null ? null : row.resolvedPersonId !== null,
     declarantInvitedAt: row.declarantInvitedAt?.toISOString() ?? null,
     notice: noticeOf(row.notifiedAt, row.writtenNotice),
+    decisionNotice:
+      row.decisionWrittenNotice === null
+        ? null
+        : noticeOf(
+            startOfNairobiDay(row.decisionWrittenNotice.notifiedOn),
+            row.decisionWrittenNotice,
+          ),
   };
 }

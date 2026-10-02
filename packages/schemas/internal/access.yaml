@@ -622,6 +622,73 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/access/requests/{requestId}/decision-written-notice:
+    post:
+      tags:
+        - officer
+      summary: Record the decision served in writing on a declarant with no account
+      description: 'Spec 10 decision 2: a declarant with no account cannot be told the decision online, so the access officer serves it in writing and records the day (not in the future, not before the decision): `decisionNotice` on the request, `access.request.decision-notified.v1`. The declarant who onboards later is also told the outcome online.'
+      operationId: recordDecisionWrittenNotice
+      parameters:
+        - name: requestId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WrittenNotice'
+      responses:
+        '200':
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficerRequestView'
+        '400':
+          description: 'requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the decision'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |-
+            The Commission supervisor reads requests; only its access officer acts
+
+            Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No such request at the caller's Commission (another Commission's, EACC's or anyone else's view)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Problem code `not-under-decision` (not decided yet), `declarant-notified` (recorded already) or `request-closed`; or the declarant has an account (told online)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/access/requests/{requestId}/representations:
     put:
       tags:
@@ -1637,7 +1704,7 @@ paths:
       tags:
         - declarant
       summary: Who accessed my declaration (register entries visible to the declarant)
-      description: 'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Staff and law enforcement officers are not named.'
+      description: 'Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it); those about a law enforcement request only the agency and case. Staff and law enforcement officers are not named.'
       operationId: getMyAccessHistory
       responses:
         '200':
@@ -1656,6 +1723,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
         '404':
           description: Not a declarant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The key service cannot be reached
           content:
             application/problem+json:
               schema:
@@ -2540,6 +2613,7 @@ components:
             - notified
             - representations
             - decided
+            - decision-notified
             - package-issued
             - downloaded
             - expired
@@ -2710,6 +2784,11 @@ components:
             - $ref: '#/components/schemas/Notice'
             - type: 'null'
           description: How and when the declarant was notified; null before
+        decisionNotice:
+          anyOf:
+            - $ref: '#/components/schemas/Notice'
+            - type: 'null'
+          description: 'The decision served in writing on a declarant with no account (spec 10 decision 2, `recordDecisionWrittenNotice`): always `written`; null until recorded, and for a declarant with an account (told the decision online)'
       required:
         - id
         - reference
@@ -2732,6 +2811,7 @@ components:
         - declarantOnboarded
         - declarantInvitedAt
         - notice
+        - decisionNotice
     VerifyApplicantIdentity:
       type: object
       properties:
@@ -3117,10 +3197,15 @@ components:
           items:
             type: integer
           description: 'The declaration years (statement-date years) a request can ask of it, ascending: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi. Empty while it holds none yet.'
+        decisionDays:
+          type: integer
+          exclusiveMinimum: 0
+          description: The days from receipt the Commission has to decide a Form K request, by its policy in force now (a request keeps the period in force when it is received)
       required:
         - slug
         - name
         - years
+        - decisionDays
     AccessHistoryEntry:
       type: object
       properties:
@@ -3136,6 +3221,7 @@ components:
             - notified
             - representations
             - decided
+            - decision-notified
             - package-issued
             - downloaded
             - expired
@@ -3182,6 +3268,14 @@ components:
           type:
             - string
             - 'null'
+        purposeInGeneralTerms:
+          type:
+            - string
+            - 'null'
+        scope:
+          anyOf:
+            - $ref: '#/components/schemas/Scope'
+            - type: 'null'
         outcome:
           anyOf:
             - $ref: '#/components/schemas/Outcome'
@@ -3210,6 +3304,8 @@ components:
         - commission
         - requester
         - caseReference
+        - purposeInGeneralTerms
+        - scope
         - outcome
         - certifiedCopy
         - packageKind

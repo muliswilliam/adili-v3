@@ -240,11 +240,15 @@ export function FormKWizard({
             }}
             footer={
               <>
-                {commission ? <span className="text-foreground">{commission.name}</span> : null}
-                <span className="flex items-center gap-2 [&_svg]:size-4">
-                  <Icon icon={Clock01Icon} />
-                  {COPY.decisionWithin}
-                </span>
+                {commission ? (
+                  <>
+                    <span className="text-foreground">{commission.name}</span>
+                    <span className="flex items-center gap-2 [&_svg]:size-4">
+                      <Icon icon={Clock01Icon} />
+                      {COPY.decisionWithin(commission.decisionDays)}
+                    </span>
+                  </>
+                ) : null}
               </>
             }
           />

@@ -140,6 +140,11 @@ export const accessRequests = pgTable(
     windowEndsAt: timestamp({ withTimezone: true }),
     /** The written notice the access officer recorded (r.22(2)); null when told online. */
     writtenNotice: jsonb().$type<WrittenNotice>(),
+    /**
+     * The decision served in writing on a declarant with no account, as the access officer
+     * recorded it (spec 10 decision 2); null until then, and for a declarant told online.
+     */
+    decisionWrittenNotice: jsonb().$type<WrittenNotice>(),
     submittedAt: timestamp({ withTimezone: true }).notNull(),
     /**
      * Received + the Commission's decision period at receipt (policy `access.decisionDays`, thirty

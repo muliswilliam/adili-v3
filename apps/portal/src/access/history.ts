@@ -132,6 +132,13 @@ export function toRegisterEntry(
             actor: COPY.officerOf(commission),
           }
         : { ...base, actor: COPY.officerOf(commission) };
+    case 'decision-notified':
+      return {
+        ...base,
+        title: COPY.toldDecisionInWriting,
+        actor: COPY.officerOf(commission),
+        tone: 'default',
+      };
     case 'package-issued':
       return {
         ...base,

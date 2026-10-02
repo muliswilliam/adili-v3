@@ -20,10 +20,14 @@ import { actionFailure, dayAfter, formatDay, nairobiDay, noticeDayError } from '
 import { Muted, SideCard } from './side-cards';
 
 export interface WrittenNoticeCardProps {
+  /** The card's title: "Notify in writing" unless told. */
+  title?: string;
   /** Why the notice goes on paper, naming the officer. */
   intro: string;
   /** When the officer was invited to onboard; null while the invitation is on its way. */
   invitedAt: string | null;
+  /** The invitation line, given its date: what onboarding first would change. */
+  invitedOn?: (date: string) => string;
   /** The earliest day it may have been served (`YYYY-MM-DD`), and what that day was. */
   earliest: string;
   earliestMessage: (date: string) => string;
@@ -46,8 +50,10 @@ export interface WrittenNoticeCardProps {
  * representations runs from it: the day it closes shows as the day is entered.
  */
 export function WrittenNoticeCard({
+  title = m.noticeTitle,
   intro,
   invitedAt,
+  invitedOn = m.invitedOn,
   earliest,
   earliestMessage,
   hint,
@@ -115,11 +121,11 @@ export function WrittenNoticeCard({
   };
 
   return (
-    <SideCard id="written-notice" title={m.noticeTitle}>
+    <SideCard id="written-notice" title={title}>
       <p className="text-sm leading-relaxed text-muted-foreground">{intro}</p>
       <div className="flex items-start gap-2 text-[13px] text-muted-foreground">
         <Icon icon={Mail01Icon} className="mt-0.5 size-3.5 shrink-0" />
-        <span>{invitedAt ? m.invitedOn(formatDay(nairobiDay(invitedAt))) : m.invitePending}</span>
+        <span>{invitedAt ? invitedOn(formatDay(nairobiDay(invitedAt))) : m.invitePending}</span>
       </div>
       <form
         noValidate

@@ -208,6 +208,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/access/requests/{requestId}/decision-written-notice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record the decision served in writing on a declarant with no account
+         * @description Spec 10 decision 2: a declarant with no account cannot be told the decision online, so the access officer serves it in writing and records the day (not in the future, not before the decision): `decisionNotice` on the request, `access.request.decision-notified.v1`. The declarant who onboards later is also told the outcome online.
+         */
+        post: operations["recordDecisionWrittenNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/access/requests/{requestId}/representations": {
         parameters: {
             query?: never;
@@ -509,7 +529,7 @@ export interface paths {
         };
         /**
          * Who accessed my declaration (register entries visible to the declarant)
-         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Staff and law enforcement officers are not named.
+         * @description Newest first: Form K requests about the declarant from notification on (notified, representations, decision, package, downloads, expiry, withdrawal), law enforcement requests from the grant on (decision, package, downloads, expiry), and their certified copies. Entries about a Form K request carry the applicant, the purpose the notice gave and the scope (requested before the decision, granted from it); those about a law enforcement request only the agency and case. Staff and law enforcement officers are not named.
          */
         get: operations["getMyAccessHistory"];
         put?: never;
@@ -812,7 +832,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "decision-notified" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
             /** Format: date-time */
             at: string;
             actor: string | null;
@@ -874,6 +894,8 @@ export interface components {
             declarantInvitedAt: string | null;
             /** @description How and when the declarant was notified; null before */
             notice: components["schemas"]["Notice"] | null;
+            /** @description The decision served in writing on a declarant with no account (spec 10 decision 2, `recordDecisionWrittenNotice`): always `written`; null until recorded, and for a declarant with an account (told the decision online) */
+            decisionNotice: components["schemas"]["Notice"] | null;
         };
         VerifyApplicantIdentity: {
             verified: boolean;
@@ -1036,12 +1058,14 @@ export interface components {
             name: string;
             /** @description The declaration years (statement-date years) a request can ask of it, ascending: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi. Empty while it holds none yet. */
             years: number[];
+            /** @description The days from receipt the Commission has to decide a Form K request, by its policy in force now (a request keeps the period in force when it is received) */
+            decisionDays: number;
         };
         AccessHistoryEntry: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "decision-notified" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
             /** Format: date-time */
             at: string;
             actor: string | null;
@@ -1058,6 +1082,8 @@ export interface components {
             };
             requester: string | null;
             caseReference: string | null;
+            purposeInGeneralTerms: string | null;
+            scope: components["schemas"]["Scope"] | null;
             outcome: components["schemas"]["Outcome"] | null;
             certifiedCopy: components["schemas"]["HistoryCertifiedCopy"] | null;
             packageKind: ("access-package" | "nil-letter") | null;
@@ -2081,6 +2107,84 @@ export interface operations {
                 };
             };
             /** @description Problem code `declarant-notified` (notified already, online or in writing), `request-closed` or `request-decided`; or the officer is not identified yet, or has an account (notified online) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    recordDecisionWrittenNotice: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                requestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WrittenNotice"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfficerRequestView"];
+                };
+            };
+            /** @description requestId is not a UUID, or the body failed validation: `notifiedOn` in the future or before the decision */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request at the caller's Commission (another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-under-decision` (not decided yet), `declarant-notified` (recorded already) or `request-closed`; or the declarant has an account (told online) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3338,6 +3442,15 @@ export interface operations {
             };
             /** @description Not a declarant */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The key service cannot be reached */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

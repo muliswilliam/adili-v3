@@ -60,6 +60,7 @@ const HISTORY = {
   notifiedInWriting: en((commission: string) => `Notified in writing by ${commission}`),
   decided: en((commission: string, verb: string) => `${commission} ${verb}`),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
+  toldDecisionInWriting: en('You were told the decision in writing'),
   agencyGranted: en((agency: string, verb: string) => `${agency} was ${verb}`),
   caseOf: en((caseReference: string) => `Case ${caseReference}`),
   packageIssued: en((who: string) => `Package issued to ${who}`),
