@@ -7,6 +7,7 @@ import {
   decisionLetterSource,
   referralPackageSource,
 } from './pulled-payloads.js';
+import { sha256Schema } from './sha256.js';
 import { accessNilLetterPayload } from './templates/access-nil-letter.v1.js';
 import { accessPackagePayload } from './templates/access-package.v1.js';
 import { acknowledgementSlipPayload } from './templates/acknowledgement-slip.v1.js';
@@ -132,7 +133,7 @@ export const issuedDocumentSchema = z.object({
     examples: ['ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9KMV-8P'],
   }),
   verifyUrl: z.url().meta({ description: "The QR code's payload: the document's verify page" }),
-  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  sha256: sha256Schema,
   status: documentStatusSchema,
   supersededBy: z.uuid().nullable(),
   issuedAt: z.iso.datetime(),
@@ -145,6 +146,6 @@ export type IssuedDocument = z.infer<typeof issuedDocumentSchema>;
 export const documentDownloadSchema = z.object({
   downloadUrl: z.url().meta({ description: 'Presigned GET of the signed PDF' }),
   expiresAt: z.iso.datetime(),
-  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  sha256: sha256Schema,
 });
 export type DocumentDownload = z.infer<typeof documentDownloadSchema>;

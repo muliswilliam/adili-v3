@@ -12,6 +12,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import { SHA256_HEX } from './sha256.js';
+
 /**
  * Issued documents (ADR-010), tenant data of the issuing Commission under RLS (migration 0008),
  * readable by the person they are about. Insert-only: what was issued never changes; its status
@@ -83,7 +85,10 @@ export const issuedDocuments = pgTable(
       'issued_documents_disclosure_level_check',
       sql`${table.disclosureLevel} in ('public', 'restricted', 'confidential')`,
     ),
-    check('issued_documents_sha256_check', sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'issued_documents_sha256_check',
+      sql`${table.sha256} ~ ${sql.raw(`'${SHA256_HEX.source}'`)}`,
+    ),
   ],
 );
 

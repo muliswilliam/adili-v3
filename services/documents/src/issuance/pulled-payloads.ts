@@ -45,62 +45,63 @@ export interface PulledPayload {
   eaccReaders?: readonly string[];
 }
 
-function source(idField: string, description: string): z.ZodType<Record<string, string>> {
-  return z.strictObject({ [idField]: z.uuid() }).meta({ description });
+/**
+ * A pulled type of the review service's `record`: its payload names the record by `idField`
+ * (`{ "<idField>": "<uuid>" }`), and its document is issued under `<record>:<id>`.
+ */
+function pulledFrom(
+  record: ReviewRecord,
+  idField: string,
+  description: string,
+  who: Pick<PulledPayload, 'owner' | 'eaccReaders'>,
+): PulledPayload {
+  return {
+    record,
+    idField,
+    source: z.strictObject({ [idField]: z.uuid() }).meta({ description }),
+    subjectRef: (id) => `${record}:${id}`,
+    ...who,
+  };
 }
 
-export const clarificationLetterSource = source(
+const clarificationLetter = pulledFrom(
+  'clarification',
   'clarificationId',
   "A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint",
+  { owner: 'declarant' },
 );
-export const decisionLetterSource = source(
+const decisionLetter = pulledFrom(
+  'determination',
   'determinationId',
   "A decision-letter's payload: the approved determination whose letter this is; the fields are pulled from the review service (internalGetDeterminationLetterPayload)",
+  { owner: 'declarant' },
 );
-export const actionLetterSource = source(
+const actionLetter = pulledFrom(
+  'action',
   'actionId',
   'The payload of a step letter (notice-to-comply, warning, salary-stoppage, disciplinary-referral): the approved administrative action whose letter this is; the fields are pulled from the review service (internalGetActionLetterPayload)',
+  { owner: 'declarant-if-onboarded' },
 );
-export const referralPackageSource = source(
+const referralPackage = pulledFrom(
+  'referral',
   'referralId',
   "A referral-package's payload: the approved referral whose evidence package this is; the cover sheet, manifest and evidence are pulled from the review service (internalGetReferralPackagePayload)",
+  { owner: 'excluded-declarant', eaccReaders: EACC_ROLES },
 );
 
-const actionLetter: PulledPayload = {
-  record: 'action',
-  idField: 'actionId',
-  source: actionLetterSource,
-  subjectRef: (id) => `action:${id}`,
-  owner: 'declarant-if-onboarded',
-};
+export const clarificationLetterSource = clarificationLetter.source;
+export const decisionLetterSource = decisionLetter.source;
+export const actionLetterSource = actionLetter.source;
+export const referralPackageSource = referralPackage.source;
 
 const PULLED: Partial<Record<DocumentType, PulledPayload>> = {
-  [CLARIFICATION_LETTER]: {
-    record: 'clarification',
-    idField: 'clarificationId',
-    source: clarificationLetterSource,
-    subjectRef: (id) => `clarification:${id}`,
-    owner: 'declarant',
-  },
-  [DECISION_LETTER]: {
-    record: 'determination',
-    idField: 'determinationId',
-    source: decisionLetterSource,
-    subjectRef: (id) => `determination:${id}`,
-    owner: 'declarant',
-  },
+  [CLARIFICATION_LETTER]: clarificationLetter,
+  [DECISION_LETTER]: decisionLetter,
   [NOTICE_TO_COMPLY]: actionLetter,
   [WARNING]: actionLetter,
   [SALARY_STOPPAGE]: actionLetter,
   [DISCIPLINARY_REFERRAL]: actionLetter,
-  [REFERRAL_PACKAGE]: {
-    record: 'referral',
-    idField: 'referralId',
-    source: referralPackageSource,
-    subjectRef: (id) => `referral:${id}`,
-    owner: 'excluded-declarant',
-    eaccReaders: EACC_ROLES,
-  },
+  [REFERRAL_PACKAGE]: referralPackage,
 };
 
 /**

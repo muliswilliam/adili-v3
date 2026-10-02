@@ -18,6 +18,7 @@ import {
   twoLineHash,
 } from './page.js';
 import { numberedBy, referenceOf } from './references.js';
+import { sha256Schema } from '../sha256.js';
 import type { DocumentTemplate } from './template.js';
 
 const DAY_MS = 86_400_000;
@@ -30,7 +31,7 @@ const DAY_MS = 86_400_000;
 export const complianceReportReceiptPayload = z
   .strictObject({
     reference: referenceOf(RPT),
-    sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    sha256: sha256Schema,
     submittedAt: z.iso.datetime({ offset: true }),
     commissionName: z.string().trim().min(1).max(200),
     /** The Commission's issuer code, as in the reference numbers (`PSC`). */

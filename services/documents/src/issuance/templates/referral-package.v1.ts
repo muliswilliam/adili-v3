@@ -26,6 +26,7 @@ import {
   numberedBy,
   referenceOf,
 } from './references.js';
+import { sha256Schema } from '../sha256.js';
 import type { DocumentTemplate } from './template.js';
 
 /** review.yaml `ReferralGrounds`. */
@@ -81,7 +82,6 @@ function words(code: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-const SHA256 = z.string().regex(/^[0-9a-f]{64}$/);
 const instant = z.iso.datetime({ offset: true });
 
 /** review.yaml `ReferralManifestItem`. */
@@ -89,7 +89,7 @@ const manifestItemSchema = z.object({
   kind: z.enum(MANIFEST_KINDS),
   reference: z.string().trim().min(1).max(500),
   /** SHA-256 of the item as the package includes it, or of the file (uploads and letters). */
-  sha256: SHA256,
+  sha256: sha256Schema,
   /** The upload (attachments) or issued document (letters); null for records. */
   documentId: z.uuid().nullable(),
 });
@@ -124,7 +124,7 @@ const clarificationSchema = z.looseObject({
   response: z
     .looseObject({
       items: z.array(z.looseObject({ itemId: z.string(), text: z.string() })),
-      attachments: z.array(z.looseObject({ itemId: z.string(), sha256: SHA256 })),
+      attachments: z.array(z.looseObject({ itemId: z.string(), sha256: sha256Schema })),
       submittedAt: instant,
     })
     .nullable(),

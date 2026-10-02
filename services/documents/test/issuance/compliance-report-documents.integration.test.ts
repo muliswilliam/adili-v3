@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
 import { IssuanceService } from '../../src/issuance/issuance.service.js';
 import type { DocumentDownload, IssuedDocument } from '../../src/issuance/representation.js';
+import { EACC_ISSUER } from '../../src/issuance/templates/page.js';
 import type { ReferralPackagePayload } from '../../src/issuance/templates/referral-package.v1.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
@@ -44,7 +45,6 @@ const REVIEW: Caller = {
   scope: 'documents:internal',
 };
 const VERIFY_ORIGIN = 'http://localhost:3030';
-const EACC_ISSUER = { name: 'Ethics and Anti-Corruption Commission', issuerCode: 'EACC' };
 
 /** FY 2027/2028: reporting numbers it with the year's end (ADR-011 §2). */
 const RPT_REFERENCE = format(RPT, { issuer: 'PSC', period: 2028, sequence: 1 });
@@ -839,7 +839,7 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
     const determinationId = randomUUID();
     api.review.given('determination', 'eacc', determinationId, {
       declarantName: 'Brian Otieno',
-      commission: EACC_ISSUER,
+      commission: { name: EACC_ISSUER.name, issuerCode: EACC_ISSUER.code },
       declarationReference: format(DCB, { issuer: 'EACC', period: 2027, sequence: 7 }),
       determinationReference: format(CMP, { issuer: 'EACC', period: 2027, sequence: 1 }),
       outcome: 'compliant',
