@@ -51,7 +51,10 @@ export interface CopilotJobFinished {
   jobId: string;
 }
 
-/** A gate policy of the Commission now admits a provider class: its not-enabled copilots ask again. */
+/**
+ * A gate policy of the Commission now admits a provider class, or a route of it moved: its
+ * not-enabled copilots ask again.
+ */
 export interface CopilotPolicyChanged {
   tenant: string;
   /** The last case of the previous run's pages (a continuation); null or omitted starts over. */
@@ -68,9 +71,9 @@ export interface NotEnabledPage {
 /** Workflow type name of `copilotPolicyChanged`, for starting by name. */
 export const COPILOT_POLICY_CHANGED_WORKFLOW = 'copilotPolicyChanged';
 
-/** One workflow per `ai.policy.changed.v1` event. */
-export function copilotPolicyWorkflowId(eventId: string): string {
-  return `copilot-policy:${eventId}`;
+/** One workflow per `ai.policy.changed.v1` event and Commission (a default route is all of theirs). */
+export function copilotPolicyWorkflowId(eventId: string, tenant: string): string {
+  return `copilot-policy:${eventId}:${tenant}`;
 }
 
 /** Workflow type name of `copilotJobFinished`, for starting by name. */

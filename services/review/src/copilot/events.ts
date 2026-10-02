@@ -18,11 +18,13 @@ export const AI_JOB_FAILED = 'ai.job.failed.v1';
 export const AI_JOB_BLOCKED = 'ai.job.blocked.v1';
 
 /**
- * The ai-gateway's announcement of a gate policy or budget change (spec 07c): settings only. A
- * gate rule that now admits a provider class lets the Commission's not-enabled copilots ask again.
+ * The ai-gateway's announcement of a gate policy, route or budget change (spec 07c): settings
+ * only. A gate rule that now admits a provider class, or a route that moved, lets the not-enabled
+ * copilots it concerns ask again.
  */
 export const AI_POLICY_CHANGED = 'ai.policy.changed.v1';
 export const AI_GATE_POLICY_CHANGED = 'ai.gate-policy.changed';
+export const AI_ROUTE_CHANGED = 'ai.route.changed';
 
 const SUBJECT_PREFIX = 'review-case:';
 

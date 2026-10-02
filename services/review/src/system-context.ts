@@ -15,7 +15,7 @@ export function systemContext(tenant: string): TenantContext {
 }
 
 /** The transaction `consumeOnce` hands an event's work, opened on the untyped database. */
-type InboxTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type InboxTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
  * The transaction of an event's inbox entry (`consumeOnce`), which is the review database's, typed

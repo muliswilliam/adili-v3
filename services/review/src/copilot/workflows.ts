@@ -83,7 +83,8 @@ export const COPILOT_POLICY_PAGES_PER_RUN = 5;
 
 /**
  * Started by the `ai.policy.changed.v1` consumer when a gate rule of the Commission now admits a
- * provider class: each of its cases whose copilot was not enabled is requested again, one after
+ * provider class, or a route of it moved: each of its cases whose copilot was not enabled is
+ * requested again, one after
  * another, and the gateway decides anew. A case still blocked reads `not-enabled` again. The
  * cases are read a page at a time in case id order (`after`), and the run continues as new every
  * few pages, so a Commission of any size fits in workflow history.

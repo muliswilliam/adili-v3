@@ -373,6 +373,61 @@ describe('review copilot', () => {
       expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
     });
 
+    it('a route change of the Commission, or of every Commission, requests its not-enabled copilots again (Q25)', async () => {
+      const version = submittedVersion({
+        tenant: 'tsc',
+        document: declaration([statement('officer', { assets: [land] })]),
+      });
+      api.declarations.given(version);
+      api.ai.blockEverything('policy');
+      const created = await processedFromInbox(api, version);
+      await untilStatus(created.id, 'not-enabled');
+
+      // The route of a task for one tenant (or, tenant `platform`, the default route) moved.
+      const routeEvent = (tenant: string): EventEnvelope => ({
+        specversion: '1.0',
+        id: randomUUID(),
+        source: 'adili/ai-gateway',
+        type: 'ai.policy.changed.v1',
+        time: new Date().toISOString(),
+        subject: randomUUID(),
+        datacontenttype: 'application/json',
+        tenant,
+        data: {
+          action: 'ai.route.changed',
+          tenant,
+          actor: 'platform-admin-1',
+          approvalRef: 'EACC/AI/2026/050',
+          before: { tenant: null, task: 'summarize-declaration', route: null },
+          after: {
+            tenant: null,
+            task: 'summarize-declaration',
+            route: { provider: 'local', model: 'llama-4', params: {} },
+          },
+        },
+      });
+      const asked = api.ai.calls.length;
+      // Another Commission's route asks nothing.
+      await api.aiPolicy.changed(routeEvent('psc'));
+      expect(api.ai.calls).toHaveLength(asked);
+
+      // The Commission's own route: asked again, still blocked.
+      await api.aiPolicy.changed(routeEvent('tsc'));
+      await vi.waitFor(
+        () => {
+          expect(api.ai.calls.length).toBeGreaterThan(asked);
+        },
+        { timeout: 10_000 },
+      );
+      await untilStatus(created.id, 'not-enabled');
+
+      // The default route, every Commission's: asked again, and now admitted.
+      api.ai.reset();
+      await api.aiPolicy.changed(routeEvent('platform'));
+      await untilStatus(created.id, 'pending');
+      expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
+    });
+
     it('is not enabled when a blocked job is announced by event, and failed when a job fails', async () => {
       const { first } = versions();
       api.declarations.given(first);
