@@ -45,7 +45,7 @@ describe('declaration summary', () => {
   });
 
   it('tells the person from the key', () => {
-    expect(personKind('officer')).toBe('officer');
+    expect(personKind('officer')).toBe('declarant');
     expect(personKind(SPOUSE_KEY)).toBe('spouse');
     expect(personKind('child:x')).toBe('child');
   });

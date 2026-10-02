@@ -23,7 +23,7 @@ import {
   claimCase,
   getCaseRegistry,
   getCaseRegistryStatus,
-  getReassignOfficers,
+  getReviewers,
   markCaseFlagReviewed,
   reassignCase,
   recheckCaseRegistries,
@@ -51,7 +51,7 @@ vi.mock('../../../server/review-case', () => ({
   getCaseAttachmentLink: vi.fn(),
   getCaseRegistry: vi.fn(),
   getCaseRegistryStatus: vi.fn(),
-  getReassignOfficers: vi.fn(),
+  getReviewers: vi.fn(),
   markCaseFlagReviewed: vi.fn(),
   reassignCase: vi.fn(),
   recheckCaseRegistries: vi.fn(),
@@ -107,7 +107,7 @@ describe('CaseView', () => {
     const groups = screen.getAllByRole('region').map((each) => each.getAttribute('aria-label'));
     expect(groups).toContain('High: 1');
     expect(groups.indexOf('High: 1')).toBeLessThan(groups.indexOf('Medium: 2'));
-    // Only the officer holding the case marks flags reviewed.
+    // Only the reviewer holding the case marks flags reviewed.
     expect(screen.queryByRole('button', { name: 'Mark reviewed' })).toBeNull();
     expect(
       screen.getByText('Your access to this declaration is recorded in the audit trail.'),
@@ -280,8 +280,8 @@ describe('CaseView', () => {
     expect(await screen.findByText('Case released to the queue')).toBeTruthy();
   });
 
-  it('lets a supervisor reassign to an officer of the Commission', async () => {
-    vi.mocked(getReassignOfficers).mockResolvedValue(
+  it('lets a supervisor reassign to a reviewer of the Commission', async () => {
+    vi.mocked(getReviewers).mockResolvedValue(
       ok([{ subject: 'm', name: 'Mercy Wambui', open: 11, ofRecord: true }]),
     );
     vi.mocked(reassignCase).mockResolvedValue(ok(caseItem()));
@@ -300,7 +300,7 @@ describe('CaseView', () => {
     expect(within(dialog).getByText('Currently held by Wafula Barasa.')).toBeTruthy();
     const mercy = await within(dialog).findByRole('radio', { name: 'Mercy Wambui' });
     expect(within(dialog).getByText('11 open cases · already a reviewer of record')).toBeTruthy();
-    expect(getReassignOfficers).toHaveBeenCalledWith({
+    expect(getReviewers).toHaveBeenCalledWith({
       data: { slug: 'psc', assignee: WAFULA.subject, reviewerHistory: [WAFULA] },
     });
 
@@ -374,7 +374,7 @@ describe('CaseView: Registry tab', () => {
     const indicators = screen.getByRole('list', { name: 'NTSA indicators' });
     fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
     fireEvent.change(screen.getByLabelText('What did you conclude?'), {
-      target: { value: 'Bought in 2024; the officer will amend.' },
+      target: { value: 'Bought in 2024; the declarant will amend.' },
     });
     await act(async () => {
       fireEvent.click(within(indicators).getByRole('button', { name: 'Mark reviewed' }));
@@ -385,7 +385,7 @@ describe('CaseView: Registry tab', () => {
       data: {
         caseId: caseItem().id,
         flagId: VEHICLE_FLAG.id,
-        note: 'Bought in 2024; the officer will amend.',
+        note: 'Bought in 2024; the declarant will amend.',
       },
     });
     expect(await screen.findByText('Marked reviewed')).toBeTruthy();

@@ -48,7 +48,7 @@ export function clarificationCell(item: Pick<CaseListItem, 'clarification'>): Cl
 
 /**
  * The row's button: Claim a case nobody holds, Open one the viewer holds (a supervisor opens any
- * to act on it), View one another officer holds.
+ * to act on it), View one another reviewer holds.
  */
 export type RowAction = 'claim' | 'open' | 'view';
 

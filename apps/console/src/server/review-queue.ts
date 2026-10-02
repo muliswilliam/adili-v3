@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { queueQuery, queueSearchSchema } from '../review-queue/query';
 import type { QueueSummary } from '../review-queue/rows';
-import { asOfficer } from './review/as-officer.server';
+import { asStaffMember } from './review/as-staff-member.server';
 import type { CaseListItem } from './review/types';
 import { callService, type ServiceResult } from './service-call';
 
@@ -30,7 +30,7 @@ export const getReviewQueue = createServerFn({ method: 'GET' })
     }),
   )
   .handler(({ data }): Promise<ServiceResult<QueuePage>> =>
-    asOfficer((client) =>
+    asStaffMember((client) =>
       callService(() =>
         client.GET('/v1/commissions/{slug}/review/queue', {
           params: {
@@ -46,7 +46,7 @@ export const getReviewQueue = createServerFn({ method: 'GET' })
 export const getReviewQueueSummary = createServerFn({ method: 'GET' })
   .validator(z.object({ slug }))
   .handler(({ data }): Promise<ServiceResult<QueueSummary>> =>
-    asOfficer((client) =>
+    asStaffMember((client) =>
       callService(() =>
         client.GET('/v1/commissions/{slug}/review/queue/summary', {
           params: { path: { slug: data.slug } },

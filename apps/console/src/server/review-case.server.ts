@@ -15,7 +15,7 @@ import { callService, type ServiceError, type ServiceResult } from './service-ca
 /**
  * The review service's case endpoints for the case view (spec 07a FE-3, review.yaml), folded
  * into results the screen can switch on. Pure: the caller injects the client (`review-case.ts`
- * holds the server functions that call these as the signed-in officer).
+ * holds the server functions that call these as the signed-in reviewer or supervisor).
  */
 
 /** JSON as a server function can send it (an `unknown` map cannot be checked as serialisable). */
@@ -105,7 +105,7 @@ export async function loadCase(
   return result;
 }
 
-/** `POST .../claim`: the caller holds the case; 409 when another officer got there first. */
+/** `POST .../claim`: the caller holds the case; 409 when another reviewer got there first. */
 export function claim(client: ReviewClient, caseId: string): Promise<ServiceResult<CaseListItem>> {
   return callService(() =>
     client.POST('/v1/review/cases/{caseId}/claim', { params: { path: { caseId } } }),
@@ -122,7 +122,7 @@ export function release(
   );
 }
 
-/** `PUT .../assignment`: a supervisor gives the case to an officer, or unassigns it (null). */
+/** `PUT .../assignment`: a supervisor gives the case to a reviewer, or unassigns it (null). */
 export function reassign(
   client: ReviewClient,
   caseId: string,
@@ -150,7 +150,7 @@ export function addNote(
   );
 }
 
-/** `POST .../flags/{flagId}/reviewed`: once, with the officer's conclusion; 409 when it was. */
+/** `POST .../flags/{flagId}/reviewed`: once, with the assignee's conclusion; 409 when it was. */
 export async function markFlagReviewed(
   client: ReviewClient,
   caseId: string,
@@ -245,13 +245,13 @@ export async function recheck(client: ReviewClient, caseId: string): Promise<Rec
   return { ok: false, refusal: null, error };
 }
 
-/** An officer a supervisor can give the case to. */
-export interface Officer {
+/** A reviewer (or supervisor) a supervisor can give the case to. */
+export interface Reviewer {
   subject: string;
   name: string;
-  /** Review cases the officer holds now (as far as the queue shows; see `loadOfficers`). */
+  /** Review cases the reviewer holds now (as far as the queue shows; see `loadReviewers`). */
   open: number;
-  /** The officer held this case before (a reviewer of record). */
+  /** The reviewer held this case before (a reviewer of record). */
   ofRecord: boolean;
 }
 
@@ -266,17 +266,17 @@ const HELD: readonly CaseStatus[] = [
 ];
 
 /**
- * The officers a supervisor can reassign a case to. review.yaml lists no officers, so this reads
+ * The reviewers a supervisor can reassign a case to. review.yaml lists no reviewers, so this reads
  * them off the Commission's queue: everyone holding a case (the first 100 per status, enough to
- * name them), with the count, plus the case's reviewers of record and the supervisor. An officer
+ * name them), with the count, plus the case's reviewers of record and the supervisor. A reviewer
  * who has never held a case is missing until the contract lists the Commission's reviewers.
  */
-export async function loadOfficers(
+export async function loadReviewers(
   client: ReviewClient,
   slug: string,
   detail: { assignee: string | null; reviewerHistory: Assignee[] },
   self: { subject: string; name: string },
-): Promise<ServiceResult<Officer[]>> {
+): Promise<ServiceResult<Reviewer[]>> {
   const pages = await Promise.all(
     HELD.map((status) =>
       callService(() =>
@@ -287,18 +287,18 @@ export async function loadOfficers(
     ),
   );
 
-  const officers = new Map<string, Officer>();
+  const reviewers = new Map<string, Reviewer>();
   const add = (subject: string, name: string) => {
-    const known = officers.get(subject);
+    const known = reviewers.get(subject);
     if (known) return known;
-    const officer = {
+    const reviewer = {
       subject,
       name,
       open: 0,
       ofRecord: detail.reviewerHistory.some((each) => each.subject === subject),
     };
-    officers.set(subject, officer);
-    return officer;
+    reviewers.set(subject, reviewer);
+    return reviewer;
   };
   for (const page of pages) {
     if (!page.ok) return page;
@@ -310,8 +310,8 @@ export async function loadOfficers(
   add(self.subject, self.name);
   return {
     ok: true,
-    data: [...officers.values()]
-      .filter((officer) => officer.subject !== detail.assignee)
+    data: [...reviewers.values()]
+      .filter((reviewer) => reviewer.subject !== detail.assignee)
       .sort((a, b) => a.name.localeCompare(b.name)),
   };
 }

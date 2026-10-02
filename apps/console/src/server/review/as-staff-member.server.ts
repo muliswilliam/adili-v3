@@ -8,7 +8,7 @@ import { reviewClient, type ReviewClient } from './client.server';
  * Runs `work` with a review client acting as the signed-in reviewer or supervisor (their token
  * stays on the server), or answers unauthenticated without a session.
  */
-export async function asOfficer<T>(
+export async function asStaffMember<T>(
   work: (
     client: ReviewClient,
     user: { subject: string; name: string },

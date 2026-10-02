@@ -93,7 +93,7 @@ function scrollToId(id: string) {
 export interface CaseViewProps {
   load: CaseLoad;
   viewer: CaseViewer & { name: string };
-  /** The viewer's Commission, for the reassign dialog's officers. */
+  /** The viewer's Commission, for the reassign dialog's reviewers. */
   slug: string | null;
   now: number;
   tab: CaseTab;

@@ -76,7 +76,7 @@ describe('registryLayout', () => {
     expect(layout.checkedAt).toBe(CHECKED_AT);
     expect(layout.noIds).toBe(false);
     expect(layout.persons.map((person) => [person.name, person.kind])).toEqual([
-      ['Wanjiku Njoki Kamau', 'officer'],
+      ['Wanjiku Njoki Kamau', 'declarant'],
       ['Imani Wairimu Kamau', 'child'],
     ]);
     const [wanjiku, imani] = layout.persons;

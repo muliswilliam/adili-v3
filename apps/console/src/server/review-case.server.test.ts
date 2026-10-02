@@ -13,7 +13,7 @@ import {
 import {
   claim,
   loadCase,
-  loadOfficers,
+  loadReviewers,
   loadRegistry,
   loadRegistryStatus,
   recheck,
@@ -109,10 +109,10 @@ describe('claim', () => {
   });
 });
 
-describe('loadOfficers', () => {
+describe('loadReviewers', () => {
   it('lists who holds cases, with how many, the reviewers of record and the supervisor', async () => {
     const asked: string[] = [];
-    const result = await loadOfficers(
+    const result = await loadReviewers(
       client((request) => {
         const url = new URL(request.url);
         asked.push(url.searchParams.get('status') ?? '');
@@ -136,7 +136,7 @@ describe('loadOfficers', () => {
   });
 
   it('leaves out the officer holding the case', async () => {
-    const result = await loadOfficers(
+    const result = await loadReviewers(
       client(() => json(200, { items: [caseItem({ assignee: WAFULA })], nextCursor: null })),
       'psc',
       { assignee: WAFULA.subject, reviewerHistory: [WAFULA] },
@@ -146,7 +146,7 @@ describe('loadOfficers', () => {
   });
 
   it('fails when the queue cannot be read', async () => {
-    const result = await loadOfficers(
+    const result = await loadReviewers(
       client(() => json(404, { type: 'about:blank', title: 'Not found', status: 404 })),
       'psc',
       { assignee: null, reviewerHistory: [] },

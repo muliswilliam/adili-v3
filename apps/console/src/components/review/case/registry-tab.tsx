@@ -51,7 +51,7 @@ const SYSTEM_ICONS: Record<RegistrySystem, IconProps['icon']> = {
 };
 
 const TONES: Record<RegistryPerson['kind'], AvatarTone> = {
-  officer: 'brand',
+  declarant: 'brand',
   spouse: 'info',
   child: 'success',
 };
@@ -282,7 +282,7 @@ export interface RegistryTabProps extends FlagContext {
  * The Registry tab (spec 07b FE-2): what the registry checks are, when they last ran, then per
  * person (the declarant first, then the household) a status row per registry. A registry that
  * answered opens to its records beside the declared items (a `MatchTable`; for KRA, the PIN,
- * compliance and income difference) and its indicators, which the officer holding the case marks
+ * compliance and income difference) and its indicators, which the reviewer holding the case marks
  * reviewed here as on the Flags tab. Someone without a national ID gets one row saying they were
  * not checked. When the records cannot be read, the statuses of the last check still show.
  */

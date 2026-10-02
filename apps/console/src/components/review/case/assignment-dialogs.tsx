@@ -33,12 +33,12 @@ import {
 import { type ReactNode, useEffect, useState } from 'react';
 
 import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
-import type { Officer } from '../../../server/review-case.server';
+import type { Reviewer } from '../../../server/review-case.server';
 import type { ServiceResult } from '../../../server/service-call';
 
 /**
  * The assignment dialogs of the case view (spec 07a FE-3): a supervisor's Claim (they become a
- * reviewer of record), Release, Unassign, and Reassign with the Commission's officers. Each runs
+ * reviewer of record), Release, Unassign, and Reassign with the Commission's reviewers. Each runs
  * `onConfirm`, which resolves to an error to show or null when done (the host closes it).
  */
 
@@ -214,7 +214,7 @@ export function RecheckDialog(props: ConfirmProps) {
 }
 
 /**
- * Reassign (or, with nobody holding the case, Assign): the Commission's officers as radio cards,
+ * Reassign (or, with nobody holding the case, Assign): the Commission's reviewers as radio cards,
  * each with the cases they hold and whether they held this one, the current holder left out.
  * Give it a new `key` each time it opens, so it starts afresh.
  */
@@ -225,51 +225,51 @@ export function ReassignDialog({
   declarantName,
   holder,
   self,
-  loadOfficers,
+  loadReviewers,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reference: string;
   declarantName: string;
-  /** The officer holding the case; null when nobody does. */
+  /** The reviewer holding the case; null when nobody does. */
   holder: string | null;
   /** The signed-in supervisor's subject, to say "You". */
   self: string;
-  loadOfficers: () => Promise<ServiceResult<Officer[]>>;
-  onConfirm: (officer: Officer) => Promise<string | null>;
+  loadReviewers: () => Promise<ServiceResult<Reviewer[]>>;
+  onConfirm: (reviewer: Reviewer) => Promise<string | null>;
 }) {
   const copy = CASE_COPY.reassignDialog;
-  const [officers, setOfficers] = useState<Officer[] | 'loading' | 'failed'>('loading');
+  const [reviewers, setReviewers] = useState<Reviewer[] | 'loading' | 'failed'>('loading');
   const [picked, setPicked] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
-  const chosen = Array.isArray(officers)
-    ? (officers.find((each) => each.subject === picked) ?? null)
+  const chosen = Array.isArray(reviewers)
+    ? (reviewers.find((each) => each.subject === picked) ?? null)
     : null;
   const state = useConfirm(() => (chosen ? onConfirm(chosen) : Promise.resolve(null)));
 
   async function load() {
-    setOfficers('loading');
-    const result = await loadOfficers();
-    setOfficers(result.ok ? result.data : 'failed');
+    setReviewers('loading');
+    const result = await loadReviewers();
+    setReviewers(result.ok ? result.data : 'failed');
   }
 
   // The host remounts the dialog each time it opens (`key`), so this loads once per opening.
   useEffect(() => {
     if (!open) return;
     let live = true;
-    void loadOfficers().then((result) => {
-      if (live) setOfficers(result.ok ? result.data : 'failed');
+    void loadReviewers().then((result) => {
+      if (live) setReviewers(result.ok ? result.data : 'failed');
     });
     return () => {
       live = false;
     };
-    // `loadOfficers` is a new function on every render of the host.
+    // `loadReviewers` is a new function on every render of the host.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   let body: ReactNode;
-  if (officers === 'loading') {
+  if (reviewers === 'loading') {
     body = (
       <div className="grid gap-2" aria-label={copy.loading} role="status">
         {[0, 1, 2].map((key) => (
@@ -277,7 +277,7 @@ export function ReassignDialog({
         ))}
       </div>
     );
-  } else if (officers === 'failed') {
+  } else if (reviewers === 'failed') {
     body = (
       <Alert variant="destructive">
         <Icon icon={Alert02Icon} />
@@ -289,33 +289,33 @@ export function ReassignDialog({
         </AlertDescription>
       </Alert>
     );
-  } else if (officers.length === 0) {
+  } else if (reviewers.length === 0) {
     body = <p className="text-sm text-muted-foreground">{copy.none}</p>;
   } else {
     body = (
       <RadioGroup legend={copy.assignTo} error={missing ? copy.pick : undefined}>
-        {officers.map((officer) => (
+        {reviewers.map((reviewer) => (
           <RadioCard
-            key={officer.subject}
+            key={reviewer.subject}
             name="assignee"
-            value={officer.subject}
-            checked={picked === officer.subject}
+            value={reviewer.subject}
+            checked={picked === reviewer.subject}
             onChange={() => {
-              setPicked(officer.subject);
+              setPicked(reviewer.subject);
               setMissing(false);
             }}
             label={
               <span className="flex items-center gap-2.5">
-                <Avatar name={officer.name} current={officer.subject === self} />
+                <Avatar name={reviewer.name} current={reviewer.subject === self} />
                 <span>
-                  {officer.name}
-                  {officer.subject === self ? (
+                  {reviewer.name}
+                  {reviewer.subject === self ? (
                     <span className="font-normal text-muted-foreground"> {copy.you}</span>
                   ) : null}
                 </span>
               </span>
             }
-            description={[copy.load(officer.open), officer.ofRecord ? copy.ofRecord : null]
+            description={[copy.load(reviewer.open), reviewer.ofRecord ? copy.ofRecord : null]
               .filter(Boolean)
               .join(' · ')}
           />
@@ -341,7 +341,7 @@ export function ReassignDialog({
         <DialogBody className="gap-3.5">
           {holder ? <p className="text-sm text-muted-foreground">{copy.heldBy(holder)}</p> : null}
           {body}
-          {Array.isArray(officers) && officers.length > 0 ? (
+          {Array.isArray(reviewers) && reviewers.length > 0 ? (
             <p className="text-[13px] text-muted-foreground">{copy.hint}</p>
           ) : null}
           {state.error ? <FieldError>{state.error}</FieldError> : null}
@@ -351,7 +351,7 @@ export function ReassignDialog({
             <Button variant="secondary">{CASE_COPY.cancel}</Button>
           </DialogClose>
           <Button
-            disabled={state.busy || !Array.isArray(officers) || officers.length === 0}
+            disabled={state.busy || !Array.isArray(reviewers) || reviewers.length === 0}
             onClick={() => {
               if (!chosen) {
                 setMissing(true);

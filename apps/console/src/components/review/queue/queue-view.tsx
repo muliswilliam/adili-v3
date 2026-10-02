@@ -4,7 +4,7 @@ import type { CaseViewer } from '../../../review-case/view';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
 import type { QueueSearch } from '../../../review-queue/query';
 import type { QueueSummary } from '../../../review-queue/rows';
-import type { Officer } from '../../../server/review-case.server';
+import type { Reviewer } from '../../../server/review-case.server';
 import type { QueuePage } from '../../../server/review-queue';
 import type { ServiceResult } from '../../../server/service-call';
 import { LoadError } from '../../load-error';
@@ -26,8 +26,8 @@ export interface QueueViewProps {
   slug: string | null;
   /** Statement years to filter by. */
   cycles: readonly number[];
-  /** A supervisor's officers to filter by; null for reviewers or while they load. */
-  officers: readonly Officer[] | null;
+  /** A supervisor's reviewers to filter by; null for reviewers or while they load. */
+  reviewers: readonly Reviewer[] | null;
   /** The page's address, for Copy link. */
   href: string;
   loadPage: (cursor: string) => Promise<ServiceResult<QueuePage>>;
@@ -69,7 +69,7 @@ export function QueueView(props: QueueViewProps) {
             search={search}
             onSearchChange={onSearchChange}
             cycles={props.cycles}
-            officers={props.officers}
+            reviewers={props.reviewers}
             href={props.href}
           />
           {list === null ? (

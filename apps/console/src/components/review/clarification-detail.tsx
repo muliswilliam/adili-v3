@@ -47,7 +47,7 @@ import { ResolveDialog, WithdrawDialog } from './clarification-dialogs';
 
 /**
  * One clarification on a review case (spec 07a FE-4, S15): each item beside the declarant's
- * answer and documents, the letter, where it stands, its history, and for the officer holding
+ * answer and documents, the letter, where it stands, its history, and for the assignee holding
  * the case the actions: once the declarant has responded, Mark resolved (note) or Raise
  * follow-up (a draft with `followUpOf`); before that, Withdraw (reason; letter revoked).
  * Everyone else reads it.
@@ -78,7 +78,7 @@ export function StatusBadge({ status }: { status: Clarification['status'] }) {
 function failureText(error: ServiceError): string {
   if (error.kind === 'unauthenticated') return 'Your session has ended. Sign in again.';
   if (error.kind === 'problem' && error.problem.status === 403) {
-    return 'Only the officer holding the case can do this.';
+    return 'Only the reviewer holding the case can do this.';
   }
   if (error.kind === 'problem' && error.problem.status === 409) {
     return 'This clarification has changed. Reload to see it.';

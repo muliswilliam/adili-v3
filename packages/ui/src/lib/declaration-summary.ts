@@ -35,7 +35,7 @@ export const STATEMENT_CATEGORIES: readonly StatementCategory[] = [
 export type StatementItem = IncomeItem | AssetItem | LiabilityItem;
 
 /** The household member a statement is for, from its person key. */
-export type PersonKind = 'officer' | 'spouse' | 'child';
+export type PersonKind = 'declarant' | 'spouse' | 'child';
 
 export interface DeclarationLabels {
   type: Record<DeclarationV1['type'], string>;
@@ -147,7 +147,7 @@ export function personFullName(name: PersonName | undefined): string {
 export function personKind(personKey: string): PersonKind {
   if (personKey.startsWith('spouse:')) return 'spouse';
   if (personKey.startsWith('child:')) return 'child';
-  return 'officer';
+  return 'declarant';
 }
 
 /** An item's amount: the income amount, the asset value or the liability outstanding. */

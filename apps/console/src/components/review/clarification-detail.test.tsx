@@ -305,7 +305,7 @@ describe('ClarificationDetailView: actions (S15)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Raise follow-up' }));
       await Promise.resolve();
     });
-    expect(screen.getByText('Only the officer holding the case can do this.')).toBeTruthy();
+    expect(screen.getByText('Only the reviewer holding the case can do this.')).toBeTruthy();
     expect(invalidate).toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
   });

@@ -31,6 +31,7 @@ import {
   itemsOf,
   personFullName,
   personKind,
+  type PersonKind,
   sectionAnchorId,
   spouseLine,
   STATEMENT_CATEGORIES,
@@ -79,7 +80,7 @@ export interface DeclarationSummaryMessages {
   downloadAgain: string;
   downloadName: (fileName: string) => string;
   declared: (at: string, version: number | undefined) => string;
-  relation: Record<'officer' | 'spouse' | 'child', string>;
+  relation: Record<PersonKind, string>;
   fields: {
     surname: string;
     firstName: string;
@@ -134,7 +135,7 @@ export const DECLARATION_SUMMARY_MESSAGES: DeclarationSummaryMessages = {
   downloadName: (fileName) => `Download ${fileName}`,
   declared: (at, version) =>
     `Solemn declaration made online on ${at}${version === undefined ? '' : ` (version ${String(version)})`}.`,
-  relation: { officer: 'Declarant', spouse: 'Spouse', child: 'Child' },
+  relation: { declarant: 'Declarant', spouse: 'Spouse', child: 'Child' },
   fields: {
     surname: 'Surname',
     firstName: 'First name',
@@ -189,8 +190,8 @@ export type DeclarationSummaryProps = Omit<ComponentProps<'div'>, 'children'> & 
   messages?: Partial<DeclarationSummaryMessages>;
 };
 
-const TONE: Record<'officer' | 'spouse' | 'child', AvatarTone> = {
-  officer: 'brand',
+const TONE: Record<PersonKind, AvatarTone> = {
+  declarant: 'brand',
   spouse: 'info',
   child: 'success',
 };
@@ -281,7 +282,7 @@ function Person({
   lines,
 }: {
   name: string;
-  kind: 'officer' | 'spouse' | 'child';
+  kind: PersonKind;
   lines: string[];
 }) {
   return (

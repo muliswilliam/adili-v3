@@ -5,6 +5,7 @@ import {
   type MatchRelation,
   personFullName,
   personKind,
+  type PersonKind,
   plural,
   type SystemCheckStatus,
   typeLabel,
@@ -74,7 +75,7 @@ export interface SystemRow {
 export interface RegistryPerson {
   personKey: string;
   name: string;
-  kind: 'officer' | 'spouse' | 'child';
+  kind: PersonKind;
   hasNationalId: boolean;
   /** Empty for someone without a national ID: no registry can be asked. */
   systems: SystemRow[];
@@ -271,7 +272,7 @@ export interface MatchRow {
   declaredDetail: string | null;
   /** For "Go to item". */
   itemId: string | null;
-  /** A company on the officer's employer's supplier list (`directorship-employer-supplier`). */
+  /** A company on the declarant's employer's supplier list (`directorship-employer-supplier`). */
   supplier: boolean;
 }
 

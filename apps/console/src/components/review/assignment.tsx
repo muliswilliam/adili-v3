@@ -3,12 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { CASE_COPY } from '../../review-case/messages';
 import type { AssignmentAction, CaseViewer } from '../../review-case/view';
-import {
-  claimCase,
-  getReassignOfficers,
-  reassignCase,
-  releaseCase,
-} from '../../server/review-case';
+import { claimCase, getReviewers, reassignCase, releaseCase } from '../../server/review-case';
 import type { Assignee, CaseListItem } from '../../server/review/types';
 import type { ServiceError, ServiceResult } from '../../server/service-call';
 import {
@@ -38,7 +33,7 @@ export interface AssignmentTarget {
 
 export interface UseCaseAssignmentOptions {
   viewer: CaseViewer & { name: string };
-  /** The viewer's Commission, for the reassign dialog's officers. */
+  /** The viewer's Commission, for the reassign dialog's reviewers. */
   slug: string | null;
   /** Reloads the page's data (the router's loaders) after a change. */
   refresh: () => Promise<void>;
@@ -51,9 +46,9 @@ type Open = { action: Exclude<AssignmentAction, 'assign'>; target: AssignmentTar
 /**
  * The assignment actions on a case (spec 07a FE-2 and FE-3), shared by the case view's header and
  * the queue's rows: Claim (a supervisor confirms first, since they become a reviewer of record),
- * Release, Unassign, and Reassign or Assign with the Commission's officers. `start` runs one;
+ * Release, Unassign, and Reassign or Assign with the Commission's reviewers. `start` runs one;
  * `dialogs` renders their dialogs once for the page. A change toasts, then reloads the page; a
- * claim another officer won reloads and says who holds the case now; a stale page (403, 404,
+ * claim another reviewer won reloads and says who holds the case now; a stale page (403, 404,
  * 409) reloads with a note.
  */
 export function useCaseAssignment({ viewer, slug, refresh, find }: UseCaseAssignmentOptions): {
@@ -156,7 +151,7 @@ export function useCaseAssignment({ viewer, slug, refresh, find }: UseCaseAssign
         }
       />
       <ReassignDialog
-        // A fresh dialog each time it opens: the officers reload and nobody is picked.
+        // A fresh dialog each time it opens: the reviewers reload and nobody is picked.
         key={open?.action === 'reassign' ? `reassign-${item.id}` : 'reassign-closed'}
         open={open?.action === 'reassign'}
         onOpenChange={onOpenChange}
@@ -164,9 +159,9 @@ export function useCaseAssignment({ viewer, slug, refresh, find }: UseCaseAssign
         declarantName={item.declarantName}
         holder={item.assignee?.name ?? null}
         self={viewer.subject}
-        loadOfficers={() =>
+        loadReviewers={() =>
           slug
-            ? getReassignOfficers({
+            ? getReviewers({
                 data: {
                   slug,
                   assignee: item.assignee?.subject ?? null,
@@ -175,10 +170,10 @@ export function useCaseAssignment({ viewer, slug, refresh, find }: UseCaseAssign
               })
             : Promise.resolve({ ok: false, error: { kind: 'unavailable', detail: null } })
         }
-        onConfirm={(officer) =>
+        onConfirm={(reviewer) =>
           run(
-            () => reassignCase({ data: { caseId: item.id, assignee: officer.subject } }),
-            item.assignee ? CASE_COPY.reassigned(officer.name) : CASE_COPY.assigned(officer.name),
+            () => reassignCase({ data: { caseId: item.id, assignee: reviewer.subject } }),
+            item.assignee ? CASE_COPY.reassigned(reviewer.name) : CASE_COPY.assigned(reviewer.name),
           )
         }
       />

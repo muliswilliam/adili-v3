@@ -34,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 vi.mock('../../../server/review-case', () => ({
   claimCase: vi.fn(),
-  getReassignOfficers: vi.fn(),
+  getReviewers: vi.fn(),
   reassignCase: vi.fn(),
   releaseCase: vi.fn(),
 }));
@@ -88,7 +88,7 @@ function view(overrides: Partial<QueueViewProps> = {}) {
     viewer: reviewer,
     slug: 'psc',
     cycles: [2026, 2025, 2024],
-    officers: null,
+    reviewers: null,
     href: 'http://localhost/review',
     loadPage: vi.fn(),
     refresh: () => invalidate(),

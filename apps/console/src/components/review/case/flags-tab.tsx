@@ -306,7 +306,7 @@ export interface FlagActions {
 /**
  * The Flags tab (spec 07a FE-3): the indicator banner, the counts and how priority is set, then
  * open flags grouped by severity (High, Medium, Low, Info), each with its title, indicator text
- * (behind the info mark), evidence line, what it points at, "Go to item" and, for the officer
+ * (behind the info mark), evidence line, what it points at, "Go to item" and, for the reviewer
  * holding the case, "Mark reviewed" with a note. Reviewed flags collapse below with the note and
  * the reviewer; flags a registry re-check closed come last.
  */

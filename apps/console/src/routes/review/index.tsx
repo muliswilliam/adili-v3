@@ -12,8 +12,8 @@ import {
   queueSearchSchema,
 } from '../../review-queue/query';
 import type { QueueSummary } from '../../review-queue/rows';
-import { getReassignOfficers } from '../../server/review-case';
-import type { Officer } from '../../server/review-case.server';
+import { getReviewers } from '../../server/review-case';
+import type { Reviewer } from '../../server/review-case.server';
 import { getReviewQueue, getReviewQueueSummary, type QueuePage } from '../../server/review-queue';
 import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../server/service-call';
 
@@ -83,7 +83,7 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
   const href = useRouterState({ select: (state) => state.location.href });
   const slug = viewer.directory.ok ? viewer.directory.principal.tenant : null;
   const today = useToday();
-  const officers = useOfficers(supervisor ? slug : null, viewer.user.subject);
+  const reviewers = useReviewers(supervisor ? slug : null, viewer.user.subject);
   // Only Copy link reads the address, on click, so the server's render needs no origin.
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
 
@@ -98,7 +98,7 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
       viewer={{ subject: viewer.user.subject, name: viewer.user.name, supervisor }}
       slug={slug}
       cycles={cycleOptions(today, search.cycle)}
-      officers={officers}
+      reviewers={reviewers}
       href={`${origin}${href}`}
       loadPage={(cursor) =>
         getReviewQueue({
@@ -111,19 +111,19 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
 }
 
 /**
- * The officers a supervisor can filter by: those who hold review cases in the Commission (as the
+ * The reviewers a supervisor can filter by: those who hold review cases in the Commission (as the
  * reassign dialog lists them), the supervisor aside (that is Mine). Null for reviewers, while
  * they load, or when they could not be loaded (the filter then offers Mine and Unassigned).
  */
-function useOfficers(slug: string | null, self: string): Officer[] | null {
-  const [officers, setOfficers] = useState<Officer[] | null>(null);
+function useReviewers(slug: string | null, self: string): Reviewer[] | null {
+  const [reviewers, setReviewers] = useState<Reviewer[] | null>(null);
   useEffect(() => {
     if (!slug) return;
     let live = true;
-    void getReassignOfficers({ data: { slug, assignee: null, reviewerHistory: [] } })
+    void getReviewers({ data: { slug, assignee: null, reviewerHistory: [] } })
       .then((result) => {
         if (live && result.ok) {
-          setOfficers(result.data.filter((officer) => officer.subject !== self));
+          setReviewers(result.data.filter((reviewer) => reviewer.subject !== self));
         }
       })
       .catch(() => undefined);
@@ -131,5 +131,5 @@ function useOfficers(slug: string | null, self: string): Officer[] | null {
       live = false;
     };
   }, [slug, self]);
-  return officers;
+  return reviewers;
 }
