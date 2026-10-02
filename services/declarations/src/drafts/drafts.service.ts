@@ -83,7 +83,7 @@ import {
   statementKey,
   statementPersonKey,
 } from './sections.js';
-import { suggestionConsents, suggestionSets } from '../suggestions/schema.js';
+import { deleteSuggestions } from '../suggestions/expiry.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
 import { reviewDraft } from './summary.js';
 import {
@@ -329,11 +329,8 @@ export class DraftsService {
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
-      // Registry suggestions go with the draft (spec 05b S7); their suggestions cascade.
-      await tx.delete(suggestionSets).where(eq(suggestionSets.declarationId, declaration.id));
-      await tx
-        .delete(suggestionConsents)
-        .where(eq(suggestionConsents.declarationId, declaration.id));
+      // Registry suggestions go with the draft (spec 05b S7).
+      await deleteSuggestions(tx, declaration.id);
       await tx
         .update(declarations)
         .set({ status: 'discarded' })

@@ -8,7 +8,8 @@ import type { StoredEnvelope } from '../drafts/schema.js';
 /**
  * Registry pre-fill suggestions (spec 05b): what KRA, NTSA, BRS and ArdhiSasa hold about a person
  * of the declaration, offered to the declarant item by item. They live with the draft and go with
- * it: every row cascades from its declaration, and discarding the draft deletes them (S7).
+ * it: every row cascades from its declaration, and discarding or submitting the draft, or
+ * discarding an amendment, deletes them (S7, `expiry.ts`).
  *
  * Personal data: a suggestion's proposed fields, the registry's identifiers and the match keys
  * are one envelope-encrypted blob per suggestion (ADR-006, the Commission's key). Clear columns

@@ -32,8 +32,9 @@ import type { LookupAttempt, LookupAttemptOutcome, LookupRef } from './workflow/
  * moment, and handed only to the gateway; the answer is mapped (`registry-mapping.ts`), matched
  * against the items already declared (`match-keys.ts`), encrypted and stored in one transaction
  * with the set's new status and `declaration.suggestions-ready.v1`. Everything runs under the
- * declarant's row-level security; a set that is no longer pending (the draft was discarded, or an
- * earlier attempt recorded it) is left alone, so every step is safe to retry.
+ * declarant's row-level security; a set that is gone (the draft was discarded or submitted, or an
+ * amendment discarded, which deletes it) or no longer pending (an earlier attempt recorded it) is
+ * left alone, so every step is safe to retry and a lookup outliving its draft records nothing.
  */
 @Injectable()
 export class RegistryLookupSteps {
@@ -255,6 +256,7 @@ export class RegistryLookupSteps {
         .from(suggestionSets)
         .where(eq(suggestionSets.id, ref.setId))
         .for('update');
+      // Gone with its draft, or recorded already: nothing to record.
       if (set?.status !== 'pending') return;
       const now = this.clock.now();
       const rows = outcome.rows ?? [];

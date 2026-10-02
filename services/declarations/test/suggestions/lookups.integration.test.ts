@@ -13,7 +13,8 @@ import {
   suggestionSets,
 } from '../../src/db/schema.js';
 import type { Declaration } from '../../src/drafts/representation.js';
-import type { SuggestionSet } from '../../src/suggestions/representation.js';
+import { RegistryLookupSteps } from '../../src/suggestions/registry-lookup-steps.js';
+import type { Suggestion, SuggestionSet } from '../../src/suggestions/representation.js';
 import { contractErrors, okResponse, responseBody } from '../support/contract.js';
 import {
   type Caller,
@@ -22,6 +23,8 @@ import {
 } from '../support/declarations-api.js';
 import { rosterRecord } from '../support/fake-directory.js';
 import { unavailable } from '../support/fake-integration-gateway.js';
+import { registryCheckFixtures } from '../support/registry-checks.js';
+import { DUE_DAY, submissionFixtures } from '../support/submission.js';
 import { ardhisasa, brs, kra, ntsa } from '../fixtures/registry-results.js';
 import { CHILD_ID, household, SPOUSE_ID, spouse } from '../fixtures/sections.js';
 
@@ -50,6 +53,8 @@ const LOOKUPS = '/v1/declarations/{declarationId}/suggestions/lookups';
 const LIST = '/v1/declarations/{declarationId}/suggestions';
 
 let api: DeclarationsApi;
+const filing = submissionFixtures(() => api);
+const { givenOfficerNationalId } = registryCheckFixtures(() => api);
 
 beforeAll(async () => {
   api = await startDeclarationsApi();
@@ -560,6 +565,113 @@ describe('suggestions go with the draft (S7)', () => {
       expect(await tx.select().from(suggestionSets)).toEqual([]);
       expect(await tx.select().from(suggestionConsents)).toEqual([]);
     });
+  });
+});
+
+describe('suggestions expire with the draft once it is submitted (S7)', () => {
+  /** Achieng's complete draft, the officer checked at NTSA; the draft and a suggestion. */
+  async function givenCheckedDraft(): Promise<{ draft: Declaration; suggestion: Suggestion }> {
+    api.clock.setToday(DUE_DAY);
+    const draft = await filing.completeDraft(ACHIENG);
+    await givenOfficerNationalId(ACHIENG, draft.id, OFFICER_ID);
+    givenOfficerRegistries();
+    return { draft, suggestion: await checkedAtNtsa(draft.id) };
+  }
+
+  /** The officer checked at NTSA; the first suggestion of the ready set. */
+  async function checkedAtNtsa(declarationId: string): Promise<Suggestion> {
+    const response = await requestLookups(declarationId, {
+      personKey: 'officer',
+      systems: ['ntsa'],
+      consent: CONSENT,
+    });
+    expect(response.statusCode, response.body).toBe(202);
+    const [suggestion] = (await settled(declarationId)).flatMap((set) => set.suggestions);
+    if (!suggestion) throw new Error('NTSA suggested nothing');
+    return suggestion;
+  }
+
+  /** Nothing is listed, an old suggestion is not found to accept or dismiss, no row is left. */
+  async function expectExpired(declarationId: string, suggestion: Suggestion): Promise<void> {
+    const listed = await list(declarationId);
+    expect(listed.statusCode).toBe(200);
+    expect(listed.json()).toEqual([]);
+    const etag = String(
+      (await api.request('GET', `/v1/declarations/${declarationId}`, achieng)).headers.etag,
+    );
+    const accept = await api.request(
+      'POST',
+      `/v1/declarations/${declarationId}/suggestions/${suggestion.id}/accept`,
+      achieng,
+      { headers: { 'if-match': etag }, body: { fields: suggestion.fields, applyToItemId: null } },
+    );
+    expect(accept.statusCode).toBe(404);
+    const dismiss = await api.request(
+      'POST',
+      `/v1/declarations/${declarationId}/suggestions/${suggestion.id}/dismiss`,
+      achieng,
+    );
+    expect(dismiss.statusCode).toBe(404);
+    await api.asPerson(ACHIENG, async (tx) => {
+      expect(await tx.select().from(suggestions)).toEqual([]);
+      expect(await tx.select().from(suggestionSets)).toEqual([]);
+      expect(await tx.select().from(suggestionConsents)).toEqual([]);
+    });
+  }
+
+  function amend(declarationId: string, action: 'amend' | 'amend/discard') {
+    return api.request(
+      'POST',
+      `/v1/declarations/${declarationId}/${action}`,
+      filing.declarant(ACHIENG),
+    );
+  }
+
+  it('deletes them when the declaration is submitted', async () => {
+    const { draft, suggestion } = await givenCheckedDraft();
+
+    const response = await filing.submit(draft.id, filing.steppedUp(ACHIENG));
+
+    expect(response.statusCode, response.body).toBe(201);
+    await expectExpired(draft.id, suggestion);
+  });
+
+  it("deletes an amendment's when it is submitted, and when it is discarded", async () => {
+    const { draft } = await givenCheckedDraft();
+    expect((await filing.submit(draft.id, filing.steppedUp(ACHIENG))).statusCode).toBe(201);
+
+    expect((await amend(draft.id, 'amend')).statusCode).toBe(200);
+    const resubmitted = await checkedAtNtsa(draft.id);
+    expect((await filing.submit(draft.id, filing.steppedUp(ACHIENG))).statusCode).toBe(201);
+    await expectExpired(draft.id, resubmitted);
+
+    expect((await amend(draft.id, 'amend')).statusCode).toBe(200);
+    const discarded = await checkedAtNtsa(draft.id);
+    expect((await amend(draft.id, 'amend/discard')).statusCode).toBe(200);
+    await expectExpired(draft.id, discarded);
+  });
+
+  it('lets a lookup that finishes after the submit record nothing, quietly', async () => {
+    const { draft, suggestion } = await givenCheckedDraft();
+    expect((await filing.submit(draft.id, filing.steppedUp(ACHIENG))).statusCode).toBe(201);
+    const ref = {
+      tenant: 'psc',
+      declarationId: draft.id,
+      personId: ACHIENG,
+      subject: ACHIENG,
+      personKey: 'officer' as const,
+      setId: suggestion.setId,
+    };
+    const steps = api.app.get(RegistryLookupSteps);
+
+    await expect(steps.lookup({ ...ref, system: 'ntsa', final: true })).resolves.toBe('recorded');
+    await expect(steps.fail(ref)).resolves.toBeUndefined();
+
+    await api.asPerson(ACHIENG, async (tx) => {
+      expect(await tx.select().from(suggestions)).toEqual([]);
+      expect(await tx.select().from(suggestionSets)).toEqual([]);
+    });
+    expect(await eventsOf('declaration.suggestions-ready.v1')).toHaveLength(1);
   });
 });
 
