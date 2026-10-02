@@ -15,6 +15,11 @@ import { createTestApp, type TestApp } from '../support/test-app.js';
 
 const MODEL = 'claude-opus-5-5';
 
+interface RouteRow {
+  task: string;
+  tenant: string | null;
+}
+
 interface Job {
   id: string;
   status: string;
@@ -493,6 +498,13 @@ describe('admin API', { timeout: 90_000 }, () => {
 
       const table = (await request('GET', '/v1/ai/routing', admin)).json<object[]>();
       expect(table).toContainEqual(set.json());
+      // Saved rows keep their place: by task, the default route first (e2e 29).
+      expect(table.map((row) => [(row as RouteRow).task, (row as RouteRow).tenant])).toEqual([
+        ['summarize-declaration', null],
+        ['summarize-declaration', 'rcomm'],
+        ['explain-flags', null],
+        ['draft-clarification', null],
+      ]);
       expect(table).toContainEqual(
         expect.objectContaining({ tenant: 'rcomm', model: 'claude-sonnet-5' }),
       );

@@ -112,7 +112,11 @@ export class Routing {
     return row ? routeOf(row) : this.fallback();
   }
 
-  /** The effective table: every row, and the configured route for tasks without a default row. */
+  /**
+   * The effective table: every row, and the configured route for tasks without a default row.
+   * In a fixed order whatever was saved last: by task (`TASK_NAMES`), the default route first,
+   * then each Commission's by tenant. Saving a route never moves its row.
+   */
   async table(): Promise<RouteView[]> {
     const rows = await asPlatform(this.db, (tx) =>
       tx.select().from(routes).orderBy(asc(routes.task), asc(routes.tenant)),
@@ -123,7 +127,12 @@ export class Routing {
       ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task) =>
         this.view(null, task, this.fallback(), true),
       ),
-    ];
+    ].sort(
+      (a, b) =>
+        TASK_NAMES.indexOf(a.task) - TASK_NAMES.indexOf(b.task) ||
+        Number(a.tenant !== null) - Number(b.tenant !== null) ||
+        (a.tenant ?? '').localeCompare(b.tenant ?? ''),
+    );
   }
 
   /**
