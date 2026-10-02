@@ -41,7 +41,7 @@ import { templateOf } from './templates/registry.js';
 /** Injection token of the verify app's origin (`VERIFY_BASE_URL`). */
 export const VERIFY_BASE_URL = Symbol('VERIFY_BASE_URL');
 
-/** Lifespan of the presigned GET handed to the owner. */
+/** Lifespan of the presigned GET handed to the owner, or to a service for its staff. */
 const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
 
 type DocumentRow = typeof issuedDocuments.$inferSelect;
@@ -446,16 +446,32 @@ export class IssuanceService {
     id: string,
   ): Promise<{ download: DocumentDownload; document: DocumentRow }> {
     const { document } = await this.owned(personId, subject, id);
+    return { download: await this.presigned(document), document };
+  }
+
+  /**
+   * A five-minute presigned GET of the signed PDF of a document the tenant issued, for the
+   * service acting for it (the review service, for its staff: a reviewer opening a letter of a
+   * case). 404 for another tenant's document.
+   */
+  async downloadForTenant(
+    tenant: string,
+    actor: string,
+    id: string,
+  ): Promise<{ download: DocumentDownload; document: DocumentRow }> {
+    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) => findRecord(tx, id));
+    const { document } = notFoundIfInvisible(found);
+    return { download: await this.presigned(document), document };
+  }
+
+  private async presigned(document: DocumentRow): Promise<DocumentDownload> {
     const expiresAt = new Date(Date.now() + DOWNLOAD_URL_TTL_SECONDS * 1000);
     const downloadUrl = await getSignedUrl(
       this.publicS3,
       new GetObjectCommand({ Bucket: config.S3_BUCKET_ISSUED, Key: document.objectKey }),
       { expiresIn: DOWNLOAD_URL_TTL_SECONDS },
     );
-    return {
-      download: { downloadUrl, expiresAt: expiresAt.toISOString(), sha256: document.sha256 },
-      document,
-    };
+    return { downloadUrl, expiresAt: expiresAt.toISOString(), sha256: document.sha256 };
   }
 
   private async owned(

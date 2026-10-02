@@ -10,6 +10,13 @@ export interface UploadDownload {
   sha256: string;
 }
 
+/** A short-lived link to an issued document's signed PDF (documents.yaml `DocumentDownload`). */
+export interface DocumentDownload {
+  downloadUrl: string;
+  expiresAt: string;
+  sha256: string;
+}
+
 /** Why a document is revoked (documents.yaml `RevocationReason`). */
 export type RevocationReason = 'issued-in-error';
 
@@ -95,6 +102,17 @@ export abstract class DocumentsClient {
    * clean. Documents records the download in its own audit trail.
    */
   abstract getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null>;
+
+  /**
+   * A presigned GET on the signed PDF of a document the Commission issued
+   * (`internalGetDocumentDownload`), for a staff member the review service has let see it; null
+   * when the Commission issued no such document. Documents records the download in its own audit
+   * trail, naming the person the document is about.
+   */
+  abstract getIssuedDocumentDownload(
+    documentId: string,
+    tenant: string,
+  ): Promise<DocumentDownload | null>;
 
   /**
    * Renders, signs and registers a verifiable document of the Commission (`issueDocument`,

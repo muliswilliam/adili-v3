@@ -276,6 +276,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/review/clarifications/{clarificationId}/letter/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Short-lived download link for an issued clarification's letter (audited)
+         * @description The Commission's reviewers and supervisors, as for the clarification. The documents service hands the link out for the Commission (internalGetDocumentDownload); the read is audited naming the declarant. 404 while the letter is still being produced.
+         */
+        get: operations["getClarificationLetterDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/review/clarifications/{clarificationId}/issue": {
         parameters: {
             query?: never;
@@ -2782,6 +2802,51 @@ export interface operations {
             };
             /** @description Idempotency-Key reused with a different request body */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getClarificationLetterDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link valid for five minutes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        downloadUrl: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
+            };
+            /** @description Not found, or not visible to the caller, or its letter is not issued yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents unavailable */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

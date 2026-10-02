@@ -283,7 +283,9 @@ export function ClarificationDetailView({
         ))}
 
         <ItemsAndResponses clarification={clarification} caseId={reviewCase.id} />
-        {clarification.letter ? <LetterCard letter={clarification.letter} /> : null}
+        {clarification.letter ? (
+          <LetterCard clarificationId={clarification.id} letter={clarification.letter} />
+        ) : null}
         <HistoryCard clarification={clarification} now={now} />
         <p className="text-xs text-muted-foreground">
           Your access to this declaration is recorded in the audit trail.
@@ -419,7 +421,13 @@ function ItemsAndResponses({
   );
 }
 
-function LetterCard({ letter }: { letter: NonNullable<Clarification['letter']> }) {
+function LetterCard({
+  clarificationId,
+  letter,
+}: {
+  clarificationId: string;
+  letter: NonNullable<Clarification['letter']>;
+}) {
   const download = useDownload();
   return (
     <SectionCard id="clarification-letter" icon={File02Icon} title="Clarification letter">
@@ -440,7 +448,7 @@ function LetterCard({ letter }: { letter: NonNullable<Clarification['letter']> }
               className="ml-auto"
               onClick={() => {
                 void download(
-                  getLetterLink({ data: { documentId: letter.documentId } }),
+                  getLetterLink({ data: { clarificationId } }),
                   'The letter could not be downloaded. Try again.',
                 );
               }}

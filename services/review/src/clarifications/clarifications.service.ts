@@ -21,9 +21,13 @@ import { Clock, nairobiDate, nairobiYear } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { DocumentsClient } from '../documents/documents-client.js';
+import {
+  type DocumentDownload,
+  DocumentsClient,
+  DocumentsUnavailable,
+} from '../documents/documents-client.js';
 import { caseTenant } from '../cases/access.js';
-import { withUpstream } from '../internal-api/upstream.js';
+import { upstreamUnavailable, withUpstream } from '../internal-api/upstream.js';
 import { requireAssignee } from './access.js';
 import type {
   ClarificationInput,
@@ -127,6 +131,39 @@ export class ClarificationsService {
       const clarification = notFoundIfInvisible(found);
       return clarificationView(clarification, await responseOf(tx, clarificationId));
     });
+  }
+
+  /**
+   * A short-lived link to the clarification's letter, for the Commission's review staff who can
+   * see the clarification: the documents service hands it out for the Commission (one hop,
+   * ADR-013). With the tenant and the declarant, so the route audits the read naming them
+   * (ADR-008). 404 while the letter is being produced, as for a clarification not visible.
+   */
+  async letterDownload(
+    principal: Principal,
+    clarificationId: string,
+  ): Promise<{ download: DocumentDownload; tenant: string; personId: string }> {
+    const tenant = caseTenant(principal);
+    const found = await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
+      const [row] = await tx
+        .select({ letter: clarifications.letterDocumentId, personId: clarifications.personId })
+        .from(clarifications)
+        .where(eq(clarifications.id, clarificationId));
+      return row;
+    });
+    const { personId, letter: letterId } = notFoundIfInvisible(found);
+    // No letter yet (documents is still producing it): nothing to download.
+    const letter = notFoundIfInvisible(letterId);
+    let download: DocumentDownload | null;
+    try {
+      download = await this.documents.getIssuedDocumentDownload(letter, tenant);
+    } catch (error) {
+      if (error instanceof DocumentsUnavailable) {
+        throw upstreamUnavailable('documents', 'The documents service could not give the link.');
+      }
+      throw error;
+    }
+    return { download: notFoundIfInvisible(download), tenant, personId };
   }
 
   async issue(principal: Principal, clarificationId: string): Promise<ClarificationView> {

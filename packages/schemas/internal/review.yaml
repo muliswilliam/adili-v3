@@ -879,6 +879,52 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /v1/review/clarifications/{clarificationId}/letter/download:
+    get:
+      tags:
+        - clarifications
+      summary: Short-lived download link for an issued clarification's letter (audited)
+      description: The Commission's reviewers and supervisors, as for the clarification. The documents service hands the link out for the Commission (internalGetDocumentDownload); the read is audited naming the declarant. 404 while the letter is still being produced.
+      operationId: getClarificationLetterDownload
+      parameters:
+        - name: clarificationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Link valid for five minutes
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - downloadUrl
+                  - expiresAt
+                properties:
+                  downloadUrl:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+        '404':
+          description: Not found, or not visible to the caller, or its letter is not issued yet
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: Documents unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: review.clarification.letter.downloaded
+        resource: clarification
   /v1/review/clarifications/{clarificationId}/issue:
     post:
       tags:

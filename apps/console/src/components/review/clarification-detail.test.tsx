@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getLetterLink,
   raiseFollowUpClarification,
   resolveClarification,
   withdrawClarification,
@@ -58,6 +59,7 @@ vi.mock('../../server/clarifications', () => ({
 const resolveMock = vi.mocked(resolveClarification);
 const withdrawMock = vi.mocked(withdrawClarification);
 const followUpMock = vi.mocked(raiseFollowUpClarification);
+const letterMock = vi.mocked(getLetterLink);
 
 const NOW_MS = Date.parse('2026-09-28T09:00:00Z');
 const NOW = new Date(NOW_MS).toISOString();
@@ -84,7 +86,7 @@ const button = (name: string) => screen.queryByRole('button', { name });
 
 beforeEach(() => {
   resetReviewMock(NOW_MS);
-  for (const mock of [resolveMock, withdrawMock, followUpMock, navigate, invalidate]) {
+  for (const mock of [resolveMock, withdrawMock, followUpMock, letterMock, navigate, invalidate]) {
     mock.mockClear();
   }
 });
@@ -273,6 +275,17 @@ describe('ClarificationDetailView: actions (S15)', () => {
       data: { clarificationId: K.issued, reason: 'Issued against the wrong item' },
     });
     expect(screen.getByText('Clarification withdrawn')).toBeTruthy();
+  });
+
+  it("downloads the letter through the review service's letter download, by clarification", async () => {
+    renderDetail(await detailOf(CASES.mine, K.issued));
+    letterMock.mockResolvedValue({ ok: false, error: { kind: 'unavailable', detail: null } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+      await Promise.resolve();
+    });
+    expect(letterMock).toHaveBeenCalledWith({ data: { clarificationId: K.issued } });
+    expect(screen.getByText('The letter could not be downloaded. Try again.')).toBeTruthy();
   });
 
   it('reloads when the service says the page is out of date (403 or 409)', async () => {

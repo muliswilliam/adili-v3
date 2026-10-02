@@ -53,6 +53,24 @@ describe('HttpDocumentsClient', () => {
     });
   });
 
+  it("asks for an issued document's download link acting for the Commission; 404 is none", async () => {
+    const link = {
+      downloadUrl: 'https://objects.test/issued/x?signature=y',
+      expiresAt: '2027-12-10T09:05:00.000Z',
+      sha256: 'd'.repeat(64),
+    };
+    const { documents, fetch } = client(json(link), json({ title: 'Not Found' }, 404));
+
+    expect(await documents.getIssuedDocumentDownload(UPLOAD, 'psc')).toEqual(link);
+    expect(await documents.getIssuedDocumentDownload(UPLOAD, 'psc')).toBeNull();
+    const request = sent(fetch);
+    expect(request.url).toBe(`http://documents.test/internal/v1/documents/${UPLOAD}/download`);
+    expect(Object.fromEntries(request.headers)).toMatchObject({
+      authorization: 'Bearer service-token',
+      'x-acting-tenant': 'psc',
+    });
+  });
+
   it("reads an issued document's type and SHA-256 acting for the Commission; 404 is none", async () => {
     const issued = {
       id: UPLOAD,

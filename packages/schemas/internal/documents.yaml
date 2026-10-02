@@ -461,6 +461,55 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+  /internal/v1/documents/{documentId}/download:
+    get:
+      tags:
+        - internal
+      summary: Short-lived presigned download of an issued PDF (services)
+      description: "Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant: the issuing tenant's documents only. The service owning the record a document is about asks it for its staff (the review service for a reviewer opening a clarification letter), after checking the staff member may see that record; it audits that read with the staff member and the person. This read is audited too, under the issuing tenant and naming the person the document is about."
+      operationId: internalGetDocumentDownload
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: documentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Download URL valid for five minutes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentDownload'
+        '400':
+          description: X-Acting-Tenant is missing or not a tenant key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope documents:internal
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not the acting tenant's document
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: document.downloaded
+        resource: issued-document
   /internal/v1/documents/{documentId}/supersede:
     post:
       tags:
