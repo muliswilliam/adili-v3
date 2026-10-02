@@ -459,12 +459,7 @@ function asProblem(error: unknown, unavailable: string): unknown {
     return emailTaken();
   }
   if (error instanceof IdentityUnavailable) {
-    return new ProblemException({
-      type: 'identity-unavailable',
-      title: 'Identity provider unavailable',
-      status: HttpStatus.BAD_GATEWAY,
-      detail: unavailable,
-    });
+    return ProblemException.fromCode('identity-unavailable', { detail: unavailable });
   }
   if (error instanceof IdentityUserNotFound) {
     return new ProblemException({

@@ -282,7 +282,11 @@ describe('S11 provision', () => {
     const response = await provision();
 
     expect(response.statusCode).toBe(502);
-    expect(response.json<Problem>().type).toBe('identity-unavailable');
+    // The coded problem every identity provider failure is, as in applicant onboarding.
+    expect(response.json()).toMatchObject({
+      type: 'identity-unavailable',
+      code: 'identity-unavailable',
+    });
     expect(await api.db.select().from(persons)).toEqual([]);
     expect(await leaEvents()).toEqual([]);
     expect((await provision()).statusCode).toBe(201);
