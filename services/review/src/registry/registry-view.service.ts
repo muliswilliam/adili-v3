@@ -45,7 +45,8 @@ type CheckRow = typeof registryChecks.$inferSelect;
  * The Registry tab of a case (spec 07b, S12): per person of the declaration and registry, the
  * status of the latest check, the registry's records pulled from the integration-gateway by
  * result id (decrypted there, one hop) beside the declared items they matched or did not, and the
- * registry flags. The records are read for each view and never stored in the review database;
+ * registry flags. The records are read for each view and never stored in the review database
+ * (flags keep only the identifiers they are about: a parcel number, a registration);
  * the declaration is pulled from declarations, which audits the read with the viewer and case.
  */
 @Injectable()
