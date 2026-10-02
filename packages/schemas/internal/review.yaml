@@ -1802,7 +1802,7 @@ paths:
       tags: [copilot]
       operationId: rateCopilotOutput
       summary: Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output
-      description: "The output is named by its job (`CopilotView.jobs`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not an output shown on a case, gets 404."
+      description: 'The output is named by its job (`CopilotView.jobs`). A second rating by the same reviewer replaces the first. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not an output shown on a case, gets 404.'
       requestBody:
         required: true
         content:
