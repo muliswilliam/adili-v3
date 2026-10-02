@@ -8,6 +8,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { versionRecordId } from '../../src/declaration/versions.js';
 import { commissionRefs, declarations, declarationVersions, outbox } from '../../src/db/schema.js';
 import type {
+  DisclosureCounts,
   DisclosureDocument,
   FullVersionDocument,
 } from '../../src/disclosure/representation.js';
@@ -28,6 +29,7 @@ import { DUE_DAY, submissionFixtures } from '../support/submission.js';
  */
 
 const DISCLOSURES = '/internal/v1/declarations/disclosures';
+const COUNTS = '/internal/v1/declarations/disclosure-counts';
 const FULL_DOCUMENT = '/internal/v1/declarations/{declarationId}/versions/{version}/full-document';
 
 const WANJIKU = randomUUID();
@@ -341,9 +343,11 @@ async function audited(): Promise<EventEnvelope[]> {
   return rows
     .map((row) => row.envelope)
     .filter((event) =>
-      ['declaration.disclosed', 'declaration.full-document.pulled'].includes(
-        (event.data as { action: string }).action,
-      ),
+      [
+        'declaration.disclosed',
+        'declaration.full-document.pulled',
+        'declaration.disclosure-counted',
+      ].includes((event.data as { action: string }).action),
     );
 }
 
@@ -578,6 +582,154 @@ describe('the scoped disclosure of a grant (S9)', () => {
     expect(
       (await disclosure({}, { caller: { ...ACCESS, scope: 'declarations:internal' } })).statusCode,
     ).toBe(403);
+  });
+});
+
+function counts(
+  scope: Scope = {},
+  {
+    tenant = 'psc',
+    caller = ACCESS,
+    actingSubject = ACCESS_OFFICER,
+    body,
+  }: {
+    tenant?: string;
+    caller?: Caller;
+    actingSubject?: string | null;
+    body?: Record<string, unknown>;
+  } = {},
+) {
+  return api.request('POST', COUNTS, caller, {
+    headers: {
+      'x-acting-tenant': tenant,
+      ...(actingSubject === null ? {} : { 'x-acting-subject': actingSubject }),
+    },
+    body: {
+      personId: scope.personId ?? WANJIKU,
+      grantReference: GRANT,
+      legalBasis: 'act-s36-1',
+      years: scope.years ?? [2027],
+      includeSpouses: scope.includeSpouses ?? false,
+      includeChildren: scope.includeChildren ?? false,
+      sections: scope.sections ?? ['assets', 'liabilities'],
+      ...body,
+    },
+  });
+}
+
+describe('the counts of a scope, before the decision (decision 1)', () => {
+  it('counts per year, section and included household member kind, only within the scope', async () => {
+    // 2027 amended once (version 2 in force), a 2029 declaration outside the scope.
+    const in2027 = await seeded(WANJIKU, [
+      householdDeclaration(2027, 'Mwangi'),
+      householdDeclaration(2027),
+    ]);
+    await seeded(WANJIKU, [householdDeclaration(2029)], { sequence: 2 });
+
+    const response = await counts({
+      years: [2027, 2026],
+      includeSpouses: true,
+      sections: ['bio', 'income', 'other'],
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<DisclosureCounts>();
+    expect(contractErrors(responseBody(COUNTS, 'post', 200), body)).toEqual([]);
+    expect(body).toEqual({
+      years: [
+        {
+          year: 2026,
+          declarations: 0,
+          declarationReferences: [],
+          sections: { bio: 0, income: 0, other: 0 },
+          spouses: 0,
+          children: null,
+        },
+        {
+          year: 2027,
+          declarations: 1,
+          declarationReferences: [in2027.reference],
+          // The officer and the spouse; their two incomes, never the child's; the officer's
+          // and the spouse's material changes and the written statement.
+          sections: { bio: 2, income: 2, other: 3 },
+          spouses: 1,
+          children: null,
+        },
+      ],
+    });
+    // Counts only: no name, text or amount of the declarations.
+    for (const content of ['Wanjiku', 'Kamau', 'Mwangi', 'income 2027', 'change', '100000']) {
+      expect(response.body).not.toContain(content);
+    }
+  });
+
+  it('counts a household member kind only when it is included', async () => {
+    await seeded(WANJIKU, [householdDeclaration(2027)]);
+
+    const response = await counts({ includeChildren: true, sections: ['liabilities'] });
+
+    expect(response.json<DisclosureCounts>().years).toEqual([
+      expect.objectContaining({ sections: { liabilities: 2 }, spouses: null, children: 1 }),
+    ]);
+  });
+
+  it('counts zero, rather than 404, for none in scope, another person or another Commission', async () => {
+    await seeded(WANJIKU, [householdDeclaration(2027)]);
+    await seeded(OTHER, [householdDeclaration(2029)], { tenant: 'tsc' });
+
+    for (const response of [
+      await counts({ years: [2029] }),
+      await counts({ personId: OTHER, years: [2029] }),
+      await counts({}, { tenant: 'tsc' }),
+    ]) {
+      expect(response.statusCode, response.body).toBe(200);
+      expect(response.json<DisclosureCounts>().years.every((year) => year.declarations === 0)).toBe(
+        true,
+      );
+    }
+  });
+
+  it('is audited with the request reference, legal basis and the officer as recipient, and no content', async () => {
+    const { declarationId } = await seeded(WANJIKU, [householdDeclaration(2027)]);
+
+    expect((await counts()).statusCode).toBe(200);
+
+    const [served] = await api.asPlatform((tx) =>
+      tx
+        .select({ id: declarationVersions.id })
+        .from(declarationVersions)
+        .where(eq(declarationVersions.declarationId, declarationId)),
+    );
+    const [event, ...more] = await audited();
+    expect(more).toEqual([]);
+    expect(event).toMatchObject({
+      tenant: 'psc',
+      data: {
+        action: 'declaration.disclosure-counted',
+        resource: { type: 'declaration', subjectPersonId: WANJIKU, ids: [served?.id] },
+        actor: { subject: 'service-account-access', onBehalfOf: ACCESS_OFFICER },
+        legalBasis: { basis: 'act-s36-1', reference: GRANT },
+        recipient: ACCESS_OFFICER,
+        request: { method: 'POST', route: COUNTS },
+      },
+    });
+    expect(JSON.stringify(event)).not.toContain('Wanjiku');
+  });
+
+  it('is 400 for an invalid scope, a mismatched legal basis or no acting subject, and 403 for others', async () => {
+    const invalid = [
+      await counts({ sections: [] }),
+      await counts({}, { body: { legalBasis: 'act-s36-2' } }),
+      await counts({}, { body: { recipientSubject: APPLICANT } }),
+      await counts({}, { actingSubject: null }),
+    ];
+    expect(invalid.map((response) => response.statusCode)).toEqual([400, 400, 400, 400]);
+    const officer: Caller = { sub: 'officer-1', tenant: 'psc', roles: ['access-officer'] };
+    expect((await counts({}, { caller: officer })).statusCode).toBe(403);
+    expect(
+      (await counts({}, { caller: { ...ACCESS, scope: 'declarations:internal' } })).statusCode,
+    ).toBe(403);
+    expect(await audited()).toEqual([]);
   });
 });
 

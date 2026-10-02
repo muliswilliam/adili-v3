@@ -1085,6 +1085,57 @@ paths:
       x-audited-read:
         action: declaration.disclosed
         resource: declaration
+  /internal/v1/declarations/disclosure-counts:
+    post:
+      tags:
+        - internal
+      summary: Count what a scope would disclose of a person's declarations (audited, no content)
+      description: "Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each year of the scope, the person's versions in force at the Commission and, per section and included household member kind, how many entries and persons the disclosure of that scope would let out: counts only, never content, so the access officer can see before deciding whether a grant would disclose anything. A year with none, or a person who is not the Commission's declarant, counts zero. Audited (`audit.read.v1`, action `declaration.disclosure-counted`) with the legal basis, the request reference and the officer as recipient."
+      operationId: internalCountDisclosure
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: X-Acting-Subject
+          in: header
+          description: The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisclosureCountsRequest'
+      responses:
+        '200':
+          description: The counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisclosureCounts'
+        '400':
+          description: Invalid scope, a legal basis that does not go with the request reference, or no X-Acting-Subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope declarations:disclosures
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.disclosure-counted
+        resource: declaration
   /internal/v1/declarations/{declarationId}/versions/{version}/full-document:
     post:
       tags:
@@ -3804,6 +3855,110 @@ components:
         - commission
         - versions
       description: "disclosure.v1: what a grant discloses of a declarant's declarations"
+    DisclosureCountsRequest:
+      type: object
+      properties:
+        personId:
+          type: string
+          format: uuid
+          description: The declarant whose declarations are counted
+        grantReference:
+          $ref: '#/components/schemas/GrantReference'
+        legalBasis:
+          $ref: '#/components/schemas/LegalBasis'
+        years:
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+          description: "Declaration years: the statement dates' years"
+        includeSpouses:
+          type: boolean
+        includeChildren:
+          type: boolean
+        sections:
+          minItems: 1
+          maxItems: 5
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosureSection'
+      required:
+        - personId
+        - grantReference
+        - legalBasis
+        - years
+        - includeSpouses
+        - includeChildren
+        - sections
+      additionalProperties: false
+      description: A scope an access officer is about to decide on, to be counted
+    DisclosureYearCounts:
+      type: object
+      properties:
+        year:
+          type: integer
+          description: "A year of the scope: the statement dates' year"
+        declarations:
+          type: integer
+          minimum: 0
+          description: The person's declarations at the Commission that year (versions in force)
+        declarationReferences:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeclarationReference'
+          description: Their reference numbers, for counting the clarifications issued on them; the access service never shows them
+        sections:
+          type: object
+          properties:
+            bio:
+              type: integer
+              minimum: 0
+            income:
+              type: integer
+              minimum: 0
+            assets:
+              type: integer
+              minimum: 0
+            liabilities:
+              type: integer
+              minimum: 0
+            other:
+              type: integer
+              minimum: 0
+          description: "Per section of the scope (absent: not in it): `bio` the persons whose particulars would go out, `income`, `assets`, `liabilities` the entries of the included persons' statements, `other` the material changes, directorships, memberships, pending cases and a written statement"
+        spouses:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The spouses anything would go out about; null when not included
+        children:
+          anyOf:
+            - type: integer
+              minimum: 0
+            - type: 'null'
+          description: The children anything would go out about; null when not included
+      required:
+        - year
+        - declarations
+        - declarationReferences
+        - sections
+        - spouses
+        - children
+    DisclosureCounts:
+      type: object
+      properties:
+        years:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisclosureYearCounts'
+          description: Every year of the scope, ascending, with zero counts for a year with none
+      required:
+        - years
+      description: "How much a scope would disclose of a person's declarations, in counts only: never content"
     FullDocumentRequest:
       type: object
       properties:

@@ -20,6 +20,9 @@ import { versionNumber } from '../declaration/versions.js';
 import { ApiVersionParams } from '../http.js';
 import { DisclosureService } from './disclosure.service.js';
 import {
+  type DisclosureCounts,
+  type DisclosureCountsRequest,
+  disclosureCountsRequestSchema,
   type DisclosureDocument,
   type DisclosureRequest,
   disclosureRequestSchema,
@@ -88,6 +91,46 @@ export class InternalDisclosureController {
       recipient: request.recipientSubject,
     });
     return disclosure;
+  }
+
+  @Post('disclosure-counts')
+  @HttpCode(HttpStatus.OK)
+  @AuditedRead({ action: 'declaration.disclosure-counted', resource: 'declaration' })
+  @ApiHeader({
+    name: 'X-Acting-Subject',
+    required: true,
+    description:
+      'The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts',
+    schema: { type: 'string', minLength: 1, maxLength: 255 },
+  })
+  @ApiOperation({
+    operationId: 'internalCountDisclosure',
+    summary: "Count what a scope would disclose of a person's declarations (audited, no content)",
+    description:
+      "Service tokens with scope declarations:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. For each year of the scope, the person's versions in force at the Commission and, per section and included household member kind, how many entries and persons the disclosure of that scope would let out: counts only, never content, so the access officer can see before deciding whether a grant would disclose anything. A year with none, or a person who is not the Commission's declarant, counts zero. Audited (`audit.read.v1`, action `declaration.disclosure-counted`) with the legal basis, the request reference and the officer as recipient.",
+  })
+  @ApiBody({ required: true, schema: schemaRef('DisclosureCountsRequest') })
+  @ApiOkResponse({ description: 'The counts', schema: schemaRef('DisclosureCounts') })
+  @ApiProblemResponse(
+    400,
+    'Invalid scope, a legal basis that does not go with the request reference, or no X-Acting-Subject',
+  )
+  async count(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @ActingSubject(new ZodValidationPipe(z.string().min(1).max(255))) actingSubject: string,
+    @Body(new ZodValidationPipe(disclosureCountsRequestSchema)) request: DisclosureCountsRequest,
+    @CurrentReadAudit() audit: ReadAudit,
+  ): Promise<DisclosureCounts> {
+    const { counts, versionIds } = await this.disclosures.count(tenant, principal.subject, request);
+    // The versions counted, by id: investigators can tell whose declarations were weighed.
+    audit.resource({ tenant, subjectPersonId: request.personId, ids: versionIds });
+    audit.disclosure({
+      basis: request.legalBasis,
+      reference: request.grantReference,
+      recipient: actingSubject,
+    });
+    return counts;
   }
 
   @Post(':declarationId/versions/:version/full-document')

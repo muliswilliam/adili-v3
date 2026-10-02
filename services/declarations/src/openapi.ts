@@ -61,8 +61,11 @@ import {
 import { declarationReferenceSchema } from './declaration/reference.js';
 import {
   disclosedVersionSchema,
+  disclosureCountsRequestSchema,
+  disclosureCountsSchema,
   disclosureDocumentSchema,
   disclosureRequestSchema,
+  disclosureYearCountsSchema,
   fullDocumentRequestSchema,
   disclosureSectionSchema,
   fullVersionDocumentSchema,
@@ -130,6 +133,9 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DisclosureRequest: disclosureRequestSchema,
   DisclosedVersion: disclosedVersionSchema,
   DisclosureDocument: disclosureDocumentSchema,
+  DisclosureCountsRequest: disclosureCountsRequestSchema,
+  DisclosureYearCounts: disclosureYearCountsSchema,
+  DisclosureCounts: disclosureCountsSchema,
   FullDocumentRequest: fullDocumentRequestSchema,
   FullVersionDocument: fullVersionDocumentSchema,
   HelpLanguage: helpLanguageSchema,
