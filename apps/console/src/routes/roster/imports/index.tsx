@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { CursorPager } from '../../../components/cursor-pager';
 import { LoadError } from '../../../components/load-error';
 import { Page, PageHead } from '../../../components/page';
+import { useReloadingInPlace } from '../../../components/reload-in-place';
 import {
   nextPage,
   type PageLocation,
@@ -36,13 +37,14 @@ type HistorySearch = z.infer<typeof historySearch>;
 
 export const Route = createFileRoute('/roster/imports/')({
   validateSearch: historySearch,
-  loaderDeps: ({ search }) => search,
-  loader: async ({ deps, location, context }) => {
+  // A page change reloads this match in place, not as a new one: see `useReloadingInPlace`.
+  shouldReload: true,
+  loader: async ({ location, context }) => {
     // The layout shows no history without the workspace; do not fetch one.
     if (!context.workspace) return null;
     if (!context.tenant) return SERVICE_UNAVAILABLE;
     const result = await listRosterImports({
-      data: { slug: context.tenant, cursor: deps.cursor },
+      data: { slug: context.tenant, cursor: historySearch.parse(location.search).cursor },
     });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
@@ -77,6 +79,8 @@ function ImportButton({ size }: { size?: 'sm' }) {
 /** Import history (spec 02): every import of the Commission, newest first; `null` while loading. */
 function HistoryPage({ result }: { result: DirectoryResult<RosterImportPage> | null }) {
   const { workspace } = Route.useRouteContext();
+  // A page change keeps the page, Import button and all; only the list shows it is loading.
+  const reloading = useReloadingInPlace();
   if (!workspace) return null;
   const readOnly = workspace.readOnly;
   const empty = result?.ok === true && result.data.items.length === 0 && !result.data.nextCursor;
@@ -86,7 +90,7 @@ function HistoryPage({ result }: { result: DirectoryResult<RosterImportPage> | n
         title={m.historyTitle}
         actions={readOnly || !result?.ok || empty ? null : <ImportButton />}
       />
-      {result === null ? (
+      {result === null || reloading ? (
         <Card className="overflow-hidden p-0 sm:p-0">
           <ImportHistorySkeleton />
         </Card>

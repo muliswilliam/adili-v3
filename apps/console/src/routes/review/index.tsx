@@ -2,6 +2,7 @@ import { useToday } from '@adili/ui';
 import { createFileRoute, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
+import { useReloadingInPlace } from '../../components/reload-in-place';
 import { QueueView } from '../../components/review/queue/queue-view';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { QUEUE_COPY as m } from '../../review-queue/messages';
@@ -27,18 +28,10 @@ interface QueueLoad {
   commission: string | null;
 }
 
-/**
- * The review queue (spec 07a FE-2): the Commission's cases, filters in the URL (S19).
- *
- * The filters are not loader deps: a new set of deps is a new match, which the router replaces
- * with the loading page once its loader takes over a second (the tiles back to skeletons, the
- * search box losing focus mid-word). With none, and `shouldReload`, a filter change reloads the
- * same match in the background: the page stays as it is, the list shows it is loading, and the
- * loader reads the filters off the location it is loading for.
- */
+/** The review queue (spec 07a FE-2): the Commission's cases, filters in the URL (S19). */
 export const Route = createFileRoute('/review/')({
   validateSearch: queueSearchSchema,
-  // A filter change keeps the match, which the router would not load again by itself.
+  // Filter changes reload this match in place, not as a new one: see `useReloadingInPlace`.
   shouldReload: true,
   loader: async ({ context, location }): Promise<QueueLoad | null> => {
     // The layout shows why there is no workspace; do not fetch one.
@@ -81,9 +74,7 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
   const { viewer, supervisor } = Route.useRouteContext();
   const navigate = useNavigate({ from: `${PATH}/` });
   const router = useRouter();
-  // Filter changes keep this page mounted (and the search box focused) while the loader runs in
-  // the background: the toolbar has the new filters already, the list says it is loading them.
-  const loading = Route.useMatch({ select: (match) => match.isFetching !== false });
+  const loading = useReloadingInPlace();
   const href = useRouterState({ select: (state) => state.location.href });
   const slug = viewer.directory.ok ? viewer.directory.principal.tenant : null;
   const today = useToday();

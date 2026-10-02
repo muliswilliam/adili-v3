@@ -1,12 +1,6 @@
 import { Button, Card, EmptyState, Icon, Select, SelectItem, Skeleton } from '@adili/ui';
 import { Add01Icon, Building03Icon, Cancel01Icon, Search01Icon } from '@hugeicons/core-free-icons';
-import {
-  createFileRoute,
-  Link,
-  useLocation,
-  useNavigate,
-  useRouterState,
-} from '@tanstack/react-router';
+import { createFileRoute, Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { useId } from 'react';
 
 import { ReadOnlyBadge } from '../../components/commissions/badges';
@@ -33,6 +27,7 @@ import {
   pagingView,
   previousPage,
 } from '../../components/paging';
+import { useReloadingInPlace } from '../../components/reload-in-place';
 import { SearchBox } from '../../components/search-box';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { listCommissions } from '../../server/commissions';
@@ -50,11 +45,12 @@ const ANY = 'any';
 
 export const Route = createFileRoute('/commissions/')({
   validateSearch: commissionListSearch,
-  loaderDeps: ({ search }) => search,
-  loader: async ({ deps, location, context }) => {
+  // Filter and page changes reload this match in place: see `useReloadingInPlace`.
+  shouldReload: true,
+  loader: async ({ location, context }) => {
     // The layout shows no list without the workspace; do not fetch one.
     if (!context.workspace) return null;
-    const result = await listCommissions({ data: deps });
+    const result = await listCommissions({ data: commissionListSearch.parse(location.search) });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
   },
@@ -73,19 +69,10 @@ function CommissionsLoaded() {
 
 /** The list page; `result` is null while the first page loads. */
 function CommissionsPage({ result }: { result: DirectoryResult<CommissionPage> | null }) {
-  const committed = Route.useSearch();
+  const search = Route.useSearch();
   const { workspace } = Route.useRouteContext();
   const readOnly = workspace?.readOnly ?? true;
-  // Filter and page changes keep this page mounted (and the search box focused) while the
-  // loader runs; the toolbar shows the filters being loaded rather than the previous ones.
-  const pending = useRouterState({
-    select: (state) =>
-      state.status === 'pending' && state.location.pathname === '/commissions'
-        ? state.location.search
-        : null,
-  });
-  const search = pending ? commissionListSearch.parse(pending) : committed;
-  const loading = result === null || pending !== null;
+  const loading = useReloadingInPlace() || result === null;
   const forbidden = result?.ok === false && isForbidden(result);
 
   return (
