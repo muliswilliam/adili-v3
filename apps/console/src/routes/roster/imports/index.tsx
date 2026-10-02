@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { CursorPager } from '../../../components/cursor-pager';
 import { LoadError } from '../../../components/load-error';
 import { Page, PageHead } from '../../../components/page';
-import { useReloadingInPlace } from '../../../components/reload-in-place';
+import { type LoadedFor, useReloadingInPlace } from '../../../components/reload-in-place';
 import {
   nextPage,
   type PageLocation,
@@ -42,12 +42,12 @@ export const Route = createFileRoute('/roster/imports/')({
   loader: async ({ location, context }) => {
     // The layout shows no history without the workspace; do not fetch one.
     if (!context.workspace) return null;
-    if (!context.tenant) return SERVICE_UNAVAILABLE;
+    if (!context.tenant) return { result: SERVICE_UNAVAILABLE, loadedFor: location.searchStr };
     const result = await listRosterImports({
       data: { slug: context.tenant, cursor: historySearch.parse(location.search).cursor },
     });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return result;
+    return { result, loadedFor: location.searchStr };
   },
   head: () => ({ meta: [{ title: `${m.historyTitle} · Adili Online Console` }] }),
   pendingComponent: HistoryLoading,
@@ -55,13 +55,13 @@ export const Route = createFileRoute('/roster/imports/')({
 });
 
 function HistoryLoading() {
-  return <HistoryPage result={null} />;
+  return <HistoryPage loaded={null} />;
 }
 
 function HistoryLoaded() {
-  const result = Route.useLoaderData();
-  if (!result) return null;
-  return <HistoryPage result={result} />;
+  const loaded = Route.useLoaderData();
+  if (!loaded) return null;
+  return <HistoryPage loaded={loaded} />;
 }
 
 /** The way into the import wizard, for the reporting officer. */
@@ -77,10 +77,15 @@ function ImportButton({ size }: { size?: 'sm' }) {
 }
 
 /** Import history (spec 02): every import of the Commission, newest first; `null` while loading. */
-function HistoryPage({ result }: { result: DirectoryResult<RosterImportPage> | null }) {
+function HistoryPage({
+  loaded,
+}: {
+  loaded: (LoadedFor & { result: DirectoryResult<RosterImportPage> }) | null;
+}) {
+  const result = loaded?.result ?? null;
   const { workspace } = Route.useRouteContext();
   // A page change keeps the page, Import button and all; only the list shows it is loading.
-  const reloading = useReloadingInPlace();
+  const reloading = useReloadingInPlace(loaded);
   if (!workspace) return null;
   const readOnly = workspace.readOnly;
   const empty = result?.ok === true && result.data.items.length === 0 && !result.data.nextCursor;

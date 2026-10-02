@@ -15,6 +15,11 @@ import { useReloadingInPlace } from './reload-in-place';
 
 const listSearch = z.object({ search: z.string().optional() });
 
+interface Loaded {
+  results: string;
+  loadedFor: string;
+}
+
 /**
  * A list route set up as the console's lists are: search out of the loader deps, `shouldReload`,
  * the loader reading the search off the location. Each load waits until the test resolves it, and
@@ -30,15 +35,16 @@ function renderList() {
     validateSearch: listSearch,
     shouldReload: true,
     pendingMs: 0,
-    loader: async ({ location }) => {
+    loader: async ({ location }): Promise<Loaded> => {
       const { search } = listSearch.parse(location.search);
       await new Promise<void>((resolve) => loads.push({ search, resolve }));
-      return `results for ${search ?? 'everything'}`;
+      return { results: `results for ${search ?? 'everything'}`, loadedFor: location.searchStr };
     },
     pendingComponent: () => <p>Loading page</p>,
     component: function List() {
-      const results = list.useLoaderData();
-      const reloading = useReloadingInPlace();
+      // Typed by the app's registered router, which has no such route.
+      const loaded = list.useLoaderData() as unknown as Loaded;
+      const reloading = useReloadingInPlace(loaded);
       return (
         <>
           <input
@@ -48,7 +54,7 @@ function renderList() {
               history.push(`/list?search=${encodeURIComponent(event.target.value)}`);
             }}
           />
-          <p>{reloading ? 'Loading results' : results}</p>
+          <p>{reloading ? 'Loading results' : loaded.results}</p>
         </>
       );
     },
@@ -87,6 +93,42 @@ describe('useReloadingInPlace', () => {
 
     act(() => {
       loads[1]?.resolve();
+    });
+    expect(await screen.findByText('results for Pub')).toBeTruthy();
+    expect(document.activeElement).toBe(box);
+  });
+
+  it('Q6: shows the latest search when a second change comes while the first loads', async () => {
+    const { loads } = renderList();
+    await waitFor(() => {
+      expect(loads).toHaveLength(1);
+    });
+    act(() => {
+      loads[0]?.resolve();
+    });
+    const box = await screen.findByRole('textbox', { name: 'Search' });
+    box.focus();
+
+    fireEvent.change(box, { target: { value: 'Pu' } });
+    await waitFor(() => {
+      expect(loads).toHaveLength(2);
+    });
+    // A second change while the first loads: the router hands it the load under way.
+    fireEvent.change(box, { target: { value: 'Pub' } });
+
+    act(() => {
+      loads[1]?.resolve();
+    });
+
+    // That answer was for "Pu": not shown, and the list loads again for "Pub".
+    await waitFor(() => {
+      expect(loads).toHaveLength(3);
+    });
+    expect(loads.map((load) => load.search)).toEqual([undefined, 'Pu', 'Pub']);
+    expect(screen.queryByText('results for Pu')).toBeNull();
+    expect(screen.getByText('Loading results')).toBeTruthy();
+    act(() => {
+      loads[2]?.resolve();
     });
     expect(await screen.findByText('results for Pub')).toBeTruthy();
     expect(document.activeElement).toBe(box);

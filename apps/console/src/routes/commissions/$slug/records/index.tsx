@@ -1,7 +1,7 @@
 import { createFileRoute, getRouteApi, Link, useNavigate } from '@tanstack/react-router';
 
 import { Page, PageHead } from '../../../../components/page';
-import { useReloadingInPlace } from '../../../../components/reload-in-place';
+import { type LoadedFor, useReloadingInPlace } from '../../../../components/reload-in-place';
 import { AuditBanner } from '../../../../components/roster/audit-banner';
 import { messages as m } from '../../../../components/roster/messages';
 import { RecordsList, RecordsSubtitle } from '../../../../components/roster/records-list';
@@ -29,7 +29,7 @@ export const Route = createFileRoute('/commissions/$slug/records/')({
       },
     });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return result;
+    return { result, loadedFor: location.searchStr };
   },
   head: () => ({ meta: [{ title: `${m.recordsTitle} · Adili Online Console` }] }),
   pendingComponent: RecordsLoading,
@@ -39,23 +39,28 @@ export const Route = createFileRoute('/commissions/$slug/records/')({
 const commissionRoute = getRouteApi('/commissions/$slug');
 
 function RecordsLoading() {
-  return <CommissionRecordsPage result={null} />;
+  return <CommissionRecordsPage loaded={null} />;
 }
 
 function RecordsLoaded() {
-  const result = Route.useLoaderData();
+  const loaded = Route.useLoaderData();
   // The layout shows why there is no workspace.
-  if (!result) return null;
-  return <CommissionRecordsPage result={result} />;
+  if (!loaded) return null;
+  return <CommissionRecordsPage loaded={loaded} />;
 }
 
 /** A Commission's records as a platform admin sees them: the reporting officer's list, read only. */
-function CommissionRecordsPage({ result }: { result: DirectoryResult<RosterRecordPage> | null }) {
+function CommissionRecordsPage({
+  loaded,
+}: {
+  loaded: (LoadedFor & { result: DirectoryResult<RosterRecordPage> }) | null;
+}) {
+  const result = loaded?.result ?? null;
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const commission = commissionRoute.useLoaderData();
   const navigate = useNavigate({ from: '/commissions/$slug/records/' });
-  const loading = useReloadingInPlace();
+  const loading = useReloadingInPlace(loaded);
   const roster = commission?.ok ? commission.data.roster : null;
   const forbidden =
     result?.ok === false && result.error.kind === 'problem' && result.error.problem.status === 403;

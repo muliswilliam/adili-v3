@@ -10,7 +10,7 @@ import {
 } from '../../../../components/obligations/obligations-query';
 import { commissionNotOnboardedRosterLink } from '../../../../components/obligations/roster-links';
 import { ObligationsView } from '../../../../components/obligations/obligations-view';
-import { useReloadingInPlace } from '../../../../components/reload-in-place';
+import { type LoadedFor, useReloadingInPlace } from '../../../../components/reload-in-place';
 import { signInRedirect } from '../../../../components/sign-in-redirect';
 import type { DeclarationsResult, ObligationPage } from '../../../../server/declarations/client';
 import { getObligation, listCommissionObligations } from '../../../../server/obligations';
@@ -30,7 +30,7 @@ export const Route = createFileRoute('/commissions/$slug/obligations/')({
       },
     });
     if (!list.ok && list.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return list;
+    return { list, loadedFor: location.searchStr };
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: ObligationsLoading,
@@ -40,23 +40,28 @@ export const Route = createFileRoute('/commissions/$slug/obligations/')({
 const layout = getRouteApi('/commissions/$slug/obligations');
 
 function ObligationsLoading() {
-  return <CommissionObligationsPage list={null} />;
+  return <CommissionObligationsPage loaded={null} />;
 }
 
 function ObligationsLoaded() {
-  const list = Route.useLoaderData();
+  const loaded = Route.useLoaderData();
   // The layout shows why there is no workspace.
-  if (!list) return null;
-  return <CommissionObligationsPage list={list} />;
+  if (!loaded) return null;
+  return <CommissionObligationsPage loaded={loaded} />;
 }
 
 /** A Commission's obligations as a platform admin sees them: the Commission staff's view. */
-function CommissionObligationsPage({ list }: { list: DeclarationsResult<ObligationPage> | null }) {
+function CommissionObligationsPage({
+  loaded,
+}: {
+  loaded: (LoadedFor & { list: DeclarationsResult<ObligationPage> }) | null;
+}) {
+  const list = loaded?.list ?? null;
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const summary = layout.useLoaderData();
   const navigate = useNavigate({ from: '/commissions/$slug/obligations/' });
-  const loading = useReloadingInPlace();
+  const loading = useReloadingInPlace(loaded);
 
   const changeSearch = (next: ObligationsSearch, options?: { replace?: boolean }) => {
     void navigate({ search: next, replace: options?.replace });

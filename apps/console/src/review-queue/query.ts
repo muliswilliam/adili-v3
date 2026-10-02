@@ -126,6 +126,14 @@ export function readQueueSearch(url: unknown, text: unknown): QueueSearch {
   return compact({ ...queueUrlSchema.parse(url), search: queueTextSchema.parse(text) });
 }
 
+/**
+ * What a queue list was loaded for (`useReloadingInPlace`): the URL's search and the search text
+ * of the history state.
+ */
+export function queueLoadKey(searchStr: string, search: QueueSearch): string {
+  return `${searchStr}\n${search.search ?? ''}`;
+}
+
 /** The filters split into what goes in the URL and the search text, which does not. */
 export function splitQueueSearch({ search, ...url }: QueueSearch): {
   url: QueueUrlSearch;

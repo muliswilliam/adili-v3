@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import {
   cycleOptions,
   QUEUE_PAGE_SIZE,
+  queueLoadKey,
   type QueueSearch,
   readQueueSearch,
   splitQueueSearch,
@@ -21,7 +22,7 @@ import { getReviewers } from '../../../server/review-case';
 import type { Reviewer } from '../../../server/review-case.server';
 import { getReviewQueue, type QueuePage as QueueListPage } from '../../../server/review-queue';
 import type { ServiceResult } from '../../../server/service-call';
-import { useReloadingInPlace } from '../../reload-in-place';
+import { type LoadedFor, useReloadingInPlace } from '../../reload-in-place';
 import { QueueView } from './queue-view';
 
 declare module '@tanstack/react-router' {
@@ -38,10 +39,8 @@ export interface QueueSummaryLoad {
   commission: string | null;
 }
 
-/** What the list loads for each set of filters. */
-export interface QueueListLoad {
-  /** The search text the list was loaded for. */
-  text: string | null;
+/** What the list loads for each set of filters (`queueLoadKey`). */
+export interface QueueListLoad extends LoadedFor {
   list: ServiceResult<QueueListPage>;
 }
 
@@ -60,24 +59,20 @@ export function QueuePage({
   list: QueueListLoad | null;
 }) {
   const text = useLocation({ select: (location) => location.state.reviewQueueSearch });
+  const searchStr = useLocation({ select: (location) => location.searchStr });
   const search = readQueueSearch(useSearch({ strict: false }), text);
   const { viewer, supervisor } = reviewLayout.useRouteContext();
   const navigate = useNavigate();
   const router = useRouter();
-  const loading = useReloadingInPlace();
+  // A reload renders on the server, which has no history state: the list then comes without the
+  // search the entry holds, and loads again here for it, as after a change made mid-load.
+  const loading = useReloadingInPlace(list, queueLoadKey(searchStr, search));
   const href = useRouterState({ select: (state) => state.location.href });
   const slug = viewer.directory.ok ? viewer.directory.principal.tenant : null;
   const today = useToday();
   const reviewers = useReviewers(supervisor ? slug : null, viewer.user.subject);
   // Only Copy link reads the address, on click, so the server's render needs no origin.
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
-  // A reload renders on the server, which has no history state: the list then comes without the
-  // search the entry still holds, so load it again here for that search.
-  const idle = useRouterState({ select: (state) => state.status === 'idle' });
-  const stale = list !== null && idle && list.text !== (search.search ?? null);
-  useEffect(() => {
-    if (stale) void router.invalidate();
-  }, [stale, router]);
 
   return (
     <QueueView
