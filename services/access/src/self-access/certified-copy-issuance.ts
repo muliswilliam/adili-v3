@@ -23,7 +23,7 @@ export interface CertifiedCopyOrder {
   /** The Commission the declaration was filed with. */
   tenant: string;
   commissionName: string;
-  /** The declarant: the copy's subject, the only one who may download it. */
+  /** The declarant: the copy's subject, who may download it (as may an application's officer). */
   personId: string;
   declarationId: string;
   version: number;

@@ -459,13 +459,13 @@ export interface paths {
         };
         /**
          * The Commission's written self-access applications with their deadlines
-         * @description Earliest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).
+         * @description Those still to collect or dispatch first, earliest deadline first; then the delivered ones, latest deadline first. `late`: the certified copy was not issued by the deadline (14 days from receipt).
          */
         get: operations["listSelfAccessApplications"];
         put?: never;
         /**
          * Record a written self-access application and issue its certified copy
-         * @description The declarant's identity check, and for a representative their name, ID number (stored encrypted), written authority and ID as the officer's clean uploads of purpose `access-representation`. The certified copy (Restricted, the declarant its subject) is ordered at once and due 14 days from receipt; once issued it is registered `self-access` naming the representative (`access.certified-copy.issued.v1`) and shows in the declarant's access history. Follow `certifiedCopy.status` until `issued`, then mark it collected or dispatched.
+         * @description The declarant's identity check, and for a representative their name, ID number (stored encrypted), written authority and ID as the officer's clean uploads of purpose `access-representation`. The certified copy (Restricted, the declarant its subject) is ordered at once and due 14 days from receipt; once issued it is registered `self-access` naming the representative (`access.certified-copy.issued.v1`) and shows in the declarant's access history. Follow `certifiedCopy.status` until `issued`; the recording officer (`recordedByCaller`) is named on the copy and downloads it from documents (`getDocumentDownload` with `certifiedCopy.documentId`, audited there) to print it, then marks it collected or dispatched.
          */
         post: operations["recordSelfAccessApplication"];
         delete?: never;
@@ -1069,6 +1069,8 @@ export interface components {
             /** @description The access officer who recorded it */
             recordedBy: string;
             certifiedCopy: components["schemas"]["CertifiedCopy"];
+            /** @description The caller recorded the application. Documents names that officer on the issued copy, so they (and no other officer) may download it with `certifiedCopy.documentId` to print it for collection or dispatch */
+            recordedByCaller: boolean;
         };
         SelfAccessPage: {
             items: components["schemas"]["SelfAccessApplication"][];

@@ -58,6 +58,15 @@ export const issueDocumentBody = z.object({
     description:
       'Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package',
   }),
+  additionalDownloaders: z
+    .array(z.string().trim().min(1).max(255))
+    .max(10)
+    .refine((subjects) => new Set(subjects).size === subjects.length, 'Subjects must be distinct')
+    .optional()
+    .meta({
+      description:
+        "Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only",
+    }),
   /**
    * The fields the template renders, never stored beyond the PDF. One schema per template; the
    * service checks the payload against the template of `type` and `templateVersion`.

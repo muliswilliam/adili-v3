@@ -6,6 +6,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 
+import { AccessTabs } from '../../../components/access/access-tabs';
 import { messages as m } from '../../../components/access/messages';
 import { QueueList } from '../../../components/access/queue-list';
 import { type QueueSearch, queueSearchSchema } from '../../../components/access/queue-query';
@@ -102,6 +103,7 @@ function QueuePage({ result }: { result: AccessResult<QueuePage> | null }) {
   return (
     <Page>
       <PageHead title={m.title} actions={readOnly ? <ReadOnlyBadge /> : null} />
+      <AccessTabs current="requests" />
       <QueueList
         result={pending ? null : result}
         search={search}

@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
 import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
-import { and, asc, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
 
 import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
 import { Clock } from '../clock.js';
@@ -32,7 +32,13 @@ import {
   type LeaRequestStatus,
   leaRequests,
 } from '../lea/schema.js';
-import { decodeCursor, encodeCursor, type Position } from '../paging.js';
+import {
+  afterPosition,
+  decodeCursor,
+  encodeCursor,
+  queueOrder,
+  type QueueColumns,
+} from '../paging.js';
 import {
   badRequest,
   conflict,
@@ -505,14 +511,6 @@ function isLeaClosed(status: LeaRequestStatus): boolean {
   return !(LEA_OPEN_STATUSES as readonly LeaRequestStatus[]).includes(status);
 }
 
-/** A kind's table as the queue orders and pages it. */
-interface QueueColumns {
-  /** True for decided and closed requests, which the queue lists after the open ones. */
-  closed: SQL<boolean>;
-  deadline: typeof accessRequests.decisionDeadlineAt | typeof leaRequests.deadlineAt;
-  id: typeof accessRequests.id | typeof leaRequests.id;
-}
-
 const FORM_K_QUEUE: QueueColumns = {
   closed: sql<boolean>`(${accessRequests.status} in (${sql.join(
     CLOSED_STATUSES.map((status) => sql`${status}`),
@@ -531,16 +529,6 @@ const LEA_QUEUE: QueueColumns = {
   id: leaRequests.id,
 };
 
-/** The queue's order: open ones by earliest deadline, then closed ones by latest, each then by id. */
-function queueOrder({ closed, deadline, id }: QueueColumns): SQL[] {
-  return [
-    asc(closed),
-    sql`case when ${closed} then null else ${deadline} end asc`,
-    sql`case when ${closed} then ${deadline} end desc`,
-    asc(id),
-  ];
-}
-
 /** `queueOrder` for rows of both kinds, merged in memory. */
 function compareQueueEntries(
   a: { item: QueueItem; closed: boolean },
@@ -550,23 +538,6 @@ function compareQueueEntries(
   const byDeadline = new Date(a.item.deadlineAt).getTime() - new Date(b.item.deadlineAt).getTime();
   if (byDeadline !== 0) return a.closed ? -byDeadline : byDeadline;
   return a.item.id < b.item.id ? -1 : a.item.id > b.item.id ? 1 : 0;
-}
-
-/** The requests after `position` in `queueOrder`. */
-function afterPosition(
-  { closed, deadline, id }: QueueColumns,
-  position: Position,
-): SQL | undefined {
-  const at = sql`${position.at.toISOString()}::timestamptz`;
-  const positionId = sql`${position.id}::uuid`;
-  if (position.closed) {
-    return and(
-      closed,
-      or(sql`${deadline} < ${at}`, and(sql`${deadline} = ${at}`, sql`${id} > ${positionId}`)),
-    );
-  }
-  // After an open request: the open ones after it, then every closed one.
-  return or(closed, sql`(${deadline}, ${id}) > (${at}, ${positionId})`);
 }
 
 /**

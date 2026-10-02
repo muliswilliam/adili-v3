@@ -44,6 +44,11 @@ export interface IssueDocumentRequest {
   watermark?: Watermark;
   /** How long the subject may download it (access packages). */
   downloadWindowDays?: number;
+  /**
+   * Token subjects of the Commission's staff who may download it too: the access officer who
+   * recorded the in-person application a certified copy was ordered through.
+   */
+  additionalDownloaders?: string[];
   /** The same key for the same document, so a retried request issues it once. */
   idempotencyKey: string;
 }

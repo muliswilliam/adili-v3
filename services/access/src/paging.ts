@@ -1,3 +1,4 @@
+import { and, asc, type AnyColumn, or, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { badRequest } from './problems.js';
@@ -36,4 +37,39 @@ export function decodeCursor(value: string): Position {
   throw badRequest('The cursor is not one this list issued.', [
     { path: 'cursor', message: 'Unknown cursor; start again from the first page' },
   ]);
+}
+
+/** A table as an open-first list orders and pages it. */
+export interface QueueColumns {
+  /** True for rows that are done (decided, closed, delivered), listed after the open ones. */
+  closed: SQL<boolean>;
+  deadline: AnyColumn;
+  id: AnyColumn;
+}
+
+/** Open rows by earliest deadline, then closed ones by latest, each then by id. */
+export function queueOrder({ closed, deadline, id }: QueueColumns): SQL[] {
+  return [
+    asc(closed),
+    sql`case when ${closed} then null else ${deadline} end asc`,
+    sql`case when ${closed} then ${deadline} end desc`,
+    asc(id),
+  ];
+}
+
+/** The rows after `position` in `queueOrder`. */
+export function afterPosition(
+  { closed, deadline, id }: QueueColumns,
+  position: Position,
+): SQL | undefined {
+  const at = sql`${position.at.toISOString()}::timestamptz`;
+  const positionId = sql`${position.id}::uuid`;
+  if (position.closed) {
+    return and(
+      closed,
+      or(sql`${deadline} < ${at}`, and(sql`${deadline} = ${at}`, sql`${id} > ${positionId}`)),
+    );
+  }
+  // After an open row: the open ones after it, then every closed one.
+  return or(closed, sql`(${deadline}, ${id}) > (${at}, ${positionId})`);
 }

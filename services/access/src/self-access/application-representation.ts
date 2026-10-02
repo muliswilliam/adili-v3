@@ -175,6 +175,10 @@ export const selfAccessApplicationDetailSchema = selfAccessApplicationSchema.ext
     .extend({ idNumber: z.string() })
     .nullable()
     .meta({ description: 'Null when the declarant applied in person' }),
+  recordedByCaller: z.boolean().meta({
+    description:
+      'The caller recorded the application. Documents names that officer on the issued copy, so they (and no other officer) may download it with `certifiedCopy.documentId` to print it for collection or dispatch',
+  }),
 });
 
 export type SelfAccessApplicationDetail = z.infer<typeof selfAccessApplicationDetailSchema>;
@@ -240,6 +244,7 @@ export function toSelfAccessApplicationDetail(
   row: SelfAccessApplicationRow,
   copy: CertifiedCopyRow,
   representativeIdNumber: string | null,
+  callerSubject: string,
   now: Date,
 ): SelfAccessApplicationDetail {
   const application = toSelfAccessApplication(row, copy, now);
@@ -249,5 +254,6 @@ export function toSelfAccessApplicationDetail(
       application.representative === null
         ? null
         : { ...application.representative, idNumber: representativeIdNumber ?? '' },
+    recordedByCaller: row.recordedBy === callerSubject,
   };
 }

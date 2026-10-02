@@ -23,7 +23,7 @@ import {
 import { DOCUMENTS_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import { IssuanceService } from './issuance.service.js';
+import { type Downloader, IssuanceService } from './issuance.service.js';
 import {
   type DocumentDownload,
   type IssueDocumentRequest,
@@ -45,9 +45,10 @@ interface Reply {
 
 /**
  * Issued documents for their subject person (the declarant, the applicant or the law-enforcement
- * officer they were issued to): metadata and a short-lived download within the document's
- * download window. Anyone else gets 404, as if the document did not exist; staff access comes
- * with the review slices.
+ * officer they were issued to) and the issuing Commission's staff the issuer named as additional
+ * downloaders (the access officer handing over an in-person certified copy): metadata and a
+ * short-lived download within the document's download window. Anyone else gets 404, as if the
+ * document did not exist.
  */
 @ApiTags('documents')
 @Controller('v1/documents')
@@ -59,7 +60,8 @@ export class DocumentsController {
   @ApiOperation({
     operationId: 'getDocument',
     summary: 'Metadata of an issued document (owner)',
-    description: 'The person the document is about only; anyone else gets 404.',
+    description:
+      "The person the document is about, or staff of the issuing Commission named among the document's additional downloaders; anyone else gets 404.",
   })
   @ApiOkResponse({ description: 'Metadata', schema: schemaRef('IssuedDocument') })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -67,7 +69,7 @@ export class DocumentsController {
     @CurrentPrincipal() principal: Principal,
     @Param('documentId', documentId) id: string,
   ): Promise<IssuedDocument> {
-    return this.issuance.getOwned(principal.personId, principal.subject, id);
+    return this.issuance.getOwned(downloaderOf(principal), id);
   }
 
   @Get(':documentId/download')
@@ -77,7 +79,7 @@ export class DocumentsController {
     operationId: 'getDocumentDownload',
     summary: 'Short-lived presigned download of an issued PDF (owner)',
     description:
-      "The document's subject person only (the `person_id` of their token); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.",
+      "The document's subject person (the `person_id` of their token), or staff of the issuing Commission named among the document's additional downloaders (their token's `sub` and tenant); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.",
   })
   @ApiOkResponse({
     description: 'Download URL valid for five minutes',
@@ -90,14 +92,14 @@ export class DocumentsController {
     @Param('documentId', documentId) id: string,
     @CurrentReadAudit() audit: ReadAudit,
   ): Promise<DocumentDownload> {
-    const { download, document } = await this.issuance.download(
-      principal.personId,
-      principal.subject,
-      id,
-    );
+    const { download, document } = await this.issuance.download(downloaderOf(principal), id);
     audit.resource({ tenant: document.tenant, subjectPersonId: document.subjectPersonId });
     return download;
   }
+}
+
+function downloaderOf(principal: Principal): Downloader {
+  return { personId: principal.personId, subject: principal.subject, tenant: principal.tenant };
 }
 
 /** Internal: not routed by the public entrypoint. Callers are services acting for a tenant. */
