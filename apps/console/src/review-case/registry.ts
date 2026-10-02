@@ -50,6 +50,11 @@ export const RULE_SYSTEMS: Partial<Record<CaseFlag['ruleId'], RegistrySystem>> =
   'kra-pin-missing': 'kra',
   'kra-non-compliant': 'kra',
   'kra-income-mismatch': 'kra',
+  'registry-parcel-number-missing': 'ardhisasa',
+  'registry-vehicle-registration-missing': 'ntsa',
+  'registry-company-registration-missing': 'brs',
+  'registry-company-dissolved': 'brs',
+  'registry-supplier-check-not-run': 'brs',
 };
 
 type ViewSystem = RegistryView['persons'][number]['systems'][number];

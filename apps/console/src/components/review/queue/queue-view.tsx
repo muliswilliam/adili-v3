@@ -1,4 +1,5 @@
-import { Card, Skeleton } from '@adili/ui';
+import { Card } from '@adili/ui';
+import { useState } from 'react';
 
 import type { CaseViewer } from '../../../review-case/view';
 import { QUEUE_COPY as m } from '../../../review-queue/messages';
@@ -10,7 +11,7 @@ import type { ServiceResult } from '../../../server/service-call';
 import { LoadError } from '../../load-error';
 import { Page, PageHead } from '../../page';
 import { useCaseAssignment } from '../assignment';
-import { QueueResults, QueueTableSkeleton } from './queue-results';
+import { QueueResults, QueueResultsSkeleton } from './queue-results';
 import { QueueTiles } from './queue-tiles';
 import { QueueToolbar } from './queue-toolbar';
 
@@ -40,10 +41,12 @@ export interface QueueViewProps {
 /**
  * The review workspace of a Commission (spec 07a FE-2, `/review`): the summary tiles and the
  * overdue clarifications, then the filterable queue with Claim, Open and a supervisor's
- * Reassign, Assign and Unassign on each row. Filters live in the URL (S19).
+ * Reassign, Assign and Unassign on each row. Filters live in the URL (S19), the search text in
+ * the history entry.
  */
 export function QueueView(props: QueueViewProps) {
   const { summary, list, search, onSearchChange, viewer, slug } = props;
+  const listNumber = useLoadNumber(list);
   const items = list?.ok ? list.data.items : [];
   const assignment = useCaseAssignment({
     viewer,
@@ -75,11 +78,11 @@ export function QueueView(props: QueueViewProps) {
             href={props.href}
           />
           {list === null ? (
-            <ListSkeleton />
+            <QueueResultsSkeleton />
           ) : (
             <QueueResults
               // A new first page (other filters, or a reload) starts the list again.
-              key={pageKey(list)}
+              key={listNumber}
               result={list}
               search={search}
               onSearchChange={onSearchChange}
@@ -97,11 +100,18 @@ export function QueueView(props: QueueViewProps) {
   );
 }
 
-/** Identifies a first page, so "Load more" state resets when it changes. */
-function pageKey(result: ServiceResult<QueuePage>): string {
-  if (!result.ok) return 'error';
-  const { items, nextCursor } = result.data;
-  return `${items.map((item) => `${item.id}:${item.assignee?.subject ?? ''}:${item.status}`).join(',')}|${nextCursor ?? ''}`;
+/**
+ * Counts the first pages loaded (each load is a new object), so "Load more" state resets with
+ * each one.
+ */
+function useLoadNumber(list: ServiceResult<QueuePage> | null): number {
+  const [seen, setSeen] = useState({ list, number: 0 });
+  if (seen.list !== list) {
+    const next = { list, number: seen.number + 1 };
+    setSeen(next);
+    return next.number;
+  }
+  return seen.number;
 }
 
 /** "2 clarifications overdue", when any are. */
@@ -112,24 +122,5 @@ function OverdueLine({ count }: { count: number }) {
       <span aria-hidden="true" className="size-2 rounded-full bg-destructive" />
       {m.overdue(count)}
     </p>
-  );
-}
-
-function ListSkeleton() {
-  return (
-    <>
-      <div className="hidden @[960px]:block">
-        <QueueTableSkeleton />
-      </div>
-      <ul aria-busy="true" aria-label={m.loadingCaption} className="@[960px]:hidden">
-        {Array.from({ length: 4 }, (_, index) => (
-          <li key={index} className="flex flex-col gap-2.5 border-b px-4 py-4 last:border-b-0">
-            <Skeleton className="w-48" />
-            <Skeleton className="w-40" />
-            <Skeleton className="w-64 max-w-full" />
-          </li>
-        ))}
-      </ul>
-    </>
   );
 }

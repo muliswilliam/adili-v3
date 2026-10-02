@@ -129,10 +129,16 @@ export abstract class IntegrationGatewayClient {
 
   /**
    * `getVerificationResult`: a stored lookup with its records, decrypted for the Commission; null
-   * when the gateway has no such result for it. Throws `IntegrationGatewayUnavailable` when the
-   * gateway cannot be reached or cannot decrypt now.
+   * when the gateway has no such result for it. `actingSubject` is whom the read is for (ADR-013
+   * §8.6): the reviewer whose request reads it, or `system:review` in a workflow; the gateway's
+   * audit of the read names them. Throws `IntegrationGatewayUnavailable` when the gateway cannot
+   * be reached or cannot decrypt now.
    */
-  abstract getStoredResult(resultId: string, tenant: string): Promise<StoredResult | null>;
+  abstract getStoredResult(
+    resultId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<StoredResult | null>;
 
   /**
    * `getRegistryRateLimits`: the calls per minute the gateway sends each system (by the

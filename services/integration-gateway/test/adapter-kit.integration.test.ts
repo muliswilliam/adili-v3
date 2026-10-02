@@ -1,8 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import type { Principal } from '@adili/api-kit';
+import { CircuitState } from 'cockatiel';
 import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { CircuitBreakers } from '../src/adapter-kit/circuit-breakers.js';
 import { LookupPurposeHeaders, Purpose } from '../src/adapter-kit/lookup-purpose.js';
 import { PauseFlags } from '../src/adapter-kit/pause-flags.js';
 import type { LookupContext, LookupPurpose } from '../src/adapter-kit/registry-adapter.js';
@@ -10,6 +12,7 @@ import { RegistryLookups } from '../src/adapter-kit/registry-lookups.js';
 import type { SystemPolicy } from '../src/adapter-kit/system-policies.js';
 import { outbox, verificationResults } from '../src/db/schema.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
+import { SubjectHasher } from '../src/verification/subject-hasher.js';
 
 import { StubAdapter, type StubRecord } from './support/stub-adapter.js';
 import { createTestApp, type TestApp } from './support/test-app.js';
@@ -135,6 +138,24 @@ describe('adapter kit', () => {
 
       expect(result).toMatchObject({ outcome: 'found', data: RECORD, cached: false });
       expect(kra.calls).toBe(2);
+    });
+
+    it('Q7: keeps answers encrypted in the cache, bound to their key', async () => {
+      const hasher = t.app.get(SubjectHasher);
+      const keyOf = (subject: string) => `kra:records:${hasher.hash('kra', subject)}`;
+      await lookup(WANJIKU);
+      await lookup('30000009');
+      const raw = await t.valkey.get(keyOf(WANJIKU));
+
+      expect(raw).toMatch(/^v1\./u);
+      expect(raw).not.toContain('Wanjiku');
+      expect(raw).not.toContain('KDA 123A');
+
+      // An entry moved under another subject's key does not open there: a miss, not its answer.
+      await t.valkey.set(keyOf('30000009'), raw ?? '');
+      const callsBefore = kra.calls;
+      expect(await lookup('30000009')).toMatchObject({ outcome: 'not-found', cached: false });
+      expect(kra.calls).toBe(callsBefore + 1);
     });
 
     it('propagates an unexpected error after recording the lookup unavailable', async () => {
@@ -395,6 +416,33 @@ describe('adapter kit', () => {
       const [first = 0, second = 0] = ntsa.callTimes;
       // One a second; Valkey's clock has millisecond resolution.
       expect(second - first).toBeGreaterThanOrEqual(990);
+    });
+  });
+
+  describe('M4: every call to the registry takes a slot', () => {
+    it("queues a lookup's further calls for the bucket too", async () => {
+      ntsa.furtherCalls = 1;
+
+      const result = await lookup('30000003', forCase, ntsa);
+
+      expect(result).toMatchObject({ outcome: 'not-found' });
+      expect(ntsa.calls).toBe(2);
+      // One a second, as two lookups' calls would be.
+      const [first = 0, second = 0] = ntsa.callTimes;
+      expect(second - first).toBeGreaterThanOrEqual(990);
+    });
+
+    it('refuses a lookup rate-limited when a further call finds no slot, without tripping the breaker', async () => {
+      // With the kit's, three calls at once: the third would wait two seconds, past the 1.5 s.
+      ntsa.furtherCalls = 2;
+
+      const result = await lookup('30000004', forCase, ntsa);
+
+      expect(result).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
+      // Our own limit is no registry failure.
+      expect(t.app.get(CircuitBreakers).of('ntsa').state).toBe(CircuitState.Closed);
+      const [row] = await rows();
+      expect(row).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
     });
   });
 

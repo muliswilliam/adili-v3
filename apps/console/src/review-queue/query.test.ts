@@ -6,16 +6,24 @@ import {
   hasQueueFilters,
   queueQuery,
   type QueueSearch,
-  queueSearchSchema,
+  queueUrlSchema,
+  readQueueSearch,
+  splitQueueSearch,
   tilePressed,
   toggleSwitch,
   toggleTile,
   withFilter,
 } from './query';
 
-/** The filters after a trip through the address bar: written by the router, read back by the page. */
-const roundTrip = (search: QueueSearch) =>
-  queueSearchSchema.parse(defaultParseSearch(defaultStringifySearch(search)));
+/**
+ * The filters after a trip through the address bar and the history entry: written by the router,
+ * read back by the page.
+ */
+const roundTrip = (search: QueueSearch) => {
+  const { url, text } = splitQueueSearch(search);
+  return readQueueSearch(defaultParseSearch(defaultStringifySearch(url)), text);
+};
+const fromUrl = (search: string) => queueUrlSchema.parse(defaultParseSearch(search));
 
 const SUBJECT = 'a1b2c3d4-0000-4000-8000-000000000002';
 
@@ -46,6 +54,16 @@ describe('S19 review queue filters in the URL', () => {
     expect(roundTrip(search)).toEqual(search);
   });
 
+  it('M5: keeps the search text, personal data, out of the URL', () => {
+    const { url, text } = splitQueueSearch({ search: 'Wanjiku Kamau', band: 'high' });
+
+    expect(defaultStringifySearch(url)).toBe('?band=high');
+    expect(text).toBe('Wanjiku Kamau');
+    // A search in a hand-typed or old link is not read.
+    expect(fromUrl('?search=Wanjiku&band=high')).toEqual({ band: 'high' });
+    expect(readQueueSearch(defaultParseSearch('?search=Wanjiku'), undefined)).toEqual({});
+  });
+
   it('writes only the filters that are set', () => {
     expect(defaultStringifySearch(withFilter({}, 'band', 'high'))).toBe('?band=high');
     expect(defaultStringifySearch(toggleSwitch({ band: 'high' }, 'late'))).toBe(
@@ -55,19 +73,23 @@ describe('S19 review queue filters in the URL', () => {
     expect(defaultStringifySearch(withFilter({ type: 'final' }, 'type', undefined))).toBe('');
   });
 
-  it('reads a hand-typed URL: digits as a search, 1 as on, a year as text', () => {
-    expect(
-      queueSearchSchema.parse(defaultParseSearch('?search=2019&late=1&cycle=2025&band=high')),
-    ).toEqual({ search: '2019', late: true, cycle: 2025, band: 'high' });
-    expect(queueSearchSchema.parse({ registryUnavailable: 'true', search: ' psc/2009 ' })).toEqual({
+  it('reads a hand-typed URL: 1 as on, a year as text; a search as the state holds it', () => {
+    expect(fromUrl('?late=1&cycle=2025&band=high')).toEqual({
+      late: true,
+      cycle: 2025,
+      band: 'high',
+    });
+    expect(readQueueSearch({ registryUnavailable: 'true' }, ' psc/2009 ')).toEqual({
       registryUnavailable: true,
       search: 'psc/2009',
     });
+    // A file number of digits alone.
+    expect(readQueueSearch({}, 2019)).toEqual({ search: '2019' });
   });
 
   it('leaves out switches that are off and anyone, the default assignee', () => {
     expect(
-      queueSearchSchema.parse({
+      queueUrlSchema.parse({
         late: false,
         openClarification: 'false',
         registryUnavailable: 0,
@@ -78,25 +100,27 @@ describe('S19 review queue filters in the URL', () => {
 
   it('drops values it does not know instead of failing the page', () => {
     expect(
-      queueSearchSchema.parse({
-        status: 'determined',
-        band: 'urgent',
-        type: 'annual',
-        cycle: 'next year',
-        assignee: 'x'.repeat(201),
-        late: 'maybe',
-        search: 'x'.repeat(101),
-      }),
+      readQueueSearch(
+        {
+          status: 'determined',
+          band: 'urgent',
+          type: 'annual',
+          cycle: 'next year',
+          assignee: 'x'.repeat(201),
+          late: 'maybe',
+        },
+        'x'.repeat(101),
+      ),
     ).toEqual({});
-    expect(queueSearchSchema.parse({ cycle: 1999 })).toEqual({});
+    expect(queueUrlSchema.parse({ cycle: 1999 })).toEqual({});
   });
 
   it('keeps no page in the URL', () => {
-    expect(queueSearchSchema.parse({ cursor: 'abc', band: 'low' })).toEqual({ band: 'low' });
+    expect(queueUrlSchema.parse({ cursor: 'abc', band: 'low' })).toEqual({ band: 'low' });
   });
 
   it('leaves blank searches out', () => {
-    expect(queueSearchSchema.parse({ search: '   ' })).toEqual({});
+    expect(readQueueSearch({}, '   ')).toEqual({});
   });
 
   it('knows when any filter is set', () => {

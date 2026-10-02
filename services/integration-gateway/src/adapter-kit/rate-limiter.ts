@@ -30,6 +30,15 @@ return wait
 `;
 
 /**
+ * An adapter's further call to its registry found no rate-limit slot within the max wait
+ * (`UpstreamCalls.another`): the lookup is `rate-limited`. Our own limit, not the registry
+ * failing, so it does not count towards the circuit breaker.
+ */
+export class RateLimitExhausted extends Error {
+  override readonly name = 'RateLimitExhausted';
+}
+
+/**
  * The per-system rate limit: calls to a registry queue for a slot rather than exceed it, up to
  * the policy's max wait. It protects the registry, so it fails open: when Valkey is down calls
  * go out unmetered (the circuit breaker still guards the registry).

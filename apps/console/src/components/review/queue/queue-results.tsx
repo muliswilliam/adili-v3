@@ -48,6 +48,13 @@ import { LoadError } from '../../load-error';
 import { appendPage, type LoadedPages } from '../../roster/records-query';
 import { goToSignIn } from '../../sign-in-redirect';
 
+/**
+ * Where the list switches from cards to the table: 1120px of list fits the eight columns. The
+ * results and their skeleton share these, so loading never changes the layout.
+ */
+export const TABLE_ONLY = 'hidden @[1120px]:block';
+export const CARDS_ONLY = '@[1120px]:hidden';
+
 export interface QueueResultsProps {
   /** The first page for `search`. */
   result: ServiceResult<QueuePage>;
@@ -62,7 +69,7 @@ export interface QueueResultsProps {
 
 /**
  * The queue's cases, highest priority first then oldest (spec 07a FE-2): a table where the list
- * is wide enough, cards below 960px of list; "Load more" for the next page; and the empty, no
+ * is wide enough, cards below 1120px of list; "Load more" for the next page; and the empty, no
  * matches and error states. Each row opens its case; Claim, Open or View and a supervisor's menu
  * sit above the row's link.
  */
@@ -123,10 +130,10 @@ export function QueueResults(props: QueueResultsProps) {
 
   return (
     <>
-      <div className="hidden @[1120px]:block">
+      <div className={TABLE_ONLY}>
         <QueueTable {...props} items={loaded.items} />
       </div>
-      <div className="@[1120px]:hidden">
+      <div className={CARDS_ONLY}>
         <QueueCards {...props} items={loaded.items} />
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t px-4 py-2.5 text-[13.5px] text-muted-foreground">
@@ -373,7 +380,7 @@ function QueueTable(props: RowsProps) {
   );
 }
 
-/** Below 960px of list the eight columns do not fit: a card per case (the prototype's `.qcard`). */
+/** Below 1120px of list the eight columns do not fit: a card per case (the prototype's `.qcard`). */
 function QueueCards(props: RowsProps) {
   const { items, viewer } = props;
   return (
@@ -422,8 +429,28 @@ function QueueCards(props: RowsProps) {
 
 const SKELETON_WIDTHS = ['w-44', 'w-36', 'w-22', 'w-18', 'w-6', 'w-28', 'w-24', 'w-16'];
 
+/** The list while its first page loads: the table's or the cards' placeholders, as the list will be. */
+export function QueueResultsSkeleton() {
+  return (
+    <>
+      <div className={TABLE_ONLY}>
+        <QueueTableSkeleton />
+      </div>
+      <ul aria-busy="true" aria-label={m.loadingCaption} className={CARDS_ONLY}>
+        {Array.from({ length: 4 }, (_, index) => (
+          <li key={index} className="flex flex-col gap-2.5 border-b px-4 py-4 last:border-b-0">
+            <Skeleton className="w-48" />
+            <Skeleton className="w-40" />
+            <Skeleton className="w-64 max-w-full" />
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 /** Placeholder rows under the real header while the first page loads; the table is marked busy. */
-export function QueueTableSkeleton() {
+function QueueTableSkeleton() {
   return (
     <Table caption={m.loadingCaption} aria-busy="true">
       <Header />

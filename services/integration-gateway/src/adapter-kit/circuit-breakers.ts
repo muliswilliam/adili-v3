@@ -4,10 +4,11 @@ import {
   type CircuitBreakerPolicy,
   CircuitState,
   ConsecutiveBreaker,
-  handleAll,
+  handleWhen,
 } from 'cockatiel';
 
 import type { System } from '../db/schema.js';
+import { RateLimitExhausted } from './rate-limiter.js';
 
 export const BREAKER_OPTIONS = Symbol('BREAKER_OPTIONS');
 
@@ -72,7 +73,9 @@ export class CircuitBreakers {
   private breaker(system: System): Breaker {
     let breaker = this.breakers.get(system);
     if (!breaker) {
-      const policy = circuitBreaker(handleAll, {
+      // Our own rate limit refusing a further call is no registry failure.
+      const notOurLimit = handleWhen((error) => !(error instanceof RateLimitExhausted));
+      const policy = circuitBreaker(notOurLimit, {
         halfOpenAfter: this.options.cooldownMs,
         breaker: new ConsecutiveBreaker(this.options.failureThreshold),
       });

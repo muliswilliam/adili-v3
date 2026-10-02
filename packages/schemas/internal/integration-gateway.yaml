@@ -100,7 +100,7 @@ paths:
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
-          required: false
+          required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
@@ -125,7 +125,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/KraResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
+          description: X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -149,7 +149,7 @@ paths:
       tags:
         - internal
       summary: Vehicles registered to a national ID
-      description: A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No vehicles is found with none. Requires a service token with scope `registry` acting for the Commission.
+      description: 'A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: NTSA lists no vehicles for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.'
       operationId: lookupNtsaVehicles
       parameters:
         - name: X-Acting-Tenant
@@ -172,7 +172,7 @@ paths:
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
-          required: false
+          required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
@@ -197,7 +197,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/NtsaResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
+          description: X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -221,7 +221,7 @@ paths:
       tags:
         - internal
       summary: Directorships and shareholdings of a national ID
-      description: A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No companies is found with none. Requires a service token with scope `registry` acting for the Commission.
+      description: 'A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: BRS lists no companies for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.'
       operationId: lookupBrsDirectorships
       parameters:
         - name: X-Acting-Tenant
@@ -244,7 +244,7 @@ paths:
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
-          required: false
+          required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
@@ -269,7 +269,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BrsResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
+          description: X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -293,7 +293,7 @@ paths:
       tags:
         - internal
       summary: Land parcels registered to a national ID
-      description: A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No parcels is found with none. Requires a service token with scope `registry` acting for the Commission.
+      description: 'A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: ArdhiSasa lists no parcels for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.'
       operationId: lookupArdhisasaParcels
       parameters:
         - name: X-Acting-Tenant
@@ -316,7 +316,7 @@ paths:
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
-          required: false
+          required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
@@ -341,7 +341,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ArdhisasaResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
+          description: X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -400,7 +400,7 @@ paths:
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
-          required: false
+          required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
@@ -419,7 +419,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupplierCheckResult'
         '400':
-          description: X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed
+          description: X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed
           content:
             application/problem+json:
               schema:
@@ -443,7 +443,7 @@ paths:
       tags:
         - internal
       summary: Configured calls per minute of every system with an adapter (services)
-      description: Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.
+      description: Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it; every call to the registry spends one, so a KRA lookup spends 1 + one per PIN.
       operationId: getRegistryRateLimits
       responses:
         '200':
@@ -465,7 +465,7 @@ paths:
       tags:
         - internal
       summary: A stored lookup result, decrypted for the services of its tenant (audited)
-      description: The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+      description: The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup) and whom the service read for (X-Acting-Subject). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
       operationId: getVerificationResult
       parameters:
         - name: X-Acting-Tenant
@@ -481,6 +481,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: X-Acting-Subject
+          in: header
+          description: The staff subject the service reads for (a reviewer opening the Registry tab), or the service's own system subject for workflow reads; recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6)
+          required: false
+          schema:
+            type: string
+            maxLength: 255
       responses:
         '200':
           description: The stored result

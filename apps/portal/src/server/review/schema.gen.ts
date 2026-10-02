@@ -867,7 +867,7 @@ export interface paths {
         };
         /**
          * Per-person, per-system registry status with records pulled from the gateway and paired with declared items
-         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. The records are read from the integration-gateway by result id for every call and never stored by review; the declaration is read from declarations, audited there as the caller's read for the case.
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. The records are read from the integration-gateway by result id for every call and never stored by review: its flags keep only the identifiers they are about (a parcel number, a vehicle registration, a company registration number), as spec 07b's evidence rule allows; the declaration is read from declarations, audited there as the caller's read for the case.
          */
         get: operations["getCaseRegistryChecks"];
         put?: never;
@@ -1045,7 +1045,7 @@ export interface components {
         /** @enum {string} */
         Severity: "info" | "low" | "medium" | "high";
         /** @enum {string} */
-        RuleId: "completeness-residual" | "no-previous-version" | "value-change-25" | "acquisition-unflagged" | "disposal-unflagged" | "change-flag-mismatch" | "income-vs-asset-growth" | "nil-after-populated" | "late-filing" | "foreign-holdings" | "joint-share-inconsistent" | "registry-parcel-undeclared" | "declared-parcel-not-found" | "registry-vehicle-undeclared" | "declared-vehicle-not-found" | "registry-directorship-undeclared" | "declared-company-not-found" | "directorship-employer-supplier" | "kra-pin-missing" | "kra-non-compliant" | "kra-income-mismatch";
+        RuleId: "completeness-residual" | "no-previous-version" | "value-change-25" | "acquisition-unflagged" | "disposal-unflagged" | "change-flag-mismatch" | "income-vs-asset-growth" | "nil-after-populated" | "late-filing" | "foreign-holdings" | "joint-share-inconsistent" | "registry-parcel-undeclared" | "declared-parcel-not-found" | "registry-vehicle-undeclared" | "declared-vehicle-not-found" | "registry-directorship-undeclared" | "declared-company-not-found" | "directorship-employer-supplier" | "kra-pin-missing" | "kra-non-compliant" | "kra-income-mismatch" | "registry-parcel-number-missing" | "registry-vehicle-registration-missing" | "registry-company-registration-missing" | "registry-supplier-check-not-run" | "registry-company-dissolved";
         /** @enum {string} */
         ClarificationStatus: "draft" | "issued" | "responded" | "resolved" | "overdue" | "withdrawn";
         /**

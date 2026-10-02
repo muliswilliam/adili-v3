@@ -92,6 +92,9 @@ export const verificationResults = pgTable(
     payloadEnvelope: jsonb().$type<FieldEnvelope>(),
     checkedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
+  // Spec 07b's data table names one index (system, subject_hash, created_at): the subject hash is
+  // keyed by system already (`SubjectHasher`), so (subject_hash, checked_at) finds a subject's
+  // lookups in one system as that would, and (system, checked_at) serves the coverage counts.
   (table) => [
     index('verification_results_system_checked_idx').on(table.system, table.checkedAt),
     index('verification_results_subject_idx').on(table.subjectHash, table.checkedAt),
@@ -102,6 +105,12 @@ export const verificationResults = pgTable(
  * What platform administrators set per system (spec 07b): whether it is paused, by whom and
  * since when. The record of a pause; lookups read the pause flag in Valkey, which the service
  * restores from here on start. A system without a row was never paused.
+ *
+ * Spec 07b's data table also lists rate_limit_per_minute and cache_ttl_seconds here. They are
+ * configuration instead (`<SYSTEM>_RATE_LIMIT_PER_MINUTE`, `<SYSTEM>_CACHE_TTL_SECONDS`, see
+ * config.ts): user story 17 asks for them "as configuration" and the Integrations page says
+ * "Rate limits and cache lifetimes are configuration; contact the platform team to change them",
+ * so nobody sets them here, and one source keeps every instance's policy the same.
  */
 export const integrationSettings = pgTable('integration_settings', {
   system: text({ enum: SYSTEMS }).primaryKey(),

@@ -23,17 +23,28 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type PurposeRequest = AuthenticatedRequest & { lookupPurpose?: LookupPurpose };
 
+export interface LookupPurposeOptions {
+  /** The lookup is for a case: `X-Case-Ref` is required (spec 07b's registry lookups). */
+  caseRef?: 'required';
+}
+
 /**
  * Reads why a lookup is made from `X-Legal-Basis` (required, one of `LEGAL_BASES`) and
- * `X-Case-Ref` (optional), and whom it is about from `X-Subject-Person` (optional). Malformed
- * headers are a 400 problem naming the header.
+ * `X-Case-Ref` (optional unless `caseRef: 'required'`), and whom it is about from
+ * `X-Subject-Person` (optional). Missing or malformed headers are a 400 problem naming the header.
  */
-export function parseLookupPurpose(headers: PurposeRequest['headers']): LookupPurpose {
+export function parseLookupPurpose(
+  headers: PurposeRequest['headers'],
+  options: LookupPurposeOptions = {},
+): LookupPurpose {
   const legalBasis = single(headers[LEGAL_BASIS_HEADER]);
   if (!legalBasis || !(LEGAL_BASES as readonly string[]).includes(legalBasis)) {
     throw invalid('X-Legal-Basis', `Must name the legal basis: one of ${LEGAL_BASES.join(', ')}`);
   }
   const caseRef = single(headers[CASE_REF_HEADER]);
+  if (caseRef === undefined && options.caseRef === 'required') {
+    throw invalid('X-Case-Ref', 'Must name the case the lookup is for');
+  }
   if (caseRef !== undefined && !CASE_REF.test(caseRef)) {
     throw invalid('X-Case-Ref', 'Must be an id or reference of at most 100 characters');
   }
@@ -50,25 +61,33 @@ export function parseLookupPurpose(headers: PurposeRequest['headers']): LookupPu
 
 @Injectable()
 class LookupPurposeGuard implements CanActivate {
+  protected readonly options: LookupPurposeOptions = {};
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<PurposeRequest>();
-    request.lookupPurpose = parseLookupPurpose(request.headers);
+    request.lookupPurpose = parseLookupPurpose(request.headers, this.options);
     return true;
   }
 }
 
+@Injectable()
+class CaseLookupPurposeGuard extends LookupPurposeGuard {
+  protected override readonly options: LookupPurposeOptions = { caseRef: 'required' };
+}
+
 /**
  * Requires a lookup route's caller to declare why it looks (ADR-008: legal basis on every
- * lookup), which `@Purpose()` reads. Documents the headers and the 400.
+ * lookup), which `@Purpose()` reads, and with `caseRef: 'required'` the case it looks for.
+ * Documents the headers and the 400.
  *
  * @example
- * @Get('owners/:nationalId/vehicles')
- * @LookupPurposeHeaders()
+ * @Post('ntsa/vehicle-lookups')
+ * @LookupPurposeHeaders({ caseRef: 'required' })
  * vehicles(@Purpose() purpose: LookupPurpose) {}
  */
-export const LookupPurposeHeaders = () =>
+export const LookupPurposeHeaders = (options: LookupPurposeOptions = {}) =>
   applyDecorators(
-    UseGuards(LookupPurposeGuard),
+    UseGuards(options.caseRef === 'required' ? CaseLookupPurposeGuard : LookupPurposeGuard),
     ApiHeader({
       name: 'X-Legal-Basis',
       required: true,
@@ -78,7 +97,7 @@ export const LookupPurposeHeaders = () =>
     }),
     ApiHeader({
       name: 'X-Case-Ref',
-      required: false,
+      required: options.caseRef === 'required',
       description: 'Review case the lookup is for; recorded on the result and the audit event',
       schema: { type: 'string', pattern: CASE_REF.source },
     }),
@@ -91,7 +110,9 @@ export const LookupPurposeHeaders = () =>
     }),
     ApiProblemResponse(
       HttpStatus.BAD_REQUEST,
-      'X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed',
+      options.caseRef === 'required'
+        ? 'X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed'
+        : 'X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed',
     ),
   );
 

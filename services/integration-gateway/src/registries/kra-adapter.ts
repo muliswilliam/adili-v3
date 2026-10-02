@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import type { RegistryAdapter } from '../adapter-kit/registry-adapter.js';
+import type { RegistryAdapter, UpstreamCalls } from '../adapter-kit/registry-adapter.js';
 import { getFromRegistry, segment } from './registry-http.js';
 import {
   kraComplianceSchema,
@@ -21,7 +21,8 @@ const NO_COMPLIANCE: KraTaxpayers['taxpayers'][number]['compliance'] = {
 /**
  * KRA (external/kra.yaml): the PINs of a national ID (`findTaxpayersByIdNumber`), then each
  * PIN's compliance and declared annual income (`getTaxCompliance`), all within the one timeout
- * the kit gives the lookup. No PIN is not found.
+ * the kit gives the lookup. Each compliance call takes a rate-limit slot of its own, so a lookup
+ * spends 1 + one per PIN of KRA's limit. No PIN is not found.
  */
 @Injectable()
 export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
@@ -31,7 +32,11 @@ export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
 
   constructor(@Inject(REGISTRY_URLS) private readonly urls: RegistryUrls) {}
 
-  async fetch(nationalId: string, signal: AbortSignal): Promise<KraTaxpayers | null> {
+  async fetch(
+    nationalId: string,
+    signal: AbortSignal,
+    calls: UpstreamCalls,
+  ): Promise<KraTaxpayers | null> {
     const base = `${this.urls.kra}/v1/pins`;
     const pins = await getFromRegistry(
       'KRA',
@@ -42,6 +47,7 @@ export class KraAdapter implements RegistryAdapter<KraTaxpayers> {
     if (!pins || pins.length === 0) return null;
     const taxpayers = await Promise.all(
       pins.map(async ({ pin, registered_on }) => {
+        await calls.another();
         const compliance = await getFromRegistry(
           'KRA',
           `${base}/${segment(pin)}/compliance`,

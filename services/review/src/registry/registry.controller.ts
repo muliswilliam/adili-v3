@@ -11,7 +11,9 @@ import {
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   type Principal,
+  type ReadAudit,
   schemaRef,
 } from '@adili/api-kit';
 
@@ -36,7 +38,7 @@ export class RegistryController {
     summary:
       'Per-person, per-system registry status with records pulled from the gateway and paired with declared items',
     description:
-      "Reviewers and supervisors of the case's Commission; anyone else gets 404. The records are read from the integration-gateway by result id for every call and never stored by review; the declaration is read from declarations, audited there as the caller's read for the case.",
+      "Reviewers and supervisors of the case's Commission; anyone else gets 404. The records are read from the integration-gateway by result id for every call and never stored by review: its flags keep only the identifiers they are about (a parcel number, a vehicle registration, a company registration number), as spec 07b's evidence rule allows; the declaration is read from declarations, audited there as the caller's read for the case.",
   })
   @ApiOkResponse({ description: 'Registry view', schema: schemaRef('RegistryView') })
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')
@@ -44,8 +46,9 @@ export class RegistryController {
   view(
     @CurrentPrincipal() principal: Principal,
     @Param('caseId') caseId: string,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<RegistryView> {
-    return this.registry.view(principal, caseId);
+    return this.registry.view(principal, caseId, audit);
   }
 
   @Get('registry/status')

@@ -17,6 +17,7 @@ import {
 } from '../../../server/review-case';
 import type { CaseLoad, CaseRegistryView } from '../../../server/review-case.server';
 import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../../server/service-call';
+import { goToSignIn } from '../../sign-in-redirect';
 import { failureText } from '../assignment';
 
 /**
@@ -101,6 +102,10 @@ export function useCaseRegistry({
     requested.current = true;
     const result = await readRegistry();
     if (!isMounted()) return;
+    if (!result.ok && result.error.kind === 'unauthenticated') {
+      goToSignIn();
+      return;
+    }
     setRegistry(result.ok ? { view: result.data, failed: false } : { view: null, failed: true });
   }
 
@@ -123,6 +128,11 @@ export function useCaseRegistry({
         () => SERVICE_UNAVAILABLE,
       );
       if (!isMounted()) return;
+      // The session ended: polling on would only fail; sign in again, back to this case.
+      if (!status.ok && status.error.kind === 'unauthenticated') {
+        goToSignIn();
+        return;
+      }
       if (status.ok && recheckLanded(before, status.data.checkedAt)) {
         await loadRegistry();
         if (!isMounted()) return;

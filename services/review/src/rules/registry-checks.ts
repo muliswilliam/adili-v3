@@ -2,7 +2,7 @@ import type { AssetItem, DeclarationV1, Statement } from '@adili/forms';
 
 import { normalise, statementSectionKey } from './match.js';
 import type { RuleId, Severity } from './registry.js';
-import { type Evidence, flag, type Flag, type ItemRef, ref } from './rules.js';
+import { flag, type Flag, type ItemRef, ref } from './rules.js';
 
 /*
  * The matching module's own inputs: what it reads of a registry's answer. The integration-gateway's
@@ -114,9 +114,10 @@ export interface RegistryMatchInput {
   results: Readonly<Record<string, PersonRegistryResults | undefined>>;
   /**
    * Whether each of the officer's BRS companies supplies the officer's employer, by company
-   * registration number. A company left out was not checked (no employer code, say).
+   * registration number. A company left out was not checked. Null when the officer has no
+   * employer code to check against: an `info` flag says the supplier check could not run.
    */
-  suppliers?: Readonly<Record<string, SupplierCheckResult | Unavailable>>;
+  suppliers?: Readonly<Record<string, SupplierCheckResult | Unavailable>> | null;
 }
 
 /** One person's status in one registry, as stored on the case (`registry_checks`). */
@@ -130,26 +131,15 @@ export interface RegistryCheck {
   resultId: string | null;
 }
 
-/** Why a declared item could not be compared: the spec's `info` notes, which carry no rule. */
-export type RegistryNoteKind =
-  | 'parcel-number-missing'
-  | 'vehicle-registration-missing'
-  | 'company-registration-missing'
-  | 'company-dissolved';
-
-export interface RegistryNote {
-  kind: RegistryNoteKind;
-  system: RegistrySystem;
-  evidence: Evidence;
-  itemRefs: ItemRef[];
-}
-
 export interface RegistryMatch {
-  /** Registry flags, in the same shape and score as the deterministic rules' flags. */
+  /**
+   * Registry flags, in the same shape and score as the deterministic rules' flags. The spec's
+   * `info` notes (a declared item that could not be compared, a declared company dissolved) are
+   * `info` flags: they show beside the others and weigh nothing in the score.
+   */
   flags: Flag[];
   /** A status per person (statement order) and system (`REGISTRY_SYSTEMS` order). */
   checks: RegistryCheck[];
-  notes: RegistryNote[];
 }
 
 /** The national ID of each statement's person: the officer's from the directory, others' as declared. */
@@ -177,7 +167,7 @@ export function householdIds(
  * made before and passed in. Evidence holds identifiers, counts, percentages and statuses only.
  */
 export function matchRegistries(input: RegistryMatchInput): RegistryMatch {
-  const match: RegistryMatch = { flags: [], checks: [], notes: [] };
+  const match: RegistryMatch = { flags: [], checks: [] };
   for (const statement of input.document.statements) {
     const { personKey } = statement;
     const results = input.householdIds[personKey] ? (input.results[personKey] ?? {}) : null;
@@ -198,14 +188,15 @@ export function matchRegistries(input: RegistryMatchInput): RegistryMatch {
           : system === 'ntsa'
             ? vehicles(person, result as NtsaResult)
             : system === 'brs'
-              ? companies(person, result as BrsResult, input.suppliers ?? {})
+              ? companies(person, result as BrsResult, input.suppliers)
               : parcels(person, result as ArdhisasaResult);
       match.flags.push(...found.flags);
-      match.notes.push(...found.notes);
+      // An info flag is a note on what could not be compared, not a mismatch.
+      const mismatched = found.flags.some((flag) => flag.severity !== 'info');
       match.checks.push(
         found.unavailable
           ? check(personKey, system, 'unavailable', { ...result, reason: found.unavailable })
-          : check(personKey, system, found.flags.length > 0 ? 'mismatched' : 'matched', result),
+          : check(personKey, system, mismatched ? 'mismatched' : 'matched', result),
       );
     }
   }
@@ -219,7 +210,6 @@ interface Person {
 
 interface SystemMatch {
   flags: Flag[];
-  notes: RegistryNote[];
   /** Set when part of the check had no answer, though the main lookup did. */
   unavailable?: string;
 }
@@ -246,7 +236,12 @@ export function sameIdentifier(a: string, b: string): boolean {
 
 const identifierKey = (value: string) => value.toUpperCase().replace(/[\s/.,-]+/gu, '');
 
-/** Land and buildings by parcel number; land declared without one cannot be compared. */
+/**
+ * Registry parcels against declared land and buildings by parcel number. Only land is "not found"
+ * (spec 07b): a building can stand on a parcel in another's name (family land, a lease, a
+ * sectional title), so its parcel missing from the person's list is no indicator. Land declared
+ * without a parcel number cannot be compared.
+ */
 function parcels({ statement }: Person, result: ArdhisasaResult): SystemMatch {
   return byIdentifier(statement, {
     system: 'ardhisasa',
@@ -255,8 +250,8 @@ function parcels({ statement }: Person, result: ArdhisasaResult): SystemMatch {
     registry: result.parcels.map((parcel) => parcel.parcelNumber),
     evidenceKey: 'parcelNumber',
     undeclared: ['registry-parcel-undeclared', 'high'],
-    notFound: ['declared-parcel-not-found', 'medium'],
-    missing: { kind: 'parcel-number-missing', types: ['land'] },
+    notFound: ['declared-parcel-not-found', 'medium', ['land']],
+    missing: { ruleId: 'registry-parcel-number-missing', types: ['land'] },
   });
 }
 
@@ -269,8 +264,8 @@ function vehicles({ statement }: Person, result: NtsaResult): SystemMatch {
     registry: result.vehicles.map((vehicle) => vehicle.registrationNumber),
     evidenceKey: 'registrationNumber',
     undeclared: ['registry-vehicle-undeclared', 'medium'],
-    notFound: ['declared-vehicle-not-found', 'low'],
-    missing: { kind: 'vehicle-registration-missing', types: ['vehicle'] },
+    notFound: ['declared-vehicle-not-found', 'low', ['vehicle']],
+    missing: { ruleId: 'registry-vehicle-registration-missing', types: ['vehicle'] },
   });
 }
 
@@ -281,8 +276,10 @@ interface IdentifierRule {
   registry: string[];
   evidenceKey: string;
   undeclared: [RuleId, Severity];
-  notFound: [RuleId, Severity];
-  missing: { kind: RegistryNoteKind; types: AssetItem['type'][] };
+  /** The rule and severity for a declared identifier the registry does not hold, of these types. */
+  notFound: [RuleId, Severity, AssetItem['type'][]];
+  /** Items of these types declared without an identifier get this `info` flag. */
+  missing: { ruleId: RuleId; types: AssetItem['type'][] };
 }
 
 function byIdentifier(statement: Statement, rule: IdentifierRule): SystemMatch {
@@ -293,6 +290,7 @@ function byIdentifier(statement: Statement, rule: IdentifierRule): SystemMatch {
     return identifier ? [{ item, identifier }] : [];
   });
   const registry = uniqueBy(rule.registry, identifierKey);
+  const [notFoundRule, notFoundSeverity, notFoundTypes] = rule.notFound;
   const isDeclared = (id: string) => identified.some((d) => sameIdentifier(d.identifier, id));
   const inRegistry = (id: string) => registry.some((r) => sameIdentifier(r, id));
   return {
@@ -303,19 +301,18 @@ function byIdentifier(statement: Statement, rule: IdentifierRule): SystemMatch {
           flag(...rule.undeclared, { [rule.evidenceKey]: id }, [statementRef(personKey)]),
         ),
       ...identified
-        .filter(({ identifier }) => !inRegistry(identifier))
+        .filter(
+          ({ item, identifier }) => notFoundTypes.includes(item.type) && !inRegistry(identifier),
+        )
         .map(({ item, identifier }) =>
-          flag(...rule.notFound, { [rule.evidenceKey]: identifier }, [ref({ personKey, item })]),
+          flag(notFoundRule, notFoundSeverity, { [rule.evidenceKey]: identifier }, [
+            ref({ personKey, item }),
+          ]),
         ),
+      ...declared
+        .filter((item) => rule.missing.types.includes(item.type) && !rule.identifier(item)?.trim())
+        .map((item) => flag(rule.missing.ruleId, 'info', {}, [ref({ personKey, item })])),
     ],
-    notes: declared
-      .filter((item) => rule.missing.types.includes(item.type) && !rule.identifier(item)?.trim())
-      .map((item) => ({
-        kind: rule.missing.kind,
-        system: rule.system,
-        evidence: {},
-        itemRefs: [ref({ personKey, item })],
-      })),
   };
 }
 
@@ -359,7 +356,7 @@ function declaredCompanies({ statement, document }: Person): DeclaredCompany[] {
 function companies(
   person: Person,
   result: BrsResult,
-  suppliers: NonNullable<RegistryMatchInput['suppliers']>,
+  suppliers: RegistryMatchInput['suppliers'] = {},
 ): SystemMatch {
   const { personKey } = person.statement;
   const declared = declaredCompanies(person);
@@ -370,7 +367,6 @@ function companies(
     declared.filter((company) => refersTo(company, record));
 
   const flags: Flag[] = [];
-  const notes: RegistryNote[] = [];
   for (const record of registry) {
     const evidence = {
       companyRegistrationNumber: record.companyRegistrationNumber,
@@ -381,12 +377,14 @@ function companies(
         flag('registry-directorship-undeclared', 'medium', evidence, [statementRef(personKey)]),
       );
     } else if (record.companyStatus === 'dissolved') {
-      notes.push({
-        kind: 'company-dissolved',
-        system: 'brs',
-        evidence: { companyRegistrationNumber: record.companyRegistrationNumber },
-        itemRefs: unique(declaring(record).map((c) => c.itemRef)),
-      });
+      flags.push(
+        flag(
+          'registry-company-dissolved',
+          'info',
+          { companyRegistrationNumber: record.companyRegistrationNumber },
+          unique(declaring(record).map((c) => c.itemRef)),
+        ),
+      );
     }
   }
   for (const company of declared) {
@@ -404,18 +402,20 @@ function companies(
         ]),
       );
     }
-    if (numbers.length === 0 && known.length === 0) {
-      notes.push({
-        kind: 'company-registration-missing',
-        system: 'brs',
-        evidence: {},
-        itemRefs: [company.itemRef],
-      });
+    // Listed securities are not on BRS, so not comparing them is no gap.
+    if (company.checkable && numbers.length === 0 && known.length === 0) {
+      flags.push(flag('registry-company-registration-missing', 'info', {}, [company.itemRef]));
     }
   }
 
   let unavailable: string | undefined;
-  if (personKey === 'officer') {
+  if (personKey === 'officer' && suppliers === null && registry.length > 0) {
+    flags.push(
+      flag('registry-supplier-check-not-run', 'info', { companies: registry.length }, [
+        statementRef(personKey),
+      ]),
+    );
+  } else if (personKey === 'officer' && suppliers !== null) {
     for (const record of registry) {
       const supplier = Object.entries(suppliers).find(([number]) =>
         sameIdentifier(number, record.companyRegistrationNumber),
@@ -438,7 +438,7 @@ function companies(
       );
     }
   }
-  return { flags, notes, ...(unavailable ? { unavailable } : {}) };
+  return { flags, ...(unavailable ? { unavailable } : {}) };
 }
 
 type Directorship = BrsDirectorship;
@@ -490,7 +490,6 @@ function kra({ statement }: Person, result: KraResult): SystemMatch {
     const expected = personKey === 'officer' || statement.income.length > 0;
     return {
       flags: expected ? [flag('kra-pin-missing', 'medium', { pinPresent: false }, refs)] : [],
-      notes: [],
     };
   }
   const flags: Flag[] = [];
@@ -506,7 +505,7 @@ function kra({ statement }: Person, result: KraResult): SystemMatch {
   }
   const mismatch = incomeMismatch(statement, taxpayers);
   if (mismatch) flags.push(mismatch);
-  return { flags, notes: [] };
+  return { flags };
 }
 
 /** The length of an income period in years, by calendar months: 1 Nov 2025 to 1 Nov 2027 is 2. */
@@ -566,6 +565,11 @@ export const REGISTRY_RULE_SYSTEMS = {
   'kra-pin-missing': 'kra',
   'kra-non-compliant': 'kra',
   'kra-income-mismatch': 'kra',
+  'registry-parcel-number-missing': 'ardhisasa',
+  'registry-vehicle-registration-missing': 'ntsa',
+  'registry-company-registration-missing': 'brs',
+  'registry-company-dissolved': 'brs',
+  'registry-supplier-check-not-run': 'brs',
 } as const satisfies Partial<Record<RuleId, RegistrySystem>>;
 
 export type RegistryRuleId = keyof typeof REGISTRY_RULE_SYSTEMS;

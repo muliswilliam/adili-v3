@@ -15,12 +15,13 @@ import { VerificationResults } from '../verification/verification-results.js';
 import { type Answer, AnswerCache } from './answer-cache.js';
 import { CircuitBreakers } from './circuit-breakers.js';
 import { PauseFlags } from './pause-flags.js';
-import { RateLimiter } from './rate-limiter.js';
+import { RateLimiter, RateLimitExhausted } from './rate-limiter.js';
 import type {
   KeyedRegistryAdapter,
   LookupContext,
   LookupResult,
   RegistryAdapter,
+  UpstreamCalls,
 } from './registry-adapter.js';
 import { policyOf, SYSTEM_POLICIES, type SystemPolicies } from './system-policies.js';
 import { UpstreamError } from './upstream-error.js';
@@ -34,7 +35,9 @@ type Resolved<T> =
 /**
  * The adapter kit: every registry lookup goes through `lookup`, whatever the registry. In order:
  * the 24-hour cache of answers (found and not found), the pause flag, the system's rate limit,
- * then the adapter's call, timed out and behind the system's circuit breaker. Every lookup,
+ * then the adapter's call, timed out and behind the system's circuit breaker. Every call to the
+ * registry takes a rate-limit slot: the kit the first, the adapter each further one (KRA's
+ * compliance per PIN). Every lookup,
  * answered or not, leaves a verification-results row and a `registry.lookup.performed.v1`.
  */
 @Injectable()
@@ -112,12 +115,19 @@ export class RegistryLookups {
       return this.unavailable(adapter, subjectHash, 'rate-limited');
     }
 
+    const calls: UpstreamCalls = {
+      another: async () => {
+        if (!(await this.rateLimiter.acquire(system, policy))) {
+          throw new RateLimitExhausted(`No ${system} rate-limit slot within the max wait`);
+        }
+      },
+    };
     let answer: Answer<T>;
     try {
       const deadline = timeout(policy.timeoutMs, TimeoutStrategy.Aggressive);
       const data = await this.breakers
         .of(system)
-        .execute(() => deadline.execute(({ signal }) => adapter.fetch(subject, signal)));
+        .execute(() => deadline.execute(({ signal }) => adapter.fetch(subject, signal, calls)));
       answer = data === null ? { found: false } : { found: true, data };
     } catch (error) {
       return this.unavailable(adapter, subjectHash, unavailableReason(error));
@@ -185,6 +195,7 @@ function fromAnswer<T>(answer: Answer<T>, cached: boolean): Resolved<T> {
 
 function unavailableReason(error: unknown): UnavailableReason {
   if (error instanceof BrokenCircuitError) return 'breaker-open';
+  if (error instanceof RateLimitExhausted) return 'rate-limited';
   if (error instanceof TaskCancelledError) return 'timeout';
   if (error instanceof UpstreamError) return error.reason;
   throw error;

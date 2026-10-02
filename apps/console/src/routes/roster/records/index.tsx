@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 
 import { ReadOnlyBadge } from '../../../components/commissions/badges';
 import { Page, PageHead } from '../../../components/page';
-import { useReloadingInPlace } from '../../../components/reload-in-place';
+import { type LoadedFor, useReloadingInPlace } from '../../../components/reload-in-place';
 import { messages as m } from '../../../components/roster/messages';
 import { RecordsList, RecordsSubtitle } from '../../../components/roster/records-list';
 import {
@@ -20,7 +20,7 @@ import { SERVICE_UNAVAILABLE } from '../../../server/service-call';
 
 const PATH = '/roster/records';
 
-interface RecordsData {
+interface RecordsData extends LoadedFor {
   records: DirectoryResult<RosterRecordPage>;
 }
 
@@ -33,14 +33,14 @@ export const Route = createFileRoute('/roster/records/')({
     if (!context.workspace) return null;
     // Roster screens are about the viewer's own Commission, the tenant of their session.
     const slug = context.tenant;
-    if (!slug) return { records: SERVICE_UNAVAILABLE };
+    if (!slug) return { records: SERVICE_UNAVAILABLE, loadedFor: location.searchStr };
     const records = await listRosterRecords({
       data: { slug, ...recordsSearchSchema.parse(location.search), limit: RECORDS_PAGE_SIZE },
     });
     if (!records.ok && records.error.kind === 'unauthenticated') {
       throw signInRedirect(location.href);
     }
-    return { records };
+    return { records, loadedFor: location.searchStr };
   },
   head: () => ({ meta: [{ title: `${m.recordsTitle} · Adili Online Console` }] }),
   pendingComponent: RecordsLoading,
@@ -64,7 +64,7 @@ function RecordsPage({ data }: { data: RecordsData | null }) {
   const { workspace, tenant } = Route.useRouteContext();
   const navigate = useNavigate({ from: `${PATH}/` });
   const readOnly = workspace?.readOnly ?? true;
-  const loading = useReloadingInPlace();
+  const loading = useReloadingInPlace(data);
   const commission = useRosterCommission();
   const roster = commission?.ok ? commission.data.roster : null;
 

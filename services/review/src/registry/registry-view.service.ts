@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type Principal } from '@adili/api-kit';
+import { type Principal, type ReadAudit } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import type { DeclarationV1, PersonName } from '@adili/forms';
 import { and, asc, eq, inArray } from 'drizzle-orm';
@@ -45,7 +45,8 @@ type CheckRow = typeof registryChecks.$inferSelect;
  * The Registry tab of a case (spec 07b, S12): per person of the declaration and registry, the
  * status of the latest check, the registry's records pulled from the integration-gateway by
  * result id (decrypted there, one hop) beside the declared items they matched or did not, and the
- * registry flags. The records are read for each view and never stored in the review database;
+ * registry flags. The records are read for each view and never stored in the review database
+ * (flags keep only the identifiers they are about: a parcel number, a registration);
  * the declaration is pulled from declarations, which audits the read with the viewer and case.
  */
 @Injectable()
@@ -68,7 +69,12 @@ export class RegistryViewService {
     return { checkedAt: latestCheck(checks) };
   }
 
-  async view(principal: Principal, caseId: string): Promise<RegistryView> {
+  /**
+   * The Registry tab. `audit` is told the case's declarant, so the read is audited as a read of
+   * their data (ADR-008 "who accessed my data"); the gateway's reads of the records name the
+   * viewer as the subject they are made for (ADR-013 §8.6).
+   */
+  async view(principal: Principal, caseId: string, audit: ReadAudit): Promise<RegistryView> {
     const tenant = caseTenant(principal);
     const { row, checks, flags, names } = await withTenant(
       this.db,
@@ -90,9 +96,10 @@ export class RegistryViewService {
         return { row: found, checks: checkRows, flags: flagRows, names: assignments };
       },
     );
+    audit.resource({ tenant, subjectPersonId: row.personId });
 
     const document = await this.pull(principal, row);
-    const records = await this.records(tenant, checks);
+    const records = await this.records(tenant, principal.subject, checks);
 
     const nameOf = new Map(
       names.flatMap(({ subject, name }) => (subject ? [[subject, name]] : [])),
@@ -166,6 +173,7 @@ export class RegistryViewService {
    */
   private async records(
     tenant: string,
+    viewer: string,
     checks: CheckRow[],
   ): Promise<Map<string, RegistryRecords[keyof RegistryRecords]>> {
     const answered = checks.filter(
@@ -178,7 +186,7 @@ export class RegistryViewService {
         () =>
           Promise.all(
             answered.map(async (check) => {
-              const stored = await this.gateway.getStoredResult(check.resultId, tenant);
+              const stored = await this.gateway.getStoredResult(check.resultId, tenant, viewer);
               const parsed =
                 stored?.outcome === 'found'
                   ? REGISTRY_RECORDS[check.system].safeParse(stored.payload)

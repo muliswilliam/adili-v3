@@ -35,7 +35,7 @@ export class RegistryRateLimitsController {
   @ApiOperation({
     operationId: 'getRegistryRateLimits',
     summary: 'Configured calls per minute of every system with an adapter (services)',
-    description: `Service tokens with scope \`${REGISTRY_SCOPE}\`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.`,
+    description: `Service tokens with scope \`${REGISTRY_SCOPE}\`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it; every call to the registry spends one, so a KRA lookup spends 1 + one per PIN.`,
   })
   @ApiOkResponse({ description: 'Rate limits per system', schema: schemaRef('RegistryRateLimits') })
   read(): RegistryRateLimits {

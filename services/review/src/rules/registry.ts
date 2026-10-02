@@ -113,6 +113,32 @@ export const RULES = {
     indicator:
       'The annual income declared to KRA differs by at least a quarter from the income declared here for the same period. Exempt income or different periods can explain this.',
   },
+  // What a registry check could not compare (spec 07b `info` notes): no score, no mismatch.
+  'registry-parcel-number-missing': {
+    title: 'Land declared without a parcel number',
+    indicator:
+      'This land carries no parcel number, so it could not be compared with the parcels ArdhiSasa lists for this person.',
+  },
+  'registry-vehicle-registration-missing': {
+    title: 'Vehicle declared without a registration',
+    indicator:
+      'This vehicle carries no registration, so it could not be compared with the vehicles NTSA lists for this person.',
+  },
+  'registry-company-registration-missing': {
+    title: 'Company declared without a registration number',
+    indicator:
+      'This company carries no registration number and its name is not one BRS lists for this person, so it could not be compared.',
+  },
+  'registry-supplier-check-not-run': {
+    title: "Companies not compared with the employer's suppliers",
+    indicator:
+      "The declarant's roster record names no employer, so the companies BRS lists for them could not be compared with an employer's supplier list.",
+  },
+  'registry-company-dissolved': {
+    title: 'Declared company dissolved at BRS',
+    indicator:
+      'BRS lists this declared company as dissolved. A holding declared before the dissolution was registered can explain this.',
+  },
 } as const satisfies Record<string, { title: string; indicator: string }>;
 
 export type RuleId = keyof typeof RULES;

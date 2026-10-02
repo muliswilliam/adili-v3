@@ -475,14 +475,15 @@ describe('registry re-checks and the sweep', () => {
           .where(eq(reviewCases.id, determined.caseId));
       });
 
-      // KRA at one call a minute: the sweep takes half, and each case re-checks four people's KRA.
+      // KRA at one call a minute: the sweep takes half, and each case re-checks four people's KRA,
+      // two calls each (M4: the PINs, then the compliance).
       api.gateway.givenRateLimits({ kra: 1 });
 
       const plan = await registry.planRegistrySweep();
 
       expect(plan).toEqual([
         { request: older, startAfterMs: 0 },
-        { request: newer, startAfterMs: 8 * 60_000 },
+        { request: newer, startAfterMs: 16 * 60_000 },
       ]);
       expect(plan.map((c) => c.request.caseId)).not.toContain(answered.caseId);
     });

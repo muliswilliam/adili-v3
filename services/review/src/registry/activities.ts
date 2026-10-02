@@ -60,6 +60,12 @@ import { planSweep, type SweepCandidate } from './sweep-plan.js';
 /** Cases one sweep run considers at most, oldest check first; the plan takes what fits. */
 const SWEEP_CANDIDATES = 1_000;
 
+/**
+ * Calls a lookup makes to its registry, as the gateway's rate limits count them, where more than
+ * one: KRA's PINs, then each PIN's compliance (one PIN, usually).
+ */
+const CALLS_PER_LOOKUP: Readonly<Record<string, number>> = { kra: 2 };
+
 /** The reason a BRS status is unavailable when only the supplier check (`hr-suppliers`) is. */
 const SUPPLIER_CHECK_UNAVAILABLE = 'supplier-check-unavailable';
 
@@ -96,7 +102,7 @@ export class RegistryCheckActivities {
    */
   async lookupRegistries({ check, previous }: LookupRequest): Promise<RegistryLookups | null> {
     // A new check takes its number on the case; a further attempt keeps the check's.
-    const found = previous ? await caseAt(this.db, check) : await startCheck(this.db, check);
+    const found = await caseAt(this.db, check, { start: previous === null });
     if (found === null) return null;
     const sequence = previous?.sequence ?? found.sequence;
     const { roster, ids } = await household(this.declarations, this.directory, check);
@@ -106,10 +112,12 @@ export class RegistryCheckActivities {
       caseRef: check.caseId,
       subjectPersonId: found.personId,
     };
+    const employerCode = roster?.employerCode ?? null;
     const lookups: RegistryLookups = {
       sequence,
       persons: {},
       suppliers: { ...previous?.suppliers },
+      ...(employerCode === null ? { noEmployer: true } : {}),
     };
     let officerCompanies: string[] | undefined;
 
@@ -132,7 +140,6 @@ export class RegistryCheckActivities {
       }
     }
 
-    const employerCode = roster?.employerCode ?? null;
     if (employerCode !== null) {
       // Companies BRS named now are checked; those of an earlier attempt are known by number.
       const companies = officerCompanies ?? Object.keys(lookups.suppliers);
@@ -177,7 +184,13 @@ export class RegistryCheckActivities {
         : unavailable(supplier.reason, supplier.resultId);
     }
 
-    const match = matchRegistries({ document, householdIds: ids, results, suppliers });
+    const match = matchRegistries({
+      document,
+      householdIds: ids,
+      results,
+      // No employer to check the officer's companies against: the match says so.
+      suppliers: lookups.noEmployer ? null : suppliers,
+    });
     return storeRegistryCheck(this.db, this.events, check, match, lookups.sequence);
   }
 
@@ -224,12 +237,12 @@ export class RegistryCheckActivities {
                 ),
               );
       return cases.map((request): SweepCandidate => {
-        const lookups: Record<string, number> = {};
+        const calls: Record<string, number> = {};
         for (const row of unavailable.filter((entry) => entry.caseId === request.caseId)) {
           const system = row.reason === SUPPLIER_CHECK_UNAVAILABLE ? 'hr-suppliers' : row.system;
-          lookups[system] = (lookups[system] ?? 0) + 1;
+          calls[system] = (calls[system] ?? 0) + (CALLS_PER_LOOKUP[system] ?? 1);
         }
-        return { request, lookups };
+        return { request, calls };
       });
     });
     return planSweep(candidates, limits);
@@ -289,7 +302,7 @@ async function recordsOf(
 
   let stored;
   try {
-    stored = await gateway.getStoredResult(lookup.resultId, tenant);
+    stored = await gateway.getStoredResult(lookup.resultId, tenant, SYSTEM_SUBJECT);
   } catch (error) {
     if (error instanceof InternalApiRejected) {
       logger.error(
@@ -305,39 +318,29 @@ async function recordsOf(
 }
 
 /**
- * The case's declarant and last check number, if the case still exists and is at the version
- * being checked.
+ * The case's declarant and check number, if the case still exists and is at the version being
+ * checked: the last number handed out, or with `start` the next one, handed out now.
  */
 async function caseAt(
   db: Database<ReviewSchema>,
   check: RegistryCheckRequest,
+  { start = false } = {},
 ): Promise<{ personId: string; sequence: number } | null> {
+  const atVersion = and(
+    eq(reviewCases.id, check.caseId),
+    eq(reviewCases.currentVersionId, check.versionId),
+  );
+  const fields = { personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence };
   const [found] = await withTenant(db, systemContext(check.tenant), (tx) =>
-    tx
-      .select({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence })
-      .from(reviewCases)
-      .where(
-        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
-      ),
+    start
+      ? tx
+          .update(reviewCases)
+          .set({ registryCheckSequence: sql`${reviewCases.registryCheckSequence} + 1` })
+          .where(atVersion)
+          .returning(fields)
+      : tx.select(fields).from(reviewCases).where(atVersion),
   );
   return found ?? null;
-}
-
-/** As `caseAt`, handing out the next check number of the case. */
-async function startCheck(
-  db: Database<ReviewSchema>,
-  check: RegistryCheckRequest,
-): Promise<{ personId: string; sequence: number } | null> {
-  const [started] = await withTenant(db, systemContext(check.tenant), (tx) =>
-    tx
-      .update(reviewCases)
-      .set({ registryCheckSequence: sql`${reviewCases.registryCheckSequence} + 1` })
-      .where(
-        and(eq(reviewCases.id, check.caseId), eq(reviewCases.currentVersionId, check.versionId)),
-      )
-      .returning({ personId: reviewCases.personId, sequence: reviewCases.registryCheckSequence }),
-  );
-  return started ?? null;
 }
 
 /**

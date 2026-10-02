@@ -30,6 +30,8 @@ import {
   releaseCase,
 } from '../../../server/review-case';
 import type { CaseLoad } from '../../../server/review-case.server';
+import type * as SignInRedirect from '../../sign-in-redirect';
+import { goToSignIn } from '../../sign-in-redirect';
 import { CaseView } from './case-view';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -56,6 +58,11 @@ vi.mock('../../../server/review-case', () => ({
   reassignCase: vi.fn(),
   recheckCaseRegistries: vi.fn(),
   releaseCase: vi.fn(),
+}));
+
+vi.mock('../../sign-in-redirect', async (importOriginal) => ({
+  ...(await importOriginal<typeof SignInRedirect>()),
+  goToSignIn: vi.fn(),
 }));
 
 const NOW = Date.parse('2026-10-02T09:00:00Z');
@@ -209,7 +216,9 @@ describe('CaseView', () => {
     const salary = document.querySelector<HTMLElement>(`[data-item-id="${SALARY}"]`);
     if (!salary) throw new Error('no salary item');
     fireEvent.click(
-      within(salary).getByRole('button', { name: '1 indicator on this item. Show in flags.' }),
+      within(salary).getByRole('button', {
+        name: '1 indicator on this item, highest medium. Show in flags.',
+      }),
     );
     expect(onTab).toHaveBeenCalledWith('flags');
     const card = screen.getByText('Value down 42% from the previous version').closest('li');
@@ -473,6 +482,33 @@ describe('CaseView: Registry tab', () => {
     // Polled the unaudited status; read the audited records once when the tab opened, once after.
     expect(getCaseRegistryStatus).toHaveBeenCalledTimes(2);
     expect(getCaseRegistry).toHaveBeenCalledTimes(2);
+  });
+
+  it('Q4: stops polling and signs in again when the session ends during a re-check', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(getCaseRegistry).mockResolvedValue(ok(registryView()));
+    vi.mocked(getCaseRegistryStatus).mockResolvedValue({
+      ok: false,
+      error: { kind: 'unauthenticated' },
+    });
+    vi.mocked(recheckCaseRegistries).mockResolvedValue({ ok: true });
+    render(view(held(), reviewer, 'registry'));
+    await screen.findByRole('list', { name: 'Registry checks for Wanjiku Njoki Kamau' });
+    fireEvent.click(screen.getByRole('button', { name: 'Re-check' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Re-check registries' });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Re-check' }));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+
+    expect(goToSignIn).toHaveBeenCalledTimes(1);
+    // The first status read said signed out: no more polls.
+    expect(getCaseRegistryStatus).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
   it('says when the next re-check is accepted (429)', async () => {

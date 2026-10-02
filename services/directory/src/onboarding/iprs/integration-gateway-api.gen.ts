@@ -55,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * Vehicles registered to a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No vehicles is found with none. Requires a service token with scope `registry` acting for the Commission.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: NTSA lists no vehicles for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
          */
         post: operations["lookupNtsaVehicles"];
         delete?: never;
@@ -75,7 +75,7 @@ export interface paths {
         put?: never;
         /**
          * Directorships and shareholdings of a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No companies is found with none. Requires a service token with scope `registry` acting for the Commission.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: BRS lists no companies for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
          */
         post: operations["lookupBrsDirectorships"];
         delete?: never;
@@ -95,7 +95,7 @@ export interface paths {
         put?: never;
         /**
          * Land parcels registered to a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. No parcels is found with none. Requires a service token with scope `registry` acting for the Commission.
+         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: ArdhiSasa lists no parcels for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
          */
         post: operations["lookupArdhisasaParcels"];
         delete?: never;
@@ -133,7 +133,7 @@ export interface paths {
         };
         /**
          * Configured calls per minute of every system with an adapter (services)
-         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it.
+         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it; every call to the registry spends one, so a KRA lookup spends 1 + one per PIN.
          */
         get: operations["getRegistryRateLimits"];
         put?: never;
@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * A stored lookup result, decrypted for the services of its tenant (audited)
-         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup) and whom the service read for (X-Acting-Subject). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
          */
         get: operations["getVerificationResult"];
         put?: never;
@@ -634,7 +634,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -656,7 +656,7 @@ export interface operations {
                     "application/json": components["schemas"]["KraResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -694,7 +694,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -716,7 +716,7 @@ export interface operations {
                     "application/json": components["schemas"]["NtsaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -754,7 +754,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -776,7 +776,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrsResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -814,7 +814,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -836,7 +836,7 @@ export interface operations {
                     "application/json": components["schemas"]["ArdhisasaResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -876,7 +876,7 @@ export interface operations {
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: string;
+                "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
@@ -896,7 +896,7 @@ export interface operations {
                     "application/json": components["schemas"]["SupplierCheckResult"];
                 };
             };
-            /** @description X-Legal-Basis missing or unknown, or X-Case-Ref or X-Subject-Person malformed */
+            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -960,6 +960,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
+                /** @description The staff subject the service reads for (a reviewer opening the Registry tab), or the service's own system subject for workflow reads; recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+                "X-Acting-Subject"?: string;
             };
             path: {
                 resultId: string;

@@ -22,8 +22,6 @@ export {
   type RegistryCheckStatus,
   type RegistryMatch,
   type RegistryMatchInput,
-  type RegistryNote,
-  type RegistryNoteKind,
   type RegistryAnswer,
   type RegistryRecords,
   type RegistryRelation,

@@ -15,7 +15,9 @@ import type { RegistryCheckRequest, RegistryLookups } from '../../src/registry/c
 import type { RegistryView } from '../../src/registry/representation.js';
 import {
   BARAKA_KEY,
+  type Household,
   IMANI_KEY,
+  land,
   SPOUSE,
   wanjikuDocument,
   wanjikuHousehold,
@@ -72,11 +74,14 @@ describe('registry checks', () => {
    * Wanjiku Kamau's demo declaration, her roster record (national ID, employer KEMSA) in the
    * directory, the seed's registry records for her household and KEMSA's supplier list.
    */
-  function wanjikuVersion(ids: { baraka?: string } = {}): StoredVersion {
+  function wanjikuVersion(
+    ids: { baraka?: string } = {},
+    household: Household = wanjikuHousehold(),
+  ): StoredVersion {
     const version = submittedVersion({
       tenant: 'psc',
       declarantName: 'Wanjiku Njoki Kamau',
-      document: wanjikuDocument(wanjikuHousehold(), ids),
+      document: wanjikuDocument(household, ids),
     });
     api.declarations.given(version);
     api.directory.givenRosterRecord('psc', version.rosterRecordId, {
@@ -126,6 +131,10 @@ describe('registry checks', () => {
     ).map(
       ({ personKey, system, status, reason }) =>
         `${personKey} ${system} ${status} ${String(reason)}`,
+    );
+  const timelineOf = (caseId: string) =>
+    api.asPlatform((tx) =>
+      tx.select().from(reviewTimeline).where(eq(reviewTimeline.caseId, caseId)),
     );
   const registryFlags = async (caseId: string) =>
     (await flagsOf(caseId))
@@ -320,6 +329,26 @@ describe('registry checks', () => {
     expect(again?.suppliers).toEqual(first?.suppliers);
   });
 
+  it('S3: an officer without an employer code gets an info flag that the supplier check did not run', async () => {
+    const version = wanjikuVersion();
+    api.directory.givenRosterRecord('psc', version.rosterRecordId, {
+      personalNumber: 'KEMSA/2016/0311',
+      nationalId: WANJIKU.nationalId,
+      employerCode: null,
+      reportingEntityId: null,
+    });
+    const request = await caseOf(version);
+
+    await check(request);
+
+    expect(api.gateway.lookups.filter((l) => l.operation === 'supplies')).toEqual([]);
+    expect(await registryFlags(request.caseId)).toEqual([
+      'registry-parcel-undeclared high',
+      'registry-supplier-check-not-run info',
+      'registry-vehicle-undeclared medium',
+    ]);
+  });
+
   it('a lookup the gateway refuses is unavailable (gateway-rejected) and not looked up again', async () => {
     const request = await caseOf(wanjikuVersion());
     api.gateway.failRegistry('ntsa', { kind: 'refused' }, 1);
@@ -351,9 +380,9 @@ describe('registry checks', () => {
     expect(await checksOf(request.caseId)).toContain('officer ntsa unavailable gateway-rejected');
   });
 
-  it('storing the same check twice changes nothing; a reviewed registry flag keeps its note', async () => {
+  it('M7: storing the same check twice changes nothing: no second timeline entry or event; a reviewed registry flag keeps its note', async () => {
     const request = await caseOf(wanjikuVersion());
-    const { lookups } = await check(request);
+    const { lookups, result: first } = await check(request);
     const [vehicle] = (await flagsOf(request.caseId)).filter(
       (flag) => flag.ruleId === 'registry-vehicle-undeclared',
     );
@@ -365,8 +394,14 @@ describe('registry checks', () => {
     );
     expect(reviewed.statusCode).toBe(200);
 
-    await registry.matchAndStoreRegistries({ check: request, lookups });
+    const timelineBefore = await timelineOf(request.caseId);
+    const eventsBefore = await api.db.select().from(outbox);
 
+    // The activity retried after its commit: the same check, the same sequence.
+    expect(await registry.matchAndStoreRegistries({ check: request, lookups })).toEqual(first);
+
+    expect(await timelineOf(request.caseId)).toEqual(timelineBefore);
+    expect(await api.db.select().from(outbox)).toHaveLength(eventsBefore.length);
     const flags = await flagsOf(request.caseId);
     expect(
       flags.filter(
@@ -453,9 +488,28 @@ describe('registry checks', () => {
         incomeDirection: expect.any(String) as string,
       });
 
-      // One read per answered result, for the Commission; the declaration read for the viewer.
+      // One read per answered result, for the Commission and the viewer (M3, ADR-013 §8.6); the
+      // check's own reads were the workflow's; the declaration read for the viewer.
       expect(api.gateway.storedReads.slice(readsBefore)).toHaveLength(16);
       expect(api.gateway.storedReads.every((read) => read.tenant === 'psc')).toBe(true);
+      expect(
+        new Set(api.gateway.storedReads.slice(readsBefore).map((read) => read.actingSubject)),
+      ).toEqual(new Set(['reviewer-a']));
+      expect(
+        new Set(api.gateway.storedReads.slice(0, readsBefore).map((read) => read.actingSubject)),
+      ).toEqual(new Set(['system:review']));
+      // M3: review's audit of the view names the declarant, as a read of their data (ADR-008).
+      const [audit] = (
+        await api.db.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1'))
+      ).map((event) => event.envelope);
+      expect(audit).toMatchObject({
+        tenant: 'psc',
+        data: {
+          action: 'review.case.registry.viewed',
+          resource: { subjectPersonId: (await caseRow(request.caseId)).personId },
+          actor: { subject: 'reviewer-a' },
+        },
+      });
       expect(api.declarations.reads.at(-1)).toMatchObject({
         actingSubject: 'reviewer-a',
         caseId: request.caseId,
@@ -479,6 +533,26 @@ describe('registry checks', () => {
         expect(stored).not.toContain(detail);
       }
       expect(stored).toContain('KDK 482M');
+    });
+
+    it('M1: land declared without a parcel number shows as an info flag beside ArdhiSasa, scoring nothing', async () => {
+      const household = wanjikuHousehold();
+      const plot = land(undefined);
+      household.officer.assets.push(plot);
+      const request = await caseOf(wanjikuVersion({}, household));
+
+      await check(request);
+
+      const view = (await api.get(registryPath(request.caseId), reviewer)).json<RegistryView>();
+      const ardhisasa = view.persons[0]?.systems.find((s) => s.system === 'ardhisasa');
+      expect(
+        ardhisasa?.flags.map((flag) => [flag.ruleId, flag.severity, flag.itemRefs[0]?.itemId]),
+      ).toEqual([
+        ['registry-parcel-undeclared', 'high', null],
+        ['registry-parcel-number-missing', 'info', plot.id],
+      ]);
+      // An info flag weighs nothing: the score is the demo's.
+      expect(await caseRow(request.caseId)).toMatchObject({ score: 17 });
     });
 
     it('before any check every registry is not checked, with no records', async () => {

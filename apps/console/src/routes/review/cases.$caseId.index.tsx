@@ -80,6 +80,8 @@ function CaseRoute() {
   const slug = viewer.directory.ok ? viewer.directory.principal.tenant : null;
   return (
     <CaseView
+      // Another case is another view: its registry reads, polls and dialogs start afresh.
+      key={load.data.detail.case.id}
       load={load.data}
       viewer={{ subject: load.subject, name: viewer.user.name, supervisor }}
       slug={slug}

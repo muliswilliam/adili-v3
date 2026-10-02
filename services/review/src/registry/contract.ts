@@ -99,6 +99,11 @@ export interface RegistryLookups {
   sequence: number;
   persons: Record<string, Partial<Record<RegistrySystem, LookupOutcome>>>;
   suppliers: Record<string, SupplierOutcome>;
+  /**
+   * The officer's roster record has no employer code, so no company could be checked against an
+   * employer's supplier list. Absent in checks started before it was recorded.
+   */
+  noEmployer?: boolean;
 }
 
 export interface LookupRequest {

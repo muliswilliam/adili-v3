@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { PLATFORM_TENANT } from '@adili/api-kit';
+import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -94,7 +95,8 @@ export class Coverage {
   async read(): Promise<SystemCoverage[]> {
     const systems = SYSTEMS.filter((system) => this.covers(system));
     const v = verificationResults;
-    const counts = await this.db.execute<Counts>(sql`
+    const counts = await asPlatform(this.db, (tx) =>
+      tx.execute<Counts>(sql`
       select ${v.system} as system,
         count(*)::int as calls,
         (count(*) filter (where ${v.cached}))::int as hits,
@@ -102,7 +104,8 @@ export class Coverage {
         (count(*) filter (where ${v.reason} in ('timeout', 'upstream-error')))::int as failures
       from ${v}
       where ${v.checkedAt} > now() - interval '24 hours'
-      group by ${v.system}`);
+      group by ${v.system}`),
+    );
     const bySystem = new Map(counts.rows.map((row) => [row.system, row]));
     const pauseRecords = await this.settings.pauseRecords();
 
@@ -140,12 +143,22 @@ export class Coverage {
   /** The newest answer from the registry itself, walking the (system, checked_at) index back. */
   private async lastSuccess(system: System): Promise<string | null> {
     const v = verificationResults;
-    const rows = await this.db.execute<{ checkedAt: Date | string }>(sql`
+    const rows = await asPlatform(this.db, (tx) =>
+      tx.execute<{ checkedAt: Date | string }>(sql`
       select ${v.checkedAt} as "checkedAt" from ${v}
       where ${v.system} = ${system} and ${v.outcome} <> 'unavailable' and not ${v.cached}
       order by ${v.checkedAt} desc
-      limit 1`);
+      limit 1`),
+    );
     const checkedAt = rows.rows[0]?.checkedAt;
     return checkedAt === undefined ? null : new Date(checkedAt).toISOString();
   }
+}
+
+/** Coverage counts every tenant's lookups: the platform's context under row-level security. */
+function asPlatform<T>(
+  db: Database<typeof schema>,
+  work: Parameters<typeof withTenant<typeof schema, T>>[2],
+): Promise<T> {
+  return withTenant(db, { tenant: PLATFORM_TENANT, subject: 'system:integration-gateway' }, work);
 }

@@ -47,15 +47,23 @@ const onlySwitch = z
   .catch(undefined);
 
 /**
- * Filters of the review queue, kept in the URL so a view can be shared, reloaded and reached with
- * Back (S19: `/review?band=high&late=true`). Unknown values are dropped rather than failing the
- * page; switches that are off are left out. `assignee` is `mine`, `unassigned` or a reviewer's
- * subject (a supervisor's choice); anyone is the default and is left out. Pages come from "Load
- * more" and are not part of the URL.
+ * The queue's search text: a reference, a file number or a name. Personal data, so never in the
+ * URL ("no PII in URLs", docs/architecture/README.md): the page keeps it in the history entry's
+ * state, where Back and a reload find it, and Copy link leaves it out.
  */
-export const queueSearchSchema = z.object({
-  // A file number of digits alone arrives as a number from a hand-typed URL.
-  search: z.preprocess(asText, z.string().trim().min(1).max(100).optional()).catch(undefined),
+export const queueTextSchema = z
+  .preprocess(asText, z.string().trim().min(1).max(100).optional())
+  .catch(undefined);
+
+/**
+ * Filters of the review queue but the search text, kept in the URL so a view can be shared,
+ * reloaded and reached with Back (S19: `/review?band=high&late=true`). Unknown values are dropped
+ * rather than failing the page (a `search` in a hand-typed URL among them); switches that are off
+ * are left out. `assignee` is `mine`, `unassigned` or a reviewer's subject (a supervisor's
+ * choice); anyone is the default and is left out. Pages come from "Load more" and are not part of
+ * the URL.
+ */
+export const queueUrlSchema = z.object({
   status: z.enum(QUEUE_FILTER_STATUSES).optional().catch(undefined),
   band: z.enum(QUEUE_BANDS).optional().catch(undefined),
   type: z.enum(QUEUE_TYPES).optional().catch(undefined),
@@ -77,6 +85,11 @@ export const queueSearchSchema = z.object({
   openClarification: onlySwitch,
   registryUnavailable: onlySwitch,
 });
+
+export type QueueUrlSearch = z.infer<typeof queueUrlSchema>;
+
+/** Every filter of the queue: those in the URL and the search text. */
+export const queueSearchSchema = queueUrlSchema.extend({ search: queueTextSchema });
 
 export type QueueSearch = z.infer<typeof queueSearchSchema>;
 
@@ -106,6 +119,27 @@ function compact(search: QueueSearch): QueueSearch {
   const out: Record<string, unknown> = {};
   for (const key of FILTER_KEYS) if (search[key] !== undefined) out[key] = search[key];
   return out;
+}
+
+/** The filters as the page holds them: the URL's, and the search text of the history state. */
+export function readQueueSearch(url: unknown, text: unknown): QueueSearch {
+  return compact({ ...queueUrlSchema.parse(url), search: queueTextSchema.parse(text) });
+}
+
+/**
+ * What a queue list was loaded for (`useReloadingInPlace`): the URL's search and the search text
+ * of the history state.
+ */
+export function queueLoadKey(searchStr: string, search: QueueSearch): string {
+  return `${searchStr}\n${search.search ?? ''}`;
+}
+
+/** The filters split into what goes in the URL and the search text, which does not. */
+export function splitQueueSearch({ search, ...url }: QueueSearch): {
+  url: QueueUrlSearch;
+  text: string | undefined;
+} {
+  return { url: compact(url), text: search };
 }
 
 /** The filters with one changed; `undefined` switches it off. */

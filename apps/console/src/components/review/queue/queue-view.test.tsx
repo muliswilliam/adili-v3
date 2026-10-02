@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { caseItem, ME, WAFULA } from '../../../review-case/fixtures';
+import { QUEUE_COPY as m } from '../../../review-queue/messages';
 import type { QueueSearch } from '../../../review-queue/query';
 import type { QueueSummary } from '../../../review-queue/rows';
 import { claimCase, reassignCase } from '../../../server/review-case';
@@ -255,6 +256,31 @@ describe('QueueView', () => {
     expect(screen.getByRole('table', { name: 'Loading review cases' })).toBeTruthy();
   });
 
+  it('M8: switches the skeleton between table and cards where the list does, so loading keeps the layout', () => {
+    // The container query that shows or hides an element: its own, or its nearest ancestor's.
+    const breakpoint = (element: Element | undefined) => {
+      for (let at: Element | null = element ?? null; at; at = at.parentElement) {
+        const query = /\S*@\[\d+px\]\S*/u.exec(at.className)?.[0];
+        if (query) return query;
+      }
+      return null;
+    };
+    const { unmount } = render(view({ list: null }));
+    const loading = {
+      table: breakpoint(screen.getByRole('table', { name: m.loadingCaption })),
+      cards: breakpoint(screen.getByRole('list', { name: m.loadingCaption })),
+    };
+    unmount();
+    render(view());
+    const loaded = {
+      table: breakpoint(screen.getByRole('table', { name: m.caption })),
+      cards: breakpoint(screen.getByRole('list', { name: m.caption })),
+    };
+
+    expect(loading.table).toBe('@[1120px]:block');
+    expect(loading).toEqual(loaded);
+  });
+
   it('says there are no cases yet when nothing is filtered', () => {
     render(view({ list: page([]) }));
     expect(screen.getByText('No cases yet')).toBeTruthy();
@@ -294,5 +320,20 @@ describe('QueueView', () => {
     });
     expect(loadPage).toHaveBeenCalledWith('next');
     expect(await screen.findByText('Showing all 2 cases')).toBeTruthy();
+  });
+
+  it('N5: starts the list again with each first page loaded, even one with the same cases', async () => {
+    const loadPage = vi.fn().mockResolvedValue(page([HELD]));
+    const { rerender } = render(view({ list: page([UNASSIGNED], 'next'), loadPage }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+      await Promise.resolve();
+    });
+    expect(await screen.findByText('Showing all 2 cases')).toBeTruthy();
+
+    // A reload (after a claim, say) gives a new first page.
+    rerender(view({ list: page([UNASSIGNED], 'next'), loadPage }));
+
+    expect(screen.getByText('Showing the first 1 case')).toBeTruthy();
   });
 });

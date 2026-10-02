@@ -61,6 +61,10 @@ export interface TestAppOptions extends Partial<IprsClientOptions> {
 
 export interface TestApp {
   app: NestFastifyApplication;
+  /**
+   * The test's own connection to the suite's schema, in the platform's context: it sees and
+   * writes every tenant's rows under row-level security. The app has a connection of its own.
+   */
   db: Database<typeof schema>;
   valkey: ReturnType<typeof createValkey>;
   /** The field cipher, real AES-GCM under keys derived from the tenant slug. */
@@ -110,7 +114,13 @@ export async function createTestApp({
   const { publicKey, privateKey } = await generateKeyPair('RS256');
   const jwk = { ...(await exportJWK(publicKey)), kid: 'test', alg: 'RS256' };
 
-  const db = createDatabase({ url, schema, applicationName: 'integration-gateway-test' });
+  const appDb = createDatabase({ url, schema, applicationName: 'integration-gateway-test' });
+  const db = createDatabase({
+    url: withSearchPath(baseUrl, schemaName, { 'app.tenant': 'platform' }),
+    schema,
+    applicationName: 'integration-gateway-test-platform',
+    maxConnections: 2,
+  });
   const valkey = createValkey({
     url: requireEnv('TEST_VALKEY_URL'),
     keyPrefix: `integration-gateway-test-${randomUUID()}:`,
@@ -135,7 +145,7 @@ export async function createTestApp({
     (await valkey.keys(`${prefix}*`)).map((key) => key.slice(prefix.length));
   let builder = Test.createTestingModule({ imports: [AppModule], controllers })
     .overrideProvider(DATABASE)
-    .useValue(db)
+    .useValue(appDb)
     .overrideProvider(VALKEY)
     .useValue(valkey)
     .overrideProvider(FieldCipher)
@@ -196,15 +206,23 @@ export async function createTestApp({
       clock.restore();
       // Closing the app ends the database pool and the Valkey connection.
       await app.close();
+      await db.$client.end();
       await admin.query(`drop schema "${schemaName}" cascade`);
       await admin.end();
     },
   };
 }
 
-function withSearchPath(url: string, schemaName: string): string {
+function withSearchPath(
+  url: string,
+  schemaName: string,
+  settings: Record<string, string> = {},
+): string {
   const parsed = new URL(url);
-  parsed.searchParams.set('options', `-c search_path=${schemaName}`);
+  const options = Object.entries({ search_path: schemaName, ...settings }).map(
+    ([name, value]) => `-c ${name}=${value}`,
+  );
+  parsed.searchParams.set('options', options.join(' '));
   return parsed.toString();
 }
 
