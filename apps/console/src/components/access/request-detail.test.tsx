@@ -452,6 +452,41 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     expect(await screen.findByText('Applicant verified. Identify the officer next.')).toBeTruthy();
   });
 
+  it('a verification retry keeps its Idempotency-Key, a corrected note gets a new one', async () => {
+    vi.mocked(verifyApplicantIdentity)
+      .mockClear()
+      .mockResolvedValue({
+        ok: false,
+        error: { kind: 'unavailable', detail: null },
+      });
+    renderDetail(await viewOf(R.verify));
+    const card = within(side()).getByRole('region', { name: 'Verify applicant identity' });
+    const keys = () =>
+      vi.mocked(verifyApplicantIdentity).mock.calls.map(([call]) => call.data.idempotencyKey);
+    const submit = () => {
+      fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
+    };
+    fireEvent.click(within(card).getByRole('checkbox'));
+    fireEvent.change(within(card).getByRole('textbox'), { target: { value: 'Passport seen.' } });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(1);
+    });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(2);
+    });
+    expect(keys()[1]).toBe(keys()[0]);
+    fireEvent.change(within(card).getByRole('textbox'), {
+      target: { value: 'Passport copy seen by email.' },
+    });
+    submit();
+    await waitFor(() => {
+      expect(keys()).toHaveLength(3);
+    });
+    expect(keys()[2]).not.toBe(keys()[1]);
+  });
+
   it('shows the representations: stance, text and attachments, each downloadable', async () => {
     vi.mocked(getRepresentationAttachmentLink).mockResolvedValue({
       ok: false,

@@ -9,6 +9,7 @@ import {
   Icon,
   Spinner,
   Textarea,
+  useIdempotencyKey,
   useToast,
 } from '@adili/ui';
 import {
@@ -55,7 +56,7 @@ export function LeaVerifyCard({ request }: { request: LeaRequest }) {
   const [errors, setErrors] = useState<Errors>({});
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [key] = useState(() => crypto.randomUUID());
+  const idempotencyKey = useIdempotencyKey();
   const submit = async () => {
     const next: Errors = {
       provenance: provenance ? undefined : m.provenanceRequired,
@@ -67,13 +68,9 @@ export function LeaVerifyCard({ request }: { request: LeaRequest }) {
     setProblem(null);
     if (!record || Object.values(next).some(Boolean)) return;
     setBusy(true);
+    const body = { requestId: request.id, rosterRecordId: record, note: note.trim() };
     const result = await verifyLea({
-      data: {
-        requestId: request.id,
-        rosterRecordId: record,
-        note: note.trim(),
-        idempotencyKey: key,
-      },
+      data: { ...body, idempotencyKey: idempotencyKey.keyFor(body) },
     }).catch((): AccessResult<LeaRequest> => ({
       ok: false,
       error: { kind: 'unavailable', detail: null },

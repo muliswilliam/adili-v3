@@ -8,6 +8,7 @@ import {
   Icon,
   Spinner,
   Textarea,
+  useIdempotencyKey,
   useToast,
 } from '@adili/ui';
 import { AlertCircleIcon, UserCheck01Icon, UserRemove01Icon } from '@hugeicons/core-free-icons';
@@ -84,7 +85,7 @@ export function VerifyApplicantCard({ view }: { view: OfficerRequestView }) {
   const [checked, setChecked] = useState(false);
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<{ checked?: string; note?: string }>({});
-  const [key] = useState(() => crypto.randomUUID());
+  const idempotencyKey = useIdempotencyKey();
   const command = useCommand();
 
   const submit = () => {
@@ -94,11 +95,10 @@ export function VerifyApplicantCard({ view }: { view: OfficerRequestView }) {
     };
     setErrors(next);
     if (next.checked || next.note) return;
+    const body = { requestId: view.id, note: note.trim() };
     void command.run(
       () =>
-        verifyApplicantIdentity({
-          data: { requestId: view.id, note: note.trim(), idempotencyKey: key },
-        }),
+        verifyApplicantIdentity({ data: { ...body, idempotencyKey: idempotencyKey.keyFor(body) } }),
       m.verified,
       { onDone: () => undefined },
     );
