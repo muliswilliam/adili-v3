@@ -20,10 +20,10 @@ import {
   UsageMeter,
 } from '@adili/ui';
 import {
+  Add01Icon,
   ArrowRight01Icon,
   Building03Icon,
   Search01Icon,
-  SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId, useState } from 'react';
 
@@ -43,6 +43,7 @@ import { CommissionDrawer } from './commission-drawer';
 import { GateDialog, type SaveGate } from './gate-dialog';
 import { messages as m } from './messages';
 import { DataClassesTip, GateCell } from './parts';
+import { type RemoveRoute, RouteDialog, type SaveRoute } from './route-dialog';
 import {
   AI_FILTERS,
   type AiFilter,
@@ -65,6 +66,8 @@ export interface AiPolicyViewProps {
   onSearchChange: (next: AiPolicySearch) => void;
   saveGate: SaveGate;
   saveBudget: SaveBudget;
+  saveRoute: SaveRoute;
+  removeRoute: RemoveRoute;
   onUnauthenticated: () => void;
   /** Offered when the gateway refuses the viewer (403). */
   forbiddenAction?: ReactNode;
@@ -72,6 +75,9 @@ export interface AiPolicyViewProps {
 
 /** Which Commission is open, and in what: its drawer, or one of the drawer's dialogs. */
 type Open = { slug: string; view: 'drawer' | 'gate' | 'budget' } | null;
+
+/** The route being edited (with its scope as the table names it), or a new one; null: none. */
+type OpenRoute = { route: Route | null; scope: string | null } | null;
 
 const FILTER_LABELS: Record<AiFilter, string> = {
   all: m.filterAll,
@@ -87,12 +93,13 @@ const isForbidden = (result: ServiceResult<unknown> | null) =>
  * The AI policy page for platform admins (spec 07c FE-4, S16): per Commission the classification
  * gate (provider classes allowed per data class), this month's usage against the budget and the
  * rate limit, each Commission's detail in a drawer with its policy and budget dialogs; and the
- * routing table, read only. Search, filter and page apply in the browser: the page reads every
+ * routing table, each route editable and a Commission's own route removable (story 17). Search, filter and page apply in the browser: the page reads every
  * Commission once per visit.
  */
 export function AiPolicyView(props: AiPolicyViewProps) {
   const { result, search, onSearchChange } = props;
   const [open, setOpen] = useState<Open>(null);
+  const [openRoute, setOpenRoute] = useState<OpenRoute>(null);
   if (isForbidden(result)) {
     return (
       <Page narrow>
@@ -154,7 +161,16 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           )}
         </TabsContent>
         <TabsContent value="routing">
-          <RoutingCard overview={overview} failed={result?.ok === false} />
+          <RoutingCard
+            overview={overview}
+            failed={result?.ok === false}
+            onEdit={(route, scope) => {
+              setOpenRoute({ route, scope });
+            }}
+            onAdd={() => {
+              setOpenRoute({ route: null, scope: null });
+            }}
+          />
         </TabsContent>
       </Tabs>
       <CommissionDrawer
@@ -174,6 +190,19 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           row={row}
           save={props.saveGate}
           onClose={back}
+          onUnauthenticated={props.onUnauthenticated}
+        />
+      ) : null}
+      {openRoute ? (
+        <RouteDialog
+          route={openRoute.route}
+          scope={openRoute.scope}
+          commissions={tenants}
+          save={props.saveRoute}
+          remove={props.removeRoute}
+          onClose={() => {
+            setOpenRoute(null);
+          }}
           onUnauthenticated={props.onUnauthenticated}
         />
       ) : null}
@@ -411,7 +440,17 @@ function CommissionsSkeleton() {
   );
 }
 
-function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; failed: boolean }) {
+function RoutingCard({
+  overview,
+  failed,
+  onEdit,
+  onAdd,
+}: {
+  overview: AiPolicyOverview | null;
+  failed: boolean;
+  onEdit: (route: Route, scope: string | null) => void;
+  onAdd: () => void;
+}) {
   if (failed) {
     return (
       <LoadError title={m.loadErrorTitle} detail={m.loadErrorDetail} retryLabel={m.tryAgain} />
@@ -426,10 +465,19 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
   const names = new Map(overview?.tenants.map((tenant) => [tenant.slug, tenant.name]));
   return (
     <Card className="overflow-hidden p-0 sm:p-0">
-      <p className="flex items-center gap-1.5 border-b px-4 py-3 text-[13px] text-muted-foreground">
-        <Icon icon={SquareLock02Icon} className="size-3.5" />
-        {m.routingConfigured}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <p className="text-[13px] text-muted-foreground">{m.routingAudited}</p>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={routing === null || !overview?.tenants.length}
+          aria-haspopup="dialog"
+          onClick={onAdd}
+        >
+          <Icon icon={Add01Icon} />
+          {m.addRoute}
+        </Button>
+      </div>
       {routing === null ? (
         <CommissionsSkeleton />
       ) : routing.data.length === 0 ? (
@@ -443,6 +491,9 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
               <TableHead>{m.columnProvider}</TableHead>
               <TableHead>{m.columnModel}</TableHead>
               <TableHead>{m.columnParameters}</TableHead>
+              <TableHead>
+                <span className="sr-only">{m.editRoute}</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -451,6 +502,7 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
                 key={`${route.task}|${route.tenant ?? ''}`}
                 route={route}
                 scope={route.tenant ? (names.get(route.tenant) ?? route.tenant) : null}
+                onEdit={onEdit}
               />
             ))}
           </TableBody>
@@ -460,7 +512,15 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
   );
 }
 
-function RouteRow({ route, scope }: { route: Route; scope: string | null }) {
+function RouteRow({
+  route,
+  scope,
+  onEdit,
+}: {
+  route: Route;
+  scope: string | null;
+  onEdit: (route: Route, scope: string | null) => void;
+}) {
   const params = routeParams(route.params);
   return (
     <TableRow>
@@ -483,6 +543,19 @@ function RouteRow({ route, scope }: { route: Route; scope: string | null }) {
             ))}
           </dl>
         )}
+      </TableCell>
+      <TableCell className="w-16 text-right">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-haspopup="dialog"
+          aria-label={m.editRouteLabel(route.task, scope ?? m.allCommissions)}
+          onClick={() => {
+            onEdit(route, scope);
+          }}
+        >
+          {m.editRoute}
+        </Button>
       </TableCell>
     </TableRow>
   );

@@ -6,6 +6,8 @@ import type {
   GateRuleInput,
   ProviderClass,
   Route,
+  RouteInput,
+  TaskName,
   TenantPolicy,
   TenantUsage,
   UsageList,
@@ -202,4 +204,44 @@ export function saveTenantBudget(
       body: budget,
     }),
   );
+}
+
+/**
+ * `PUT /v1/ai/routing/{task}` (tenant null: every Commission without its own route) or
+ * `PUT /v1/ai/tenants/{tenant}/routing/{task}`: where the task's calls go, audited with the
+ * approval reference. The next job follows it.
+ */
+export function saveRoute(
+  gateway: AiGatewayClient,
+  tenant: string | null,
+  task: TaskName,
+  route: RouteInput,
+): Promise<ServiceResult<Route>> {
+  return callService(() =>
+    tenant === null
+      ? gateway.PUT('/v1/ai/routing/{task}', { params: { path: { task } }, body: route })
+      : gateway.PUT('/v1/ai/tenants/{tenant}/routing/{task}', {
+          params: { path: { tenant, task } },
+          body: route,
+        }),
+  );
+}
+
+/**
+ * `DELETE /v1/ai/tenants/{tenant}/routing/{task}`: the Commission's own route goes, and the task
+ * follows the route of every Commission again. Audited with the approval reference.
+ */
+export function removeTenantRoute(
+  gateway: AiGatewayClient,
+  tenant: string,
+  task: TaskName,
+  approvalRef: string,
+): Promise<ServiceResult<null>> {
+  // 204: no body, so nothing to read but the outcome.
+  return callService(async () => ({
+    ...(await gateway.DELETE('/v1/ai/tenants/{tenant}/routing/{task}', {
+      params: { path: { tenant, task }, query: { approvalRef } },
+    })),
+    data: null,
+  }));
 }

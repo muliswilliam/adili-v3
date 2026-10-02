@@ -66,7 +66,10 @@ export const en = {
 
   // Routing tab
   routingCaption: 'Routing: task to provider and model',
-  routingConfigured: 'Set in configuration',
+  routingAudited: 'Changes take effect at the next request and are recorded in the audit trail.',
+  addRoute: "Add a Commission's route",
+  editRoute: 'Edit',
+  editRouteLabel: (task: string, scope: string) => `Edit route of ${task} for ${scope}`,
   columnTask: 'Task',
   columnScope: 'Scope',
   columnProvider: 'Provider',
@@ -82,6 +85,30 @@ export const en = {
   paramTimeout: 'Timeout',
   taskDefaults: 'Task defaults',
   seconds: (seconds: number) => `${formatNumber(seconds)} s`,
+
+  // Route dialog
+  routeTitleEdit: 'Edit route',
+  routeTitleAdd: "Add a Commission's route",
+  routeTask: 'Task',
+  routeScope: 'Commission',
+  routeProvider: 'Provider',
+  routeProviderHint: 'A provider the AI gateway is configured to reach, for example anthropic.',
+  routeModel: 'Model',
+  routeMaxTokens: 'Max output tokens',
+  routeEffort: 'Effort',
+  routeTimeout: 'Timeout (seconds)',
+  routeOptionalHint: "Leave a parameter empty to use the task's own.",
+  routeTaskDefault: 'Task default',
+  routeProviderRequired: 'Enter the provider.',
+  routeModelRequired: 'Enter the model.',
+  routeNumberError: 'Enter a whole number above 0, or leave it empty.',
+  routeProviderUnknown: 'The AI gateway cannot reach this provider.',
+  saveRoute: 'Save route',
+  removeRoute: 'Remove route',
+  routeSaved: 'Route saved and recorded in the audit trail',
+  routeRemoved: 'Route removed and recorded in the audit trail',
+  routeError: 'The route could not be saved.',
+  routeRejected: 'The gateway refused this route.',
 
   // Commission drawer
   enabled: 'Enabled',

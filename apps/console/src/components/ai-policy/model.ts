@@ -299,3 +299,73 @@ export function belowUsage(monthlyTokens: string, usage: TenantUsage): boolean {
   const tokens = parseWholeNumber(monthlyTokens);
   return tokens !== null && tokens < usage.tokensUsed;
 }
+
+// --- The route dialog ---
+
+export const TASK_NAMES = [
+  'summarize-declaration',
+  'explain-flags',
+  'draft-clarification',
+] as const;
+export type RouteTask = (typeof TASK_NAMES)[number];
+export const EFFORTS = ['low', 'medium', 'high'] as const;
+
+/** The route dialog's fields as typed: numbers as text, effort `''` for the task's own. */
+export interface RouteDraft {
+  provider: string;
+  model: string;
+  maxOutputTokens: string;
+  effort: '' | (typeof EFFORTS)[number];
+  timeoutSeconds: string;
+  approvalRef: string;
+}
+
+/** A route's fields to edit: as the table shows it, or empty for a new one. */
+export function routeDraft(route: RouteRow | null): RouteDraft {
+  const number = (value: unknown) => (typeof value === 'number' ? value : null);
+  const tokens = number(route?.params.maxOutputTokens);
+  const timeout = number(route?.params.timeoutMs);
+  const effort = EFFORTS.find((each) => each === route?.params.effort) ?? '';
+  return {
+    provider: route?.provider ?? '',
+    model: route?.model ?? '',
+    maxOutputTokens: tokens === null ? '' : String(tokens),
+    effort,
+    timeoutSeconds: timeout === null ? '' : String(Math.round(timeout / 1000)),
+    approvalRef: '',
+  };
+}
+
+export type RouteErrors = Partial<Record<keyof RouteDraft, string>>;
+
+/** What is wrong with the draft before it is sent; the gateway checks the provider. */
+export function routeErrors(draft: RouteDraft): RouteErrors {
+  const optionalPositive = (text: string) => {
+    if (!text.trim()) return true;
+    const value = parseWholeNumber(text);
+    return value !== null && value > 0;
+  };
+  return {
+    ...(draft.provider.trim() ? {} : { provider: m.routeProviderRequired }),
+    ...(draft.model.trim() ? {} : { model: m.routeModelRequired }),
+    ...(optionalPositive(draft.maxOutputTokens) ? {} : { maxOutputTokens: m.routeNumberError }),
+    ...(optionalPositive(draft.timeoutSeconds) ? {} : { timeoutSeconds: m.routeNumberError }),
+    ...(draft.approvalRef.trim() ? {} : { approvalRef: m.approvalRefRequired }),
+  };
+}
+
+/** The route the draft describes, in the contract's terms; unset parameters are left out. */
+export function routeInput(draft: RouteDraft) {
+  const tokens = parseWholeNumber(draft.maxOutputTokens);
+  const seconds = parseWholeNumber(draft.timeoutSeconds);
+  return {
+    provider: draft.provider.trim(),
+    model: draft.model.trim(),
+    params: {
+      ...(tokens ? { maxOutputTokens: tokens } : {}),
+      ...(draft.effort ? { effort: draft.effort } : {}),
+      ...(seconds ? { timeoutMs: seconds * 1000 } : {}),
+    },
+    approvalRef: draft.approvalRef.trim(),
+  };
+}

@@ -3,11 +3,13 @@ import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { aiGatewayClient, type AiGatewayClient } from './ai-gateway/client.server';
-import type { TenantPolicy, TenantUsage } from './ai-gateway/types';
+import type { Route, TenantPolicy, TenantUsage } from './ai-gateway/types';
 import {
   type AiPolicyOverview,
   loadAiPolicyOverview,
+  removeTenantRoute,
   saveGatePolicy,
+  saveRoute,
   saveTenantBudget,
 } from './ai-policy.server';
 import { getBff } from './bff.server';
@@ -82,5 +84,48 @@ export const setTenantBudget = createServerFn({ method: 'POST' })
         monthlyTokens: data.monthlyTokens,
         perMinute: data.perMinute,
       }),
+    ),
+  );
+
+const taskName = z.enum(['summarize-declaration', 'explain-flags', 'draft-clarification']);
+// Bounds as the contract has them; the gateway validates and its 400 maps back to the field.
+const approvalRef = z.string().max(200);
+
+export const setRouteInput = z.object({
+  /** Null: the route of every Commission without its own. */
+  tenant: commissionSlug.nullable(),
+  task: taskName,
+  provider: z.string().max(100),
+  model: z.string().max(200),
+  params: z.object({
+    maxOutputTokens: z.number().int().positive().optional(),
+    effort: z.enum(['low', 'medium', 'high']).optional(),
+    timeoutMs: z.number().int().positive().optional(),
+  }),
+  approvalRef,
+});
+
+/** Routes a task's calls for every Commission or for one, audited. */
+export const setRoute = createServerFn({ method: 'POST' })
+  .validator(setRouteInput)
+  .handler(({ data }): Promise<ServiceResult<Route>> =>
+    withAiGateway((gateway) =>
+      saveRoute(gateway, data.tenant, data.task, {
+        provider: data.provider,
+        model: data.model,
+        params: data.params,
+        approvalRef: data.approvalRef,
+      }),
+    ),
+  );
+
+export const removeRouteInput = z.object({ tenant: commissionSlug, task: taskName, approvalRef });
+
+/** Removes a Commission's own route of a task, audited: it follows every Commission's again. */
+export const removeRoute = createServerFn({ method: 'POST' })
+  .validator(removeRouteInput)
+  .handler(({ data }): Promise<ServiceResult<null>> =>
+    withAiGateway((gateway) =>
+      removeTenantRoute(gateway, data.tenant, data.task, data.approvalRef),
     ),
   );

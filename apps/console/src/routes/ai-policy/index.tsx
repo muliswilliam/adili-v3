@@ -5,7 +5,13 @@ import { messages as m } from '../../components/ai-policy/messages';
 import { aiPolicySearch } from '../../components/ai-policy/model';
 import { goToSignIn, signInRedirect } from '../../components/sign-in-redirect';
 import type { AiPolicyOverview } from '../../server/ai-policy.server';
-import { getAiPolicyOverview, setGatePolicy, setTenantBudget } from '../../server/ai-policy';
+import {
+  getAiPolicyOverview,
+  removeRoute,
+  setGatePolicy,
+  setRoute,
+  setTenantBudget,
+} from '../../server/ai-policy';
 import type { ServiceResult } from '../../server/service-call';
 import { BackToOverview } from './route';
 
@@ -47,6 +53,8 @@ function AiPolicyPage({ result }: { result: ServiceResult<AiPolicyOverview> | nu
       }}
       saveGate={(data) => setGatePolicy({ data })}
       saveBudget={(data) => setTenantBudget({ data })}
+      saveRoute={(data) => setRoute({ data })}
+      removeRoute={(data) => removeRoute({ data })}
       onUnauthenticated={() => {
         goToSignIn('/ai-policy');
       }}

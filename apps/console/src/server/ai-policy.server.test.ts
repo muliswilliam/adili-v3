@@ -7,7 +7,13 @@ import {
   mockToken,
   resetAiGatewayMock,
 } from './ai-gateway/mock.server';
-import { loadAiPolicyOverview, saveGatePolicy, saveTenantBudget } from './ai-policy.server';
+import {
+  loadAiPolicyOverview,
+  removeTenantRoute,
+  saveGatePolicy,
+  saveRoute,
+  saveTenantBudget,
+} from './ai-policy.server';
 import { createDirectoryClient } from './directory/client';
 
 const admin = () => mockAiGatewayClient('Amina Wanjiru', ['platform-admin']);
@@ -254,6 +260,45 @@ describe('S16 tenant budget', () => {
   it('is a 400 for a limit under 1 a minute', async () => {
     const result = await saveTenantBudget(admin(), 'jsc', { monthlyTokens: 0, perMinute: 0 });
     expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+  });
+});
+
+describe('S2 routing changes', () => {
+  const route = {
+    provider: 'anthropic',
+    model: 'claude-sonnet-5',
+    params: { maxOutputTokens: 2_000 },
+    approvalRef: 'EACC/AI/2026/040',
+  };
+
+  it('routes a task for every Commission and for one, and removes the one', async () => {
+    const all = await saveRoute(admin(), null, 'explain-flags', route);
+    expect(all).toMatchObject({ ok: true, data: { tenant: null, model: 'claude-sonnet-5' } });
+    const one = await saveRoute(admin(), 'jsc', 'explain-flags', route);
+    expect(one).toMatchObject({ ok: true, data: { tenant: 'jsc', providerClass: 'external' } });
+
+    const listed = await admin().GET('/v1/ai/routing');
+    expect(listed.data).toContainEqual(
+      expect.objectContaining({ tenant: 'jsc', task: 'explain-flags' }),
+    );
+
+    expect(await removeTenantRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041')).toEqual({
+      ok: true,
+      data: null,
+    });
+    const again = await removeTenantRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041');
+    expect(again).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 404 } },
+    });
+  });
+
+  it('is a 400 for a provider the gateway cannot reach', async () => {
+    const result = await saveRoute(admin(), null, 'explain-flags', { ...route, provider: 'other' });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 400 } },
+    });
   });
 });
 

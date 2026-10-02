@@ -19,6 +19,9 @@ import {
   longMonth,
   pageOf,
   parseWholeNumber,
+  routeDraft,
+  routeErrors,
+  routeInput,
   routeParams,
   searchRows,
   shortMonth,
@@ -247,5 +250,52 @@ describe('formatting', () => {
       { label: 'Timeout', value: '10 s' },
       { label: 'topP', value: '1' },
     ]);
+  });
+});
+
+describe('S2 route dialog', () => {
+  const route = {
+    tenant: null,
+    task: 'explain-flags' as const,
+    provider: 'anthropic',
+    providerClass: 'external' as const,
+    model: 'claude-opus-5-5',
+    params: { maxOutputTokens: 3_000, effort: 'low', timeoutMs: 45_500 },
+  };
+
+  it('fills the fields from the route, timeout in seconds', () => {
+    expect(routeDraft(route)).toEqual({
+      provider: 'anthropic',
+      model: 'claude-opus-5-5',
+      maxOutputTokens: '3000',
+      effort: 'low',
+      timeoutSeconds: '46',
+      approvalRef: '',
+    });
+    expect(routeDraft(null)).toMatchObject({ provider: '', effort: '', maxOutputTokens: '' });
+  });
+
+  it('requires provider, model and approval, and whole numbers above 0 when set', () => {
+    expect(
+      routeErrors({ ...routeDraft(null), maxOutputTokens: '0', timeoutSeconds: '1.5' }),
+    ).toEqual({
+      provider: 'Enter the provider.',
+      model: 'Enter the model.',
+      maxOutputTokens: 'Enter a whole number above 0, or leave it empty.',
+      timeoutSeconds: 'Enter a whole number above 0, or leave it empty.',
+      approvalRef: 'Enter the approval reference.',
+    });
+    expect(routeErrors({ ...routeDraft(route), approvalRef: 'EACC/AI/1' })).toEqual({});
+  });
+
+  it('sends only the parameters that are set', () => {
+    expect(
+      routeInput({ ...routeDraft(route), maxOutputTokens: '', effort: '', approvalRef: ' A/1 ' }),
+    ).toEqual({
+      provider: 'anthropic',
+      model: 'claude-opus-5-5',
+      params: { timeoutMs: 46_000 },
+      approvalRef: 'A/1',
+    });
   });
 });
