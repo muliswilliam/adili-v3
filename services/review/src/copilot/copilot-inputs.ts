@@ -120,8 +120,8 @@ function unmatched(kind: 'acquired' | 'disposed', placed: PlacedItem): ChangeInp
 }
 
 /**
- * The minimal context of every item the flags refer to: its category, type, description and
- * value, from the version (or, for an item no longer declared, the previous one).
+ * The minimal context of every item the flags refer to: its category, type, description, value
+ * and change marking, from the version (or, for an item no longer declared, the previous one).
  */
 function itemContext(
   flags: FlagInput[],
@@ -149,7 +149,10 @@ function itemContext(
   return context;
 }
 
-/** What a task is told of an item: its category, type, description and value. */
+/**
+ * What a task is told of an item: its category, type, description, value and the declarant's
+ * change marking (s.31(3)-(4)) with any explanation, which the flags are often about.
+ */
 export function placedItemContext(
   placed: PlacedItem,
   version: 'current' | 'previous',
@@ -160,6 +163,7 @@ export function placedItemContext(
     type: placed.item.type,
     description: placed.item.description,
     valueKesCents: valueOf(placed.item),
+    change: placed.item.change,
   };
 }
 

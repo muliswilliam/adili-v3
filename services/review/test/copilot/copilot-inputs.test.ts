@@ -130,6 +130,7 @@ describe('copilotInputs', () => {
             type: 'land',
             description: 'Plot in Kisumu',
             valueKesCents: 1_410_000_000,
+            change: raised.change,
           },
         },
         {
@@ -145,6 +146,7 @@ describe('copilotInputs', () => {
             type: 'vehicle',
             description: 'Toyota Prado',
             valueKesCents: car.value.kesCents,
+            change: car.change,
           },
         },
       ],

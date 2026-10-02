@@ -92,6 +92,7 @@ describe('draftClarificationInput', () => {
             type: land.type,
             description: 'Plot in Kisumu',
             valueKesCents: 1_000_000_000,
+            change: land.change,
           },
           requirement: 'explain-discrepancy',
         },
