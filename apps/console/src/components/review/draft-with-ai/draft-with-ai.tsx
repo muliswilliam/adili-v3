@@ -159,6 +159,14 @@ export function DraftWithAi({
   const options = pickable(selection, flags, api.targets);
   const count = picked.flags.length + picked.items.length;
   const busy = phase !== 'idle';
+  // The letter's language holds while drafting; the composer frees it again if this unmounts.
+  const { setDrafting } = api;
+  useEffect(() => {
+    setDrafting(busy);
+    return () => {
+      setDrafting(false);
+    };
+  }, [busy, setDrafting]);
 
   async function draft() {
     if (count === 0 || busy) return;

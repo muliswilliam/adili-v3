@@ -102,6 +102,11 @@ export interface ComposerApi {
   insert: (draft: ComposerDraft) => void;
   /** Removes an item, e.g. Discard on a drafted one. */
   remove: (key: string) => void;
+  /**
+   * Says a draft is being written (true) or no longer is (false): the letter's language holds
+   * meanwhile, as the draft comes back in the language it was asked in.
+   */
+  setDrafting: (drafting: boolean) => void;
 }
 
 /** The server functions the composer calls; tests pass fakes. */
@@ -240,6 +245,7 @@ function ComposerBody({
   const [confirming, setConfirming] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
   const body = useRef<HTMLDivElement>(null);
   /** Brings the alert at the top into view after a refused save or issue. */
   const toTop = () => {
@@ -257,6 +263,7 @@ function ComposerBody({
     remove: (key) => {
       dispatch({ type: 'remove', key });
     },
+    setDrafting,
   };
   const title = followUpOf ? t.followUpTitle : draft ? t.draftTitle : t.newTitle;
 
@@ -364,6 +371,7 @@ function ComposerBody({
           />
           <LanguageChoice
             value={state.language}
+            disabled={drafting}
             onChange={(language) => {
               dispatch({ type: 'language', language });
             }}
@@ -473,9 +481,12 @@ function ComposerBody({
 /** The letter's language: its own text, the preview and Draft with AI follow it. */
 function LanguageChoice({
   value,
+  disabled,
   onChange,
 }: {
   value: DraftLanguage;
+  /** While Draft with AI is drafting, in this language. */
+  disabled: boolean;
   onChange: (language: DraftLanguage) => void;
 }) {
   const id = useId();
@@ -485,6 +496,7 @@ function LanguageChoice({
       <Select
         id={id}
         value={value}
+        disabled={disabled}
         onValueChange={(next) => {
           onChange(next as DraftLanguage);
         }}

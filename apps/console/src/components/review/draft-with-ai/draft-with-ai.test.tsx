@@ -319,6 +319,31 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(within(itemCard(3)).queryByText(/^Drafted in /)).toBeNull();
   });
 
+  it('holds the letter language while drafting, so the draft lands in the language it was asked in (Q35)', async () => {
+    let answer: (result: ServiceResult<AiDraft>) => void = () => undefined;
+    const server = fakeDraftServer();
+    server.request.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderHost({ server });
+    const language = () => within(drawer()).getByRole('combobox', { name: 'Letter language' });
+    pick('Value changed by 150% since the previous declaration');
+    expect(language().hasAttribute('data-disabled')).toBe(false);
+
+    fireEvent.click(draftButton());
+    expect(language().hasAttribute('data-disabled')).toBe(true);
+
+    await act(async () => {
+      answer(ok(READY));
+      await Promise.resolve();
+    });
+    expect(items()).toHaveLength(2);
+    expect(language().hasAttribute('data-disabled')).toBe(false);
+  });
+
   it('saves the opening paragraph with the items, each drafted part with its job (ADR-007)', async () => {
     const { composer } = renderHost();
     pick('Value changed by 150% since the previous declaration');
