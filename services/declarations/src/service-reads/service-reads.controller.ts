@@ -9,13 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiHeader,
-  ApiOkResponse,
-  ApiOperation,
-  ApiParam,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiHeader, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   ActingTenant,
   ApiJsonBody,
