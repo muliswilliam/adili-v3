@@ -257,6 +257,7 @@ describe('Deciding an access request (S6)', () => {
       });
       expect(request.timeline.map((entry) => entry.kind)).toEqual([
         'received',
+        'identified',
         'notified',
         'decided',
         'package-issued',

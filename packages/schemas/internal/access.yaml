@@ -1854,6 +1854,7 @@ components:
           enum:
             - received
             - verified
+            - identified
             - notified
             - representations
             - decided
@@ -2308,6 +2309,7 @@ components:
           enum:
             - received
             - verified
+            - identified
             - notified
             - representations
             - decided

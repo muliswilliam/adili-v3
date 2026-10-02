@@ -113,7 +113,11 @@ describe('Resolving the officer a request names (S3)', () => {
       const officerView = (
         await api.get(`/v1/access/requests/${id}/officer`, officer)
       ).json<OfficerRequestView>();
-      expect(officerView.timeline.map((entry) => entry.kind)).toEqual(['received', 'notified']);
+      expect(officerView.timeline.map((entry) => entry.kind)).toEqual([
+        'received',
+        'identified',
+        'notified',
+      ]);
       expect(officerView.windowEndsAt).toBe('2027-03-16T18:30:00.000Z');
     });
 

@@ -26,10 +26,9 @@ export const ACCESS_SUBJECT_KINDS = ['access-request', 'lea-request', 'self-acce
 export type AccessSubjectKind = (typeof ACCESS_SUBJECT_KINDS)[number];
 
 /**
- * The steps the access register records. All but `identified` show in request timelines
- * (access.yaml `RegisterEntry.kind`); `identified` (the access officer resolved the officer a
- * Form K names to a roster record) is recorded and published, but kept out of timelines until the
- * front ends show it.
+ * The steps the access register records, each shown in request timelines (access.yaml
+ * `RegisterEntry.kind`). `identified`: the access officer resolved the officer a Form K names to a
+ * roster record.
  */
 export const ACCESS_REGISTER_KINDS = [
   'received',

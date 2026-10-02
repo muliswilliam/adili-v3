@@ -619,7 +619,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "received" | "verified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
             /** Format: date-time */
             at: string;
             actor: string | null;
@@ -778,7 +778,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "received" | "verified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
+            kind: "received" | "verified" | "identified" | "notified" | "representations" | "decided" | "package-issued" | "downloaded" | "expired" | "withdrawn" | "cannot-identify" | "self-access";
             /** Format: date-time */
             at: string;
             actor: string | null;

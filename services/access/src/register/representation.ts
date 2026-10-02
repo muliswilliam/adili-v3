@@ -1,25 +1,10 @@
-import type { AccessRegisterKind } from '@adili/events/contracts';
+import { ACCESS_REGISTER_KINDS } from '@adili/events/contracts';
 import { z } from 'zod';
 
 import type { RegisterRow } from './access-register.js';
 
-/**
- * The register kinds a timeline shows: every one but `identified` (who resolved the officer
- * named), which the register and its event record but the front ends do not show yet.
- */
-export const TIMELINE_KINDS = [
-  'received',
-  'verified',
-  'notified',
-  'representations',
-  'decided',
-  'package-issued',
-  'downloaded',
-  'expired',
-  'withdrawn',
-  'cannot-identify',
-  'self-access',
-] as const satisfies readonly AccessRegisterKind[];
+/** The register kinds a timeline shows: every one the register records. */
+export const TIMELINE_KINDS = ACCESS_REGISTER_KINDS;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
 /** A register row of a kind timelines show. */
@@ -47,6 +32,7 @@ export type RegisterEntry = z.infer<typeof registerEntrySchema>;
 const SUMMARIES: Record<TimelineKind, string> = {
   received: 'Request received',
   verified: 'Request verified',
+  identified: 'Officer identified',
   notified: 'Declarant notified',
   representations: 'Declarant made representations',
   decided: 'Decision taken',
