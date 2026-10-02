@@ -33,6 +33,11 @@ export const reviewCopilotDrafts = pgTable(
       .references(() => reviewCases.id),
     /** The assignee who asked; only they can poll it. */
     requestedBy: text().notNull(),
+    /**
+     * SHA-256 of the selection asked for: a retry with the draft's Idempotency-Key and another
+     * selection is refused (`idempotency-key-reused`), as no answer is stored for replay.
+     */
+    selectionHash: text().notNull(),
     /** Null when the gateway refused the request: no job was created. */
     jobId: uuid(),
     status: text({ enum: COPILOT_DRAFT_STATUSES }).notNull(),

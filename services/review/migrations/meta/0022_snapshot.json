@@ -1,5 +1,5 @@
 {
-  "id": "80b851db-027d-4e40-8904-6a8a56cf7b1d",
+  "id": "19342e9f-5070-4ff6-be20-4a9d49ebaf11",
   "prevId": "c67cb3d5-db97-4076-bb1e-16ecaaec3270",
   "version": "7",
   "dialect": "postgresql",
@@ -1692,6 +1692,12 @@
         },
         "requested_by": {
           "name": "requested_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selection_hash": {
+          "name": "selection_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": true

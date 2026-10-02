@@ -1028,7 +1028,7 @@ export interface paths {
         put?: never;
         /**
          * Draft clarification items from selected flags and items (assignee); nothing is issued
-         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
+         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over. Audited read (`review.copilot.drafted`).
          */
         post: operations["draftClarificationWithAi"];
         delete?: never;
@@ -4020,7 +4020,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`) */
             409: {
                 headers: {
                     [name: string]: unknown;

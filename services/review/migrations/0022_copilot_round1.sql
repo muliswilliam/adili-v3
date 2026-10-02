@@ -1,5 +1,6 @@
 ALTER TABLE "review_copilot_drafts" DROP CONSTRAINT "review_copilot_drafts_content_check";--> statement-breakpoint
 ALTER TABLE "clarifications" ADD COLUMN "ai_assisted" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "review_copilot_drafts" ADD COLUMN "selection_hash" text NOT NULL;--> statement-breakpoint
 ALTER TABLE "review_copilot_drafts" ADD COLUMN "purged_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "review_copilots" ADD COLUMN "staged_summary_prompt_version" integer;--> statement-breakpoint
 ALTER TABLE "review_copilots" ADD COLUMN "staged_summary_ciphertext" text;--> statement-breakpoint

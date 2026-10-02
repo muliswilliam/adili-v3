@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
@@ -95,7 +97,7 @@ export class CopilotDraftsService {
    * when the job ended within the wait, `pending` otherwise. Only the assignee (403); 409 when the
    * gateway's classification gate blocks the Commission; 400 for a selection not on the case. The
    * declaration is read for the caller. A retry with the same Idempotency-Key gets the same draft,
-   * as it is now.
+   * as it is now; 409 `draft-expired` once its 24 hours are over.
    */
   async draft(
     principal: Principal,
@@ -117,6 +119,22 @@ export class CopilotDraftsService {
       };
     });
     requireAssignee(principal, row.assignee);
+
+    const id = uuidv5([row.id, principal.subject, idempotencyKey].join('|'), DRAFT_NAMESPACE);
+    // A retry: an ended draft is answered as it is, from here; one past its day is gone.
+    const [existing] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({
+          draft: reviewCopilotDrafts,
+          expired: sql<boolean>`${reviewCopilotDrafts.expiresAt} <= now()`,
+        })
+        .from(reviewCopilotDrafts)
+        .where(eq(reviewCopilotDrafts.id, id)),
+    );
+    const selectionHash = hashOf(selection);
+    if (existing && existing.draft.selectionHash !== selectionHash) throw keyReused();
+    if (existing?.expired) throw draftExpired();
+    if (existing && existing.draft.status !== 'pending') return this.viewOf(existing.draft);
 
     const document = await this.document(principal, tenant, row);
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
@@ -141,7 +159,6 @@ export class CopilotDraftsService {
       );
     }
 
-    const id = uuidv5([row.id, principal.subject, idempotencyKey].join('|'), DRAFT_NAMESPACE);
     let job: AiJob | null;
     try {
       // The gateway decides whether the Commission may use AI now: a policy change applies at once.
@@ -176,6 +193,7 @@ export class CopilotDraftsService {
           tenant,
           caseId: row.id,
           requestedBy: principal.subject,
+          selectionHash,
           jobId: job?.id ?? null,
           ...sealed,
           expiresAt: sql`now() + make_interval(hours => ${COPILOT_DRAFT_TTL_HOURS})`,
@@ -323,6 +341,37 @@ export class CopilotDraftsService {
       throw error;
     }
   }
+}
+
+/** The SHA-256 of a selection, as validated (the schema's key order). */
+function hashOf(selection: CopilotDraftInput): string {
+  return createHash('sha256').update(JSON.stringify(selection)).digest('hex');
+}
+
+/** 422: the Idempotency-Key names a draft of another selection. */
+function keyReused(): ProblemException {
+  return new ProblemException(
+    {
+      type: 'idempotency-key-reused',
+      title: 'Idempotency-Key reused',
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      detail: 'The Idempotency-Key was used for a draft of another selection.',
+    },
+    { code: 'idempotency-key-reused' },
+  );
+}
+
+/** 409: the draft of this Idempotency-Key is past its day; a new key asks anew. */
+function draftExpired(): ProblemException {
+  return new ProblemException(
+    {
+      type: 'draft-expired',
+      title: 'Draft expired',
+      status: HttpStatus.CONFLICT,
+      detail: 'The draft of this Idempotency-Key is past its 24 hours. Ask again with a new key.',
+    },
+    { code: 'draft-expired' },
+  );
 }
 
 /** The AAD record id of a stored draft: the draft and the job that drafted it. */

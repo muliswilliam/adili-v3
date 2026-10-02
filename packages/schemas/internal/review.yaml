@@ -1757,7 +1757,9 @@ paths:
         draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept
         for 24 hours and never become clarifications: the console inserts the items into the
         composer, and the clarification endpoints issue them. A retry with the same
-        Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
+        Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted
+        text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over.
+        Audited read (`review.copilot.drafted`).
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -1790,7 +1792,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 'AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)'
+          description: 'AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`)'
           content:
             application/problem+json:
               schema:

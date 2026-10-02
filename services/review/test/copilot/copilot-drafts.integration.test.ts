@@ -217,6 +217,41 @@ describe('review copilot drafts', () => {
       tx.execute<{ row: string }>(sql`select t::text as row from review_copilot_drafts t`),
     );
     expect(stored.rows.map((r) => r.row).join('\n')).not.toContain('Karen');
+    // Nor is the answer kept in clear for the Idempotency-Key's replay.
+    const replays = await api.asPlatform((tx) =>
+      tx.execute<{ row: string }>(sql`select t::text as row from idempotency_keys t`),
+    );
+    expect(replays.rows.map((r) => r.row).join('\n')).not.toContain(DRAFTED);
+  });
+
+  it('a retry with the same key gets the same draft, another selection a 422, and once its 24 hours are over a 409', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    api.ai.endWithinWait((call) => ({
+      status: 'succeeded',
+      reason: null,
+      output: output(call.request.input as DraftClarificationInput),
+    }));
+    const key = randomUUID();
+    const first = (await post(caseId, draftInput(flagId), assignee, key)).json<CopilotDraft>();
+    const again = await post(caseId, draftInput(flagId), assignee, key);
+    expect(again.statusCode).toBe(200);
+    expect(again.json()).toEqual(first);
+    expect(api.ai.jobsOf('draft-clarification')).toHaveLength(1);
+
+    await api.asPlatform((tx) =>
+      tx
+        .update(reviewCopilotDrafts)
+        .set({ expiresAt: sql`now() - interval '1 second'` })
+        .where(eq(reviewCopilotDrafts.id, first.id)),
+    );
+    const expired = await post(caseId, draftInput(flagId), assignee, key);
+    expect(expired.statusCode).toBe(409);
+    expect(expired.json()).toMatchObject({ type: 'draft-expired' });
+    expect(expired.body).not.toContain(DRAFTED);
+    // The same key for another selection.
+    const reused = await post(caseId, { ...draftInput(flagId), language: 'en' }, assignee, key);
+    expect(reused.statusCode).toBe(422);
+    expect(reused.json()).toMatchObject({ type: 'idempotency-key-reused' });
   });
 
   it('answers 202 with a pending draft when the wait runs out, which the assignee polls until ready', async () => {
