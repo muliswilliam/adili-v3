@@ -6,9 +6,11 @@ import {
   ApiQueryParameters,
   AuditedRead,
   CurrentPrincipal,
+  CurrentReadAudit,
   IdempotencyKey,
   InternalApi,
   type Principal,
+  type ReadAudit,
   RequireIdempotencyKey,
   schemaRef,
   ZodValidationPipe,
@@ -65,14 +67,18 @@ export class InternalRosterRecordsController {
     'Query failed validation: not exactly one of importId, exitBatchId and search, or an unknown cursor',
   )
   @ApiProblemResponse(404, "No such import or exit batch of the acting tenant's Commission")
-  list(
+  async list(
     @CurrentPrincipal() principal: Principal,
     @ActingTenant() tenant: string,
     @Param('slug') slug: string,
     @Query(new ZodValidationPipe(internalListRosterRecordsQuery))
     query: InternalListRosterRecordsQuery,
+    @CurrentReadAudit() audit: ReadAudit,
   ): Promise<InternalRosterRecordPage> {
-    return this.records.list(principal, tenant, slug, query);
+    const page = await this.records.list(principal, tenant, slug, query);
+    // A batch read names the records it served (ADR-008): a search's matches above all.
+    audit.resource({ tenant: slug, ids: page.items.map(({ id }) => id) });
+    return page;
   }
 
   @Get(':recordId')

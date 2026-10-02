@@ -231,12 +231,19 @@ describe('S18 records touched by an import', () => {
   it('records the pull in the audit trail as the calling service', async () => {
     const first = await importRoster([ROW.achieng]);
 
-    await api.get(`${INTERNAL_RECORDS}?importId=${first.id}`, DECLARATIONS, ACTING_PSC);
+    const pulled = await api.get(
+      `${INTERNAL_RECORDS}?importId=${first.id}`,
+      DECLARATIONS,
+      ACTING_PSC,
+    );
+    const served = pulled.json<{ items: { id: string }[] }>().items.map(({ id }) => id);
 
     expect(await auditReads()).toContainEqual(
       expect.objectContaining({
         action: 'roster.records.pulled',
         actor: expect.objectContaining({ clientId: 'declarations' }) as unknown,
+        // A batch read names the records it served (ADR-008).
+        resource: expect.objectContaining({ ids: served }) as unknown,
       }),
     );
   });
@@ -398,12 +405,18 @@ describe('Spec 10 roster search (officer resolution)', () => {
   it('records the search in the audit trail as the calling service', async () => {
     await givenPscRoster();
 
-    await search('search=anne');
+    const served = (await search('search=anne')).json<{ items: { id: string }[] }>().items;
 
+    expect(served.length).toBeGreaterThan(0);
     expect(await auditReads()).toContainEqual(
       expect.objectContaining({
         action: 'roster.records.pulled',
         actor: expect.objectContaining({ clientId: 'access' }) as unknown,
+        // The records the search returned, by id (ADR-008: a batch read names what it served).
+        resource: expect.objectContaining({
+          tenant: 'psc',
+          ids: served.map(({ id }) => id),
+        }) as unknown,
       }),
     );
   });
