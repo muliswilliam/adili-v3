@@ -140,3 +140,21 @@ _Avoid_: return, submission
 **Reference number**:
 The human-readable identifier of a record, e.g. `DCB-TSC-2027-0012345-K`.
 _Avoid_: ID, code, ticket number
+
+### National reporting
+
+**National consolidated report**:
+EACC's yearly report built from every Commission's compliance report: aggregates, a narrative and an approval. Short form NCR.
+_Avoid_: national report (alone), annual report
+
+**Aggregate key**:
+The stable name of one figure in the NCR aggregates, e.g. `commission.tsc.nonFilerRate`; what a narrative paragraph cites.
+_Avoid_: metric ID, field
+
+**Pattern candidate**:
+A notable pattern computed by code from this and prior years' aggregates, which the narrative may cite. The AI narrates candidates; it does not find them.
+_Avoid_: insight, finding (a finding is the narrative's statement)
+
+**AI draft**:
+A narrative paragraph written by AI that the analyst has not yet edited. Editing it makes it the analyst's own.
+_Avoid_: suggestion, AI text
