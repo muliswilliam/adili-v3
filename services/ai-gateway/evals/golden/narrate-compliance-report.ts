@@ -90,7 +90,7 @@ function figures([expected, filed, late, clarifications]: Counts[Year]) {
 function yearOf(fy: Year) {
   const rows = COMMISSIONS.map(({ code, name, counts }) => {
     const { counts: own, rates } = figures(counts[fy]);
-    return { code, name, figures: { ...own, ...rates } };
+    return { code, commissionName: name, figures: { ...own, ...rates } };
   });
   const sum = (index: 0 | 1 | 2 | 3) =>
     COMMISSIONS.reduce((total, { counts }) => total + counts[fy][index], 0);

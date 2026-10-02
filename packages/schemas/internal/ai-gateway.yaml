@@ -1035,8 +1035,9 @@ components:
                 type: string
                 pattern: ^[a-z][a-z0-9-]*$
                 description: Commission slug; names the row in aggregate keys
-              name:
+              commissionName:
                 type: string
+                description: 'A public body, not a person: outside the name fields minimisation tokenises'
               figures:
                 type: object
                 propertyNames:
@@ -1047,7 +1048,7 @@ components:
                     - 'null'
             required:
               - code
-              - name
+              - commissionName
               - figures
           description: 'One row per Commission: code, name and its figures, rates as fractions'
         priorYears:
@@ -1085,8 +1086,9 @@ components:
                       type: string
                       pattern: ^[a-z][a-z0-9-]*$
                       description: Commission slug; names the row in aggregate keys
-                    name:
+                    commissionName:
                       type: string
+                      description: 'A public body, not a person: outside the name fields minimisation tokenises'
                     figures:
                       type: object
                       propertyNames:
@@ -1097,7 +1099,7 @@ components:
                           - 'null'
                   required:
                     - code
-                    - name
+                    - commissionName
                     - figures
                 description: 'One row per Commission: code, name and its figures, rates as fractions'
             required:

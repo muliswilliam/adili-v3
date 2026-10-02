@@ -391,7 +391,8 @@ export interface components {
             commissionTable: {
                 /** @description Commission slug; names the row in aggregate keys */
                 code: string;
-                name: string;
+                /** @description A public body, not a person: outside the name fields minimisation tokenises */
+                commissionName: string;
                 figures: {
                     [key: string]: number | null;
                 };
@@ -411,7 +412,8 @@ export interface components {
                 commissionTable: {
                     /** @description Commission slug; names the row in aggregate keys */
                     code: string;
-                    name: string;
+                    /** @description A public body, not a person: outside the name fields minimisation tokenises */
+                    commissionName: string;
                     figures: {
                         [key: string]: number | null;
                     };

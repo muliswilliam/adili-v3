@@ -95,12 +95,12 @@ export const narrateInput: NarrateInput = {
   commissionTable: [
     {
       code: 'tsc',
-      name: 'Teachers Service Commission',
+      commissionName: 'Teachers Service Commission',
       figures: { expected: 8_200, nonFilerRate: 0.164 },
     },
     {
       code: 'psc',
-      name: 'Public Service Commission',
+      commissionName: 'Public Service Commission',
       figures: { expected: 4_280, nonFilerRate: 0.051 },
     },
   ],
@@ -112,7 +112,7 @@ export const narrateInput: NarrateInput = {
       commissionTable: [
         {
           code: 'tsc',
-          name: 'Teachers Service Commission',
+          commissionName: 'Teachers Service Commission',
           figures: { expected: 7_900, nonFilerRate: 0.082 },
         },
       ],

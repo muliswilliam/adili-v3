@@ -36,6 +36,8 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
 
   beforeAll(async () => {
     t = await createTestApp({ provider });
+    // External providers see no tenant's data by default; synthetic data opens as in the demo.
+    await t.seedDemoGate('eacc');
     auth = { authorization: `Bearer ${await t.token()}` };
     return () => t.close();
   });
@@ -64,6 +66,16 @@ describe('narrate-compliance-report', { timeout: 90_000 }, () => {
 
     expect(job).toMatchObject({ status: 'succeeded', output: narrateOutput });
     expect(contractErrors('Job', job)).toEqual([]);
+  });
+
+  it('sends Commission names as they are: public bodies, not identifiers to minimise', async () => {
+    answer = narrateOutput;
+
+    await run();
+
+    const content = provider.requests.at(-1)?.messages[0]?.content as string;
+    expect(content).toContain('"commissionName":"Teachers Service Commission"');
+    expect(content).not.toContain('[[PERSON_');
   });
 
   it('fails a paragraph with a foreign number with reason validation, recording why', async () => {

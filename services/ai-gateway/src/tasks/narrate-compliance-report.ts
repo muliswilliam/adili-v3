@@ -15,7 +15,9 @@ const commissionRow = z.object({
     .string()
     .regex(/^[a-z][a-z0-9-]*$/)
     .meta({ description: 'Commission slug; names the row in aggregate keys' }),
-  name: z.string(),
+  commissionName: z.string().meta({
+    description: 'A public body, not a person: outside the name fields minimisation tokenises',
+  }),
   figures,
 });
 
