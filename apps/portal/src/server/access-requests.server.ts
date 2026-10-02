@@ -13,6 +13,7 @@ import {
   type AccessCommission,
   type AccessRequest,
   type AccessRequestStatus,
+  type Decision,
   readAccessRequest,
 } from './access/types';
 import type { DirectoryClient } from './directory/client.server';
@@ -182,6 +183,8 @@ export interface RequestSummary {
   closedAt: string | null;
   /** When the granted package's download window ends; null without a package. */
   downloadExpiresAt: string | null;
+  /** The decision's grounds and reasons, once decided. */
+  decision: Pick<Decision, 'grounds' | 'reasons'> | null;
 }
 
 const CLOSING_KINDS = new Set(['decided', 'withdrawn', 'cannot-identify']);
@@ -205,6 +208,9 @@ export function toSummary(request: AccessRequest): RequestSummary {
     decisionDeadlineAt: request.decisionDeadlineAt,
     closedAt: closedAt(request),
     downloadExpiresAt: request.package?.downloadExpiresAt ?? null,
+    decision: request.decision
+      ? { grounds: request.decision.grounds, reasons: request.decision.reasons }
+      : null,
   };
 }
 

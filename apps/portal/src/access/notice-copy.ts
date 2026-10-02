@@ -1,4 +1,4 @@
-import { plural } from '@adili/ui';
+import { accessOutcomeLabels, formatNumber, plural } from '@adili/ui';
 
 import { en, english } from '../declaration/translatable';
 import type { Outcome, RepresentationStance } from '../server/access/types';
@@ -56,7 +56,6 @@ const NOTICES = {
   youAnd: en((others: string) => `You and ${others}`),
   youSpouseChildren: en('You, spouse and children'),
   youOnly: en('You only'),
-  clarifications: en('clarifications'),
 };
 
 export const NOTICES_COPY = english(NOTICES);
@@ -102,6 +101,7 @@ const NOTICE = {
   request: en('Request'),
   applicant: en('Applicant'),
   agency: en('Agency'),
+  caseReference: en('Case reference'),
   commission: en('Commission'),
   purpose: en('Purpose'),
   scopeAsked: en('Scope asked'),
@@ -110,8 +110,6 @@ const NOTICE = {
   years: en('Declaration year'),
   people: en('People'),
   sections: en('Sections'),
-  clarifications: en('Clarifications'),
-  included: en('Included'),
   you: en('You'),
   spouse: en('Spouse'),
   children: en('Children'),
@@ -145,6 +143,10 @@ const NOTICE = {
   youEdited: en('You · edited'),
   officerOf: en((commission: string) => `Access officer, ${commission}`),
   agencyGranted: en((agency: string) => `${agency} was granted access`),
+  agencyGrantedCase: en(
+    (agency: string, caseReference: string) =>
+      `${agency} was granted access (case ${caseReference})`,
+  ),
 
   notFoundTitle: en('Access request not found'),
   notFoundText: en('The link may be wrong, or it is not about your declaration.'),
@@ -161,9 +163,7 @@ const RESPONSE = {
   position: en('Your position'),
   stanceMissing: en('Choose object, consent or add context.'),
   optional: en('Optional'),
-  counter: en(
-    (used: number, max: number) => `${used.toLocaleString('en')} / ${max.toLocaleString('en')}`,
-  ),
+  counter: en((used: number, max: number) => `${formatNumber(used)} / ${formatNumber(max)}`),
   objectLabel: en('Your reasons'),
   contextLabel: en((commission: string) => `Context for ${commission}`),
   consentLabel: en('Comments'),
@@ -172,9 +172,7 @@ const RESPONSE = {
   consentPlaceholder: en('Anything you want to add'),
   objectMissing: en('Write your reasons.'),
   contextMissing: en('Write the context you want the Commission to consider.'),
-  tooLong: en(
-    (max: number) => `Keep your response to ${max.toLocaleString('en')} characters or fewer.`,
-  ),
+  tooLong: en((max: number) => `Keep your response to ${formatNumber(max)} characters or fewer.`),
   documents: en('Documents with your response'),
   attach: en('Attach a document'),
   attachAnother: en('Attach another document'),
@@ -231,16 +229,20 @@ export const STANCES = {
 /** Each outcome as the declarant reads it: the badge, and what the Commission did. */
 export const OUTCOMES = {
   grant: {
-    label: en('Granted'),
+    label: en(accessOutcomeLabels.grant),
     verb: en('granted access'),
     released: en('What was asked was released.'),
   },
   'partial-grant': {
-    label: en('Partially granted'),
+    label: en(accessOutcomeLabels['partial-grant']),
     verb: en('partially granted access'),
     released: en('Only part of what was asked was released.'),
   },
-  deny: { label: en('Denied'), verb: en('denied access'), released: en('Nothing was released.') },
+  deny: {
+    label: en(accessOutcomeLabels.deny),
+    verb: en('denied access'),
+    released: en('Nothing was released.'),
+  },
 } satisfies Record<Outcome, { label: unknown; verb: unknown; released: unknown }>;
 
 /** `3 documents` */

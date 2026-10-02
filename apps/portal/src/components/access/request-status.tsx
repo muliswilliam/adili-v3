@@ -28,7 +28,7 @@ export function RequestStatusBadge({
   return (
     <Badge variant={meta.tone} data-status={status} className={className}>
       <Icon icon={meta.icon} strokeWidth={2.2} />
-      {meta.label.en}
+      {meta.label}
     </Badge>
   );
 }

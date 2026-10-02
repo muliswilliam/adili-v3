@@ -22,13 +22,18 @@ export interface LeaRequestWorkflowInput {
   receivedAt: string;
   /** ISO 8601: the decision deadline (received + `LEA_DECISION_DAYS`, fourteen). */
   deadlineAt: string;
+  /**
+   * The receiving transaction (Postgres `xid8`): the workflow reads the request only once it has
+   * ended (workflow-control.ts).
+   */
+  transactionId: string;
 }
 
 /**
  * The signals that tell the workflow the request changed, sent once the transaction that changed
  * it commits: the access officer decided, or the request was withdrawn. They only save waiting:
  * the activities read the request before acting, and the workflow reads it every
- * `LEA_DECISION_CHECK_INTERVAL` without a signal.
+ * `LEA_REQUEST_CHECK_INTERVAL` without a signal, so a lost signal delays it, never stalls it.
  */
 export const LEA_REQUEST_SIGNALS = ['decided', 'withdrawn'] as const;
 export type LeaRequestSignal = (typeof LEA_REQUEST_SIGNALS)[number];
@@ -41,23 +46,23 @@ export const LEA_REMINDER_DAY = 10;
 
 /**
  * What a reminder or the breach flag did: done (`sent` / `flagged`), `skipped` because the
- * request is decided or closed, or the request is `missing` (its receipt rolled back after the
- * workflow started).
+ * request is decided or closed, or the request is `missing`.
  */
 export type LeaReminderOutcome = 'sent' | 'skipped' | 'missing';
 export type LeaBreachOutcome = 'flagged' | 'skipped' | 'missing';
 
 /**
- * Where the request stands while the workflow waits for the decision, read from the request
- * itself when no signal came.
+ * Where the request stands, read from the request itself (`leaRequestState`): first, once the
+ * receiving transaction has ended, then whenever the wait for the decision has had no signal for
+ * `LEA_REQUEST_CHECK_INTERVAL`. `missing`: the receiving transaction rolled back.
  */
-export type LeaDecisionState = 'undecided' | 'decided' | 'withdrawn' | 'missing';
+export type LeaRequestState = 'undecided' | 'decided' | 'withdrawn' | 'missing';
 
 /**
  * How often the workflow reads the request while it waits for the decision, in case the
- * `decided` or `withdrawn` signal was lost.
+ * `decided` or `withdrawn` signal was lost (milliseconds, six hours).
  */
-export const LEA_DECISION_CHECK_INTERVAL = '6 hours';
+export const LEA_REQUEST_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 
 /** What the decision's notice to the agency found: a grant (full or partial), a denial, or none. */
 export type LeaDecisionNoticeOutcome = 'granted' | 'denied' | 'missing';
@@ -70,7 +75,7 @@ export type LeaDecisionNoticeOutcome = 'granted' | 'denied' | 'missing';
 export type LeaPackageOutcome =
   { outcome: 'issued'; downloadExpiresAt: string } | { outcome: 'nothing-to-disclose' | 'missing' };
 
-/** How a run ended. */
+/** How a run ended (`missing`: its receipt rolled back after the workflow started). */
 export interface LeaRequestResult {
   outcome: 'decided' | 'withdrawn' | 'missing';
 }

@@ -25,7 +25,7 @@ import { SIGN_IN } from '../onboarding/links';
 import { StepHeading } from '../onboarding/onboarding-layout';
 import { GENERIC_ERROR, problemMessage } from '../onboarding/problems';
 import { SessionUnavailable, StepFailureAlert } from '../onboarding/step-alerts';
-import { applicantProblemMessage, PASSPORT_NOTICE } from './copy';
+import { applicantProblemMessage, CREATE_COPY as COPY, PASSPORT_NOTICE } from './copy';
 import type { ApplicantStepGuard } from './guard';
 import { useApplicantSettle, useApplicantStartAgain } from './settle';
 
@@ -84,11 +84,11 @@ function CreateAccount({ session }: { session: ApplicantOnboardingSession }) {
 
   return (
     <>
-      <StepHeading title="Create your account" />
+      <StepHeading title={COPY.title} />
       <div className="mt-5 rounded-2xl bg-card px-[18px] py-4 shadow-card">
         <DescriptionList>
-          <DescriptionItem term="Name">{session.fullName}</DescriptionItem>
-          <DescriptionItem term={passport ? 'Passport' : 'National ID'}>
+          <DescriptionItem term={COPY.name}>{session.fullName}</DescriptionItem>
+          <DescriptionItem term={passport ? COPY.passport : COPY.nationalId}>
             <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
               <span>
                 <span className="font-mono">{document.number}</span>
@@ -97,12 +97,12 @@ function CreateAccount({ session }: { session: ApplicantOnboardingSession }) {
               {passport ? null : (
                 <Badge variant="success">
                   <Icon icon={Tick02Icon} strokeWidth={2.5} />
-                  Matches the register
+                  {COPY.matchesRegister}
                 </Badge>
               )}
             </span>
           </DescriptionItem>
-          <DescriptionItem term="Phone">
+          <DescriptionItem term={COPY.phone}>
             {contacts.phone ? (
               <MaskedContact
                 kind="phone"
@@ -112,7 +112,7 @@ function CreateAccount({ session }: { session: ApplicantOnboardingSession }) {
               />
             ) : null}
           </DescriptionItem>
-          <DescriptionItem term="Email">
+          <DescriptionItem term={COPY.email}>
             {contacts.email ? (
               <MaskedContact kind="email" value={contacts.email.masked} className="justify-end" />
             ) : null}
@@ -137,10 +137,10 @@ function CreateAccount({ session }: { session: ApplicantOnboardingSession }) {
         {submitting ? (
           <>
             <Spinner />
-            Creating your account…
+            {COPY.creating}
           </>
         ) : (
-          'Create account'
+          COPY.create
         )}
       </Button>
     </>
@@ -165,7 +165,7 @@ function CreateFailureAlert({
         <Icon icon={UserCheck01Icon} />
         <AlertTitle>{applicantProblemMessage('already-onboarded')}</AlertTitle>
         <Button asChild size="sm" className="mt-2.5 w-fit">
-          <a href={SIGN_IN}>Sign in</a>
+          <a href={SIGN_IN}>{COPY.signIn}</a>
         </Button>
       </Alert>
     );
@@ -183,10 +183,10 @@ function CreateFailureAlert({
             variant="secondary"
             onClick={() => void startAgain(undefined, '/access/get-started/details')}
           >
-            Change your details
+            {COPY.changeDetails}
           </Button>
           <Button asChild size="sm" variant="ghost">
-            <a href={SIGN_IN}>Sign in</a>
+            <a href={SIGN_IN}>{COPY.signIn}</a>
           </Button>
         </div>
       </Alert>

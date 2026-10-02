@@ -2,17 +2,20 @@ import { fileURLToPath } from 'node:url';
 
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { Context } from '@temporalio/activity';
+import { WorkflowFailedError } from '@temporalio/client';
+import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { INVARIANT_BROKEN } from '../../src/activity-retry.js';
 import type { AccessRequestActivities } from '../../src/requests/activities.js';
 import type {
   AccessRequestSignal,
   AccessRequestWorkflowInput,
   DecisionNoticesOutcome,
-  DecisionState,
   OfficerReminderOutcome,
   OfficerReminderRequest,
   PackageOutcome,
+  RequestState,
   ResolutionOutcome,
   WindowOutcome,
 } from '../../src/requests/contract.js';
@@ -23,8 +26,9 @@ import { accessRequest } from '../../src/requests/workflows.js';
  * `AccessRequestWorkflow` against mocked activities in Temporal's time-skipping test environment:
  * the wait for the officer named to be resolved, the declarant's notice and window (S3), consent
  * (S4), the window elapsing to `under-decision` and the access officers' reminders at days five,
- * twenty and twenty-eight (S5), the decision's notices, package and its expiry (S6, S7), and the
- * signals that end it.
+ * twenty and twenty-eight (S5), the decision's notices, package and its expiry (S6, S7), a
+ * passport applicant's request held for verification (S2), the signals that move it on, and the
+ * reads of the request every six hours that make up for each signal lost.
  */
 const workflowsPath = fileURLToPath(new URL('../../src/workflows.ts', import.meta.url));
 
@@ -68,6 +72,7 @@ describe('AccessRequestWorkflow', () => {
       tenant: 'psc',
       requestId: REQUEST_ID,
       submittedAt: new Date(now - daysAgo * DAY_MS).toISOString(),
+      transactionId: '4242',
     };
   }
 
@@ -77,37 +82,50 @@ describe('AccessRequestWorkflow', () => {
     at: Map<string, number>;
   }
 
+  /** Where the request stands, as `requestState` reads it; tests change it as the officer would. */
+  interface Stored {
+    state: RequestState;
+  }
+
+  /** Changes the stored request, with no signal (as when the signal is lost). */
+  const store = (stored: Stored, state: RequestState) => {
+    stored.state = state;
+    return Promise.resolve();
+  };
+
   /**
    * Activities that record what ran and when. `resolution` answers `notified` with the window
-   * ending seven days after it ran, unless `resolutions` says otherwise; `on` runs extra work
-   * inside an activity, by the name it records.
+   * ending seven days after it ran, unless `resolutions` says otherwise; `requestState` reads
+   * `stored` (`unresolved` unless given); `on` runs extra work inside an activity, by the name it
+   * records; `fail` names activities that fail without retrying, once each.
    */
   function activities(
     options: {
       resolutions?: ResolutionOutcome['outcome'][];
       reminders?: Partial<Record<number, OfficerReminderOutcome>>;
-      /** What `decisionState` reads, call by call; `undecided` after. */
-      decisionStates?: DecisionState[];
+      stored?: Stored;
       decided?: DecisionNoticesOutcome;
       issued?: 'nothing-to-disclose' | 'missing';
       on?: Partial<Record<string, () => Promise<void>>>;
+      fail?: readonly string[];
     } = {},
   ): { mocks: Activities; recorded: Recorded } {
     const calls: string[] = [];
     const at = new Map<string, number>();
     const outcomes = [...(options.resolutions ?? [])];
+    const failing = new Set(options.fail);
     const record = async (name: string) => {
       calls.push(name);
       at.set(name, scheduledAt());
       await options.on?.[name]?.();
+      if (failing.delete(name)) {
+        throw ApplicationFailure.nonRetryable(`${name} broke`, INVARIANT_BROKEN);
+      }
     };
-    const states = [...(options.decisionStates ?? [])];
+    const stored = options.stored ?? { state: 'unresolved' };
     const mocks: Activities = {
-      // Not recorded: it runs every six hours while the decision is awaited.
-      decisionState: vi.fn(async (): Promise<DecisionState> => {
-        await options.on?.['decision-state']?.();
-        return states.shift() ?? 'undecided';
-      }),
+      // Not recorded: it runs first, then every six hours while the run waits.
+      requestState: vi.fn((): Promise<RequestState> => Promise.resolve(stored.state)),
       decisionNotices: vi.fn(async (): Promise<DecisionNoticesOutcome> => {
         await record('decision-notices');
         return options.decided ?? 'granted';
@@ -333,7 +351,7 @@ describe('AccessRequestWorkflow', () => {
     expect(dayOf(input, recorded, 'remind-28')).toBe(28);
   }, 60_000);
 
-  it('ends when the request is not there (its receipt rolled back)', async () => {
+  it('ends when a reminder finds the request not there', async () => {
     const input = await inputReceived();
     const { mocks } = activities({ reminders: { 5: 'missing' } });
 
@@ -342,6 +360,203 @@ describe('AccessRequestWorkflow', () => {
     expect(result).toEqual({ outcome: 'missing' });
     expect(mocks.remindOfficer).toHaveBeenCalledTimes(1);
   }, 60_000);
+
+  it('the receipt rolled back after the workflow started: it ends at once, with no reminder', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({ stored: { state: 'missing' } });
+
+    const result = await env.execute(accessRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'missing' });
+    expect(recorded.calls).toEqual([]);
+    expect(mocks.requestState).toHaveBeenCalledTimes(1);
+    expect(mocks.requestState).toHaveBeenCalledWith(input);
+  }, 60_000);
+
+  it('a reminder that fails after its retries is passed over: the next one still goes', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({
+      fail: ['remind-5'],
+      on: { 'remind-20': () => signalOwnWorkflow('withdrawn') },
+    });
+
+    const result = await env.execute(accessRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'withdrawn' });
+    expect(recorded.calls).toEqual(['remind-5', 'remind-20']);
+  }, 60_000);
+
+  describe('lost signals', () => {
+    it('a lost `resolved` signal: the request read resolved has the declarant notified within 6 hours', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'unresolved' };
+      const { mocks, recorded } = activities({
+        stored,
+        on: {
+          'remind-5': () => store(stored, 'resolved'),
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'withdrawn' });
+      expect(recorded.calls.slice(0, 3)).toEqual(['remind-5', 'resolution', 'close-window']);
+      // Read with the day-5 reminder, or at the next read six hours on.
+      expect(dayOf(input, recorded, 'resolution')).toBeGreaterThanOrEqual(5);
+      expect(dayOf(input, recorded, 'resolution')).toBeLessThanOrEqual(5.25);
+    }, 60_000);
+
+    it('a resolution whose notices fail after their retries is tried again at the next read', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({
+        fail: ['resolution'],
+        stored: { state: 'resolved' },
+        on: { 'close-window': () => signalOwnWorkflow('withdrawn') },
+      });
+
+      await env.execute(accessRequest, options(mocks, input));
+
+      expect(mocks.resolution).toHaveBeenCalledTimes(2);
+      expect(dayOf(input, recorded, 'resolution')).toBe(0.5);
+      expect(dayOf(input, recorded, 'close-window')).toBe(0.5 + WINDOW_DAYS);
+    }, 60_000);
+
+    it('a lost `withdrawn` signal before resolution: the request read withdrawn ends the run', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'unresolved' };
+      const { mocks } = activities({
+        stored,
+        on: {
+          'remind-5': () => store(stored, 'withdrawn'),
+        },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'withdrawn' });
+      expect(mocks.resolution).not.toHaveBeenCalled();
+      expect(mocks.remindOfficer).toHaveBeenCalledTimes(1);
+    }, 60_000);
+
+    it('a lost `consented` signal: the request read under decision closes the window within 6 hours', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'unresolved' };
+      const { mocks, recorded } = activities({
+        stored,
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          // The declarant consents right after their notice; its signal is lost.
+          resolution: () => store(stored, 'under-decision'),
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'withdrawn' });
+      expect(dayOf(input, recorded, 'close-window')).toBe(5.25);
+    }, 60_000);
+  });
+
+  describe('held for verification (S2)', () => {
+    it('a held request is reminded from receipt (days 5, 20, 28) while the applicant is unverified', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({
+        stored: { state: 'held' },
+        on: { 'remind-28': () => signalOwnWorkflow('withdrawn') },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'withdrawn' });
+      expect(recorded.calls).toEqual(['remind-5', 'remind-20', 'remind-28']);
+      expect(dayOf(input, recorded, 'remind-5')).toBe(5);
+      expect(mocks.resolution).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('verified, then resolved: the run waits for the officer named, then notifies the declarant', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'held' };
+      const { mocks, recorded } = activities({
+        stored,
+        on: {
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      await env.run(accessRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: 2 * DAY_MS });
+        stored.state = 'unresolved';
+        await handle.signal('verified');
+        await env.skipTime({ ms: DAY_MS });
+        stored.state = 'resolved';
+        await handle.signal('resolved');
+        await env.skipTime({ ms: 10 * DAY_MS });
+        return handle.result();
+      });
+
+      expect(recorded.calls.slice(0, 2)).toEqual(['resolution', 'remind-5']);
+      expect(dayOf(input, recorded, 'resolution')).toBe(3);
+    }, 60_000);
+
+    it('a resolution signalled while still held waits for the verification', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'held' };
+      const { mocks, recorded } = activities({
+        stored,
+        on: { 'close-window': () => signalOwnWorkflow('withdrawn') },
+      });
+
+      await env.run(accessRequest, options(mocks, input), async (handle) => {
+        await env.skipTime({ ms: DAY_MS });
+        await handle.signal('resolved');
+        await env.skipTime({ ms: DAY_MS });
+        stored.state = 'resolved';
+        await handle.signal('verified');
+        await env.skipTime({ ms: 10 * DAY_MS });
+        return handle.result();
+      });
+
+      expect(dayOf(input, recorded, 'resolution')).toBe(2);
+    }, 60_000);
+
+    it('lost `verified` and `resolved` signals: the request read no longer held goes ahead', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'held' };
+      const { mocks, recorded } = activities({
+        stored,
+        on: {
+          // Verified and resolved on day 5, both signals lost.
+          'remind-5': () => store(stored, 'resolved'),
+          'close-window': () => signalOwnWorkflow('withdrawn'),
+        },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'withdrawn' });
+      // One read finds it verified, the next (at most six hours on) resolved.
+      expect(dayOf(input, recorded, 'resolution')).toBeGreaterThan(5);
+      expect(dayOf(input, recorded, 'resolution')).toBeLessThanOrEqual(5.5);
+    }, 60_000);
+
+    it('withdrawn while held ends the run', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'held' };
+      const { mocks } = activities({
+        stored,
+        on: {
+          'remind-5': () => store(stored, 'withdrawn'),
+        },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'withdrawn' });
+      expect(mocks.resolution).not.toHaveBeenCalled();
+    }, 60_000);
+  });
 
   describe('after the decision', () => {
     /** Resolved at day 5, window closed at day 12, `decided` signalled from the day-20 reminder. */
@@ -402,31 +617,52 @@ describe('AccessRequestWorkflow', () => {
 
     it('a lost `decided` signal: the request is read every 6 hours, and the decision is carried out', async () => {
       const input = await inputReceived();
+      const stored: Stored = { state: 'unresolved' };
       const { mocks, recorded } = activities({
-        decisionStates: ['undecided', 'decided'],
-        on: { 'remind-5': () => signalOwnWorkflow('resolved') },
+        stored,
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          'close-window': () => store(stored, 'decided'),
+        },
       });
 
       const result = await env.execute(accessRequest, options(mocks, input));
 
       expect(result).toEqual({ outcome: 'decided' });
       expect(recorded.calls).toEqual(['remind-5', 'resolution', 'close-window', ...GRANT_STEPS]);
-      expect(dayOf(input, recorded, 'decision-notices')).toBe(5 + WINDOW_DAYS + 0.5);
-      expect(mocks.decisionState).toHaveBeenCalledTimes(2);
+      expect(dayOf(input, recorded, 'decision-notices')).toBe(5 + WINDOW_DAYS + 0.25);
+      expect(mocks.requestState).toHaveBeenCalledWith(input);
       expect(mocks.remindOfficer).toHaveBeenCalledTimes(1);
     }, 60_000);
 
     it('a lost `withdrawn` signal: the request read withdrawn ends the run', async () => {
       const input = await inputReceived();
+      const stored: Stored = { state: 'unresolved' };
       const { mocks } = activities({
-        decisionStates: ['withdrawn'],
-        on: { 'remind-5': () => signalOwnWorkflow('resolved') },
+        stored,
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          'close-window': () => store(stored, 'withdrawn'),
+        },
       });
 
       const result = await env.execute(accessRequest, options(mocks, input));
 
       expect(result).toEqual({ outcome: 'withdrawn' });
       expect(mocks.decisionNotices).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('a step after the decision that fails without retrying fails the run', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({ on: decidedOnDay20, fail: ['issue-package'] });
+
+      const failed = await env
+        .execute(accessRequest, options(mocks, input))
+        .catch((error: unknown) => error);
+
+      expect(failed).toBeInstanceOf(WorkflowFailedError);
+      expect(recorded.calls.slice(-2)).toEqual(['decision-notices', 'issue-package']);
+      expect(mocks.packageReady).not.toHaveBeenCalled();
     }, 60_000);
 
     it('decided while the window still ran (the consent signal lost): the window closes and the decision is carried out', async () => {

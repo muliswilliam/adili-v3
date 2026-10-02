@@ -1,7 +1,11 @@
 import { createEnvelope, type EventEnvelope } from '@adili/events';
 import { DOCUMENT_DOWNLOADED, type DocumentDownloadedData } from '@adili/events/contracts';
+import { ApplicationFailure } from '@temporalio/common';
+import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { INVARIANT_BROKEN } from '../../src/activity-retry.js';
+import { accessRequests } from '../../src/db/schema.js';
 import type { DisclosureDocument } from '../../src/declarations/declarations-client.js';
 import {
   accessRequestWorkflowId,
@@ -14,6 +18,7 @@ import type { AccessRequestRow } from '../../src/requests/representation.js';
 import { type AccessApi, startAccessApi } from '../support/access-api.js';
 import {
   callers,
+  ENDED_TRANSACTION,
   decide,
   givenCommissions,
   rowOf,
@@ -69,7 +74,12 @@ describe("A grant's package: downloads and expiry (S7)", () => {
     const response = await decide(api, row.id, { outcome: 'grant', reasons: 'Shown.' });
     expect(response.statusCode, response.body).toBe(200);
     return {
-      input: { tenant: 'psc', requestId: row.id, submittedAt: NOW },
+      input: {
+        tenant: 'psc',
+        requestId: row.id,
+        submittedAt: NOW,
+        transactionId: ENDED_TRANSACTION,
+      },
       row: await rowOf(api, row.id),
     };
   }
@@ -214,6 +224,37 @@ describe("A grant's package: downloads and expiry (S7)", () => {
       expect(api.declarations.disclosureCalls).toHaveLength(3);
       expect(api.documents.issued).toHaveLength(1);
       expect(row.downloadExpiresAt).toEqual(new Date(EXPIRES_AT));
+    });
+
+    it('documents refusing the package fails the run without retrying it (no package, nothing told)', async () => {
+      api.documents.refuseCalls(1);
+
+      const { input } = await granted();
+
+      const handle = api.temporal.workflow.getHandle(accessRequestWorkflowId(input.requestId));
+      await api.eventually(async () => (await handle.describe()).status.name === 'FAILED');
+      expect(api.declarations.disclosureCalls).toHaveLength(1);
+      expect(api.documents.issued).toEqual([]);
+      expect((await rowOf(api, input.requestId)).packageDocumentId).toBeNull();
+      expect(api.notifications.sent.map((m) => m.template)).not.toContain(
+        'access-package-ready-email',
+      );
+    });
+
+    it('a request with no grant is a broken invariant: not retried', async () => {
+      const { input } = await granted();
+      await api.endWorkflows([accessRequestWorkflowId(input.requestId)]);
+      await api.asPlatform((tx) =>
+        tx
+          .update(accessRequests)
+          .set({ status: 'denied', packageDocumentId: null, downloadExpiresAt: null })
+          .where(eq(accessRequests.id, input.requestId)),
+      );
+
+      const failure = await activities.issuePackage(input).catch((error: unknown) => error);
+
+      expect(failure).toBeInstanceOf(ApplicationFailure);
+      expect(failure).toMatchObject({ type: INVARIANT_BROKEN, nonRetryable: true });
     });
 
     it('nothing of the declarant in the granted scope: no package, no package notice', async () => {

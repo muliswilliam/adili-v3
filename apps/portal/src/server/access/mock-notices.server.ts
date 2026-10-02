@@ -60,7 +60,7 @@ const scope = (
   includeSpouses: boolean,
   includeChildren: boolean,
   sections: Scope['sections'],
-): Scope => ({ years, includeSpouses, includeChildren, sections, includeClarifications: false });
+): Scope => ({ years, includeSpouses, includeChildren, sections });
 
 const OBJECTION =
   'The plot is the subject of a pending case at the Environment and Land Court in Nakuru. Releasing my land and loan details now could affect that case. My income is already public through the TSC salary scales.';

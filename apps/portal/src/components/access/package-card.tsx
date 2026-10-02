@@ -7,6 +7,7 @@ import {
   formatDate,
   formatDateTime,
   Icon,
+  IconTile,
   msUntilKenyanMidnight,
   Spinner,
   useToast,
@@ -16,9 +17,10 @@ import {
   AlertCircleIcon,
   Clock01Icon,
   Download01Icon,
+  PackageRemoveIcon,
   SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 import { PACKAGE_COPY as COPY } from '../../access/copy';
 import {
@@ -64,7 +66,32 @@ export function usePackageClock(serverNow: number, expiresAt: string | null): nu
   return now;
 }
 
-/** A thumbnail of a watermarked page: the mark names the applicant, reference and issue date. */
+/**
+ * Re-renders once at `at` (an ISO time) and returns the clock from then on: for a moment the page
+ * must notice without ticking, such as a package that stops reading as being prepared.
+ */
+export function useWakeAt(now: number, at: string | null): number {
+  const [woke, setWoke] = useState<number | null>(null);
+  useEffect(() => {
+    if (!at) return;
+    const wait = Math.max(0, Date.parse(at) - Date.now());
+    const timer = setTimeout(
+      () => {
+        setWoke(Date.now());
+      },
+      Math.min(wait, MAX_TIMEOUT_MS),
+    );
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [at]);
+  return woke !== null && woke > now ? woke : now;
+}
+
+/**
+ * A thumbnail of a watermarked page, a sheet on the card's own paper: the mark names the
+ * applicant, reference and issue date.
+ */
 function WatermarkedPage({
   name,
   reference,
@@ -80,7 +107,7 @@ function WatermarkedPage({
     <div
       aria-hidden="true"
       className={cn(
-        'relative hidden h-[120px] w-[92px] shrink-0 overflow-hidden rounded-lg bg-white shadow-[0_0_0_1px_var(--color-border),3px_3px_0_-1px_#fff,3px_3px_0_0_var(--color-border)] sm:block',
+        'relative hidden h-[120px] w-[92px] shrink-0 overflow-hidden rounded-lg bg-card shadow-card sm:block',
         off && 'opacity-50 grayscale',
       )}
     >
@@ -91,7 +118,7 @@ function WatermarkedPage({
         <span
           key={top}
           className={cn(
-            'absolute left-3 h-1 rounded-[3px] bg-[#ecebe8]',
+            'absolute left-3 h-1 rounded-full bg-muted',
             index % 3 === 2 ? 'right-[34px]' : 'right-3',
           )}
           style={{ top }}
@@ -119,11 +146,15 @@ function DownloadsLine({ view }: { view: Extract<PackageView, { package: unknown
   );
 }
 
-/** When the window ends: the date and days left, or a live countdown in its last day. */
-function ExpiryLine({ view }: { view: Extract<PackageView, { state: 'ready' }> }) {
+/**
+ * When the window ends: the date and days left, or a live countdown in its last day. `id` names
+ * it, so the Download button is described by it.
+ */
+function ExpiryLine({ id, view }: { id: string; view: Extract<PackageView, { state: 'ready' }> }) {
   if (view.msLeft > COUNTDOWN_FROM_MS) {
     return (
       <span
+        id={id}
         className={cn(
           'inline-flex items-center gap-1.5 text-[13.5px] text-muted-foreground tabular-nums [&_svg]:size-[15px]',
           view.daysLeft <= 3 && 'font-semibold text-warning',
@@ -144,7 +175,7 @@ function ExpiryLine({ view }: { view: Extract<PackageView, { state: 'ready' }> }
         <Icon icon={Clock01Icon} />
         {COPY.expiresIn(countdownText(view.msLeft))}
       </span>
-      <span className="sr-only" aria-live="polite">
+      <span id={id} className="sr-only" aria-live="polite">
         {countdownSpoken(view.msLeft)}
       </span>
     </>
@@ -163,6 +194,7 @@ function ReadyActions({
   const { toast } = useToast();
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
+  const expiryId = useId();
   const { documentId } = view.package;
 
   async function download() {
@@ -188,6 +220,7 @@ function ReadyActions({
           type="button"
           disabled={pending}
           aria-busy={pending}
+          aria-describedby={expiryId}
           className="max-sm:flex-1"
           onClick={() => void download()}
         >
@@ -195,7 +228,7 @@ function ReadyActions({
           {pending ? <Spinner /> : <Icon icon={Download01Icon} />}
           {COPY.download}
         </Button>
-        <ExpiryLine view={view} />
+        <ExpiryLine id={expiryId} view={view} />
       </div>
       {failed ? (
         <p
@@ -212,7 +245,8 @@ function ReadyActions({
 }
 
 /**
- * A granted request's package (spec 10, #261): being prepared; ready, with Download (a link
+ * A granted request's package (spec 10, #261): being prepared; not issued (an hour after the
+ * grant, the rule the console shares); ready, with Download (a link
  * fetched from documents on each click), when the window ends and, in its last day, a live
  * countdown screen readers hear at coarse steps; or expired. A 410 from documents closes the
  * window on the page (`onWindowClosed`). Every page of the package carries the applicant's
@@ -233,6 +267,21 @@ export function PackageCard({
   onWindowClosed: () => void;
   onDownloaded: () => void;
 }) {
+  if (view.state === 'missing') {
+    return (
+      <Card className="p-0 sm:p-0">
+        <div role="status" className="flex items-start gap-3.5 px-5 py-[22px] sm:px-6">
+          <IconTile aria-hidden="true">
+            <Icon icon={PackageRemoveIcon} />
+          </IconTile>
+          <div className="grid gap-0.5">
+            <p className="font-semibold">{COPY.missingTitle}</p>
+            <p className="text-sm text-muted-foreground">{COPY.stillNeed(commission)}</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
   if (view.state === 'preparing') {
     return (
       <Card className="p-0 sm:p-0">

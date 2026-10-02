@@ -213,6 +213,16 @@ describe('access templates', () => {
     expect(
       renderTemplate('access-officer-reminder-sms', 'en', { ...params, daysLeft: 0 }).text,
     ).toBe(`Adili: decide request ${ARQ} by 31 October 2026 (today).`);
+    const verify = renderTemplate('access-officer-reminder-email', 'en', {
+      ...params,
+      task: 'verify-applicant',
+    });
+    expect(verify.subject).toBe(`Reminder: verify the applicant for ${ARQ}`);
+    expect(verify.text).toContain("waiting for you to verify the applicant's identity");
+    expect(
+      renderTemplate('access-officer-reminder-sms', 'en', { ...params, task: 'verify-applicant' })
+        .text,
+    ).toBe(`Adili: verify the applicant for request ${ARQ}. Decision due 31 October 2026.`);
   });
 
   it('tells the declarant of a law-enforcement grant after it, naming the agency and date', () => {

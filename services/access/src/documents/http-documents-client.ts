@@ -1,7 +1,7 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { refusedWith } from '../internal-api/internal-api.js';
+import { refusedWith } from '../upstream-refusal.js';
 import type { paths } from './documents-api.gen.js';
 import {
   type CleanUpload,
@@ -57,7 +57,7 @@ const uploadDownloadSchema = z.object({
  * The documents internal API through the client generated from its contract
  * (packages/schemas/internal/documents.yaml → documents-api.gen.ts via `pnpm generate:api`),
  * with the access service's own token (`documents:internal`) and the Commission in
- * `X-Acting-Tenant` (ADR-013 §8.5).
+ * `X-Acting-Tenant` (ADR-013 §8.8).
  */
 export class HttpDocumentsClient extends DocumentsClient {
   private readonly documents: ServiceClient<paths>;

@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DATABASE, withTenant } from '@adili/data-access';
 import { and, eq, isNull } from 'drizzle-orm';
 
+import { invariantBroken, rethrowAsActivityFailure } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase } from '../db/database.js';
@@ -14,13 +15,12 @@ import { systemContext } from '../system-context.js';
 import type {
   AccessRequestWorkflowInput,
   DecisionNoticesOutcome,
-  DecisionState,
   PackageOutcome,
 } from './contract.js';
 import { applicantRequestsUrl, declarantNoticesUrl } from './links.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, DECIDED_STATUSES, type DecidedStatus } from './schema.js';
-import { CHANNELS, load, logRefusal, messageKey, send } from './workflow-support.js';
+import { CHANNELS, load, messageKey, send } from './workflow-support.js';
 
 /** The template version of the access package the service issues (documents' `access-package`). */
 const ACCESS_PACKAGE_TEMPLATE_VERSION = 1;
@@ -35,7 +35,9 @@ export function packageSubjectRef(requestId: string): string {
  * by the access worker beside `AccessRequestActivities`. Every public method is an activity named
  * after it; each reads the request before acting and is safe to retry: messages carry an
  * idempotency key per request and message, the package one per request, and the register
- * entries are written once. An unreachable service propagates, so Temporal retries.
+ * entries are written once. An unreachable service propagates, so Temporal retries; a refusal
+ * by declarations or documents, or a request not in the state its step needs, fails the step
+ * without retrying (activity-retry.ts).
  */
 @Injectable()
 export class DecisionActivities {
@@ -49,15 +51,6 @@ export class DecisionActivities {
     private readonly register: AccessRegister,
     private readonly clock: Clock,
   ) {}
-
-  /** Where the request stands, for a workflow that has had no signal for a while. */
-  async decisionState({ tenant, requestId }: AccessRequestWorkflowInput): Promise<DecisionState> {
-    const found = await load(this.db, tenant, requestId);
-    if (!found) return 'missing';
-    if (isDecided(found.status)) return 'decided';
-    if (found.status === 'withdrawn') return 'withdrawn';
-    return 'undecided';
-  }
 
   /**
    * Tells both parties the decision (S6), by email and SMS, as person recipients: the applicant
@@ -125,7 +118,7 @@ export class DecisionActivities {
     const { decision, resolvedPersonId } = found;
     const scope = decision?.grantedScope;
     if (decidedStatusOf(found) === 'denied' || !decision || !scope || resolvedPersonId === null) {
-      throw new Error('The request has no grant to issue a package for');
+      throw invariantBroken('The request has no grant to issue a package for');
     }
 
     const context = { requestId };
@@ -144,8 +137,7 @@ export class DecisionActivities {
         sections: scope.sections,
       });
     } catch (error) {
-      logRefusal(this.logger, error, context, 'Disclosure refused by declarations');
-      throw error;
+      rethrowAsActivityFailure(this.logger, error, context, 'Disclosure refused by declarations');
     }
     if (disclosure === null) {
       this.logger.warn(context, 'Nothing to disclose in the granted scope: no package issued');
@@ -183,12 +175,11 @@ export class DecisionActivities {
         idempotencyKey: messageKey(requestId, 'access-package'),
       });
     } catch (error) {
-      logRefusal(this.logger, error, context, 'Access package refused by documents');
-      throw error;
+      rethrowAsActivityFailure(this.logger, error, context, 'Access package refused by documents');
     }
     const { downloadExpiresAt } = issued;
     if (downloadExpiresAt === null) {
-      throw new Error('Documents issued the access package without a download window');
+      throw invariantBroken('Documents issued the access package without a download window');
     }
 
     await withTenant(this.db, systemContext(tenant), async (tx) => {
@@ -229,7 +220,7 @@ export class DecisionActivities {
   }: AccessRequestWorkflowInput): Promise<'sent' | 'missing'> {
     const found = await load(this.db, tenant, requestId);
     if (!found) return 'missing';
-    if (found.downloadExpiresAt === null) throw new Error('The request has no package');
+    if (found.downloadExpiresAt === null) throw invariantBroken('The request has no package');
     for (const channel of CHANNELS) {
       await send(this.notifications, this.logger, found, {
         channel,
@@ -263,7 +254,9 @@ export class DecisionActivities {
         .where(eq(accessRequests.id, requestId))
         .for('update');
       if (!found) return 'missing';
-      if (found.downloadExpiresAt === null) throw new Error('The request has no package');
+      if (found.downloadExpiresAt === null || found.packageDocumentId === null) {
+        throw invariantBroken('The request has no package');
+      }
       const [expired] = await tx
         .select({ id: accessRegister.id })
         .from(accessRegister)
@@ -299,7 +292,7 @@ function isDecided(status: string): status is DecidedStatus {
 /** The decided status of a request the workflow was told is decided. */
 function decidedStatusOf(row: AccessRequestRow): DecidedStatus {
   if (!isDecided(row.status) || row.decision === null) {
-    throw new Error('The request is not decided');
+    throw invariantBroken('The request is not decided');
   }
   return row.status;
 }

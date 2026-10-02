@@ -1,7 +1,8 @@
+import { accessMessagesSw, groundMeta } from '@adili/ui';
 import { describe, expect, it } from 'vitest';
 
 import { contractEnum } from '../test/contract';
-import { GROUNDS, STATUS_BANNERS, STATUSES } from './copy';
+import { STATUS_BANNERS, STATUSES } from './copy';
 
 describe('access request copy (S17)', () => {
   it('has a badge and a banner for every status in access.yaml', () => {
@@ -10,10 +11,15 @@ describe('access request copy (S17)', () => {
     expect(Object.keys(STATUS_BANNERS).sort()).toEqual(statuses);
   });
 
-  it('labels every Regulation 24 ground in access.yaml, citing its paragraph', () => {
-    expect(Object.keys(GROUNDS).sort()).toEqual(contractEnum('Ground', 'access.yaml').sort());
-    for (const label of Object.values(GROUNDS))
-      expect(label.en).toMatch(/\(Regulation 24\([a-d]\)\)$/);
+  it('words the statuses as the applicant follows them, from the shared table', () => {
+    expect(STATUSES['pending-applicant-verification'].label).toBe('Awaiting identity verification');
+    expect(STATUSES['awaiting-representations'].label).toBe('Declarant notified');
+    expect(STATUSES.granted.label).toBe('Granted');
+  });
+
+  it('quotes Regulation 24 for every ground in access.yaml', () => {
+    expect(Object.keys(groundMeta).sort()).toEqual(contractEnum('Ground', 'access.yaml').sort());
+    for (const meta of Object.values(groundMeta)) expect(meta.text).toMatch(/^\([a-d]\) /);
   });
 
   it('says a denied applicant may seek relief from the court', () => {
@@ -23,6 +29,7 @@ describe('access request copy (S17)', () => {
   });
 
   it('keeps the Swahili slots, empty until translated', () => {
-    for (const meta of Object.values(STATUSES)) expect(meta.label.sw).toBe('');
+    expect(accessMessagesSw).toEqual({});
+    for (const banner of Object.values(STATUS_BANNERS)) expect(banner.lead.sw).toBe('');
   });
 });

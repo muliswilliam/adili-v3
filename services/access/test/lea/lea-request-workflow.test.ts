@@ -2,16 +2,19 @@ import { fileURLToPath } from 'node:url';
 
 import { WorkflowTestEnvironment } from '@adili/temporal/testing';
 import { Context } from '@temporalio/activity';
+import { WorkflowFailedError } from '@temporalio/client';
+import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { UPSTREAM_REFUSED } from '../../src/activity-retry.js';
 import type { LeaRequestActivities } from '../../src/lea/activities.js';
 import type {
   LeaBreachOutcome,
   LeaDecisionNoticeOutcome,
-  LeaDecisionState,
   LeaPackageOutcome,
   LeaReminderOutcome,
   LeaRequestSignal,
+  LeaRequestState,
   LeaRequestWorkflowInput,
 } from '../../src/lea/contract.js';
 import { leaRequest } from '../../src/lea/workflows.js';
@@ -66,6 +69,7 @@ describe('LeaRequestWorkflow', () => {
       requestId: REQUEST_ID,
       receivedAt: new Date(receivedAt).toISOString(),
       deadlineAt: new Date(receivedAt + DECISION_DAYS * DAY_MS).toISOString(),
+      transactionId: '4242',
     };
   }
 
@@ -80,8 +84,13 @@ describe('LeaRequestWorkflow', () => {
       issued?: 'nothing-to-disclose' | 'missing';
       reminder?: LeaReminderOutcome;
       breach?: LeaBreachOutcome;
-      /** What `leaDecisionState` reads, call by call; `undecided` after. */
-      decisionStates?: LeaDecisionState[];
+      /**
+       * What `leaRequestState` reads, call by call (the first once the receiving transaction
+       * ended, then every six hours while the decision is awaited); `undecided` after.
+       */
+      states?: LeaRequestState[];
+      /** Activities (by recorded name) that fail without retrying. */
+      fail?: readonly string[];
       on?: Partial<Record<string, () => Promise<void>>>;
     } = {},
   ): { mocks: Activities; recorded: Recorded } {
@@ -91,14 +100,16 @@ describe('LeaRequestWorkflow', () => {
       calls.push(name);
       at.set(name, scheduledAt());
       await options.on?.[name]?.();
+      if (options.fail?.includes(name)) {
+        throw ApplicationFailure.nonRetryable(`${name} refused`, UPSTREAM_REFUSED);
+      }
     };
-    const states = [...(options.decisionStates ?? [])];
+    const states = [...(options.states ?? [])];
     const mocks: Activities = {
-      // Not recorded: it runs every six hours while the decision is awaited.
-      leaDecisionState: vi.fn(async (): Promise<LeaDecisionState> => {
-        await options.on?.['decision-state']?.();
-        return states.shift() ?? 'undecided';
-      }),
+      // Not recorded: it runs first, then every six hours while the decision is awaited.
+      leaRequestState: vi.fn((): Promise<LeaRequestState> =>
+        Promise.resolve(states.shift() ?? 'undecided'),
+      ),
       remindLeaOfficers: vi.fn(async (): Promise<LeaReminderOutcome> => {
         await record('remind');
         return options.reminder ?? 'sent';
@@ -230,7 +241,7 @@ describe('LeaRequestWorkflow', () => {
     const input = await inputReceived();
     const { mocks, recorded } = activities({
       decided: 'denied',
-      decisionStates: ['undecided', 'decided'],
+      states: ['undecided', 'undecided', 'decided'],
     });
 
     const result = await env.execute(leaRequest, options(mocks, input));
@@ -238,7 +249,68 @@ describe('LeaRequestWorkflow', () => {
     expect(result).toEqual({ outcome: 'decided' });
     expect(recorded.calls).toEqual(['decision-notice']);
     expect(dayOf(input, recorded, 'decision-notice')).toBe(0.5);
-    expect(mocks.leaDecisionState).toHaveBeenCalledTimes(2);
+    expect(mocks.leaRequestState).toHaveBeenCalledTimes(3);
+    expect(mocks.leaRequestState).toHaveBeenCalledWith(input);
+  }, 60_000);
+
+  it('a lost `withdrawn` signal: the request read withdrawn ends the run', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({ states: ['undecided', 'withdrawn'] });
+
+    const result = await env.execute(leaRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'withdrawn' });
+    expect(recorded.calls).toEqual([]);
+    expect(mocks.leaRequestState).toHaveBeenCalledTimes(2);
+  }, 60_000);
+
+  it('decided before the run first read it (its signal lost): the decision is carried out at once', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({ decided: 'denied', states: ['decided'] });
+
+    const result = await env.execute(leaRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'decided' });
+    expect(recorded.calls).toEqual(['decision-notice']);
+    expect(dayOf(input, recorded, 'decision-notice')).toBe(0);
+  }, 60_000);
+
+  it('the receipt rolled back after the workflow started: it ends at once, with no reminder', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({ states: ['missing'] });
+
+    const result = await env.execute(leaRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'missing' });
+    expect(recorded.calls).toEqual([]);
+    expect(mocks.leaRequestState).toHaveBeenCalledTimes(1);
+  }, 60_000);
+
+  it('a reminder that fails after its retries is passed over: the breach is still flagged at the deadline', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({
+      fail: ['remind'],
+      on: { breach: () => signalOwnWorkflow('withdrawn') },
+    });
+
+    const result = await env.execute(leaRequest, options(mocks, input));
+
+    expect(result).toEqual({ outcome: 'withdrawn' });
+    expect(recorded.calls).toEqual(['remind', 'breach']);
+    expect(dayOf(input, recorded, 'breach')).toBe(14);
+  }, 60_000);
+
+  it('a step after the decision that fails without retrying fails the run', async () => {
+    const input = await inputReceived();
+    const { mocks, recorded } = activities({ states: ['decided'], fail: ['issue-package'] });
+
+    const failed = await env
+      .execute(leaRequest, options(mocks, input))
+      .catch((error: unknown) => error);
+
+    expect(failed).toBeInstanceOf(WorkflowFailedError);
+    expect(recorded.calls).toEqual(['decision-notice', 'notify-declarant', 'issue-package']);
+    expect(mocks.issueLeaPackage).toHaveBeenCalledTimes(1);
   }, 60_000);
 
   it('withdrawn ends the run with no reminder', async () => {
@@ -255,7 +327,7 @@ describe('LeaRequestWorkflow', () => {
     expect(mocks.leaDecisionNotice).not.toHaveBeenCalled();
   }, 60_000);
 
-  it('ends when the request is not there (its receipt rolled back)', async () => {
+  it('ends when a reminder finds the request not there', async () => {
     const input = await inputReceived();
     const { mocks } = activities({ reminder: 'missing' });
 

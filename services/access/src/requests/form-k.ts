@@ -1,6 +1,7 @@
 import { type FieldCipher, FieldCipherError, type FieldEnvelope } from '@adili/data-access';
 import type { FormKV1 } from '@adili/forms';
 
+import type { ApplicantFacts } from '../directory/directory-client.js';
 import { keyServiceUnavailable } from '../problems.js';
 import type { accessRequests } from './schema.js';
 
@@ -20,6 +21,27 @@ export function withoutMeta(document: FormKV1): FormKV1 {
   const copy: FormKV1 = { ...document };
   delete copy.meta;
   return copy;
+}
+
+/**
+ * The document with Part I's particulars (name, identity document, telephone and email) taken
+ * from the applicant's directory record, whatever the body said: the portal pre-fills them from
+ * the account, and an API caller cannot file under another name (a package's watermark names its
+ * recipient, ADR-010 §6). A contact the directory holds none of keeps the applicant's entry; the
+ * addresses and occupation are the applicant's own.
+ */
+export function withApplicantParticulars(document: FormKV1, applicant: ApplicantFacts): FormKV1 {
+  const { kind, number, country } = applicant.identityDocument;
+  return {
+    ...document,
+    partI: {
+      ...document.partI,
+      name: applicant.fullName,
+      identityDocument: country === null ? { kind, number } : { kind, number, country },
+      telephone: applicant.contacts.phone ?? document.partI.telephone,
+      email: applicant.contacts.email ?? document.partI.email,
+    },
+  };
 }
 
 /** Encrypts the Form K of request `requestId` of `tenant`; 503 when the key service is down. */
