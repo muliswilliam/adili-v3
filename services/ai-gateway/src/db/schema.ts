@@ -254,6 +254,7 @@ export const AUDIT_ACTIONS = [
   'ai.job.finished',
   'ai.gate-policy.changed',
   'ai.budget.changed',
+  'ai.route.changed',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -287,7 +288,7 @@ export const auditRecords = pgTable(
     latencyMs: integer(),
     outcome: text({ enum: JOB_STATUSES }),
     reason: text({ enum: JOB_REASONS }),
-    // A change (`ai.gate-policy.changed`, `ai.budget.changed`).
+    // A change (`ai.gate-policy.changed`, `ai.budget.changed`, `ai.route.changed`).
     approvalRef: text(),
     /** What changed: the values before and after. */
     change: jsonb().$type<{ before: unknown; after: unknown }>(),

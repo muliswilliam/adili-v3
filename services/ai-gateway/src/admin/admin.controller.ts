@@ -1,7 +1,25 @@
-import { Body, Controller, Get, Param, Put } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Put,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   ApiProblemResponse,
+  ProblemException,
   schemaRef,
   CurrentPrincipal,
   type Principal,
@@ -11,7 +29,14 @@ import {
 import { PLATFORM_ADMIN } from '@adili/roles';
 import { z } from 'zod';
 
-import { Routing, type RouteView } from '../jobs/routing.js';
+import {
+  type RouteInput,
+  routeInputSchema,
+  Routing,
+  type RouteView,
+  UnknownProviderError,
+} from '../jobs/routing.js';
+import { type TaskName, taskNameSchema } from '../tasks/task.js';
 import { type BudgetLimits, Budgets, type TenantUsage, type UsageList } from '../policy/budgets.js';
 import {
   defaultGate,
@@ -20,7 +45,15 @@ import {
   type GatePolicyList,
   type TenantGate,
 } from '../policy/gate-policies.js';
-import { ApiTenantParam, budgetInput, gatePolicyInput, tenantParam } from './admin-input.js';
+import {
+  ApiApprovalQuery,
+  ApiTaskParam,
+  ApiTenantParam,
+  approvalRefQuery,
+  budgetInput,
+  gatePolicyInput,
+  tenantParam,
+} from './admin-input.js';
 
 const FORBIDDEN = 'Caller is not a platform admin';
 
@@ -88,6 +121,96 @@ export class AdminController {
     return this.routing.table();
   }
 
+  @Put('routing/:task')
+  @ApiTaskParam()
+  @ApiOperation({
+    operationId: 'setDefaultRoute',
+    summary: "Route a task's calls for every tenant without its own route (audited)",
+    description:
+      'The next job of the task follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).',
+  })
+  @ApiBody({ required: true, schema: schemaRef('RouteInput') })
+  @ApiOkResponse({ description: 'Updated', schema: schemaRef('Route') })
+  @ApiProblemResponse(
+    400,
+    'Request failed validation, or the provider is not one this gateway reaches',
+  )
+  @ApiProblemResponse(403, FORBIDDEN)
+  setDefaultRoute(
+    @Param('task', new ZodValidationPipe(taskNameSchema)) task: TaskName,
+    @Body(new ZodValidationPipe(routeInputSchema)) body: RouteInput,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<RouteView> {
+    return this.setRoute(null, task, body, principal);
+  }
+
+  @Delete('routing/:task')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiTaskParam()
+  @ApiApprovalQuery()
+  @ApiOperation({
+    operationId: 'removeDefaultRoute',
+    summary: "Remove a task's default route, back to the configured provider and model (audited)",
+  })
+  @ApiNoContentResponse({ description: 'Removed' })
+  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(403, FORBIDDEN)
+  @ApiProblemResponse(404, 'The task has no default route')
+  async removeDefaultRoute(
+    @Param('task', new ZodValidationPipe(taskNameSchema)) task: TaskName,
+    @Query('approvalRef', new ZodValidationPipe(approvalRefQuery)) approvalRef: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<void> {
+    await this.removeRoute(null, task, approvalRef, principal);
+  }
+
+  @Put('tenants/:tenant/routing/:task')
+  @ApiTenantParam()
+  @ApiTaskParam()
+  @ApiOperation({
+    operationId: 'setTenantRoute',
+    summary: "Route a task's calls for one tenant, over the default route (audited)",
+    description:
+      'The next job of the task for the tenant follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).',
+  })
+  @ApiBody({ required: true, schema: schemaRef('RouteInput') })
+  @ApiOkResponse({ description: 'Updated', schema: schemaRef('Route') })
+  @ApiProblemResponse(
+    400,
+    'Request failed validation, or the provider is not one this gateway reaches',
+  )
+  @ApiProblemResponse(403, FORBIDDEN)
+  setTenantRoute(
+    @Param('tenant', new ZodValidationPipe(tenantParam)) tenant: string,
+    @Param('task', new ZodValidationPipe(taskNameSchema)) task: TaskName,
+    @Body(new ZodValidationPipe(routeInputSchema)) body: RouteInput,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<RouteView> {
+    return this.setRoute(tenant, task, body, principal);
+  }
+
+  @Delete('tenants/:tenant/routing/:task')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiTenantParam()
+  @ApiTaskParam()
+  @ApiApprovalQuery()
+  @ApiOperation({
+    operationId: 'removeTenantRoute',
+    summary: "Remove a tenant's route of a task, back to the default route (audited)",
+  })
+  @ApiNoContentResponse({ description: 'Removed' })
+  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(403, FORBIDDEN)
+  @ApiProblemResponse(404, 'The tenant has no route of its own for the task')
+  async removeTenantRoute(
+    @Param('tenant', new ZodValidationPipe(tenantParam)) tenant: string,
+    @Param('task', new ZodValidationPipe(taskNameSchema)) task: TaskName,
+    @Query('approvalRef', new ZodValidationPipe(approvalRefQuery)) approvalRef: string,
+    @CurrentPrincipal() principal: Principal,
+  ): Promise<void> {
+    await this.removeRoute(tenant, task, approvalRef, principal);
+  }
+
   @Get('usage')
   @ApiOperation({
     operationId: 'listTenantUsage',
@@ -131,5 +254,40 @@ export class AdminController {
     @CurrentPrincipal() principal: Principal,
   ): Promise<TenantUsage> {
     return this.budgets.set(tenant, body satisfies BudgetLimits, principal.subject);
+  }
+
+  private async setRoute(
+    tenant: string | null,
+    task: TaskName,
+    body: RouteInput,
+    principal: Principal,
+  ): Promise<RouteView> {
+    try {
+      return await this.routing.set(tenant, task, body, principal.subject);
+    } catch (error) {
+      if (!(error instanceof UnknownProviderError)) throw error;
+      throw new ProblemException({
+        type: 'about:blank',
+        title: 'Validation failed',
+        status: HttpStatus.BAD_REQUEST,
+        errors: [{ path: 'provider', message: 'Must be a provider this gateway reaches' }],
+      });
+    }
+  }
+
+  private async removeRoute(
+    tenant: string | null,
+    task: TaskName,
+    approvalRef: string,
+    principal: Principal,
+  ): Promise<void> {
+    if (!(await this.routing.remove(tenant, task, approvalRef, principal.subject))) {
+      throw new ProblemException({
+        type: 'about:blank',
+        title: 'Not Found',
+        status: HttpStatus.NOT_FOUND,
+        detail: 'There is no such route.',
+      });
+    }
   }
 }
