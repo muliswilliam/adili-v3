@@ -326,13 +326,28 @@ function PersonAvatar({ name, relation }: { name: string; relation: Relation }) 
   );
 }
 
+/**
+ * On phones (under `sm`) each person's totals become labelled lines ("Assets  KES 30,400,000")
+ * under their name, as the AI policy tables do, instead of a table cut off at the right.
+ */
+const PHONE_TOTALS_ROW = 'max-sm:grid max-sm:gap-y-0.5 max-sm:py-2';
+const PHONE_TOTALS_CELL =
+  'max-sm:flex max-sm:justify-between max-sm:gap-3 max-sm:py-0 max-sm:pl-0 max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]';
+
 function Totals({ view }: { view: DeclarationView }) {
-  const cell = 'py-2 pl-2.5 text-right tabular-nums';
+  const cell = cn('py-2 pl-2.5 text-right tabular-nums', PHONE_TOTALS_CELL);
   return (
     <div className="border-b px-5 py-[18px]">
+      {/* The header row is read out on phones only; this names the amounts there. */}
+      <p
+        aria-hidden="true"
+        className="mb-1 text-[12.5px] font-medium text-muted-foreground sm:hidden"
+      >
+        {t.declaration.totals}
+      </p>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[13.5px]">
-          <thead>
+          <thead className="max-sm:sr-only">
             <tr className="border-b text-[12.5px] text-muted-foreground">
               <th scope="col" className="py-1.5 text-left font-medium">
                 {t.declaration.totals}
@@ -346,26 +361,26 @@ function Totals({ view }: { view: DeclarationView }) {
           </thead>
           <tbody>
             {view.statements.map((statement) => (
-              <tr key={statement.personKey} className="border-b">
-                <th scope="row" className="py-2 text-left font-normal">
+              <tr key={statement.personKey} className={cn('border-b', PHONE_TOTALS_ROW)}>
+                <th scope="row" className="py-2 text-left font-normal max-sm:pt-0 max-sm:pb-1">
                   <span className="flex items-center gap-2">
                     <PersonAvatar name={statement.name} relation={statement.relation} />
                     <span className="truncate">{statement.name || t.declaration.unnamed}</span>
                   </span>
                 </th>
                 {CATEGORIES.map((category) => (
-                  <td key={category} className={cell}>
+                  <td key={category} data-label={CATEGORY_HEADINGS[category]} className={cell}>
                     {kes(statement.totals[category])}
                   </td>
                 ))}
               </tr>
             ))}
-            <tr className="font-semibold">
-              <th scope="row" className="py-2 text-left font-semibold">
+            <tr className={cn('font-semibold', PHONE_TOTALS_ROW)}>
+              <th scope="row" className="py-2 text-left font-semibold max-sm:pt-0 max-sm:pb-1">
                 {t.declaration.total}
               </th>
               {CATEGORIES.map((category) => (
-                <td key={category} className={cell}>
+                <td key={category} data-label={CATEGORY_HEADINGS[category]} className={cell}>
                   {kes(view.totals[category])}
                 </td>
               ))}
