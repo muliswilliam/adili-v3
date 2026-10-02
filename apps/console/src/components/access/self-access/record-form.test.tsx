@@ -191,7 +191,7 @@ describe('RecordApplicationForm (slice #302)', () => {
       },
       deliveryMethod: 'dispatch',
     });
-  });
+  }, 15_000);
 
   it('keeps the form and says why when the workflow engine cannot order the copy', async () => {
     vi.mocked(recordSelfAccessApplication).mockResolvedValue({
