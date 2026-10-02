@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { reviewCases } from '../cases/schema.js';
+import { inList } from '../db/sql-list.js';
 
 /**
  * review.yaml `CopilotStatus`: `pending` while the first outputs are produced, `ready` when they
@@ -22,8 +23,6 @@ import { reviewCases } from '../cases/schema.js';
 export const COPILOT_STATUSES = ['not-enabled', 'pending', 'ready', 'failed', 'stale'] as const;
 export type CopilotStatus = (typeof COPILOT_STATUSES)[number];
 
-const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`).join(', '));
-
 /**
  * The copilot of a case (spec 07c): the AI-assisted summary and flag explanations the ai-gateway
  * produced for one of its versions, and the jobs producing the next ones. One row per case.
@@ -31,9 +30,10 @@ const inList = (values: readonly string[]) => sql.raw(values.map((v) => `'${v}'`
  * The outputs hold declaration content, so they are stored only encrypted under the Commission's
  * key (ADR-006), each bound to the case and to what it is; they never appear in events or logs.
  *
- * Two sets of job ids: the jobs of the latest request (`requestedSummaryJobId`, `requestedExplanationsJobId`) and the
- * jobs whose outputs are stored (`summaryJobId`, `explanationsJobId`). They agree once the
- * request's outputs have arrived; until then the stored ones are an earlier version's (`stale`).
+ * Two sets of job ids: the jobs of the latest request (`requestedSummaryJobId`,
+ * `requestedExplanationsJobId`, their outputs `staged*` as they arrive) and the jobs whose outputs
+ * are shown (`summaryJobId`, `explanationsJobId`). They agree once every output of the request has
+ * arrived; until then the shown ones are an earlier request's (`stale`).
  */
 export const reviewCopilots = pgTable(
   'review_copilots',
@@ -68,6 +68,17 @@ export const reviewCopilots = pgTable(
     /** Base64 AES-256-GCM ciphertext of the `ExplainFlagsOutput`. */
     explanationsCiphertext: text(),
     explanationsEnvelope: jsonb().$type<FieldEnvelope>(),
+    /**
+     * The outputs of the latest request's jobs that have arrived, held until every job of the
+     * request has its output: then they replace the stored ones together, so the panel never
+     * mixes one version's summary with another's explanations. Cleared by the next request.
+     */
+    stagedSummaryPromptVersion: integer(),
+    stagedSummaryCiphertext: text(),
+    stagedSummaryEnvelope: jsonb().$type<FieldEnvelope>(),
+    stagedExplanationsPromptVersion: integer(),
+    stagedExplanationsCiphertext: text(),
+    stagedExplanationsEnvelope: jsonb().$type<FieldEnvelope>(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
       .defaultNow()
@@ -78,6 +89,10 @@ export const reviewCopilots = pgTable(
     // A rating names the output by its job.
     index('review_copilots_summary_job_id_idx').on(table.summaryJobId),
     index('review_copilots_explanations_job_id_idx').on(table.explanationsJobId),
+    // The pages of a Commission's not-enabled copilots that a policy change requests again.
+    index('review_copilots_not_enabled_idx')
+      .on(table.tenant, table.caseId)
+      .where(sql`${table.status} = 'not-enabled'`),
   ],
 );
 
@@ -97,6 +112,8 @@ export type CopilotRating = (typeof COPILOT_RATINGS)[number];
 export const reviewCopilotRatings = pgTable(
   'review_copilot_ratings',
   {
+    /** A key of its own: `block` is null for the output as a whole, so it cannot be in one. */
+    id: uuid().primaryKey(),
     jobId: uuid().notNull(),
     reviewerSubject: text().notNull(),
     /** review.yaml `CopilotBlock`; null for the output as a whole (a clarification draft). */

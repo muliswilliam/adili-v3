@@ -13,7 +13,7 @@ import { ApiTenantParam, tenantParam } from './admin-input.js';
 import { type TenantAiStatus, TenantStatus } from './tenant-status.js';
 
 /**
- * Internal: services with the `ai` scope (review, for the Commission status line it shows its
+ * Internal: services with the `ai:internal` scope (review, for the Commission status line it shows its
  * commission admin), acting for the tenant in `X-Acting-Tenant` (ADR-013 §8.8), which must be
  * the one in the path. Not routed by the public entrypoint.
  */

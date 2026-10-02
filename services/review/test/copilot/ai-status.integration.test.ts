@@ -42,6 +42,7 @@ describe('Commission AI status', () => {
     expect(response.json()).toEqual({
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic'],
     });
   });
@@ -53,6 +54,7 @@ describe('Commission AI status', () => {
     expect(response.json()).toEqual({
       enabled: false,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: [],
     });
 
@@ -60,6 +62,7 @@ describe('Commission AI status', () => {
     api.ai.givenTenantStatus('tsc', {
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic'],
     });
     expect((await api.get(path('tsc'), tscAdmin)).json()).toMatchObject({ enabled: false });
@@ -67,6 +70,7 @@ describe('Commission AI status', () => {
     api.ai.givenTenantStatus('tsc', {
       enabled: true,
       providerClass: 'self-hosted',
+      provider: 'local',
       dataClasses: ['synthetic', 'restricted', 'highly-confidential'],
     });
     expect((await api.get(path('tsc'), tscAdmin)).json()).toMatchObject({
@@ -87,14 +91,15 @@ describe('Commission AI status', () => {
     }
   });
 
-  it('answers 502 when the ai-gateway cannot be reached', async () => {
+  it('answers 503 when the ai-gateway cannot be reached, as every copilot endpoint does', async () => {
     api.ai.failCalls(1);
 
     const response = await api.get(path('psc'), pscAdmin);
 
-    expect(response.statusCode).toBe(502);
+    expect(response.statusCode).toBe(503);
     expect(response.json()).toMatchObject({
       type: expect.stringContaining('ai-gateway-unavailable') as string,
+      status: 503,
     });
   });
 });

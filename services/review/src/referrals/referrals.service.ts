@@ -8,7 +8,7 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { lockForDecision, requireProposed } from '../approvals/decisions.js';
 import { mergedReviewers, reviewersOfRecord } from '../approvals/separation-of-duties.js';
-import { caseTenant, queueTenant } from '../cases/access.js';
+import { caseTenant, notTheAssignee, queueTenant } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import { clarifications, reviewFlags } from '../cases/schema.js';
 import { Clock, nairobiYear } from '../clock.js';
@@ -84,12 +84,7 @@ export class ReferralsService {
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const reviewCase = await findCase(tx, tenant, caseId, { lock: true });
       if (reviewCase.assignee !== principal.subject) {
-        throw new ProblemException({
-          type: 'not-the-assignee',
-          title: 'Forbidden',
-          status: HttpStatus.FORBIDDEN,
-          detail: "Only the case's assignee can propose a referral from it.",
-        });
+        throw notTheAssignee("Only the case's assignee can propose a referral from it.");
       }
       const flagIds = unique(input.flagIds);
       const clarificationIds = unique(input.clarificationIds);

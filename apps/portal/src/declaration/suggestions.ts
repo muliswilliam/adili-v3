@@ -1,5 +1,5 @@
 import type { RegistryStatus, RegistryStatusEntry } from '@adili/ui';
-import { SOURCE_NAMES } from '@adili/ui';
+import { countyName, SOURCE_NAMES } from '@adili/ui';
 
 import type {
   JsonObject,
@@ -17,7 +17,7 @@ import {
   type Statement,
 } from './contents';
 import { COMPLIANCE_WORDS, FIELD_LABELS, KRA_COPY, SUGGESTION_COPY } from './copy';
-import { countyName } from './format';
+
 import { TYPE_LABELS } from './labels';
 import { CATEGORIES, type Category, type Item, NIL_KEY } from './statement';
 
@@ -169,7 +169,7 @@ const KINDS: Record<SuggestionKind['key'], SuggestionKind> = {
         ...entry('details.parcelNumber', FIELD_LABELS.parcelNumber, fieldText(fields.parcelNumber)),
         ...entry('details.size', FIELD_LABELS.size, fieldText(fields.size)),
         ...entry('location.detail', FIELD_LABELS.location, fieldText(fields.location)),
-        ...entry('location.county', FIELD_LABELS.county, county, countyName(county) ?? county),
+        ...entry('location.county', FIELD_LABELS.county, county, county && countyName(county)),
       ];
     },
     description: (fields) => {

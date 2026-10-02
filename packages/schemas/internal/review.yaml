@@ -376,7 +376,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Clarification'
         '400':
-          description: 'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case'
+          description: 'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged)'
           content:
             application/problem+json:
               schema:
@@ -421,7 +421,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Clarification'
         '400':
-          description: 'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case'
+          description: 'Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged)'
           content:
             application/problem+json:
               schema:
@@ -1715,6 +1715,11 @@ paths:
       tags: [copilot]
       operationId: refreshCaseCopilot
       summary: Re-request the summary and explanations (assignee or supervisor)
+      description: >-
+        A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the
+        Commission may use it now. The console offers no Refresh there, as a change of the
+        Commission's AI policy or route already requests not-enabled copilots again; the API keeps
+        it on purpose, for a request made right after such a change and for tooling.
       responses:
         '202':
           description: Requested
@@ -1727,7 +1732,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 'Already pending (problem type `copilot-pending`). A case whose copilot was `not-enabled` is requested again: the ai-gateway decides whether the Commission may use it now'
+          description: Already pending (problem type `copilot-pending`)
           content:
             application/problem+json:
               schema:
@@ -1757,7 +1762,9 @@ paths:
         draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept
         for 24 hours and never become clarifications: the console inserts the items into the
         composer, and the clarification endpoints issue them. A retry with the same
-        Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
+        Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted
+        text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over.
+        Audited read (`review.copilot.drafted`).
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -1790,7 +1797,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: 'AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)'
+          description: 'AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`)'
           content:
             application/problem+json:
               schema:
@@ -1902,7 +1909,7 @@ paths:
                 $ref: '#/components/schemas/CommissionAiStatus'
         '404':
           $ref: '#/components/responses/NotFound'
-        '502':
+        '503':
           description: Problem type `ai-gateway-unavailable`; the status could not be read
           content:
             application/problem+json:
@@ -2184,7 +2191,7 @@ components:
           format: date-time
         failureReason:
           type: [string, 'null']
-          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, or `declarations-unavailable` when the declaration could not be read"
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error`"
         summary:
           type: [object, 'null']
           description: ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention)
@@ -2205,7 +2212,7 @@ components:
               format: uuid
         feedback:
           type: array
-          description: "The caller's own ratings of the outputs shown (`jobs`)"
+          description: "The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee"
           items:
             type: object
             required: [jobId, block, rating]
@@ -2249,8 +2256,7 @@ components:
                   - $ref: '#/components/schemas/Requirement'
                   - type: 'null'
         language:
-          type: string
-          enum: [en, sw]
+          $ref: '#/components/schemas/LetterLanguage'
     CopilotDraft:
       type: object
       required: [id, status, jobId, label, opening, items, failureReason]
@@ -2277,10 +2283,10 @@ components:
             $ref: '#/components/schemas/ClarificationItemInput'
         failureReason:
           type: [string, 'null']
-          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request"
+          description: "The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request"
     CommissionAiStatus:
       type: object
-      required: [enabled, providerClass, dataClasses]
+      required: [enabled, providerClass, provider, dataClasses]
       properties:
         enabled:
           type: boolean
@@ -2289,6 +2295,9 @@ components:
           type: [string, 'null']
           enum: [external, self-hosted, null]
           description: The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach
+        provider:
+          type: [string, 'null']
+          description: The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is
         dataClasses:
           type: array
           description: Data classes that provider class may process for the Commission
@@ -2451,7 +2460,7 @@ components:
           description: Every version the case has processed, from the review service's own records; only the current one's document is pulled
           items:
             type: object
-            required: [versionId, version, submittedAt, late, amendment]
+            required: [versionId, version, submittedAt, late, amendment, firstOnAdili]
             properties:
               versionId:
                 type: string
@@ -2459,6 +2468,9 @@ components:
               amendment:
                 type: boolean
                 description: The version amended an earlier one of the same declaration
+              firstOnAdili:
+                type: boolean
+                description: The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag
               version:
                 type: integer
               submittedAt:
@@ -2559,10 +2571,23 @@ components:
             The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the
             reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null:
             written by the reviewer.
+    LetterLanguage:
+      type: string
+      enum: [en, sw]
+      description: >-
+        The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own
+        text (heading, introduction, item labels, requirements, how to respond) is printed in it;
+        the reviewer's text is printed as written.
     ClarificationInput:
       type: object
       required: [items]
       properties:
+        language:
+          allOf:
+            - $ref: '#/components/schemas/LetterLanguage'
+          description: >-
+            The letter's language. Left out: English. A draft's update replaces it like the
+            items; a follow-up starts in the language of the clarification it follows.
         items:
           type: array
           minItems: 0
@@ -2626,6 +2651,8 @@ components:
         - response
         - opening
         - openingAiJobId
+        - openingAiLanguage
+        - language
       properties:
         id:
           type: string
@@ -2648,6 +2675,14 @@ components:
                   label:
                     type: string
                     description: Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno")
+                  aiLanguage:
+                    oneOf:
+                      - $ref: '#/components/schemas/LetterLanguage'
+                      - type: 'null'
+                    description: >-
+                      The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on
+                      save; it may differ from the letter's `language` when that changed after.
+                      Null when the reviewer wrote the item.
         issuedAt:
           type: [string, 'null']
           format: date-time
@@ -2688,6 +2723,15 @@ components:
           type: [string, 'null']
           format: uuid
           description: The Draft with AI job that drafted the opening paragraph; null when written by the reviewer
+        openingAiLanguage:
+          oneOf:
+            - $ref: '#/components/schemas/LetterLanguage'
+            - type: 'null'
+          description: >-
+            The language the opening's Draft with AI job drafted in; it may differ from the
+            letter's `language` when that changed after. Null when written by the reviewer.
+        language:
+          $ref: '#/components/schemas/LetterLanguage'
         response:
           oneOf:
             - type: object
@@ -2769,6 +2813,7 @@ components:
           commission,
           declarationReference,
           clarificationReference,
+          language,
           opening,
           aiAssisted,
           items,
@@ -2791,6 +2836,14 @@ components:
           type: string
         clarificationReference:
           type: string
+        language:
+          allOf:
+            - $ref: '#/components/schemas/LetterLanguage'
+          description: >-
+            The template prints its own text (heading, introduction, how to respond, sign-off, the
+            AI note and the verification lines) in this language. `items[].label` and
+            `items[].requirementLabel` already are; the opening and the items' text are the
+            reviewer's, printed as written. Letters issued before it was recorded are `en`.
         opening:
           type: [string, 'null']
           description: Printed before the items; null when the letter has no opening paragraph
@@ -2798,7 +2851,9 @@ components:
           type: boolean
           description: >-
             Some of the letter's text (its opening or an item) was drafted with AI and approved by
-            the reviewer who issued it (ADR-007); the letter says so.
+            the reviewer who issued it (ADR-007); the letter says so. Once a save of the
+            clarification names a Draft with AI job, it stays true, even if a later save leaves the
+            job out.
         items:
           type: array
           items:

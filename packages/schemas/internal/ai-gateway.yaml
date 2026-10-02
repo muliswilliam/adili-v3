@@ -77,7 +77,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -141,7 +141,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -195,7 +195,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -287,6 +287,198 @@ paths:
                   $ref: '#/components/schemas/Route'
         '403':
           description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /v1/ai/routing/{task}:
+    put:
+      tags:
+        - policy
+      summary: Route a task's calls for every tenant without its own route (audited)
+      description: The next job of the task follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).
+      operationId: setDefaultRoute
+      parameters:
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          description: Request failed validation, or the provider is not one this gateway reaches
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+    delete:
+      tags:
+        - policy
+      summary: Remove a task's default route, back to the configured provider and model (audited)
+      operationId: removeDefaultRoute
+      parameters:
+        - name: approvalRef
+          required: true
+          in: query
+          description: The decision the change rests on, e.g. an EACC approval number
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+      responses:
+        '204':
+          description: Removed
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The task has no default route
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /v1/ai/tenants/{tenant}/routing/{task}:
+    put:
+      tags:
+        - policy
+      summary: Route a task's calls for one tenant, over the default route (audited)
+      description: The next job of the task for the tenant follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).
+      operationId: setTenantRoute
+      parameters:
+        - name: tenant
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          description: Request failed validation, or the provider is not one this gateway reaches
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+    delete:
+      tags:
+        - policy
+      summary: Remove a tenant's route of a task, back to the default route (audited)
+      operationId: removeTenantRoute
+      parameters:
+        - name: tenant
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: approvalRef
+          required: true
+          in: query
+          description: The decision the change rests on, e.g. an EACC approval number
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+      responses:
+        '204':
+          description: Removed
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The tenant has no route of its own for the task
           content:
             application/problem+json:
               schema:
@@ -422,7 +614,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -1330,6 +1522,11 @@ components:
             - $ref: '#/components/schemas/ProviderClass'
             - type: 'null'
           description: The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
+        provider:
+          description: The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is
+          type:
+            - string
+            - 'null'
         dataClasses:
           type: array
           items:
@@ -1339,6 +1536,7 @@ components:
         - tenant
         - enabled
         - providerClass
+        - provider
         - dataClasses
     GateRuleInput:
       type: object
@@ -1472,6 +1670,9 @@ components:
           type: string
         params:
           $ref: '#/components/schemas/RouteParams'
+        configured:
+          type: boolean
+          description: True for a task with no default route, which follows the gateway's configured provider and model; false for a route set through this API
       required:
         - tenant
         - task
@@ -1479,6 +1680,33 @@ components:
         - providerClass
         - model
         - params
+        - configured
+    RouteInput:
+      type: object
+      properties:
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: A provider this gateway is configured to reach (`Route.provider` names them)
+        model:
+          type: string
+          minLength: 1
+          maxLength: 200
+        params:
+          default: {}
+          $ref: '#/components/schemas/RouteParams'
+        approvalRef:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The decision the change rests on, e.g. an EACC approval number
+      required:
+        - provider
+        - model
+        - approvalRef
+      additionalProperties: false
+      description: "A task's route: provider, model and call parameters"
     BudgetInput:
       type: object
       properties:

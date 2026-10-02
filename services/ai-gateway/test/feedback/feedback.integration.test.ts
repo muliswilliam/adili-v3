@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
+import type { FieldEnvelope } from '@adili/data-access';
+import { FakeCipher } from '@adili/data-access/testing';
 import { outbox } from '@adili/events';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { feedback } from '../../src/db/schema.js';
+import { feedbackNoteRecordId } from '../../src/feedback/feedback.service.js';
 import { contractErrors } from '../support/contract.js';
 import {
   actingFor,
@@ -41,8 +44,9 @@ describe('feedback', () => {
       payload,
     });
 
+  // In the order they were written: a select without one may answer them in any order.
   const announced = async (jobId: string) =>
-    (await t.db.select().from(outbox))
+    (await t.db.select().from(outbox).orderBy(asc(outbox.createdAt), asc(outbox.id)))
       .map((row) => row.envelope)
       .filter((envelope) => envelope.type === 'ai.feedback.recorded.v1')
       .filter((envelope) => (envelope.data as { jobId: string }).jobId === jobId);
@@ -103,6 +107,17 @@ describe('feedback', () => {
     });
     expect(JSON.stringify(event)).not.toContain('second plot');
     expect(JSON.stringify(event)).not.toContain('reviewer-a');
+    // The note is the reviewer's own words: stored sealed under the tenant's key (review S5).
+    const [stored] = await t.db.select().from(feedback).where(eq(feedback.jobId, succeeded));
+    expect(JSON.stringify(stored)).not.toContain('second plot');
+    expect(stored).toMatchObject({ tenant: 'demo', noteEnvelope: { tenant: 'demo' } });
+    const note = await new FakeCipher().decrypt({
+      tenant: 'demo',
+      recordId: feedbackNoteRecordId(succeeded, 'reviewer-a', null),
+      ciphertext: stored?.noteCiphertext ?? '',
+      envelope: stored?.noteEnvelope ?? ({} as FieldEnvelope),
+    });
+    expect(note.toString('utf8')).toBe('It left out the second plot.');
 
     // The same reviewer rates again: one rating, updated, announced again under the same id.
     const again = await rate(succeeded, {
@@ -192,7 +207,7 @@ describe('feedback', () => {
     expect(await announced(failed.id)).toEqual([]);
   }, 60_000);
 
-  it('refuses an invalid rating and a caller without the ai scope', async () => {
+  it('refuses an invalid rating and a caller without the ai:internal scope', async () => {
     const invalid = [
       { reviewerSubject: '', rating: 'helpful', reason: null, note: null },
       { reviewerSubject: 'reviewer-a', rating: 'meh', reason: null, note: null },

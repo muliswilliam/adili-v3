@@ -1,13 +1,7 @@
-import { formatDate, formatNumber, plural } from '@adili/ui';
+import { countryName, formatDate, formatNumber, plural } from '@adili/ui';
 
 import type { Flag, Severity } from '../server/review/types';
-import {
-  countryName,
-  type DeclarationView,
-  itemLabel,
-  relationOf,
-  statementFor,
-} from './declaration';
+import { type DeclarationView, itemLabel, relationOf, statementFor } from './declaration';
 import { CATEGORY_LABELS, SEVERITY_ORDER } from './labels';
 
 /**

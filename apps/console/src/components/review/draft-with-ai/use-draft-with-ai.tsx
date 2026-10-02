@@ -58,6 +58,13 @@ export function useDraftWithAi({
 }: UseDraftWithAiOptions): DraftWithAiWiring {
   const [selection, setSelection] = useState<DraftSelection>(NO_SELECTION);
   const [refused, setRefused] = useState(false);
+  // A refusal holds until the copilot's status moves on (a refresh asked the gateway again, e.g.
+  // after an admin enabled AI for the Commission): from then it is the copilot that says.
+  const [seenStatus, setSeenStatus] = useState(copilotStatus);
+  if (seenStatus !== copilotStatus) {
+    setSeenStatus(copilotStatus);
+    if (copilotStatus !== 'not-enabled') setRefused(false);
+  }
   const enabled = copilotStatus !== 'not-enabled' && !refused;
 
   return {

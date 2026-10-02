@@ -485,4 +485,4 @@ export {
   parseMoney,
   shapeMoneyText,
 } from './lib/money';
-export { COUNTIES, COUNTRIES } from './lib/places';
+export { COUNTIES, COUNTRIES, countryName, countyName } from './lib/places';

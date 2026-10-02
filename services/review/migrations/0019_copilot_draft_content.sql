@@ -1,3 +1,0 @@
-ALTER TABLE "review_copilot_drafts" ADD COLUMN "ciphertext" text;--> statement-breakpoint
-ALTER TABLE "review_copilot_drafts" ADD COLUMN "envelope" jsonb;--> statement-breakpoint
-ALTER TABLE "review_copilot_drafts" ADD CONSTRAINT "review_copilot_drafts_content_check" CHECK (("review_copilot_drafts"."status" = 'ready') = ("review_copilot_drafts"."ciphertext" is not null and "review_copilot_drafts"."envelope" is not null));

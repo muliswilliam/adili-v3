@@ -1,6 +1,7 @@
 import type { AiLabelDetails } from '@adili/ui';
 import { z } from 'zod';
 
+import { aiLabelSchema } from './ai-label';
 import type { ReviewClient } from './review/client.server';
 import type { CopilotDraftInput, Requirement } from './review/types';
 import { callService, type ServiceResult } from './service-call';
@@ -14,15 +15,6 @@ import { callService, type ServiceResult } from './service-call';
  * field by field into the `AiLabel` badge's details, so a draft without a readable label is
  * failed, never inserted unlabelled.
  */
-
-const aiLabel = z.object({
-  task: z.string(),
-  promptVersion: z.number(),
-  provider: z.string(),
-  model: z.string(),
-  generatedAt: z.string(),
-  disclaimer: z.string(),
-});
 
 const REQUIREMENTS = [
   'provide-omitted',
@@ -74,16 +66,15 @@ export function readDraft(body: unknown): AiDraft | null {
   if (draft.status === 'failed') {
     return { status: 'failed', id: draft.id, reason: draft.failureReason ?? 'unknown' };
   }
-  const label = aiLabel.safeParse(draft.label);
+  const label = aiLabelSchema.safeParse(draft.label);
   if (!label.success || draft.items.length === 0) {
     return { status: 'failed', id: draft.id, reason: 'validation' };
   }
-  const { task, promptVersion, provider, model, generatedAt, disclaimer } = label.data;
   return {
     status: 'ready',
     id: draft.id,
     jobId: draft.jobId,
-    label: { task, promptVersion, provider, model, generatedAt, disclaimer },
+    label: label.data,
     opening: draft.opening?.trim() ? draft.opening : null,
     items: draft.items,
   };

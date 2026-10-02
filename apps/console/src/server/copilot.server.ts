@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { type AiLabel, aiLabelSchema } from './ai-label';
 import type { ReviewClient } from './review/client.server';
 import type { CopilotFeedbackInput, CopilotStatus, CopilotView } from './review/types';
 import { callService, type ServiceResult } from './service-call';
@@ -21,17 +22,8 @@ const sourceRef = z.object({
   fieldPath: z.string().nullable(),
 });
 
-const aiLabel = z.object({
-  task: z.string(),
-  promptVersion: z.number(),
-  provider: z.string(),
-  model: z.string(),
-  generatedAt: z.string(),
-  disclaimer: z.string(),
-});
-
 const summaryOutput = z.object({
-  label: aiLabel,
+  label: aiLabelSchema,
   overview: z.string(),
   changesSincePrevious: z.array(z.object({ text: z.string(), refs: z.array(sourceRef) })),
   sections: z.array(
@@ -41,7 +33,7 @@ const summaryOutput = z.object({
 });
 
 const explainOutput = z.object({
-  label: aiLabel,
+  label: aiLabelSchema,
   explanations: z.array(
     z.object({
       flagId: z.string(),
@@ -54,7 +46,7 @@ const explainOutput = z.object({
 });
 
 export type CopilotSourceRef = z.infer<typeof sourceRef>;
-export type CopilotAiLabel = z.infer<typeof aiLabel>;
+export type CopilotAiLabel = AiLabel;
 export type CopilotSummary = z.infer<typeof summaryOutput>;
 export type CopilotExplanations = z.infer<typeof explainOutput>;
 export type CopilotExplanation = CopilotExplanations['explanations'][number];

@@ -903,6 +903,35 @@ paths:
                 type: string
         '404':
           description: Not found
+  /v1/eacc/ai-usage/{fy}:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    get:
+      tags: [eacc]
+      operationId: getAiUsage
+      summary: AI-assisted cases and reviewer ratings per Commission for a financial year (EACC)
+      description: >-
+        Spec 07c story 19: how much the AI reviewer copilot is used and how reviewers rate it, per
+        Commission, without content. A case is AI-assisted in the year its copilot first had
+        outputs to show (`review.copilot.updated.v1` `ready`); a rating counts in the year it was
+        last given (`ai.feedback.recorded.v1`, the latest per rating). Counts only: no case,
+        reviewer, output or note. Commissions with neither in the year are left out.
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403.
+      responses:
+        '200':
+          description: Counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiUsageReport'
+        '400':
+          description: '`fy` is not a financial year'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/eacc/referrals:
     get:
       tags: [referrals-intake]
@@ -1056,6 +1085,68 @@ components:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
   schemas:
+    AiUsageReport:
+      type: object
+      required: [fy, commissions]
+      properties:
+        fy:
+          type: integer
+          description: Financial year start year
+        commissions:
+          type: array
+          description: Commissions with an AI-assisted case or a rating in the year, in slug order
+          items:
+            $ref: '#/components/schemas/AiUsageCommission'
+    AiUsageCommission:
+      type: object
+      required: [tenant, aiAssistedCases, ratings]
+      properties:
+        tenant:
+          type: string
+          description: Commission slug
+        aiAssistedCases:
+          type: integer
+          minimum: 0
+          description: Cases whose copilot first had outputs to show in the year
+        ratings:
+          type: array
+          description: Ratings last given in the year, per AI task, in task order
+          items:
+            $ref: '#/components/schemas/AiTaskRatings'
+    AiTaskRatings:
+      type: object
+      required: [task, helpful, notHelpful, reasons]
+      properties:
+        task:
+          type: string
+          description: The ai-gateway task whose outputs were rated, e.g. `summarize-declaration`
+        helpful:
+          type: integer
+          minimum: 0
+        notHelpful:
+          type: integer
+          minimum: 0
+        reasons:
+          type: object
+          description: Ratings by the reason the reviewer gave; a rating without one counts in none
+          required: [inaccurate, missed-something, unclear, too-long, other]
+          additionalProperties: false
+          properties:
+            inaccurate:
+              type: integer
+              minimum: 0
+            missed-something:
+              type: integer
+              minimum: 0
+            unclear:
+              type: integer
+              minimum: 0
+            too-long:
+              type: integer
+              minimum: 0
+            other:
+              type: integer
+              minimum: 0
     ReportStatus:
       type: string
       enum: [not-started, compiling, draft, reviewed, submitted]

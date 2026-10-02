@@ -8,10 +8,20 @@ export type TableProps = ComponentProps<'table'> & {
   caption: ReactNode;
 };
 
+/*
+ * Every part states its table role. A row or cell restyled as a grid or flex box (a table's rows
+ * as cards on phones) loses its implicit role in Safari, so VoiceOver no longer reads it as a
+ * table; an explicit role keeps it one.
+ */
+
 export function Table({ caption, className, children, ...props }: TableProps) {
   return (
     <div className="relative w-full overflow-x-auto">
-      <table className={cn('w-full caption-bottom border-collapse text-sm', className)} {...props}>
+      <table
+        role="table"
+        className={cn('w-full caption-bottom border-collapse text-sm', className)}
+        {...props}
+      >
         <caption className="sr-only">{caption}</caption>
         {children}
       </table>
@@ -20,16 +30,19 @@ export function Table({ caption, className, children, ...props }: TableProps) {
 }
 
 export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {
-  return <thead className={cn('[&_tr]:border-b', className)} {...props} />;
+  return <thead role="rowgroup" className={cn('[&_tr]:border-b', className)} {...props} />;
 }
 
 export function TableBody({ className, ...props }: ComponentProps<'tbody'>) {
-  return <tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />;
+  return (
+    <tbody role="rowgroup" className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+  );
 }
 
 export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
   return (
     <tr
+      role="row"
       className={cn(
         // Relative so a TableRowLink can stretch over the whole row.
         'relative border-b transition-colors has-[[data-row-link]]:hover:bg-muted/50',
@@ -49,6 +62,7 @@ export function TableHead({ scope = 'col', className, ...props }: TableHeadProps
   return (
     <th
       scope={scope}
+      role={scope === 'row' || scope === 'rowgroup' ? 'rowheader' : 'columnheader'}
       className={cn(
         'text-left align-middle font-medium first:pl-4 last:pr-4',
         scope === 'col'
@@ -62,7 +76,9 @@ export function TableHead({ scope = 'col', className, ...props }: TableHeadProps
 }
 
 export function TableCell({ className, ...props }: ComponentProps<'td'>) {
-  return <td className={cn('p-3 align-middle first:pl-4 last:pr-4', className)} {...props} />;
+  return (
+    <td role="cell" className={cn('p-3 align-middle first:pl-4 last:pr-4', className)} {...props} />
+  );
 }
 
 export type TableRowLinkProps = ComponentProps<'a'> & {

@@ -1,5 +1,10 @@
 import { formatDate, formatMoney, plural } from '@adili/ui';
 
+import {
+  DETAIL_FIELD_LABELS,
+  ITEM_FIELD_LABELS,
+  PERSON_FIELD_LABELS,
+} from '../../declaration/field-labels';
 import type { JsonObject, LoadedSummary } from '../../server/declarations.server';
 import type {
   CompletenessIssue,
@@ -19,7 +24,7 @@ import type {
   Spouse,
   Statement,
 } from '../../declaration/contents';
-import { ageOn, UNANSWERED } from '../../declaration/format';
+import { ageOn, fullName, UNANSWERED } from '../../declaration/format';
 import { changeWord, OCCUPATION_SECTOR_LABELS } from '../../declaration/labels';
 import type { Category } from '../../declaration/statement';
 import { type SectionKind, sectionKind } from '../../declaration/section-key';
@@ -92,6 +97,81 @@ export function blockingGroups(
   }
   return { groups, hidden: Math.max(0, blocking.length - limit) };
 }
+
+/**
+ * Field names as the section screens label them (`field-labels.ts`), for issues that name only
+ * the problem. `value`, `type` and the share have long or per-person labels on their screens
+ * ("Approximate value as at the statement date", "Mary's share"); the summary names them short.
+ */
+const FIELD_LABELS: Record<string, string> = {
+  ...ITEM_FIELD_LABELS,
+  ...DETAIL_FIELD_LABELS,
+  ...PERSON_FIELD_LABELS,
+  value: 'Value',
+  type: 'Type',
+  sharePercent: 'Share',
+};
+
+/** Pointer parts that hold a field's value rather than name it (`/value/kesCents`). */
+const VALUE_PARTS = new Set(['kesCents', 'amount', 'currency']);
+
+const ITEM_NOUNS: Record<Category, string> = {
+  income: 'Income',
+  assets: 'Asset',
+  liabilities: 'Liability',
+};
+
+/** `acquisitionDate` → "Acquisition date": a field the list above does not name. */
+function humanize(field: string): string {
+  const words = field.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * An issue as the summary lists it. The rules write whole sentences; schema checks write what is
+ * wrong with a field ("is required"), for the screen that shows it beside the field. Listed on
+ * their own those read "is required / is required", so they are named: the item (its description,
+ * or "Asset 2", a spouse or child by name) and the field, "One-bedroom apartment: Value is
+ * required". The rules' sentences start with a capital and schema checks' fragments do not; the
+ * issue's code cannot tell them apart, as both use `required`.
+ */
+export function issueText(issue: CompletenessIssue, document: SummaryDocument): string {
+  const { message } = issue;
+  if (!/^[a-z]/.test(message)) return message;
+  const parts = issue.path.split('/').slice(1);
+  const named = parts.filter((part) => !/^\d+$/.test(part) && !VALUE_PARTS.has(part));
+  const last = named.at(-1);
+  const field = last ? (FIELD_LABELS[last] ?? humanize(last)) : 'This answer';
+  const [category, index] = parts;
+  const personKey = issue.sectionKey.startsWith('statement:')
+    ? issue.sectionKey.slice('statement:'.length)
+    : null;
+  if (personKey && (category === 'income' || category === 'assets' || category === 'liabilities')) {
+    const position = Number(index);
+    if (Number.isInteger(position)) {
+      const statement = document.statements?.find((each) => each.personKey === personKey);
+      const description = statement?.[category]?.[position]?.description?.trim();
+      const item =
+        description !== undefined && description.length > 0
+          ? description
+          : `${ITEM_NOUNS[category]} ${String(position + 1)}`;
+      return last === category ? `${item}: ${message}` : `${item}: ${field} ${message}`;
+    }
+  }
+  // A spouse's or child's field names the person: the household lists several.
+  if (issue.sectionKey === 'household' && (category === 'spouses' || category === 'children')) {
+    const position = Number(parts[2]);
+    if (index === 'items' && Number.isInteger(position)) {
+      const name = fullName(document[category]?.items?.[position]?.name);
+      const person = name || `${PERSON_NOUNS[category]} ${String(position + 1)}`;
+      // An issue with the entry itself, not one of its fields, names the person only.
+      return last === 'items' ? `${person}: ${message}` : `${person}: ${field} ${message}`;
+    }
+  }
+  return `${field} ${message}`;
+}
+
+const PERSON_NOUNS = { spouses: 'Spouse', children: 'Child' } as const;
 
 export type ParagraphCompleteness = 'not-started' | 'incomplete' | 'complete';
 

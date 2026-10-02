@@ -164,14 +164,22 @@ function Host({
 function renderHost(props: Partial<Parameters<typeof Host>[0]> = {}) {
   const server = props.server ?? fakeDraftServer();
   const composer = props.composer ?? fakeComposerServer();
-  render(
+  const tree = (copilotStatus: CopilotStatus | null | undefined) => (
     <TooltipProvider>
       <ToastProvider>
-        <Host server={server} composer={composer} copilotStatus={props.copilotStatus} />
+        <Host server={server} composer={composer} copilotStatus={copilotStatus} />
       </ToastProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   );
-  return { server, composer };
+  const { rerender } = render(tree(props.copilotStatus));
+  return {
+    server,
+    composer,
+    /** Rerenders with the copilot's status changed. */
+    setCopilotStatus: (status: CopilotStatus | null) => {
+      rerender(tree(status));
+    },
+  };
 }
 
 const drawer = () => screen.getByRole('dialog');
@@ -183,6 +191,14 @@ function itemCard(index: number): HTMLElement {
   const card = items()[index];
   if (!card) throw new Error(`no item ${String(index + 1)}`);
   return card;
+}
+
+/** Chooses the letter's language in the composer. */
+function letterIn(language: string) {
+  fireEvent.keyDown(within(drawer()).getByRole('combobox', { name: 'Letter language' }), {
+    key: 'Enter',
+  });
+  fireEvent.click(screen.getByRole('option', { name: language }));
 }
 
 function pick(name: string) {
@@ -229,10 +245,7 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     const { server } = renderHost();
     fireEvent.click(screen.getByRole('button', { name: 'Add to clarification', hidden: true }));
     pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
-    fireEvent.keyDown(within(drafting()).getByRole('combobox', { name: 'Language' }), {
-      key: 'Enter',
-    });
-    fireEvent.click(screen.getByRole('option', { name: 'Swahili' }));
+    letterIn('Swahili');
 
     fireEvent.click(draftButton());
     expect(draftButton().textContent).toBe('Drafting…');
@@ -273,6 +286,62 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
       target: { value: 'Please declare the acquisition date.' },
     });
     expect(within(itemCard(1)).getByRole('img', { name: /^AI draft, edited\./ })).toBeTruthy();
+  });
+
+  it('drafts in the letter’s language, and says so of a part drafted in another one (e2e 13, S7)', async () => {
+    const server = fakeDraftServer();
+    renderHost({ server });
+    expect(within(drafting()).getByText("Drafts in English, the letter's language.")).toBeTruthy();
+    pick('Value changed by 150% since the previous declaration');
+    // An English draft in an English letter: nothing to say.
+    fireEvent.click(draftButton());
+    await settle();
+    expect(server.request.mock.calls[0]?.[0].language).toBe('en');
+    expect(within(drawer()).queryByText(/^Drafted in /)).toBeNull();
+
+    // The letter turns Swahili: the English parts say so, edited or not; a new draft is Swahili.
+    letterIn('Swahili');
+    expect(within(drafting()).getByText("Drafts in Swahili, the letter's language.")).toBeTruthy();
+    const note = 'Drafted in English. The letter is in Swahili.';
+    expect(within(itemCard(0)).getByText(note)).toBeTruthy();
+    fireEvent.change(within(itemCard(1)).getByRole('textbox', { name: 'What you need' }), {
+      target: { value: 'Please declare the acquisition date.' },
+    });
+    expect(within(itemCard(1)).getByText(note)).toBeTruthy();
+    expect(within(drawer()).queryByText(/rest of the letter|mix two languages/)).toBeNull();
+
+    pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
+    fireEvent.click(draftButton());
+    await settle();
+    expect(server.request.mock.calls[1]?.[0].language).toBe('sw');
+    expect(items()).toHaveLength(4);
+    expect(within(itemCard(2)).queryByText(/^Drafted in /)).toBeNull();
+    expect(within(itemCard(3)).queryByText(/^Drafted in /)).toBeNull();
+  });
+
+  it('holds the letter language while drafting, so the draft lands in the language it was asked in (Q35)', async () => {
+    let answer: (result: ServiceResult<AiDraft>) => void = () => undefined;
+    const server = fakeDraftServer();
+    server.request.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    renderHost({ server });
+    const language = () => within(drawer()).getByRole('combobox', { name: 'Letter language' });
+    pick('Value changed by 150% since the previous declaration');
+    expect(language().hasAttribute('data-disabled')).toBe(false);
+
+    fireEvent.click(draftButton());
+    expect(language().hasAttribute('data-disabled')).toBe(true);
+
+    await act(async () => {
+      answer(ok(READY));
+      await Promise.resolve();
+    });
+    expect(items()).toHaveLength(2);
+    expect(language().hasAttribute('data-disabled')).toBe(false);
   });
 
   it('saves the opening paragraph with the items, each drafted part with its job (ADR-007)', async () => {
@@ -374,6 +443,43 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(drafting().getAttribute('aria-busy')).toBe('false');
   });
 
+  it('retries a draft that got no answer with the same Idempotency-Key, a new pick with a new one (M5)', async () => {
+    const server = fakeDraftServer();
+    server.request.mockResolvedValueOnce(unavailable);
+    server.request.mockRejectedValueOnce(new Error('Failed to fetch'));
+    server.request.mockResolvedValueOnce(ok({ status: 'failed', id: 'd1', reason: 'provider' }));
+    renderHost({ server });
+    pick('Value changed by 150% since the previous declaration');
+    fireEvent.click(draftButton());
+    await settle();
+    fireEvent.click(draftButton());
+    await settle();
+    fireEvent.click(draftButton());
+    await settle();
+    const keys = server.request.mock.calls.map(([request]) => request.key);
+    // The first two got no answer (timed out, network): the draft may still be written, so the
+    // retries ask for the same one rather than start (and pay for) another.
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).toBe(keys[0]);
+
+    // That draft failed: another try is a new draft.
+    fireEvent.click(draftButton());
+    await settle();
+    expect(server.request.mock.calls[3]?.[0].key).not.toBe(keys[0]);
+
+    // So is one from another selection.
+    server.request.mockResolvedValueOnce(unavailable);
+    pick('Plot Kisumu/Manyatta/1234 (John Kennedy Otieno)');
+    fireEvent.click(draftButton());
+    await settle();
+    const changed = server.request.mock.calls[4]?.[0].key;
+    expect(changed).not.toBe(server.request.mock.calls[3]?.[0].key);
+    letterIn('Swahili');
+    fireEvent.click(draftButton());
+    await settle();
+    expect(server.request.mock.calls[5]?.[0].key).not.toBe(changed);
+  });
+
   it('says a failed draft is not available and keeps the picks for another try', async () => {
     renderHost({
       server: fakeDraftServer({ request: ok({ status: 'failed', id: 'd1', reason: 'budget' }) }),
@@ -412,6 +518,31 @@ describe('Draft with AI in the composer (spec 07c FE-3, S12)', () => {
     expect(
       screen.getAllByText('AI assistance is not enabled for this Commission.'),
     ).not.toHaveLength(0);
+  });
+
+  it('turns itself on again once the copilot is no longer not-enabled (Q9)', async () => {
+    const { setCopilotStatus } = renderHost({
+      copilotStatus: 'ready',
+      server: fakeDraftServer({
+        request: {
+          ok: false,
+          error: {
+            kind: 'problem',
+            problem: { type: 'ai-not-enabled', title: 'Conflict', status: 409 },
+          },
+        },
+      }),
+    });
+    pick('Value changed by 150% since the previous declaration');
+    fireEvent.click(draftButton());
+    await settle();
+    expect(draftButton().hasAttribute('disabled')).toBe(true);
+
+    // A refresh found the Commission not enabled, then (after an admin enabled it) ready.
+    setCopilotStatus('not-enabled');
+    setCopilotStatus('ready');
+    expect(within(drafting()).queryByText('Not enabled for this Commission')).toBeNull();
+    expect(draftButton().hasAttribute('disabled')).toBe(false);
   });
 
   it('is off from the start when the copilot is not enabled for the Commission', () => {

@@ -1,8 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { getBff } from './bff.server';
+import { asReviewer } from './as-viewer.server';
 import {
   addNote,
   attachmentLink,
@@ -14,8 +13,7 @@ import {
   reassign,
   release,
 } from './review-case.server';
-import { reviewClient, type ReviewClient } from './review/client.server';
-import type { Assignee, CaseListItem, Note } from './review/types';
+import type { CaseListItem, Note } from './review/types';
 import type { ServiceResult } from './service-call';
 
 /**
@@ -23,17 +21,6 @@ import type { ServiceResult } from './service-call';
  * supervisor. The review service decides who may claim, release, reassign and mark flags
  * reviewed; tokens stay on the server, and attachments come back as short-lived links.
  */
-
-async function asReviewer<T>(
-  work: (client: ReviewClient, viewer: Assignee) => Promise<ServiceResult<T>>,
-): Promise<ServiceResult<T>> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
-  return work(reviewClient(session.accessToken), {
-    subject: session.user.subject,
-    name: session.user.name,
-  });
-}
 
 const id = z.uuid();
 const caseInput = z.object({ caseId: id });
@@ -45,7 +32,9 @@ export const getCaseView = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<CaseViewLoad> => {
     const now = new Date().toISOString();
     return {
-      ...(await asReviewer((client, viewer) => loadCaseView(client, data.caseId, viewer))),
+      ...(await asReviewer((client, { subject, name }) =>
+        loadCaseView(client, data.caseId, { subject, name }),
+      )),
       now,
     };
   });

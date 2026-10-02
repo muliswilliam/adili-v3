@@ -32,7 +32,7 @@ export class CopilotFeedbackController {
   @ApiOkResponse({ description: 'Recorded' })
   @ApiProblemResponse(
     400,
-    'Request failed validation, or problem type `block-not-in-output`: the output has no such block',
+    'Request failed validation, or problem type `block-not-in-output`: the output has no such block, or `feedback-rejected`: the AI gateway refused the rating',
   )
   @ApiProblemResponse(403, "The caller is not the case's assignee (`not-the-assignee`)")
   @ApiProblemResponse(404, 'Not found, or not visible to the caller')

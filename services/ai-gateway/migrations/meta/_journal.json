@@ -19,43 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1790885200305,
+      "when": 1790943723531,
       "tag": "0002_policy",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1790885221996,
-      "tag": "0003_audit_records_append_only",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1790923421023,
-      "tag": "0004_feedback",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1790924450690,
-      "tag": "0005_gate_policy_changed_by_name",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1790932373942,
-      "tag": "0006_feedback_block",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1790938982780,
-      "tag": "0007_job_violations",
+      "when": 1790963534062,
+      "tag": "0003_job_violations",
       "breakpoints": true
     }
   ]

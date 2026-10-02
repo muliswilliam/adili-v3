@@ -67,7 +67,7 @@ export class FakeAiGateway extends AiGatewayClient {
     this.blockedFor = reason;
   }
 
-  /** Every task call is refused (400), as for an input the gateway's schema rejects. */
+  /** Every task call and rating is refused (400), as for an input the gateway's schema rejects. */
   rejectRequests(): void {
     this.rejecting = true;
   }
@@ -155,6 +155,7 @@ export class FakeAiGateway extends AiGatewayClient {
       this.failures -= 1;
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
     }
+    if (this.rejecting) return Promise.reject(new InternalApiRejected('ai-gateway', 400));
     const job = this.jobs.get(jobId);
     if (job?.tenant !== tenant || job.status !== 'succeeded') return Promise.resolve(false);
     this.feedback.push({ jobId, feedback: structuredClone(feedback) });
@@ -169,8 +170,13 @@ export class FakeAiGateway extends AiGatewayClient {
     const status =
       this.statuses.get(tenant) ??
       (tenant === 'psc'
-        ? { enabled: true, providerClass: 'external', dataClasses: ['synthetic'] }
-        : { enabled: false, providerClass: 'external', dataClasses: [] });
+        ? {
+            enabled: true,
+            providerClass: 'external',
+            provider: 'anthropic',
+            dataClasses: ['synthetic'],
+          }
+        : { enabled: false, providerClass: 'external', provider: 'anthropic', dataClasses: [] });
     return Promise.resolve({ tenant, ...structuredClone(status) });
   }
 

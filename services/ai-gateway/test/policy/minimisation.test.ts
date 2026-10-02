@@ -37,6 +37,8 @@ const IDENTIFIERS = [
   'KISUMU/MUNICIPALITY BLOCK 7/412',
   'KDK 482M',
   'KDK482M',
+  '1974-03-12',
+  '2004-06-02',
 ];
 
 describe('minimise (spec 07c S3)', () => {
@@ -124,6 +126,76 @@ describe('minimise (spec 07c S3)', () => {
     const text =
       'Paid KES 1500000 and KSh 2500000, USD 1200000, 12,345,678 shillings, 3.1234567, 12345678%, group 12345678-aaaa.';
     expect(minimise({ note: text }).input.note).toBe(text);
+  });
+
+  it('finds a known name in any case, under the same token (review M1)', () => {
+    const minimised = minimise({
+      surname: 'Wanjiru',
+      note: "WANJIRU said wanjiru-s plot is Wanjiru's.",
+    });
+
+    expect(minimised.input).toEqual({
+      surname: '[[PERSON_1]]',
+      note: "[[PERSON_1]] said [[PERSON_1]]-s plot is [[PERSON_1]]'s.",
+    });
+    expect(minimised.restore({ text: 'By [[PERSON_1]].' })).toEqual({ text: 'By Wanjiru.' });
+  });
+
+  it('finds a known ID number written with spaces or dashes (review M1)', () => {
+    const minimised = minimise({
+      nationalId: '28765432',
+      kraPin: 'A002345678Z',
+      note: 'ID 2876 5432, also 28-765-432; PIN a002 345 678z.',
+    });
+
+    expect(minimised.input).toEqual({
+      kraPin: '[[KRA_PIN_1]]',
+      nationalId: '[[ID_1]]',
+      note: 'ID [[ID_1]], also [[ID_1]]; PIN [[KRA_PIN_1]].',
+    });
+    expect(minimised.restore({ text: '[[ID_1]]' })).toEqual({ text: '28765432' });
+  });
+
+  it('finds a known phone number written with +254 or 0, under the same token (review N18)', () => {
+    const minimised = minimise({
+      phone: '+254 712 345 678',
+      note: 'Call 0712 345 678, 0712-345678, +254712345678 or 254 712 345 678; not 0712 345 679.',
+    });
+
+    expect(minimised.input).toEqual({
+      phone: '[[PHONE_1]]',
+      note: 'Call [[PHONE_1]], [[PHONE_1]], [[PHONE_1]] or [[PHONE_1]]; not [[PHONE_2]].',
+    });
+    expect(minimised.restore({ text: '[[PHONE_1]]' })).toEqual({ text: '+254 712 345 678' });
+    // A phone field without digits stays a word, not a pattern that matches anything.
+    expect(minimise({ phone: 'none', note: 'Call none of 0712 345 678.' }).input).toEqual({
+      phone: '[[PHONE_1]]',
+      note: 'Call [[PHONE_1]] of [[PHONE_2]].',
+    });
+    // And the other way round: a field in the national form, text in the international one.
+    expect(minimise({ phone: '0712345678', note: 'On +254 712 345 678.' }).input).toEqual({
+      phone: '[[PHONE_1]]',
+      note: 'On [[PHONE_1]].',
+    });
+  });
+
+  it('replaces dates and places of birth, and bank account numbers in free text (review Q14)', () => {
+    const minimised = minimise({
+      birth: { date: '1974-03-12', place: 'Kisumu' },
+      children: [{ dateOfBirth: '2004-06-02' }],
+      note: 'Born 1974-03-12 in Kisumu. Salary paid to account 01234567890123 and 0123 4567 8901; acquired 2004-06-02.',
+    });
+
+    expect(minimised.input).toEqual({
+      birth: { date: '[[BIRTH_DATE_1]]', place: '[[BIRTH_PLACE_1]]' },
+      children: [{ dateOfBirth: '[[BIRTH_DATE_2]]' }],
+      note: 'Born [[BIRTH_DATE_1]] in [[BIRTH_PLACE_1]]. Salary paid to account [[ACCOUNT_1]] and [[ACCOUNT_2]]; acquired [[BIRTH_DATE_2]].',
+    });
+    expect(minimised.restore(minimised.input)).toEqual({
+      birth: { date: '1974-03-12', place: 'Kisumu' },
+      children: [{ dateOfBirth: '2004-06-02' }],
+      note: 'Born 1974-03-12 in Kisumu. Salary paid to account 01234567890123 and 0123 4567 8901; acquired 2004-06-02.',
+    });
   });
 
   it('refuses to restore a token the input never had', () => {

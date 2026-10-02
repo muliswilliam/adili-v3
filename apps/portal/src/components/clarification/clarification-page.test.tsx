@@ -112,6 +112,17 @@ describe('ClarificationPage: open', () => {
     expect(screen.getByText(note)).toBeTruthy();
   });
 
+  it('shows what a Swahili letter asks in Swahili, and the page around it as before (S7)', () => {
+    renderPage({ ...fixture(IDS.open), language: 'sw' });
+    const ask = screen.getByText('Tume yako inakuomba ueleze tofauti iliyopo katika:');
+    expect(ask.closest('[lang]')?.getAttribute('lang')).toBe('sw');
+    expect(screen.getByText('Tume yako inakuomba utoe taarifa zilizoachwa kuhusu:')).toBeTruthy();
+    expect(
+      screen.queryByText('Your Commission asks you to explain the discrepancy in:'),
+    ).toBeNull();
+    expect(screen.getByText('Answer every point. You can respond once.')).toBeTruthy();
+  });
+
   it('will not submit until every point is answered, and says which one (S20)', () => {
     renderPage(fixture(IDS.open));
     answer(1, 'I built a house on the plot.');

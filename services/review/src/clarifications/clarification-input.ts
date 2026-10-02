@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { REQUIREMENTS } from '../cases/schema.js';
+import { LETTER_LANGUAGES, REQUIREMENTS } from '../cases/schema.js';
 
 /** `bio`, `household`, `other` or `statement:<person key>` (declarations' section keys). */
 const SECTION_KEY =
@@ -21,7 +21,7 @@ export const clarificationItemInput = z.object({
 /**
  * review.yaml `ClarificationInput`. A draft may have no items yet; issuing one needs at least
  * one. The opening paragraph is optional: left out or blank, the letter has none (and no job
- * drafted it).
+ * drafted it). The letter's language, left out, is English.
  */
 export const clarificationInput = z
   .object({
@@ -35,6 +35,7 @@ export const clarificationInput = z
         opening === undefined || opening === null || opening === '' ? null : opening,
       ),
     openingAiJobId: z.uuid().nullish(),
+    language: z.enum(LETTER_LANGUAGES).default('en'),
   })
   .transform((input) => ({
     ...input,

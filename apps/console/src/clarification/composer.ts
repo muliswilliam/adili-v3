@@ -1,6 +1,7 @@
 import type { AiLabelDetails } from '@adili/ui';
 
 import type { Requirement } from '../server/review/types';
+import { DEFAULT_DRAFT_LANGUAGE, type DraftLanguage } from './draft-selection';
 import { type ClarificationTarget, targetOf, type TargetRef } from './targets';
 
 /**
@@ -33,6 +34,11 @@ export interface ComposerItem {
   aiJobId: string | null;
   /** An inserted item the reviewer has changed since ("AI draft, edited"). */
   edited: boolean;
+  /**
+   * The language Draft with AI drafted it in: in this sitting, or as saved with its job
+   * (review.yaml `aiLanguage`); null for the reviewer's own or when not known.
+   */
+  language: DraftLanguage | null;
 }
 
 /**
@@ -45,11 +51,21 @@ export interface ComposerOpening {
   /** The Draft with AI job that drafted it (review.yaml `ClarificationInput.openingAiJobId`). */
   aiJobId: string | null;
   edited: boolean;
+  /**
+   * The language Draft with AI drafted it in: in this sitting, or as saved with its job
+   * (review.yaml `aiLanguage`); null for the reviewer's own or when not known.
+   */
+  language: DraftLanguage | null;
 }
 
 export interface ComposerState {
   items: ComposerItem[];
   opening: ComposerOpening | null;
+  /**
+   * The letter's language (review.yaml `LetterLanguage`): its own text (heading, introduction,
+   * labels, how to respond) is in it, and Draft with AI drafts in it. English to start with.
+   */
+  language: DraftLanguage;
   /** The next item key's number. */
   next: number;
 }
@@ -61,6 +77,8 @@ export interface ComposerSeed extends Partial<TargetRef> {
   label?: string | null;
   /** A saved item's drafting job; a drafted one's comes from `ComposerDraft.jobId`. */
   aiJobId?: string | null;
+  /** The language a saved item's job drafted in (review.yaml `aiLanguage`). */
+  aiLanguage?: DraftLanguage | null;
 }
 
 /** What Draft with AI returns (review.yaml `CopilotDraft`), or seeds from elsewhere. */
@@ -69,6 +87,8 @@ export interface ComposerDraft {
   label: AiLabelDetails | null;
   /** The Draft with AI job (`CopilotDraft.jobId`); null for items seeded without AI. */
   jobId: string | null;
+  /** The language it was drafted in; null (or left out) for items seeded without AI. */
+  language?: DraftLanguage | null;
   opening: string | null;
   items: ComposerSeed[];
 }
@@ -81,10 +101,20 @@ export type ComposerAction =
   | { type: 'text'; key: string; text: string }
   | { type: 'insert'; draft: ComposerDraft; targets: readonly ClarificationTarget[] }
   | { type: 'opening'; text: string }
-  | { type: 'discard-opening' };
+  | { type: 'discard-opening' }
+  | { type: 'language'; language: DraftLanguage };
 
 function blank(key: string): ComposerItem {
-  return { key, target: null, requirement: null, text: '', ai: null, aiJobId: null, edited: false };
+  return {
+    key,
+    target: null,
+    requirement: null,
+    text: '',
+    ai: null,
+    aiJobId: null,
+    edited: false,
+    language: null,
+  };
 }
 
 const isBlank = (item: ComposerItem) =>
@@ -96,6 +126,7 @@ function seeded(
   targets: readonly ClarificationTarget[],
   ai: AiLabelDetails | null,
   jobId: string | null,
+  language: DraftLanguage | null,
 ): ComposerState {
   let next = state.next;
   const items = seeds.map((seed) => ({
@@ -114,13 +145,14 @@ function seeded(
     ai,
     aiJobId: seed.aiJobId ?? jobId,
     edited: false,
+    language: seed.aiLanguage ?? language,
   }));
   return { ...state, items: [...state.items, ...items], next };
 }
 
-/** A new clarification: one blank item to start from. */
+/** A new clarification: one blank item to start from, in English. */
 export function emptyComposer(): ComposerState {
-  return { items: [blank('item-1')], opening: null, next: 2 };
+  return { items: [blank('item-1')], opening: null, language: DEFAULT_DRAFT_LANGUAGE, next: 2 };
 }
 
 /** A saved draft (or a follow-up's pre-filled draft), its items on their targets. */
@@ -129,17 +161,35 @@ export function draftComposer(
     items,
     opening,
     openingAiJobId = null,
-  }: { items: readonly ComposerSeed[]; opening: string | null; openingAiJobId?: string | null },
+    openingAiLanguage = null,
+    language = DEFAULT_DRAFT_LANGUAGE,
+  }: {
+    items: readonly ComposerSeed[];
+    opening: string | null;
+    openingAiJobId?: string | null;
+    openingAiLanguage?: DraftLanguage | null;
+    language?: DraftLanguage;
+  },
   targets: readonly ClarificationTarget[],
 ): ComposerState {
   return seeded(
     {
       items: [],
-      opening: opening ? { text: opening, ai: null, aiJobId: openingAiJobId, edited: false } : null,
+      opening: opening
+        ? {
+            text: opening,
+            ai: null,
+            aiJobId: openingAiJobId,
+            edited: false,
+            language: openingAiLanguage,
+          }
+        : null,
+      language,
       next: 1,
     },
     items,
     targets,
+    null,
     null,
     null,
   );
@@ -185,6 +235,7 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
         targets,
         draft.label,
         draft.jobId,
+        draft.language ?? null,
       );
       // A new draft's opening replaces an earlier one only while nobody has written in it.
       const replaceable =
@@ -192,7 +243,13 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
       return draft.opening && replaceable
         ? {
             ...inserted,
-            opening: { text: draft.opening, ai: draft.label, aiJobId: draft.jobId, edited: false },
+            opening: {
+              text: draft.opening,
+              ai: draft.label,
+              aiJobId: draft.jobId,
+              edited: false,
+              language: draft.language ?? null,
+            },
           }
         : inserted;
     }
@@ -204,12 +261,25 @@ export function composerReducer(state: ComposerState, action: ComposerAction): C
           aiJobId: state.opening?.aiJobId ?? null,
           text: action.text,
           edited: state.opening?.ai != null,
+          language: state.opening?.language ?? null,
         },
       };
     case 'discard-opening':
       return { ...state, opening: null };
+    case 'language':
+      return { ...state, language: action.language };
   }
 }
+
+/**
+ * The language a drafted part (an item or the opening) is in when it is not the letter's, so
+ * the composer can say so; null when it matches or is not known.
+ */
+export const foreignLanguageOf = (
+  part: { language: DraftLanguage | null },
+  letter: DraftLanguage,
+): DraftLanguage | null =>
+  part.language !== null && part.language !== letter ? part.language : null;
 
 export type ItemProblem = 'required' | 'too-long';
 
@@ -252,11 +322,13 @@ export function composerToInput(state: ComposerState): {
   items: (TargetRef & { requirement: Requirement; text: string; aiJobId: string | null })[];
   opening: string | null;
   openingAiJobId: string | null;
+  language: DraftLanguage;
 } {
   const opening = state.opening?.text.trim() ? state.opening : null;
   return {
     opening: opening ? opening.text.trim() : null,
     openingAiJobId: opening?.aiJobId ?? null,
+    language: state.language,
     items: state.items.flatMap((item) =>
       isBlank(item) || !item.requirement
         ? []

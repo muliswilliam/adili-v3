@@ -14,7 +14,7 @@ import type { copilotJobFinished, copilotPolicyChanged } from './workflows.js';
 
 /**
  * Starts the copilot's event-driven workflows on Temporal: `copilotJobFinished` one per ended
- * job, `copilotPolicyChanged` one per policy change event. A start is idempotent: a running or
+ * job, `copilotPolicyChanged` one per policy change event and Commission. A start is idempotent: a running or
  * completed workflow is left as it is; only a failed one is started again.
  */
 @Injectable()
@@ -41,7 +41,7 @@ export class CopilotWorkflows {
         COPILOT_POLICY_CHANGED_WORKFLOW,
         {
           taskQueue: config.TEMPORAL_TASK_QUEUE,
-          workflowId: copilotPolicyWorkflowId(eventId),
+          workflowId: copilotPolicyWorkflowId(eventId, tenant),
           args: [{ tenant }],
           workflowIdConflictPolicy: 'USE_EXISTING',
           workflowIdReusePolicy: 'ALLOW_DUPLICATE_FAILED_ONLY',

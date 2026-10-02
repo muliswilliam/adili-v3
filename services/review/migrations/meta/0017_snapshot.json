@@ -1,6 +1,6 @@
 {
-  "id": "06c047c4-0a4c-4124-9bef-e8eb93e66d25",
-  "prevId": "fd7d291d-18f4-40ba-968f-713cb8612643",
+  "id": "9884d597-1d07-4530-8946-e02d04e10e1d",
+  "prevId": "257f3112-6431-4d1b-8bb9-582cc4b16dbc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -452,6 +452,25 @@
           "primaryKey": false,
           "notNull": true
         },
+        "opening": {
+          "name": "opening",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opening_ai_job_id": {
+          "name": "opening_ai_job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ai_assisted": {
+          "name": "ai_assisted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "issued_at": {
           "name": "issued_at",
           "type": "timestamp with time zone",
@@ -787,6 +806,13 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": true
+        },
+        "first_on_adili": {
+          "name": "first_on_adili",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "processed_at": {
           "name": "processed_at",
@@ -1677,6 +1703,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "selection_hash": {
+          "name": "selection_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "job_id": {
           "name": "job_id",
           "type": "uuid",
@@ -1695,6 +1727,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "ciphertext": {
+          "name": "ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "envelope": {
+          "name": "envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1707,6 +1751,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1748,6 +1798,10 @@
         "review_copilot_drafts_status_check": {
           "name": "review_copilot_drafts_status_check",
           "value": "\"review_copilot_drafts\".\"status\" in ('pending', 'ready', 'failed')"
+        },
+        "review_copilot_drafts_content_check": {
+          "name": "review_copilot_drafts_content_check",
+          "value": "(\"review_copilot_drafts\".\"status\" = 'ready' and \"review_copilot_drafts\".\"purged_at\" is null) = (\"review_copilot_drafts\".\"ciphertext\" is not null and \"review_copilot_drafts\".\"envelope\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -1756,6 +1810,12 @@
       "name": "review_copilot_ratings",
       "schema": "",
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
         "job_id": {
           "name": "job_id",
           "type": "uuid",
@@ -1767,6 +1827,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "tenant": {
           "name": "tenant",
@@ -1809,16 +1875,18 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "review_copilot_ratings_job_id_reviewer_subject_pk": {
-          "name": "review_copilot_ratings_job_id_reviewer_subject_pk",
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "review_copilot_ratings_job_reviewer_block_key": {
+          "name": "review_copilot_ratings_job_reviewer_block_key",
+          "nullsNotDistinct": true,
           "columns": [
             "job_id",
-            "reviewer_subject"
+            "reviewer_subject",
+            "block"
           ]
         }
       },
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
         "review_copilot_ratings_rating_check": {
@@ -1952,6 +2020,42 @@
           "primaryKey": false,
           "notNull": false
         },
+        "staged_summary_prompt_version": {
+          "name": "staged_summary_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_ciphertext": {
+          "name": "staged_summary_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_summary_envelope": {
+          "name": "staged_summary_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_prompt_version": {
+          "name": "staged_explanations_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_ciphertext": {
+          "name": "staged_explanations_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "staged_explanations_envelope": {
+          "name": "staged_explanations_envelope",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -1987,6 +2091,28 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "review_copilots_not_enabled_idx": {
+          "name": "review_copilots_not_enabled_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"review_copilots\".\"status\" = 'not-enabled'",
           "concurrently": false,
           "method": "btree",
           "with": {}

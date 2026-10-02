@@ -2,14 +2,20 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, eq, gt, inArray, or, sql } from 'drizzle-orm';
+import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
-import { AiGatewayClient, AiGatewayUnavailable } from '../ai-gateway/ai-gateway-client.js';
-import { caseTenant } from '../cases/access.js';
+import {
+  AiGatewayClient,
+  AiGatewayUnavailable,
+  type FeedbackInput,
+} from '../ai-gateway/ai-gateway-client.js';
+import { caseTenant, notTheAssignee } from '../cases/access.js';
 import { findCase, type ReviewTransaction, visibleId } from '../cases/case-lookup.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { openOutput } from './copilot-requests.js';
 import { reviewCopilotDrafts } from './draft-schema.js';
+import { InternalApiRejected } from '../internal-api/rejected.js';
 import { aiGatewayUnavailable } from './problems.js';
 import {
   COPILOT_RATINGS,
@@ -35,11 +41,20 @@ const copilotBlock = z
   .max(64)
   .refine((block) => block in SUMMARY_BLOCKS || FLAG_BLOCK.test(block), 'Not a copilot block');
 
+/** Why a reviewer found an output unhelpful: the ai-gateway's `FeedbackInput.reason`, forwarded. */
+const FEEDBACK_REASONS = [
+  'inaccurate',
+  'missed-something',
+  'unclear',
+  'too-long',
+  'other',
+] as const satisfies readonly NonNullable<FeedbackInput['reason']>[];
+
 /** review.yaml `CopilotFeedbackInput`. */
 export const copilotFeedbackInput = z.object({
   block: copilotBlock.nullish().transform((block) => block ?? null),
   rating: z.enum(COPILOT_RATINGS),
-  reason: z.enum(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']).nullable(),
+  reason: z.enum(FEEDBACK_REASONS).nullable(),
   note: z.string().max(1000).nullable(),
 });
 export type CopilotFeedbackInput = z.infer<typeof copilotFeedbackInput>;
@@ -58,12 +73,13 @@ type ShownOutput =
 
 /**
  * The case whose copilot shows the output of job `jobId` (its summary or its explanations, or a
- * clarification draft ready within its 24 hours), and which output it is; null when no case of
- * the transaction's tenant shows it.
+ * clarification draft `requestedBy` asked for, ready within its 24 hours), and which output it
+ * is; null when no case of the transaction's tenant shows it to them.
  */
 export async function caseShowingOutput(
   tx: ReviewTransaction,
   jobId: string,
+  requestedBy: string,
 ): Promise<ShownOutput | null> {
   const [shown] = await tx
     .select()
@@ -79,6 +95,8 @@ export async function caseShowingOutput(
     .where(
       and(
         eq(reviewCopilotDrafts.jobId, jobId),
+        // A draft is its requester's alone, as its poll is.
+        eq(reviewCopilotDrafts.requestedBy, requestedBy),
         eq(reviewCopilotDrafts.status, 'ready'),
         gt(reviewCopilotDrafts.expiresAt, sql`now()`),
       ),
@@ -132,18 +150,12 @@ export class CopilotFeedback {
     const tenant = caseTenant(principal);
     const context = { tenant, subject: principal.subject };
     const shown = await withTenant(this.db, context, async (tx) => {
-      const output = notFoundIfInvisible(await caseShowingOutput(tx, visibleId(jobId)));
+      const output = notFoundIfInvisible(
+        await caseShowingOutput(tx, visibleId(jobId), principal.subject),
+      );
       const row = await findCase(tx, tenant, output.caseId);
       if (row.assignee !== principal.subject) {
-        throw new ProblemException(
-          {
-            type: 'not-the-assignee',
-            title: 'Forbidden',
-            status: HttpStatus.FORBIDDEN,
-            detail: "Only the case's assignee rates its copilot.",
-          },
-          { code: 'not-the-assignee' },
-        );
+        throw notTheAssignee("Only the case's assignee rates its copilot.");
       }
       return output;
     });
@@ -167,6 +179,7 @@ export class CopilotFeedback {
       });
     } catch (error) {
       if (error instanceof AiGatewayUnavailable) throw aiGatewayUnavailable();
+      if (error instanceof InternalApiRejected) throw feedbackRejected();
       throw error;
     }
     // The gateway does not know the output's job (it never forgets one): as if it did not exist.
@@ -176,6 +189,7 @@ export class CopilotFeedback {
       tx
         .insert(reviewCopilotRatings)
         .values({
+          id: uuidv7(),
           jobId,
           reviewerSubject: principal.subject,
           block: input.block,
@@ -218,4 +232,17 @@ export class CopilotFeedback {
       )
     );
   }
+}
+
+/** 400: the gateway refused the rating (its validation of the feedback); nothing was recorded. */
+function feedbackRejected(): ProblemException {
+  return new ProblemException(
+    {
+      type: 'feedback-rejected',
+      title: 'Bad Request',
+      status: HttpStatus.BAD_REQUEST,
+      detail: 'The AI gateway refused the rating.',
+    },
+    { code: 'feedback-rejected' },
+  );
 }

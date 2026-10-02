@@ -14,7 +14,6 @@ import type { Flag } from '../../../server/review/types';
 import { flagDone, sortFlags } from './copilot-view';
 import {
   type FlagSelection,
-  labelDetails,
   type OpenSource,
   quietClassName,
   Refs,
@@ -121,7 +120,7 @@ export function FlagExplanation({
       id={flagAnchor(flag.id)}
       className={cn(
         'scroll-mt-[150px] overflow-hidden rounded-xl shadow-card',
-        pulse && 'animate-[copilot-flag-pulse_1.6s_ease-out] motion-reduce:animate-none',
+        pulse && 'animate-pulse-ring motion-reduce:animate-none',
       )}
     >
       <button
@@ -200,7 +199,7 @@ export function FlagExplanation({
           {(explanation && label) || canAdd ? (
             <div className="flex flex-wrap items-center gap-2 border-t pt-2.5">
               {explanation && label ? (
-                <AiLabel size="sm" text={t.labelShort} details={labelDetails(label)} />
+                <AiLabel size="sm" text={t.labelShort} details={label} />
               ) : null}
               <span className="flex-1" />
               {canAdd ? (

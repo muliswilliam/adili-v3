@@ -1,4 +1,4 @@
-import { COUNTRIES, formatDate } from '@adili/ui';
+import { countryName, countyName, formatDate } from '@adili/ui';
 
 import {
   ASSET_TYPE_LABELS,
@@ -100,13 +100,6 @@ export function relationOf(personKey: string): Relation {
   return 'declarant';
 }
 
-const COUNTRY_NAMES = new Map(COUNTRIES.map((country) => [country.code, country.name]));
-
-/** A country by name, from its ISO code; the code when it is not one we know. */
-export function countryName(code: string): string {
-  return COUNTRY_NAMES.get(code) ?? code;
-}
-
 function placeOf(location: unknown): string {
   if (!isRecord(location)) return '';
   if (location.inKenya === false) {
@@ -115,7 +108,8 @@ function placeOf(location: unknown): string {
       .filter(Boolean)
       .join(', ');
   }
-  return [text(location.detail), text(location.county)].filter(Boolean).join(', ');
+  const county = text(location.county);
+  return [text(location.detail), county ? countyName(county) : ''].filter(Boolean).join(', ');
 }
 
 function ownershipOf(joint: unknown): string {

@@ -68,6 +68,45 @@ describe('useCaseCopilot', () => {
     expect(api.read).toHaveBeenCalledTimes(3);
   });
 
+  it('reads a not-enabled copilot once a minute, and polls quickly once a policy approval requested it (Q29)', async () => {
+    const api = fakeApi([
+      ok(copilot('not-enabled')),
+      ok(copilot('not-enabled')),
+      ok(copilot('pending')),
+      ok(copilot('ready')),
+    ]);
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    expect(result.current.copilot?.status).toBe('not-enabled');
+    await wait(59_000);
+    expect(api.read).toHaveBeenCalledTimes(1);
+    await wait(1_000);
+    expect(api.read).toHaveBeenCalledTimes(2);
+    await wait(60_000);
+    expect(result.current.copilot?.status).toBe('pending');
+    await wait(2_000);
+    expect(result.current.copilot?.status).toBe('ready');
+    await wait(300_000);
+    expect(api.read).toHaveBeenCalledTimes(4);
+  });
+
+  it('skips the once-a-minute read of a not-enabled copilot while the page is hidden (Q29, N34)', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      const api = fakeApi([ok(copilot('not-enabled'))]);
+      renderHook(() => useCaseCopilot(CASE, api));
+      await settle();
+      await wait(180_000);
+      expect(api.read).toHaveBeenCalledTimes(1);
+
+      visibility.mockReturnValue('visible');
+      await wait(60_000);
+      expect(api.read).toHaveBeenCalledTimes(2);
+    } finally {
+      visibility.mockRestore();
+    }
+  });
+
   it('stops after two minutes, and Check again starts over', async () => {
     const api = fakeApi([ok(copilot('stale'))]);
     const { result } = renderHook(() => useCaseCopilot(CASE, api));
@@ -98,6 +137,22 @@ describe('useCaseCopilot', () => {
     expect(result.current.copilot?.status).toBe('pending');
     await wait(3000);
     expect(result.current.copilot?.status).toBe('ready');
+  });
+
+  it('stops polling and says the session ended when a poll is unauthenticated (Q8)', async () => {
+    const signedOut: ServiceResult<Copilot> = {
+      ok: false,
+      error: { kind: 'unauthenticated' },
+    };
+    const api = fakeApi([ok(copilot('pending')), signedOut]);
+    const { result } = renderHook(() => useCaseCopilot(CASE, api));
+    await settle();
+    expect(result.current.sessionEnded).toBe(false);
+    await wait(2000);
+    expect(result.current.sessionEnded).toBe(true);
+    const polls = api.read.mock.calls.length;
+    await wait(60_000);
+    expect(api.read).toHaveBeenCalledTimes(polls);
   });
 
   it('says why the first read failed, and tries again', async () => {

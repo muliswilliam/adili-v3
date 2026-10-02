@@ -1,11 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { getBff } from './bff.server';
+import { asReviewer } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import type { paths } from './review/api.gen';
-import { reviewClient } from './review/client.server';
 import { callService, type ServiceResult } from './service-call';
 
 /** Whether AI assistance is enabled for a Commission, and with which provider class. */
@@ -19,11 +17,10 @@ export type CommissionAiStatus =
  */
 export const getCommissionAiStatus = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug }))
-  .handler(async ({ data }): Promise<ServiceResult<CommissionAiStatus>> => {
-    const session = await getBff().getSession(getRequest());
-    if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
-    const client = reviewClient(session.accessToken);
-    return callService(() =>
-      client.GET('/v1/commissions/{slug}/ai-status', { params: { path: { slug: data.slug } } }),
-    );
-  });
+  .handler(({ data }): Promise<ServiceResult<CommissionAiStatus>> =>
+    asReviewer((client) =>
+      callService(() =>
+        client.GET('/v1/commissions/{slug}/ai-status', { params: { path: { slug: data.slug } } }),
+      ),
+    ),
+  );

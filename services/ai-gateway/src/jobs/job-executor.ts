@@ -1,11 +1,12 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { Injectable, Logger } from '@nestjs/common';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import { type Job, jobs, type schema } from '../db/schema.js';
+import { asPlatform, asTenant, type GatewayDatabase } from '../db/context.js';
+import { type Job, jobs } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
 import { costMicros } from '../policy/pricing.js';
@@ -120,7 +121,7 @@ export class JobExecutor {
   private readonly logger = new Logger(JobExecutor.name);
 
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly providers: ProviderRegistry,
     private readonly admission: Admission,
     private readonly breaker: CircuitBreaker,
@@ -159,12 +160,12 @@ export class JobExecutor {
       params = parseParams(job.params, `job ${job.id}`);
       // The token map lives in `prompt` for this attempt only, and is never stored or logged.
       prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params);
+      this.telemetry.identifiersMinimised(job, prompt.counts);
     } catch (error) {
       // No call was made: a probe this attempt claimed must not keep the breaker half-open.
       this.breaker.release(provider.name);
       throw error;
     }
-    this.telemetry.identifiersMinimised(job, prompt.counts);
     const startedAt = performance.now();
     const result = await this.call(job, provider, prompt, params.timeoutMs);
     const metrics: AttemptMetrics = {
@@ -182,7 +183,10 @@ export class JobExecutor {
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */
   async fail(jobId: string, reason: JobReason): Promise<void> {
-    const [job] = await this.db.select().from(jobs).where(eq(jobs.id, jobId));
+    // Found by id alone (the workflow knows no tenant); finished as its tenant.
+    const [job] = await asPlatform(this.db, (tx) =>
+      tx.select().from(jobs).where(eq(jobs.id, jobId)),
+    );
     if (job) await this.finish(job, { status: 'failed', reason }, NO_CALL);
   }
 
@@ -219,13 +223,19 @@ export class JobExecutor {
     }
   }
 
-  /** Marks the job running; undefined when it has already ended (a late retry, a replay). */
+  /**
+   * Marks the job running; undefined when it has already ended (a late retry, a replay). In the
+   * platform context, since the workflow knows the job by its id alone; everything after runs as
+   * the job's tenant.
+   */
   private async start(jobId: string): Promise<Job | undefined> {
-    const [job] = await this.db
-      .update(jobs)
-      .set({ status: 'running', startedAt: sql`coalesce(${jobs.startedAt}, now())` })
-      .where(and(eq(jobs.id, jobId), inArray(jobs.status, LIVE_STATUSES)))
-      .returning();
+    const [job] = await asPlatform(this.db, (tx) =>
+      tx
+        .update(jobs)
+        .set({ status: 'running', startedAt: sql`coalesce(${jobs.startedAt}, now())` })
+        .where(and(eq(jobs.id, jobId), inArray(jobs.status, LIVE_STATUSES)))
+        .returning(),
+    );
     return job;
   }
 
@@ -335,7 +345,7 @@ export class JobExecutor {
    */
   private async finish(job: Job, outcome: Outcome, metrics: AttemptMetrics): Promise<void> {
     const output = outcome.status === 'succeeded' ? outcome.output : null;
-    const finished = await this.db.transaction(async (tx) => {
+    const finished = await asTenant(this.db, job.tenant, async (tx) => {
       // A hung write (lock wait, lost connection) must fail in time for the caller to react.
       await tx.execute(sql.raw(`set local statement_timeout = ${WRITE_TIMEOUT_MS}`));
       const [row] = await tx

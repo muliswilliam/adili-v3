@@ -28,6 +28,8 @@ import {
   RadioCard,
   RadioGroup,
   SegmentedChoice,
+  Select,
+  SelectItem,
   Spinner,
   Textarea,
   addDays,
@@ -39,6 +41,7 @@ import {
   Clock01Icon,
   Delete02Icon,
   FloppyDiskIcon,
+  InformationCircleIcon,
   LeftToRightListBulletIcon,
   PencilEdit02Icon,
   PlusSignIcon,
@@ -59,12 +62,18 @@ import {
   composerToInput,
   draftComposer,
   emptyComposer,
+  foreignLanguageOf,
   ITEM_TEXT_MAX,
   type ItemProblem,
   OPENING_TEXT_MAX,
 } from '../../../clarification/composer';
+import { DRAFT_LANGUAGES, type DraftLanguage } from '../../../clarification/draft-selection';
 import { REQUIREMENT_LABELS } from '../../../clarification/labels';
-import { type ClarificationTarget, clarificationTargets } from '../../../clarification/targets';
+import {
+  type ClarificationTarget,
+  clarificationTargets,
+  letterLabelOf,
+} from '../../../clarification/targets';
 import { reportingEntityOf } from '../../../review-case/declaration';
 import { issueComposedClarification, saveClarificationDraft } from '../../../server/clarifications';
 import type { IssueResult } from '../../../server/clarifications.server';
@@ -93,6 +102,11 @@ export interface ComposerApi {
   insert: (draft: ComposerDraft) => void;
   /** Removes an item, e.g. Discard on a drafted one. */
   remove: (key: string) => void;
+  /**
+   * Says a draft is being written (true) or no longer is (false): the letter's language holds
+   * meanwhile, as the draft comes back in the language it was asked in.
+   */
+  setDrafting: (drafting: boolean) => void;
 }
 
 /** The server functions the composer calls; tests pass fakes. */
@@ -211,7 +225,13 @@ function ComposerBody({
   const [state, dispatch] = useReducer(composerReducer, null, () => {
     if (draft) {
       return draftComposer(
-        { items: draft.items, opening: draft.opening, openingAiJobId: draft.openingAiJobId },
+        {
+          items: draft.items,
+          opening: draft.opening,
+          openingAiJobId: draft.openingAiJobId,
+          openingAiLanguage: draft.openingAiLanguage,
+          language: draft.language,
+        },
         targets,
       );
     }
@@ -226,6 +246,7 @@ function ComposerBody({
   const [confirming, setConfirming] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [opened, setOpened] = useState<string | null>(null);
+  const [drafting, setDrafting] = useState(false);
   const body = useRef<HTMLDivElement>(null);
   /** Brings the alert at the top into view after a refused save or issue. */
   const toTop = () => {
@@ -243,6 +264,7 @@ function ComposerBody({
     remove: (key) => {
       dispatch({ type: 'remove', key });
     },
+    setDrafting,
   };
   const title = followUpOf ? t.followUpTitle : draft ? t.draftTitle : t.newTitle;
 
@@ -335,28 +357,38 @@ function ComposerBody({
             <AlertDescription>{problems.none ? t.addOneItem : t.completeItems}</AlertDescription>
           </Alert>
         ) : null}
-        <SegmentedChoice
-          variant="track"
-          legend={t.viewLegend}
-          value={view}
-          onValueChange={(next) => {
-            setView(next === 'preview' ? 'preview' : 'items');
-          }}
-          options={[
-            { value: 'items', label: <ViewLabel icon={PencilEdit02Icon} text={t.viewItems} /> },
-            { value: 'preview', label: <ViewLabel icon={ViewIcon} text={t.viewPreview} /> },
-          ]}
-        />
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+          <SegmentedChoice
+            variant="track"
+            legend={t.viewLegend}
+            value={view}
+            onValueChange={(next) => {
+              setView(next === 'preview' ? 'preview' : 'items');
+            }}
+            options={[
+              { value: 'items', label: <ViewLabel icon={PencilEdit02Icon} text={t.viewItems} /> },
+              { value: 'preview', label: <ViewLabel icon={ViewIcon} text={t.viewPreview} /> },
+            ]}
+          />
+          <LanguageChoice
+            value={state.language}
+            disabled={drafting}
+            onChange={(language) => {
+              dispatch({ type: 'language', language });
+            }}
+          />
+        </div>
         {view === 'preview' ? (
           <LetterPreview
             commission={commission}
             reviewCase={reviewCase}
             reportingEntity={reportingEntityOf(document)}
             items={state.items.map((item) => ({
-              label: item.target?.label ?? null,
+              label: item.target ? letterLabelOf(item.target, state.language) : null,
               requirement: item.requirement,
               text: item.text,
             }))}
+            language={state.language}
             opening={state.opening?.text ?? null}
             aiAssisted={
               state.items.some(isAiAssisted) ||
@@ -371,6 +403,7 @@ function ComposerBody({
             {state.opening ? (
               <OpeningField
                 opening={state.opening}
+                language={state.language}
                 tooLong={problems?.opening === 'too-long'}
                 onChange={(text) => {
                   dispatch({ type: 'opening', text });
@@ -387,6 +420,7 @@ function ComposerBody({
                     <ItemCard
                       item={item}
                       index={index}
+                      language={state.language}
                       targets={targets}
                       problems={problems?.items[item.key]}
                       removable={isAiAssisted(item) || state.items.length > 1}
@@ -437,10 +471,45 @@ function ComposerBody({
         onOpenChange={setConfirming}
         busy={busy === 'issue'}
         items={state.items.length}
+        language={state.language}
         dueAt={dueAt}
         onIssue={() => void issue()}
       />
     </>
+  );
+}
+
+/** The letter's language: its own text, the preview and Draft with AI follow it. */
+function LanguageChoice({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: DraftLanguage;
+  /** While Draft with AI is drafting, in this language. */
+  disabled: boolean;
+  onChange: (language: DraftLanguage) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{t.languageLabel}</Label>
+      <Select
+        id={id}
+        value={value}
+        disabled={disabled}
+        onValueChange={(next) => {
+          onChange(next as DraftLanguage);
+        }}
+        className="w-auto min-w-36"
+      >
+        {DRAFT_LANGUAGES.map((each) => (
+          <SelectItem key={each} value={each}>
+            {t.languages[each]}
+          </SelectItem>
+        ))}
+      </Select>
+    </div>
   );
 }
 
@@ -486,6 +555,7 @@ const REQUIREMENTS = Object.keys(REQUIREMENT_LABELS) as Requirement[];
 function ItemCard({
   item,
   index,
+  language,
   targets,
   problems,
   removable,
@@ -494,6 +564,7 @@ function ItemCard({
 }: {
   item: ComposerItem;
   index: number;
+  language: DraftLanguage;
   targets: readonly ClarificationTarget[];
   problems: ComposerProblems['items'][string] | undefined;
   removable: boolean;
@@ -594,6 +665,7 @@ function ItemCard({
         </div>
         <Textarea
           id={`${id}-text`}
+          autoGrow
           rows={3}
           value={item.text}
           placeholder={t.textPlaceholder}
@@ -606,8 +678,33 @@ function ItemCard({
         {problems?.text ? (
           <FieldError id={`${id}-text-error`}>{PROBLEM_TEXT.text[problems.text]}</FieldError>
         ) : null}
+        <LanguageNote part={item} letter={language} />
       </div>
     </section>
+  );
+}
+
+/**
+ * Text drafted with AI in another language than the letter's (the letter language changed
+ * since): the reviewer is told, so they can draft it again or leave it. It stays while the text
+ * does, edited or not; the composer cannot tell from the text whether it was rewritten.
+ */
+function LanguageNote({
+  part,
+  letter,
+}: {
+  part: Parameters<typeof foreignLanguageOf>[0];
+  letter: DraftLanguage;
+}) {
+  const language = foreignLanguageOf(part, letter);
+  if (language === null) return null;
+  return (
+    <Alert variant="neutral" role="note" className="mt-1 px-3.5 py-2.5 text-[13.5px]">
+      <Icon icon={InformationCircleIcon} />
+      <AlertDescription>
+        {t.otherLanguage(t.languages[language], t.languages[letter])}
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -634,11 +731,13 @@ function AiDraftLabel({ ai, edited }: { ai: AiLabelDetails | null; edited: boole
 /** The letter's opening paragraph (Draft with AI's, or a saved draft's); editable, or discarded. */
 function OpeningField({
   opening,
+  language,
   tooLong,
   onChange,
   onDiscard,
 }: {
   opening: NonNullable<ComposerState['opening']>;
+  language: DraftLanguage;
   tooLong: boolean;
   onChange: (text: string) => void;
   onDiscard: () => void;
@@ -673,6 +772,7 @@ function OpeningField({
       </div>
       <Textarea
         id={id}
+        autoGrow
         rows={3}
         value={opening.text}
         aria-invalid={tooLong ? true : undefined}
@@ -682,6 +782,7 @@ function OpeningField({
         }}
       />
       {tooLong ? <FieldError id={`${id}-error`}>{t.openingTooLong}</FieldError> : null}
+      <LanguageNote part={opening} letter={language} />
     </section>
   );
 }
@@ -691,6 +792,7 @@ function IssueConfirm({
   onOpenChange,
   busy,
   items,
+  language,
   dueAt,
   onIssue,
 }: {
@@ -698,6 +800,7 @@ function IssueConfirm({
   onOpenChange: (open: boolean) => void;
   busy: boolean;
   items: number;
+  language: DraftLanguage;
   dueAt: string;
   onIssue: () => void;
 }) {
@@ -714,10 +817,14 @@ function IssueConfirm({
           <DialogDescription className="text-[15px] text-foreground">
             {t.confirmText}
           </DialogDescription>
-          <dl className="grid grid-cols-2 gap-4 text-sm">
+          <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
             <div className="grid gap-1">
               <dt className="text-[13px] text-muted-foreground">{t.confirmItems}</dt>
               <dd className="font-medium">{items}</dd>
+            </div>
+            <div className="grid gap-1">
+              <dt className="text-[13px] text-muted-foreground">{t.confirmLanguage}</dt>
+              <dd className="font-medium">{t.languages[language]}</dd>
             </div>
             <div className="grid gap-1">
               <dt className="text-[13px] text-muted-foreground">{t.confirmDue}</dt>

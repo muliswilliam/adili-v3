@@ -7,7 +7,13 @@ import {
   mockToken,
   resetAiGatewayMock,
 } from './ai-gateway/mock.server';
-import { loadAiPolicyOverview, saveGatePolicy, saveTenantBudget } from './ai-policy.server';
+import {
+  deleteRoute,
+  loadAiPolicyOverview,
+  saveGatePolicy,
+  saveRoute,
+  saveTenantBudget,
+} from './ai-policy.server';
 import { createDirectoryClient } from './directory/client';
 
 const admin = () => mockAiGatewayClient('Amina Wanjiru', ['platform-admin']);
@@ -120,8 +126,8 @@ describe('S16 loadAiPolicyOverview', () => {
     const result = await loadAiPolicyOverview(admin(), directory().client);
     if (!result.ok || !result.data.routing.ok) throw new Error('not ok');
     expect(result.data.routing.data[0]?.params).toEqual({
-      maxOutputTokens: 4_000,
-      timeoutMs: 60_000,
+      maxOutputTokens: 3_000,
+      timeoutMs: 45_000,
     });
   });
 
@@ -169,6 +175,7 @@ describe('S16 saveGatePolicy', () => {
     expect(mockTenantAiStatus('tsc')).toEqual({
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic', 'highly-confidential'],
     });
   });
@@ -194,6 +201,7 @@ describe('S16 saveGatePolicy', () => {
     expect(mockTenantAiStatus('psc')).toEqual({
       enabled: false,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: [],
     });
   });
@@ -254,6 +262,68 @@ describe('S16 tenant budget', () => {
   it('is a 400 for a limit under 1 a minute', async () => {
     const result = await saveTenantBudget(admin(), 'jsc', { monthlyTokens: 0, perMinute: 0 });
     expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+  });
+});
+
+describe('S2 routing changes', () => {
+  const route = {
+    provider: 'anthropic',
+    model: 'claude-sonnet-5',
+    params: { maxOutputTokens: 2_000 },
+    approvalRef: 'EACC/AI/2026/040',
+  };
+
+  it('routes a task for every Commission and for one, and removes the one', async () => {
+    const all = await saveRoute(admin(), null, 'explain-flags', route);
+    expect(all).toMatchObject({ ok: true, data: { tenant: null, model: 'claude-sonnet-5' } });
+    const one = await saveRoute(admin(), 'jsc', 'explain-flags', route);
+    expect(one).toMatchObject({ ok: true, data: { tenant: 'jsc', providerClass: 'external' } });
+
+    const listed = await admin().GET('/v1/ai/routing');
+    expect(listed.data).toContainEqual(
+      expect.objectContaining({ tenant: 'jsc', task: 'explain-flags' }),
+    );
+
+    expect(await deleteRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041')).toEqual({
+      ok: true,
+      data: null,
+    });
+    const again = await deleteRoute(admin(), 'jsc', 'explain-flags', 'EACC/AI/2026/041');
+    expect(again).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 404 } },
+    });
+  });
+
+  it('Q20 resets a default route to the configured provider and model', async () => {
+    const configured = (await admin().GET('/v1/ai/routing')).data?.find(
+      (each) => each.tenant === null && each.task === 'summarize-declaration',
+    );
+    expect(configured).toMatchObject({ configured: true, params: {} });
+    await saveRoute(admin(), null, 'summarize-declaration', route);
+    expect((await admin().GET('/v1/ai/routing')).data).toContainEqual(
+      expect.objectContaining({
+        tenant: null,
+        task: 'summarize-declaration',
+        model: 'claude-sonnet-5',
+        configured: false,
+      }),
+    );
+
+    expect(await deleteRoute(admin(), null, 'summarize-declaration', 'EACC/AI/2026/042')).toEqual({
+      ok: true,
+      data: null,
+    });
+    const table = (await admin().GET('/v1/ai/routing')).data ?? [];
+    expect(table.filter((each) => each.task === 'summarize-declaration')).toEqual([configured]);
+  });
+
+  it('is a 400 for a provider the gateway cannot reach', async () => {
+    const result = await saveRoute(admin(), null, 'explain-flags', { ...route, provider: 'other' });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 400 } },
+    });
   });
 });
 

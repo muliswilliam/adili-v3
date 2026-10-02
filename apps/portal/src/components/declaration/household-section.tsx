@@ -37,6 +37,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
+import { PERSON_FIELD_LABELS } from '../../declaration/field-labels';
 import type { LoadedSection } from '../../server/declarations.server';
 import { BIO_MESSAGES } from '../../declaration/bio';
 import type {
@@ -733,7 +734,7 @@ function NationalIdField({
   onChange: (value: string | undefined) => void;
 }) {
   return (
-    <FormField label="National ID" hint="Optional" error={error}>
+    <FormField label={PERSON_FIELD_LABELS.nationalId} hint="Optional" error={error}>
       <Input
         inputMode="numeric"
         maxLength={10}
@@ -773,7 +774,7 @@ function SpouseEditor({
             }));
           }}
         />
-        <FormField label="KRA PIN" hint="Optional" error={error('kraPin')}>
+        <FormField label={PERSON_FIELD_LABELS.kraPin} hint="Optional" error={error('kraPin')}>
           <Input
             maxLength={11}
             autoComplete="off"
@@ -818,7 +819,7 @@ function SpouseEditor({
       />
       {spouse.separated ? (
         <div className="grid gap-3 rounded-lg bg-muted p-4 sm:ml-7">
-          <FormField label="Date of separation" error={error('separationDate')}>
+          <FormField label={PERSON_FIELD_LABELS.separationDate} error={error('separationDate')}>
             <DateInput
               value={spouse.separationDate ?? null}
               onBlur={() => {
@@ -855,7 +856,7 @@ function ChildEditor({
     <>
       <NameFields person={child} error={error} onTouch={onTouch} onChange={onChange} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Date of birth" error={error('dateOfBirth')}>
+        <FormField label={PERSON_FIELD_LABELS.dateOfBirth} error={error('dateOfBirth')}>
           <DateInput
             value={child.dateOfBirth ?? null}
             maxYear={maxYear}

@@ -23,20 +23,55 @@ describe('sourceRefResolver', () => {
   it('names an item by its description and opens the item', () => {
     expect(resolve(ref({ personKey: 'officer', itemId: MOCK_ITEM_IDS.plot }))).toMatchObject({
       label: 'Plot Kisumu/Manyatta/1234',
-      targetLabel: 'Assets · Plot Kisumu/Manyatta/1234 · John Otieno',
+      targetLabel: 'Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno',
       anchorId: `decl-item-${MOCK_ITEM_IDS.plot}`,
       target: 'item',
     });
   });
 
+  it('says whose statement a jointly held item is, so its two chips read apart (e2e 07, 17)', () => {
+    const joint = (id: string) => ({
+      id,
+      description: 'Residential plot with two-bedroom flat, Ruaka',
+    });
+    const document = {
+      statements: [
+        {
+          personKey: 'officer',
+          personName: { firstName: 'Wanjiku', surname: 'Kamau' },
+          assets: [joint('a1'), { id: 'a2', description: 'Apartment, Dubai Marina' }],
+        },
+        {
+          personKey: SPOUSE,
+          personName: { firstName: 'Peter', surname: 'Kamau' },
+          assets: [joint('b1')],
+        },
+      ],
+    };
+    const shared = sourceRefResolver(document);
+    expect(shared(ref({ personKey: 'officer', itemId: 'a1' }))).toMatchObject({
+      label: 'Residential plot with two-bedroom flat, Ruaka',
+      detail: 'Wanjiku Kamau',
+    });
+    expect(shared(ref({ personKey: SPOUSE, itemId: 'b1' }))).toMatchObject({
+      label: 'Residential plot with two-bedroom flat, Ruaka',
+      detail: 'Peter Kamau',
+    });
+    // An item only one statement has keeps its description alone.
+    expect(shared(ref({ personKey: 'officer', itemId: 'a2' }))).toMatchObject({
+      label: 'Apartment, Dubai Marina',
+      detail: null,
+    });
+  });
+
   it("opens a person's statement, by person key or a statement section key", () => {
     expect(resolve(ref({ sectionKey: `statement:${SPOUSE}` }))).toMatchObject({
-      label: 'Lilian Otieno · Spouse',
+      label: 'Lilian Akoth Otieno · Spouse',
       anchorId: `decl-statement-${SPOUSE}`,
       target: 'person',
     });
     expect(resolve(ref({ personKey: 'officer', sectionKey: 'assets' }))).toMatchObject({
-      label: 'Assets · John Otieno',
+      label: 'Assets · John Kennedy Otieno',
       anchorId: 'decl-statement-officer',
     });
   });
@@ -53,7 +88,7 @@ describe('sourceRefResolver', () => {
       target: 'field',
     });
     expect(resolve(ref({ fieldPath: '/statements/1/income/0' }))).toMatchObject({
-      label: 'Income · Lilian Otieno',
+      label: 'Income · Lilian Akoth Otieno',
       anchorId: `decl-statement-${SPOUSE}`,
       target: 'field',
     });
@@ -83,10 +118,10 @@ describe('highlightInDeclaration', () => {
     target.scrollIntoView = scroll;
     expect(highlightInDeclaration(id)).toBe(true);
     expect(scroll).toHaveBeenCalled();
-    expect(target.hasAttribute('data-copilot-highlight')).toBe(true);
+    expect(target.hasAttribute('data-target-highlight')).toBe(true);
     expect(document.activeElement).toBe(target);
     vi.advanceTimersByTime(HIGHLIGHT_MS);
-    expect(target.hasAttribute('data-copilot-highlight')).toBe(false);
+    expect(target.hasAttribute('data-target-highlight')).toBe(false);
   });
 
   it('does nothing when the pane does not show the target', () => {

@@ -296,12 +296,34 @@
 
 /* Skeleton shimmer, the indeterminate progress sweep, the drawer's slide in and the chat's typing marks. */
 @theme {
+  /* Something just opened (a Copilot flag from "Worth attention"): a brand ring fading to the card's hairline. */
+  --animate-pulse-ring: pulse-ring 1.6s ease-out;
+  /* The `data-target-highlight` target fading from brand-subtle to brand-faint. */
+  --animate-highlight: highlight 1.6s ease-out;
   --animate-shimmer: shimmer 1.2s linear infinite;
   --animate-indeterminate: indeterminate 1.3s ease-in-out infinite;
   --animate-drawer-in: drawer-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
   /* A streaming answer's caret and the three dots while Adili is thinking. */
   --animate-caret: caret 1s steps(2) infinite;
   --animate-typing: typing 1.2s infinite;
+
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 0 0 3px var(--color-brand);
+    }
+    100% {
+      box-shadow: var(--shadow-card);
+    }
+  }
+
+  @keyframes highlight {
+    0% {
+      background-color: var(--color-brand-subtle);
+    }
+    100% {
+      background-color: var(--color-brand-faint);
+    }
+  }
 
   @keyframes caret {
     50% {
@@ -344,6 +366,37 @@
       transform: translateX(330%);
     }
   }
+}
+
+/*
+ * The target of a link into a long page (a Copilot source opened in the declaration pane), marked
+ * for a moment with a brand edge: the app sets `data-target-highlight` on it and takes it off
+ * again. Not Base UI's `data-highlighted` (the item under the pointer in a menu or select).
+ */
+@layer components {
+  [data-target-highlight] {
+    background-color: var(--color-brand-faint);
+    box-shadow: inset 3px 0 0 var(--color-brand);
+    animation: var(--animate-highlight);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-target-highlight] {
+      animation: none;
+    }
+  }
+}
+
+/*
+ * A responsive table cell's heading on phones, read from its `data-label` (use as
+ * `max-sm:before:content-data-label`). The empty alternative text keeps screen readers from
+ * reading the heading twice; Safari before 17.4 rejects that syntax, so the plain `attr()` comes
+ * first as its fallback. A pair of `content-[...]` classes would not do: they set `--tw-content`,
+ * and a custom property never falls back.
+ */
+@utility content-data-label {
+  content: attr(data-label);
+  content: attr(data-label) / '';
 }
 
 /* The onboarding page background: the page colour with a warm glow rising from the bottom. */

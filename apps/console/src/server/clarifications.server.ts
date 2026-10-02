@@ -147,7 +147,7 @@ export function raiseFollowUp(
 /** review.yaml `ClarificationItemInput`. */
 export type ClarificationItemInput = Schemas['ClarificationItemInput'];
 
-/** review.yaml `ClarificationInput`: the items and the letter's opening paragraph. */
+/** review.yaml `ClarificationInput`: the items, the letter's opening paragraph and language. */
 export type ClarificationInput = Schemas['ClarificationInput'];
 
 /**

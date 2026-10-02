@@ -9,9 +9,12 @@ import type {
   SummarizeDeclarationInput,
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotView } from '../../src/copilot/copilot.service.js';
+import { copilotJobWorkflowId } from '../../src/copilot/contract.js';
+import { CopilotWorkflows } from '../../src/copilot/copilot-workflows.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, twoVersions } from '../support/cases.js';
+import { temporalOf } from '../support/closures.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type StoredVersion, submittedVersion } from '../support/fake-declarations.js';
 import { type Caller, type ReviewApi, startReviewApi } from '../support/review-api.js';
@@ -373,6 +376,79 @@ describe('review copilot', () => {
       expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
     });
 
+    it('a route change of the Commission, or of every Commission, requests its not-enabled copilots again (Q25, Q26)', async () => {
+      const version = submittedVersion({
+        tenant: 'tsc',
+        document: declaration([statement('officer', { assets: [land] })]),
+      });
+      api.declarations.given(version);
+      api.ai.blockEverything('policy');
+      const created = await processedFromInbox(api, version);
+      await untilStatus(created.id, 'not-enabled');
+
+      // The route of a task for one tenant (or, tenant `platform`, the default route) moved.
+      const routeEvent = (tenant: string, task = 'summarize-declaration'): EventEnvelope => ({
+        specversion: '1.0',
+        id: randomUUID(),
+        source: 'adili/ai-gateway',
+        type: 'ai.policy.changed.v1',
+        time: new Date().toISOString(),
+        subject: randomUUID(),
+        datacontenttype: 'application/json',
+        tenant,
+        data: {
+          action: 'ai.route.changed',
+          tenant,
+          actor: 'platform-admin-1',
+          approvalRef: 'EACC/AI/2026/050',
+          before: { tenant: null, task, route: null },
+          after: {
+            tenant: null,
+            task,
+            route: { provider: 'local', model: 'llama-4', params: {} },
+          },
+        },
+      });
+      const asked = api.ai.calls.length;
+      // Another Commission's route asks nothing.
+      await api.aiPolicy.changed(routeEvent('psc'));
+      // Nor does a route of a task the copilot doesn't run, the Commission's own or the default:
+      // no workflow starts at all (Q26).
+      const started = vi.spyOn(CopilotWorkflows.prototype, 'policyChanged');
+      await api.aiPolicy.changed(routeEvent('tsc', 'draft-clarification'));
+      await api.aiPolicy.changed(routeEvent('platform', 'draft-clarification'));
+      expect(started).not.toHaveBeenCalled();
+      started.mockRestore();
+      expect(api.ai.calls).toHaveLength(asked);
+
+      // The Commission's own route: asked again, still blocked. The status alone can't tell the
+      // new request has settled (it reads not-enabled before and after), so wait until the
+      // copilot records the new blocked job, or a late write could land after the next step.
+      const jobsBefore = api.ai.jobsOf('summarize-declaration').length;
+      await api.aiPolicy.changed(routeEvent('tsc'));
+      await vi.waitFor(
+        async () => {
+          const jobs = api.ai.jobsOf('summarize-declaration');
+          expect(jobs.length).toBeGreaterThan(jobsBefore);
+          const row = await copilotRow(created.id);
+          expect(row?.requestedSummaryJobId).toBe(jobs.at(-1)?.id);
+          expect(row?.status).toBe('not-enabled');
+        },
+        { timeout: 45_000, interval: 250 },
+      );
+
+      // The default route, every Commission's: asked again, and now admitted.
+      api.ai.reset();
+      await api.aiPolicy.changed(routeEvent('platform'));
+      await vi.waitFor(
+        async () => {
+          expect(api.ai.jobsOf('summarize-declaration')).toHaveLength(1);
+          expect((await copilotRow(created.id))?.status).toBe('pending');
+        },
+        { timeout: 45_000, interval: 250 },
+      );
+    });
+
     it('is not enabled when a blocked job is announced by event, and failed when a job fails', async () => {
       const { first } = versions();
       api.declarations.given(first);
@@ -573,6 +649,100 @@ describe('review copilot', () => {
       expect((await copilotRow(caseId))?.attempt).toBe(3);
     });
 
+    it('refresh while pending pulls the jobs again, so a copilot whose job events were lost is not stuck', async () => {
+      const { first } = versions();
+      api.declarations.given(first);
+      const { caseId, row } = await createdCase(first);
+      await assign(caseId, 'reviewer-a');
+
+      // The jobs end, but their events never reach the workflow (dead-lettered).
+      api.ai.succeed(row.requestedSummaryJobId ?? '', summaryOutput());
+      api.ai.succeed(
+        row.requestedExplanationsJobId ?? '',
+        explanationsOutput(await flagIdsOf(caseId)),
+      );
+      const jobs = api.ai.created.length;
+
+      const refresh = await api.send('POST', refreshPath(caseId), reviewerA);
+      expect(refresh.statusCode).toBe(202);
+      expect(refresh.json<CopilotView>()).toMatchObject({
+        status: 'ready',
+        summary: { overview: OVERVIEW },
+      });
+      // The outputs were pulled, not asked for again.
+      expect(api.ai.created).toHaveLength(jobs);
+    });
+
+    it('a job that succeeded without a valid output fails the copilot as validation, or output-purged without one, storing nothing', async () => {
+      const { first } = versions();
+      api.declarations.given(first);
+      const { caseId, row } = await createdCase(first);
+
+      await deliver(
+        api.ai.succeed(row.requestedSummaryJobId ?? '', { label: label('summarize-declaration') }),
+      );
+      const failed = await untilStatus(caseId, 'failed');
+      expect(failed).toMatchObject({ failureReason: 'validation', summaryCiphertext: null });
+      // Let the first job's workflow end before resetting the row: under load an activity retry
+      // could otherwise write `validation` again over the second outcome.
+      await temporalOf(api)
+        .workflow.getHandle(copilotJobWorkflowId(row.requestedSummaryJobId ?? ''))
+        .result();
+
+      // A job that succeeded with no output left (the gateway purged it) says so (Q24).
+      await api.asPlatform((tx) =>
+        tx
+          .update(reviewCopilots)
+          .set({ status: 'pending', failureReason: null })
+          .where(eq(reviewCopilots.caseId, caseId)),
+      );
+      await deliver(
+        api.ai.succeed(
+          row.requestedExplanationsJobId ?? '',
+          null as unknown as Record<string, unknown>,
+        ),
+      );
+      expect(await untilStatus(caseId, 'failed')).toMatchObject({
+        failureReason: 'output-purged',
+        explanationsCiphertext: null,
+      });
+    });
+
+    it('outputs are shown together: a newer summary waits for its explanations while stale', async () => {
+      const { first, second } = versions();
+      api.declarations.given(first, second);
+      const { caseId } = await createdCase(first);
+      await completeJobs(caseId, 'Version 1 overview.');
+
+      await processedFromInbox(api, second);
+      const stale = await untilStatus(caseId, 'stale');
+      await deliver(
+        api.ai.succeed(stale.requestedSummaryJobId ?? '', summaryOutput('Version 2 overview.')),
+      );
+      await vi.waitFor(async () => {
+        const row = await copilotRow(caseId);
+        if (row?.stagedSummaryCiphertext == null) throw new Error('summary not staged yet');
+      });
+      // The summary shown is still version 1's, with version 1's explanations.
+      expect(await view(caseId)).toMatchObject({
+        status: 'stale',
+        forVersionId: first.versionId,
+        summary: { overview: 'Version 1 overview.' },
+      });
+
+      await completeJobs(caseId, 'Version 2 overview.');
+      expect(await view(caseId)).toMatchObject({
+        status: 'ready',
+        forVersionId: second.versionId,
+        summary: { overview: 'Version 2 overview.' },
+        jobs: { summarize: stale.requestedSummaryJobId, explain: stale.requestedExplanationsJobId },
+      });
+      expect(await copilotRow(caseId)).toMatchObject({
+        stagedSummaryCiphertext: null,
+        stagedExplanationsCiphertext: null,
+      });
+    });
+
     it('refresh with the gateway unreachable is 503 and changes nothing', async () => {
       const { first } = versions();
       api.declarations.given(first);
@@ -693,8 +863,12 @@ describe('review copilot', () => {
           { jobId: explanations, block: null, rating: 'helpful' },
         ]),
       );
-      // The feedback in the view is the caller's own: others see none of it.
+      // The feedback in the view is the assignee's, who rates: a supervisor reads it, read-only
+      // (#285 S15). The Commission's other reviewers read the panel without it (Q22).
+      expect((await view(caseId, supervisor)).feedback).toEqual(mine);
       expect((await view(caseId, reviewerB)).feedback).toEqual([]);
+      // Once the case is someone else's, theirs: the earlier assignee's ratings are not shown.
+      await assign(caseId, 'reviewer-b');
       expect((await view(caseId, supervisor)).feedback).toEqual([]);
       // The note stays with the gateway.
       const [stored] = await api
@@ -767,7 +941,7 @@ describe('review copilot', () => {
       expect(api.ai.feedback).toEqual([]);
     });
 
-    it('an invalid rating is 400; the gateway unreachable is 503 and nothing is recorded', async () => {
+    it('an invalid rating is 400, also when the gateway refuses it; the gateway unreachable is 503; nothing is recorded', async () => {
       const { caseId, summary } = await readyCase();
 
       for (const body of [
@@ -787,6 +961,13 @@ describe('review copilot', () => {
       expect(unavailable.json()).toMatchObject({ type: 'ai-gateway-unavailable' });
       expect((await view(caseId)).feedback).toEqual([]);
       expect(api.ai.feedback).toEqual([]);
+
+      // A rating the gateway refuses (its own validation) is the caller's 400, recorded nowhere.
+      api.ai.rejectRequests();
+      const refused = await api.send('PUT', feedbackPath(summary), reviewerA, helpful);
+      expect(refused.statusCode).toBe(400);
+      expect(refused.json()).toMatchObject({ type: 'feedback-rejected' });
+      expect((await view(caseId)).feedback).toEqual([]);
     });
   });
 });

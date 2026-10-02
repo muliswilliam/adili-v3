@@ -39,8 +39,9 @@ export class CopilotDraftsController {
   constructor(private readonly drafts: CopilotDraftsService) {}
 
   @Post('cases/:caseId/copilot/drafts')
-  // A pending draft is not a final answer: a retry asks again and gets the draft as it is now.
-  @RequireIdempotencyKey({ settled: (draft: CopilotDraft) => draft.status !== 'pending' })
+  // No answer is stored for replay: a ready draft's text is stored only encrypted (ADR-006), in
+  // the draft. A retry runs again and the service answers the same draft (named by the key).
+  @RequireIdempotencyKey({ settled: () => false })
   @AuditedRead({ action: 'review.copilot.drafted', resource: 'review-case' })
   @ApiUuidParam('caseId')
   @ApiOperation({
@@ -59,7 +60,7 @@ export class CopilotDraftsController {
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(
     409,
-    'AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)',
+    'AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`)',
   )
   @ApiProblemResponse(502, 'The declaration could not be read; nothing was requested')
   @ApiProblemResponse(503, `${GATEWAY_DOWN}, or the Commission directory; nothing was requested`)

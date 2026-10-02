@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { outbox } from '@adili/events';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { jobs } from '../../src/db/schema.js';
+import { v7 as uuidv7 } from 'uuid';
+
+import { jobs, routes } from '../../src/db/schema.js';
 import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
 import { contractErrors } from '../support/contract.js';
 import {
@@ -99,6 +101,40 @@ describe('classification gate', () => {
       expect(external.requests.length).toBe(before);
     },
   );
+
+  describe('a route to a provider this gateway cannot reach (review S4)', () => {
+    const routeElsewhere = (tenant: string) =>
+      t.db.insert(routes).values({
+        id: uuidv7(),
+        tenant,
+        task: 'summarize-declaration',
+        provider: 'elsewhere',
+        model: 'm',
+        changedBy: 'platform-admin-1',
+      });
+
+    it('is blocked by the gate, not failed, when the tenant may not use every provider class', async () => {
+      await routeElsewhere('nogate');
+
+      const response = await runTask(
+        taskRequest(summarizeInput, { tenant: 'nogate', dataClass: 'restricted' }),
+      );
+
+      expect(response.json<Job>()).toMatchObject({ status: 'blocked', reason: 'policy' });
+    });
+
+    it('fails provider-unavailable when the gate would admit it on any provider', async () => {
+      await routeElsewhere('opengate');
+      await t.seedDemoGate('opengate');
+
+      const response = await runTask(taskRequest(summarizeInput, { tenant: 'opengate' }));
+
+      expect(response.json<Job>()).toMatchObject({
+        status: 'failed',
+        reason: 'provider-unavailable',
+      });
+    });
+  });
 
   it('blocks a queued job at execution when the gate no longer admits it', async () => {
     const before = external.requests.length;

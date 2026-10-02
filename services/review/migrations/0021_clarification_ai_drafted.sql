@@ -1,1 +1,0 @@
-ALTER TABLE "clarifications" ADD COLUMN "opening_ai_job_id" uuid;

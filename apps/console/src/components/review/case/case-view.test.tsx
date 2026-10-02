@@ -230,6 +230,21 @@ describe('CaseView: the reviewer holding the case', () => {
     ).toHaveLength(2);
   });
 
+  it('labels each total with its column, for the lines it becomes on phones (mobile case view)', async () => {
+    await renderCase(CASES.mine);
+    const pane = screen.getByRole('region', { name: 'Declaration as filed' });
+    const totals = within(pane).getAllByRole('table')[0];
+    if (!totals) throw new Error('no totals table');
+    const row = within(totals).getAllByRole('row')[1];
+    if (!row) throw new Error('no totals row');
+    expect(
+      within(row)
+        .getAllByRole('cell')
+        .map((cell) => cell.getAttribute('data-label')),
+    ).toEqual(['Income', 'Assets', 'Liabilities']);
+    expect(totals.querySelector('thead')?.className).toContain('max-sm:sr-only');
+  });
+
   it('groups open flags by severity under the indicator banner', async () => {
     await renderCase(CASES.mine);
     expect(
@@ -279,7 +294,7 @@ describe('CaseView: the reviewer holding the case', () => {
     const flag = screen.getByRole('article', { name: /Value changed by 150%/ });
     fireEvent.click(within(flag).getByRole('button', { name: 'Go to item' }));
     expect(
-      document.getElementById(`decl-item-${I.plot}`)?.hasAttribute('data-copilot-highlight'),
+      document.getElementById(`decl-item-${I.plot}`)?.hasAttribute('data-target-highlight'),
     ).toBe(true);
 
     const plot = document.getElementById(`decl-item-${I.plot}`);

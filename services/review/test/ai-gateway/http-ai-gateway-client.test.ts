@@ -231,6 +231,7 @@ describe('HttpAiGatewayClient', () => {
       tenant: 'psc',
       enabled: true,
       providerClass: 'external',
+      provider: 'anthropic',
       dataClasses: ['synthetic'],
     };
     const fetch = vi.fn<typeof globalThis.fetch>(() => Promise.resolve(Response.json(status)));

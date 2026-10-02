@@ -60,6 +60,9 @@ const STATEMENT = `statement:${OFFICER}`;
 const F = MOCK_FLAG_IDS;
 const kes = (shillings: number) => ({ kesCents: shillings * 100 });
 const unchanged = { changed: false };
+/** County codes, as `declaration.v1` stores them (`042` is Kisumu). */
+const KISUMU = '042';
+const NAIROBI = '047';
 const kenya = (county: string, detail?: string) => ({
   inKenya: true,
   county,
@@ -153,7 +156,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'salary-emoluments',
           description: 'Salary from the Teachers Service Commission',
           amount: kes(3_120_000),
-          location: kenya('Kisumu'),
+          location: kenya(KISUMU),
           change: unchanged,
         },
         {
@@ -161,7 +164,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'rent',
           description: 'Rent from a bedsitter block in Kondele',
           amount: kes(480_000),
-          location: kenya('Kisumu', 'Kondele'),
+          location: kenya(KISUMU, 'Kondele'),
           change: { changed: true, kind: 'new-source' },
         },
       ],
@@ -173,7 +176,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           description: 'Plot Kisumu/Manyatta/1234',
           details: { parcelNumber: 'KISUMU/MANYATTA/1234', size: '0.25 acres' },
           value: kes(4_500_000),
-          location: kenya('Kisumu', 'Manyatta'),
+          location: kenya(KISUMU, 'Manyatta'),
           joint: sole,
           change: unchanged,
           attachments: [MOCK_ATTACHMENTS.titleDeed],
@@ -183,7 +186,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'building',
           description: 'Three-bedroom house in Milimani',
           value: kes(9_800_000),
-          location: kenya('Kisumu', 'Milimani'),
+          location: kenya(KISUMU, 'Milimani'),
           joint: { isJoint: true, sharePercent: 50, coOwner: 'Lilian Akoth Otieno' },
           change: unchanged,
           attachments: [MOCK_ATTACHMENTS.valuation],
@@ -193,7 +196,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'securities',
           description: 'CIC Money Market Fund units',
           value: kes(850_000),
-          location: kenya('Nairobi'),
+          location: kenya(NAIROBI),
           joint: sole,
           change: unchanged,
         },
@@ -216,7 +219,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           description: 'Mortgage from KCB Bank',
           creditor: 'KCB Bank',
           outstanding: kes(3_400_000),
-          location: kenya('Kisumu'),
+          location: kenya(KISUMU),
           change: unchanged,
         },
       ],
@@ -232,7 +235,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'business',
           description: 'Profit from a cereals shop in Kibuye market',
           amount: kes(960_000),
-          location: kenya('Kisumu', 'Kibuye market'),
+          location: kenya(KISUMU, 'Kibuye market'),
           change: unchanged,
         },
       ],
@@ -243,7 +246,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'other',
           description: 'Shop stock',
           value: kes(350_000),
-          location: kenya('Kisumu', 'Kibuye market'),
+          location: kenya(KISUMU, 'Kibuye market'),
           joint: sole,
           change: unchanged,
         },
@@ -264,7 +267,7 @@ export const MOCK_DECLARATION: Record<string, unknown> = {
           type: 'securities',
           description: 'Unit trust savings for school fees',
           value: kes(120_000),
-          location: kenya('Kisumu'),
+          location: kenya(KISUMU),
           joint: sole,
           change: unchanged,
         },
@@ -369,7 +372,9 @@ export function mockFlags(versionId: string): Flag[] {
   ];
 }
 
-const DISCLAIMER = 'Indicators, not findings. A named officer decides.';
+// As the ai-gateway labels English outputs (`services/ai-gateway/src/tasks/task.ts`).
+const DISCLAIMER =
+  'AI-assisted. These are indicators, not findings: a named reviewer examines the record and decides.';
 
 function label(task: string, promptVersion: number, generatedAt: string) {
   return {
@@ -504,8 +509,11 @@ interface StoredCopilot {
   view: CopilotView;
   /** When a pending or stale copilot turns ready on its next read; null keeps it as it is. */
   readyAt: number | null;
-  /** Ratings by caller subject, then job id. */
-  ratings: Map<string, Map<string, CopilotView['feedback'][number]>>;
+  /**
+   * The ratings of the reviewer holding the case (the only one who rates), by job and block:
+   * everyone reading the panel sees them, as review.yaml `CopilotView.feedback` has it.
+   */
+  ratings: Map<string, CopilotView['feedback'][number]>;
   /** Whose declaration the outputs are about. */
   declarant: MockDeclarant | null;
 }
@@ -534,12 +542,26 @@ const store = new Map<string, StoredCopilot>();
 interface StoredDraft {
   caseId: string;
   requester: string;
+  /** The language it was asked in, which a clarification's drafted parts record. */
+  language: 'en' | 'sw';
   readyAt: number;
   draft: Record<string, unknown> & { status: 'pending' | 'ready' | 'failed' };
   ready: Record<string, unknown>;
 }
 
 const drafts = new Map<string, StoredDraft>();
+
+/**
+ * The language a Draft with AI job drafted in, as the review service records it on a saved
+ * item or opening (`aiLanguage`, `openingAiLanguage`); null for no such job.
+ */
+export function mockDraftLanguage(jobId: string | null | undefined): 'en' | 'sw' | null {
+  if (!jobId) return null;
+  for (const { draft, language } of drafts.values()) {
+    if (draft.jobId === jobId) return language;
+  }
+  return null;
+}
 /** Drafts by `subject|case|Idempotency-Key`, so a retry answers the same draft. */
 const draftKeys = new Map<string, string>();
 let delayOnFirstRead: { caseId: string; ms: number } | null = null;
@@ -655,8 +677,8 @@ function current(caseId: string, stored: StoredCopilot, now: number): CopilotVie
   return stored.view;
 }
 
-function forCaller(stored: StoredCopilot, view: CopilotView, caller: Assignee): CopilotView {
-  return { ...view, feedback: [...(stored.ratings.get(caller.subject)?.values() ?? [])] };
+function forCaller(stored: StoredCopilot, view: CopilotView): CopilotView {
+  return { ...view, feedback: [...stored.ratings.values()] };
 }
 
 /** What a flag usually asks of the declarant, by rule (the gateway's draft picks its own). */
@@ -842,6 +864,7 @@ async function requestDraft(
   const kept: StoredDraft = {
     caseId,
     requester: caller.subject,
+    language,
     readyAt: now + MOCK_DRAFT_DELAY_MS - MOCK_DRAFT_WAIT_MS,
     draft,
     ready,
@@ -889,7 +912,7 @@ export async function copilotRoute(
     const held = holds(caseId);
     if (!stored || held === null) return problem(404, 'Not found');
     if (method === 'GET' && !view[2]) {
-      return json(200, forCaller(stored, current(caseId, stored, now), caller));
+      return json(200, forCaller(stored, current(caseId, stored, now)));
     }
     if (method === 'POST' && view[2]) {
       if (!held) return problem(403, 'Only the reviewer holding the case or a supervisor');
@@ -897,8 +920,7 @@ export async function copilotRoute(
       if (status === 'pending' || status === 'stale') return problem(409, 'Already pending');
       // Not enabled is asked again: the gateway decides. While AI is still off for the
       // Commission, the new jobs are blocked at once and the view stays not enabled.
-      if (status === 'not-enabled' && aiOff)
-        return json(202, forCaller(stored, stored.view, caller));
+      if (status === 'not-enabled' && aiOff) return json(202, forCaller(stored, stored.view));
       stored.view = {
         ...stored.view,
         status: 'pending',
@@ -908,7 +930,7 @@ export async function copilotRoute(
         jobs: { summarize: crypto.randomUUID(), explain: crypto.randomUUID() },
       };
       stored.readyAt = now + MOCK_COPILOT_DELAY_MS;
-      return json(202, forCaller(stored, stored.view, caller));
+      return json(202, forCaller(stored, stored.view));
     }
     return null;
   }
@@ -947,14 +969,11 @@ export async function copilotRoute(
         ? block !== null && SUMMARY_BLOCKS.has(block)
         : block !== null && explained.has(block);
     if (!known) return problem(400, 'The output has no such block', 'unknown-block');
-    const mine =
-      stored.ratings.get(caller.subject) ?? new Map<string, CopilotView['feedback'][number]>();
-    mine.set(`${jobId} ${block}`, {
+    stored.ratings.set(`${jobId} ${block}`, {
       jobId,
       block,
       rating: body.rating as 'helpful' | 'not-helpful',
     });
-    stored.ratings.set(caller.subject, mine);
     return new Response(null, { status: 200 });
   }
   return null;

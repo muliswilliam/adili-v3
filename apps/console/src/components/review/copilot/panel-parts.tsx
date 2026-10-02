@@ -1,6 +1,5 @@
 import {
   AiLabel,
-  type AiLabelDetails,
   Button,
   cn,
   Icon,
@@ -10,6 +9,7 @@ import {
   TabsContent,
 } from '@adili/ui';
 import {
+  Alert02Icon,
   Clock01Icon,
   InformationCircleIcon,
   RefreshIcon,
@@ -19,6 +19,7 @@ import {
 import { type ReactNode, useId } from 'react';
 
 import { formatRelativeTime } from '../../format';
+import { goToSignIn } from '../../sign-in-redirect';
 import type { Copilot, CopilotAiLabel, CopilotSourceRef } from '../../../server/copilot.server';
 import type { CaseDetail } from '../../../server/review/types';
 import { versionNumber } from './copilot-view';
@@ -75,7 +76,7 @@ export function PanelLabel({
   return (
     <div className="flex px-3.5 pt-2">
       <AiLabel
-        details={labelDetails(label)}
+        details={label}
         text={t.label(
           formatRelativeTime(generatedAt, now),
           versionNumber(copilot.forVersionId, versions),
@@ -83,16 +84,6 @@ export function PanelLabel({
       />
     </div>
   );
-}
-
-export function labelDetails(label: CopilotAiLabel): AiLabelDetails {
-  return {
-    task: label.task,
-    provider: label.provider,
-    model: label.model,
-    promptVersion: label.promptVersion,
-    generatedAt: label.generatedAt,
-  };
 }
 
 export function PanelBody({ children, className }: { children: ReactNode; className?: string }) {
@@ -103,6 +94,7 @@ export function TabContent({
   value,
   stale,
   stopped,
+  sessionEnded,
   onCheckAgain,
   children,
 }: {
@@ -110,13 +102,17 @@ export function TabContent({
   stale: boolean;
   /** Polling stopped while still stale. */
   stopped: boolean;
+  /** The session ended while stale: polling stopped for good. */
+  sessionEnded: boolean;
   onCheckAgain: () => void;
   children: ReactNode;
 }) {
   return (
     <TabsContent value={value} className="mt-0 rounded-none rounded-b-2xl">
       <PanelBody>
-        {stale && stopped ? (
+        {stale && sessionEnded ? (
+          <SessionEnded />
+        ) : stale && stopped ? (
           <Callout
             tone="neutral"
             icon={Clock01Icon}
@@ -177,6 +173,27 @@ export function Callout({
   );
 }
 
+/** The session ended: nothing more loads until the user signs in again, back to this page. */
+export function SessionEnded() {
+  return (
+    <Callout
+      tone="warning"
+      icon={Alert02Icon}
+      action={
+        <RetryButton
+          onClick={() => {
+            goToSignIn();
+          }}
+        >
+          {t.signIn}
+        </RetryButton>
+      }
+    >
+      {t.sessionEnded}
+    </Callout>
+  );
+}
+
 export function RetryButton({
   onClick,
   disabled = false,
@@ -222,7 +239,7 @@ export function Block({
         <h3 id={headingId} className="text-[13.5px] font-semibold">
           {title}
         </h3>
-        <AiLabel size="sm" text={t.labelShort} details={labelDetails(label)} />
+        <AiLabel size="sm" text={t.labelShort} details={label} />
       </div>
       {children}
       {rating}
@@ -245,12 +262,15 @@ export function Refs({
   });
   if (resolved.length === 0) return null;
   return (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
+    // contain-inline-size: the row takes the block's width and adds none of its own, so a long
+    // chip is cut there instead of widening the panel.
+    <div className="mt-1.5 flex flex-wrap gap-1.5 [contain:inline-size]">
       {resolved.map((one) => (
         <SourceRefLink
           key={one.anchorId}
           sourceRef={one.ref}
           label={one.label}
+          detail={one.detail}
           targetLabel={one.targetLabel}
           onOpen={() => {
             onOpenSource(one);

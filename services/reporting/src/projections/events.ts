@@ -133,6 +133,15 @@ export const copilotUpdatedData = z.object({
   status: z.enum(['not-enabled', 'pending', 'ready', 'failed', 'stale']),
 });
 
+/** Why a reviewer rated an output as they did (`ai.feedback.recorded.v1` `reason`). */
+export const AI_FEEDBACK_REASONS = [
+  'inaccurate',
+  'missed-something',
+  'unclear',
+  'too-long',
+  'other',
+] as const;
+
 /**
  * `ai.feedback.recorded.v1` (ai-gateway, spec 07c): a reviewer rated an output, or one block of
  * it (`block`: a summary block, a flag's explanation; a rating counts the same either way). A
@@ -144,7 +153,7 @@ export const aiFeedbackRecordedData = z.object({
   jobId: z.uuid(),
   task: z.string().min(1),
   rating: z.enum(['helpful', 'not-helpful']),
-  reason: z.enum(['inaccurate', 'missed-something', 'unclear', 'too-long', 'other']).nullable(),
+  reason: z.enum(AI_FEEDBACK_REASONS).nullable(),
   block: z.string().max(64).nullish(),
   recordedAt: z.iso.datetime({ offset: true }),
 });
