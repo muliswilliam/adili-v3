@@ -181,8 +181,10 @@ export interface RequestSummary {
   decisionDeadlineAt: string;
   /** When it was decided, withdrawn or closed; null while open. */
   closedAt: string | null;
-  /** When the granted package's download window ends; null without a package. */
+  /** When the granted package's (or nil letter's) download window ends; null without one. */
   downloadExpiresAt: string | null;
+  /** When issuing the package failed; null while it is prepared and once issued. */
+  packageFailedAt: string | null;
   /** The decision's grounds and reasons, once decided. */
   decision: Pick<Decision, 'grounds' | 'reasons'> | null;
 }
@@ -208,6 +210,7 @@ export function toSummary(request: AccessRequest): RequestSummary {
     decisionDeadlineAt: request.decisionDeadlineAt,
     closedAt: closedAt(request),
     downloadExpiresAt: request.package?.downloadExpiresAt ?? null,
+    packageFailedAt: request.package ? null : request.packageFailedAt,
     decision: request.decision
       ? { grounds: request.decision.grounds, reasons: request.decision.reasons }
       : null,

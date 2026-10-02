@@ -408,8 +408,8 @@ export {
   type LeaRequestStatus,
   type MatchesAccessCopy,
   OPEN_ACCESS_STATUSES,
-  PACKAGE_PREPARING_FOR_MS,
-  unissuedPackageState,
+  type GrantPackageStatus,
+  grantPackageStatus,
 } from './lib/access';
 export {
   daysInMonth,

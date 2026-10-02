@@ -12,10 +12,15 @@
  * - `expired`: granted a month ago; its download window has closed.
  * - `denied`: denied with Regulation 24 grounds; the declarant was not told.
  * - `noAccount`: granted to an officer with no account (Samuel Kiprotich Rotich): invited to
- *   onboard, the written notice of the grant still to record; no package (nothing on Adili).
+ *   onboard, the written notice of the grant still to record; the nil letter issued (nothing on
+ *   Adili to disclose).
+ * - `nilLetter`: granted on 2026 assets of Grace Nyambura Kamau, who filed nothing in 2026: the
+ *   demo officer gets the nil letter (decision 1).
+ * - `failed`: granted, but its package could not be issued.
  * - `tsc`: the demo officer's request to another Commission, received.
  *
- * The access officer verifies and decides; a supervisor gets 403. A law enforcement officer sees
+ * The access officer verifies and decides; a supervisor gets 403 (but may preview the scope,
+ * counted as `mock-preview.ts` says). A law enforcement officer sees
  * only the demo officer's requests (another officer's is 404) and files new ones; a decided grant
  * issues its package three seconds later. A case reference containing `duplicate` is refused with
  * a 400 at `caseReference`; `offline` is 503. Package links point at `/api/mock-files/{id}`.
@@ -26,6 +31,7 @@ import { addDays } from '@adili/ui';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { type MockCaller, mockCallerOf } from './mock-caller';
+import { mockScopePreview } from './mock-preview';
 import { MOCK_ROSTER, MOCK_ROSTER_IDS, searchMockRoster } from './mock-roster';
 import type {
   AccessCommission,
@@ -48,6 +54,8 @@ export const MOCK_LEA_IDS = {
   denied: 'a11e0000-0000-4000-8000-000000000007',
   tsc: 'a11e0000-0000-4000-8000-000000000008',
   noAccount: 'a11e0000-0000-4000-8000-000000000009',
+  nilLetter: 'a11e0000-0000-4000-8000-000000000010',
+  failed: 'a11e0000-0000-4000-8000-000000000011',
 } as const;
 
 const LEA_DAYS = 14;
@@ -103,6 +111,8 @@ interface Seed {
     grounds?: Ground[];
     reasons: string;
     downloads?: number;
+    /** Issuing its package failed after its retries. */
+    packageFailed?: boolean;
   };
 }
 
@@ -223,6 +233,55 @@ const SEEDS: Seed[] = [
       reasons:
         'Written request from a provisioned DCI account with a stated reason and case reference, for an ongoing investigation.',
       downloads: 1,
+    },
+  },
+  {
+    id: MOCK_LEA_IDS.nilLetter,
+    commission: 'psc',
+    sequence: 15,
+    agency: 'DCI',
+    officer: DEMO_OFFICER,
+    sought: KAMAU_SOUGHT,
+    reason: 'Investigation into the award of housing project tenders in 2026.',
+    caseReference: 'DCI/ECU/131/2026',
+    scope: { ...SCOPE_ASSETS, years: [2026], includeSpouses: false, sections: ['assets'] },
+    receivedDaysAgo: 6,
+    verified: {
+      daysAgo: 5,
+      record: MOCK_ROSTER_IDS.grace,
+      note: 'Provisioned DCI account, activated. Reason and case reference stated.',
+    },
+    decision: {
+      daysAgo: 3,
+      outcome: 'grant',
+      reasons: 'Written request from a provisioned DCI account for an ongoing investigation.',
+    },
+  },
+  {
+    id: MOCK_LEA_IDS.failed,
+    commission: 'psc',
+    sequence: 16,
+    agency: 'DCI',
+    officer: DEMO_OFFICER,
+    sought: {
+      name: 'Esther Wairimu Njoroge',
+      entity: 'State Department for Public Service',
+      personnelFileNumber: '20099314',
+    },
+    reason: 'Investigation into ICT equipment leases.',
+    caseReference: 'DCI/ECU/133/2026',
+    scope: { ...SCOPE_ASSETS, years: [2025], sections: ['income'] },
+    receivedDaysAgo: 5,
+    verified: {
+      daysAgo: 4,
+      record: MOCK_ROSTER_IDS.esther,
+      note: 'Provisioned DCI account, activated. Reason and case reference stated.',
+    },
+    decision: {
+      daysAgo: 2,
+      outcome: 'grant',
+      reasons: 'Written request from a provisioned DCI account for an ongoing investigation.',
+      packageFailed: true,
     },
   },
   {
@@ -424,6 +483,7 @@ function build(seed: Seed, now: number): Stored {
   let declarantNotifiedAt: string | null = null;
   let declarantInvitedAt: string | null = null;
   let pkg: LeaRequest['package'] = null;
+  let packageFailedAt: string | null = null;
   const noAccount = record ? !record.onboarded : false;
   if (seed.decision) {
     const decidedAt = hoursLater(iso(morningOf(now), -seed.decision.daysAgo), 3);
@@ -438,12 +498,17 @@ function build(seed: Seed, now: number): Stored {
     };
     timeline.push(entry('decided', decidedAt, ACCESS_OFFICER_NAME, reference));
     if (seed.decision.outcome === 'grant' && noAccount) {
-      // Invited to onboard; told in writing once the access officer records it. Nothing on
-      // Adili to disclose, so no package.
+      // Invited to onboard; told in writing once the access officer records it.
       declarantInvitedAt = hoursLater(decidedAt, 0.05);
     } else if (seed.decision.outcome === 'grant') {
       declarantNotifiedAt = hoursLater(decidedAt, 0.05);
       timeline.push(entry('notified', declarantNotifiedAt, null, reference));
+    }
+    if (seed.decision.outcome === 'grant' && seed.decision.packageFailed) {
+      packageFailedAt = hoursLater(decidedAt, 7.5);
+    } else if (seed.decision.outcome === 'grant') {
+      // Nothing on Adili of an officer with no account, or nothing in the scope: the nil letter.
+      const nil = noAccount || !record || mockScopePreview(record.id, seed.scope).empty;
       const issuedAt = hoursLater(decidedAt, 0.1);
       const downloadExpiresAt = iso(Date.parse(issuedAt), DOWNLOAD_DAYS);
       timeline.push(entry('package-issued', issuedAt, null, reference));
@@ -457,6 +522,7 @@ function build(seed: Seed, now: number): Stored {
         timeline.push(entry('expired', downloadExpiresAt, null, reference));
       }
       pkg = {
+        kind: nil ? 'nil-letter' : 'access-package',
         documentId: `a11f${seed.id.slice(4)}`,
         verificationId: 'ADL-M3PK-7WQD-2XNC-9RTB-5HJV-6L',
         issuedAt,
@@ -491,6 +557,7 @@ function build(seed: Seed, now: number): Stored {
       ? { channel: 'online', notifiedAt: declarantNotifiedAt, notifiedOn: null, recordedBy: null }
       : null,
     package: pkg,
+    packageFailedAt,
     timeline,
   };
   return { request, packageAt: null };
@@ -511,9 +578,14 @@ function advance(stored: Stored, now: number) {
   const issuedAt = new Date(stored.packageAt).toISOString();
   stored.packageAt = null;
   const { request } = stored;
+  const nil =
+    request.resolvedRosterRecordId === null ||
+    request.declarantOnboarded === false ||
+    mockScopePreview(request.resolvedRosterRecordId, request.scope).empty;
   stored.request = {
     ...request,
     package: {
+      kind: nil ? 'nil-letter' : 'access-package',
       documentId: randomUUID(),
       verificationId: 'ADL-Q8RT-2MXW-7KPD-4HNC-9VBJ-3L',
       issuedAt,
@@ -660,7 +732,7 @@ async function decide(request: Request, stored: Stored, caller: MockCaller): Pro
   if (!reasons) return badRequest('Bad Request', [{ path: 'reasons', message: 'is required' }]);
   const now = new Date().toISOString();
   const timeline = [...lea.timeline, entry('decided', now, caller.name, lea.reference)];
-  // An officer with no account is invited to onboard and told in writing; nothing to disclose.
+  // An officer with no account is invited to onboard and told in writing; the nil letter follows.
   const online = outcome === 'grant' && lea.declarantOnboarded !== false;
   if (online) timeline.push(entry('notified', now, null, lea.reference));
   stored.request = {
@@ -682,8 +754,25 @@ async function decide(request: Request, stored: Stored, caller: MockCaller): Pro
     breachedAt: lea.breachedAt,
     timeline,
   };
-  if (online) stored.packageAt = Date.now() + PACKAGE_AFTER_MS;
+  if (outcome === 'grant') stored.packageAt = Date.now() + PACKAGE_AFTER_MS;
   return json(200, stored.request);
+}
+
+/** The scope preview (decision 1), once verified and until the decision. */
+async function preview(request: Request, stored: Stored): Promise<Response> {
+  const { request: lea } = stored;
+  if (lea.decision) return conflict('The request is decided', 'request-decided');
+  if (lea.status === 'withdrawn') return conflict('The request is closed', 'request-closed');
+  if (lea.status !== 'verified' || lea.resolvedRosterRecordId === null) {
+    return conflict('The request is not verified yet', 'not-under-decision');
+  }
+  let scope = lea.scope;
+  if (request.method === 'POST') {
+    const body = await readJson(request);
+    if (!isRecord(body)) return badRequest('A scope is required', []);
+    scope = body as unknown as Scope;
+  }
+  return json(200, mockScopePreview(lea.resolvedRosterRecordId, scope));
 }
 
 /** `POST .../written-notice`: the written notice of a grant, as the access service rules. */
@@ -833,6 +922,10 @@ export async function mockLeaFetch(request: Request): Promise<Response | null> {
     return withdraw(stored, caller);
   }
   if (isLeaOfficer(caller)) return problem(403, 'Only the access officer acts');
+  if (action === 'preview' && (method === 'GET' || method === 'POST')) {
+    await delay(350);
+    return preview(request, stored);
+  }
   if (!caller.roles.includes('access-officer')) {
     return problem(403, 'The Commission supervisor reads requests; only its access officer acts');
   }

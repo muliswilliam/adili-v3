@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { decisionInputSchema, scopeSchema, writtenNoticeSchema } from './access/schemas';
-import type { AccessCommission, LeaRequest, RosterCandidates } from './access/types';
+import type { AccessCommission, LeaRequest, RosterCandidates, ScopePreview } from './access/types';
 import type { AccessResult } from './access-requests.server';
 import { asAccessViewer, withViewerClient } from './as-viewer.server';
 import { packageDocumentsClient } from './documents/package-client.server';
@@ -13,6 +13,7 @@ import {
   loadLeaRequest,
   packageDownload,
   type PackageDownloadResult,
+  previewLeaScope,
   recordLeaWrittenNotice,
   searchLeaRoster,
   submitLeaRequest,
@@ -64,6 +65,13 @@ export const verifyLea = createServerFn({ method: 'POST' })
         data.idempotencyKey,
       ),
     ),
+  );
+
+/** What the scope of a verified request holds, counted (decision 1). */
+export const previewLea = createServerFn({ method: 'POST' })
+  .validator(z.object({ requestId: id, scope: scopeSchema }))
+  .handler(({ data }): Promise<AccessResult<ScopePreview>> =>
+    asAccessViewer((client) => previewLeaScope(client, data.requestId, data.scope)),
   );
 
 export const decideLea = createServerFn({ method: 'POST' })

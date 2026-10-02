@@ -1,15 +1,18 @@
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  accessMessages,
   Badge,
   DeadlineChip,
   deadlineSoonDays,
   formatDate,
   formatDateTime,
+  grantPackageStatus,
   Icon,
-  PACKAGE_PREPARING_FOR_MS,
   Spinner,
-  unissuedPackageState,
 } from '@adili/ui';
-import { PackageRemoveIcon, SquareLock02Icon } from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, FileRemoveIcon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import { useNowAt } from '../../use-now-at';
@@ -19,28 +22,33 @@ import { messages as m } from './messages';
 
 /** Where a granted request's package stands for the officer. */
 export type PackageState =
-  /** Granted within the hour; the workflow is rendering, watermarking and signing it. */
+  /** The workflow is rendering, watermarking and signing it (or the nil letter). */
   | { state: 'preparing' }
-  /** Granted over an hour ago and still nothing: nothing to disclose, or issuing failed. */
-  | { state: 'missing' }
+  /** Issuing it failed after its retries (`packageFailedAt`). */
+  | { state: 'failed'; at: string }
   | { state: 'issued'; package: Package; lastDownloadAt: string | null }
   | { state: 'closed'; package: Package; lastDownloadAt: string | null };
 
 /**
  * The package of a decided request at `now`, or null for a denial. Downloads are the
  * documents service's, counted on the package; the last one is the latest `downloaded`
- * register entry. A package not issued yet reads as preparing for an hour after the grant,
- * then as missing (the access service leaves a grant with nothing to disclose unissued, #259):
- * the shared rule every audience reads (`unissuedPackageState`).
+ * register entry. The package is the access package or, when the granted scope held nothing,
+ * the nil letter (`package.kind`); before either, it is being prepared, or its issuing failed
+ * (the shared rule every audience reads, `grantPackageStatus`).
  */
 export function packageState(
-  decision: Pick<Decision, 'outcome' | 'decidedAt'>,
+  decision: Pick<Decision, 'outcome'>,
   pkg: Package | null,
+  packageFailedAt: string | null,
   downloadedAt: readonly string[],
   now: number,
 ): PackageState | null {
   if (decision.outcome === 'deny') return null;
-  if (!pkg) return { state: unissuedPackageState(decision.decidedAt, now) };
+  const status = grantPackageStatus(pkg, packageFailedAt);
+  if (status === 'failed' && packageFailedAt !== null) {
+    return { state: 'failed', at: packageFailedAt };
+  }
+  if (!pkg) return { state: 'preparing' };
   const lastDownloadAt = [...downloadedAt].sort().at(-1) ?? null;
   return Date.parse(pkg.downloadExpiresAt) <= now
     ? { state: 'closed', package: pkg, lastDownloadAt }
@@ -48,22 +56,19 @@ export function packageState(
 }
 
 /**
- * `packageState` read against the loader's `now`, moving on by itself when a package not issued
- * stops reading as preparing (an hour after the grant), so the card says it was not issued
- * without a reload.
+ * `packageState` read against the loader's `now`, moving on by itself when an issued package's
+ * download window closes, so the card says so without a reload.
  */
 export function usePackageState(
-  decision: Pick<Decision, 'outcome' | 'decidedAt'> | null,
+  decision: Pick<Decision, 'outcome'> | null,
   pkg: Package | null,
+  packageFailedAt: string | null,
   downloadedAt: readonly string[],
   serverNow: string,
 ): PackageState | null {
-  const turnsAt =
-    decision && decision.outcome !== 'deny' && !pkg
-      ? Date.parse(decision.decidedAt) + PACKAGE_PREPARING_FOR_MS
-      : null;
+  const turnsAt = pkg ? Date.parse(pkg.downloadExpiresAt) : null;
   const now = useNowAt(Date.parse(serverNow), turnsAt);
-  return decision ? packageState(decision, pkg, downloadedAt, now) : null;
+  return decision ? packageState(decision, pkg, packageFailedAt, downloadedAt, now) : null;
 }
 
 function Item({ term, children }: { term: ReactNode; children: ReactNode }) {
@@ -86,9 +91,10 @@ function Confidential() {
 
 /**
  * A granted request's package (S7) as the officer sees it: never the file, only that it is
- * preparing, or when it was issued, until when it can be downloaded (ends today, closed), how
- * many times it was, the watermark it carries and its verification code. Form K and law
- * enforcement requests (#265) alike.
+ * preparing, that its issuing failed, or when it was issued, until when it can be downloaded
+ * (ends today, closed), how many times it was, the watermark it carries and its verification
+ * code. When the granted scope held nothing, it is the nil letter (decision 1), shown alike
+ * under its own name. Form K and law enforcement requests (#265) alike.
  */
 export function PackageCard({
   state,
@@ -100,16 +106,14 @@ export function PackageCard({
   recipientName: string;
   reference: string;
 }) {
-  if (state.state === 'missing') {
+  if (state.state === 'failed') {
     return (
       <SideCard id="package" title={m.packageTitle} actions={<Confidential />}>
-        <p className="flex items-start gap-2.5 text-sm">
-          <Icon icon={PackageRemoveIcon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <span>
-            <span className="font-medium">{m.noPackage}</span>{' '}
-            <span className="text-muted-foreground">{m.noPackageWhy}</span>
-          </span>
-        </p>
+        <Alert variant="destructive">
+          <Icon icon={AlertCircleIcon} />
+          <AlertTitle>{accessMessages.packageFailed}</AlertTitle>
+          <AlertDescription>{m.packageFailedWhy(formatDateTime(state.at))}</AlertDescription>
+        </Alert>
       </SideCard>
     );
   }
@@ -125,8 +129,22 @@ export function PackageCard({
   }
   const { package: pkg, lastDownloadAt } = state;
   const closed = state.state === 'closed';
+  const nil = pkg.kind === 'nil-letter';
   return (
-    <SideCard id="package" title={m.packageTitle} actions={<Confidential />}>
+    <SideCard
+      id="package"
+      title={nil ? accessMessages.nilLetter : m.packageTitle}
+      actions={<Confidential />}
+    >
+      {nil ? (
+        <p className="flex items-start gap-2.5 text-sm">
+          <Icon icon={FileRemoveIcon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <span>
+            <span className="font-medium">{accessMessages.nilLetterStatement}</span>{' '}
+            <span className="text-muted-foreground">{m.nilLetterWhy}</span>
+          </span>
+        </p>
+      ) : null}
       <dl className="grid gap-3 text-sm">
         <Item term={m.issued}>{formatDateTime(pkg.issuedAt)}</Item>
         <Item term={closed ? m.windowClosed : m.downloadUntil}>

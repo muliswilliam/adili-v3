@@ -3,6 +3,7 @@ import { type Scope, ToastProvider, TooltipProvider } from '@adili/ui';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ScopePreview } from '../../../server/access/types';
 import { DecisionForm, type DecisionFormProps } from './decision-form';
 
 const requested: Scope = {
@@ -277,5 +278,122 @@ describe('DecisionForm (#260, S6)', () => {
     });
     choose('Partial grant');
     expect(screen.queryByRole('group', { name: 'Clarifications' })).toBeNull();
+  });
+});
+
+/** What the scope preview counts for `scope`: `held` declarations in each year of it. */
+function previewOf(scope: Scope, held = 1, onboarded = true): ScopePreview {
+  const years = scope.years.map((year) => ({
+    year,
+    declarations: held,
+    sections: Object.fromEntries(scope.sections.map((section) => [section, held * 3])),
+    spouses: scope.includeSpouses ? held : null,
+    children: scope.includeChildren ? held * 2 : null,
+    clarifications: scope.includeClarifications ? held : null,
+  }));
+  const declarations = held * years.length;
+  return {
+    scope,
+    declarantOnboarded: onboarded,
+    empty: declarations === 0,
+    declarations,
+    clarifications: scope.includeClarifications ? declarations : null,
+    years,
+  };
+}
+
+describe('DecisionForm: what the scope holds (decision 1)', () => {
+  const preview = vi.fn<NonNullable<DecisionFormProps['preview']>>();
+
+  beforeEach(() => {
+    preview.mockReset();
+    preview.mockImplementation((scope) => Promise.resolve({ ok: true, data: previewOf(scope) }));
+  });
+
+  const panel = (name: string) => screen.findByRole('region', { name });
+
+  it('counts the requested scope per year, section and household member, never content', async () => {
+    renderForm({ preview });
+    const counts = await panel('What the requested scope holds');
+    await waitFor(() => {
+      expect(counts.textContent).toContain('2 declarations · 2 clarifications');
+    });
+    expect(preview).toHaveBeenCalledWith(requested);
+    expect(counts.textContent).toContain(
+      'Income: 3 entries · Liabilities: 3 entries · Spouses: 1 · Children: 2 · Clarifications: 1',
+    );
+    expect(counts.textContent).toContain('Counts only, no content');
+  });
+
+  it('counts the narrowed scope of a partial grant, once the selection holds a year and a section', async () => {
+    renderForm({ preview });
+    await panel('What the requested scope holds');
+    choose('Partial grant');
+    // Nothing ticked yet: nothing to count.
+    expect(screen.queryByRole('region', { name: 'What the granted scope holds' })).toBeNull();
+    tick('2026');
+    tick('Income');
+    const counts = await panel('What the granted scope holds');
+    await waitFor(() => {
+      expect(counts.textContent).toContain('1 declaration');
+    });
+    expect(preview).toHaveBeenLastCalledWith({
+      years: [2026],
+      includeSpouses: false,
+      includeChildren: false,
+      sections: ['income'],
+      includeClarifications: false,
+    });
+  });
+
+  it('warns when the scope holds nothing, and the confirmation says a nil letter goes out', async () => {
+    preview.mockImplementation((scope) => Promise.resolve({ ok: true, data: previewOf(scope, 0) }));
+    submit.mockResolvedValue({ ok: true, data: {} });
+    renderForm({ preview });
+    choose('Grant');
+    const warning = await screen.findByText('Nothing to disclose in this scope');
+    expect(warning.closest('[role="alert"]')?.textContent).toContain(
+      'A grant of it issues a signed nil letter saying so, not a package.',
+    );
+    reasons('Shown.');
+    record();
+    const dialog = await screen.findByRole('dialog', { name: 'Record grant?' });
+    expect(dialog.textContent).toContain(
+      'A Confidential nil letter goes to Mercy Wanjiku Kamau, not a package',
+    );
+    expect(dialog.textContent).not.toContain('A Confidential package goes to');
+  });
+
+  it('says when the declarant has no account to hold any declaration', async () => {
+    preview.mockImplementation((scope) =>
+      Promise.resolve({ ok: true, data: previewOf(scope, 0, false) }),
+    );
+    renderForm({ preview });
+    expect(
+      await screen.findByText(
+        /The declarant has no account, so the Commission holds no declaration/,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('a count that failed can be tried again', async () => {
+    preview.mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
+    renderForm({ preview });
+    const counts = await panel('What the requested scope holds');
+    await within(counts).findByText('The declarations could not be counted.');
+    fireEvent.click(within(counts).getByRole('button', { name: 'Try again' }));
+    await waitFor(() => {
+      expect(counts.textContent).toContain('2 declarations');
+    });
+    expect(preview).toHaveBeenCalledTimes(2);
+  });
+
+  it('counts nothing for a denial, nor without a preview (an unverified law enforcement request)', async () => {
+    renderForm({ preview });
+    await panel('What the requested scope holds');
+    choose('Deny');
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: /scope holds/ })).toBeNull();
+    });
   });
 });

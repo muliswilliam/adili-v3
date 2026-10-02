@@ -13,7 +13,7 @@ import { SquareLock02Icon, ViewIcon } from '@hugeicons/core-free-icons';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
-import { decideAccessRequest } from '../../server/access-requests';
+import { decideAccessRequest, previewAccessScope } from '../../server/access-requests';
 import type { OfficerRequestView } from '../../server/access/types';
 import { Page } from '../page';
 import { DecisionForm } from './decision/decision-form';
@@ -122,6 +122,7 @@ export function DecidePage({ view, readOnly }: { view: OfficerRequestView; readO
           submit={(input, idempotencyKey) =>
             decideAccessRequest({ data: { requestId: view.id, input, idempotencyKey } })
           }
+          preview={(scope) => previewAccessScope({ data: { requestId: view.id, scope } })}
           onDecided={async () => {
             toast({ title: d.recorded });
             await back();

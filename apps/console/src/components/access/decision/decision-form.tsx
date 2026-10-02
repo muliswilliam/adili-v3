@@ -42,9 +42,13 @@ import {
   REASONS_MAX,
 } from './decision-rules';
 import { messages as m } from './messages';
+import { type PreviewScope, ScopePreviewPanel, useScopePreview } from './scope-preview';
 import { scopeText } from '../format';
 
 const ALL_OUTCOMES: readonly Outcome[] = ['grant', 'partial-grant', 'deny'];
+
+/** Never called: without a preview function, there is never a scope to count. */
+const NO_PREVIEW: PreviewScope = () => Promise.reject(new Error('No scope preview'));
 
 export interface DecisionFormProps {
   /** What the request asked for: a grant releases it, a partial grant narrows it. */
@@ -78,6 +82,12 @@ export interface DecisionFormProps {
   onCancel: () => void;
   /** How refusals read for this kind of request, when not as for Form K. */
   failureCopy?: DecisionFailureCopy;
+  /**
+   * Counts what a scope holds of the declarant's declarations (decision 1): the requested scope,
+   * or the one a partial grant narrows it to, shown before the officer confirms. None: nothing
+   * to count yet (a law enforcement request not verified, which can only be denied).
+   */
+  preview?: PreviewScope;
 }
 
 /**
@@ -100,6 +110,7 @@ export function DecisionForm({
   onDecided,
   onCancel,
   failureCopy,
+  preview,
 }: DecisionFormProps) {
   const id = useId();
   const [draft, setDraft] = useState<DecisionDraft>(emptyDraft);
@@ -165,6 +176,18 @@ export function DecisionForm({
   };
 
   const showScope = draft.outcome === 'partial-grant';
+  // What a grant of the scope in hand would disclose: the requested one until the officer
+  // narrows it; nothing to count for a denial, or a narrowed scope with no year or section.
+  const previewed =
+    !preview || draft.outcome === 'deny'
+      ? null
+      : showScope
+        ? draft.scope.years.length > 0 && draft.scope.sections.length > 0
+          ? draft.scope
+          : null
+        : requestedScope;
+  const counted = useScopePreview(previewed, preview ?? NO_PREVIEW);
+  const nothingHeld = counted.state === 'ready' && counted.preview.empty;
   const narrowable = canNarrow(requestedScope);
   const whole = isWholeScope(draft, requestedScope);
   const scopeError = errors.scope && !(whole && errors.scope === m.sameAsRequested);
@@ -280,6 +303,11 @@ export function DecisionForm({
           </div>
         ) : null}
 
+        <ScopePreviewPanel
+          preview={counted}
+          heading={showScope ? m.previewGranted : m.previewRequested}
+        />
+
         {needsGrounds(draft.outcome) ? (
           <div id={`${id}-grounds`}>
             <GroundsSelect
@@ -335,6 +363,7 @@ export function DecisionForm({
           finality={finality(draft.outcome)}
           packageRecipient={packageRecipient}
           packageScope={scopeText(draft.outcome === 'partial-grant' ? draft.scope : requestedScope)}
+          nilLetter={nothingHeld}
           grounds={draft.grounds.map((ground) => groundMeta[ground].label)}
           onConfirm={() => void record()}
         />

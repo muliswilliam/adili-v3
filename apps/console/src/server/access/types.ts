@@ -49,6 +49,9 @@ export type DecisionInput = Schemas['DecisionInput'];
 export type Outcome = Schemas['Outcome'];
 export type Ground = Schemas['Ground'];
 export type Package = Schemas['Package'];
+/** What a scope holds, counted before the decision (decision 1): never content. */
+export type ScopePreview = Schemas['ScopePreview'];
+export type ScopePreviewYear = Schemas['ScopePreviewYear'];
 
 /** Fails to compile when the contract and the shared access table in @adili/ui drift apart. */
 export type ContractMatchesSharedCopy = Assert<

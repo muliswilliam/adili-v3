@@ -10,8 +10,9 @@
  *   (package for 13 more days), partially granted (2 more days), denied, cannot identify
  *   officer, withdrawn;
  * - granted with the package's window ending in about five hours, granted with the window
- *   closed (downloaded twice), granted today with the package still being prepared, and granted
- *   three days ago with no package issued.
+ *   closed (downloaded twice), granted today with the package still being prepared, granted
+ *   two days ago with the package failing to issue, and two grants whose scope held no
+ *   declaration, answered with the nil letter (one ready, one past its window).
  *
  * Commissions: the Public Service Commission (2025, 2026), the Teachers Service Commission,
  * the National Police Service Commission, the Judicial Service Commission (2026) and the Kiambu
@@ -167,7 +168,9 @@ type SeedKey =
   | 'expiring'
   | 'expired'
   | 'preparing'
-  | 'unissued';
+  | 'nil'
+  | 'nilExpired'
+  | 'failed';
 
 interface Seed {
   key: SeedKey;
@@ -192,6 +195,10 @@ interface Seed {
   package?: {
     /** Still being prepared: the request has no package yet. */
     preparing?: boolean;
+    /** Issuing it failed after its retries: no package, `packageFailedAt` at the decision. */
+    failed?: boolean;
+    /** The granted scope held no declaration: the nil letter is issued instead. */
+    nil?: boolean;
     /** Milliseconds from now to the end of the window, instead of 14 days from the decision. */
     expiresIn?: number;
     /** Days ago it was downloaded, oldest first. */
@@ -495,8 +502,8 @@ const SEEDS: Seed[] = [
     package: { preparing: true },
   },
   {
-    // Granted days ago and no package was issued (nothing to disclose, or issuing failed).
-    key: 'unissued',
+    // Granted days ago; the Commission holds no declaration in the granted scope: a nil letter.
+    key: 'nil',
     commission: 'psc',
     status: 'granted',
     submittedDaysAgo: 24,
@@ -517,7 +524,57 @@ const SEEDS: Seed[] = [
       reasons:
         'The applicant shows a legitimate interest in the allocation of public forest land, which promotes the objectives of the Act.',
     },
-    package: { preparing: true },
+    package: { nil: true },
+  },
+  {
+    // A nil letter whose download window has closed, downloaded once.
+    key: 'nilExpired',
+    commission: 'tsc',
+    status: 'granted',
+    submittedDaysAgo: 48,
+    notified: 46,
+    decided: 20,
+    officer: {
+      name: 'Lucy Wairimu Gitau',
+      entity: 'Teachers Service Commission',
+      workStation: 'Nyeri County Office',
+    },
+    informationSought: 'Assets in the 2025 declaration.',
+    reason:
+      'School funds for laboratory equipment were misspent in the county. The declaration shows whether the officer acquired assets at the time.',
+    scope: scope([2025], ['assets']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The applicant shows a legitimate interest in the use of school funds, which promotes the objectives of the Act.',
+    },
+    package: { nil: true, downloaded: [19] },
+  },
+  {
+    // Granted; issuing the package failed after its retries.
+    key: 'failed',
+    commission: 'psc',
+    status: 'granted',
+    submittedDaysAgo: 30,
+    notified: 28,
+    decided: 2,
+    officer: {
+      name: 'Hassan Omar Abdi',
+      entity: 'Kenya Ports Authority',
+      workStation: 'Mombasa',
+    },
+    informationSought: 'Income in the 2025 declaration.',
+    reason:
+      'Port tenders were awarded to a firm linked to the officer. The declaration shows whether the officer declared income from it.',
+    scope: scope([2025], ['income']),
+    decision: {
+      outcome: 'grant',
+      grounds: [],
+      reasons:
+        'The applicant shows a legitimate interest in the award of port tenders, which promotes the objectives of the Act.',
+    },
+    package: { failed: true },
   },
 ];
 
@@ -557,6 +614,7 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
   }
   let decision: AccessRequest['decision'] = null;
   let pkg: AccessRequest['package'] = null;
+  let packageFailedAt: string | null = null;
   if (seed.decided !== undefined && seed.decision) {
     // A window that ends a set time from now was opened by a decision 14 days before that; a
     // decision today was made a little while ago.
@@ -576,20 +634,24 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
       decidedAt,
     };
     timeline.push(entry('decided', decidedAt, reference, 'Decision made'));
-    if (seed.decision.outcome !== 'deny' && !seed.package?.preparing) {
+    if (seed.package?.failed) packageFailedAt = decidedAt;
+    if (seed.decision.outcome !== 'deny' && !seed.package?.preparing && !seed.package?.failed) {
+      const nil = seed.package?.nil === true;
       const issuedAt = decidedAt;
       const downloadExpiresAt = new Date(Date.parse(issuedAt) + PACKAGE_DAYS * DAY).toISOString();
       const downloaded = (seed.package?.downloaded ?? []).map((days) => ago(days, 19));
       pkg = {
+        kind: nil ? 'nil-letter' : 'access-package',
         documentId: `d0c00000-0000-4000-8000-${id.slice(-12)}`,
         verificationId: 'ADL-9PLX-2MWE-C3KF-7VUA',
         issuedAt,
         downloadExpiresAt,
         downloads: downloaded.length,
       };
-      timeline.push(entry('package-issued', issuedAt, reference, 'Package issued'));
+      const what = nil ? 'Nil letter' : 'Package';
+      timeline.push(entry('package-issued', issuedAt, reference, `${what} issued`));
       for (const at of downloaded) {
-        timeline.push(entry('downloaded', at, reference, 'Package downloaded', partI.name));
+        timeline.push(entry('downloaded', at, reference, `${what} downloaded`, partI.name));
       }
       if (Date.parse(downloadExpiresAt) <= now) {
         timeline.push(entry('expired', downloadExpiresAt, reference, 'Download window closed'));
@@ -634,6 +696,7 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
     decisionDeadlineAt: addDays(submittedAt, DECISION_DAYS),
     decision,
     package: pkg,
+    packageFailedAt,
     timeline,
   };
 }
@@ -725,6 +788,7 @@ async function submit(request: Request): Promise<Response> {
     decisionDeadlineAt: addDays(submittedAt, DECISION_DAYS),
     decision: null,
     package: null,
+    packageFailedAt: null,
     timeline: [entry('received', submittedAt, reference, 'Request received', formK.partI.name)],
   };
   requests.set(id, created);

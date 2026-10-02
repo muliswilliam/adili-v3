@@ -70,6 +70,7 @@ export function LeaRequestDetail({
   const pkg = usePackageState(
     request.status === 'granted' ? request.decision : null,
     request.package,
+    request.packageFailedAt,
     request.timeline.filter((entry) => entry.kind === 'downloaded').map((entry) => entry.at),
     now,
   );

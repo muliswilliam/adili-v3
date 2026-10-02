@@ -241,17 +241,46 @@ describe('RequestPage package (#261, S7)', () => {
     expect(screen.getByText(/Your package is being prepared\./)).toBeTruthy();
   });
 
-  it('says no package was issued once an hour has passed since the grant without one', async () => {
-    show(await seededRequest(IDS.unissued));
+  it('says the package could not be issued when issuing failed, apart from preparing', async () => {
+    show(await seededRequest(IDS.failed));
+    expect(screen.getByText('We could not issue your package.', { selector: 'p' })).toBeTruthy();
     expect(
-      screen.getByText('No package has been issued for this grant.', { selector: 'p' }),
+      screen.getByText(
+        'The decision stands. Contact Public Service Commission if your package is not ready soon.',
+      ),
     ).toBeTruthy();
-    expect(
-      screen.getByText(/Contact Public Service Commission if you still need it\./),
-    ).toBeTruthy();
+    expect(screen.getByText(/Your package could not be issued yet\./)).toBeTruthy();
     expect(screen.queryByText('Preparing your package…')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
     expect(stage('Package, stopped')).toBeTruthy();
+  });
+
+  it('shows the nil letter when the granted scope held no declaration, downloadable like a package', async () => {
+    show(await seededRequest(IDS.nil));
+    expect(screen.getByRole('heading', { name: 'Nil letter' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Package' })).toBeNull();
+    expect(screen.getByText('No declarations held within the granted scope.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Public Service Commission holds no declarations by Daniel Kiprotich Rotich for the years and parts it granted. It issued you this signed letter instead of a package.',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/There was nothing to disclose\. Download the nil letter by /),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download' })).toBeTruthy();
+    expect(screen.getByText('Confidential')).toBeTruthy();
+    // It discloses nothing, so the s.36(4) offence note is the package's only.
+    expect(screen.queryByText(/s\.36\(4\)/)).toBeNull();
+    expect(stage('Nil letter ready, now')).toBeTruthy();
+  });
+
+  it('shows an expired nil letter without Download', async () => {
+    show(await seededRequest(IDS.nilExpired));
+    expect(screen.getByRole('heading', { name: 'Nil letter' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(screen.getByText(/^Expired \d+ Sep 2026$/)).toBeTruthy();
+    expect(screen.getByText(/^Downloaded 1 time · last /)).toBeTruthy();
   });
 
   it('describes Download by when the window ends', async () => {

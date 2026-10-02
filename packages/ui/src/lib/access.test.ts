@@ -8,8 +8,7 @@ import {
   GRANTED_ACCESS_STATUSES,
   leaStatusMeta,
   OPEN_ACCESS_STATUSES,
-  PACKAGE_PREPARING_FOR_MS,
-  unissuedPackageState,
+  grantPackageStatus,
 } from './access';
 
 describe('access status words', () => {
@@ -56,19 +55,17 @@ describe('access status words', () => {
   });
 });
 
-describe('unissuedPackageState', () => {
-  const decidedAt = '2026-10-02T09:00:00.000Z';
-  const decided = Date.parse(decidedAt);
-
-  it('reads as preparing for an hour after the grant', () => {
-    expect(unissuedPackageState(decidedAt, decided)).toBe('preparing');
-    expect(unissuedPackageState(decidedAt, decided + PACKAGE_PREPARING_FOR_MS - 1)).toBe(
-      'preparing',
-    );
+describe('grantPackageStatus', () => {
+  it('is preparing until the package or nil letter is issued', () => {
+    expect(grantPackageStatus(null, null)).toBe('preparing');
   });
 
-  it('then says no package was issued', () => {
-    expect(unissuedPackageState(decidedAt, decided + PACKAGE_PREPARING_FOR_MS)).toBe('missing');
-    expect(unissuedPackageState(decidedAt, decided + 5 * PACKAGE_PREPARING_FOR_MS)).toBe('missing');
+  it('says issuing failed once the backend records it', () => {
+    expect(grantPackageStatus(null, '2026-10-02T09:00:00.000Z')).toBe('failed');
+  });
+
+  it('names what was issued: the access package, or the nil letter', () => {
+    expect(grantPackageStatus({ kind: 'access-package' }, null)).toBe('access-package');
+    expect(grantPackageStatus({ kind: 'nil-letter' }, null)).toBe('nil-letter');
   });
 });

@@ -13,6 +13,7 @@ import {
   type Tone,
 } from '@adili/ui';
 import {
+  Alert02Icon,
   ArrowLeft01Icon,
   Building03Icon,
   Cancel01Icon,
@@ -31,11 +32,11 @@ import {
   STATUS_BANNERS,
   STATUSES,
 } from '../../access/copy';
-import { packageView, type PackageView, preparingEndsAt } from '../../access/package';
+import { packageView, type PackageView } from '../../access/package';
 import { accessReferenceParts } from '../../access/reference';
 import { decisionClock, requestStages, type Stage, WITHDRAWABLE } from '../../access/progress';
 import type { AccessRequest } from '../../server/access/types';
-import { PackageCard, usePackageClock, useWakeAt } from './package-card';
+import { PackageCard, usePackageClock } from './package-card';
 import { GroundsList, PartRow, PartRows, ScopeRows } from './request-parts';
 import { RequestStatusBadge } from './request-status';
 
@@ -65,16 +66,27 @@ function bannerDate(request: AccessRequest): string {
 /** What comes after a grant's lead: download by when, being prepared, or the window closed. */
 function packageNext(request: AccessRequest, pkg: PackageView): string {
   if (pkg.state === 'preparing') return PACKAGE.preparingNext;
-  if (pkg.state === 'missing') return PACKAGE.missingNext;
+  if (pkg.state === 'failed') return PACKAGE.failedNext;
   if (pkg.state === 'expired') return PACKAGE.closedNext(day(pkg.package.downloadExpiresAt));
   const at = pkg.package.downloadExpiresAt;
+  const nil = pkg.package.kind === 'nil-letter';
   const partial = request.status === 'partially-granted';
   if (pkg.daysLeft === 0) {
-    return (partial ? PACKAGE.partialReadyTodayNext : PACKAGE.readyTodayNext)(formatTime(at));
+    const today = nil
+      ? PACKAGE.nilLetterReadyTodayNext
+      : partial
+        ? PACKAGE.partialReadyTodayNext
+        : PACKAGE.readyTodayNext;
+    return today(formatTime(at));
   }
   // The date and time wrap as one, never "14 / Oct 2026".
   const unbroken = formatDateTime(at).replaceAll(' ', '\u00a0');
-  return (partial ? PACKAGE.partialReadyNext : PACKAGE.readyNext)(unbroken);
+  const ready = nil
+    ? PACKAGE.nilLetterReadyNext
+    : partial
+      ? PACKAGE.partialReadyNext
+      : PACKAGE.readyNext;
+  return ready(unbroken);
 }
 
 function StatusBanner({
@@ -102,13 +114,14 @@ function StatusBanner({
     );
   }
   const expired = pkg?.state === 'expired';
+  const failed = pkg?.state === 'failed';
   return (
     <Alert
-      variant={expired ? 'neutral' : ALERT_VARIANTS[meta.tone]}
+      variant={expired ? 'neutral' : failed ? 'warning' : ALERT_VARIANTS[meta.tone]}
       role="status"
       className="gap-2.5"
     >
-      <Icon icon={expired ? SquareLock02Icon : meta.icon} />
+      <Icon icon={expired ? SquareLock02Icon : failed ? Alert02Icon : meta.icon} />
       <AlertDescription>
         <strong className="font-semibold">{banner.lead.en(name, date)}</strong>{' '}
         {pkg ? packageNext(request, pkg) : banner.next.en(name, date)}
@@ -327,9 +340,7 @@ export function RequestPage({
   onDownloaded: () => void;
 }) {
   const withdrawable = WITHDRAWABLE.has(request.status);
-  const clock = usePackageClock(serverNow, request.package?.downloadExpiresAt ?? null);
-  // A package not issued an hour after the grant stops reading as being prepared.
-  const now = useWakeAt(clock, preparingEndsAt(request));
+  const now = usePackageClock(serverNow, request.package?.downloadExpiresAt ?? null);
   const [windowClosed, setWindowClosed] = useState(false);
   const pkg = packageView(request, now, windowClosed);
   return (
@@ -365,6 +376,7 @@ export function RequestPage({
             <PackageCard
               view={pkg}
               applicantName={request.formK.partI.name}
+              officerName={request.formK.partII.name}
               reference={request.reference}
               commission={request.commission.name}
               onWindowClosed={() => {

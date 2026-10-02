@@ -1,4 +1,4 @@
-import { accessMessages, formatNumber } from '@adili/ui';
+import { formatNumber, plural } from '@adili/ui';
 
 import { DECISION_REASONS_MAX } from '../../../server/access/schemas';
 
@@ -54,6 +54,30 @@ export const en = {
   enterReasons: 'Enter the reasons.',
   reasonsTooLong: 'Keep the reasons to 4,000 characters.',
 
+  // What the scope holds (decision 1)
+  previewRequested: 'What the requested scope holds',
+  previewGranted: 'What the granted scope holds',
+  previewCountsOnly: 'Counts only, no content',
+  previewLoading: 'Counting the declarations in this scope',
+  previewFailed: 'The declarations could not be counted.',
+  previewRetry: 'Try again',
+  previewTotal: (declarations: number, clarifications: number | null) =>
+    clarifications === null
+      ? plural(declarations, 'declaration')
+      : `${plural(declarations, 'declaration')} · ${plural(clarifications, 'clarification')}`,
+  previewDeclarations: (count: number) => plural(count, 'declaration'),
+  previewNoDeclaration: 'No declaration',
+  previewSection: (label: string, count: number, persons: boolean) =>
+    `${label}: ${persons ? plural(count, 'person') : count === 1 ? '1 entry' : `${formatNumber(count)} entries`}`,
+  previewSpouses: (count: number) => `Spouses: ${formatNumber(count)}`,
+  previewChildren: (count: number) => `Children: ${formatNumber(count)}`,
+  previewClarifications: (count: number) => `Clarifications: ${formatNumber(count)}`,
+  previewEmptyTitle: 'Nothing to disclose in this scope',
+  previewEmpty:
+    'The Commission holds no declaration of the declarant within this scope. A grant of it issues a signed nil letter saying so, not a package.',
+  previewNoAccount:
+    'The declarant has no account, so the Commission holds no declaration of theirs on Adili. A grant issues a signed nil letter saying so, not a package.',
+
   // Confirm
   confirmTitle: {
     grant: 'Record grant?',
@@ -63,6 +87,9 @@ export const en = {
   confirmGrounds: 'Grounds:',
   packageGoesTo: (name: string) => `A Confidential package goes to ${name}`,
   packageScope: (scope: string) => `${scope}. Watermarked, downloadable for a limited time.`,
+  nilLetterGoesTo: (name: string) => `A Confidential nil letter goes to ${name}, not a package`,
+  nilLetterScope: (scope: string) =>
+    `Nothing is held within ${scope}. The letter says so; watermarked, downloadable for a limited time.`,
 
   // Server answers
   notRecordedTitle: 'The decision was not recorded',
@@ -105,8 +132,10 @@ export const en = {
   packageTitle: 'Package',
   confidential: 'Confidential',
   preparing: 'Preparing: rendering the granted scope, watermarking and signing.',
-  noPackage: accessMessages.noPackage,
-  noPackageWhy: 'The granted scope holds nothing to disclose, or issuing it failed.',
+  packageFailedWhy: (at: string) =>
+    `Issuing it failed on ${at}, after repeated tries. The decision stands. Ask platform support to issue it again.`,
+  nilLetterWhy:
+    'The granted scope held nothing to disclose, so the recipient gets this signed letter instead of a package.',
   issued: 'Issued',
   downloadUntil: 'Download until',
   windowClosed: 'Window closed',

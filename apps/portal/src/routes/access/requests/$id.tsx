@@ -1,4 +1,4 @@
-import { Button, Card, EmptyState, Icon, useToast } from '@adili/ui';
+import { Button, Card, EmptyState, GRANTED_ACCESS_STATUSES, Icon, useToast } from '@adili/ui';
 import { ArrowLeft01Icon, File01Icon } from '@hugeicons/core-free-icons';
 import { createFileRoute, Link, notFound, useRouter } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -9,6 +9,7 @@ import { RequestPage } from '../../../components/access/request-page';
 import { NotApplicantNotice, UnavailableNotice } from '../../../components/access/request-status';
 import { WithdrawDialog } from '../../../components/access/withdraw-dialog';
 import { signInRedirect } from '../../../components/declaration/route-helpers';
+import { usePoll } from '../../../components/declaration/use-poll';
 import { isUuid } from '../../../declaration/section-key';
 import { getMyAccessRequest, withdrawMyAccessRequest } from '../../../server/access-requests';
 
@@ -60,6 +61,10 @@ function RequestNotFound() {
   );
 }
 
+/** How often, and how many times, a package being prepared is read again (ten minutes). */
+const PREPARING_POLL_MS = 15_000;
+const PREPARING_POLLS = 40;
+
 function RequestRoute() {
   return (
     <AccessShell>
@@ -73,6 +78,21 @@ function Request() {
   const router = useRouter();
   const { toast } = useToast();
   const [withdrawing, setWithdrawing] = useState(false);
+  // While a grant's package (or nil letter) is being prepared, read the request again now and
+  // then, so it shows once issued (or that issuing failed) without a manual reload.
+  const preparing =
+    result.status === 'ok' &&
+    GRANTED_ACCESS_STATUSES.has(result.request.status) &&
+    result.request.package === null &&
+    result.request.packageFailedAt === null;
+  usePoll({
+    pollKey: preparing ? result.request.id : null,
+    read: () => router.invalidate(),
+    onRead: () => false,
+    onGiveUp: () => undefined,
+    intervalMs: PREPARING_POLL_MS,
+    limit: PREPARING_POLLS,
+  });
 
   if (result.status === 'not-found') return <RequestNotFound />;
   if (result.status !== 'ok') {

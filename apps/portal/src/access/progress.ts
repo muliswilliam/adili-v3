@@ -135,17 +135,17 @@ export function requestStages(request: AccessRequest, now: number, windowClosed 
       detail: PACKAGE.stagePreparingDetail,
       state: 'current',
     });
-  } else if (pkg?.state === 'missing') {
+  } else if (pkg?.state === 'failed') {
     stages.push({
       id: 'package',
       title: PACKAGE.stagePreparing,
-      detail: PACKAGE.stageMissingDetail,
+      detail: PACKAGE.stageFailedDetail,
       state: 'stopped',
     });
   } else if (pkg?.state === 'ready') {
     stages.push({
       id: 'package',
-      title: PACKAGE.stageReady,
+      title: pkg.package.kind === 'nil-letter' ? PACKAGE.stageNilLetterReady : PACKAGE.stageReady,
       detail: PACKAGE.stageReadyDetail(formatDateTime(pkg.package.downloadExpiresAt)),
       state: 'current',
     });

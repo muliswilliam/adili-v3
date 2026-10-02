@@ -6,6 +6,8 @@ import type {
   LeaRequest,
   LeaRequestInput,
   RosterCandidates,
+  Scope,
+  ScopePreview,
   VerifyLeaRequest,
 } from './access/types';
 import type { AccessResult } from './access-requests.server';
@@ -75,6 +77,20 @@ export function withdrawLeaRequest(
   return callService(() =>
     client.POST('/v1/lea/requests/{leaRequestId}/withdraw', {
       params: { path: { leaRequestId: id }, header: { 'Idempotency-Key': idempotencyKey } },
+    }),
+  );
+}
+
+/** `POST .../preview`: what the scope holds of the declarant's declarations, counted. */
+export function previewLeaScope(
+  client: AccessClient,
+  id: string,
+  scope: Scope,
+): Promise<AccessResult<ScopePreview>> {
+  return callService(() =>
+    client.POST('/v1/lea/requests/{leaRequestId}/preview', {
+      params: { path: { leaRequestId: id } },
+      body: scope,
     }),
   );
 }

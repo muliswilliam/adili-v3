@@ -10,7 +10,12 @@ import {
   IconTile,
   Spinner,
 } from '@adili/ui';
-import { JusticeScale01Icon, Package01Icon, SquareLock02Icon } from '@hugeicons/core-free-icons';
+import {
+  FileRemoveIcon,
+  JusticeScale01Icon,
+  Package01Icon,
+  SquareLock02Icon,
+} from '@hugeicons/core-free-icons';
 
 import { Consequences } from '../resolve-dialogs';
 import type { Outcome } from './decision-rules';
@@ -18,7 +23,8 @@ import { messages as m } from './messages';
 
 /**
  * "Record partial grant?" (S6): a decision is final and goes to both parties; a grant also
- * sends a Confidential, watermarked package for the download window. The grounds cited are
+ * sends a Confidential, watermarked package for the download window, or the nil letter when the
+ * scope holds nothing (decision 1). The grounds cited are
  * repeated so the officer reads them once more.
  */
 export function DecisionConfirmDialog({
@@ -29,6 +35,7 @@ export function DecisionConfirmDialog({
   finality,
   packageRecipient,
   packageScope,
+  nilLetter = false,
   grounds,
   onConfirm,
 }: {
@@ -40,6 +47,8 @@ export function DecisionConfirmDialog({
   packageRecipient: string;
   /** What the package holds, as `scopeText` writes it. */
   packageScope: string;
+  /** The scope holds nothing (its preview is empty): a grant issues the nil letter instead. */
+  nilLetter?: boolean;
   /** The grounds' short labels. */
   grounds: string[];
   onConfirm: () => void;
@@ -61,11 +70,17 @@ export function DecisionConfirmDialog({
               ...(deny
                 ? []
                 : [
-                    {
-                      icon: Package01Icon,
-                      title: m.packageGoesTo(packageRecipient),
-                      text: m.packageScope(packageScope),
-                    },
+                    nilLetter
+                      ? {
+                          icon: FileRemoveIcon,
+                          title: m.nilLetterGoesTo(packageRecipient),
+                          text: m.nilLetterScope(packageScope),
+                        }
+                      : {
+                          icon: Package01Icon,
+                          title: m.packageGoesTo(packageRecipient),
+                          text: m.packageScope(packageScope),
+                        },
                   ]),
             ]}
           />
