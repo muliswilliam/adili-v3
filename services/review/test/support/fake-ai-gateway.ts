@@ -8,6 +8,7 @@ import {
   type AiJobReason,
   AiGatewayClient,
   AiGatewayUnavailable,
+  type FeedbackInput,
   type ReviewTask,
   type RunTaskOptions,
   type TaskRequest,
@@ -31,10 +32,12 @@ export type JobOutcome = Pick<AiJob, 'status' | 'reason' | 'output'>;
  * `succeed`, `fail` or `block`, each of which answers the `ai.job.*` event the gateway would
  * publish. `blockEverything` ends every new job `blocked` at once, as the classification gate
  * does for a Commission without approval; `endWithinWait` ends a job created by a call that waits
- * before the call answers. Every call is recorded.
+ * before the call answers. Every call, and every rating, is recorded.
  */
 export class FakeAiGateway extends AiGatewayClient {
   readonly calls: TaskCall[] = [];
+  /** The ratings recorded, in order (a repeat is recorded again, as the gateway announces it). */
+  readonly feedback: { jobId: string; feedback: FeedbackInput }[] = [];
   private readonly jobs = new Map<string, AiJob & { tenant: string }>();
   private readonly byKey = new Map<string, string>();
   private failures = 0;
@@ -74,6 +77,7 @@ export class FakeAiGateway extends AiGatewayClient {
 
   reset(): void {
     this.calls.length = 0;
+    this.feedback.length = 0;
     this.jobs.clear();
     this.byKey.clear();
     this.failures = 0;
@@ -128,6 +132,17 @@ export class FakeAiGateway extends AiGatewayClient {
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
     }
     return Promise.resolve(this.jobs.has(jobId) ? this.view(jobId) : null);
+  }
+
+  /** Records a rating of a succeeded job; false for any other job, as the gateway answers 404. */
+  recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unavailable'));
+    }
+    if (this.jobs.get(jobId)?.status !== 'succeeded') return Promise.resolve(false);
+    this.feedback.push({ jobId, feedback: structuredClone(feedback) });
+    return Promise.resolve(true);
   }
 
   /** Ends the job `succeeded` with `output`; answers `ai.job.completed.v1`. */

@@ -1,5 +1,5 @@
 {
-  "id": "e652afcb-a5b6-4372-b97b-4455600b2150",
+  "id": "fd7d291d-18f4-40ba-968f-713cb8612643",
   "prevId": "8ce7f284-1a23-4b88-8a64-e452f33350d4",
   "version": "7",
   "dialect": "postgresql",
@@ -1643,14 +1643,20 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.review_copilot_drafts": {
-      "name": "review_copilot_drafts",
+    "public.review_copilot_ratings": {
+      "name": "review_copilot_ratings",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
+        "job_id": {
+          "name": "job_id",
           "type": "uuid",
-          "primaryKey": true,
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reviewer_subject": {
+          "name": "reviewer_subject",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
         "tenant": {
@@ -1665,65 +1671,24 @@
           "primaryKey": false,
           "notNull": true
         },
-        "requested_by": {
-          "name": "requested_by",
+        "rating": {
+          "name": "rating",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "failure_reason": {
-          "name": "failure_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "expires_at": {
-          "name": "expires_at",
+        "rated_at": {
+          "name": "rated_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
         }
       },
-      "indexes": {
-        "review_copilot_drafts_expires_at_idx": {
-          "name": "review_copilot_drafts_expires_at_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
-        "review_copilot_drafts_case_id_review_cases_id_fk": {
-          "name": "review_copilot_drafts_case_id_review_cases_id_fk",
-          "tableFrom": "review_copilot_drafts",
+        "review_copilot_ratings_case_id_review_cases_id_fk": {
+          "name": "review_copilot_ratings_case_id_review_cases_id_fk",
+          "tableFrom": "review_copilot_ratings",
           "tableTo": "review_cases",
           "columnsFrom": [
             "case_id"
@@ -1735,13 +1700,21 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "review_copilot_ratings_job_id_reviewer_subject_pk": {
+          "name": "review_copilot_ratings_job_id_reviewer_subject_pk",
+          "columns": [
+            "job_id",
+            "reviewer_subject"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "review_copilot_drafts_status_check": {
-          "name": "review_copilot_drafts_status_check",
-          "value": "\"review_copilot_drafts\".\"status\" in ('pending', 'ready', 'failed')"
+        "review_copilot_ratings_rating_check": {
+          "name": "review_copilot_ratings_rating_check",
+          "value": "\"review_copilot_ratings\".\"rating\" in ('helpful', 'not-helpful')"
         }
       },
       "isRLSEnabled": false
@@ -1878,7 +1851,38 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "review_copilots_summary_job_id_idx": {
+          "name": "review_copilots_summary_job_id_idx",
+          "columns": [
+            {
+              "expression": "summary_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "review_copilots_explanations_job_id_idx": {
+          "name": "review_copilots_explanations_job_id_idx",
+          "columns": [
+            {
+              "expression": "explanations_job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "review_copilots_case_id_review_cases_id_fk": {
           "name": "review_copilots_case_id_review_cases_id_fk",

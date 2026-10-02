@@ -26,6 +26,9 @@ export type DataClass = Schemas['DataClass'];
 export type AiJobStatus = Schemas['JobStatus'];
 export type AiJobReason = Schemas['JobReason'];
 
+/** ai-gateway.yaml `FeedbackInput`: an officer's rating of a job's output. */
+export type FeedbackInput = Schemas['FeedbackInput'];
+
 /** The inputs of the tasks the review service runs. */
 export type ReviewTaskInput =
   SummarizeDeclarationInput | ExplainFlagsInput | DraftClarificationInput;
@@ -103,4 +106,11 @@ export abstract class AiGatewayClient {
 
   /** `getJob`: the job with its output once succeeded; null when the gateway has no such job. */
   abstract getJob(jobId: string): Promise<AiJob | null>;
+
+  /**
+   * `recordFeedback`: records (or replaces) the reviewer's rating of the job's output. False when
+   * the gateway has no succeeded job with that id for the review service. Throws
+   * `AiGatewayUnavailable` when the gateway cannot take it.
+   */
+  abstract recordFeedback(jobId: string, feedback: FeedbackInput): Promise<boolean>;
 }

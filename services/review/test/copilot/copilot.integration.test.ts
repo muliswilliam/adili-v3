@@ -575,4 +575,118 @@ describe('review copilot', () => {
       expect((await copilotRow(caseId))?.status).toBe('pending');
     });
   });
+
+  describe('S13: feedback', () => {
+    const feedbackPath = (jobId: string) => `/v1/review/copilot/outputs/${jobId}/feedback`;
+    const notHelpful = { rating: 'not-helpful', reason: 'missed-something', note: 'No plot.' };
+    const helpful = { rating: 'helpful', reason: null, note: null };
+
+    /** A case assigned to reviewer A with its copilot ready; returns the case and its jobs. */
+    const readyCase = async () => {
+      const { first } = versions();
+      api.declarations.given(first);
+      const { caseId } = await createdCase(first);
+      const row = await completeJobs(caseId);
+      await assign(caseId, 'reviewer-a');
+      return {
+        caseId,
+        summary: row.summaryJobId ?? '',
+        explanations: row.explanationsJobId ?? '',
+      };
+    };
+
+    it("the assignee's rating is forwarded to the gateway, shown back to them, and a repeat replaces it", async () => {
+      const { caseId, summary, explanations } = await readyCase();
+
+      const rated = await api.send('PUT', feedbackPath(summary), reviewerA, notHelpful);
+      expect(rated.statusCode).toBe(200);
+      expect(api.ai.feedback).toEqual([
+        {
+          jobId: summary,
+          feedback: {
+            reviewerSubject: 'reviewer-a',
+            rating: 'not-helpful',
+            reason: 'missed-something',
+            note: 'No plot.',
+          },
+        },
+      ]);
+      expect((await view(caseId)).feedback).toEqual([{ jobId: summary, rating: 'not-helpful' }]);
+
+      // Rated again: the gateway gets the new rating; one rating per output for the officer.
+      expect((await api.send('PUT', feedbackPath(summary), reviewerA, helpful)).statusCode).toBe(
+        200,
+      );
+      expect(
+        (await api.send('PUT', feedbackPath(explanations), reviewerA, helpful)).statusCode,
+      ).toBe(200);
+      expect(api.ai.feedback.map((call) => [call.jobId, call.feedback.rating])).toEqual([
+        [summary, 'not-helpful'],
+        [summary, 'helpful'],
+        [explanations, 'helpful'],
+      ]);
+      const mine = (await view(caseId)).feedback;
+      expect(mine).toHaveLength(2);
+      expect(mine).toEqual(
+        expect.arrayContaining([
+          { jobId: summary, rating: 'helpful' },
+          { jobId: explanations, rating: 'helpful' },
+        ]),
+      );
+      // The feedback in the view is the caller's own: others see none of it.
+      expect((await view(caseId, reviewerB)).feedback).toEqual([]);
+      expect((await view(caseId, supervisor)).feedback).toEqual([]);
+      // The note stays with the gateway.
+      const [stored] = await api
+        .asPlatform((tx) =>
+          tx.execute<{ row: string }>(sql`select t::text as row from review_copilot_ratings t`),
+        )
+        .then((result) => result.rows);
+      expect(stored?.row).not.toContain('No plot');
+    });
+
+    it('a supervisor and another reviewer get 403, other tenants and outsiders 404, nothing forwarded', async () => {
+      const { summary } = await readyCase();
+
+      for (const caller of [supervisor, reviewerB]) {
+        const response = await api.send('PUT', feedbackPath(summary), caller, helpful);
+        expect(response.statusCode).toBe(403);
+        expect(response.json()).toMatchObject({ type: 'not-the-assignee' });
+      }
+      for (const caller of [tscReviewer, commissionAdmin]) {
+        expect((await api.send('PUT', feedbackPath(summary), caller, helpful)).statusCode).toBe(
+          404,
+        );
+      }
+      // A job that is no output shown on a case, and an id that is no job.
+      for (const jobId of [randomUUID(), 'not-a-job']) {
+        expect((await api.send('PUT', feedbackPath(jobId), reviewerA, helpful)).statusCode).toBe(
+          404,
+        );
+      }
+      expect(api.ai.feedback).toEqual([]);
+    });
+
+    it('an invalid rating is 400; the gateway unreachable is 503 and nothing is recorded', async () => {
+      const { caseId, summary } = await readyCase();
+
+      for (const body of [
+        { rating: 'meh', reason: null, note: null },
+        { rating: 'not-helpful', reason: 'boring', note: null },
+        { rating: 'helpful', reason: null, note: 'x'.repeat(1001) },
+        { rating: 'helpful' },
+      ]) {
+        expect((await api.send('PUT', feedbackPath(summary), reviewerA, body)).statusCode).toBe(
+          400,
+        );
+      }
+
+      api.ai.failCalls(1);
+      const unavailable = await api.send('PUT', feedbackPath(summary), reviewerA, helpful);
+      expect(unavailable.statusCode).toBe(503);
+      expect(unavailable.json()).toMatchObject({ type: 'ai-gateway-unavailable' });
+      expect((await view(caseId)).feedback).toEqual([]);
+      expect(api.ai.feedback).toEqual([]);
+    });
+  });
 });

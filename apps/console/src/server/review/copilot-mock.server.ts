@@ -9,8 +9,8 @@
  * - Case `peters`: ready, held by Peter Mwangi (view only for everyone else).
  *
  * Refresh (the holder only, else 403; 409 while pending or stale, or when AI is not enabled)
- * starts new jobs that are ready 6 seconds later. Ratings are kept per caller and job, and the
- * view lists the caller's own. Tests put a case in any state with `setMockCopilot`.
+ * starts new jobs that are ready 6 seconds later. Ratings (the holder only, else 403) are kept
+ * per caller and job, and the view lists the caller's own. Tests put a case in any state with `setMockCopilot`.
  */
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { Assignee, CaseDetail, CopilotView, Flag } from './types';
@@ -564,10 +564,17 @@ export async function copilotRoute(
   const rate = /^\/v1\/review\/copilot\/outputs\/([^/]+)\/feedback$/.exec(pathname);
   if (rate?.[1] && method === 'PUT') {
     const jobId = rate[1];
-    const stored = [...store.values()].find(
-      ({ view: { jobs } }) => jobs.summarize === jobId || jobs.explain === jobId,
-    );
-    if (!stored) return problem(404, 'Not found');
+    const [caseId, stored] =
+      [...store.entries()].find(
+        ([
+          ,
+          {
+            view: { jobs },
+          },
+        ]) => jobs.summarize === jobId || jobs.explain === jobId,
+      ) ?? [];
+    if (!caseId || !stored || holds(caseId) === null) return problem(404, 'Not found');
+    if (!holds(caseId)) return problem(403, 'Only the officer holding the case rates its copilot');
     const body = await readJson(request);
     const valid =
       isRecord(body) &&
