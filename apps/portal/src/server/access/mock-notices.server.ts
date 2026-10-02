@@ -88,7 +88,6 @@ function decision(
     grantedScope: null,
     grounds: [],
     reasons,
-    decidedBy: { subject: 'access-officer', name: 'Access officer' },
     decidedAt,
     ...extra,
   };

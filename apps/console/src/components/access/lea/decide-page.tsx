@@ -86,7 +86,7 @@ export function LeaDecidePage({ request, readOnly }: { request: LeaRequest; read
             readOnly
               ? m.readOnlyText
               : decided
-                ? m.decidedText(decided.decidedBy.name, formatDate(decided.decidedAt))
+                ? m.decidedText(decided.decidedBy?.name ?? null, formatDate(decided.decidedAt))
                 : undefined
           }
           action={

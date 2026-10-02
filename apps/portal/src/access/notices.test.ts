@@ -73,7 +73,6 @@ const DECISION = {
   grantedScope: null,
   grounds: ['not-objectives' as const],
   reasons: 'Only part is needed.',
-  decidedBy: { subject: 's', name: 'Officer Name' },
   decidedAt: '2026-10-20T09:00:00Z',
 };
 

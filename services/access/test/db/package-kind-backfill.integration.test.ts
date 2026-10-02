@@ -35,7 +35,7 @@ afterAll(async () => {
 });
 
 describe(`migration ${MIGRATION}`, () => {
-  it('marks the packages issued before it as access packages, in every Commission', async () => {
+  it('marks the packages issued before it as access packages, in every Commission, as platform work it ends', async () => {
     const tags = migrationTags();
     const index = tags.indexOf(MIGRATION);
     expect(index).toBeGreaterThan(0);
@@ -63,7 +63,15 @@ describe(`migration ${MIGRATION}`, () => {
       });
     }
 
-    await applyMigrations(db, tags.slice(index, index + 1));
+    // Run in one transaction with the migrations after it, as drizzle's migrator does: it must
+    // not leave them working as platform.
+    const tenantAfter = await applyMigrations(db, tags.slice(index, index + 1), async (tx) => {
+      const setting = await tx.execute<{ tenant: string | null }>(
+        sql`select current_setting('app.tenant', true) as tenant`,
+      );
+      return setting.rows[0]?.tenant ?? '';
+    });
+    expect(tenantAfter).toBe('');
 
     const rows = await db.transaction(async (tx) => {
       await tx.execute(sql`select set_config('app.tenant', 'platform', true)`);

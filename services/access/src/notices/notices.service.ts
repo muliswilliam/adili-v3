@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { DATABASE, FieldCipher, switchTenant, withPerson } from '@adili/data-access';
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 
 import { declarantPersonId } from '../access.js';
 import { Clock } from '../clock.js';
@@ -149,9 +149,24 @@ export class NoticesService {
     const { row, saved, released } = await withPerson(this.db, person, async (tx) => {
       const own = notFoundIfInvisible(await noticeRow(tx, personId, requestId));
       const now = this.clock.now();
-      // The representations are the declarant's own write: made under their person context, so
-      // the person policy (their own, on a request about them they were told of) admits it,
-      // not the Commission's (decisions.md #250, ADR-018).
+      // The request and its register belong to the Commission: lock it there first, so the
+      // window cannot close (nor the request be withdrawn) before this commits. Request before
+      // representations, the order every writer of both takes (the officer entering them in
+      // writing, linking a declarant): the other order deadlocks with them.
+      const commission = { tenant: own.tenant, subject: principal.subject };
+      await switchTenant(tx, commission);
+      const [locked] = await tx
+        .select()
+        .from(accessRequests)
+        .where(eq(accessRequests.id, own.id))
+        .for('update');
+      const current = notFoundIfInvisible(locked);
+      requireOpen(current, now);
+
+      // The representations are the declarant's own write: made under their person context
+      // alone, so the person policy (their own, on a request about them they were told of)
+      // admits it, not the Commission's (decisions.md #250, ADR-018).
+      await leaveTenant(tx);
       const [previous] = await tx
         .select()
         .from(representations)
@@ -181,17 +196,7 @@ export class NoticesService {
         .returning();
       if (!saved) throw new Error('The representations were not saved');
 
-      // The request and its register belong to the Commission: lock it there, so the window
-      // cannot close (nor the request be withdrawn) before this commits. Closed meanwhile: the
-      // 409 rolls the save back with everything else.
-      await switchTenant(tx, { tenant: own.tenant, subject: principal.subject });
-      const [locked] = await tx
-        .select()
-        .from(accessRequests)
-        .where(eq(accessRequests.id, own.id))
-        .for('update');
-      const current = notFoundIfInvisible(locked);
-      requireOpen(current, now);
+      await switchTenant(tx, commission);
 
       const row = input.stance === 'consent' ? await consent(tx, current.id) : current;
       await this.register.record(tx, {
@@ -241,6 +246,14 @@ async function noticeRow(
       ),
     );
   return row;
+}
+
+/**
+ * Back to the declarant's person context alone after `switchTenant`: `app.tenant` set to `''`
+ * matches no tenant policy, as when it was never set (`app.person` is left as it was).
+ */
+async function leaveTenant(tx: AccessTransaction): Promise<void> {
+  await tx.execute(sql`select set_config('app.tenant', '', true)`);
 }
 
 /** The declarant consented: the request goes under decision now, the window has done its work. */

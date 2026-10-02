@@ -166,14 +166,16 @@ export async function issueGrantDocument(
     }
   } else {
     let clarifications: DisclosedClarification[] | null = null;
-    if (scope.includeClarifications && grant.personId !== null) {
+    // Clarifications go with Form K grants only (decision 7), under the grant's own legal basis.
+    const { legalBasis } = grant;
+    if (scope.includeClarifications && legalBasis === 'act-s36-1' && grant.personId !== null) {
       try {
         clarifications = await deps.review.discloseClarifications({
           personId: grant.personId,
           tenant: grant.tenant,
           officerSubject: grant.decidedBy,
           grantReference: grant.reference,
-          legalBasis: 'act-s36-1',
+          legalBasis,
           recipientSubject: grant.recipientSubject,
           declarationReferences: disclosure.versions.map((version) => version.reference),
           includeSpouses: scope.includeSpouses,

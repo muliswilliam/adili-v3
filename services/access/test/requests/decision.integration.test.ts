@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
 import { REVIEWER } from '@adili/roles';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { accessRequests } from '../../src/db/schema.js';
 import type { DisclosureDocument } from '../../src/declarations/declarations-client.js';
 import type { RosterCandidateFacts } from '../../src/directory/directory-client.js';
+import { accessRequestWorkflowId } from '../../src/requests/contract.js';
+import { DecisionActivities } from '../../src/requests/decision-activities.js';
 import type { OfficerRequestView } from '../../src/requests/officer-view.js';
 import type { AccessRequest } from '../../src/requests/representation.js';
 import type { DisclosedClarification } from '../../src/review/review-client.js';
@@ -14,6 +18,7 @@ import { contractErrors, okResponse } from '../support/contract.js';
 import {
   callers,
   decide,
+  declarantOf,
   givenCommissions,
   notifiedRequest,
   rowOf,
@@ -340,6 +345,48 @@ describe('Deciding an access request (S6)', () => {
       expect(decided?.data).toMatchObject({ outcome: 'grant', grounds: [] });
     });
 
+    it('an issue attempt that lost the race to record its package answers with the one recorded', async () => {
+      const { id } = await underDecision();
+      await api.endWorkflows([accessRequestWorkflowId(id)]);
+      const decided = await decide(api, id, { outcome: 'grant', reasons: REASONS });
+      expect(decided.statusCode, decided.body).toBe(200);
+      const recordedExpiry = new Date('2027-04-02T12:00:00.000Z');
+      const issue = api.documents.issue.bind(api.documents);
+      const spy = vi.spyOn(api.documents, 'issue').mockImplementation(async (request) => {
+        const issued = await issue(request);
+        // Meanwhile another attempt of the activity records its package first.
+        await api.asPlatform((tx) =>
+          tx
+            .update(accessRequests)
+            .set({
+              packageKind: 'access-package',
+              packageDocumentId: randomUUID(),
+              packageVerificationId: 'ADL-OTHER',
+              packageIssuedAt: new Date('2027-03-19T12:00:00.000Z'),
+              downloadExpiresAt: recordedExpiry,
+            })
+            .where(eq(accessRequests.id, id)),
+        );
+        return issued;
+      });
+
+      try {
+        const outcome = await api.app.get(DecisionActivities).issuePackage({
+          tenant: 'psc',
+          requestId: id,
+          submittedAt: NOW,
+          transactionId: '0',
+        });
+
+        expect(outcome).toEqual({
+          outcome: 'issued',
+          downloadExpiresAt: recordedExpiry.toISOString(),
+        });
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
     it('S6: a partial grant wider than the request is 400 scope-exceeds-request; without grounds 400 grounds-required', async () => {
       const { id } = await underDecision();
 
@@ -406,6 +453,42 @@ describe('Deciding an access request (S6)', () => {
       });
       expect(api.declarations.disclosureCalls).toEqual([]);
       expect(api.documents.issued).toEqual([]);
+    });
+
+    it("tells the applicant and the declarant the decision, never which of the Commission's staff took it", async () => {
+      const { anne, id } = await underDecision();
+      const response = await decide(api, id, {
+        outcome: 'deny',
+        grounds: ['frivolous-vexatious'],
+        reasons: REASONS,
+      });
+      expect(response.statusCode, response.body).toBe(200);
+      const told = {
+        outcome: 'deny',
+        grantedScope: null,
+        grounds: ['frivolous-vexatious'],
+        reasons: REASONS,
+        decidedAt: DECIDED_AT,
+      };
+
+      const mine = await api.get(`/v1/access/requests/${id}`, mercy);
+      expect(mine.statusCode, mine.body).toBe(200);
+      expect(
+        contractErrors(okResponse('/v1/access/requests/{requestId}', 'get'), mine.json()),
+      ).toEqual([]);
+      expect(mine.json<AccessRequest>().decision).toEqual(told);
+
+      const notices = await api.get('/v1/me/access-notices', declarantOf(anne));
+      expect(notices.statusCode, notices.body).toBe(200);
+      expect(contractErrors(okResponse('/v1/me/access-notices', 'get'), notices.json())).toEqual(
+        [],
+      );
+      expect(notices.json<{ decision: unknown }[]>()[0]?.decision).toEqual(told);
+
+      for (const body of [mine.body, notices.body]) {
+        expect(body).not.toContain(officer.sub);
+        expect(body).not.toContain(officer.name);
+      }
     });
   });
 

@@ -11,10 +11,10 @@ import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { issueGrantDocument, readyTemplate } from '../grant-documents.js';
+import { recordPackageExpired, recordPackageIssued } from '../grant-records.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { ReviewClient } from '../review/review-client.js';
-import { accessRegister } from '../register/schema.js';
 import { declarantNoticesUrl, leaRequestUrl, officerLeaRequestUrl } from '../requests/links.js';
 import { CHANNELS, messageKey, send } from '../requests/workflow-support.js';
 import { systemContext } from '../system-context.js';
@@ -340,7 +340,7 @@ export class LeaRequestActivities {
     });
     const { downloadExpiresAt } = issued;
 
-    await withTenant(this.db, systemContext(tenant), async (tx) => {
+    const stored = await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [recorded] = await tx
         .update(leaRequests)
         .set({
@@ -353,25 +353,19 @@ export class LeaRequestActivities {
         })
         .where(and(eq(leaRequests.id, requestId), isNull(leaRequests.packageDocumentId)))
         .returning();
-      if (!recorded) return;
-      await this.register.record(tx, {
-        tenant,
-        subjectKind: 'lea-request',
-        subjectId: requestId,
-        reference: recorded.reference,
-        personId: recorded.resolvedPersonId,
-        kind: 'package-issued',
-        actor: null,
-        at: issued.issuedAt,
-        details: {
-          documentId: issued.id,
-          downloadExpiresAt: downloadExpiresAt.toISOString(),
-          packageKind: kind,
-        },
-        eventData: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
-      });
+      if (!recorded) {
+        // Another attempt recorded its package first: answer with that one's window.
+        const [current] = await tx
+          .select({ downloadExpiresAt: leaRequests.downloadExpiresAt })
+          .from(leaRequests)
+          .where(eq(leaRequests.id, requestId));
+        return current?.downloadExpiresAt ?? null;
+      }
+      await recordPackageIssued(tx, this.register, 'lea-request', recorded, { ...issued, kind });
+      return downloadExpiresAt;
     });
-    return { outcome: 'issued', downloadExpiresAt: downloadExpiresAt.toISOString() };
+    if (stored === null) throw invariantBroken('The recorded package has no download window');
+    return { outcome: 'issued', downloadExpiresAt: stored.toISOString() };
   }
 
   /**
@@ -433,31 +427,14 @@ export class LeaRequestActivities {
         .where(eq(leaRequests.id, requestId))
         .for('update');
       if (!found) return 'missing';
-      if (found.downloadExpiresAt === null || found.packageDocumentId === null) {
+      const { downloadExpiresAt, packageDocumentId } = found;
+      if (downloadExpiresAt === null || packageDocumentId === null) {
         throw invariantBroken('The request has no package');
       }
-      const [expired] = await tx
-        .select({ id: accessRegister.id })
-        .from(accessRegister)
-        .where(
-          and(
-            eq(accessRegister.subjectKind, 'lea-request'),
-            eq(accessRegister.subjectId, requestId),
-            eq(accessRegister.kind, 'expired'),
-          ),
-        );
-      if (expired) return 'expired';
-      await this.register.record(tx, {
-        tenant,
-        subjectKind: 'lea-request',
-        subjectId: requestId,
-        reference: found.reference,
-        personId: found.resolvedPersonId,
-        kind: 'expired',
-        actor: null,
-        at: found.downloadExpiresAt,
-        details: { documentId: found.packageDocumentId },
-        eventData: { documentId: found.packageDocumentId },
+      await recordPackageExpired(tx, this.register, 'lea-request', {
+        ...found,
+        downloadExpiresAt,
+        packageDocumentId,
       });
       return 'expired';
     });

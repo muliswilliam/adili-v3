@@ -1,6 +1,7 @@
 import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
+import { decisionSchema } from '../decision.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import type { RegisterEntry } from '../register/representation.js';
 import { noticeOf, noticeSchema } from '../written-notice.js';
@@ -36,6 +37,8 @@ export type Representations = z.infer<typeof representationsSchema>;
  * was resolved to, the declarant's representations and their window.
  */
 export const officerRequestViewSchema = accessRequestSchema.extend({
+  /** With who took it, which the applicant is not told. */
+  decision: decisionSchema.nullable(),
   applicantIdentityStatus: z.enum(APPLICANT_IDENTITY_STATUSES),
   resolvedRosterRecordId: z.uuid().nullable(),
   /** The roster record's full name and personnel file number, as the roster had them then. */
@@ -108,6 +111,7 @@ export function toOfficerRequestView(
 ): OfficerRequestView {
   return {
     ...toAccessRequest(row, formK, timeline),
+    decision: row.decision,
     applicantIdentityStatus: row.applicantIdentityStatus,
     resolvedRosterRecordId: row.resolvedRosterRecordId,
     resolvedName: row.resolvedName,

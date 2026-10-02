@@ -640,9 +640,8 @@ function asOfficerView(request: LeaRequest): LeaRequest {
     declarantOnboarded: null,
     declarantInvitedAt: null,
     declarantNotice: null,
-    verification: request.verification
-      ? { ...request.verification, by: { subject: '', name: '' }, note: '' }
-      : null,
+    verification: request.verification ? { ...request.verification, by: null, note: '' } : null,
+    decision: request.decision ? { ...request.decision, decidedBy: null } : null,
     timeline: request.timeline.map((each) =>
       OWN_STEPS.includes(each.kind) ? each : { ...each, actor: null },
     ),

@@ -1,7 +1,7 @@
 import { TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
-import { decisionSchema, packageFailedAtSchema, packageSchema } from '../decision.js';
+import { leaDecisionSchema, packageFailedAtSchema, packageSchema } from '../decision.js';
 import { type RegisterEntry, registerEntrySchema } from '../register/representation.js';
 import { packageOf } from '../requests/representation.js';
 import { scopeSchema } from '../scope.js';
@@ -82,7 +82,9 @@ export const leaProvenanceSchema = z.object({
 });
 
 export const leaVerificationSchema = z.object({
-  by: z.object({ subject: z.string(), name: z.string() }),
+  by: z.object({ subject: z.string(), name: z.string() }).nullable().meta({
+    description: "The access officer who verified; null for the agency's officer",
+  }),
   at: z.iso.datetime({ offset: true }),
   note: z.string(),
   provenance: leaProvenanceSchema.meta({ description: 'As confirmed when verified' }),
@@ -120,7 +122,7 @@ export const leaRequestSchema = z.object({
     .nullable()
     .meta({ description: 'The roster record the officer sought was identified as' }),
   verification: leaVerificationSchema.nullable(),
-  decision: decisionSchema.nullable(),
+  decision: leaDecisionSchema.nullable(),
   declarantNotifiedAt: z.iso.datetime({ offset: true }).nullable().meta({
     description: 'When the declarant was told of the grant (only after a grant, r.23(2))',
   }),
@@ -147,7 +149,8 @@ export type LeaRequestRow = typeof leaRequests.$inferSelect;
 
 /**
  * The API shape of a law enforcement request, with its register entries, oldest first. The
- * agency's officer does not see how the declarant's account and notice stand.
+ * agency's officer does not see how the declarant's account and notice stand, nor which of the
+ * Commission's staff verified and decided it (they act as "the Commission", as in its timeline).
  */
 export function toLeaRequest(
   row: LeaRequestRow,
@@ -178,12 +181,13 @@ export function toLeaRequest(
       verification === null
         ? null
         : {
-            by: { subject: verification.by, name: verification.byName },
+            by: commission ? { subject: verification.by, name: verification.byName } : null,
             at: verification.at,
             note: verification.note,
             provenance: verification.provenance,
           },
-    decision: row.decision,
+    decision:
+      row.decision === null || commission ? row.decision : { ...row.decision, decidedBy: null },
     declarantNotifiedAt: row.declarantNotifiedAt?.toISOString() ?? null,
     declarantOnboarded:
       commission && row.resolvedRosterRecordId !== null ? row.resolvedPersonId !== null : null,

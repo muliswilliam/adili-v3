@@ -25,6 +25,34 @@ export const decisionSchema = z.object({
 export type Decision = z.infer<typeof decisionSchema>;
 
 /**
+ * access.yaml `PublicDecision`: the decision as the applicant and the declarant are told it,
+ * with no word of which of the Commission's staff took it (they act as "the Commission" to the
+ * public, as in the applicant's timeline).
+ */
+export const publicDecisionSchema = decisionSchema.omit({ decidedBy: true });
+
+export type PublicDecision = z.infer<typeof publicDecisionSchema>;
+
+/** `decision` without who took it, for the applicant and the declarant. */
+export function publicDecision(decision: Decision | null): PublicDecision | null {
+  if (decision === null) return null;
+  const { outcome, grantedScope, grounds, reasons, decidedAt } = decision;
+  return { outcome, grantedScope, grounds, reasons, decidedAt };
+}
+
+/**
+ * access.yaml `LeaDecision`: a law enforcement request's decision, as the Commission sees it
+ * (who took it) and as the agency's officer does (`decidedBy` null).
+ */
+export const leaDecisionSchema = decisionSchema.extend({
+  decidedBy: decisionSchema.shape.decidedBy.nullable().meta({
+    description: "The access officer who decided; null for the agency's officer",
+  }),
+});
+
+export type LeaDecision = z.infer<typeof leaDecisionSchema>;
+
+/**
  * access.yaml `DecisionInput`: what the access officer decides. The rules between the fields
  * (which outcome needs grounds or a narrowed scope) are `decisionOf`'s, as they need the
  * requested scope.

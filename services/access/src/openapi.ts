@@ -4,9 +4,11 @@ import { accessCommissionSchema } from './commissions/representation.js';
 import {
   decisionInputSchema,
   decisionSchema,
+  leaDecisionSchema,
   groundSchema,
   outcomeSchema,
   packageSchema,
+  publicDecisionSchema,
 } from './decision.js';
 import { accessHistoryEntrySchema, historyCertifiedCopySchema } from './history/representation.js';
 import {
@@ -64,6 +66,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Section: sectionSchema,
   Scope: scopeSchema,
   Decision: decisionSchema,
+  PublicDecision: publicDecisionSchema,
+  LeaDecision: leaDecisionSchema,
   DecisionInput: decisionInputSchema,
   Package: packageSchema,
   ScopePreview: scopePreviewSchema,

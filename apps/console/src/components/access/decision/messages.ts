@@ -127,6 +127,7 @@ export const en = {
   final: 'Final',
   grounds: 'Regulation 24 grounds',
   decidedBy: 'Decided by',
+  decided: 'Decided',
 
   // Package
   packageTitle: 'Package',

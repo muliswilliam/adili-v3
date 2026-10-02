@@ -8,3 +8,7 @@ UPDATE "lea_requests" SET "package_kind" = 'access-package'
 --> statement-breakpoint
 UPDATE "access_requests" SET "package_kind" = 'access-package'
 	WHERE "package_document_id" IS NOT NULL AND "package_kind" IS NULL;
+--> statement-breakpoint
+-- The migrations after this one run in the same transaction (drizzle's migrator runs them all in
+-- one): they must not inherit the platform setting.
+SELECT set_config('app.tenant', '', true);
