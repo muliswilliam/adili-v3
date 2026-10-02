@@ -1,5 +1,6 @@
 import { redirect } from '@tanstack/react-router';
 
+import { isSignedInApplicant } from '../../server/access-requests';
 import { getApplicantOnboardingSession } from '../../server/applicant-onboarding';
 import type { ApplicantSessionLookup } from '../../server/applicant-onboarding.server';
 import type { ApplicantOnboardingSession } from '../../server/directory/types';
@@ -55,4 +56,12 @@ export async function requireApplicantCheckEmail(): Promise<ApplicantCheckEmailG
 export function redirectIfApplicantInProgress(lookup: ApplicantSessionLookup): void {
   const resume = lookup.status === 'active' ? resumeApplicantRoute(lookup.session) : null;
   if (resume) throw redirect({ to: resume });
+}
+
+/**
+ * Loader check for the access landing page: a signed-in applicant has nothing to start or sign
+ * in to there, so they go to My requests, as from the portal's home.
+ */
+export async function redirectSignedInApplicant(): Promise<void> {
+  if (await isSignedInApplicant()) throw redirect({ to: '/access/requests' });
 }

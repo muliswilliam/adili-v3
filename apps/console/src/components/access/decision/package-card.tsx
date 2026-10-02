@@ -5,43 +5,65 @@ import {
   formatDate,
   formatDateTime,
   Icon,
+  PACKAGE_PREPARING_FOR_MS,
   Spinner,
+  unissuedPackageState,
 } from '@adili/ui';
-import { SquareLock02Icon } from '@hugeicons/core-free-icons';
+import { PackageRemoveIcon, SquareLock02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
+import { useNowAt } from '../../use-now-at';
 import { SideCard } from '../side-cards';
 import type { Decision, Package } from './decision-rules';
 import { messages as m } from './messages';
 
-/** Days a granted package can be downloaded (the access service's PACKAGE_DOWNLOAD_DAYS). */
-export const PACKAGE_DOWNLOAD_DAYS = 14;
-
 /** Where a granted request's package stands for the officer. */
 export type PackageState =
-  /** Granted; the workflow is rendering, watermarking and signing it. */
+  /** Granted within the hour; the workflow is rendering, watermarking and signing it. */
   | { state: 'preparing' }
+  /** Granted over an hour ago and still nothing: nothing to disclose, or issuing failed. */
+  | { state: 'missing' }
   | { state: 'issued'; package: Package; lastDownloadAt: string | null }
   | { state: 'closed'; package: Package; lastDownloadAt: string | null };
 
 /**
  * The package of a decided request at `now`, or null for a denial. Downloads are the
  * documents service's, counted on the package; the last one is the latest `downloaded`
- * register entry. Until the package is issued it is preparing (also when the granted scope
- * turned out to hold nothing to disclose: the access service leaves it unissued, #259).
+ * register entry. A package not issued yet reads as preparing for an hour after the grant,
+ * then as missing (the access service leaves a grant with nothing to disclose unissued, #259):
+ * the shared rule every audience reads (`unissuedPackageState`).
  */
 export function packageState(
-  decision: Pick<Decision, 'outcome'>,
+  decision: Pick<Decision, 'outcome' | 'decidedAt'>,
   pkg: Package | null,
   downloadedAt: readonly string[],
   now: number,
 ): PackageState | null {
   if (decision.outcome === 'deny') return null;
-  if (!pkg) return { state: 'preparing' };
+  if (!pkg) return { state: unissuedPackageState(decision.decidedAt, now) };
   const lastDownloadAt = [...downloadedAt].sort().at(-1) ?? null;
   return Date.parse(pkg.downloadExpiresAt) <= now
     ? { state: 'closed', package: pkg, lastDownloadAt }
     : { state: 'issued', package: pkg, lastDownloadAt };
+}
+
+/**
+ * `packageState` read against the loader's `now`, moving on by itself when a package not issued
+ * stops reading as preparing (an hour after the grant), so the card says it was not issued
+ * without a reload.
+ */
+export function usePackageState(
+  decision: Pick<Decision, 'outcome' | 'decidedAt'> | null,
+  pkg: Package | null,
+  downloadedAt: readonly string[],
+  serverNow: string,
+): PackageState | null {
+  const turnsAt =
+    decision && decision.outcome !== 'deny' && !pkg
+      ? Date.parse(decision.decidedAt) + PACKAGE_PREPARING_FOR_MS
+      : null;
+  const now = useNowAt(Date.parse(serverNow), turnsAt);
+  return decision ? packageState(decision, pkg, downloadedAt, now) : null;
 }
 
 function Item({ term, children }: { term: ReactNode; children: ReactNode }) {
@@ -78,6 +100,19 @@ export function PackageCard({
   recipientName: string;
   reference: string;
 }) {
+  if (state.state === 'missing') {
+    return (
+      <SideCard id="package" title={m.packageTitle} actions={<Confidential />}>
+        <p className="flex items-start gap-2.5 text-sm">
+          <Icon icon={PackageRemoveIcon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <span>
+            <span className="font-medium">{m.noPackage}</span>{' '}
+            <span className="text-muted-foreground">{m.noPackageWhy}</span>
+          </span>
+        </p>
+      </SideCard>
+    );
+  }
   if (state.state === 'preparing') {
     return (
       <SideCard id="package" title={m.packageTitle} actions={<Confidential />}>

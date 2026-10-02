@@ -6,8 +6,7 @@ import { type SubmitEvent, useState } from 'react';
 import type { IdentityDocumentKind } from '../../server/directory/types';
 import { START_AGAIN_NOTICES, type StartAgainNotice } from '../onboarding/problems';
 import { StepHeading } from '../onboarding/onboarding-layout';
-
-const QUESTION = 'How will you identify yourself?';
+import { ID_TYPE_COPY as COPY } from './copy';
 
 /**
  * Step 1, Choose your ID: a Kenyan national ID, checked with the national register, or a
@@ -36,15 +35,15 @@ export function IdTypeStep({
           <AlertDescription>{START_AGAIN_NOTICES[notice]}</AlertDescription>
         </Alert>
       ) : null}
-      <StepHeading title={QUESTION} />
+      <StepHeading title={COPY.question} />
       <form noValidate onSubmit={submit} className="mt-[22px] grid gap-[22px]">
-        <RadioGroup legend={QUESTION} legendHidden columns={2}>
+        <RadioGroup legend={COPY.question} legendHidden columns={2}>
           <RadioCard
             layout="tile"
             name="kind"
             value="national-id"
-            label="Kenyan national ID"
-            description="Checked with the national register"
+            label={COPY.nationalId}
+            description={COPY.nationalIdDescription}
             icon={<Icon icon={CreditCardIcon} />}
             checked={kind === 'national-id'}
             onChange={() => {
@@ -55,8 +54,8 @@ export function IdTypeStep({
             layout="tile"
             name="kind"
             value="passport"
-            label="Passport"
-            description="Checked by the Commission later"
+            label={COPY.passport}
+            description={COPY.passportDescription}
             icon={<Icon icon={Globe02Icon} />}
             checked={kind === 'passport'}
             onChange={() => {
@@ -65,7 +64,7 @@ export function IdTypeStep({
           />
         </RadioGroup>
         <Button type="submit" className="w-full" disabled={!kind}>
-          Continue
+          {COPY.continue}
         </Button>
       </form>
     </>

@@ -72,7 +72,7 @@ export function RadioCard({
           className="mt-0.5 size-[18px] shrink-0 rounded-full bg-control shadow-[inset_0_0_0_1.5px_var(--input)] transition-shadow peer-checked:shadow-[inset_0_0_0_5px_var(--primary)]"
         />
       )}
-      <span className={cn('grid gap-0.5', !tile && 'flex-1')}>
+      <span className={cn('grid min-w-0 gap-0.5', !tile && 'flex-1')}>
         <span id={labelId}>{label}</span>
         {description ? (
           <FieldHint id={fieldIds.hintId} className="font-normal">

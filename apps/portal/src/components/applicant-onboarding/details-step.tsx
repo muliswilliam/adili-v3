@@ -22,7 +22,7 @@ import { optionalLabel } from '../declaration/optional-label';
 import { RECOVER_ACCESS, SIGN_IN } from '../onboarding/links';
 import { StepHeading } from '../onboarding/onboarding-layout';
 import { GENERIC_ERROR, problemMessage, SEND_FAILED } from '../onboarding/problems';
-import { applicantProblemMessage } from './copy';
+import { applicantProblemMessage, DETAILS_COPY as COPY } from './copy';
 import {
   DETAILS_FIELDS,
   type DetailsField,
@@ -130,7 +130,7 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
 
   return (
     <>
-      <StepHeading title="Your details" />
+      <StepHeading title={COPY.title} />
       {shownProblem ? <ProblemAlert ref={problemRef} problem={shownProblem} /> : null}
       {/* POST, so the particulars never land in the address bar if it is sent before hydration. */}
       <form
@@ -140,19 +140,19 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
         className="mt-[22px] grid gap-4"
       >
         <div className="grid gap-4 min-[520px]:grid-cols-2">
-          <FormField label="Surname" error={errors.surname}>
+          <FormField label={COPY.surname} error={errors.surname}>
             <Input {...text('surname')} autoComplete="family-name" maxLength={100} />
           </FormField>
-          <FormField label="First name" error={errors.firstName}>
+          <FormField label={COPY.firstName} error={errors.firstName}>
             <Input {...text('firstName')} autoComplete="given-name" maxLength={100} />
           </FormField>
         </div>
-        <FormField label={optionalLabel('Other names')} error={errors.otherNames}>
+        <FormField label={optionalLabel(COPY.otherNames)} error={errors.otherNames}>
           <Input {...text('otherNames')} autoComplete="additional-name" maxLength={100} />
         </FormField>
         {passport ? (
           <div className="grid gap-4 min-[520px]:grid-cols-2">
-            <FormField label="Passport number" error={errors.number}>
+            <FormField label={COPY.passportNumber} error={errors.number}>
               <Input
                 {...text('number')}
                 autoCapitalize="characters"
@@ -162,14 +162,14 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
               />
             </FormField>
             <FormField
-              label="Issuing country"
+              label={COPY.issuingCountry}
               error={errors.country}
               controlId={fieldId('country')}
             >
               <CountrySelect
                 id={fieldId('country')}
                 name="country"
-                placeholder="Choose"
+                placeholder={COPY.countryPlaceholder}
                 disabled={submitting}
                 value={values.country || null}
                 onValueChange={(code) => {
@@ -179,28 +179,28 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
             </FormField>
           </div>
         ) : (
-          <FormField label="National ID number" error={errors.number}>
+          <FormField label={COPY.nationalIdNumber} error={errors.number}>
             <Input {...text('number')} inputMode="numeric" autoComplete="off" maxLength={12} />
           </FormField>
         )}
-        <FormField label="Mobile number" hint="We send a code by SMS." error={errors.phone}>
+        <FormField label={COPY.mobile} hint={COPY.mobileHint} error={errors.phone}>
           <Input
             {...text('phone')}
             type="tel"
             inputMode="tel"
             autoComplete="tel"
-            placeholder={passport ? '+233 24 471 8265' : '0712 345 678'}
+            placeholder={passport ? COPY.anyPhonePlaceholder : COPY.kenyanPhonePlaceholder}
             maxLength={30}
           />
         </FormField>
-        <FormField label="Email address" hint="Your password link goes here." error={errors.email}>
+        <FormField label={COPY.email} hint={COPY.emailHint} error={errors.email}>
           <Input
             {...text('email')}
             type="email"
             inputMode="email"
             autoComplete="email"
             spellCheck={false}
-            placeholder="name@example.com"
+            placeholder={COPY.emailPlaceholder}
             maxLength={254}
           />
         </FormField>
@@ -208,16 +208,16 @@ export function DetailsStep({ kind }: { kind: IdentityDocumentKind }) {
           {submitting ? (
             <>
               <Spinner />
-              {passport ? 'Sending code…' : 'Checking the national register…'}
+              {passport ? COPY.sendingCode : COPY.checkingRegister}
             </>
           ) : blocked ? (
             <>
               <Icon icon={Clock01Icon} />
               {/* The alert states the wait once; the button counts down without announcing. */}
-              <span className="tabular-nums">Try again in {formatClock(secondsLeft)}</span>
+              <span className="tabular-nums">{COPY.tryAgainIn(formatClock(secondsLeft))}</span>
             </>
           ) : (
-            'Continue'
+            COPY.continue
           )}
         </Button>
       </form>
@@ -235,10 +235,10 @@ function ProblemAlert({ ref, problem }: { ref: Ref<HTMLDivElement>; problem: Sta
         <AlertTitle>{applicantProblemMessage('already-onboarded')}</AlertTitle>
         <div className="mt-2.5 flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <a href={problem.links?.signIn ?? SIGN_IN}>Sign in</a>
+            <a href={problem.links?.signIn ?? SIGN_IN}>{COPY.signIn}</a>
           </Button>
           <Button asChild size="sm" variant="secondary">
-            <a href={problem.links?.recoverAccess ?? RECOVER_ACCESS}>Recover access</a>
+            <a href={problem.links?.recoverAccess ?? RECOVER_ACCESS}>{COPY.recoverAccess}</a>
           </Button>
         </div>
       </Alert>

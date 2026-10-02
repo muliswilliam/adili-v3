@@ -142,10 +142,9 @@ describe('RequestPage (S17)', () => {
 
   it('cites a denial’s grounds from Regulation 24 and the court relief', async () => {
     show(await seededRequest(IDS.denied));
-    expect(screen.getByText('Frivolous, vexatious or scandalous (Regulation 24(c))')).toBeTruthy();
-    expect(
-      screen.getByText('Does not promote the objectives of the Act (Regulation 24(d))'),
-    ).toBeTruthy();
+    expect(screen.getByText('Frivolous, vexatious or scandalous')).toBeTruthy();
+    expect(screen.getByText('(c) the request is frivolous, vexatious or scandalous;')).toBeTruthy();
+    expect(screen.getByText('Does not promote the objectives of the Act')).toBeTruthy();
     expect(
       screen.getByText('If you disagree with the decision, you may seek relief from the court.'),
     ).toBeTruthy();
@@ -154,7 +153,7 @@ describe('RequestPage (S17)', () => {
 
   it('shows what a partial grant covers', async () => {
     show(await seededRequest(IDS.partial));
-    expect(screen.getByText('Against the public interest (Regulation 24(a))')).toBeTruthy();
+    expect(screen.getByText('Against public interest')).toBeTruthy();
     expect(screen.getByText('Granted')).toBeTruthy();
   });
 
@@ -240,6 +239,26 @@ describe('RequestPage package (#261, S7)', () => {
     expect(screen.getByText('Preparing your package…')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
     expect(screen.getByText(/Your package is being prepared\./)).toBeTruthy();
+  });
+
+  it('says no package was issued once an hour has passed since the grant without one', async () => {
+    show(await seededRequest(IDS.unissued));
+    expect(
+      screen.getByText('No package has been issued for this grant.', { selector: 'p' }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Contact Public Service Commission if you still need it\./),
+    ).toBeTruthy();
+    expect(screen.queryByText('Preparing your package…')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(stage('Package, stopped')).toBeTruthy();
+  });
+
+  it('describes Download by when the window ends', async () => {
+    show(await seededRequest(IDS.granted));
+    const button = screen.getByRole('button', { name: 'Download' });
+    const described = document.getElementById(button.getAttribute('aria-describedby') ?? '');
+    expect(described?.textContent).toMatch(/^Expires \d+ Oct 2026, \d\d:\d\d · 13 days left$/);
   });
 
   it('shows no package for a denial', async () => {

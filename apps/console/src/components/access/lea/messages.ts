@@ -1,11 +1,8 @@
-import { plural } from '@adili/ui';
-
-import type { LeaRequestStatus, Outcome } from '../../../server/access/types';
-
 /**
  * Copy of law enforcement requests in the Access requests workspace (spec 10 FE-6), from the
  * console prototype (`apps/console/prototype/10-access.prototype.html`): the access officer's
- * request page, verification and decision. English only, as `access/messages.ts`.
+ * request page, verification and decision. English, with an empty Swahili slot (`sw`), as
+ * `access/messages.ts`.
  */
 export const en = {
   lawEnforcement: 'Law enforcement',
@@ -67,16 +64,8 @@ export const en = {
   provenanceRequired: 'Confirm the request comes from the agency account it shows.',
   reasonRequired: 'Confirm the request states its reason.',
   onTheRoster: 'Officer on the roster',
-  rosterSearchLabel: 'Search the roster by name or file number',
-  rosterSearchPlaceholder: 'Name or file number',
-  rosterMatches: 'Roster matches',
-  searching: 'Searching the roster',
-  noRosterMatch: 'No roster record matches. Try the personnel file number.',
-  rosterSearchFailed: 'The roster could not be searched. Try again.',
-  notOnboarded: 'Not onboarded',
   notOnboardedHint: 'Has no declarant account to be told on.',
   recordRequired: 'Choose the roster record of the officer sought.',
-  fileNumber: (file: string) => `File ${file}`,
   note: 'Note',
   notePlaceholder: 'What you checked',
   noteHint: 'Recorded with the verification.',
@@ -124,21 +113,9 @@ export const en = {
   finalityDeny: (agency: string) =>
     `${agency} is told with your reasons. The declarant is not notified.`,
   reasonsHint: 'Sent to the agency.',
-
-  // Statuses (access officer)
-  status: {
-    received: 'Received',
-    verified: 'Verified',
-    granted: 'Granted',
-    denied: 'Denied',
-    withdrawn: 'Withdrawn',
-  } satisfies Record<LeaRequestStatus, string>,
-  outcome: {
-    grant: 'Granted',
-    'partial-grant': 'Partially granted',
-    deny: 'Denied',
-  } satisfies Record<Outcome, string>,
-  downloads: (count: number) => plural(count, 'download'),
 };
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;

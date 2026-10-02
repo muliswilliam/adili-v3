@@ -257,6 +257,9 @@ export {
 } from './components/save-indicator';
 export {
   formatScope,
+  formatScopePeople,
+  formatScopeSections,
+  formatScopeYears,
   isSameScope,
   isScopeWithin,
   type Scope,
@@ -388,7 +391,25 @@ export {
   useCountdown,
   useCountdownAnnouncement,
 } from './lib/countdown';
-export { focusRing, focusRingInset, focusRingWithin } from './lib/focus';
+export { focusRing, focusRingInset, focusRingWithin, textLink } from './lib/focus';
+export {
+  type AccessOutcome,
+  accessMessages,
+  accessMessagesSw,
+  accessOutcomeLabels,
+  type AccessRequestStatus,
+  type AccessStatusMeta,
+  accessStatusMeta,
+  applicantAccessStatusMeta,
+  DECIDED_ACCESS_STATUSES,
+  GRANTED_ACCESS_STATUSES,
+  leaStatusMeta,
+  type LeaRequestStatus,
+  type MatchesAccessCopy,
+  OPEN_ACCESS_STATUSES,
+  PACKAGE_PREPARING_FOR_MS,
+  unissuedPackageState,
+} from './lib/access';
 export {
   daysInMonth,
   formatDayMonthYear,

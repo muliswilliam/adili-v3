@@ -19,7 +19,7 @@ import type { LeaRequest, Outcome } from '../../../server/access/types';
 import { decideLea } from '../../../server/lea-requests';
 import { Page } from '../../page';
 import { DecisionForm } from '../decision/decision-form';
-import { scopeText } from '../decision/scope-text';
+import { scopeText } from '../format';
 import { messages as m } from './messages';
 
 function Value({ term, children }: { term: string; children: ReactNode }) {
@@ -131,7 +131,6 @@ export function LeaDecidePage({ request, readOnly }: { request: LeaRequest; read
           <DecisionForm
             requestedScope={request.scope}
             outcomes={outcomes}
-            clarifications={false}
             deadline={{ due: request.deadlineAt, soonDays: deadlineSoonDays.lawEnforcement }}
             reasonsHint={m.reasonsHint}
             finality={(outcome) => ({

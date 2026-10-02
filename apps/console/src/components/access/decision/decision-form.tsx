@@ -42,7 +42,7 @@ import {
   REASONS_MAX,
 } from './decision-rules';
 import { messages as m } from './messages';
-import { scopeText } from './scope-text';
+import { scopeText } from '../format';
 
 const ALL_OUTCOMES: readonly Outcome[] = ['grant', 'partial-grant', 'deny'];
 
@@ -51,8 +51,6 @@ export interface DecisionFormProps {
   requestedScope: Scope;
   /** The outcomes on offer, in order; all three by default. */
   outcomes?: readonly Outcome[];
-  /** Whether the scope covers clarifications: Form K may, law enforcement requests never do. */
-  clarifications: boolean;
   /** The decision deadline, shown in the card's header. */
   deadline: { due: string; soonDays: number };
   /** Under the reasons: who reads them, e.g. "Sent to the applicant and the declarant." */
@@ -88,7 +86,6 @@ export interface DecisionFormProps {
 export function DecisionForm({
   requestedScope,
   outcomes = ALL_OUTCOMES,
-  clarifications,
   deadline,
   reasonsHint,
   finality,
@@ -133,7 +130,7 @@ export function DecisionForm({
 
   const record = async () => {
     if (!draft.outcome) return;
-    const input = decisionInput({ ...draft, outcome: draft.outcome }, clarifications);
+    const input = decisionInput({ ...draft, outcome: draft.outcome });
     const body = JSON.stringify(input);
     // A retry of the same decision replays; a changed one is a new request to the service.
     if (attempt.current?.body !== body) attempt.current = { key: crypto.randomUUID(), body };
@@ -162,7 +159,7 @@ export function DecisionForm({
   };
 
   const showScope = draft.outcome === 'partial-grant';
-  const narrowable = canNarrow(requestedScope, clarifications);
+  const narrowable = canNarrow(requestedScope);
   const whole = isWholeScope(draft, requestedScope);
   const scopeError = errors.scope && !(whole && errors.scope === m.sameAsRequested);
 
@@ -259,7 +256,6 @@ export function DecisionForm({
               }}
               years={requestedScope.years}
               restrictTo={requestedScope}
-              clarifications={clarifications}
               errors={{ years: errors.years, sections: errors.sections }}
               disabled={busy}
             />
@@ -331,14 +327,7 @@ export function DecisionForm({
           outcome={draft.outcome}
           finality={finality(draft.outcome)}
           packageRecipient={packageRecipient}
-          packageScope={scopeText(
-            draft.outcome === 'partial-grant'
-              ? {
-                  ...draft.scope,
-                  includeClarifications: clarifications && draft.scope.includeClarifications,
-                }
-              : requestedScope,
-          )}
+          packageScope={scopeText(draft.outcome === 'partial-grant' ? draft.scope : requestedScope)}
           grounds={draft.grounds.map((ground) => groundMeta[ground].label)}
           onConfirm={() => void record()}
         />

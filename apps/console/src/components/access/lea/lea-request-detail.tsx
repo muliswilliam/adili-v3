@@ -10,6 +10,8 @@ import {
   deadlineSoonDays,
   formatDate,
   formatDateTime,
+  formatScopeSections,
+  formatScopeYears,
   Icon,
   RegisterTimeline,
   Tooltip,
@@ -21,18 +23,18 @@ import {
   Notification03Icon,
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
-import { Link, useRouter } from '@tanstack/react-router';
-import { useEffect } from 'react';
+import { Link } from '@tanstack/react-router';
 
 import type { LeaRequest } from '../../../server/access/types';
 import { ReadOnlyBadge } from '../../commissions/badges';
 import { Page } from '../../page';
+import { usePollWhile } from '../../use-poll-while';
 import { Grid, NotGiven, Part, Value } from '../form-k-card';
-import { scopePeople, scopeSections, scopeYears } from '../format';
+import { scopePeople } from '../format';
 import { StatusBadge } from '../queue-list';
 import { Muted, SideCard, WaitingCard } from '../side-cards';
 import { DecidedCard } from '../decision/decided-card';
-import { PackageCard, packageState } from '../decision/package-card';
+import { PackageCard, usePackageState } from '../decision/package-card';
 import { isBreached, isOpenLea, leaStep, leaTimelineOf } from './lea-view';
 import { messages as m } from './messages';
 import { LeaVerifyCard } from './verify-card';
@@ -60,7 +62,13 @@ export function LeaRequestDetail({
   const step = leaStep(request, readOnly);
   const open = isOpenLea(request);
   const breached = isBreached(request, now);
-  usePackagePolling(request.status === 'granted' && request.package === null);
+  const pkg = usePackageState(
+    request.status === 'granted' ? request.decision : null,
+    request.package,
+    request.timeline.filter((entry) => entry.kind === 'downloaded').map((entry) => entry.at),
+    now,
+  );
+  usePollWhile(pkg?.state === 'preparing', PACKAGE_POLL_MS, PACKAGE_POLLS);
 
   return (
     <Page>
@@ -121,18 +129,9 @@ export function LeaRequestDetail({
           {step.kind === 'waiting' ? <WaitingCard text={step.text} /> : null}
           {step.kind === 'decide' ? <DecideCard request={request} readOnly={readOnly} /> : null}
           {request.decision ? <DecidedCard decision={request.decision} /> : null}
-          {request.decision && request.status === 'granted' ? (
+          {pkg ? (
             <PackageCard
-              state={
-                packageState(
-                  request.decision,
-                  request.package,
-                  request.timeline
-                    .filter((entry) => entry.kind === 'downloaded')
-                    .map((entry) => entry.at),
-                  Date.parse(now),
-                ) ?? { state: 'preparing' }
-              }
+              state={pkg}
               recipientName={`${request.officer.name}, ${request.agency.code}`}
               reference={request.reference}
             />
@@ -224,9 +223,9 @@ export function WrittenRequestCard({ request }: { request: LeaRequest }) {
         </Part>
         <Part title={m.scopeRequested}>
           <Grid>
-            <Value term={m.years}>{scopeYears(scope)}</Value>
+            <Value term={m.years}>{formatScopeYears(scope)}</Value>
             <Value term={m.people}>{scopePeople(scope)}</Value>
-            <Value term={m.sections}>{scopeSections(scope)}</Value>
+            <Value term={m.sections}>{formatScopeSections(scope)}</Value>
           </Grid>
         </Part>
       </div>
@@ -282,27 +281,4 @@ function VerificationCard({ request }: { request: LeaRequest }) {
       </dl>
     </SideCard>
   );
-}
-
-/**
- * While the workflow issues a granted package (seconds), reload the request a few times so the
- * package card moves on from "Preparing" by itself.
- */
-function usePackagePolling(active: boolean) {
-  const router = useRouter();
-  useEffect(() => {
-    if (!active) return;
-    let polls = 0;
-    const timer = setInterval(() => {
-      polls += 1;
-      if (polls > PACKAGE_POLLS) {
-        clearInterval(timer);
-        return;
-      }
-      void router.invalidate();
-    }, PACKAGE_POLL_MS);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [active, router]);
 }

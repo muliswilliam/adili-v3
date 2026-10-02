@@ -7,6 +7,7 @@ import {
   EmptyState,
   formatDate,
   Icon,
+  leaStatusMeta,
   Skeleton,
   Spinner,
   Table,
@@ -25,14 +26,15 @@ import type { AccessResult } from '../../server/access-requests.server';
 import type { LeaRequest, LeaRequestStatus } from '../../server/access/types';
 import { CursorPager } from '../cursor-pager';
 import { LoadError } from '../load-error';
-import { messages as m, MINE_TONE } from './messages';
-import { packageState, usePackageDownload } from './package';
+import { messages as m } from './messages';
+import { usePackageDownload, usePackageState } from './package';
 
 /** Requests per page of the list. */
 export const MY_REQUESTS_PAGE_SIZE = 20;
 
 export function MineBadge({ status }: { status: LeaRequestStatus }) {
-  return <Badge variant={MINE_TONE[status]}>{m.status[status]}</Badge>;
+  const { label, tone } = leaStatusMeta[status];
+  return <Badge variant={tone}>{label}</Badge>;
 }
 
 /**
@@ -147,7 +149,7 @@ function RequestLink({ request }: { request: LeaRequest }) {
 function Action({ request, now }: { request: LeaRequest; now: string }) {
   const router = useRouter();
   const { busy, download } = usePackageDownload(() => void router.invalidate());
-  const state = packageState(request, Date.parse(now));
+  const state = usePackageState(request, now);
   switch (state.kind) {
     case 'ready':
       return (

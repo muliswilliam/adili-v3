@@ -1,7 +1,6 @@
 import {
   Alert,
   AlertDescription,
-  Badge,
   Button,
   CheckboxItem,
   FieldError,
@@ -18,21 +17,16 @@ import {
   UserCheck01Icon,
 } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useEffectEvent, useId, useRef, useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 
 import type { AccessResult } from '../../../server/access-requests.server';
-import type { LeaRequest, RosterCandidate, RosterCandidates } from '../../../server/access/types';
+import type { LeaRequest } from '../../../server/access/types';
 import { findLeaRosterCandidates, verifyLea } from '../../../server/lea-requests';
-import { SearchBox } from '../../search-box';
 import { goToSignIn } from '../../sign-in-redirect';
-import { Muted, SideCard } from '../side-cards';
+import { RosterCandidatePicker } from '../roster-candidate-picker';
+import { SideCard } from '../side-cards';
 import { leaActionFailure, leaNoteError } from './lea-view';
 import { messages as m } from './messages';
-
-type Search =
-  | { state: 'idle' }
-  | { state: 'searching'; q: string }
-  | { state: 'done'; q: string; result: AccessResult<RosterCandidates> };
 
 interface Errors {
   provenance?: string;
@@ -55,54 +49,12 @@ export function LeaVerifyCard({ request }: { request: LeaRequest }) {
   const prefill = (sought.personnelFileNumber ?? sought.name).trim();
   const [provenance, setProvenance] = useState(false);
   const [reason, setReason] = useState(false);
-  const [query, setQuery] = useState(prefill);
-  const [search, setSearch] = useState<Search>(() =>
-    prefill.length >= 2 ? { state: 'searching', q: prefill } : { state: 'idle' },
-  );
   const [record, setRecord] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [key] = useState(() => crypto.randomUUID());
-  // Only the latest search's answer is shown.
-  const latest = useRef(0);
-
-  const fetchCandidates = (q: string) => {
-    const ticket = ++latest.current;
-    void findLeaRosterCandidates({ data: { requestId: request.id, q } })
-      .catch((): AccessResult<RosterCandidates> => ({
-        ok: false,
-        error: { kind: 'unavailable', detail: null },
-      }))
-      .then((result) => {
-        if (ticket !== latest.current) return;
-        if (!result.ok && result.error.kind === 'unauthenticated') {
-          goToSignIn();
-          return;
-        }
-        setSearch({ state: 'done', q, result });
-      });
-  };
-  const searchPrefill = useEffectEvent(() => {
-    if (prefill.length >= 2) fetchCandidates(prefill);
-  });
-  useEffect(() => {
-    searchPrefill();
-  }, []);
-
-  const runSearch = (value: string) => {
-    const q = value.trim();
-    setQuery(q);
-    if (q.length < 2) {
-      latest.current += 1;
-      setSearch({ state: 'idle' });
-      return;
-    }
-    setSearch({ state: 'searching', q });
-    fetchCandidates(q);
-  };
-
   const submit = async () => {
     const next: Errors = {
       provenance: provenance ? undefined : m.provenanceRequired,
@@ -187,26 +139,23 @@ export function LeaVerifyCard({ request }: { request: LeaRequest }) {
         <span className="text-sm font-medium text-secondary-foreground" id={`${id}-roster`}>
           {m.onTheRoster}
         </span>
-        <SearchBox
+        <RosterCandidatePicker
           id={`${id}-search`}
-          label={m.rosterSearchLabel}
-          placeholder={m.rosterSearchPlaceholder}
-          maxLength={200}
-          applied={query}
-          className="max-w-none min-w-0"
-          onSearch={runSearch}
-        />
-        <Hits
-          name={`${id}-record`}
-          search={search}
-          selected={record}
-          error={errors.record}
-          onSelect={(candidate) => {
-            setRecord(candidate.id);
-            if (errors.record) setErrors({ ...errors, record: undefined });
+          find={(q) => findLeaRosterCandidates({ data: { requestId: request.id, q } })}
+          prefill={prefill}
+          choice={{
+            kind: 'radio',
+            name: `${id}-record`,
+            selected: record,
+            error: errors.record,
+            onSelect: (candidate) => {
+              setRecord(candidate.id);
+              if (errors.record) setErrors({ ...errors, record: undefined });
+            },
           }}
+          notOnboardedHint={m.notOnboardedHint}
+          withEntity
         />
-        {errors.record ? <FieldError id={`${id}-record-error`}>{errors.record}</FieldError> : null}
       </div>
 
       <form
@@ -295,101 +244,6 @@ function Confirm({
         }}
       />
       {error ? <FieldError id={`${id}-error`}>{error}</FieldError> : null}
-    </div>
-  );
-}
-
-function Hits({
-  name,
-  search,
-  selected,
-  error,
-  onSelect,
-}: {
-  name: string;
-  search: Search;
-  selected: string | null;
-  error?: string;
-  onSelect: (candidate: RosterCandidate) => void;
-}) {
-  if (search.state === 'idle') return null;
-  if (search.state === 'searching') {
-    return (
-      <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Spinner className="size-4" />
-        {m.searching}
-      </p>
-    );
-  }
-  const { result } = search;
-  if (!result.ok) {
-    return (
-      <Alert variant="destructive" role="status">
-        <Icon icon={AlertCircleIcon} />
-        <AlertDescription>{m.rosterSearchFailed}</AlertDescription>
-      </Alert>
-    );
-  }
-  if (result.data.items.length === 0) {
-    return (
-      <div role="status">
-        <Muted>{m.noRosterMatch}</Muted>
-      </div>
-    );
-  }
-  return (
-    <div
-      role="radiogroup"
-      aria-label={m.rosterMatches}
-      aria-invalid={error ? true : undefined}
-      className="grid grid-cols-[minmax(0,1fr)] gap-2"
-    >
-      {result.data.items.map((candidate) => {
-        const inputId = `${name}-${candidate.id}`;
-        return (
-          <label
-            key={candidate.id}
-            htmlFor={inputId}
-            className="relative flex cursor-pointer items-start gap-3 rounded-lg bg-control px-3.5 py-3 shadow-control transition-shadow hover:shadow-control-hover has-checked:shadow-control-selected has-disabled:cursor-not-allowed has-disabled:opacity-60 has-focus-visible:outline-3 has-focus-visible:outline-ring/15"
-          >
-            <input
-              id={inputId}
-              type="radio"
-              name={name}
-              value={candidate.id}
-              checked={selected === candidate.id}
-              disabled={!candidate.onboarded}
-              onChange={() => {
-                onSelect(candidate);
-              }}
-              className="peer pointer-events-none absolute opacity-0"
-            />
-            <span
-              aria-hidden="true"
-              className="mt-0.5 size-[18px] shrink-0 rounded-full bg-control shadow-[inset_0_0_0_1.5px_var(--input)] transition-shadow peer-checked:shadow-[inset_0_0_0_5px_var(--primary)]"
-            />
-            <span className="grid min-w-0 gap-0.5">
-              <span className="text-[14.5px] font-medium">{candidate.fullName}</span>
-              <span className="text-[13px] text-muted-foreground">
-                {[m.fileNumber(candidate.personnelFileNumber), candidate.designation]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-              {candidate.reportingEntity ? (
-                <span className="truncate text-[13px] text-muted-foreground">
-                  {candidate.reportingEntity}
-                </span>
-              ) : null}
-              {!candidate.onboarded ? (
-                <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                  <Badge variant="warning">{m.notOnboarded}</Badge>
-                  <span className="text-xs text-muted-foreground">{m.notOnboardedHint}</span>
-                </span>
-              ) : null}
-            </span>
-          </label>
-        );
-      })}
     </div>
   );
 }

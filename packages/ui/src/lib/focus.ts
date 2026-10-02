@@ -22,3 +22,9 @@ export const focusRingInset = `${focusRing} focus-visible:-outline-offset-2`;
  */
 export const focusRingWithin =
   'has-focus-visible:outline-2 has-focus-visible:outline-solid has-focus-visible:outline-offset-2 has-focus-visible:outline-ring';
+
+/**
+ * An inline text link: ink text with a light underline that darkens on hover, a 6px radius for
+ * the ring and `focusRing`. For links in running text; elsewhere use `Button variant="link"`.
+ */
+export const textLink = `${focusRing} rounded-sm text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground`;

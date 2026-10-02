@@ -1,19 +1,14 @@
-import { plural } from '@adili/ui';
-
-import type { LeaRequestStatus } from '../../server/access/types';
+import { accessMessages, formatNumber, plural } from '@adili/ui';
 
 /**
  * Copy of the law enforcement workspace (spec 10 FE-6), from the console prototype
- * (`apps/console/prototype/10-access.prototype.html`, persona law-enforcement). English only, as
- * the other console areas.
+ * (`apps/console/prototype/10-access.prototype.html`, persona law-enforcement).
+ * English, with an empty Swahili slot (`sw`), as the other console areas.
  */
 export const en = {
   title: 'Requests',
   tryAgain: 'Try again',
-  backToOverview: 'Back to overview',
   forbidden: 'You do not have access to law enforcement requests.',
-  accessErrorTitle: 'We could not load your access',
-  accessErrorDetail: 'Check your connection and try again.',
   newRequest: 'New request',
 
   // List
@@ -72,11 +67,10 @@ export const en = {
   cancel: 'Cancel',
   send: 'Send request',
   sending: 'Sending',
-  count: (length: number, max: number) =>
-    `${length.toLocaleString('en-KE')} / ${max.toLocaleString('en-KE')}`,
+  count: (length: number, max: number) => `${formatNumber(length)} / ${formatNumber(max)}`,
   commissionRequired: 'Choose the Commission.',
   nameRequired: 'Enter the name of the officer, at least 2 characters.',
-  tooLong: (max: number) => `Keep it to ${max.toLocaleString('en-KE')} characters.`,
+  tooLong: (max: number) => `Keep it to ${formatNumber(max)} characters.`,
   reasonRequired: 'State the reason for access.',
   reasonTooLong: 'Keep the reason to 4,000 characters.',
   caseReferenceRequired: 'Enter the case reference.',
@@ -128,7 +122,6 @@ export const en = {
   grounds: 'Regulation 24 grounds',
   reasons: 'Reasons',
   decided: 'Decided',
-  outcome: { grant: 'Granted', 'partial-grant': 'Partially granted', deny: 'Denied' },
   grantedScope: 'Granted scope',
   packageTitle: 'Package',
   confidential: 'Confidential',
@@ -140,31 +133,13 @@ export const en = {
   watermarked: 'Watermarked with your name. Every download is recorded.',
   packagePreparing:
     'Preparing your package: the granted scope is rendered, watermarked and signed.',
-  noPackage:
-    'No package has been issued for this grant. Contact the Commission if you need the declaration.',
+  noPackage: `${accessMessages.noPackage} Contact the Commission if you need the declaration.`,
   downloadFailed: 'The package could not be downloaded. Try again.',
   windowClosedToast: 'The download window has closed.',
   withdrawn: 'Withdrawn',
-
-  status: {
-    received: 'Received',
-    verified: 'Verified',
-    granted: 'Granted',
-    denied: 'Denied',
-    withdrawn: 'Withdrawn',
-  } satisfies Record<LeaRequestStatus, string>,
 };
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;
-
-/** The officer's status badge tones, as the prototype's `LS_MINE`. */
-export const MINE_TONE: Record<
-  LeaRequestStatus,
-  'default' | 'info' | 'brand' | 'success' | 'destructive'
-> = {
-  received: 'info',
-  verified: 'brand',
-  granted: 'success',
-  denied: 'destructive',
-  withdrawn: 'default',
-};

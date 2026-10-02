@@ -9,6 +9,7 @@ import type { ApplicantOnboardingSession } from '../../server/directory/types';
 import { CodeEntry } from '../onboarding/code-entry';
 import { StepHeading } from '../onboarding/onboarding-layout';
 import { SessionUnavailable } from '../onboarding/step-alerts';
+import { VERIFY_PHONE_COPY as COPY } from './copy';
 import type { ApplicantStepGuard } from './guard';
 import { useApplicantSettle, useApplicantStartAgain } from './settle';
 
@@ -34,16 +35,16 @@ function VerifyPhone({ initial }: { initial: ApplicantOnboardingSession }) {
     <CodeEntry
       heading={
         <StepHeading
-          title="Verify your phone"
+          title={COPY.title}
           description={
             <>
-              We sent a 6-digit code by SMS to{' '}
+              {COPY.sentBefore}
               {phone ? (
                 <MaskedContact kind="phone" value={phone.masked} className="text-foreground" />
               ) : (
-                'your phone'
+                COPY.phoneFallback
               )}
-              .
+              {COPY.sentAfter}
             </>
           }
         />
@@ -57,13 +58,13 @@ function VerifyPhone({ initial }: { initial: ApplicantOnboardingSession }) {
       onResent={setSession}
       footer={
         <>
-          Wrong number?{' '}
+          {COPY.wrongNumber}{' '}
           <Button
             type="button"
             variant="link"
             onClick={() => void startAgain(undefined, '/access/get-started/details')}
           >
-            Change it
+            {COPY.changeIt}
           </Button>
         </>
       }

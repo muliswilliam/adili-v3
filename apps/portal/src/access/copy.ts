@@ -1,4 +1,12 @@
-import { formatDate, type IconProps, plural, type Tone } from '@adili/ui';
+import {
+  accessMessages,
+  applicantAccessStatusMeta,
+  formatDate,
+  formatNumber,
+  type IconProps,
+  plural,
+  type Tone,
+} from '@adili/ui';
 import {
   BalanceScaleIcon,
   CheckListIcon,
@@ -13,60 +21,40 @@ import {
 } from '@hugeicons/core-free-icons';
 
 import { en, english, type Label, type Phrase } from '../declaration/translatable';
-import type { AccessRequestStatus, Ground } from '../server/access/types';
+import type { AccessRequestStatus } from '../server/access/types';
 
 /**
  * Words for the applicant's access requests (spec 10 FE-3): the Form K wizard, My requests and
- * a request's page. Statuses and grounds are keyed by the contract's types, so a value the
- * contract adds is a type error here until it has words. English with an empty Swahili slot,
- * until the Swahili copy is done; screens read English.
+ * a request's page. Statuses are keyed by the contract's types, so a value the contract adds is
+ * a type error here until it has words. English with an empty Swahili slot, until the Swahili
+ * copy is done; screens read English. Status words and Regulation 24 grounds come from
+ * `@adili/ui` (`applicantAccessStatusMeta`, `groundMeta`), which the console shares.
  */
 
 export interface StatusMeta {
-  label: Label;
+  label: string;
   tone: Tone;
   icon: IconProps['icon'];
 }
 
-/** Every status of a Form K request, as the applicant sees it. */
-export const STATUSES = {
-  submitted: { label: en('Submitted'), tone: 'info', icon: SentIcon },
-  'pending-applicant-verification': {
-    label: en('Awaiting identity verification'),
-    tone: 'warning',
-    icon: UserQuestion01Icon,
-  },
-  'officer-unresolved': {
-    label: en('Officer being identified'),
-    tone: 'info',
-    icon: UserSearch01Icon,
-  },
-  'awaiting-representations': {
-    label: en('Declarant notified'),
-    tone: 'info',
-    icon: Notification01Icon,
-  },
-  'under-decision': { label: en('Under decision'), tone: 'brand', icon: BalanceScaleIcon },
-  granted: { label: en('Granted'), tone: 'success', icon: Tick02Icon },
-  'partially-granted': { label: en('Partially granted'), tone: 'success', icon: CheckListIcon },
-  denied: { label: en('Denied'), tone: 'destructive', icon: UnavailableIcon },
-  'cannot-identify': {
-    label: en('Cannot identify officer'),
-    tone: 'default',
-    icon: UserRemove01Icon,
-  },
-  withdrawn: { label: en('Withdrawn'), tone: 'default', icon: Undo02Icon },
-} satisfies Record<AccessRequestStatus, StatusMeta>;
+const status = (key: AccessRequestStatus, icon: IconProps['icon']): StatusMeta => ({
+  ...applicantAccessStatusMeta[key],
+  icon,
+});
 
-/** Regulation 24's grounds for refusing access, as the applicant reads them. */
-export const GROUNDS = {
-  'public-interest': en('Against the public interest (Regulation 24(a))'),
-  'prejudice-proceeding': en(
-    'May prejudice an ongoing proceeding or investigation (Regulation 24(b))',
-  ),
-  'frivolous-vexatious': en('Frivolous, vexatious or scandalous (Regulation 24(c))'),
-  'not-objectives': en('Does not promote the objectives of the Act (Regulation 24(d))'),
-} satisfies Record<Ground, Label>;
+/** Every status of a Form K request, as the applicant sees it: the shared word, tone and an icon. */
+export const STATUSES = {
+  submitted: status('submitted', SentIcon),
+  'pending-applicant-verification': status('pending-applicant-verification', UserQuestion01Icon),
+  'officer-unresolved': status('officer-unresolved', UserSearch01Icon),
+  'awaiting-representations': status('awaiting-representations', Notification01Icon),
+  'under-decision': status('under-decision', BalanceScaleIcon),
+  granted: status('granted', Tick02Icon),
+  'partially-granted': status('partially-granted', CheckListIcon),
+  denied: status('denied', UnavailableIcon),
+  'cannot-identify': status('cannot-identify', UserRemove01Icon),
+  withdrawn: status('withdrawn', Undo02Icon),
+} satisfies Record<AccessRequestStatus, StatusMeta>;
 
 /** The Form K wizard's steps, in order: the nav label and the page heading. */
 export const STEPS = {
@@ -78,7 +66,7 @@ export const STEPS = {
   declare: { nav: en('Declare'), heading: en('Check and declare') },
 } satisfies Record<string, { nav: Label; heading: Label }>;
 
-const count = (n: number) => n.toLocaleString('en');
+const count = formatNumber;
 
 const FORM_K = {
   newRequest: en('New request'),
@@ -157,11 +145,6 @@ const FORM_K = {
   spouses: en('Spouses'),
   children: en('Children'),
   sections: en('Sections'),
-  clarifications: en('Clarifications'),
-  included: en('Included'),
-  declaration: en(
-    'I declare that the information I have given above is true, complete and correct to the best of my knowledge.',
-  ),
   declaredBy: en((date: string, name: string) => `${date} · ${name}`),
   declareMissing: en('Tick the declaration to submit your request.'),
 
@@ -206,8 +189,10 @@ const REQUESTS = {
   dueOn: en((date: string) => `Decision due ${date}`),
   open: en((reference: string) => `Open request ${reference}`),
   downloadBy: en('Download by'),
+  grounds: en('Grounds:'),
   expiresToday: en('Expires today'),
   downloadExpired: en('Download expired'),
+  noPackage: en('No package issued'),
 };
 
 export const REQUESTS_COPY = english(REQUESTS);
@@ -311,12 +296,15 @@ const PACKAGE = {
       `Some of what you asked for was not granted. Download your package today, by ${time}.`,
   ),
   preparingNext: en('Your package is being prepared.'),
+  missingTitle: en(accessMessages.noPackage),
+  missingNext: en(accessMessages.noPackage),
   closedNext: en((date: string) => `The download window closed on ${date}.`),
   closedNowLead: en('The download window has closed.'),
   closedNowNext: en('The package can no longer be downloaded.'),
 
   stagePreparing: en('Package'),
   stagePreparingDetail: en('Being prepared'),
+  stageMissingDetail: en('Not issued'),
   stageReady: en('Package ready'),
   stageReadyDetail: en((at: string) => `Until ${at}`),
   stageClosed: en('Download window closed'),
@@ -405,3 +393,16 @@ export const ACCESS_SHELL_COPY = english({
 
 /** `26 Sep 2026` */
 export const day = (iso: string) => formatDate(iso);
+
+/** The access landing page, where members of the public start. */
+const ACCESS_LANDING = {
+  title: en('Request access to a declaration · Adili Online'),
+  heading: en('Request access to a declaration'),
+  lead: en('For members of the public, with a national ID or passport.'),
+  getStarted: en('Get started'),
+  signIn: en('Sign in'),
+  publicOfficer: en('Public officer?'),
+  declareHere: en('Declare here'),
+};
+
+export const ACCESS_LANDING_COPY = english(ACCESS_LANDING);

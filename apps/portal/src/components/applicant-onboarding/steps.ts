@@ -2,6 +2,7 @@ import type {
   ApplicantOnboardingSession,
   ApplicantOnboardingState,
 } from '../../server/directory/types';
+import { APPLICANT_STEPS_COPY as STEPS } from './copy';
 
 /** Every route in Get started as an applicant, in order. */
 export const APPLICANT_ROUTES = [
@@ -16,11 +17,11 @@ export type ApplicantRoute = (typeof APPLICANT_ROUTES)[number];
 
 /** The five steps the stepper shows, one per route. */
 export const APPLICANT_STEP_NAMES = [
-  'Choose your ID',
-  'Your details',
-  'Verify your phone',
-  'Create your account',
-  'Set your password',
+  STEPS.chooseId,
+  STEPS.details,
+  STEPS.verifyPhone,
+  STEPS.create,
+  STEPS.setPassword,
 ] as const;
 
 export type ApplicantStepNumber = 1 | 2 | 3 | 4 | 5;

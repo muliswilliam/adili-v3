@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  textLink,
 } from '@adili/ui';
 import {
   Alert02Icon,
@@ -116,11 +117,7 @@ function ErrorsLink({
   // Every section route reads `?errors=true` to show all its missing answers at once.
   const search = { errors: true } as never;
   return (
-    <Link
-      {...stepLink(declarationId, step)}
-      search={search}
-      className="rounded-sm underline decoration-input underline-offset-3 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
+    <Link {...stepLink(declarationId, step)} search={search} className={textLink}>
       {children}
     </Link>
   );

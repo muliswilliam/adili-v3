@@ -1,21 +1,18 @@
-import { plural } from '@adili/ui';
+import { type AccessStatusMeta, accessStatusMeta, leaStatusMeta, plural } from '@adili/ui';
 
 import type { QueueItem, QueueStatus } from '../../server/access/types';
 import type { QueueFilter, QueueTab } from './queue-query';
 
 /**
  * Copy of the Access requests workspace (spec 10 FE-5), from the console prototype
- * (`apps/console/prototype/10-access.prototype.html`). English only; the Swahili slot stays empty
- * until the console has a convention for it (as `roster/messages.ts`).
+ * (`apps/console/prototype/10-access.prototype.html`). English; the Swahili slot (`sw`) stays empty
+ * until EACC reviews translations (as `roster/messages.ts`).
  */
 export const en = {
   title: 'Access requests',
   readOnly: 'Read only',
   tryAgain: 'Try again',
-  backToOverview: 'Back to overview',
   forbidden: 'You do not have access to access requests.',
-  accessErrorTitle: 'We could not load your access',
-  accessErrorDetail: 'Check your connection and try again.',
 
   // Queue
   tabs: { all: 'All', 'form-k': 'Form K', lea: 'Law enforcement' } satisfies Record<
@@ -47,6 +44,7 @@ export const en = {
   columnDeadline: 'Deadline',
   formK: 'Form K',
   fileNumber: (file: string) => `File ${file}`,
+  soughtAs: (name: string) => `Sought as ${name}`,
   fileNumberInline: (file: string) => `file ${file}`,
   notIdentifiedYet: 'Not identified yet',
   notIdentified: 'Not identified',
@@ -104,9 +102,6 @@ export const en = {
   years: 'Years',
   people: 'People',
   sections: 'Sections',
-  clarifications: 'Clarifications',
-  included: 'Included',
-  notIncluded: 'Not included',
   officerOnly: 'Officer only',
   officerAndSpouses: 'Officer and spouses',
   officerAndChildren: 'Officer and children',
@@ -120,8 +115,8 @@ export const en = {
   whereItStands: 'Where the request stands',
   registerLabel: 'Access register',
 
-  // Verify applicant
-  verifyTitle: 'Verify applicant',
+  // Verify applicant identity
+  verifyTitle: 'Verify applicant identity',
   passportLabel: 'Passport',
   phoneLabel: 'Phone',
   confirmedByCode: 'confirmed by code',
@@ -204,7 +199,8 @@ export const en = {
   noneReceived: (date: string) => `None received. The window closed ${date}.`,
   consentClosedEarly: 'Consent closed the window early.',
   attachmentsLabel: 'Attachments',
-  openAttachment: (name: string) => `Download ${name}`,
+  attachmentActions: (name: string) => `Actions for ${name}`,
+  download: 'Download',
   scannedClean: 'Scanned clean',
   attachmentFailed: 'The attachment could not be opened. Try again.',
   auditNote: 'Opening an attachment is recorded in the audit trail.',
@@ -223,24 +219,18 @@ export const en = {
   saveFailed: 'We could not save this. Try again.',
 };
 
-/** The queue badge's word and tone for each status, as the prototype's `FK` table. */
-export const STATUS: Record<
-  QueueStatus,
-  { label: string; tone: 'default' | 'info' | 'brand' | 'success' | 'warning' | 'destructive' }
-> = {
-  submitted: { label: 'Submitted', tone: 'info' },
-  'pending-applicant-verification': { label: 'Verify applicant', tone: 'warning' },
-  'officer-unresolved': { label: 'Identify officer', tone: 'warning' },
-  'awaiting-representations': { label: 'Awaiting representations', tone: 'default' },
-  'under-decision': { label: 'Under decision', tone: 'brand' },
-  granted: { label: 'Granted', tone: 'success' },
-  'partially-granted': { label: 'Partially granted', tone: 'success' },
-  denied: { label: 'Denied', tone: 'destructive' },
-  'cannot-identify': { label: 'Cannot identify officer', tone: 'default' },
-  withdrawn: { label: 'Withdrawn', tone: 'default' },
-  // Law enforcement requests, as the access officer works them: verify, then decide.
-  received: { label: 'Verify', tone: 'warning' },
-  verified: { label: 'Under decision', tone: 'brand' },
+/**
+ * The queue badge's word and tone for each status, from the shared access table: Form K in
+ * staff words, law enforcement requests in the words their officer reads too. A received law
+ * enforcement request waits on the access officer, so it is marked as an action.
+ */
+export const STATUS: Record<QueueStatus, AccessStatusMeta> = {
+  ...accessStatusMeta,
+  received: { ...leaStatusMeta.received, tone: 'warning' },
+  verified: leaStatusMeta.verified,
 };
+
+/** Swahili translations, key by key; empty until reviewed. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;

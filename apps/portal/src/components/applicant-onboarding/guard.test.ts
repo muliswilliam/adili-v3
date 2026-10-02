@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { isSignedInApplicant } from '../../server/access-requests';
 import { getApplicantOnboardingSession } from '../../server/applicant-onboarding';
 import type { ApplicantSessionLookup } from '../../server/applicant-onboarding.server';
 import type { ApplicantOnboardingSession } from '../../server/directory/types';
 import {
   redirectIfApplicantInProgress,
+  redirectSignedInApplicant,
   requireApplicantCheckEmail,
   requireApplicantStep,
 } from './guard';
@@ -13,7 +15,10 @@ vi.mock('../../server/applicant-onboarding', () => ({
   getApplicantOnboardingSession: vi.fn(),
 }));
 
+vi.mock('../../server/access-requests', () => ({ isSignedInApplicant: vi.fn() }));
+
 const lookupMock = vi.mocked(getApplicantOnboardingSession);
+const applicantMock = vi.mocked(isSignedInApplicant);
 
 function session(state: ApplicantOnboardingSession['state']): ApplicantOnboardingSession {
   return {
@@ -102,5 +107,19 @@ describe('redirectIfApplicantInProgress', () => {
     expect(() => {
       redirectIfApplicantInProgress({ status: 'active', session: session('confirmed') });
     }).not.toThrow();
+  });
+});
+
+describe('redirectSignedInApplicant', () => {
+  it('sends a signed-in applicant on to My requests', async () => {
+    applicantMock.mockResolvedValue(true);
+    expect(await redirectFrom(redirectSignedInApplicant())).toMatchObject({
+      to: '/access/requests',
+    });
+  });
+
+  it('leaves everyone else on the landing page', async () => {
+    applicantMock.mockResolvedValue(false);
+    await expect(redirectSignedInApplicant()).resolves.toBeUndefined();
   });
 });

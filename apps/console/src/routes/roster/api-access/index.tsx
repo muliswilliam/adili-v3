@@ -12,9 +12,9 @@ import {
   EmptyState,
   formatDate,
   formatDateTime,
-  focusRing,
   Icon,
   Skeleton,
+  textLink,
   useToast,
 } from '@adili/ui';
 import {
@@ -402,13 +402,7 @@ function IssuedCard({
           <Icon icon={InformationCircleIcon} className="size-3.5 shrink-0" />
           <span>
             {m.apiSendWith}{' '}
-            <Link
-              to="/roster/api-access/docs"
-              className={cn(
-                focusRing,
-                'rounded-sm font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground',
-              )}
-            >
+            <Link to="/roster/api-access/docs" className={cn(textLink, 'font-medium')}>
               {m.apiDocsLink}
             </Link>
             .

@@ -8,7 +8,7 @@ import { RECOVER_ACCESS, SIGN_IN } from '../onboarding/links';
 import { StepHeading, SuccessMark } from '../onboarding/onboarding-layout';
 import { ResendPasswordEmail } from '../onboarding/outcome-steps';
 import { SessionUnavailable } from '../onboarding/step-alerts';
-import { PASSPORT_NOTICE } from './copy';
+import { CHECK_EMAIL_COPY as COPY, PASSPORT_NOTICE } from './copy';
 import type { ApplicantCheckEmailGuard } from './guard';
 import { useApplicantSettle } from './settle';
 
@@ -33,16 +33,13 @@ function NewLinkHelp() {
       <SuccessMark tone="brand">
         <Icon icon={LockKeyIcon} strokeWidth={2} />
       </SuccessMark>
-      <StepHeading
-        title="Get a new link to set your password"
-        description="We cannot send the email again from this browser. Use Forgot password on the sign-in page instead: enter your email address and we will email you a new link. It sets your password too."
-      />
+      <StepHeading title={COPY.newLinkTitle} description={COPY.newLinkDescription} />
       <div className="mt-[22px] grid gap-2.5">
         <Button asChild className="w-full">
-          <a href={RECOVER_ACCESS}>Forgot password</a>
+          <a href={RECOVER_ACCESS}>{COPY.forgotPassword}</a>
         </Button>
         <Button asChild variant="ghost" className="w-full">
-          <a href={SIGN_IN}>Sign in</a>
+          <a href={SIGN_IN}>{COPY.signIn}</a>
         </Button>
       </div>
     </>
@@ -60,7 +57,7 @@ function CheckEmail({ session: loaded }: { session: ApplicantOnboardingSession }
   const address = email ? (
     <MaskedContact kind="email" value={email.masked} className="text-foreground" />
   ) : (
-    'your email address'
+    COPY.addressFallback
   );
   return (
     <>
@@ -70,21 +67,23 @@ function CheckEmail({ session: loaded }: { session: ApplicantOnboardingSession }
       {session.setPasswordEmail === 'failed' ? (
         // The account stands; only the email with the link did not go.
         <StepHeading
-          title="Your account is ready"
+          title={COPY.failedTitle}
           description={
             <>
-              We could not send the email to set your password to {address}. Send it now; the link
-              expires 24 hours after it is sent.
+              {COPY.failedBefore}
+              {address}
+              {COPY.failedAfter}
             </>
           }
         />
       ) : (
         <StepHeading
-          title="Check your email"
+          title={COPY.sentTitle}
           description={
             <>
-              Your account is ready. Set your password with the link sent to {address}. It expires
-              in 24 hours.
+              {COPY.sentBefore}
+              {address}
+              {COPY.sentAfter}
             </>
           }
         />
@@ -103,7 +102,7 @@ function CheckEmail({ session: loaded }: { session: ApplicantOnboardingSession }
           onSent={setSession}
         />
         <Button asChild variant="ghost" className="w-full">
-          <a href={SIGN_IN}>Sign in</a>
+          <a href={SIGN_IN}>{COPY.signIn}</a>
         </Button>
       </div>
     </>

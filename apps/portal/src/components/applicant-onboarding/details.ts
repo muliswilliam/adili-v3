@@ -2,19 +2,13 @@ import { z } from 'zod';
 
 import type { IdentityDocumentKind, StartApplicantOnboarding } from '../../server/directory/types';
 import { CONTACT_ERRORS, normalisePhone } from '../onboarding/contact';
+import { DETAILS_FIELD_ERRORS_COPY } from './copy';
 
 /** What the applicant reads for a field that is not right yet. */
 export const DETAILS_ERRORS = {
-  surname: 'Enter your surname.',
-  firstName: 'Enter your first name.',
-  name: 'Use letters, spaces, apostrophes and hyphens only.',
-  nationalId: 'Enter your national ID number (5 to 10 digits).',
-  passport: 'Enter your passport number (5 to 20 letters or numbers).',
-  country: 'Choose the country that issued your passport.',
-  kenyanPhone: 'Enter a mobile number, e.g. 0712 345 678.',
-  anyPhone: 'Enter your mobile number with the country code, e.g. +233 24 471 8265.',
+  ...DETAILS_FIELD_ERRORS_COPY,
   email: CONTACT_ERRORS.email,
-} as const;
+};
 
 /** A name as the directory takes it (`StartApplicantOnboarding.names`): letters in any script. */
 const NAME = /^\p{L}[\p{L}\p{M}' .-]*$/u;

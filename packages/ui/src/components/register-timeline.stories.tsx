@@ -15,6 +15,7 @@ const actors: Partial<Record<(typeof REGISTER_KINDS)[number], string>> = {
   withdrawn: 'Mercy Wanjiku Kamau (applicant)',
   downloaded: 'Mercy Wanjiku Kamau (applicant)',
   representations: 'Anne Njeri Mutua (declarant)',
+  identified: 'Lucy Wambui',
   'package-issued': 'Adili Online',
   expired: 'Adili Online',
 };

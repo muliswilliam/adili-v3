@@ -12,6 +12,7 @@ import {
 import { accessClient, type AccessClient } from './access/client.server';
 import { asDeclarant as asDeclarantOf } from './bff.server';
 import type { Unauthenticated } from './results';
+import { type WithNow, withNow } from './with-now';
 
 /**
  * Server functions for the access requests about the declarant's declaration (spec 10 FE-4).
@@ -22,22 +23,18 @@ function asDeclarant<T>(call: (client: AccessClient) => Promise<T>) {
   return asDeclarantOf(accessClient, call);
 }
 
-export type NoticesLoad = (NoticesResult | Unauthenticated) & { now: string };
-export type NoticeLoad = (NoticeResult | Unauthenticated) & { now: string };
+export type NoticesLoad = WithNow<NoticesResult | Unauthenticated>;
+export type NoticeLoad = WithNow<NoticeResult | Unauthenticated>;
 
 export const getMyAccessNotices = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<NoticesLoad> => ({
-    ...(await asDeclarant(listNotices)),
-    now: new Date().toISOString(),
-  }),
+  (): Promise<NoticesLoad> => withNow(asDeclarant(listNotices)),
 );
 
 export const getMyAccessNotice = createServerFn({ method: 'GET' })
   .validator(z.object({ requestId: z.uuid() }))
-  .handler(async ({ data }): Promise<NoticeLoad> => ({
-    ...(await asDeclarant((client) => loadNotice(client, data.requestId))),
-    now: new Date().toISOString(),
-  }));
+  .handler(({ data }): Promise<NoticeLoad> =>
+    withNow(asDeclarant((client) => loadNotice(client, data.requestId))),
+  );
 
 export const submitMyRepresentations = createServerFn({ method: 'POST' })
   .validator(
