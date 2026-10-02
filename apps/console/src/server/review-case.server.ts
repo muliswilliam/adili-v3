@@ -1,4 +1,5 @@
 import { DeclarationSchema, type DeclarationV1 } from '@adili/forms';
+import { z } from 'zod';
 
 import type { ReviewClient } from './review/client.server';
 import type { Assignee, CaseDetail, CaseListItem, Flag, Note, RegistryView } from './review/types';
@@ -143,19 +144,18 @@ export function addNote(
 }
 
 /** `POST .../flags/{flagId}/reviewed`: once, with the assignee's conclusion; 409 when it was. */
-export async function markFlagReviewed(
+export function markFlagReviewed(
   client: ReviewClient,
   caseId: string,
   flagId: string,
   note: string,
 ): Promise<ServiceResult<CaseFlag>> {
-  const result = await callService(() =>
+  return callService(() =>
     client.POST('/v1/review/cases/{caseId}/flags/{flagId}/reviewed', {
       params: { path: { caseId, flagId } },
       body: { note },
     }),
   );
-  return result.ok ? { ok: true, data: result.data } : result;
 }
 
 /**
@@ -172,10 +172,38 @@ export async function loadRegistry(
     client.GET('/v1/review/cases/{caseId}/registry', { params: { path: { caseId } } }),
   );
   if (!result.ok) return result;
-  // Parsed from JSON, so the records and the evidence are JSON values.
-  const view: unknown = result.data;
-  return { ok: true, data: view as CaseRegistryView };
+  const view = result.data;
+  const persons: CaseRegistryView['persons'] = [];
+  for (const person of view.persons) {
+    const systems: CaseRegistryView['persons'][number]['systems'] = [];
+    for (const system of person.systems) {
+      const rows: CaseRegistryRow[] = [];
+      for (const row of system.rows) {
+        const record = registryRecordSchema.safeParse(row.registryRecord);
+        // A record that is not plain JSON is outside the contract: as if review had not answered.
+        if (!record.success) return { ok: false, error: { kind: 'unavailable', detail: null } };
+        rows.push({ ...row, registryRecord: record.data });
+      }
+      systems.push({ ...system, rows });
+    }
+    persons.push({ ...person, systems });
+  }
+  return { ok: true, data: { checkedAt: view.checkedAt, persons } };
 }
+
+const jsonValue: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValue),
+    z.record(z.string(), jsonValue),
+  ]),
+);
+
+/** A registry record as the gateway holds it: an object of plain JSON values. */
+const registryRecordSchema = z.record(z.string(), jsonValue);
 
 /**
  * `GET .../registry/status`: when the case's latest registry check was stored. Not an audited
