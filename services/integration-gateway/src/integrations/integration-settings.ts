@@ -59,6 +59,9 @@ export class IntegrationSettings implements OnApplicationBootstrap {
 
   async pause(system: System, principal: Principal): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // A system never paused has no row to lock: create it first, so two first pauses at once
+      // queue on the row and the second finds it paused (one event, not two).
+      await tx.insert(integrationSettings).values({ system }).onConflictDoNothing();
       const [current] = await tx
         .select()
         .from(integrationSettings)
@@ -73,9 +76,9 @@ export class IntegrationSettings implements OnApplicationBootstrap {
         updatedAt: new Date(),
       };
       await tx
-        .insert(integrationSettings)
-        .values({ system, ...paused })
-        .onConflictDoUpdate({ target: integrationSettings.system, set: paused });
+        .update(integrationSettings)
+        .set(paused)
+        .where(eq(integrationSettings.system, system));
       await this.events.record(
         tx,
         systemPauseEvent(INTEGRATIONS_SYSTEM_PAUSED, { system, by: principal.subject }),

@@ -111,6 +111,31 @@ describe('POST /v1/integrations/{system}/pause and /resume', () => {
     expect(await kraLookup(SEED.kiprono)).toMatchObject({ outcome: 'found' });
   });
 
+  it('N2: pauses a never-paused system once when two pauses overlap', async () => {
+    // Hold the outbox so the first pause waits, transaction open, after writing its record; the
+    // second then reaches the record while the first still holds it.
+    const lock = await t.db.$client.connect();
+    let both: Promise<unknown[]>;
+    try {
+      await lock.query('begin');
+      await lock.query('lock table outbox in exclusive mode');
+      const first = act('brs', 'pause');
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      const second = act('brs', 'pause');
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      both = Promise.all([first, second]);
+      await lock.query('commit');
+    } finally {
+      lock.release();
+    }
+
+    const responses = (await both) as Awaited<ReturnType<typeof act>>[];
+    expect(responses.map((response) => response.statusCode)).toEqual([200, 200]);
+    expect((await events()).map((event) => event.eventType)).toEqual([
+      'integrations.system.paused.v1',
+    ]);
+  });
+
   it('resumes: lookups call the registry again; the coverage no longer shows who paused it', async () => {
     await act('kra', 'pause');
     expect(await kraLookup(SEED.kiprono)).toMatchObject({ reason: 'paused' });
