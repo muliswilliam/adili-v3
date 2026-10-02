@@ -17,8 +17,8 @@ export const CASE_COPY = {
     `Amended ${formatDate(amendedAt)}. Indicators were recomputed against version ${String(previous)}; reviewed indicators kept their notes.`,
   aboutVersion: 'About this version',
   windowOpen: (closes: string, daysLeft: number) =>
-    `Window closes ${formatDate(closes)} · ${daysLeft === 0 ? 'today' : `${plural(daysLeft, 'day')} left`}`,
-  windowClosed: (closed: string) => `Window closed ${formatDate(closed)}`,
+    `Clarification window closes ${formatDate(closes)} · ${daysLeft === 0 ? 'today' : `${plural(daysLeft, 'day')} left`}`,
+  windowClosed: (closed: string) => `Clarification window closed ${formatDate(closed)}`,
   assignedTo: 'Assigned to',
   reviewersOfRecord: (count: number) => `${plural(count, 'reviewer')} of record`,
   reviewersOfRecordTip: (names: string) =>
