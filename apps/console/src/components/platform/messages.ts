@@ -11,10 +11,7 @@ export const en = {
   title: 'Law-enforcement accounts',
   workspaceTitle: 'Platform settings',
   tryAgain: 'Try again',
-  backToOverview: 'Back to overview',
   forbidden: 'You do not have access to platform settings.',
-  accessErrorTitle: 'We could not load your access',
-  accessErrorDetail: 'Check your connection and try again.',
 
   // Agencies
   agenciesCaption: 'Law enforcement agencies',

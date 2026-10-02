@@ -1,12 +1,9 @@
-import { Button } from '@adili/ui';
-import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 
-import { LoadError, NoAccess, NoStaffRoles } from '../../components/load-error';
-import { Page, PageHead } from '../../components/page';
 import { messages as m } from '../../components/platform/messages';
-import { ConsoleShell } from '../../components/shell/console-shell';
 import { signInRedirect } from '../../components/sign-in-redirect';
-import { workspaceFor, workspacesFor } from '../../components/workspaces';
+import { WorkspaceLayout } from '../../components/workspace-layout';
+import { workspaceFor } from '../../components/workspaces';
 import { getViewer } from '../../server/viewer';
 
 /**
@@ -27,35 +24,14 @@ export const Route = createFileRoute('/platform')({
 function PlatformLayout() {
   const { viewer, roles, workspace } = Route.useRouteContext();
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
-      {!viewer.directory.ok ? (
-        <Page narrow>
-          <PageHead title={m.workspaceTitle} />
-          <LoadError
-            title={m.accessErrorTitle}
-            detail={m.accessErrorDetail}
-            retryLabel={m.tryAgain}
-          />
-        </Page>
-      ) : workspace ? (
-        <Outlet />
-      ) : (
-        <Page narrow>
-          <PageHead title={m.workspaceTitle} />
-          {workspacesFor(roles).length > 0 ? (
-            <NoAccess
-              text={m.forbidden}
-              action={
-                <Button asChild variant="secondary" size="sm">
-                  <Link to="/">{m.backToOverview}</Link>
-                </Button>
-              }
-            />
-          ) : (
-            <NoStaffRoles />
-          )}
-        </Page>
-      )}
-    </ConsoleShell>
+    <WorkspaceLayout
+      viewer={viewer}
+      roles={roles}
+      workspace={workspace}
+      title={m.workspaceTitle}
+      forbidden={m.forbidden}
+    >
+      <Outlet />
+    </WorkspaceLayout>
   );
 }

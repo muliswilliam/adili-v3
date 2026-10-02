@@ -8,10 +8,7 @@ import { accessMessages, formatNumber, plural } from '@adili/ui';
 export const en = {
   title: 'Requests',
   tryAgain: 'Try again',
-  backToOverview: 'Back to overview',
   forbidden: 'You do not have access to law enforcement requests.',
-  accessErrorTitle: 'We could not load your access',
-  accessErrorDetail: 'Check your connection and try again.',
   newRequest: 'New request',
 
   // List

@@ -12,10 +12,7 @@ export const en = {
   title: 'Access requests',
   readOnly: 'Read only',
   tryAgain: 'Try again',
-  backToOverview: 'Back to overview',
   forbidden: 'You do not have access to access requests.',
-  accessErrorTitle: 'We could not load your access',
-  accessErrorDetail: 'Check your connection and try again.',
 
   // Queue
   tabs: { all: 'All', 'form-k': 'Form K', lea: 'Law enforcement' } satisfies Record<
