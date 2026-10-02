@@ -38,11 +38,21 @@ export interface HttpDirectoryClientOptions {
   lawEnforcementTokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default ADR-013's 2 s. */
   timeoutMs?: number;
+  /** Per attempt of an onboarding invitation. Default `ONBOARDING_INVITATION_TIMEOUT_MS`. */
+  invitationTimeoutMs?: number;
   cacheTtlMs?: number;
   now?: () => number;
   /** For tests. */
   fetch?: typeof fetch;
 }
+
+/**
+ * How long an onboarding invitation may take: the directory sends it by email, then SMS, through
+ * notifications (6 s each, ADR-013 §2), before it answers; a second more for the hop. Recorded in
+ * ADR-013 §2; invitations go out from workflow activities, which retry with the same
+ * Idempotency-Key.
+ */
+export const ONBOARDING_INVITATION_TIMEOUT_MS = 13_000;
 
 const commissionSchema = z.object({
   slug: z.string(),
@@ -145,6 +155,7 @@ export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;
   private readonly applicants: ServiceClient<paths>;
   private readonly lawEnforcement: ServiceClient<paths>;
+  private readonly inviting: ServiceClient<paths>;
   private readonly commissions = new Map<string, { commission: CommissionFacts; until: number }>();
   private readonly policies = new Map<string, { policy: AccessPolicy; until: number }>();
   private readonly ttlMs: number;
@@ -174,6 +185,14 @@ export class HttpDirectoryClient extends DirectoryClient {
       tokens: options.lawEnforcementTokens,
       unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
       timeoutMs: options.timeoutMs,
+      fetch: options.fetch,
+    });
+    this.inviting = createServiceClient<paths>({
+      baseUrl: options.directoryUrl,
+      service: 'directory',
+      tokens: options.tokens,
+      unavailable: (message, cause) => new DirectoryUnavailable(message, cause),
+      timeoutMs: options.invitationTimeoutMs ?? ONBOARDING_INVITATION_TIMEOUT_MS,
       fetch: options.fetch,
     });
     this.ttlMs = options.cacheTtlMs ?? COMMISSION_CACHE_TTL_MS;
@@ -246,7 +265,7 @@ export class HttpDirectoryClient extends DirectoryClient {
     recordId: string,
     idempotencyKey: string,
   ): Promise<OnboardingInvitationFacts | 'onboarded' | null> {
-    const found = await this.directory.call(
+    const found = await this.inviting.call(
       (api) =>
         api.POST(
           '/internal/v1/commissions/{slug}/roster/records/{recordId}/onboarding-invitations',
