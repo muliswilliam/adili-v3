@@ -575,6 +575,8 @@ export interface components {
             tenant: string | null;
             task: components["schemas"]["TaskName"];
             provider: string;
+            /** @description The provider's class, which the gate decides on; null when this gateway cannot reach the provider (its jobs fail `provider-unavailable`) */
+            providerClass: components["schemas"]["ProviderClass"] | null;
             model: string;
             params: components["schemas"]["RouteParams"];
         };

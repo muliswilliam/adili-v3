@@ -335,6 +335,14 @@ describe('admin API', { timeout: 90_000 }, () => {
         params: { maxOutputTokens: 2048, timeoutMs: 30_000 },
         changedBy: 'platform-admin-1',
       });
+      await t.db.insert(routes).values({
+        id: uuidv7(),
+        tenant: 'tsc',
+        task: 'explain-flags',
+        provider: 'elsewhere',
+        model: 'm',
+        changedBy: 'platform-admin-1',
+      });
 
       const response = await request('GET', '/v1/ai/routing', admin);
 
@@ -345,13 +353,18 @@ describe('admin API', { timeout: 90_000 }, () => {
         tenant: 'kcomm',
         task: 'explain-flags',
         provider: 'local',
+        providerClass: 'self-hosted',
         model: 'llama-4',
         params: { maxOutputTokens: 2048, timeoutMs: 30_000 },
       });
+      expect(table).toContainEqual(
+        expect.objectContaining({ tenant: 'tsc', provider: 'elsewhere', providerClass: null }),
+      );
       expect(table).toContainEqual({
         tenant: null,
         task: 'summarize-declaration',
         provider: 'scripted',
+        providerClass: 'external',
         model: MODEL,
         params: {},
       });

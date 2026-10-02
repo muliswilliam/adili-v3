@@ -1078,7 +1078,7 @@ components:
           description: Longest one provider call may take
     Route:
       type: object
-      required: [tenant, task, provider, model, params]
+      required: [tenant, task, provider, providerClass, model, params]
       properties:
         tenant:
           type: [string, 'null']
@@ -1087,6 +1087,11 @@ components:
           $ref: '#/components/schemas/TaskName'
         provider:
           type: string
+        providerClass:
+          description: The provider's class, which the gate decides on; null when this gateway cannot reach the provider (its jobs fail `provider-unavailable`)
+          oneOf:
+            - $ref: '#/components/schemas/ProviderClass'
+            - type: 'null'
         model:
           type: string
         params:
