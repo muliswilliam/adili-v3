@@ -10,8 +10,13 @@ import {
   DeclarationSummary,
   focusRing,
   Icon,
+  SignalBars,
 } from '@adili/ui';
-import { Flag02Icon, RefreshIcon, WifiDisconnected01Icon } from '@hugeicons/core-free-icons';
+import {
+  InformationCircleIcon,
+  RefreshIcon,
+  WifiDisconnected01Icon,
+} from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import type { ItemPin } from '../../../review-case/flags';
@@ -24,6 +29,9 @@ const PIN_TONES: Record<ItemPin['severity'], string> = {
   low: 'bg-info-subtle text-info-subtle-foreground',
   info: 'bg-muted text-secondary-foreground',
 };
+
+/** The severity's bars, as a `SeverityBadge` shows them: never colour alone. */
+const PIN_BARS: Record<ItemPin['severity'], number> = { high: 3, medium: 2, low: 1, info: 0 };
 
 export const DECLARATION_ANCHORS = 'case-declaration';
 
@@ -83,7 +91,7 @@ export function DeclarationPane({
             return (
               <button
                 type="button"
-                aria-label={copy.pinnedLabel(pin.count)}
+                aria-label={copy.pinnedLabel(pin.count, pin.severity)}
                 className={cn(
                   focusRing,
                   'inline-flex h-6 cursor-pointer items-center gap-[5px] rounded-full px-2 text-xs font-semibold [&_svg]:size-3',
@@ -93,7 +101,11 @@ export function DeclarationPane({
                   onPin(pin.flagId);
                 }}
               >
-                <Icon icon={Flag02Icon} strokeWidth={2.2} />
+                {PIN_BARS[pin.severity] > 0 ? (
+                  <SignalBars lit={PIN_BARS[pin.severity]} />
+                ) : (
+                  <Icon icon={InformationCircleIcon} strokeWidth={2.2} />
+                )}
                 {copy.pinned(pin.count)}
               </button>
             );

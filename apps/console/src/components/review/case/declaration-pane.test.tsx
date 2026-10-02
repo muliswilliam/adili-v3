@@ -30,9 +30,20 @@ describe('DeclarationPane item pins', () => {
   it('M6: shows the focus ring on the pin, a button that opens its flag', () => {
     const { onPin } = renderPane({ count: 2, severity: 'high', flagId: 'flag-1' });
 
-    const pin = screen.getByRole('button', { name: /2 indicators/u });
+    const pin = screen.getByRole('button', { name: /^2 indicators/u });
     for (const part of focusRing.split(' ')) expect(pin.className).toContain(part);
     fireEvent.click(pin);
     expect(onPin).toHaveBeenCalledWith('flag-1');
+  });
+
+  it('N3: names the highest severity and shows its bars, not colour alone', () => {
+    renderPane({ count: 1, severity: 'medium', flagId: 'flag-2' });
+
+    const pin = screen.getByRole('button', {
+      name: '1 indicator on this item, highest medium. Show in flags.',
+    });
+    // Two bars of three lit, as a medium SeverityBadge.
+    const bars = [...pin.querySelectorAll('rect')].map((bar) => bar.getAttribute('opacity'));
+    expect(bars).toEqual(['1', '1', '0.25']);
   });
 });

@@ -209,7 +209,9 @@ describe('CaseView', () => {
     const salary = document.querySelector<HTMLElement>(`[data-item-id="${SALARY}"]`);
     if (!salary) throw new Error('no salary item');
     fireEvent.click(
-      within(salary).getByRole('button', { name: '1 indicator on this item. Show in flags.' }),
+      within(salary).getByRole('button', {
+        name: '1 indicator on this item, highest medium. Show in flags.',
+      }),
     );
     expect(onTab).toHaveBeenCalledWith('flags');
     const card = screen.getByText('Value down 42% from the previous version').closest('li');
