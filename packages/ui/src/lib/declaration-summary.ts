@@ -240,12 +240,20 @@ const DETAIL_LABELS: [keyof NonNullable<AssetItem['details']>, string][] = [
   ['debtor', 'Owed by'],
 ];
 
-/** An asset's identifiers, e.g. "Parcel NYERI/MUKURWE-INI/1187 · Size 0.5 acre". */
+/**
+ * An asset's identifiers, e.g. "Parcel NYERI/MUKURWE-INI/1187 · Size 0.5 acre", leaving out any
+ * the description already gives.
+ */
 export function assetDetailsLine(item: AssetItem): string {
   const details = item.details ?? {};
+  const description = item.description.toLowerCase();
   return DETAIL_LABELS.flatMap(([key, label]) => {
     const value = details[key]?.trim();
-    return value ? [`${label} ${value}`] : [];
+    if (!value || description.includes(value.toLowerCase())) return [];
+    if (key === 'accountType') {
+      return [/account$/i.test(value) ? value : `${value} account`];
+    }
+    return [`${label} ${value}`];
   }).join(' · ');
 }
 

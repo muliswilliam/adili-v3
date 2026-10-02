@@ -89,9 +89,12 @@ describe('declaration summary', () => {
     expect(itemDescriptionLine('liabilities', must(spouse.liabilities[0]))).toBe(
       'Stock financing · Equity Bank Kenya · Kajiado',
     );
-    expect(assetDetailsLine(must(officer.assets[1]))).toBe(
-      'Parcel NYERI/MUKURWE-INI/1187 · Size 0.5 acre',
+    // Identifiers the description already gives are left out.
+    expect(assetDetailsLine(must(officer.assets[1]))).toBe('Parcel NYERI/MUKURWE-INI/1187');
+    expect(assetDetailsLine(must(officer.assets[2]))).toBe(
+      'Make and model Toyota Land Cruiser Prado',
     );
+    expect(assetDetailsLine(must(officer.assets[3]))).toBe('Savings account');
   });
 
   it('describes spouses and children without their numbers', () => {
