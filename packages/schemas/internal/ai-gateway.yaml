@@ -1063,7 +1063,11 @@ components:
       properties:
         defaults:
           type: array
-          description: The gate of every (data class, provider class) pair a tenant has no rule for
+          description: |
+            The gate of every (data class, provider class) pair a tenant has no rule for:
+            self-hosted providers may see every data class, external providers none, so a new
+            tenant sends nothing outside the platform until a platform admin records an approved
+            rule (the demo tenant's synthetic rule is seeded that way).
           items:
             $ref: '#/components/schemas/GateRuleInput'
         tenants:
