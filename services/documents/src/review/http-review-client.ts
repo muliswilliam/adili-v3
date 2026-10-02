@@ -14,8 +14,10 @@ export interface HttpReviewClientOptions {
   reviewUrl: string;
   /** Client credentials tokens of the documents service carrying `review:internal`. */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
-  /** Per attempt. Default ADR-013's 2 s. */
+  /** Per attempt of a letter's fields. Default ADR-013's 2 s. */
   timeoutMs?: number;
+  /** Per attempt of a referral's package payload. Default `PACKAGE_PULL_TIMEOUT_MS`. */
+  packageTimeoutMs?: number;
   /** For tests. */
   fetch?: typeof fetch;
 }
@@ -56,7 +58,7 @@ export class HttpReviewClient extends ReviewClient {
         fetch: options.fetch,
       });
     this.review = client(options.timeoutMs);
-    this.packages = client(options.timeoutMs ?? PACKAGE_PULL_TIMEOUT_MS);
+    this.packages = client(options.packageTimeoutMs ?? PACKAGE_PULL_TIMEOUT_MS);
   }
 
   payload(record: ReviewRecord, tenant: string, id: string): Promise<unknown> {

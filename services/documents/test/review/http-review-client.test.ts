@@ -220,6 +220,30 @@ describe('HttpReviewClient', () => {
     },
   );
 
+  it("keeps the package pull's own budget when the letters' timeout is set", async () => {
+    const client = new HttpReviewClient({
+      reviewUrl: 'http://review.test/',
+      tokens: { token: () => Promise.resolve('token'), invalidate: () => undefined },
+      timeoutMs: 20,
+      // Answers after 100 ms, unless the caller gives up first.
+      fetch: (_input: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            resolve(json(REFERRAL_PAYLOAD));
+          }, 100);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(init.signal?.reason as Error);
+          });
+        }),
+    });
+
+    await expect(client.payload('action', 'psc', RECORD_ID)).rejects.toBeInstanceOf(
+      ReviewUnavailable,
+    );
+    expect(await client.payload('referral', 'psc', RECORD_ID)).toEqual(REFERRAL_PAYLOAD);
+  });
+
   it('refuses anything but a JSON object, or another status, as unavailable', async () => {
     for (const answer of [
       json(['not', 'an', 'object']),
