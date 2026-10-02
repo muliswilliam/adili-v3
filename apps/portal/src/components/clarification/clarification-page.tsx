@@ -432,11 +432,15 @@ function Points({
               <p className="text-sm font-medium text-muted-foreground">
                 {COPY.point(index + 1, items.length)}
               </p>
-              <div className="grid gap-1">
-                <p className="font-medium">{requirement.ask.en}</p>
+              {/* What the letter asks, in its language; the reviewer's text as written. */}
+              <div lang={clarification.language} className="grid gap-1">
+                <p className="font-medium">{requirement.ask[clarification.language]}</p>
                 {item.label ? <p className="text-sm">{item.label}</p> : null}
               </div>
-              <blockquote className="border-l-2 border-border pl-3 text-sm text-secondary-foreground">
+              <blockquote
+                lang={clarification.language}
+                className="border-l-2 border-border pl-3 text-sm text-secondary-foreground"
+              >
                 {item.text}
               </blockquote>
               {answer ? (

@@ -32,6 +32,7 @@ function clarification(overrides: Partial<DeclarantClarification> = {}): Declara
     followUpOf: null,
     opening: null,
     openingAiJobId: null,
+    language: 'en',
     response: null,
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     declarationReference: 'DCI-TSC-2026-0003418-P',

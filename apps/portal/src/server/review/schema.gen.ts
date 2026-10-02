@@ -1210,8 +1210,7 @@ export interface components {
                 sectionKey: string | null;
                 requirement: components["schemas"]["Requirement"] | null;
             }[];
-            /** @enum {string} */
-            language: "en" | "sw";
+            language: components["schemas"]["LetterLanguage"];
         };
         CopilotDraft: {
             /** Format: uuid */
@@ -1365,7 +1364,14 @@ export interface components {
              */
             aiJobId?: string | null;
         };
+        /**
+         * @description The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written.
+         * @enum {string}
+         */
+        LetterLanguage: "en" | "sw";
         ClarificationInput: {
+            /** @description The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows. */
+            language?: components["schemas"]["LetterLanguage"];
             items: components["schemas"]["ClarificationItemInput"][];
             /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
             opening?: string | null;
@@ -1421,6 +1427,7 @@ export interface components {
              * @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer
              */
             openingAiJobId: string | null;
+            language: components["schemas"]["LetterLanguage"];
             response: {
                 items: {
                     index: number;
@@ -1465,6 +1472,8 @@ export interface components {
             };
             declarationReference: string;
             clarificationReference: string;
+            /** @description The template prints its own text (heading, introduction, how to respond, sign-off, the AI note and the verification lines) in this language. `items[].label` and `items[].requirementLabel` already are; the opening and the items' text are the reviewer's, printed as written. Letters issued before it was recorded are `en`. */
+            language: components["schemas"]["LetterLanguage"];
             /** @description Printed before the items; null when the letter has no opening paragraph */
             opening: string | null;
             /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out. */
