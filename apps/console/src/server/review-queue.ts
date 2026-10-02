@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { queueQuery, queueSearchSchema } from '../review-queue/query';
 import type { QueueSummary } from '../review-queue/rows';
+import { SLUG_PATTERN } from './directory/contract';
 import { asStaffMember } from './review/as-staff-member.server';
 import type { CaseListItem } from './review/types';
 import { callService, type ServiceResult } from './service-call';
@@ -12,7 +13,7 @@ import { callService, type ServiceResult } from './service-call';
  * supervisor. The review service answers 404 to anyone else, and for another Commission's slug.
  */
 
-const slug = z.string().regex(/^[a-z][a-z0-9]{1,19}$/);
+const slug = z.string().regex(SLUG_PATTERN);
 
 export interface QueuePage {
   items: CaseListItem[];

@@ -1,9 +1,8 @@
 import { createServerFn } from '@tanstack/react-start';
-import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import { getBff } from './bff.server';
 import type { DownloadLink } from './clarifications';
+import { SLUG_PATTERN } from './directory/contract';
 import {
   addNote,
   type CaseFlag,
@@ -21,8 +20,7 @@ import {
   type RecheckResult,
   release,
 } from './review-case.server';
-import { asStaffMember } from './review/as-staff-member.server';
-import { reviewClient } from './review/client.server';
+import { asStaffMember, withReviewClient } from './review/as-staff-member.server';
 import type { CaseListItem, Note } from './review/types';
 import { callService, type ServiceResult } from './service-call';
 
@@ -91,7 +89,7 @@ const staffMember = z.object({ subject: z.string().min(1).max(200), name: z.stri
 export const getReviewers = createServerFn({ method: 'GET' })
   .validator(
     z.object({
-      slug: z.string().regex(/^[a-z][a-z0-9]{1,19}$/),
+      slug: z.string().regex(SLUG_PATTERN),
       assignee: z.string().min(1).max(200).nullable(),
       reviewerHistory: z.array(staffMember).max(100),
     }),
@@ -138,8 +136,9 @@ export const getCaseRegistryStatus = createServerFn({ method: 'GET' })
 /** Re-checks the case's registries: the assignee or a supervisor, once every 10 minutes. */
 export const recheckCaseRegistries = createServerFn({ method: 'POST' })
   .validator(z.object({ caseId: id }))
-  .handler(async ({ data }): Promise<RecheckResult> => {
-    const session = await getBff().getSession(getRequest());
-    if (!session) return { ok: false, refusal: null, error: { kind: 'unauthenticated' } };
-    return recheck(reviewClient(session.accessToken), data.caseId);
-  });
+  .handler(({ data }): Promise<RecheckResult> =>
+    withReviewClient(
+      (client) => recheck(client, data.caseId),
+      () => ({ ok: false, refusal: null, error: { kind: 'unauthenticated' } }),
+    ),
+  );
