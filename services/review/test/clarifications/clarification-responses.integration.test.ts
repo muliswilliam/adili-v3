@@ -716,11 +716,13 @@ describe('clarifications: responses, clock, resolve, follow-up, withdraw', () =>
           channel: 'email',
           personId: version.personId,
           template: 'clarification-reminder-email',
-          params: expect.objectContaining({
+          params: {
+            commissionName: 'Public Service Commission',
             reference: clarification.reference,
             dueDate: '2028-01-19',
             daysLeft: 10,
-          }) as unknown,
+            portalUrl: `http://localhost:3010/clarifications/${clarification.id}`,
+          },
         }),
         expect.objectContaining({ channel: 'sms', template: 'clarification-reminder-sms' }),
       ]);
