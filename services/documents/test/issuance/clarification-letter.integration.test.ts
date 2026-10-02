@@ -184,6 +184,7 @@ describe('S17 issuing a clarification letter', () => {
     expect(letter).toContain('Please declare the loan balance and attach a loan statement.');
     expect(letter).toContain('14 Sep 2026');
     expect(letter).toContain('Respond by 14 Oct 2026');
+    expect(letter).toContain('You have 30 days from the date of this letter to respond');
     expect(letter).toContain('How to respond');
     expect(letter).toContain('Sign in to Adili Online at localhost:3010');
     expect(letter).toContain(`Open Clarifications and select ${CLR_REFERENCE}`);

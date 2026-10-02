@@ -155,6 +155,11 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
   render(payload, { verificationId, issuedAt, signerName }) {
     const declaration = declarationSchemeOf(payload.declarationReference).name.toLowerCase();
     const due = esc(formatDate(payload.dueAt));
+    // The reply window is the Commission's policy (30 days by default): the letter says the one
+    // its due date was set with, not a fixed number.
+    const replyDays = Math.round(
+      (Date.parse(payload.dueAt) - Date.parse(payload.issuedAt)) / 86_400_000,
+    );
     const reference = esc(payload.clarificationReference);
     const portal = new URL(payload.portalUrl);
     const items = payload.items
@@ -173,7 +178,7 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
 <p>Dear ${esc(payload.declarantName)},</p>
 <p>Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has reviewed your ${declaration} ${esc(payload.declarationReference)}. Please clarify ${itemsBelow(payload.items.length)}.</p>
 <ol class="items">${items}</ol>
-<div class="banner">${CALENDAR}<div>Respond by ${due}<span class="s">Section 35(3) gives you 30 days from receipt of this letter.</span></div></div>
+<div class="banner">${CALENDAR}<div>Respond by ${due}<span class="s">You have ${replyDays} day${replyDays === 1 ? '' : 's'} from the date of this letter to respond (section 35(3)).</span></div></div>
 <section class="close">
 <h2>How to respond</h2>
 <ol class="steps">
