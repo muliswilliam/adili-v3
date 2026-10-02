@@ -171,6 +171,28 @@ describe('narrative validation', () => {
       expect(kinds('From 120, 17 and 12.35%.')).toEqual([]);
     });
 
+    it('reads a decimal with no whole part as a fraction, not as the digits after its point', () => {
+      // PSC's non-filer rate of 0.051 rounds to 5%, so ".5%" read as 5% would pass.
+      expect(foreign('Non-filers were .5% of officers.')).toEqual(['foreign-number']);
+      expect(foreign('Non-filers were (.5%) of officers.')).toEqual(['foreign-number']);
+
+      const half = { ...input, rates: { ...input.rates, nonFilerRate: 0.005 } };
+      const kinds = (text: string) =>
+        narrativeViolations(half, withParagraph(0, { text })).map((each) => each.kind);
+      expect(kinds('Non-filers were .5% of officers, or 0.5%.')).toEqual([]);
+      expect(kinds('Non-filers were .50 per cent.')).toEqual([]);
+    });
+
+    it('reads a full stop before a number as the end of a sentence, not a decimal point', () => {
+      const twelve = { ...input, totals: { ...input.totals, notReported: 12 } };
+      const kinds = (text: string) =>
+        narrativeViolations(twelve, withParagraph(0, { text })).map((each) => each.kind);
+
+      expect(kinds('Most were filed. 12 were not reported.')).toEqual([]);
+      expect(kinds('Under s.12 of the Act.')).toEqual([]);
+      expect(foreign('Most were filed. 12 were not reported.')).toEqual(['foreign-number']);
+    });
+
     it('reads a thousands group as three digits, so digits that run on after it are checked', () => {
       const grouped = {
         ...input,

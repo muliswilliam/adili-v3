@@ -107,10 +107,12 @@ const MAX_PERCENT_DECIMALS = 2;
  * ("s.31"); digits after a number's decimal point do not. A thousands group is read whole, so
  * digits after a comma that makes no group are a number of their own: "17,5%" states 17 and 5%,
  * "120,45" states 120 and 45, and each is checked. A group is three digits and no more, so
- * "11,2045" states 11 and 2045, not 11,204.
+ * "11,2045" states 11 and 2045, not 11,204. A decimal point with no digits before it and no letter
+ * either starts a fraction: ".5%" states 0.5%, not 5%. A full stop then a space starts no
+ * fraction ("filed. 12 Commissions" states 12).
  */
 const NUMBER =
-  /(?<!\d|\d\.)(\d{1,3}(?:[,\u2009\u202f]\d{3}(?!\d))+|\d+)(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
+  /(?<!\d|\d\.)(?:(\d{1,3}(?:[,\u2009\u202f]\d{3}(?!\d))+|\d+)|(?<![\p{L}\d])(?=\.\d))(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
 
 interface Mention {
   value: number;
