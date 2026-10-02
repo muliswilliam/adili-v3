@@ -33,7 +33,10 @@ const input = z
       .meta({ description: "The declarant's question; null in hints mode" }),
     context: z
       .object({
-        declarationType: z.string().max(50).nullable(),
+        declarationType: z
+          .enum(['initial', 'biennial', 'final'])
+          .nullable()
+          .meta({ description: 'The type of the declaration being filled (declarations.yaml)' }),
         statementDate: z.iso.date().nullable(),
         householdCounts: z.object({
           spouses: z.number().int().min(0),

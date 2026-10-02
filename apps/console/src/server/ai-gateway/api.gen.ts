@@ -464,7 +464,8 @@ export interface components {
             question: string | null;
             /** @description Never contains amounts, names, identifiers or descriptions */
             context: {
-                declarationType: string | null;
+                /** @description The type of the declaration being filled (declarations.yaml) */
+                declarationType: ("initial" | "biennial" | "final") | null;
                 statementDate: string | null;
                 householdCounts: {
                     spouses: number;

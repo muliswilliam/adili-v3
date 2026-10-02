@@ -4,10 +4,10 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
+import { CACHE_KEY, type Job, jobs, type schema, servesCache } from '../db/schema.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
 import { UnknownTokenError } from '../policy/minimisation.js';
 import { type PreparedPrompt, preparePrompt, streamedRequest } from '../policy/prompt.js';
@@ -25,9 +25,15 @@ import { findTask } from '../tasks/registry.js';
 import { TaggedAnswerReader } from '../tasks/tagged-answer.js';
 import type { OutputViolation, TaskDefinition } from '../tasks/task.js';
 import { Admission } from './admission.js';
-import { type AttemptMetrics, JobExecutor, NO_CALL, type Outcome } from './job-executor.js';
+import {
+  type AttemptMetrics,
+  JobExecutor,
+  MAX_STORED_VIOLATIONS,
+  NO_CALL,
+  type Outcome,
+} from './job-executor.js';
 import { recordJobEnded } from './job-ended.js';
-import { CACHEABLE_STATUSES, isTerminal, type JobReason } from './job-states.js';
+import { isTerminal, type JobReason } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
 import { GRACE_SECONDS } from './jobs-janitor.js';
 import { jobKey, keyReused, MAX_CREATE_ATTEMPTS, promptVersionFor } from './jobs.service.js';
@@ -67,7 +73,8 @@ class CallerGone extends Error {
  *
  * An output that fails its checks (the grammar, its schema, the task's own checks) is replaced by
  * a decline, and the job succeeds with the violations recorded: the caller shows its decline text,
- * and the deltas it already showed are provisional until the final frame.
+ * and the deltas it already showed are provisional until the final frame. Such a decline is not
+ * cached (`servesCache`): an equal request calls the provider again.
  */
 @Injectable()
 export class TaskStreams {
@@ -125,11 +132,7 @@ export class TaskStreams {
         .select()
         .from(jobs)
         .where(
-          and(
-            ...CACHE_KEY.map((column) => eq(jobs[column], fields[column])),
-            inArray(jobs.status, CACHEABLE_STATUSES),
-            isNull(jobs.outputPurgedAt),
-          ),
+          and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
         );
       if (cached) return replay(cached, true);
 
@@ -299,9 +302,10 @@ export class TaskStreams {
     return this.decline(job, task, outcome.violations ?? [{ kind: 'invalid-output' }]);
   }
 
-  private decline(job: Job, task: TaskDefinition, violations: OutputViolation[]): Outcome {
+  private decline(job: Job, task: TaskDefinition, found: OutputViolation[]): Outcome {
+    const violations = found.slice(0, MAX_STORED_VIOLATIONS);
     this.logger.warn(
-      { jobId: job.id, task: job.task, violations },
+      { jobId: job.id, task: job.task, count: found.length, violations },
       'Streamed answer failed its checks; declined',
     );
     return {

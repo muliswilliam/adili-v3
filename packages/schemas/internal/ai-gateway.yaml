@@ -1297,8 +1297,12 @@ components:
             declarationType:
               anyOf:
                 - type: string
-                  maxLength: 50
+                  enum:
+                    - initial
+                    - biennial
+                    - final
                 - type: 'null'
+              description: The type of the declaration being filled (declarations.yaml)
             statementDate:
               anyOf:
                 - type: string

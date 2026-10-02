@@ -34,6 +34,16 @@ describe('answer-declarant-question', () => {
       const context = { ...answerInput.context, sectionKey: 'statement:Jane Wanjiku' };
       expect(task.input.safeParse({ ...answerInput, context }).success).toBe(false);
     });
+
+    it('takes a declaration type the declarations service has, or none', () => {
+      const typed = (declarationType: unknown) =>
+        task.input.safeParse({
+          ...answerInput,
+          context: { ...answerInput.context, declarationType },
+        }).success;
+      expect(['initial', 'biennial', 'final', null].map(typed)).toEqual([true, true, true, true]);
+      expect(typed('annual')).toBe(false);
+    });
   });
 
   it('streams answers and runs hints as jobs', () => {

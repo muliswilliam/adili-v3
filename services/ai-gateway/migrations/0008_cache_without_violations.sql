@@ -1,0 +1,2 @@
+DROP INDEX "jobs_cache_idx";--> statement-breakpoint
+CREATE UNIQUE INDEX "jobs_cache_idx" ON "jobs" USING btree ("tenant","caller","subject_ref","data_class","task","prompt_version","provider","model","input_hash") WHERE "jobs"."status" in ('queued', 'running', 'succeeded') and "jobs"."output_purged_at" is null and "jobs"."violations" is null;

@@ -2,10 +2,10 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { callerOf, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { CACHE_KEY, type Job, jobs, type schema } from '../db/schema.js';
+import { CACHE_KEY, type Job, jobs, type schema, servesCache } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
@@ -14,7 +14,7 @@ import type { TaskDefinition } from '../tasks/task.js';
 import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
-import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
+import { isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
 import { type Route, Routing } from './routing.js';
 import { type TaskRequest, taskRequestSchema } from './task-request.js';
@@ -156,11 +156,7 @@ export class JobsService {
         .select()
         .from(jobs)
         .where(
-          and(
-            ...CACHE_KEY.map((column) => eq(jobs[column], fields[column])),
-            inArray(jobs.status, CACHEABLE_STATUSES),
-            isNull(jobs.outputPurgedAt),
-          ),
+          and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
         );
       if (cached) {
         return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };

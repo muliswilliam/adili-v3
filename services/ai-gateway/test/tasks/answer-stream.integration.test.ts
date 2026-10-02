@@ -184,6 +184,21 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     expect((await row(cut.id))?.violations).toEqual([{ kind: 'truncated' }]);
   });
 
+  it('stores at most twenty violations of a declined answer', async () => {
+    provider.scripts = [
+      answered(Array.from({ length: 30 }, (_, i) => `<block>Point ${i}.</block>`)),
+    ];
+
+    const job = finalJob((await stream()).frames);
+
+    expect(job.output).toMatchObject({ declined: true, blocks: [] });
+    const violations = (await row(job.id))?.violations;
+    expect(violations).toHaveLength(20);
+    expect(violations?.[19]).toEqual({ kind: 'uncited-block', block: 19 });
+    const [audit] = await t.db.select().from(auditRecords).where(eq(auditRecords.jobId, job.id));
+    expect(audit?.violations).toEqual(violations);
+  });
+
   it('passes a decline through without streaming anything', async () => {
     provider.scripts = [answered(['<declined/>'])];
 
@@ -238,6 +253,20 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     expect(again.map((frame) => frame.event)).toEqual(['delta', 'final']);
     expect(prose(again)).toBe(prose(frames(first.body)));
     expect(finalJob(again).id).toBe(finalJob(frames(first.body)).id);
+  });
+
+  it('calls the provider again for an equal request after an answer that failed its checks', async () => {
+    provider.scripts = [answered(['Sure! Here is the answer: you must declare it.']), answered()];
+    const subjectRef = `conversation:${randomUUID()}`;
+    const declined = finalJob((await stream(answerInput, randomUUID(), subjectRef)).frames);
+    expect(declined.output).toMatchObject({ declined: true });
+    const calls = provider.requests.length;
+
+    const again = finalJob((await stream(answerInput, randomUUID(), subjectRef)).frames);
+
+    expect(provider.requests.length - calls).toBe(1);
+    expect(again.id).not.toBe(declined.id);
+    expect(again).toMatchObject({ status: 'succeeded', output: { declined: false } });
   });
 
   describe('idempotency', () => {

@@ -47,8 +47,8 @@ export interface AttemptMetrics {
 
 export const NO_CALL: AttemptMetrics = { usage: null, model: null, latencyMs: 0 };
 
-/** Violations kept with a failed job and its audit record: enough to say why, bounded. */
-const MAX_STORED_VIOLATIONS = 20;
+/** Violations kept with a job and its audit record: enough to say why, bounded. */
+export const MAX_STORED_VIOLATIONS = 20;
 /** Longest one write of a job's final state may take (Postgres `statement_timeout`). */
 const WRITE_TIMEOUT_MS = 5_000;
 /**

@@ -78,7 +78,7 @@ interface Scenario {
   en: string;
   sw: string;
   history?: { en: Turn[]; sw: Turn[] };
-  declarationType?: string;
+  declarationType?: NonNullable<AnswerInput['context']['declarationType']>;
   obeyed?: readonly RegExp[];
   residuals?: Residual[];
 }
