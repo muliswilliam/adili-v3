@@ -222,6 +222,34 @@ describe('admin API', { timeout: 90_000 }, () => {
       expect((await run('psc', 'synthetic')).status).toBe('blocked');
     });
 
+    it('audits concurrent first rules for a pair in the order they apply (review Q12)', async () => {
+      for (let round = 0; round < 5; round++) {
+        const tenant = `race${String(round)}`;
+        const responses = await Promise.all(
+          [true, false].map((allowed) =>
+            request('PUT', `/v1/ai/policies/${tenant}`, admin, {
+              rules: [{ dataClass: 'restricted', providerClass: 'external', allowed }],
+              approvalRef: `EACC/AI/race/${String(allowed)}`,
+            }),
+          ),
+        );
+        for (const response of responses) expect(response.statusCode).toBe(200);
+        const changes = await t.db
+          .select()
+          .from(auditRecords)
+          .where(eq(auditRecords.tenant, tenant))
+          .orderBy(asc(auditRecords.id));
+        interface Change {
+          before: { explicit: boolean; allowed: boolean };
+          after: { allowed: boolean };
+        }
+        const [first, second] = changes.map((row) => row.change as Change);
+        // Only the first change found no rule; the second saw the first's decision.
+        expect(first?.before.explicit).toBe(false);
+        expect(second?.before).toMatchObject({ explicit: true, allowed: first?.after.allowed });
+      }
+    });
+
     it('stores none of the rules when the change is invalid', async () => {
       const invalid = [
         {
@@ -311,6 +339,50 @@ describe('admin API', { timeout: 90_000 }, () => {
       expect(body.tenants.map((each) => each.tenant)).toEqual(
         [...body.tenants.map((each) => each.tenant)].sort(),
       );
+    });
+
+    it('refuses the reserved platform context as a tenant (review N8)', async () => {
+      for (const [method, url, payload] of [
+        ['GET', '/v1/ai/tenants/platform/usage'],
+        ['PUT', '/v1/ai/tenants/platform/usage', { monthlyTokens: 1, perMinute: 1 }],
+        [
+          'PUT',
+          '/v1/ai/policies/platform',
+          {
+            rules: [{ dataClass: 'restricted', providerClass: 'external', allowed: true }],
+            approvalRef: 'EACC/AI/1',
+          },
+        ],
+      ] as const) {
+        const response = await request(method, url, admin, payload);
+        expect(response.statusCode, `${method} ${url}`).toBe(400);
+      }
+    });
+
+    it('audits concurrent first budgets of a tenant in the order they apply (review Q12)', async () => {
+      for (let round = 0; round < 5; round++) {
+        const tenant = `brace${String(round)}`;
+        await Promise.all(
+          [100, 200].map((monthlyTokens) =>
+            request('PUT', `/v1/ai/tenants/${tenant}/usage`, admin, {
+              monthlyTokens,
+              perMinute: 5,
+            }),
+          ),
+        );
+        const changes = await t.db
+          .select()
+          .from(auditRecords)
+          .where(eq(auditRecords.tenant, tenant))
+          .orderBy(asc(auditRecords.id));
+        interface Change {
+          before: { default?: boolean; monthlyTokens: number };
+          after: { monthlyTokens: number };
+        }
+        const [first, second] = changes.map((row) => row.change as Change);
+        expect(first?.before.default).toBe(true);
+        expect(second?.before).toEqual({ monthlyTokens: first?.after.monthlyTokens, perMinute: 5 });
+      }
     });
 
     it('refuses an invalid budget', async () => {

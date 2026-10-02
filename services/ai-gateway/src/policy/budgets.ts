@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, count, eq, gte, inArray, isNotNull, lt, or, sql, sum } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, lt, min, or, sql, sum } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { budgetInput } from '../admin/admin-input.js';
+import { lockTenantSetting } from '../db/locks.js';
 import { budgets, jobs, type schema } from '../db/schema.js';
 import { LIVE_STATUSES } from '../jobs/job-states.js';
 import { auditChange } from './audit.js';
@@ -98,8 +99,8 @@ export class Budgets {
     tenant: string,
   ): Promise<{ limited: false } | { limited: true; retryAfterSeconds: number }> {
     const { perMinute } = await this.limits(tenant);
-    const recent = await this.db
-      .select({ createdAt: jobs.createdAt })
+    const [recent] = await this.db
+      .select({ admitted: count(), oldest: min(jobs.createdAt) })
       .from(jobs)
       .where(
         and(
@@ -107,11 +108,9 @@ export class Budgets {
           gte(jobs.createdAt, sql`now() - interval '1 minute'`),
           or(inArray(jobs.status, LIVE_STATUSES), isNotNull(jobs.startedAt)),
         ),
-      )
-      .orderBy(jobs.createdAt)
-      .limit(perMinute);
-    if (recent.length < perMinute) return { limited: false };
-    const oldest = recent[0]?.createdAt.getTime() ?? Date.now();
+      );
+    if (!recent || recent.admitted < perMinute) return { limited: false };
+    const oldest = recent.oldest?.getTime() ?? Date.now();
     return {
       limited: true,
       retryAfterSeconds: Math.max(1, Math.ceil((oldest + 60_000 - Date.now()) / 1000)),
@@ -173,11 +172,12 @@ export class Budgets {
   /** Sets the tenant's budget; the change, its audit record and its event commit together. */
   async set(tenant: string, input: BudgetLimits, actor: string): Promise<TenantUsage> {
     await this.db.transaction(async (tx) => {
+      // Concurrent changes of the tenant's budget apply, and are audited, in turn.
+      await lockTenantSetting(tx, 'budget', tenant);
       const [before] = await tx
         .select({ monthlyTokens: budgets.monthlyTokens, perMinute: budgets.perMinute })
         .from(budgets)
-        .where(eq(budgets.tenant, tenant))
-        .for('update');
+        .where(eq(budgets.tenant, tenant));
       await tx
         .insert(budgets)
         .values({ tenant, ...input, changedBy: actor })

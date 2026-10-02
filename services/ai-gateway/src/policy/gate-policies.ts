@@ -4,6 +4,7 @@ import { EventPublisher } from '@adili/events';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { lockTenantSetting } from '../db/locks.js';
 import { type GatePolicy, gatePolicies, type schema } from '../db/schema.js';
 import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-request.js';
 import { PROVIDER_CLASSES, type ProviderClass, providerClassSchema } from '../providers/port.js';
@@ -151,14 +152,15 @@ export class GatePolicies {
    */
   async set(tenant: string, change: GateChange, actor: Actor): Promise<TenantGate> {
     await this.db.transaction(async (tx) => {
+      // Concurrent changes of the tenant's gate apply, and are audited, in turn.
+      await lockTenantSetting(tx, 'gate', tenant);
       for (const input of change.rules) {
         const key = and(
           eq(gatePolicies.tenant, tenant),
           eq(gatePolicies.dataClass, input.dataClass),
           eq(gatePolicies.providerClass, input.providerClass),
         );
-        // Locks the rule, so concurrent changes are audited in the order they apply.
-        const [before] = await tx.select().from(gatePolicies).where(key).for('update');
+        const [before] = await tx.select().from(gatePolicies).where(key);
         const decision = {
           allowed: input.allowed,
           approvalRef: change.approvalRef,
