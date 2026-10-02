@@ -1360,6 +1360,10 @@ components:
           additionalProperties: true
         aggregateKeys:
           type: array
+          description: >-
+            Keys of the figures the candidate rests on, in the ai-gateway scheme
+            (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed
+            `fy<fy>.` for a prior year
           items:
             type: string
     NarrativeParagraph:

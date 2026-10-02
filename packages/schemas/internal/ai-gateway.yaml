@@ -840,6 +840,12 @@ components:
             maxLength: 200
     NarrateComplianceReportInput:
       type: object
+      description: >-
+        NCR aggregates only, no personal data (spec 09b). Every figure has an aggregate key:
+        `national.<name>` for a name in `totals` or `rates`, `commission.<code>.<name>` for a name in a
+        Commission row's `figures`, and the same prefixed `fy<fy>.` for a prior year
+        (`fy2025.commission.tsc.nonFilerRate`). Paragraphs cite these keys; candidates' `aggregateKeys`
+        use them too. The house style is part of the prompt, not the input.
       required:
         [kind, fy, section, language, totals, commissionTable, rates, priorYears, candidates]
       properties:
@@ -847,6 +853,7 @@ components:
           const: narrate-compliance-report
         fy:
           type: integer
+          description: Financial year, by the calendar year it ends in (2026 is FY2025/26)
         section:
           type: string
           enum: [overview, findings, recommendations, all]
@@ -854,21 +861,29 @@ components:
           type: string
           enum: [en]
         totals:
-          type: object
-          additionalProperties: true
+          $ref: '#/components/schemas/NarrativeFigures'
+        rates:
+          $ref: '#/components/schemas/NarrativeFigures'
         commissionTable:
           type: array
           items:
-            type: object
-            additionalProperties: true
-        rates:
-          type: object
-          additionalProperties: true
+            $ref: '#/components/schemas/NarrativeCommissionRow'
         priorYears:
           type: array
           items:
             type: object
-            additionalProperties: true
+            required: [fy, totals, rates, commissionTable]
+            properties:
+              fy:
+                type: integer
+              totals:
+                $ref: '#/components/schemas/NarrativeFigures'
+              rates:
+                $ref: '#/components/schemas/NarrativeFigures'
+              commissionTable:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NarrativeCommissionRow'
         candidates:
           type: array
           items:
@@ -883,19 +898,45 @@ components:
                 type: string
               values:
                 type: object
-                additionalProperties: true
+                additionalProperties:
+                  type: [number, string, 'null']
               aggregateKeys:
                 type: array
+                minItems: 1
                 items:
                   type: string
+    NarrativeFigures:
+      type: object
+      description: Named figures; rates as fractions (0.164 is 16.4%); null where not available
+      additionalProperties:
+        type: [number, 'null']
+    NarrativeCommissionRow:
+      type: object
+      required: [code, name, figures]
+      properties:
+        code:
+          type: string
+          pattern: '^[a-z][a-z0-9-]*$'
+          description: Commission slug; names the row in aggregate keys
+        name:
+          type: string
+        figures:
+          $ref: '#/components/schemas/NarrativeFigures'
     NarrateComplianceReportOutput:
       type: object
+      description: >-
+        Fails with reason `validation` unless every number in the text is in the input (separators
+        stripped; percentages as a rate ×100 rounded to the places written; years only as input FYs),
+        every `aggregateRef` and `candidateId` is in the input, every finding narrates a candidate, and
+        the paragraphs cover exactly the sections asked for (overview at most 3, findings 12,
+        recommendations 6).
       required: [label, paragraphs]
       properties:
         label:
           $ref: '#/components/schemas/AiLabel'
         paragraphs:
           type: array
+          maxItems: 21
           items:
             type: object
             required: [section, text, aggregateRefs, candidateIds]
