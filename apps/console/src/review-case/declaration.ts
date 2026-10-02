@@ -1,4 +1,4 @@
-import { COUNTRIES, formatDate } from '@adili/ui';
+import { COUNTIES, COUNTRIES, formatDate } from '@adili/ui';
 
 import {
   ASSET_TYPE_LABELS,
@@ -107,6 +107,13 @@ export function countryName(code: string): string {
   return COUNTRY_NAMES.get(code) ?? code;
 }
 
+const COUNTY_NAMES = new Map(COUNTIES.map((county) => [county.code, county.name]));
+
+/** A Kenyan county by name, from its code (`022` is Kiambu); the code when it is not one we know. */
+export function countyName(code: string): string {
+  return COUNTY_NAMES.get(code) ?? code;
+}
+
 function placeOf(location: unknown): string {
   if (!isRecord(location)) return '';
   if (location.inKenya === false) {
@@ -115,7 +122,8 @@ function placeOf(location: unknown): string {
       .filter(Boolean)
       .join(', ');
   }
-  return [text(location.detail), text(location.county)].filter(Boolean).join(', ');
+  const county = text(location.county);
+  return [text(location.detail), county ? countyName(county) : ''].filter(Boolean).join(', ');
 }
 
 function ownershipOf(joint: unknown): string {

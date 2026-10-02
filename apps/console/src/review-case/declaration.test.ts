@@ -47,6 +47,32 @@ describe('readDeclaration', () => {
     expect(items?.liabilities[0]?.detail).toBe('Kisumu');
   });
 
+  it('names a county from the code the portal stores (e2e 04, 07)', () => {
+    const view = readDeclaration({
+      schemaVersion: 'declaration.v1',
+      statements: [
+        {
+          personKey: 'officer',
+          personName: { firstName: 'Wanjiku' },
+          assets: [
+            {
+              id: 'a',
+              type: 'land',
+              description: 'Residential plot with two-bedroom flat, Ruaka',
+              location: { inKenya: true, county: '022' },
+              joint: { isJoint: true, sharePercent: 60 },
+            },
+            { id: 'b', type: 'land', location: { inKenya: true, county: '999' } },
+          ],
+        },
+      ],
+    });
+    const assets = view?.statements[0]?.items.assets;
+    expect(assets?.[0]?.detail).toBe('Kiambu · Joint, 60% share');
+    // A code we do not know is shown as given.
+    expect(assets?.[1]?.detail).toContain('999');
+  });
+
   it('lists the attachments with the items they belong to', () => {
     expect(view.attachments.map((each) => [each.uploadId, each.label])).toEqual([
       [
