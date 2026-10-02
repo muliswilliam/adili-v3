@@ -28,10 +28,11 @@ import { messages as m, STATUS } from './messages';
 import {
   CLOSED,
   DECIDED,
+  filtersFor,
   hasQueueFilters,
-  QUEUE_FILTERS,
   type QueueFilter,
   type QueueSearch,
+  type QueueTab,
 } from './queue-query';
 
 export interface QueueListProps {
@@ -47,18 +48,22 @@ export interface QueueListProps {
 }
 
 /**
- * The Commission's access requests queue (spec 10 FE-5): search and one filter on top, then the
- * requests earliest deadline first with who asked, the officer sought (or identified), the
- * status and the deadline that runs: the decision, or the declarant's window for
- * representations while it is open. Late requests show red.
+ * The Commission's access requests queue (spec 10 FE-5, FE-6), of every kind or the kind the
+ * tabs above chose (Form K, law enforcement): search and one filter on top, then the requests
+ * earliest deadline first with who asked (the applicant, or the agency), the officer sought (or
+ * identified), the status and the deadline that runs: the decision (30 days for Form K, 14 for
+ * law enforcement), or the declarant's window for representations while it is open. Late
+ * requests show red.
  */
 export function QueueList(props: QueueListProps) {
-  const { result } = props;
+  const { result, search } = props;
+  // The tab bar above (`AccessTabs`) sets the kind in the URL.
+  const tab: QueueTab = search.kind ?? 'all';
   return (
     <Card className="overflow-hidden p-0 sm:p-0">
-      <Toolbar {...props} />
+      <Toolbar {...props} tab={tab} />
       {result === null ? (
-        <QueueTableSkeleton />
+        <QueueTableSkeleton tab={tab} />
       ) : !result.ok ? (
         <div className="p-5">
           <LoadError
@@ -68,13 +73,13 @@ export function QueueList(props: QueueListProps) {
           />
         </div>
       ) : (
-        <Results {...props} page={result.data} />
+        <Results {...props} tab={tab} page={result.data} />
       )}
     </Card>
   );
 }
 
-function Toolbar({ search, onSearchChange }: QueueListProps) {
+function Toolbar({ search, onSearchChange, tab }: QueueListProps & { tab: QueueTab }) {
   const id = useId();
   const active: QueueFilter = search.filter ?? 'all';
   return (
@@ -87,16 +92,20 @@ function Toolbar({ search, onSearchChange }: QueueListProps) {
         applied={search.search ?? ''}
         className="max-w-[360px] min-w-[240px]"
         onSearch={(value) => {
-          onSearchChange({ filter: search.filter, search: value || undefined }, { replace: true });
+          onSearchChange(
+            { kind: search.kind, filter: search.filter, search: value || undefined },
+            { replace: true },
+          );
         }}
       />
       <div role="group" aria-label={m.filtersLabel} className="flex flex-wrap gap-1.5">
-        {QUEUE_FILTERS.map((filter) => (
+        {filtersFor(tab).map((filter) => (
           <FilterChip
             key={filter}
             pressed={active === filter}
             onPressedChange={() => {
               onSearchChange({
+                kind: search.kind,
                 filter: filter === 'all' ? undefined : filter,
                 search: search.search,
               });
@@ -119,7 +128,8 @@ function Results({
   onSearchChange,
   requestLink,
   pager,
-}: QueueListProps & { page: QueuePage }) {
+  tab,
+}: QueueListProps & { page: QueuePage; tab: QueueTab }) {
   if (page.items.length === 0 && !search.cursor) {
     return hasQueueFilters(search) ? (
       <EmptyState
@@ -131,7 +141,7 @@ function Results({
             variant="secondary"
             size="sm"
             onClick={() => {
-              onSearchChange({});
+              onSearchChange({ kind: search.kind });
             }}
           >
             {m.clearFilters}
@@ -142,14 +152,14 @@ function Results({
       <EmptyState
         icon={<Icon icon={SquareLock02Icon} />}
         title={m.emptyTitle}
-        description={m.emptyText}
+        description={m.emptyText[tab]}
       />
     );
   }
   return (
     <>
       <div className="hidden min-[760px]:block">
-        <QueueTable items={page.items} requestLink={requestLink} />
+        <QueueTable items={page.items} requestLink={requestLink} tab={tab} />
       </div>
       <div className="min-[760px]:hidden">
         <QueueCards items={page.items} requestLink={requestLink} />
@@ -159,12 +169,12 @@ function Results({
   );
 }
 
-function Header() {
+function Header({ tab }: { tab: QueueTab }) {
   return (
     <TableHeader>
       <TableRow>
         <TableHead>{m.columnReference}</TableHead>
-        <TableHead>{m.columnApplicant}</TableHead>
+        <TableHead>{m.columnWho[tab]}</TableHead>
         <TableHead>{m.columnOfficer}</TableHead>
         <TableHead>{m.columnStatus}</TableHead>
         <TableHead>{m.columnDeadline}</TableHead>
@@ -217,11 +227,16 @@ export function QueueDeadline({ item }: { item: QueueItem }) {
   }
   const window = item.status === 'awaiting-representations' && item.windowEndsAt !== null;
   const due = window && item.windowEndsAt ? item.windowEndsAt : item.deadlineAt;
+  const soonDays = window
+    ? deadlineSoonDays.representations
+    : item.kind === 'lea'
+      ? deadlineSoonDays.lawEnforcement
+      : deadlineSoonDays.decision;
   return (
     <>
       <DeadlineChip
         due={due}
-        soonDays={window ? deadlineSoonDays.representations : deadlineSoonDays.decision}
+        soonDays={soonDays}
         label={window ? m.representationsClose : m.decisionDue}
         late={window ? false : item.late}
       />
@@ -233,13 +248,15 @@ export function QueueDeadline({ item }: { item: QueueItem }) {
 function QueueTable({
   items,
   requestLink,
+  tab,
 }: {
   items: readonly QueueItem[];
   requestLink: QueueListProps['requestLink'];
+  tab: QueueTab;
 }) {
   return (
     <Table caption={m.queueCaption}>
-      <Header />
+      <Header tab={tab} />
       <TableBody>
         {items.map((item) => (
           <TableRow key={item.id}>
@@ -247,7 +264,7 @@ function QueueTable({
               <TableRowLink asChild className="font-mono text-[13.5px] font-semibold">
                 {requestLink(item)}
               </TableRowLink>
-              <Sub>{`${m.formK} · ${shortDate(item.submittedAt)}`}</Sub>
+              <Sub>{`${m.kinds[item.kind]} · ${shortDate(item.submittedAt)}`}</Sub>
             </TableHead>
             <TableCell className="min-w-[160px]">
               <div className="font-medium">{item.applicantOrAgency}</div>
@@ -306,10 +323,10 @@ function QueueCards({
 const SKELETON_WIDTHS = ['w-[190px]', 'w-[150px]', 'w-[160px]', 'w-[120px]', 'w-[90px]'];
 
 /** Placeholder rows under the real header while the page loads; the table is marked busy. */
-export function QueueTableSkeleton() {
+export function QueueTableSkeleton({ tab }: { tab: QueueTab }) {
   return (
     <Table caption={m.queueLoadingCaption} aria-busy="true">
-      <Header />
+      <Header tab={tab} />
       <TableBody>
         {Array.from({ length: 6 }, (_, row) => (
           <TableRow key={row}>

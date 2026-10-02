@@ -12,7 +12,7 @@ export function formKOf(view: Pick<OfficerRequestView, 'formK'>): FormKV1 {
   return view.formK;
 }
 
-function Value({ term, children }: { term: string; children: ReactNode }) {
+export function Value({ term, children }: { term: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-[13px] text-muted-foreground">{term}</dt>
@@ -21,7 +21,7 @@ function Value({ term, children }: { term: string; children: ReactNode }) {
   );
 }
 
-function Part({ title, children }: { title: string; children: ReactNode }) {
+export function Part({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="grid gap-3.5 border-t px-5 py-4.5 first:border-t-0" aria-label={title}>
       <h3 className="text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase">
@@ -32,7 +32,7 @@ function Part({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Grid({ columns = 3, children }: { columns?: 2 | 3; children: ReactNode }) {
+export function Grid({ columns = 3, children }: { columns?: 2 | 3; children: ReactNode }) {
   return (
     <dl
       className={
@@ -46,7 +46,7 @@ function Grid({ columns = 3, children }: { columns?: 2 | 3; children: ReactNode 
   );
 }
 
-function Paragraph({ term, children }: { term: string; children: ReactNode }) {
+export function Paragraph({ term, children }: { term: string; children: ReactNode }) {
   return (
     <div>
       <dt className="text-[13px] text-muted-foreground">{term}</dt>
@@ -146,7 +146,7 @@ export function FormKCard({ view }: { view: OfficerRequestView }) {
   );
 }
 
-function NotGiven() {
+export function NotGiven() {
   return <span className="font-normal text-muted-foreground">{m.notGiven}</span>;
 }
 

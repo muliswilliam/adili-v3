@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBody,
   ApiCreatedResponse,
@@ -10,6 +10,7 @@ import {
 import {
   AcceptIdempotencyKey,
   ApiProblemResponse,
+  ApiQueryParameters,
   CurrentPrincipal,
   type Principal,
   RequireIdempotencyKey,
@@ -21,6 +22,11 @@ import { ACCESS_OFFICER, EACC_ROLES, LAW_ENFORCEMENT, SUPERVISOR } from '@adili/
 import { z } from 'zod';
 
 import { type DecisionInput, decisionInputSchema } from '../decision.js';
+import {
+  type RosterCandidates,
+  type RosterCandidatesQuery,
+  rosterCandidatesQuery,
+} from '../requests/officer-representation.js';
 import { LeaService } from './lea.service.js';
 import {
   type LeaRequest,
@@ -116,6 +122,30 @@ export class LeaController {
     return this.lea.get(principal, requestId);
   }
 
+  @Get(':leaRequestId/roster-candidates')
+  @Roles(...OFFICER_ROUTE_ROLES)
+  @ApiTags('officer')
+  @ApiParam(LEA_REQUEST_ID)
+  @ApiOperation({
+    operationId: 'listLeaRosterCandidates',
+    summary: "Search the Commission's roster for the officer a law enforcement request names",
+    description:
+      'As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.',
+  })
+  @ApiQueryParameters(rosterCandidatesQuery)
+  @ApiOkResponse({ description: 'Records', schema: schemaRef('RosterCandidates') })
+  @ApiProblemResponse(400, 'leaRequestId is not a UUID, or no search of at least 2 characters')
+  @ApiProblemResponse(403, 'The Commission supervisor reads requests; only its access officer acts')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(503, 'The directory cannot be reached')
+  rosterCandidates(
+    @CurrentPrincipal() principal: Principal,
+    @Param('leaRequestId', new ZodValidationPipe(z.uuid())) requestId: string,
+    @Query(new ZodValidationPipe(rosterCandidatesQuery)) query: RosterCandidatesQuery,
+  ): Promise<RosterCandidates> {
+    return this.lea.rosterCandidates(principal, requestId, query.q);
+  }
+
   @Post(':leaRequestId/verify')
   @HttpCode(HttpStatus.OK)
   @Roles(...OFFICER_ROUTE_ROLES)
@@ -138,7 +168,7 @@ export class LeaController {
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(
     409,
-    'Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or the account the request came from is no longer an active officer account of its agency',
+    'Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or `lea-account-inactive`: the account the request came from is no longer an active officer account of its agency (deny it instead)',
   )
   @ApiProblemResponse(503, 'The directory cannot be reached; nothing was recorded')
   verify(

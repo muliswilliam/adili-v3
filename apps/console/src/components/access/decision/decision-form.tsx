@@ -27,6 +27,7 @@ import {
   type DecisionDraft,
   type DecisionErrors,
   type DecisionFailure,
+  type DecisionFailureCopy,
   type DecisionInput,
   decisionErrors,
   decisionFailure,
@@ -72,6 +73,8 @@ export interface DecisionFormProps {
   onDecided: () => void | Promise<void>;
   /** Back to the request without deciding (Cancel, and "Open the request" once it moved on). */
   onCancel: () => void;
+  /** How refusals read for this kind of request, when not as for Form K. */
+  failureCopy?: DecisionFailureCopy;
 }
 
 /**
@@ -93,6 +96,7 @@ export function DecisionForm({
   submit,
   onDecided,
   onCancel,
+  failureCopy,
 }: DecisionFormProps) {
   const id = useId();
   const [draft, setDraft] = useState<DecisionDraft>(emptyDraft);
@@ -147,7 +151,7 @@ export function DecisionForm({
     }
     setBusy(false);
     setConfirming(false);
-    const failed = decisionFailure(result.error);
+    const failed = decisionFailure(result.error, failureCopy);
     if (failed.signIn) {
       goToSignIn();
       return;

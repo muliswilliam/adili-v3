@@ -6,6 +6,7 @@ import {
   COMMISSION_STAFF_ROLES,
   EACC_ROLES,
   HELPDESK,
+  LAW_ENFORCEMENT,
   NATIONAL_ROLES,
   PLATFORM_ADMIN,
   REPORTING_OFFICER,
@@ -25,7 +26,13 @@ export interface Workspace {
 
 /** Routes of workspaces that exist so far. */
 export type WorkspaceHref =
-  '/commissions' | '/roster' | '/obligations' | '/obligations/national' | '/access/requests';
+  | '/commissions'
+  | '/roster'
+  | '/obligations'
+  | '/obligations/national'
+  | '/access/requests'
+  | '/lea/requests'
+  | '/platform/law-enforcement';
 
 interface WorkspaceDefinition {
   id: string;
@@ -54,6 +61,15 @@ export const ACCESS_ROLES = [ACCESS_OFFICER, SUPERVISOR] as const;
 
 /** Roles that verify applicants, identify officers and decide; the supervisor only reads. */
 export const ACCESS_WRITE_ROLES = [ACCESS_OFFICER] as const;
+
+/**
+ * Law enforcement officers, provisioned by EACC for their agency, file written requests to any
+ * Commission and download what is granted (spec 10, Regs r.23).
+ */
+export const LEA_ROLES = [LAW_ENFORCEMENT] as const;
+
+/** Platform administrators provision and revoke law enforcement officers' accounts (spec 10). */
+export const PLATFORM_ROLES = [PLATFORM_ADMIN] as const;
 
 /** The Commission's own staff, who see its declarants' obligations (spec 04). */
 export const OBLIGATIONS_ROLES = COMMISSION_STAFF_ROLES;
@@ -114,10 +130,19 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'access',
     title: 'Access requests',
     description: 'Decide Form K and law enforcement requests for declarations.',
-    readOnlyDescription: 'Form K requests for declarations and where each one stands.',
+    readOnlyDescription:
+      'Form K and law enforcement requests for declarations and where each one stands.',
     href: '/access/requests',
     roles: ACCESS_ROLES,
     writeRoles: ACCESS_WRITE_ROLES,
+  },
+  {
+    id: 'lea',
+    title: 'Law enforcement requests',
+    description:
+      'Send written requests for declarations to Commissions and download what is granted.',
+    href: '/lea/requests',
+    roles: LEA_ROLES,
   },
   {
     id: 'roster',
@@ -163,8 +188,10 @@ const WORKSPACES: WorkspaceDefinition[] = [
   {
     id: 'platform',
     title: 'Platform settings',
-    description: 'Operate the platform: tenants, integrations and configuration.',
-    roles: [PLATFORM_ADMIN],
+    description:
+      'Operate the platform: law-enforcement accounts, tenants, integrations and configuration.',
+    href: '/platform/law-enforcement',
+    roles: PLATFORM_ROLES,
   },
 ];
 

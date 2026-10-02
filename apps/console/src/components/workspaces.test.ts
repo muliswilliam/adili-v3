@@ -141,7 +141,8 @@ describe('Access requests workspace (spec 10)', () => {
     expect(workspaceFor(['supervisor'], 'access')).toEqual({
       id: 'access',
       title: 'Access requests',
-      description: 'Form K requests for declarations and where each one stands.',
+      description:
+        'Form K and law enforcement requests for declarations and where each one stands.',
       href: '/access/requests',
       readOnly: true,
     });
@@ -157,6 +158,36 @@ describe('Access requests workspace (spec 10)', () => {
     'declarant',
   ])('stays closed for %s', (role) => {
     expect(workspaceFor([role], 'access')).toBeUndefined();
+  });
+});
+
+describe('Law enforcement requests workspace (spec 10 FE-6)', () => {
+  it('opens for law enforcement officers, and only them', () => {
+    expect(workspacesFor(['law-enforcement'])).toEqual([
+      {
+        id: 'lea',
+        title: 'Law enforcement requests',
+        description:
+          'Send written requests for declarations to Commissions and download what is granted.',
+        href: '/lea/requests',
+        readOnly: false,
+      },
+    ]);
+    for (const role of ['access-officer', 'supervisor', 'platform-admin', 'eacc-analyst']) {
+      expect(workspaceFor([role], 'lea'), role).toBeUndefined();
+    }
+  });
+});
+
+describe('Platform settings workspace (spec 10 FE-6)', () => {
+  it("opens law-enforcement accounts for platform admins, and nobody else's", () => {
+    expect(workspaceFor(['platform-admin'], 'platform')).toMatchObject({
+      href: '/platform/law-enforcement',
+      readOnly: false,
+    });
+    for (const role of ['eacc-analyst', 'eacc-supervisor', 'access-officer', 'law-enforcement']) {
+      expect(workspaceFor([role], 'platform'), role).toBeUndefined();
+    }
   });
 });
 

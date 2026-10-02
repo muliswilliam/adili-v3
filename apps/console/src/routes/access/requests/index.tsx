@@ -103,16 +103,22 @@ function QueuePage({ result }: { result: AccessResult<QueuePage> | null }) {
   return (
     <Page>
       <PageHead title={m.title} actions={readOnly ? <ReadOnlyBadge /> : null} />
-      <AccessTabs current="requests" />
+      <AccessTabs current={search.kind ?? 'all'} />
       <QueueList
         result={pending ? null : result}
         search={search}
         onSearchChange={changeSearch}
-        requestLink={(item) => (
-          <Link to="/access/requests/$requestId" params={{ requestId: item.id }}>
-            {item.reference}
-          </Link>
-        )}
+        requestLink={(item) =>
+          item.kind === 'lea' ? (
+            <Link to="/access/lea-requests/$leaRequestId" params={{ leaRequestId: item.id }}>
+              {item.reference}
+            </Link>
+          ) : (
+            <Link to="/access/requests/$requestId" params={{ requestId: item.id }}>
+              {item.reference}
+            </Link>
+          )
+        }
         pager={
           page && view && page.items.length > 0 ? (
             <CursorPager

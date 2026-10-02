@@ -17,6 +17,7 @@ import {
   resetAccessMock,
   setAccessMockLatency,
 } from './access/mock.server';
+import { MOCK_LEA_IDS as L } from './access/lea-mock.server';
 
 const officer = () => mockAccessClient([ACCESS_OFFICER]);
 const supervisor = () => mockAccessClient([SUPERVISOR]);
@@ -64,9 +65,9 @@ describe('the queue (S16)', () => {
   });
 
   it('filters: needs action, awaiting representations, late, decided, closed, and search', async () => {
-    expect(await ids({ filter: 'late' })).toEqual([R.late]);
+    expect(await ids({ kind: 'form-k', filter: 'late' })).toEqual([R.late]);
     expect(await ids({ filter: 'window' })).toEqual([R.window]);
-    expect(await ids({ filter: 'closed' })).toEqual([R.withdrawn, R.cannot]);
+    expect(await ids({ kind: 'form-k', filter: 'closed' })).toEqual([R.withdrawn, R.cannot]);
     expect(await ids({ filter: 'action' })).toEqual(
       expect.arrayContaining([R.verify, R.identify, R.unresolved, R.objection]),
     );
@@ -76,6 +77,31 @@ describe('the queue (S16)', () => {
     expect(await ids({ search: 'KRR/2011' })).toEqual(expect.arrayContaining([R.objection]));
     expect(await ids({ search: 'kwame' })).toEqual([R.verify]);
     expect(await ids({ search: 'Onyango Kisii' })).toEqual([]);
+  });
+
+  it('S11: shows law enforcement requests among Form K ones, and on their own tab', async () => {
+    const all = await ids({});
+    expect(all).toEqual(expect.arrayContaining([R.late, L.received, L.breach, L.verified]));
+    // Not another Commission's.
+    expect(all).not.toContain(L.tsc);
+    expect(await ids({ filter: 'late' })).toEqual([R.late, L.breach]);
+    const lea = await loadQueue(officer(), 'psc', { kind: 'lea' }, 100);
+    if (!lea.ok) throw new Error('not ok');
+    expect(lea.data.items.every((item) => item.kind === 'lea')).toBe(true);
+    expect(lea.data.items[0]).toMatchObject({
+      id: L.breach,
+      applicantOrAgency: 'Office of the Director of Public Prosecutions',
+      status: 'received',
+      late: true,
+      windowEndsAt: null,
+    });
+    expect(await ids({ kind: 'lea', filter: 'action' })).toEqual([
+      L.breach,
+      L.soon,
+      L.verified,
+      L.received,
+    ]);
+    expect(await ids({ kind: 'form-k' })).not.toContain(L.received);
   });
 
   it('is unavailable when the service is', async () => {

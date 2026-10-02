@@ -9,7 +9,7 @@ import type { RosterCandidateFacts } from '../../src/directory/directory-client.
 import { accessRequests, leaRequests } from '../../src/db/schema.js';
 import { leaRequestWorkflowId } from '../../src/lea/contract.js';
 import type { LeaRequest } from '../../src/lea/representation.js';
-import type { QueuePage } from '../../src/requests/officer-representation.js';
+import type { QueuePage, RosterCandidates } from '../../src/requests/officer-representation.js';
 import { type AccessApi, type Caller, startAccessApi } from '../support/access-api.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import {
@@ -413,6 +413,60 @@ describe('Law enforcement requests (S11)', () => {
     });
   });
 
+  describe('roster search', () => {
+    const search = (id: string, q: string, caller: Caller = officer) =>
+      api.get(`/v1/lea/requests/${id}/roster-candidates?q=${encodeURIComponent(q)}`, caller);
+
+    it("S11: the access officer finds the officer sought on the Commission's roster before verifying", async () => {
+      given();
+      const pending = api.directory.givenRosterRecord('psc', {
+        personnelFileNumber: 'PF-2019-000077',
+        fullName: 'Anne Wairimu Njoroge',
+        personId: null,
+        designation: null,
+      });
+      api.directory.givenRosterRecord('tsc', { fullName: 'Anne Teacher' });
+      const { id } = await received();
+
+      const response = await search(id, 'anne');
+
+      expect(response.statusCode, response.body).toBe(200);
+      const found = response.json<RosterCandidates>();
+      expect(
+        contractErrors(
+          okResponse('/v1/lea/requests/{leaRequestId}/roster-candidates', 'get'),
+          found,
+        ),
+      ).toEqual([]);
+      expect(found.items.map(({ id: recordId, onboarded }) => ({ recordId, onboarded }))).toEqual([
+        { recordId: anne.id, onboarded: true },
+        { recordId: pending.id, onboarded: false },
+      ]);
+      const byFileNumber = (await search(id, 'pf-2011')).json<RosterCandidates>();
+      expect(byFileNumber.items.map((item) => item.id)).toEqual([anne.id]);
+    });
+
+    it("is the Commission's access officer's: the supervisor 403, anyone else 404 or 403", async () => {
+      given();
+      const { id } = await received();
+
+      expect((await search(id, 'anne', supervisor)).statusCode).toBe(403);
+      expect((await search(id, 'anne', tscOfficer)).statusCode).toBe(404);
+      expect((await search(id, 'anne', eacc)).statusCode).toBe(404);
+      expect((await search(id, 'anne', peter)).statusCode).toBe(403);
+      expect((await search(randomUUID(), 'anne')).statusCode).toBe(404);
+      expect((await search(id, ' a ')).statusCode).toBe(400);
+    });
+
+    it('answers 503 when the directory cannot be reached', async () => {
+      given();
+      const { id } = await received();
+      api.directory.failCalls(1, 'searchRoster');
+
+      expect((await search(id, 'anne')).statusCode).toBe(503);
+    });
+  });
+
   describe('verify', () => {
     it('S11: the access officer records the provenance and reason check and identifies the officer sought', async () => {
       given();
@@ -489,7 +543,9 @@ describe('Law enforcement requests (S11)', () => {
 
       // Peter's account revoked since he filed: the provenance no longer holds.
       api.directory.givenLeaOfficer(peter.personId, peter.sub, { state: 'revoked' });
-      expect((await verifyLea(api, id, anne.id)).statusCode).toBe(409);
+      const inactive = await verifyLea(api, id, anne.id);
+      expect(inactive.statusCode).toBe(409);
+      expect(inactive.json()).toMatchObject({ code: 'lea-account-inactive' });
       api.directory.givenLeaOfficer(peter.personId, peter.sub, { name: peter.name });
 
       expect((await verifyLea(api, id, anne.id)).statusCode).toBe(200);

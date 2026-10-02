@@ -12,8 +12,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Commissions an applicant can address, with the declaration years available
-         * @description Every active Responsible Commission in the directory, by name. `years` are the statement-date years a Form K's scope can ask of it: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi; empty while it holds no declarations yet. Platform reference data: no personal data.
+         * Commissions an applicant or a law enforcement officer can address, with the declaration years available
+         * @description Every active Responsible Commission in the directory, by name. `years` are the statement-date years the scope of a Form K or a law enforcement request can ask of it: from the year it joined Adili (its earliest obligations-start date, not before 2025) to the current year in Nairobi; empty while it holds no declarations yet. Platform reference data: no personal data.
          */
         get: operations["listAccessCommissions"];
         put?: never;
@@ -258,6 +258,26 @@ export interface paths {
          * @description The officer who filed it sees it with only their own name on the timeline; the Commission's access officer and supervisor see it whole. The package (`package.documentId`) is downloaded by the filing officer from documents until `package.downloadExpiresAt`.
          */
         get: operations["getLeaRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/lea/requests/{leaRequestId}/roster-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search the Commission's roster for the officer a law enforcement request names
+         * @description As for Form K: by personnel file number (its beginning) or part of the name, at most 20 records by full name. Only an `onboarded` record can be chosen when verifying: its declarant is told after a grant.
+         */
+        get: operations["listLeaRosterCandidates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1085,7 +1105,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "representations-closed" | "download-expired" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "representations-closed" | "download-expired" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1122,9 +1142,9 @@ export interface operations {
                 };
             };
             /**
-             * @description Not an applicant
+             * @description Neither an applicant nor a law enforcement officer
              *
-             *     Requires one of the roles: applicant
+             *     Requires one of the roles: applicant, law-enforcement
              */
             403: {
                 headers: {
@@ -2038,6 +2058,71 @@ export interface operations {
             };
         };
     };
+    listLeaRosterCandidates: {
+        parameters: {
+            query: {
+                /** @description A personnel file number or its beginning, or part of a name (both case-insensitive) */
+                q: string;
+            };
+            header?: never;
+            path: {
+                leaRequestId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Records */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RosterCandidates"];
+                };
+            };
+            /** @description leaRequestId is not a UUID, or no search of at least 2 characters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /**
+             * @description The Commission supervisor reads requests; only its access officer acts
+             *
+             *     Requires one of the roles: access-officer, supervisor, eacc-analyst, eacc-supervisor
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No such request of the caller's (another officer's, another Commission's, EACC's or anyone else's view) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The directory cannot be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     verifyLeaRequest: {
         parameters: {
             query?: never;
@@ -2096,7 +2181,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or the account the request came from is no longer an active officer account of its agency */
+            /** @description Problem code `officer-resolved` (verified already), `request-decided` or `request-closed`; or `lea-account-inactive`: the account the request came from is no longer an active officer account of its agency (deny it instead) */
             409: {
                 headers: {
                     [name: string]: unknown;
