@@ -1,7 +1,7 @@
 import type { FieldEnvelope } from '@adili/data-access';
 import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import type { Decision } from '../decision.js';
+import type { Decision, PackageKind } from '../decision.js';
 import type { Scope } from '../scope.js';
 import type { WrittenNotice } from '../written-notice.js';
 
@@ -149,11 +149,17 @@ export const accessRequests = pgTable(
     decision: jsonb().$type<Decision>(),
     /** When it closed without a decision: withdrawn, or the officer cannot be identified. */
     closedAt: timestamp({ withTimezone: true }),
-    /** The Confidential `access-package` of a grant, and until when its recipient may download it. */
+    /**
+     * The Confidential document a grant delivered (its `access-package`, or the nil letter when
+     * the scope holds nothing), and until when its recipient may download it.
+     */
+    packageKind: text().$type<PackageKind>(),
     packageDocumentId: uuid(),
     packageVerificationId: text(),
     packageIssuedAt: timestamp({ withTimezone: true }),
     downloadExpiresAt: timestamp({ withTimezone: true }),
+    /** When issuing it failed after its retries; cleared once it is issued. */
+    packageFailedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

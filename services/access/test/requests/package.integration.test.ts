@@ -16,6 +16,7 @@ import { DownloadsConsumer } from '../../src/requests/downloads.consumer.js';
 import type { AccessRequest } from '../../src/requests/representation.js';
 import type { AccessRequestRow } from '../../src/requests/representation.js';
 import { type AccessApi, startAccessApi } from '../support/access-api.js';
+import { contractErrors, okResponse } from '../support/contract.js';
 import {
   callers,
   ENDED_TRANSACTION,
@@ -247,6 +248,29 @@ describe("A grant's package: downloads and expiry (S7)", () => {
       expect(api.notifications.sent.map((m) => m.template)).not.toContain(
         'access-package-ready-email',
       );
+      // The applicant and the officer can tell a failure from a package being prepared.
+      const request = await mine(input.requestId);
+      expect(request).toMatchObject({ package: null, packageFailedAt: DECIDED_AT });
+      expect(contractErrors(okResponse('/v1/access/requests/{requestId}', 'get'), request)).toEqual(
+        [],
+      );
+    });
+
+    it('issued after a failure: the failure is cleared', async () => {
+      api.documents.refuseCalls(1);
+      const { input } = await granted();
+      const handle = api.temporal.workflow.getHandle(accessRequestWorkflowId(input.requestId));
+      await api.eventually(async () => (await handle.describe()).status.name === 'FAILED');
+
+      // An operator takes it up: issuing again succeeds.
+      expect(await activities.issuePackage(input)).toEqual({
+        outcome: 'issued',
+        downloadExpiresAt: EXPIRES_AT,
+      });
+
+      const request = await mine(input.requestId);
+      expect(request.packageFailedAt).toBeNull();
+      expect(request.package).toMatchObject({ kind: 'access-package' });
     });
 
     it('a request with no grant is a broken invariant: not retried', async () => {
@@ -265,19 +289,109 @@ describe("A grant's package: downloads and expiry (S7)", () => {
       expect(failure).toMatchObject({ type: INVARIANT_BROKEN, nonRetryable: true });
     });
 
-    it('nothing of the declarant in the granted scope: no package, no package notice', async () => {
-      const { input } = await granted({ disclose: false });
+    it('nothing of the declarant in the granted scope: the nil letter is issued as the package, and announced', async () => {
+      const { input, row } = await granted({ disclose: false });
 
-      await api.eventually(async () => {
-        const handle = api.temporal.workflow.getHandle(accessRequestWorkflowId(input.requestId));
-        return (await handle.describe()).status.name === 'COMPLETED';
+      const issued = await api.eventually(async () => {
+        const found = await rowOf(api, input.requestId);
+        return found.packageDocumentId === null ? undefined : found;
       });
       expect(api.declarations.disclosureCalls).toHaveLength(1);
-      expect(api.documents.issued).toEqual([]);
-      expect((await rowOf(api, input.requestId)).packageDocumentId).toBeNull();
-      expect(api.notifications.sent.map((m) => m.template)).not.toContain(
-        'access-package-ready-email',
+      expect(api.review.calls).toEqual([]);
+      expect(api.documents.issued).toEqual([
+        {
+          tenant: 'psc',
+          type: 'access-nil-letter',
+          templateVersion: 1,
+          subjectRef: `access-request:${row.id}`,
+          subjectPersonId: mercy.personId,
+          payload: {
+            grantReference: row.reference,
+            commission: { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' },
+            declarantName: 'Anne Njeri Mutua',
+            legalBasis: 'act-s36-1',
+            recipient: { name: 'Mercy Wanjiku Kamau', organisation: null },
+            grantedAt: DECIDED_AT,
+            scope: row.decision?.grantedScope,
+          },
+          watermark: {
+            recipientName: 'Mercy Wanjiku Kamau',
+            reference: row.reference,
+            date: '2027-03-20',
+          },
+          downloadWindowDays: 14,
+          idempotencyKey: expect.any(String) as unknown,
+        },
+      ]);
+      expect(issued).toMatchObject({
+        packageKind: 'nil-letter',
+        downloadExpiresAt: new Date(EXPIRES_AT),
+      });
+
+      const sent = await api.eventually(() => {
+        const ready = api.notifications.sent.filter((m) =>
+          m.template.startsWith('access-package-ready'),
+        );
+        return ready.length === 2 ? ready : undefined;
+      });
+      expect(sent[0]).toMatchObject({
+        recipient: { kind: 'person', personId: mercy.personId },
+        params: { reference: row.reference },
+      });
+      const request = await mine(row.id);
+      expect(contractErrors(okResponse('/v1/access/requests/{requestId}', 'get'), request)).toEqual(
+        [],
       );
+      expect(request.package).toMatchObject({
+        kind: 'nil-letter',
+        documentId: issued.packageDocumentId,
+        downloads: 0,
+      });
+      expect(request.packageFailedAt).toBeNull();
+      expect(await api.events('access.request.package-issued.v1')).toHaveLength(1);
+    });
+
+    it('a declarant with no account (served in writing): the nil letter, without asking declarations', async () => {
+      const { input, row } = await granted({ disclose: false });
+      await api.endWorkflows([accessRequestWorkflowId(input.requestId)]);
+      await api.asPlatform((tx) =>
+        tx
+          .update(accessRequests)
+          .set({
+            resolvedPersonId: null,
+            packageKind: null,
+            packageDocumentId: null,
+            packageVerificationId: null,
+            packageIssuedAt: null,
+            downloadExpiresAt: null,
+          })
+          .where(eq(accessRequests.id, row.id)),
+      );
+      api.declarations.reset();
+      api.documents.reset();
+
+      expect(await activities.issuePackage(input)).toMatchObject({ outcome: 'issued' });
+
+      expect(api.declarations.disclosureCalls).toEqual([]);
+      expect(api.documents.issued).toMatchObject([
+        { type: 'access-nil-letter', payload: { declarantName: 'Anne Njeri Mutua' } },
+      ]);
+      expect((await rowOf(api, row.id)).packageKind).toBe('nil-letter');
+    });
+
+    it("a nil letter's downloads are registered like a package's", async () => {
+      const { input } = await granted({ disclose: false });
+      const row = await api.eventually(async () => {
+        const found = await rowOf(api, input.requestId);
+        return found.packageDocumentId === null ? undefined : found;
+      });
+      await api.endWorkflows([accessRequestWorkflowId(input.requestId)]);
+
+      expect(
+        await consumer.downloaded(downloaded(row, { documentType: 'access-nil-letter' })),
+      ).toBe(true);
+
+      expect((await mine(row.id)).package?.downloads).toBe(1);
     });
   });
 });

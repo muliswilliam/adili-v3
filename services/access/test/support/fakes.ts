@@ -5,6 +5,8 @@ import { UpstreamRefused } from '../../src/upstream-refusal.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
+  type DisclosureCounts,
+  type DisclosureCountsRequest,
   type DisclosureDocument,
   type DisclosureRequest,
   type FullDocumentRequest,
@@ -46,6 +48,8 @@ import {
   type SentMessage,
 } from '../../src/notifications/notifications-client.js';
 import {
+  type ClarificationCount,
+  type ClarificationCountsRequest,
   type ClarificationDisclosureRequest,
   type DisclosedClarification,
   ReviewClient,
@@ -330,14 +334,20 @@ export class FakeDirectory extends DirectoryClient {
 }
 
 /** Declarations: scoped disclosures and full documents, as given per declarant. */
-type DeclarationsMethod = 'renderDisclosure' | 'fullDocument' | 'personVersions';
+type DeclarationsMethod =
+  'renderDisclosure' | 'countDisclosure' | 'fullDocument' | 'personVersions';
+
+/** What a year holds of a person's declarations, for `FakeDeclarations.givenCounts`. */
+export type YearCounts = DisclosureCounts['years'][number];
 
 export class FakeDeclarations extends DeclarationsClient {
   /** Each disclosure asked for, as asked. */
   readonly disclosureCalls: DisclosureRequest[] = [];
   readonly fullDocumentCalls: FullDocumentRequest[] = [];
   readonly personVersionsCalls: { tenant: string; personId: string }[] = [];
+  readonly countCalls: DisclosureCountsRequest[] = [];
   private readonly disclosures = new Map<string, DisclosureDocument>();
+  private readonly counts = new Map<string, YearCounts[]>();
   private readonly documents = new Map<string, VersionDocument>();
   private readonly failures = new Failures();
   private failingMethod: DeclarationsMethod | undefined;
@@ -346,6 +356,14 @@ export class FakeDeclarations extends DeclarationsClient {
   /** What a disclosure for `personId` returns (whatever the scope asked). */
   givenDisclosure(personId: string, disclosure: DisclosureDocument): void {
     this.disclosures.set(personId, disclosure);
+  }
+
+  /**
+   * What a count of `personId`'s declarations finds, per year (cut to the sections and household
+   * members asked, as declarations does); a year not given counts zero.
+   */
+  givenCounts(personId: string, years: YearCounts[]): void {
+    this.counts.set(personId, years);
   }
 
   givenFullDocument(document: VersionDocument): void {
@@ -367,7 +385,9 @@ export class FakeDeclarations extends DeclarationsClient {
     this.disclosureCalls.length = 0;
     this.fullDocumentCalls.length = 0;
     this.personVersionsCalls.length = 0;
+    this.countCalls.length = 0;
     this.disclosures.clear();
+    this.counts.clear();
     this.documents.clear();
     this.failures.reset();
     this.failingMethod = undefined;
@@ -385,6 +405,31 @@ export class FakeDeclarations extends DeclarationsClient {
       return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
     }
     return Promise.resolve(this.disclosures.get(request.personId) ?? null);
+  }
+
+  countDisclosure(request: DisclosureCountsRequest): Promise<DisclosureCounts> {
+    this.countCalls.push(structuredClone(request));
+    if (this.fails('countDisclosure')) {
+      return Promise.reject(new DeclarationsUnavailable('The declarations service is unreachable'));
+    }
+    const given = this.counts.get(request.personId) ?? [];
+    const sections = [...new Set(request.sections)];
+    const years = [...new Set(request.years)]
+      .sort((a, b) => a - b)
+      .map((year) => {
+        const found = given.find((each) => each.year === year);
+        return {
+          year,
+          declarations: found?.declarations ?? 0,
+          declarationReferences: found?.declarationReferences ?? [],
+          sections: Object.fromEntries(
+            sections.map((section) => [section, found?.sections[section] ?? 0]),
+          ),
+          spouses: request.includeSpouses ? (found?.spouses ?? 0) : null,
+          children: request.includeChildren ? (found?.children ?? 0) : null,
+        };
+      });
+    return Promise.resolve({ years });
   }
 
   fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {
@@ -430,6 +475,7 @@ export class FakeDeclarations extends DeclarationsClient {
 export class FakeReview extends ReviewClient {
   /** Each disclosure of clarifications asked for, as asked. */
   readonly calls: ClarificationDisclosureRequest[] = [];
+  readonly countCalls: ClarificationCountsRequest[] = [];
   private readonly clarifications = new Map<string, DisclosedClarification[]>();
   private readonly failures = new Failures();
   private refusing: number | null = null;
@@ -451,6 +497,7 @@ export class FakeReview extends ReviewClient {
 
   reset(): void {
     this.calls.length = 0;
+    this.countCalls.length = 0;
     this.clarifications.clear();
     this.failures.reset();
     this.refusing = null;
@@ -471,6 +518,24 @@ export class FakeReview extends ReviewClient {
       (this.clarifications.get(request.personId) ?? []).filter((clarification) =>
         request.declarationReferences.includes(clarification.declarationReference),
       ),
+    );
+  }
+
+  countClarifications(request: ClarificationCountsRequest): Promise<ClarificationCount[]> {
+    this.countCalls.push(structuredClone(request));
+    if (this.refusing !== null) {
+      return Promise.reject(new UpstreamRefused('review', this.refusing));
+    }
+    if (this.failures.take()) {
+      return Promise.reject(new ReviewUnavailable('The review service is unreachable'));
+    }
+    const given = this.clarifications.get(request.personId) ?? [];
+    return Promise.resolve(
+      [...new Set(request.declarationReferences)].map((declarationReference) => ({
+        declarationReference,
+        clarifications: given.filter((each) => each.declarationReference === declarationReference)
+          .length,
+      })),
     );
   }
 }

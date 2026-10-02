@@ -6,6 +6,8 @@ import type { paths } from './declarations-api.gen.js';
 import {
   DeclarationsClient,
   DeclarationsUnavailable,
+  type DisclosureCounts,
+  type DisclosureCountsRequest,
   type DisclosureDocument,
   type DisclosureRequest,
   type FullDocumentRequest,
@@ -32,6 +34,20 @@ const disclosureSchema = z.looseObject({
   schemaVersion: z.literal('disclosure.v1'),
   grantReference: z.string(),
   versions: z.array(z.looseObject({ reference: z.string(), version: z.int() })),
+});
+
+/** `DisclosureCounts`, as the access service shows it. */
+const disclosureCountsSchema = z.object({
+  years: z.array(
+    z.object({
+      year: z.int(),
+      declarations: z.int().min(0),
+      declarationReferences: z.array(z.string()),
+      sections: z.record(z.string(), z.int().min(0)),
+      spouses: z.int().min(0).nullable(),
+      children: z.int().min(0).nullable(),
+    }),
+  ),
 });
 
 /** The fields of `FullVersionDocument` the access service relies on. */
@@ -103,6 +119,23 @@ export class HttpDeclarationsClient extends DeclarationsClient {
       },
     );
     return disclosure as DisclosureDocument | null;
+  }
+
+  async countDisclosure(request: DisclosureCountsRequest): Promise<DisclosureCounts> {
+    const { tenant, viewerSubject, ...body } = request;
+    const counts = await this.disclosures.call(
+      (api) =>
+        api.POST('/internal/v1/declarations/disclosure-counts', {
+          params: { header: { 'X-Acting-Tenant': tenant, 'X-Acting-Subject': viewerSubject } },
+          body,
+        }),
+      {
+        status: 200,
+        schema: disclosureCountsSchema,
+        otherwise: refusedWith('declarations', [400, 403]),
+      },
+    );
+    return counts;
   }
 
   async fullDocument(request: FullDocumentRequest): Promise<VersionDocument | null> {

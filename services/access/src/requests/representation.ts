@@ -1,7 +1,7 @@
 import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
-import { decisionSchema, type Package, packageSchema } from '../decision.js';
+import { decisionSchema, type Package, packageFailedAtSchema, packageSchema } from '../decision.js';
 import { type RegisterEntry, registerEntrySchema } from '../register/representation.js';
 import { ACCESS_REQUEST_STATUSES, type accessRequests } from './schema.js';
 
@@ -26,6 +26,7 @@ export const accessRequestSchema = z.object({
   decisionDeadlineAt: z.iso.datetime({ offset: true }),
   decision: decisionSchema.nullable(),
   package: packageSchema.nullable(),
+  packageFailedAt: packageFailedAtSchema,
   timeline: z.array(registerEntrySchema),
 });
 
@@ -34,17 +35,22 @@ export type AccessRequest = z.infer<typeof accessRequestSchema>;
 export type AccessRequestRow = typeof accessRequests.$inferSelect;
 
 /**
- * The request's granted package (Form K or law enforcement), once issued; `downloads` counts the
- * register's entries.
+ * The request's granted package or nil letter (Form K or law enforcement), once issued;
+ * `downloads` counts the register's entries.
  */
 export function packageOf(
   row: Pick<
     AccessRequestRow,
-    'packageDocumentId' | 'packageVerificationId' | 'packageIssuedAt' | 'downloadExpiresAt'
+    | 'packageKind'
+    | 'packageDocumentId'
+    | 'packageVerificationId'
+    | 'packageIssuedAt'
+    | 'downloadExpiresAt'
   >,
   downloads: number,
 ): Package | null {
   if (
+    row.packageKind === null ||
     row.packageDocumentId === null ||
     row.packageVerificationId === null ||
     row.packageIssuedAt === null ||
@@ -53,6 +59,7 @@ export function packageOf(
     return null;
   }
   return {
+    kind: row.packageKind,
     documentId: row.packageDocumentId,
     verificationId: row.packageVerificationId,
     issuedAt: row.packageIssuedAt.toISOString(),
@@ -78,6 +85,7 @@ export function toAccessRequest(
     decisionDeadlineAt: row.decisionDeadlineAt.toISOString(),
     decision: row.decision,
     package: packageOf(row, downloads),
+    packageFailedAt: row.packageFailedAt?.toISOString() ?? null,
     timeline: [...timeline],
   };
 }

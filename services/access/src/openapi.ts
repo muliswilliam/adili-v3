@@ -23,6 +23,7 @@ import {
   leaDeclarantNoticeSchema,
   representationsInputSchema,
 } from './notices/representation.js';
+import { scopePreviewSchema, scopePreviewYearSchema } from './preview/representation.js';
 import { registerEntrySchema } from './register/representation.js';
 import { verifyApplicantBody } from './requests/applicant-verification.service.js';
 import {
@@ -65,6 +66,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Decision: decisionSchema,
   DecisionInput: decisionInputSchema,
   Package: packageSchema,
+  ScopePreview: scopePreviewSchema,
+  ScopePreviewYear: scopePreviewYearSchema,
   FormK: formKSchema,
   AccessRequest: accessRequestSchema,
   RegisterEntry: registerEntrySchema,

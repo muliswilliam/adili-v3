@@ -3,19 +3,17 @@ import { DATABASE, withTenant } from '@adili/data-access';
 import { ACCESS_OFFICER } from '@adili/roles';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 
-import {
-  invariantBroken,
-  requireTransactionEnded,
-  rethrowAsActivityFailure,
-} from '../activity-failures.js';
+import { invariantBroken, requireTransactionEnded } from '../activity-failures.js';
 import { Clock, nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
 import { declarantAccount } from '../declarant-account.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { DirectoryClient } from '../directory/directory-client.js';
-import { type AccessPackagePayload, DocumentsClient } from '../documents/documents-client.js';
+import { DocumentsClient } from '../documents/documents-client.js';
+import { issueGrantDocument } from '../grant-documents.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
+import { ReviewClient } from '../review/review-client.js';
 import { accessRegister } from '../register/schema.js';
 import { declarantNoticesUrl, leaRequestUrl, officerLeaRequestUrl } from '../requests/links.js';
 import { CHANNELS, messageKey, send } from '../requests/workflow-support.js';
@@ -32,9 +30,6 @@ import type {
 } from './contract.js';
 import type { LeaRequestRow } from './representation.js';
 import { LEA_DECIDED_STATUSES, LEA_OPEN_STATUSES, leaRequests } from './schema.js';
-
-/** The template version of the access package the service issues (documents' `access-package`). */
-const ACCESS_PACKAGE_TEMPLATE_VERSION = 1;
 
 /** The owning record documents keeps a law enforcement request's package under. */
 export function leaPackageSubjectRef(requestId: string): string {
@@ -61,6 +56,7 @@ export class LeaRequestActivities {
     @Inject(DATABASE) private readonly db: AccessDatabase,
     private readonly directory: DirectoryClient,
     private readonly declarations: DeclarationsClient,
+    private readonly review: ReviewClient,
     private readonly documents: DocumentsClient,
     private readonly notifications: NotificationsClient,
     private readonly register: AccessRegister,
@@ -315,83 +311,45 @@ export class LeaRequestActivities {
       throw invariantBroken('The request has no grant to issue a package for');
     }
 
-    const context = { requestId };
-    if (resolvedPersonId === null) {
-      // An officer with no account has filed no declaration on Adili: nothing to disclose.
-      this.logger.warn(context, 'The declarant has no account: no package issued');
-      return { outcome: 'nothing-to-disclose' };
-    }
-    let disclosure;
-    try {
-      disclosure = await this.declarations.renderDisclosure({
-        personId: resolvedPersonId,
-        tenant,
-        officerSubject: decision.decidedBy.subject,
-        grantReference: found.reference,
-        legalBasis: 'act-s36-2',
-        recipientSubject: found.officerSubject,
-        years: scope.years,
-        includeSpouses: scope.includeSpouses,
-        includeChildren: scope.includeChildren,
-        sections: scope.sections,
-      });
-    } catch (error) {
-      rethrowAsActivityFailure(this.logger, error, context, 'Disclosure refused by declarations');
-    }
-    if (disclosure === null) {
-      this.logger.warn(context, 'Nothing to disclose in the granted scope: no package issued');
-      return { outcome: 'nothing-to-disclose' };
-    }
-
-    const payload: AccessPackagePayload = {
-      // Verbatim: declarations' cut of the granted scope, which documents validates strictly.
-      disclosure: disclosure as unknown as AccessPackagePayload['disclosure'],
-      legalBasis: 'act-s36-2',
-      recipient: { name: found.officerName, organisation: found.agencyName },
-      grantedAt: decision.decidedAt,
-      scope: {
-        years: scope.years,
-        includeSpouses: scope.includeSpouses,
-        includeChildren: scope.includeChildren,
-        sections: scope.sections,
-        // Law enforcement requests never include clarifications (Form K only).
-        includeClarifications: false,
-      },
-      clarifications: null,
+    if (found.resolvedName === null) throw invariantBroken('The request resolved no declarant');
+    const deps = {
+      declarations: this.declarations,
+      review: this.review,
+      documents: this.documents,
+      directory: this.directory,
+      clock: this.clock,
+      logger: this.logger,
     };
-    let issued;
-    try {
-      issued = await this.documents.issue({
-        tenant,
-        type: 'access-package',
-        templateVersion: ACCESS_PACKAGE_TEMPLATE_VERSION,
-        subjectRef: leaPackageSubjectRef(requestId),
-        subjectPersonId: found.officerPersonId,
-        payload,
-        watermark: {
-          recipientName: `${found.officerName}, ${found.agencyCode}`,
-          reference: found.reference,
-          date: nairobiDate(this.clock.now()),
-        },
-        downloadWindowDays: (await this.directory.accessPolicy(tenant)).packageDownloadDays,
-        idempotencyKey: messageKey(requestId, 'lea-package'),
-      });
-    } catch (error) {
-      rethrowAsActivityFailure(this.logger, error, context, 'Access package refused by documents');
-    }
+    const { kind, issued } = await issueGrantDocument(deps, {
+      tenant,
+      requestId,
+      reference: found.reference,
+      legalBasis: 'act-s36-2',
+      // An officer with no account has filed nothing on Adili.
+      personId: resolvedPersonId,
+      declarantName: found.resolvedName,
+      // Law enforcement requests never include clarifications (Form K only).
+      scope: { ...scope, includeClarifications: false },
+      decidedBy: decision.decidedBy.subject,
+      grantedAt: decision.decidedAt,
+      recipientSubject: found.officerSubject,
+      recipientPersonId: found.officerPersonId,
+      recipient: { name: found.officerName, organisation: found.agencyName },
+      watermarkName: `${found.officerName}, ${found.agencyCode}`,
+      subjectRef: leaPackageSubjectRef(requestId),
+    });
     const { downloadExpiresAt } = issued;
-    if (downloadExpiresAt === null) {
-      throw invariantBroken('Documents issued the access package without a download window');
-    }
 
     await withTenant(this.db, systemContext(tenant), async (tx) => {
       const [recorded] = await tx
         .update(leaRequests)
         .set({
+          packageKind: kind,
           packageDocumentId: issued.id,
           packageVerificationId: issued.verificationId,
           packageIssuedAt: issued.issuedAt,
           downloadExpiresAt,
+          packageFailedAt: null,
         })
         .where(and(eq(leaRequests.id, requestId), isNull(leaRequests.packageDocumentId)))
         .returning();
@@ -405,11 +363,30 @@ export class LeaRequestActivities {
         kind: 'package-issued',
         actor: null,
         at: issued.issuedAt,
-        details: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
+        details: {
+          documentId: issued.id,
+          downloadExpiresAt: downloadExpiresAt.toISOString(),
+          packageKind: kind,
+        },
         eventData: { documentId: issued.id, downloadExpiresAt: downloadExpiresAt.toISOString() },
       });
     });
     return { outcome: 'issued', downloadExpiresAt: downloadExpiresAt.toISOString() };
+  }
+
+  /**
+   * Records that issuing the grant's package failed after its retries (or was refused), so the
+   * officer and the Commission see it failed rather than being prepared, until an operator
+   * issues it.
+   */
+  async leaPackageFailed({ tenant, requestId }: LeaRequestWorkflowInput): Promise<void> {
+    await withTenant(this.db, systemContext(tenant), (tx) =>
+      tx
+        .update(leaRequests)
+        .set({ packageFailedAt: this.clock.now() })
+        .where(and(eq(leaRequests.id, requestId), isNull(leaRequests.packageDocumentId))),
+    );
+    this.logger.error({ requestId }, 'The grant document could not be issued');
   }
 
   /**

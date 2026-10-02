@@ -20,6 +20,7 @@ import { schema } from './db/schema.js';
 import { HistoryModule } from './history/history.module.js';
 import { LeaModule } from './lea/lea.module.js';
 import { NoticesModule } from './notices/notices.module.js';
+import { PreviewModule } from './preview/preview.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { SelfAccessModule } from './self-access/self-access.module.js';
 import { AccessWorkerModule } from './worker.module.js';
@@ -54,6 +55,7 @@ import { AccessWorkerModule } from './worker.module.js';
     RequestsModule,
     LeaModule,
     NoticesModule,
+    PreviewModule,
     HistoryModule,
     SelfAccessModule,
     AccessWorkerModule,

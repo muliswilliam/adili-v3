@@ -34,11 +34,12 @@ const { requestState, resolution, closeWindow, remindOfficer } =
     retry: ACTIVITY_RETRY,
   });
 
-const { decisionNotices, packageReady, expirePackage } = proxyActivities<DecisionActivities>({
-  // A transaction and a few messages.
-  startToCloseTimeout: '1 minute',
-  retry: ACTIVITY_RETRY,
-});
+const { decisionNotices, packageReady, packageFailed, expirePackage } =
+  proxyActivities<DecisionActivities>({
+    // A transaction and a few messages.
+    startToCloseTimeout: '1 minute',
+    retry: ACTIVITY_RETRY,
+  });
 
 const { issuePackage } = proxyActivities<DecisionActivities>({
   // The disclosure from declarations (2 s per attempt), rendering and signing at documents
@@ -311,16 +312,22 @@ async function untilDecided(input: AccessRequestWorkflowInput, state: RunState):
 /**
  * The decision is final (S6): both parties are told. A grant (full or partial) has its scoped
  * disclosure rendered by declarations and issued by documents as the applicant's Confidential,
- * watermarked package, the applicant is told it is ready, and at the end of its download window
- * the register records it `expired` (S7).
+ * watermarked package (or, when the scope holds nothing, the nil letter), the applicant is told
+ * it is ready, and at the end of its download window the register records it `expired` (S7).
  */
 async function afterDecision(input: AccessRequestWorkflowInput): Promise<'decided' | 'missing'> {
   const decided = await decisionNotices(input);
   if (decided !== 'granted') return decided === 'missing' ? 'missing' : 'decided';
 
-  const issued = await issuePackage(input);
-  // Nothing to disclose: the decision stands, with no package to issue.
-  if (issued.outcome !== 'issued') return issued.outcome === 'missing' ? 'missing' : 'decided';
+  let issued;
+  try {
+    issued = await issuePackage(input);
+  } catch (error) {
+    // Recorded on the request, so the parties see it failed; the run fails for an operator.
+    if (error instanceof ActivityFailure) await packageFailed(input);
+    throw error;
+  }
+  if (issued.outcome === 'missing') return 'missing';
   await packageReady(input);
 
   const open = new Date(issued.downloadExpiresAt).getTime() - Date.now();

@@ -28,6 +28,23 @@ export interface DisclosureRequest {
   sections: Section[];
 }
 
+/**
+ * A scope the access officer is weighing before deciding, to be counted (declarations.yaml
+ * `DisclosureCountsRequest`, the Commission in `X-Acting-Tenant`, the officer asking in
+ * `X-Acting-Subject`): audited there with the request reference as legal basis, the officer as
+ * recipient.
+ */
+export type DisclosureCountsRequest = Omit<
+  DisclosureRequest,
+  'officerSubject' | 'recipientSubject'
+> & {
+  /** Token subject of the access officer (or supervisor) asking: they see the counts. */
+  viewerSubject: string;
+};
+
+/** declarations.yaml `DisclosureCounts`: per year of the scope, counts only. */
+export type DisclosureCounts = components['schemas']['DisclosureCounts'];
+
 /** declarations.yaml `DisclosureDocument` (`disclosure.v1`): handed to documents, never stored. */
 export type DisclosureDocument = components['schemas']['DisclosureDocument'];
 
@@ -78,6 +95,12 @@ export class DeclarationsUnavailable extends Error {
 export abstract class DeclarationsClient {
   /** Null when the declarant has no version in the scope (declarations answers 404). */
   abstract renderDisclosure(request: DisclosureRequest): Promise<DisclosureDocument | null>;
+
+  /**
+   * How much the scope would disclose, in counts per year, section and household member kind;
+   * zero counts when the declarant has nothing in it. Never content.
+   */
+  abstract countDisclosure(request: DisclosureCountsRequest): Promise<DisclosureCounts>;
 
   /**
    * The version in full, read for the declarant; null when it is not theirs, not the Commission's

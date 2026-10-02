@@ -30,11 +30,15 @@ type DownloadedEntry = Omit<RegisterEntryBase, 'at' | 'actor' | 'details'> & {
 };
 
 /**
- * Each download of a grant's package (S7, S11): documents hands the recipient (the applicant, or
- * the law enforcement officer) a link with their own token and emits `document.downloaded.v1`;
+ * Each download of a grant's package or nil letter (S7, S11): documents hands the recipient (the
+ * applicant, or the law enforcement officer) a link with their own token and emits
+ * `document.downloaded.v1`;
  * the access register records it as `downloaded`, with the recipient as actor, once per event
  * (inbox), in the request's Commission. Other documents are not the register's.
  */
+/** What a grant delivers to its recipient: its package, or the nil letter (decision 1). */
+const GRANT_DOCUMENT_TYPES: ReadonlySet<string> = new Set(['access-package', 'access-nil-letter']);
+
 @Controller()
 export class DownloadsConsumer {
   private readonly logger = new Logger(DownloadsConsumer.name);
@@ -49,7 +53,7 @@ export class DownloadsConsumer {
   async downloaded(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = documentDownloadedDataSchema.parse(event.data);
     const subject = PACKAGE_SUBJECT.exec(data.subjectRef)?.groups;
-    if (data.documentType !== 'access-package' || subject?.id === undefined) return false;
+    if (!GRANT_DOCUMENT_TYPES.has(data.documentType) || subject?.id === undefined) return false;
     const requestId = subject.id;
     if (!z.uuid().safeParse(requestId).success) return false;
     const kind = subject.kind === 'lea-request' ? 'lea-request' : 'access-request';

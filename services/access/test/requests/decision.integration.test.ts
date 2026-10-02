@@ -276,6 +276,7 @@ describe('Deciding an access request (S6)', () => {
         [],
       );
       expect(request.package).toEqual({
+        kind: 'access-package',
         documentId: row.packageDocumentId,
         verificationId: 'ADL-TEST-1',
         issuedAt: DECIDED_AT,

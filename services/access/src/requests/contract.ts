@@ -137,12 +137,12 @@ export const REQUEST_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
 export type DecisionNoticesOutcome = 'granted' | 'denied' | 'missing';
 
 /**
- * What became of a grant's package: `issued`, downloadable by the applicant until
- * `downloadExpiresAt`; `nothing-to-disclose` (the declarant has no declaration in the granted
- * scope, so declarations has nothing to render); or the request is `missing`.
+ * What became of a grant's package: `issued` (the access package, or the nil letter when the
+ * scope holds nothing), downloadable by the applicant until `downloadExpiresAt`; or the request
+ * is `missing`.
  */
 export type PackageOutcome =
-  { outcome: 'issued'; downloadExpiresAt: string } | { outcome: 'nothing-to-disclose' | 'missing' };
+  { outcome: 'issued'; downloadExpiresAt: string } | { outcome: 'missing' };
 
 /**
  * How a run ended: the applicant withdrew, the access officer decided (a grant's package issued
