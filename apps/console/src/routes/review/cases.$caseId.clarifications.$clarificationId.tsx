@@ -24,9 +24,11 @@ function crumbOf(loaderData: unknown): string | null {
 export const Route = createFileRoute('/review/cases/$caseId/clarifications/$clarificationId')({
   validateSearch: z.object({ compose: z.boolean().optional() }),
   loader: async ({ params, location, context }) => {
-    if (!context.workspace) return null;
+    // A case is missing to anyone outside review (S18); the layout explains a failed access read.
+    if (!context.viewer.directory.ok) return null;
+    if (!context.workspace) throw notFound();
     if (!UUID.test(params.caseId) || !UUID.test(params.clarificationId)) throw notFound();
-    const tenant = context.viewer.directory.ok ? context.viewer.directory.principal.tenant : null;
+    const { tenant } = context.viewer.directory.principal;
     const [result, commission] = await Promise.all([
       getClarificationDetail({
         data: { caseId: params.caseId, clarificationId: params.clarificationId },

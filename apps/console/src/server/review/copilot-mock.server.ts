@@ -70,6 +70,23 @@ export const MOCK_ATTACHMENTS = {
   saccoStatement: attachment(3, 'Mwalimu SACCO share statement Dec 2025.pdf'),
 } as const;
 
+/**
+ * The mock declaration filed by another declarant: their name on the declaration and their
+ * statement, the household as it is.
+ */
+export function declarationOf(declarant: MockDeclarant): Record<string, unknown> {
+  const name = { ...declarant };
+  const document = structuredClone(MOCK_DECLARATION) as {
+    officer: { name: unknown };
+    statements: { personKey: string; personName: unknown }[];
+  };
+  document.officer.name = name;
+  for (const statement of document.statements) {
+    if (statement.personKey === OFFICER) statement.personName = name;
+  }
+  return document;
+}
+
 /** A `declaration.v1` document, as the declarations service gives it to the review service. */
 export const MOCK_DECLARATION: Record<string, unknown> = {
   schemaVersion: 'declaration.v1',
@@ -477,19 +494,44 @@ interface StoredCopilot {
   readyAt: number | null;
   /** Ratings by caller subject, then job id. */
   ratings: Map<string, Map<string, CopilotView['feedback'][number]>>;
+  /** Whose declaration the outputs are about. */
+  declarant: MockDeclarant | null;
+}
+
+/** A mock case's declarant, when it is not the mock declaration's John Kennedy Otieno. */
+export interface MockDeclarant {
+  firstName: string;
+  otherNames?: string;
+  surname: string;
+}
+
+/** An output of the mock declaration, about another declarant. */
+function about<T extends Record<string, unknown>>(output: T, declarant: MockDeclarant | null): T {
+  if (!declarant) return output;
+  const full = [declarant.firstName, declarant.otherNames, declarant.surname]
+    .filter(Boolean)
+    .join(' ');
+  const short = `${declarant.firstName} ${declarant.surname}`;
+  return JSON.parse(
+    JSON.stringify(output).replaceAll('John Kennedy Otieno', full).replaceAll('John Otieno', short),
+  ) as T;
 }
 
 const store = new Map<string, StoredCopilot>();
 let delayOnFirstRead: { caseId: string; ms: number } | null = null;
 
-function readyView(versionId: string, generatedAt: string): CopilotView {
+function readyView(
+  versionId: string,
+  generatedAt: string,
+  declarant: MockDeclarant | null,
+): CopilotView {
   return {
     status: 'ready',
     forVersionId: versionId,
     generatedAt,
     failureReason: null,
-    summary: mockSummary(generatedAt),
-    explanations: mockExplanations(generatedAt),
+    summary: about(mockSummary(generatedAt), declarant),
+    explanations: about(mockExplanations(generatedAt), declarant),
     jobs: { summarize: crypto.randomUUID(), explain: crypto.randomUUID() },
     feedback: [],
   };
@@ -500,6 +542,8 @@ export interface CopilotSeed {
   caseId: string;
   state: 'ready' | 'pending' | 'not-enabled';
   readyAfterMs?: number;
+  /** Whose declaration it is, when not the mock declaration's own declarant. */
+  declarant?: MockDeclarant;
 }
 
 /**
@@ -510,8 +554,8 @@ export function resetCopilotMock(now: number, seeds: CopilotSeed[]) {
   store.clear();
   delayOnFirstRead = null;
   const generatedAt = new Date(now - 3 * 3_600_000).toISOString();
-  for (const { caseId, state, readyAfterMs } of seeds) {
-    const ready = readyView(caseId, generatedAt);
+  for (const { caseId, state, readyAfterMs, declarant = null } of seeds) {
+    const ready = readyView(caseId, generatedAt, declarant);
     const view: CopilotView =
       state === 'ready'
         ? ready
@@ -522,7 +566,7 @@ export function resetCopilotMock(now: number, seeds: CopilotSeed[]) {
             summary: null,
             explanations: null,
           };
-    store.set(caseId, { view, readyAt: null, ratings: new Map() });
+    store.set(caseId, { view, readyAt: null, ratings: new Map(), declarant });
     if (state === 'pending' && readyAfterMs !== undefined) {
       delayOnFirstRead = { caseId, ms: readyAfterMs };
     }
@@ -561,8 +605,8 @@ function current(caseId: string, stored: StoredCopilot, now: number): CopilotVie
       status: 'ready',
       generatedAt,
       failureReason: null,
-      summary: mockSummary(generatedAt),
-      explanations: mockExplanations(generatedAt),
+      summary: about(mockSummary(generatedAt), stored.declarant),
+      explanations: about(mockExplanations(generatedAt), stored.declarant),
     };
     stored.readyAt = null;
   }

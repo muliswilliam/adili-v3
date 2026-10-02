@@ -201,7 +201,7 @@ export function ReassignDialog({
         <DialogHeader>
           <DialogTitle>{holder ? t.dialogs.reassignTitle : t.dialogs.assignTitle}</DialogTitle>
           <DialogDescription>
-            <span className="font-mono">{reference}</span> · {declarant}
+            {reference} · {declarant}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

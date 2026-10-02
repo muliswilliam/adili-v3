@@ -156,8 +156,8 @@ export function CaseView({
     const result = await claimCase({ data: { caseId: item.id } });
     setDialog(null);
     if (!result.ok && result.error.kind === 'problem' && result.error.problem.status === 409) {
-      // Another officer claimed it first: read who, and say so.
-      await router.invalidate();
+      // Another officer claimed it first: read who (waiting for the new case), and say so.
+      await router.invalidate({ sync: true });
       const fresh = router.state.matches.find((match) => match.routeId === CASE_ROUTE)?.loaderData;
       const winner = fresh?.ok ? fresh.data.detail.case.assignee?.name : null;
       toast({ title: t.toasts.claimConflict(winner ?? null), urgency: 'assertive' });
@@ -270,7 +270,7 @@ export function CaseView({
         >
           <TabsList
             aria-label={t.tabs.label}
-            className="sticky top-0 z-[3] rounded-t-2xl bg-card px-2"
+            className="sticky -top-px z-[3] rounded-t-2xl bg-card px-2"
           >
             <SideTab value="flags" count={openFlags}>
               {t.tabs.flags}

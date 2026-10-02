@@ -27,9 +27,11 @@ function crumbOf(loaderData: unknown): string | null {
  */
 export const Route = createFileRoute('/review/cases/$caseId/')({
   loader: async ({ params, location, context }) => {
-    if (!context.workspace) return null;
+    // A case is missing to anyone outside review (S18); the layout explains a failed access read.
+    if (!context.viewer.directory.ok) return null;
+    if (!context.workspace) throw notFound();
     if (!UUID.test(params.caseId)) throw notFound();
-    const tenant = context.viewer.directory.ok ? context.viewer.directory.principal.tenant : null;
+    const { tenant } = context.viewer.directory.principal;
     const [result, commission] = await Promise.all([
       getCaseView({ data: { caseId: params.caseId } }),
       // The clarification letter's letterhead; the issuer code stands in when the directory

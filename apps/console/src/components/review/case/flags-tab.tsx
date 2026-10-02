@@ -80,6 +80,7 @@ export function FlagsTab({
       flag={flag}
       evidence={evidenceLine(flag)}
       concerns={concernsLine(flag, view, declarant)}
+      view={view}
       canReview={canReview}
       canExplain={canExplain}
       pulse={pulse?.flagId === flag.id ? pulse.key : null}
@@ -179,6 +180,7 @@ const STRIPES = {
 
 function FlagCard({
   flag,
+  view,
   evidence,
   concerns,
   canReview,
@@ -192,6 +194,7 @@ function FlagCard({
   onReview,
 }: {
   flag: CaseFlag;
+  view: DeclarationView | null;
   evidence: string | null;
   concerns: string;
   canReview: boolean;
@@ -271,7 +274,8 @@ function FlagCard({
     );
   }
 
-  const itemId = flagItemId(flag);
+  // Without the declaration there is no item to go to.
+  const itemId = view ? flagItemId(flag) : null;
   return (
     <article
       ref={ref}

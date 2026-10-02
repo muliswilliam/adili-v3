@@ -56,6 +56,8 @@ import { isRecord, json, problem, readJson } from '../mock-http';
 import type { paths } from './api.gen';
 import {
   copilotRoute,
+  declarationOf,
+  type MockDeclarant,
   MOCK_DECLARATION,
   MOCK_FLAG_IDS,
   mockFlags,
@@ -114,6 +116,13 @@ const MERCY: Assignee = MOCK_OFFICERS.mercy;
 
 type Item = Clarification['items'][number];
 
+/** The declarants of the cases that reuse the mock declaration with their own name. */
+const DECLARANTS = {
+  grace: { firstName: 'Grace', surname: 'Atieno' },
+  mary: { firstName: 'Mary', surname: 'Achieng' },
+  gitau: { firstName: 'Mary', otherNames: 'Njambi', surname: 'Gitau' },
+} as const satisfies Record<string, MockDeclarant>;
+
 const PLOT: Item = {
   sectionKey: 'statement:officer',
   personKey: 'officer',
@@ -168,6 +177,11 @@ const replays = new Map<string, { status: number; body: unknown }>();
 
 function at(now: number, days: number): string {
   return addDays(new Date(now).toISOString(), days);
+}
+
+/** `days` from `now`, `minutes` later in the day, so a seeded timeline reads like a real one. */
+function atMinutes(now: number, days: number, minutes: number): string {
+  return new Date(Date.parse(at(now, days)) + minutes * 60_000).toISOString();
 }
 
 function caseItem(
@@ -451,11 +465,11 @@ export function resetReviewMock(now: number = Date.now()) {
   const received = Date.parse(mineItem.receivedAt);
   const mineFlags = mockFlags(C.mine).map((flag) =>
     flag.id === MOCK_FLAG_IDS.late && flag.reviewed
-      ? { ...flag, reviewed: { ...flag.reviewed, at: at(received, 4) } }
+      ? { ...flag, reviewed: { ...flag.reviewed, at: atMinutes(received, 4, -95) } }
       : flag,
   );
-  const peterNote = at(received, 3);
-  const callerNote = at(now, -3);
+  const peterNote = atMinutes(received, 3, 66);
+  const callerNote = atMinutes(now, -3, 259);
   cases.set(
     C.mine,
     storedCase(mineItem, {
@@ -474,7 +488,7 @@ export function resetReviewMock(now: number = Date.now()) {
         {
           versionId: C.mine,
           version: 2,
-          submittedAt: at(now, -15),
+          submittedAt: atMinutes(now, -15, 182),
           late: false,
           amendment: true,
         },
@@ -495,21 +509,21 @@ export function resetReviewMock(now: number = Date.now()) {
       ],
       timeline: [
         entry('case-created', null, mineItem.receivedAt, 'Case created from version 1'),
-        entry('assigned', PETER, at(received, 2), 'Claimed', PETER.subject),
+        entry('assigned', PETER, atMinutes(received, 2, -131), 'Claimed', PETER.subject),
         entry('note-added', PETER, peterNote, 'Internal note added'),
         entry(
           'flag-reviewed',
           PETER,
-          at(received, 4),
+          atMinutes(received, 4, -95),
           'Flag reviewed: Filed after the due date',
           MOCK_FLAG_IDS.late,
         ),
-        entry('assigned', PETER, at(received, 5), 'Released to the queue'),
-        entry('assigned', CALLER, at(received, 20), 'Claimed', CALLER),
+        entry('assigned', PETER, atMinutes(received, 5, 212), 'Released to the queue'),
+        entry('assigned', CALLER, atMinutes(received, 20, -119), 'Claimed', CALLER),
         entry(
           'version-processed',
           null,
-          at(now, -15),
+          atMinutes(now, -15, 197),
           'Version 2 processed: flags recomputed, reviewed flags kept',
         ),
         entry('note-added', CALLER, callerNote, 'Internal note added'),
@@ -522,7 +536,7 @@ export function resetReviewMock(now: number = Date.now()) {
       holder: CALLER,
       history: [CALLER],
       flags: mockFlags(C.windowClosed),
-      document: MOCK_DECLARATION,
+      document: declarationOf(DECLARANTS.grace),
     }),
   );
   cases.set(
@@ -531,7 +545,7 @@ export function resetReviewMock(now: number = Date.now()) {
       holder: PETER,
       history: [MERCY, PETER],
       flags: mockFlags(C.peters),
-      document: MOCK_DECLARATION,
+      document: declarationOf(DECLARANTS.mary),
     }),
   );
 
@@ -585,7 +599,7 @@ export function resetReviewMock(now: number = Date.now()) {
         holder: CALLER,
         history: [CALLER],
         flags: mockFlags(C.unavailable),
-        document: MOCK_DECLARATION,
+        document: declarationOf(DECLARANTS.gitau),
         declarationsDown: true,
       },
     ),
@@ -650,11 +664,11 @@ export function resetReviewMock(now: number = Date.now()) {
   }
   resetCopilotMock(now, [
     { caseId: C.mine, state: 'ready' },
-    { caseId: C.windowClosed, state: 'pending', readyAfterMs: 8_000 },
-    { caseId: C.peters, state: 'ready' },
+    { caseId: C.windowClosed, state: 'pending', readyAfterMs: 8_000, declarant: DECLARANTS.grace },
+    { caseId: C.peters, state: 'ready', declarant: DECLARANTS.mary },
     { caseId: C.unassigned, state: 'not-enabled' },
     { caseId: C.contested, state: 'not-enabled' },
-    { caseId: C.unavailable, state: 'ready' },
+    { caseId: C.unavailable, state: 'ready', declarant: DECLARANTS.gitau },
   ]);
 }
 
