@@ -14,6 +14,7 @@ import { componentSchema, contractErrors, okResponse } from '../support/contract
 import { type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
 import { getSession, givenRoster, identify, type IdentifyInput } from '../support/onboarding.js';
+import { statementsOf } from '../support/statements.js';
 
 /**
  * Spec 03 S1-S6 over HTTP, without a bearer token as the portal BFF calls them: the public
@@ -336,34 +337,64 @@ describe('S3 no-match', () => {
     expect(api.otpDelivery.sent()).toEqual([]);
   });
 
-  it('takes comparable time for every cause', async () => {
-    const rounds = 21;
-    const timings: Record<string, number[]> = {};
+  it('does the same database work for every cause', async () => {
     const entries = Object.entries(causes);
     // Warm up connections and code paths first.
     for (const [, input] of entries) await identify(api, input, freshIp());
-    // Causes take turns within each round, so a machine getting busier or quieter over the
-    // run (other suites in parallel) weighs on every cause alike.
+
+    const work: Record<string, string[]> = {};
+    for (const [cause, input] of entries) {
+      work[cause] = await statementsOf(api.db, async () => {
+        const response = await identify(api, input, freshIp());
+        expect(response.statusCode, response.body).toBe(404);
+      });
+    }
+
+    // One Commission lookup, then one roster lookup and one failure count, whatever the cause:
+    // no statement the timing could give away.
+    const [first] = Object.values(work);
+    expect(first).toEqual(expect.arrayContaining([expect.stringContaining('"roster_records"')]));
+    expect(first).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^insert into "onboarding_failures"/)]),
+    );
+    expect(work).toEqual(Object.fromEntries(entries.map(([cause]) => [cause, first])));
+  });
+
+  // About 200 requests: on a loaded runner, more than the default test timeout allows.
+  it('takes comparable time for every cause', async () => {
+    const rounds = 51;
+    const entries = Object.entries(causes);
+    // Warm up connections and code paths first.
+    for (const [, input] of entries) await identify(api, input, freshIp());
+
+    // Each round times every cause once, in a fresh random order, and keeps each one's time
+    // over the round's median: a busy spell on a loaded runner (other suites in parallel) slows
+    // the whole round, not one cause, and no cause always runs first or right after another.
+    const excess: Record<string, number[]> = {};
+    const all: number[] = [];
     for (let round = 0; round < rounds; round++) {
-      for (const [cause, input] of entries) {
+      const times: Record<string, number> = {};
+      for (const [cause, input] of shuffled(entries)) {
         const started = performance.now();
         await identify(api, input, freshIp());
-        (timings[cause] ??= []).push(performance.now() - started);
+        times[cause] = performance.now() - started;
+      }
+      const middle = median(Object.values(times));
+      for (const [cause, time] of Object.entries(times)) {
+        (excess[cause] ??= []).push(time - middle);
+        all.push(time);
       }
     }
 
-    // Every cause does the same work (one lookup, one failure count): the medians differ by
-    // scheduling noise only (a few ms with other suites running), under three quarters of one.
-    const medians = Object.fromEntries(
-      Object.entries(timings).map(([cause, values]) => [
-        cause,
-        values.sort((a, b) => a - b)[Math.floor(rounds / 2)] ?? 0,
-      ]),
+    // The same work behind every cause (above): typical excesses differ by scheduling noise only.
+    // A cause with work of its own (a hash, a lookup) would stand out by that work every round.
+    const typical = Object.fromEntries(
+      Object.entries(excess).map(([cause, values]) => [cause, median(values)]),
     );
-    const values = Object.values(medians);
+    const values = Object.values(typical);
     const spread = Math.max(...values) - Math.min(...values);
-    expect(spread, JSON.stringify(medians)).toBeLessThan(Math.max(10, Math.min(...values) * 0.75));
-  });
+    expect(spread, JSON.stringify(typical)).toBeLessThan(Math.max(10, median(all) * 0.75));
+  }, 60_000);
 
   it('records the abuse threshold event once when a window reaches it', async () => {
     const window = new Date('2026-10-01T09:00:00Z');
@@ -572,3 +603,18 @@ describe('S6 rate limits', () => {
     });
   });
 });
+
+function median(values: number[]): number {
+  const sorted = values.toSorted((a, b) => a - b);
+  const half = Math.floor(sorted.length / 2);
+  const upper = sorted[half] ?? 0;
+  return sorted.length % 2 ? upper : ((sorted[half - 1] ?? upper) + upper) / 2;
+}
+
+/** A copy of `items` in random order. */
+function shuffled<T>(items: readonly T[]): T[] {
+  return items
+    .map((item) => ({ item, key: Math.random() }))
+    .toSorted((a, b) => a.key - b.key)
+    .map(({ item }) => item);
+}
