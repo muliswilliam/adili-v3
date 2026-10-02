@@ -19,6 +19,7 @@ import createClient from 'openapi-fetch';
 
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
+import { isCommissionTask, TASK_NAMES } from './tasks';
 import type {
   DataClass,
   GateRule,
@@ -164,7 +165,7 @@ function routingTable(): Route[] {
   const defaults = new Set(routes.filter((each) => each.tenant === null).map((each) => each.task));
   return [
     ...routes,
-    ...TASKS.filter((task) => !defaults.has(task)).map((task): Route => ({
+    ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task): Route => ({
       tenant: null,
       task,
       provider: 'anthropic',
@@ -297,7 +298,7 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
   const routing = /^\/v1\/ai\/(?:tenants\/([a-z][a-z0-9]{1,19})\/)?routing\/([a-z-]+)$/.exec(
     pathname,
   );
-  const task = TASKS.find((each) => each === routing?.[2]);
+  const task = TASK_NAMES.find((each) => each === routing?.[2]);
   if (routing && task) {
     const tenant = routing[1] ?? null;
     if (method === 'PUT') return setRoute(request, tenant, task);
@@ -324,13 +325,6 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
   return problem(404, 'Not found');
 }
 
-const TASKS: readonly Route['task'][] = [
-  'summarize-declaration',
-  'explain-flags',
-  'draft-clarification',
-  'narrate-compliance-report',
-];
-
 /** Sets the route of a task for every tenant (null) or one, as `PUT .../routing/{task}`. */
 async function setRoute(request: Request, tenant: string | null, task: Route['task']) {
   const body = await readJson(request);
@@ -349,6 +343,10 @@ async function setRoute(request: Request, tenant: string | null, task: Route['ta
     errors.push({ path: 'approvalRef', message: 'Enter the approval reference' });
   }
   if (errors.length > 0) return validation(errors);
+  // As the gateway: no Commission calls an EACC task, so it has no Commission's own route.
+  if (tenant !== null && !isCommissionTask(task)) {
+    return validation([{ path: 'task', message: 'Must be a task a Commission calls' }]);
+  }
   const next: Route = {
     tenant,
     task,

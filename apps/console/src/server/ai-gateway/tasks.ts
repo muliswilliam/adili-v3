@@ -8,7 +8,14 @@ export const TASK_NAMES = [
   'narrate-compliance-report',
 ] as const satisfies readonly TaskName[];
 
-/** Tasks only EACC calls (ADR-007): each has a default route and no Commission's own. */
+/** Compile-time check that every contract task is listed above (the reverse of `satisfies`). */
+export const ALL_TASKS_LISTED: TaskName extends (typeof TASK_NAMES)[number] ? true : never = true;
+
+/**
+ * Tasks only EACC calls (ADR-007): each has a default route and no Commission's own. The contract
+ * does not mark them, so this copies the gateway's `EACC_TASKS`
+ * (services/ai-gateway/src/tasks/task.ts).
+ */
 export const EACC_TASKS = ['narrate-compliance-report'] as const satisfies readonly TaskName[];
 
 /**

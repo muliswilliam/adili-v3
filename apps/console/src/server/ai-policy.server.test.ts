@@ -343,6 +343,27 @@ describe('S2 routing changes', () => {
     expect(table.filter((each) => each.task === 'summarize-declaration')).toEqual([configured]);
   });
 
+  it("is the gateway's task 400 for a Commission's own route of an EACC task, and none is saved", async () => {
+    const result = await saveRoute(admin(), 'jsc', 'narrate-compliance-report', route);
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: {
+          status: 400,
+          errors: [{ path: 'task', message: 'Must be a task a Commission calls' }],
+        },
+      },
+    });
+    const table = (await admin().GET('/v1/ai/routing')).data ?? [];
+    expect(table.filter((each) => each.task === 'narrate-compliance-report')).toEqual([
+      expect.objectContaining({ tenant: null }),
+    ]);
+
+    const fallback = await saveRoute(admin(), null, 'narrate-compliance-report', route);
+    expect(fallback).toMatchObject({ ok: true, data: { tenant: null } });
+  });
+
   it('is a 400 for a provider the gateway cannot reach', async () => {
     const result = await saveRoute(admin(), null, 'explain-flags', { ...route, provider: 'other' });
     expect(result).toMatchObject({
