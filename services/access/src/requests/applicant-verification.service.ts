@@ -12,7 +12,11 @@ import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-cl
 import { directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister } from '../register/access-register.js';
 import { openFormK } from './form-k.js';
-import { type OfficerRequestView, toOfficerRequestView } from './officer-view.js';
+import {
+  type OfficerRequestView,
+  representationWindowDays,
+  toOfficerRequestView,
+} from './officer-view.js';
 import { AccessRequestWorkflows } from './request-workflows.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, type ApplicantVerification, representations } from './schema.js';
@@ -130,8 +134,17 @@ export class ApplicantVerificationService {
       };
     });
     if (body.verified) await this.workflows.signal(row.id, 'verified');
-    const formK = await openFormK(this.cipher, row);
-    return toOfficerRequestView(row, formK, officerTimeline(entries), representationsRow);
+    const [formK, windowDays] = await Promise.all([
+      openFormK(this.cipher, row),
+      row.notifiedAt === null ? representationWindowDays(this.directory, row.tenant) : null,
+    ]);
+    return toOfficerRequestView(
+      row,
+      formK,
+      officerTimeline(entries),
+      representationsRow,
+      windowDays,
+    );
   }
 
   private async recordInDirectory(

@@ -2048,6 +2048,12 @@ components:
             - type: string
               format: date-time
             - type: 'null'
+        representationWindowDays:
+          anyOf:
+            - type: integer
+              exclusiveMinimum: 0
+            - type: 'null'
+          description: Days the declarant would have for representations if notified now (the Commission's policy in force), for the access officer identifying the officer; null once notified (see `windowEndsAt`), or when the policy cannot be read
       required:
         - id
         - reference
@@ -2065,6 +2071,7 @@ components:
         - resolvedFileNumber
         - representations
         - windowEndsAt
+        - representationWindowDays
     VerifyApplicantIdentity:
       type: object
       properties:

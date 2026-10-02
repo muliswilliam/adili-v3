@@ -119,6 +119,25 @@ describe('Resolving the officer a request names (S3)', () => {
         'notified',
       ]);
       expect(officerView.windowEndsAt).toBe('2027-03-16T18:30:00.000Z');
+      // Notified: the window is the request's own now.
+      expect(officerView.representationWindowDays).toBeNull();
+    });
+
+    it("S3: before identifying, the officer sees the Commission's representation window in force (null when the directory is down)", async () => {
+      givenCommissions(api, NOW);
+      api.directory.givenAccessPolicy('psc', { representationWindowDays: 10 });
+      const { id } = await submitRequest(api);
+
+      const view = await api.get(`/v1/access/requests/${id}/officer`, officer);
+      api.directory.failCalls(1, 'accessPolicy');
+      const down = await api.get(`/v1/access/requests/${id}/officer`, officer);
+
+      expect(view.json<OfficerRequestView>().representationWindowDays).toBe(10);
+      expect(
+        contractErrors(okResponse('/v1/access/requests/{requestId}/officer', 'get'), view.json()),
+      ).toEqual([]);
+      expect(down.statusCode).toBe(200);
+      expect(down.json<OfficerRequestView>().representationWindowDays).toBeNull();
     });
 
     it('S3: the register records who identified the declarant, as which roster record', async () => {

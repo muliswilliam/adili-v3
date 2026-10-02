@@ -1,6 +1,7 @@
 import type { FormKV1 } from '@adili/forms';
 import { z } from 'zod';
 
+import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import type { RegisterEntry } from '../register/representation.js';
 import { type AccessRequestRow, accessRequestSchema, toAccessRequest } from './representation.js';
 import {
@@ -33,6 +34,10 @@ export const officerRequestViewSchema = accessRequestSchema.extend({
   resolvedFileNumber: z.string().nullable(),
   representations: representationsSchema.nullable(),
   windowEndsAt: z.iso.datetime({ offset: true }).nullable(),
+  representationWindowDays: z.int().positive().nullable().meta({
+    description:
+      "Days the declarant would have for representations if notified now (the Commission's policy in force), for the access officer identifying the officer; null once notified (see `windowEndsAt`), or when the policy cannot be read",
+  }),
 });
 
 export type OfficerRequestView = z.infer<typeof officerRequestViewSchema>;
@@ -49,12 +54,29 @@ export function toRepresentations(row: RepresentationsRow): Representations {
   };
 }
 
+/**
+ * The representation window of the Commission's policy in force, for the access officer about to
+ * identify the officer; null when the directory cannot be reached (the view still loads).
+ */
+export async function representationWindowDays(
+  directory: DirectoryClient,
+  tenant: string,
+): Promise<number | null> {
+  try {
+    return (await directory.accessPolicy(tenant)).representationWindowDays;
+  } catch (error) {
+    if (error instanceof DirectoryUnavailable) return null;
+    throw error;
+  }
+}
+
 /** The officer's view of a request, with its decrypted Form K and its whole timeline. */
 export function toOfficerRequestView(
   row: AccessRequestRow,
   formK: FormKV1,
   timeline: readonly RegisterEntry[],
   representationsRow: RepresentationsRow | null,
+  representationWindowDays: number | null,
 ): OfficerRequestView {
   return {
     ...toAccessRequest(row, formK, timeline),
@@ -64,5 +86,6 @@ export function toOfficerRequestView(
     resolvedFileNumber: row.resolvedFileNumber,
     representations: representationsRow === null ? null : toRepresentations(representationsRow),
     windowEndsAt: row.windowEndsAt?.toISOString() ?? null,
+    representationWindowDays: row.notifiedAt === null ? representationWindowDays : null,
   };
 }

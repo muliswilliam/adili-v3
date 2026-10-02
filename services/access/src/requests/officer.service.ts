@@ -66,6 +66,7 @@ import { rosterCandidates } from './roster-candidates.js';
 import {
   type OfficerRequestView,
   type RepresentationsRow,
+  representationWindowDays,
   toOfficerRequestView,
 } from './officer-view.js';
 import { AccessRequestWorkflows } from './request-workflows.js';
@@ -424,12 +425,18 @@ export class OfficerService {
   }
 
   private async view(found: OfficerRecord): Promise<OfficerRequestView> {
-    const formK = await openFormK(this.cipher, found.row);
+    const [formK, windowDays] = await Promise.all([
+      openFormK(this.cipher, found.row),
+      found.row.notifiedAt === null
+        ? representationWindowDays(this.directory, found.row.tenant)
+        : null,
+    ]);
     return toOfficerRequestView(
       found.row,
       formK,
       officerTimeline(found.entries),
       found.representations,
+      windowDays,
     );
   }
 }
