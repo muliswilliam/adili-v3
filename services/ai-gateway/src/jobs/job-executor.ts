@@ -7,20 +7,27 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { type Job, jobs, type schema } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
+import { Budgets } from '../policy/budgets.js';
+import { CircuitBreaker } from '../policy/circuit-breaker.js';
+import { GatePolicies } from '../policy/gate-policies.js';
+import { costMicros } from '../policy/pricing.js';
+import { type PreparedPrompt, preparePrompt } from '../policy/prompt.js';
+import { sourceRefProblems } from '../policy/source-refs.js';
+import { GenAiTelemetry } from '../policy/telemetry.js';
 import {
   type ModelProvider,
+  ProviderError,
   type StructuredResult,
   totalInputTokens,
   type Usage,
 } from '../providers/port.js';
-import { InjectModelProvider } from '../providers/providers.module.js';
+import { ProviderRegistry } from '../providers/providers.module.js';
 import { inputLanguage } from '../tasks/common.js';
-import { buildProviderRequest } from '../tasks/provider-request.js';
 import { findTask } from '../tasks/registry.js';
 import { aiLabel, type TaskDefinition } from '../tasks/task.js';
-import { gateAdmits } from './classification-gate.js';
-import { jobFinished } from './events.js';
+import { recordJobEnded } from './job-ended.js';
 import { type JobReason, LIVE_STATUSES } from './job-states.js';
+import { parseParams } from './routing.js';
 
 type Outcome =
   | { status: 'succeeded'; output: Record<string, unknown> }
@@ -29,10 +36,12 @@ type Outcome =
 /** What one provider call cost; absent when the job ends without a call. */
 interface AttemptMetrics {
   usage: Usage | null;
+  /** Model that served the call, which prices it. */
+  model: string | null;
   latencyMs: number;
 }
 
-const NO_CALL: AttemptMetrics = { usage: null, latencyMs: 0 };
+const NO_CALL: AttemptMetrics = { usage: null, model: null, latencyMs: 0 };
 /** Longest one write of a job's final state may take (Postgres `statement_timeout`). */
 const WRITE_TIMEOUT_MS = 5_000;
 /**
@@ -96,9 +105,12 @@ async function withTimeout(work: Promise<void>, ms: number): Promise<void> {
 }
 
 /**
- * Runs jobs: one attempt per `execute` call. Provider errors propagate so the workflow can
- * retry them; every other ending (success, refusal, invalid output) is final and recorded
- * here, with its event, in one transaction.
+ * Runs jobs through the policy pipeline, one attempt per `execute` call: provider reachable,
+ * classification gate, budget, circuit breaker, then minimise, prompt with the input as
+ * untrusted data, call, validate the output against the task schema and the input's refs,
+ * restore the identifiers, and record. Provider transport errors propagate so the workflow can
+ * retry them; every other ending is final and recorded here, with its audit record and event,
+ * in one transaction.
  */
 @Injectable()
 export class JobExecutor {
@@ -106,7 +118,11 @@ export class JobExecutor {
 
   constructor(
     @InjectDatabase() private readonly db: Database<typeof schema>,
-    @InjectModelProvider() private readonly provider: ModelProvider,
+    private readonly providers: ProviderRegistry,
+    private readonly gate: GatePolicies,
+    private readonly budgets: Budgets,
+    private readonly breaker: CircuitBreaker,
+    private readonly telemetry: GenAiTelemetry,
     private readonly events: EventPublisher,
   ) {}
 
@@ -123,16 +139,25 @@ export class JobExecutor {
       // Unreachable: jobs are created for registered tasks and keep their input until they end.
       throw new Error(`Job ${jobId} cannot run: unknown task or missing input`);
     }
-    // Checked again here, against the provider this process will actually contact.
-    if (!gateAdmits(job.dataClass, this.provider.providerClass)) {
-      await this.finish(job, { status: 'blocked', reason: 'policy' }, NO_CALL);
+    const ending = await this.admission(job);
+    if (ending) {
+      await this.finish(job, ending, NO_CALL);
       return;
     }
-    const request = buildProviderRequest(task, job.promptVersion, job.input, job.model);
+    const provider = this.providers.get(job.provider);
+    if (!provider) throw new Error(`Job ${jobId}: provider ${job.provider} vanished`);
+
+    const params = parseParams(job.params, `job ${job.id}`);
+    // The token map lives in `prompt` for this attempt only, and is never stored or logged.
+    const prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params);
     const startedAt = performance.now();
-    const result = await this.provider.generateStructured(request);
-    const metrics = { usage: result.usage, latencyMs: Math.round(performance.now() - startedAt) };
-    const outcome = this.outcome(job, task, result);
+    const result = await this.call(job, provider, prompt, params.timeoutMs);
+    const metrics: AttemptMetrics = {
+      usage: result.usage,
+      model: result.model,
+      latencyMs: Math.round(performance.now() - startedAt),
+    };
+    const outcome = this.outcome(job, task, result, prompt);
     // The call is paid for: a database outage while recording it must not send the job back to
     // the workflow's retry, which would call the provider again. A worker that dies between
     // the call and the commit still leads to a second call; only storing the raw result first
@@ -146,6 +171,57 @@ export class JobExecutor {
     if (job) await this.finish(job, { status: 'failed', reason }, NO_CALL);
   }
 
+  /**
+   * Why the job must end without contacting its provider, checked again at each attempt since
+   * policy, budget and provider health may have changed since it was created; undefined when it
+   * may go ahead. Claims the breaker's probe when it lets the call through.
+   */
+  private async admission(job: Job): Promise<Outcome | undefined> {
+    const provider = this.providers.get(job.provider);
+    if (!provider) return { status: 'failed', reason: 'provider-unavailable' };
+    if (!(await this.gate.admits(job.tenant, job.dataClass, provider.providerClass))) {
+      return { status: 'blocked', reason: 'policy' };
+    }
+    if (await this.budgets.exhausted(job.tenant)) return { status: 'blocked', reason: 'budget' };
+    if (!this.breaker.tryAcquire(provider.name)) {
+      return { status: 'failed', reason: 'provider-unavailable' };
+    }
+    return undefined;
+  }
+
+  /** One provider call in a GenAI span, bounded by the route's timeout, fed to the breaker. */
+  private async call(
+    job: Job,
+    provider: ModelProvider,
+    prompt: PreparedPrompt,
+    timeoutMs: number | undefined,
+  ): Promise<StructuredResult> {
+    try {
+      const result = await this.telemetry.call(
+        {
+          jobId: job.id,
+          tenant: job.tenant,
+          task: job.task,
+          promptVersion: job.promptVersion,
+          provider: provider.name,
+          model: job.model,
+          maxOutputTokens: prompt.request.maxOutputTokens,
+        },
+        () => withCallTimeout(provider, provider.generateStructured(prompt.request), timeoutMs),
+      );
+      this.breaker.recordSuccess(provider.name);
+      return result;
+    } catch (error) {
+      if (error instanceof ProviderError && error.retryable) {
+        this.breaker.recordFailure(provider.name);
+      } else {
+        // The provider answered (a bad request, bad credentials) or the failure was ours.
+        this.breaker.release(provider.name);
+      }
+      throw error;
+    }
+  }
+
   /** Marks the job running; undefined when it has already ended (a late retry, a replay). */
   private async start(jobId: string): Promise<Job | undefined> {
     const [job] = await this.db
@@ -156,7 +232,17 @@ export class JobExecutor {
     return job;
   }
 
-  private outcome(job: Job, task: TaskDefinition, result: StructuredResult): Outcome {
+  /**
+   * The job's ending for a provider result. Validated twice: the raw output against the task
+   * schema and the input's refs, then the output with identifiers restored against the schema
+   * again, so what is stored is always valid. Any failure stores nothing (no partial output).
+   */
+  private outcome(
+    job: Job,
+    task: TaskDefinition,
+    result: StructuredResult,
+    prompt: PreparedPrompt,
+  ): Outcome {
     if (result.status === 'refused') return { status: 'failed', reason: 'refused' };
     // A cut-off structured output is absent: nothing valid to keep.
     if (result.status === 'truncated') return { status: 'failed', reason: 'validation' };
@@ -173,6 +259,27 @@ export class JobExecutor {
       );
       return { status: 'failed', reason: 'validation' };
     }
+    // Problems name keys and ids (item, person, section, flag), never text.
+    const problems = sourceRefProblems(job.input, parsed.data);
+    if (problems.length > 0) {
+      this.logger.warn(
+        { jobId: job.id, task: job.task, problems: problems.slice(0, 20) },
+        'Model output refers to what the input does not hold',
+      );
+      return { status: 'failed', reason: 'validation' };
+    }
+    const restored = task.output.safeParse(prompt.restore(parsed.data));
+    if (!restored.success) {
+      this.logger.warn(
+        {
+          jobId: job.id,
+          task: job.task,
+          issues: restored.error.issues.map((issue) => ({ path: issue.path, code: issue.code })),
+        },
+        'Model output failed the task schema once identifiers were restored',
+      );
+      return { status: 'failed', reason: 'validation' };
+    }
     const language = inputLanguage(job.input);
     const label = aiLabel(
       {
@@ -184,16 +291,19 @@ export class JobExecutor {
       },
       language,
     );
-    return { status: 'succeeded', output: { label, ...parsed.data } };
+    return { status: 'succeeded', output: { label, ...restored.data } };
   }
 
-  /** Moves a live job to its final state and announces it; a job that already ended is left. */
+  /**
+   * Moves a live job to its final state, with its audit record and event; a job that already
+   * ended is left. Counted in telemetry once committed.
+   */
   private async finish(job: Job, outcome: Outcome, metrics: AttemptMetrics): Promise<void> {
     const output = outcome.status === 'succeeded' ? outcome.output : null;
-    await this.db.transaction(async (tx) => {
+    const finished = await this.db.transaction(async (tx) => {
       // A hung write (lock wait, lost connection) must fail in time for the caller to react.
       await tx.execute(sql.raw(`set local statement_timeout = ${WRITE_TIMEOUT_MS}`));
-      const [finished] = await tx
+      const [row] = await tx
         .update(jobs)
         .set({
           status: outcome.status,
@@ -204,13 +314,43 @@ export class JobExecutor {
           ...(metrics.usage && {
             tokensIn: totalInputTokens(metrics.usage),
             tokensOut: metrics.usage.outputTokens,
+            costMicros: costMicros(metrics.model ?? job.model, metrics.usage),
           }),
           latencyMs: metrics.latencyMs,
           finishedAt: sql`now()`,
         })
         .where(and(eq(jobs.id, job.id), inArray(jobs.status, LIVE_STATUSES)))
         .returning();
-      if (finished) await this.events.record(tx, jobFinished(finished));
+      if (row) await recordJobEnded(tx, this.events, row);
+      return row;
     });
+    if (finished) this.telemetry.jobFinished(finished);
+  }
+}
+
+/**
+ * The provider's answer, or a retryable timeout once the route's `timeoutMs` passes. The call
+ * itself is not cancelled (the port has no signal); the provider client's own timeout ends it.
+ */
+async function withCallTimeout(
+  provider: ModelProvider,
+  call: Promise<StructuredResult>,
+  timeoutMs: number | undefined,
+): Promise<StructuredResult> {
+  if (timeoutMs === undefined) return call;
+  const timer = new AbortController();
+  try {
+    return await Promise.race([
+      call,
+      sleep(timeoutMs, undefined, { signal: timer.signal }).then(() => {
+        throw new ProviderError(
+          'timeout',
+          provider.name,
+          `No answer from ${provider.name} within the route's ${timeoutMs} ms`,
+        );
+      }),
+    ]);
+  } finally {
+    timer.abort();
   }
 }

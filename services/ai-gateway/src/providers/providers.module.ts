@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 
 import Anthropic from '@anthropic-ai/sdk';
-import { type DynamicModule, Inject, Module } from '@nestjs/common';
+import { type DynamicModule, Module } from '@nestjs/common';
 
 import { AnthropicAdapter } from './anthropic.adapter.js';
 import type { ModelProvider } from './port.js';
@@ -29,17 +29,44 @@ export function createModelProvider(env: ProviderEnv): ModelProvider {
     : new ReplayAdapter({ fixturesDir, mode: 'replay' });
 }
 
-/** Injection token for the configured `ModelProvider`. */
-export const MODEL_PROVIDER = Symbol('MODEL_PROVIDER');
-export const InjectModelProvider = () => Inject(MODEL_PROVIDER);
+/**
+ * Injection token for the providers this process can reach, the configured one first. The
+ * routing table names providers from this list; tests may register several.
+ */
+export const MODEL_PROVIDERS = Symbol('MODEL_PROVIDERS');
+
+/** The providers this process can reach, by name; the first is the default route's. */
+export class ProviderRegistry {
+  readonly default: ModelProvider;
+  private readonly byName: ReadonlyMap<string, ModelProvider>;
+
+  constructor(providers: readonly ModelProvider[]) {
+    const [first] = providers;
+    if (!first) throw new Error('At least one model provider is required');
+    this.default = first;
+    this.byName = new Map(providers.map((provider) => [provider.name, provider]));
+  }
+
+  /** Undefined for a provider this process cannot reach (a routing row naming another). */
+  get(name: string): ModelProvider | undefined {
+    return this.byName.get(name);
+  }
+}
 
 @Module({})
 export class ProvidersModule {
   static forRoot(env: ProviderEnv): DynamicModule {
     return {
       module: ProvidersModule,
-      providers: [{ provide: MODEL_PROVIDER, useFactory: () => createModelProvider(env) }],
-      exports: [MODEL_PROVIDER],
+      providers: [
+        { provide: MODEL_PROVIDERS, useFactory: () => [createModelProvider(env)] },
+        {
+          provide: ProviderRegistry,
+          useFactory: (providers: ModelProvider[]) => new ProviderRegistry(providers),
+          inject: [MODEL_PROVIDERS],
+        },
+      ],
+      exports: [ProviderRegistry],
     };
   }
 }

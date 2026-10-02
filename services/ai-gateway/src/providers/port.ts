@@ -115,7 +115,8 @@ export interface ProviderCapabilities {
  * API); `self-hosted` keeps them on infrastructure the platform controls. The classification
  * gate decides which data classes each may see.
  */
-export type ProviderClass = 'external' | 'self-hosted';
+export const PROVIDER_CLASSES = ['external', 'self-hosted'] as const;
+export type ProviderClass = (typeof PROVIDER_CLASSES)[number];
 
 export interface ModelProvider {
   /** Provider id recorded on jobs (`anthropic`, `replay`...). */

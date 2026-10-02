@@ -74,6 +74,10 @@ export class JobsController {
   @ApiProblemResponse(400, 'Request failed validation, or Idempotency-Key missing')
   @ApiProblemResponse(404, 'Unknown task')
   @ApiProblemResponse(422, 'Idempotency-Key reused with a different request')
+  @ApiProblemResponse(
+    429,
+    "Tenant's per-minute limit reached (code `rate-limit-exceeded`); no job was created. `retryAfterSeconds` and Retry-After say when to try again",
+  )
   async runTask(
     @Param('task') task: string,
     @Body() body: unknown,
@@ -81,7 +85,15 @@ export class JobsController {
     @CurrentPrincipal() caller: Principal,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<JobView> {
-    const { job, replayed } = await this.jobs.run(task, body, caller, readKey(key));
+    const { job, replayed } = await this.jobs
+      .run(task, body, caller, readKey(key))
+      .catch((error: unknown) => {
+        if (ProblemException.hasCode(error, ['rate-limit-exceeded'])) {
+          const retryAfter = error.extensions.retryAfterSeconds;
+          if (typeof retryAfter === 'number') void reply.header('retry-after', String(retryAfter));
+        }
+        throw error;
+      });
     void reply.status(isTerminal(job.status) ? HttpStatus.OK : HttpStatus.ACCEPTED);
     if (replayed) void reply.header(IDEMPOTENT_REPLAYED_HEADER, 'true');
     return job;

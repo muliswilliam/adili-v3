@@ -1,11 +1,14 @@
 import { eventsSchema } from '@adili/events/schema';
 import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
 import {
+  bigint,
+  boolean,
   check,
   index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -20,6 +23,7 @@ import {
   LIVE_STATUSES,
 } from '../jobs/job-states.js';
 import { DATA_CLASSES } from '../jobs/task-request.js';
+import { PROVIDER_CLASSES } from '../providers/port.js';
 import { TASK_NAMES } from '../tasks/task.js';
 
 /** `status in ('a', 'b')` for a partial index predicate; the values are constants, not input. */
@@ -75,6 +79,8 @@ export const jobs = pgTable(
     /** Decided by the routing table when the job is created. */
     provider: text().notNull(),
     model: text().notNull(),
+    /** The route's call parameters (`RouteParams`), fixed with provider and model at creation. */
+    params: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     output: jsonb(),
     outputHash: text(),
     /** Set when the retention window cleared `output`; the job then no longer serves the cache. */
@@ -106,15 +112,135 @@ export const jobs = pgTable(
     index('jobs_output_retention_idx')
       .on(table.finishedAt)
       .where(sql`${table.output} is not null`),
+    // Budgets and rate limits: a tenant's jobs this month, and in the last minute.
+    index('jobs_tenant_created_at_idx').on(table.tenant, table.createdAt),
   ],
 );
 
 export type Job = typeof jobs.$inferSelect;
 
+/**
+ * The classification gate's per-tenant rules (spec 07c): whether a provider class may see a data
+ * class. A pair without a row follows the default policy (see `defaultGateAdmits`). Every change
+ * names who made it and the approval it rests on, and is audited.
+ */
+export const gatePolicies = pgTable(
+  'gate_policies',
+  {
+    tenant: text().notNull(),
+    dataClass: text({ enum: DATA_CLASSES }).notNull(),
+    providerClass: text({ enum: PROVIDER_CLASSES }).notNull(),
+    allowed: boolean().notNull(),
+    /** The decision this rests on, e.g. a Commission resolution or an EACC approval number. */
+    approvalRef: text().notNull(),
+    changedBy: text().notNull(),
+    changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.tenant, table.dataClass, table.providerClass] })],
+);
+
+export type GatePolicy = typeof gatePolicies.$inferSelect;
+
+/**
+ * The routing table (spec 07c): task to provider, model and call parameters, for one tenant or,
+ * with a null tenant, for every tenant without its own row. A task without a row uses the
+ * configured provider and model. Each environment has its own database, so its own table.
+ */
+export const routes = pgTable(
+  'routing',
+  {
+    id: uuid().primaryKey(),
+    tenant: text(),
+    task: text({ enum: TASK_NAMES }).notNull(),
+    provider: text().notNull(),
+    model: text().notNull(),
+    params: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    changedBy: text().notNull(),
+    changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('routing_tenant_task_idx')
+      .on(table.tenant, table.task)
+      .where(sql`${table.tenant} is not null`),
+    uniqueIndex('routing_default_task_idx')
+      .on(table.task)
+      .where(sql`${table.tenant} is null`),
+  ],
+);
+
+export type RouteRow = typeof routes.$inferSelect;
+
+/** A tenant's token budget and rate limit; a tenant without a row has the configured defaults. */
+export const budgets = pgTable('budgets', {
+  tenant: text().primaryKey(),
+  /** Tokens (in and out) the tenant's jobs may use per calendar month, Africa/Nairobi. */
+  monthlyTokens: bigint({ mode: 'number' }).notNull(),
+  /** Jobs the tenant may create per minute. */
+  perMinute: integer().notNull(),
+  changedBy: text().notNull(),
+  changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+export const AUDIT_ACTIONS = [
+  'ai.job.finished',
+  'ai.gate-policy.changed',
+  'ai.budget.changed',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+/**
+ * Append-only audit records (ADR-008, spec 07c): one per finished job, and one per policy or
+ * budget change. Hashes, counts and decisions only: never the input, the output, a prompt or
+ * the minimisation token map.
+ */
+export const auditRecords = pgTable(
+  'audit_records',
+  {
+    id: uuid().primaryKey(),
+    action: text({ enum: AUDIT_ACTIONS }).notNull(),
+    tenant: text().notNull(),
+    /** The calling service for a job; the administrator for a change. */
+    actor: text().notNull(),
+    occurredAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    // A finished job (`ai.job.finished`).
+    jobId: uuid(),
+    subjectRef: text(),
+    task: text({ enum: TASK_NAMES }),
+    promptVersion: integer(),
+    dataClass: text({ enum: DATA_CLASSES }),
+    provider: text(),
+    model: text(),
+    inputHash: text(),
+    outputHash: text(),
+    tokensIn: integer(),
+    tokensOut: integer(),
+    costMicros: integer(),
+    latencyMs: integer(),
+    outcome: text({ enum: JOB_STATUSES }),
+    reason: text({ enum: JOB_REASONS }),
+    // A change (`ai.gate-policy.changed`, `ai.budget.changed`).
+    approvalRef: text(),
+    /** What changed: the values before and after. */
+    change: jsonb().$type<{ before: unknown; after: unknown }>(),
+  },
+  (table) => [
+    uniqueIndex('audit_records_job_id_idx')
+      .on(table.jobId)
+      .where(sql`${table.jobId} is not null`),
+    index('audit_records_tenant_occurred_at_idx').on(table.tenant, table.occurredAt),
+  ],
+);
+
+export type AuditRecord = typeof auditRecords.$inferSelect;
+
 /** Drizzle schema of the ai-gateway database. Only this service reads or writes it (ADR-013). */
 export const schema = {
   ...eventsSchema,
   jobs,
+  gatePolicies,
+  routes,
+  budgets,
+  auditRecords,
 };
 
 export * from '@adili/events/schema';

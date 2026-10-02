@@ -73,9 +73,9 @@ describe('classification gate', () => {
     expect(response.json<Job>()).toMatchObject({ status: 'succeeded' });
   });
 
-  it('blocks a queued job at execution when the provider it would reach is external', async () => {
+  it('blocks a queued job at execution when the gate no longer admits it', async () => {
     const before = external.requests.length;
-    // Queued under a self-hosted route; this process now reaches an external provider.
+    // Queued before the policy changed (or written by hand): the gate is checked again.
     const id = randomUUID();
     await t.db.insert(jobs).values({
       id,
@@ -90,7 +90,7 @@ describe('classification gate', () => {
       inputHash: 'queued',
       input: summarizeInput,
       status: 'queued',
-      provider: 'replay',
+      provider: 'scripted',
       model: 'claude-opus-5-5',
       createdAt: new Date(Date.now() - 5 * 60_000),
     });
