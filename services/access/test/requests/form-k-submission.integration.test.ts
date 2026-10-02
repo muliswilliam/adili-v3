@@ -233,8 +233,11 @@ describe('Form K submission (S2)', () => {
 
   it('S2: Form K addressed to no Responsible Commission is 400 at responsibleCommission', async () => {
     given();
+    // Reserved tenant keys are refused even if the directory ever held such a Commission: `lea`
+    // is the law enforcement officers' row-level security context.
+    api.directory.givenCommission('lea', 'Lea Commission');
 
-    for (const responsibleCommission of ['ghost', 'platform']) {
+    for (const responsibleCommission of ['ghost', 'platform', 'lea']) {
       const response = await submit({ ...COMPLETE, responsibleCommission });
 
       expect(response.statusCode).toBe(400);

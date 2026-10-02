@@ -1,4 +1,5 @@
 import { PLATFORM_TENANT } from '@adili/api-kit';
+import { LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 
 import {
   type CommissionFacts,
@@ -10,7 +11,9 @@ import { directoryUnavailable } from '../problems.js';
 /**
  * The active Commission `slug` names, as the directory holds it: what a request or a certified
  * copy is addressed to. `unknown()` (the caller's problem: 400 at its field, or 404) when the
- * directory has no such Commission, or for `platform`, which is no Commission; 503
+ * directory has no such Commission, or for the reserved tenant keys `platform` and `lea` (the
+ * row-level security contexts of cross-tenant work and of law enforcement officers), which are no
+ * Commission; 503
  * `directory-unavailable` when the directory cannot be reached.
  */
 export async function responsibleCommission(
@@ -18,7 +21,7 @@ export async function responsibleCommission(
   slug: string,
   unknown: () => Error,
 ): Promise<CommissionFacts> {
-  if (slug === PLATFORM_TENANT) throw unknown();
+  if (slug === PLATFORM_TENANT || slug === LAW_ENFORCEMENT_TENANT) throw unknown();
   let commission;
   try {
     commission = await directory.findCommission(slug);
