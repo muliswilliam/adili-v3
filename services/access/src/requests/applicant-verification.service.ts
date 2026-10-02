@@ -5,9 +5,9 @@ import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 import { z } from 'zod';
 
-import { ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import { accessOfficerName, ownCommissionTenant, requireAccessOfficer } from '../access.js';
 import { Clock } from '../clock.js';
-import type { AccessDatabase, AccessTransaction } from '../db/database.js';
+import type { AccessDatabase } from '../db/database.js';
 import { DirectoryClient, DirectoryUnavailable } from '../directory/directory-client.js';
 import { directoryUnavailable, problem } from '../problems.js';
 import { AccessRegister } from '../register/access-register.js';
@@ -16,6 +16,7 @@ import { type OfficerRequestView, toOfficerRequestView } from './officer-view.js
 import { AccessRequestWorkflows } from './request-workflows.js';
 import type { AccessRequestRow } from './representation.js';
 import { accessRequests, type ApplicantVerification, representations } from './schema.js';
+import { requestRow } from './request-row.js';
 import { officerTimeline, registerEntriesOf } from './timeline.js';
 
 /** Body of `verifyApplicantIdentity`. */
@@ -56,10 +57,10 @@ export class ApplicantVerificationService {
    * Verified: the directory first records the applicant's identity as `verified` (on the person
    * and the account, so their next requests are not held), then the request becomes `submitted`
    * with the officer's check on it, and the `verified` register entry and its event are recorded;
-   * its `AccessRequestWorkflow` starts (503 and nothing changed here when Temporal cannot be
-   * reached).
-   * The directory unreachable is 503 and nothing changes here; its record is idempotent (the key
-   * is the request's), so trying again is safe.
+   * once that commits, its `AccessRequestWorkflow` (running since receipt) is signalled
+   * `verified`, and goes on to wait for the officer named to be resolved. The directory
+   * unreachable is 503 and nothing changes here; its record is idempotent (the key is the
+   * request's), so trying again is safe.
    *
    * Not verified: the officer's check is recorded on the request, which stays held (the officer
    * may verify it later, or the applicant withdraw it); nothing is published.
@@ -86,7 +87,7 @@ export class ApplicantVerificationService {
       verified: body.verified,
       note: body.note,
       by: principal.subject,
-      byName: principal.name ?? principal.subject,
+      byName: accessOfficerName(principal),
       at: now.toISOString(),
     };
     const { row, entries, representationsRow } = await withTenant(this.db, context, async (tx) => {
@@ -117,13 +118,6 @@ export class ApplicantVerificationService {
           actor: { subject: principal.subject, name: principal.name },
           at: now,
         });
-        // Last, inside the transaction: the request goes ahead with its workflow, its clock
-        // still running from receipt.
-        await this.workflows.start({
-          tenant,
-          requestId: updated.id,
-          submittedAt: updated.submittedAt.toISOString(),
-        });
       }
       const [representationsRow] = await tx
         .select()
@@ -135,6 +129,7 @@ export class ApplicantVerificationService {
         representationsRow: representationsRow ?? null,
       };
     });
+    if (body.verified) await this.workflows.signal(row.id, 'verified');
     const formK = await openFormK(this.cipher, row);
     return toOfficerRequestView(row, formK, officerTimeline(entries), representationsRow);
   }
@@ -166,16 +161,6 @@ export class ApplicantVerificationService {
       throw new Error(`The applicant of request ${requestId} is unknown to the directory`);
     }
   }
-}
-
-async function requestRow(
-  tx: AccessTransaction,
-  requestId: string,
-  { lock = false }: { lock?: boolean } = {},
-): Promise<AccessRequestRow | undefined> {
-  const query = tx.select().from(accessRequests).where(eq(accessRequests.id, requestId));
-  const [row] = lock ? await query.for('update') : await query;
-  return row;
 }
 
 function requirePending(row: AccessRequestRow): void {

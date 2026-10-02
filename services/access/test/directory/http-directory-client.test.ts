@@ -64,6 +64,9 @@ describe('HttpDirectoryClient: applicants', () => {
     await expect(client.applicant(PERSON, 'psc')).resolves.toEqual({
       personId: PERSON,
       identityStatus: 'pending-verification',
+      fullName: 'Daniel Otieno',
+      identityDocument: { kind: 'passport', number: 'AK123456', country: 'UG' },
+      contacts: { email: 'd.otieno@example.org', phone: '+256772123456' },
     });
     expect(sent).toHaveLength(1);
     expect(sent[0]?.method).toBe('GET');
@@ -90,7 +93,7 @@ describe('HttpDirectoryClient: applicants', () => {
         verifiedBy: 'officer-psc',
         idempotencyKey: KEY,
       }),
-    ).resolves.toEqual({ personId: PERSON, identityStatus: 'verified' });
+    ).resolves.toMatchObject({ personId: PERSON, identityStatus: 'verified' });
     expect(sent[0]?.method).toBe('POST');
     expect(sent[0]?.url).toBe(
       `http://directory.test/internal/v1/applicants/${PERSON}/identity-verification`,

@@ -1,5 +1,12 @@
 import { notFoundIfInvisible, type Principal, TENANT_KEY } from '@adili/api-kit';
-import { ACCESS_OFFICER, DECLARANT, LAW_ENFORCEMENT, SUPERVISOR } from '@adili/roles';
+import {
+  ACCESS_OFFICER,
+  DECLARANT,
+  EACC_ROLES,
+  LAW_ENFORCEMENT,
+  LAW_ENFORCEMENT_TENANT,
+  SUPERVISOR,
+} from '@adili/roles';
 
 import { forbidden, problem } from './problems.js';
 
@@ -10,11 +17,15 @@ import { forbidden, problem } from './problems.js';
  * security context runs as.
  */
 
-/** The tenant of law enforcement officers' accounts (provisioned per agency by the directory). */
-export const LEA_TENANT = 'lea';
-
 /** A Commission's roles that see its access requests: the access officer decides, the supervisor reads. */
 export const COMMISSION_ACCESS_ROLES = [ACCESS_OFFICER, SUPERVISOR] as const;
+
+/**
+ * Who reaches the Commission's officer routes (`@Roles`): its access officer and supervisor, and
+ * EACC, whose roles see nothing there (spec 10 S16): they get 404, as for another Commission's
+ * requests, not 403.
+ */
+export const OFFICER_ROUTE_ROLES = [...COMMISSION_ACCESS_ROLES, ...EACC_ROLES] as const;
 
 /**
  * The applicant's person record (token `person_id`), under which their requests are filed and
@@ -63,7 +74,15 @@ export function requireAccessOfficer(principal: Principal, action: string): void
   throw forbidden(`Only an access officer of the Commission can ${action}.`);
 }
 
+/**
+ * How an access officer's act names them where people read it (timelines, decisions, the
+ * self-access register): their name from the token, else their role, never their account id.
+ */
+export function accessOfficerName(principal: Principal): string {
+  return principal.name ?? 'Access officer';
+}
+
 /** A law enforcement officer: role `law-enforcement` on an account of the `lea` tenant. */
 export function isLeaOfficer(principal: Principal): boolean {
-  return principal.tenant === LEA_TENANT && principal.roles.includes(LAW_ENFORCEMENT);
+  return principal.tenant === LAW_ENFORCEMENT_TENANT && principal.roles.includes(LAW_ENFORCEMENT);
 }

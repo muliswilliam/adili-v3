@@ -1,14 +1,17 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { errorType } from '@adili/api-kit';
 import { DATABASE, withTenant } from '@adili/data-access';
 import type { AccessCertifiedCopyIssuedData } from '@adili/events/contracts';
 import { and, eq } from 'drizzle-orm';
 
+import {
+  invariantBroken,
+  requireTransactionEnded,
+  rethrowAsActivityFailure,
+} from '../activity-failures.js';
 import { Clock } from '../clock.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import { DeclarationsClient } from '../declarations/declarations-client.js';
 import { type CertifiedCopyPayload, DocumentsClient } from '../documents/documents-client.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { NotificationsClient } from '../notifications/notifications-client.js';
 import { AccessRegister } from '../register/access-register.js';
 import { declarantCertifiedCopiesUrl } from '../requests/links.js';
@@ -31,8 +34,10 @@ export function certifiedCopySubjectRef(copyId: string): string {
  * method is an activity named after it; each reads the certified copy before acting and is safe
  * to retry: documents issues once per copy (idempotency key), the messages are sent once per copy
  * and channel, and the copy is recorded issued, with its `self-access` register entry, once. An
- * unreachable service propagates, so Temporal retries. Helpers live outside the class: every
- * method of it, private ones included, would be registered as an activity.
+ * unreachable service propagates, so Temporal retries; a refusal by declarations or documents, or
+ * a copy not in the state its step needs, fails the step without retrying (activity-retry.ts).
+ * Helpers live outside the class: every method of it, private ones included, would be registered
+ * as an activity.
  */
 @Injectable()
 export class CertifiedCopyActivities {
@@ -52,11 +57,21 @@ export class CertifiedCopyActivities {
    * (audited there as self-access: who asked, and the declarant or representative it goes to) and documents issues it as their
    * Restricted `certified-copy`, which they may download, and for an in-person application also
    * the officer who recorded it, to hand it over. Both calls run in this one activity, so the
-   * declaration never enters the workflow's history; only the document's ids are kept. The copy is recorded `issued` with its `self-access` register entry and
+   * declaration never enters the workflow's history; only the document's ids are kept. The copy
+   * is recorded `issued` with its `self-access` register entry and
    * `access.certified-copy.issued.v1`. When declarations has no such submitted version of the
    * declarant at the Commission the copy `failed` and nothing is issued.
+   *
+   * The copy is read once the ordering transaction has ended (retried while it is open): before,
+   * a new copy would read as missing and a failed one ordered again as still failed, and the
+   * workflow would end with the copy left `pending`.
    */
-  async issueCertifiedCopy({ tenant, copyId }: CertifiedCopyWorkflowInput): Promise<IssueOutcome> {
+  async issueCertifiedCopy({
+    tenant,
+    copyId,
+    transactionId,
+  }: CertifiedCopyWorkflowInput): Promise<IssueOutcome> {
+    await requireTransactionEnded(this.db, transactionId);
     const copy = await load(this.db, tenant, copyId);
     if (!copy) return 'missing';
     if (copy.status === 'issued') return 'issued';
@@ -74,17 +89,16 @@ export class CertifiedCopyActivities {
         recipient: await recipientOf(this.db, tenant, copy),
       });
     } catch (error) {
-      logRefusal(this.logger, error, context, 'Full document refused by declarations');
-      throw error;
+      rethrowAsActivityFailure(
+        this.logger,
+        error,
+        context,
+        'Full document refused by declarations',
+      );
     }
     if (version === null) {
       this.logger.warn(context, 'No such version of the declarant: certified copy failed');
-      await withTenant(this.db, systemContext(tenant), (tx) =>
-        tx
-          .update(certifiedCopies)
-          .set({ status: 'failed', failedAt: this.clock.now() })
-          .where(and(eq(certifiedCopies.id, copyId), eq(certifiedCopies.status, 'pending'))),
-      );
+      await markFailed(this.db, tenant, copyId, this.clock.now());
       return 'not-found';
     }
 
@@ -114,8 +128,7 @@ export class CertifiedCopyActivities {
         idempotencyKey: messageKey(copyId, 'certified-copy'),
       });
     } catch (error) {
-      logRefusal(this.logger, error, context, 'Certified copy refused by documents');
-      throw error;
+      rethrowAsActivityFailure(this.logger, error, context, 'Certified copy refused by documents');
     }
 
     await withTenant(this.db, systemContext(tenant), async (tx) => {
@@ -176,7 +189,7 @@ export class CertifiedCopyActivities {
     if (!copy) return 'missing';
     const { reference, verificationId } = copy;
     if (copy.status !== 'issued' || reference === null || verificationId === null) {
-      throw new Error('The certified copy is not issued');
+      throw invariantBroken('The certified copy is not issued');
     }
     for (const channel of CHANNELS) {
       await send(this.notifications, this.logger, copy, {
@@ -196,6 +209,29 @@ export class CertifiedCopyActivities {
     }
     return 'sent';
   }
+
+  /**
+   * Issuing failed after its retries: a copy still `pending` is recorded `failed`, so it is not
+   * left pending with no workflow behind it, and ordering it again tries again.
+   */
+  async certifiedCopyFailed({ tenant, copyId }: CertifiedCopyWorkflowInput): Promise<void> {
+    await markFailed(this.db, tenant, copyId, this.clock.now());
+  }
+}
+
+/** A `pending` copy is now `failed`; any other is left as it is. */
+async function markFailed(
+  db: AccessDatabase,
+  tenant: string,
+  copyId: string,
+  at: Date,
+): Promise<void> {
+  await withTenant(db, systemContext(tenant), (tx) =>
+    tx
+      .update(certifiedCopies)
+      .set({ status: 'failed', failedAt: at })
+      .where(and(eq(certifiedCopies.id, copyId), eq(certifiedCopies.status, 'pending'))),
+  );
 }
 
 /** The certified copy, in its Commission's context; undefined when it is not there. */
@@ -256,16 +292,4 @@ async function applicationIssued(
     .from(selfAccessApplications)
     .where(eq(selfAccessApplications.id, copy.applicationId));
   return application?.representative?.name ?? null;
-}
-
-/** Logs a refusal by an upstream service (it is retried like an outage). */
-function logRefusal(
-  logger: Logger,
-  error: unknown,
-  context: Record<string, unknown>,
-  message: string,
-): void {
-  if (error instanceof InternalApiRejected) {
-    logger.error({ ...context, err: errorType(error) }, message);
-  }
 }

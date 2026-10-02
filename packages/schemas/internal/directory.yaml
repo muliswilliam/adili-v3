@@ -3832,10 +3832,11 @@ components:
     Slug:
       type: string
       pattern: ^[a-z][a-z0-9]{1,19}$
-      description: Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. `platform` and `new` are reserved.
+      description: 'Tenant key. Lowercase letter followed by lowercase letters or digits, 2-20 chars. Upper-cased it is the issuer code in reference numbers. Reserved: `platform`, `lea`, `new`.'
       not:
         enum:
           - platform
+          - lea
           - new
       examples:
         - psc

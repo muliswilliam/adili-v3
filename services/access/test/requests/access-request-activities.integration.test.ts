@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { ACCESS_OFFICER } from '@adili/roles';
+import { ApplicationFailure } from '@temporalio/common';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { TRANSACTION_OPEN } from '../../src/activity-retry.js';
 import { accessRequests } from '../../src/db/schema.js';
 import { AccessRequestActivities } from '../../src/requests/activities.js';
 import {
@@ -12,7 +14,13 @@ import {
 } from '../../src/requests/contract.js';
 import type { AccessRequestRow } from '../../src/requests/representation.js';
 import { type AccessApi, startAccessApi } from '../support/access-api.js';
-import { givenCommissions, rowOf, submitRequest } from '../support/requests.js';
+import {
+  callers,
+  ENDED_TRANSACTION,
+  givenCommissions,
+  rowOf,
+  submitRequest,
+} from '../support/requests.js';
 
 const NOW = '2027-03-04T09:00:00.000Z';
 
@@ -34,8 +42,11 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
   afterEach(() => api.reset());
 
   /** A received request whose own workflow is stopped, so only the test runs its activities. */
-  async function received(): Promise<AccessRequestWorkflowInput> {
+  async function received(
+    identityStatus: 'verified' | 'pending-verification' = 'verified',
+  ): Promise<AccessRequestWorkflowInput> {
     givenCommissions(api, NOW);
+    api.directory.givenApplicant(callers.mercy.personId, identityStatus);
     api.directory.givenStaff(
       'psc',
       ACCESS_OFFICER,
@@ -44,7 +55,7 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
     );
     const { id } = await submitRequest(api);
     await api.endWorkflows([accessRequestWorkflowId(id)]);
-    return { tenant: 'psc', requestId: id, submittedAt: NOW };
+    return { tenant: 'psc', requestId: id, submittedAt: NOW, transactionId: ENDED_TRANSACTION };
   }
 
   async function update(id: string, values: Partial<AccessRequestRow>): Promise<void> {
@@ -93,6 +104,27 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
       expect(api.notifications.sent).toHaveLength(2);
     });
 
+    it('S2: a request held for verification is reminded at day 5 to verify the applicant, and stays held', async () => {
+      const input = await received('pending-verification');
+      api.clock.set('2027-03-09T09:00:00.000Z');
+
+      expect(await activities.remindOfficer({ ...input, day: 5 })).toBe('sent');
+      expect((await rowOf(api, input.requestId)).status).toBe('pending-applicant-verification');
+      api.clock.set('2027-03-24T09:00:00.000Z');
+      expect(await activities.remindOfficer({ ...input, day: 20 })).toBe('sent');
+
+      expect(
+        api.notifications.sent
+          .filter((message) => message.recipient.kind === 'address')
+          .map((message) => [message.params.task, message.params.daysLeft]),
+      ).toEqual([
+        ['verify-applicant', 25],
+        ['verify-applicant', 25],
+        ['verify-applicant', 10],
+        ['verify-applicant', 10],
+      ]);
+    });
+
     it('day 5, resolved already: no reminder, the status stays', async () => {
       const input = await received();
       await update(input.requestId, { resolvedRosterRecordId: randomUUID() });
@@ -137,11 +169,59 @@ describe('AccessRequestWorkflow activities (S3, S5)', () => {
 
     it('a request that is not there is missing', async () => {
       givenCommissions(api, NOW);
-      const input = { tenant: 'psc', requestId: randomUUID(), submittedAt: NOW };
+      const input = {
+        tenant: 'psc',
+        requestId: randomUUID(),
+        submittedAt: NOW,
+        transactionId: ENDED_TRANSACTION,
+      };
 
       expect(await activities.remindOfficer({ ...input, day: 5 })).toBe('missing');
       expect(await activities.closeWindow(input)).toBe('missing');
       expect(await activities.resolution(input)).toEqual({ outcome: 'missing' });
+    });
+  });
+
+  describe('requestState', () => {
+    it.each([
+      [{ status: 'submitted' }, 'unresolved'],
+      [{ status: 'pending-applicant-verification' }, 'held'],
+      [{ status: 'officer-unresolved' }, 'unresolved'],
+      [{ resolvedRosterRecordId: randomUUID() }, 'resolved'],
+      [{ status: 'cannot-identify' }, 'resolved'],
+      [{ status: 'awaiting-representations' }, 'awaiting-representations'],
+      [{ status: 'under-decision' }, 'under-decision'],
+      [{ status: 'partially-granted' }, 'decided'],
+      [{ status: 'withdrawn' }, 'withdrawn'],
+    ] as const)('reads %o as %s', async (values, state) => {
+      const input = await received();
+      await update(input.requestId, values);
+
+      expect(await activities.requestState(input)).toBe(state);
+    });
+
+    it('retried while the receiving transaction is open; missing once it rolled back', async () => {
+      givenCommissions(api, NOW);
+      const client = await api.db.$client.connect();
+      try {
+        await client.query('begin');
+        const open = await client.query<{ id: string }>('select pg_current_xact_id()::text as id');
+        const input = {
+          tenant: 'psc',
+          requestId: randomUUID(),
+          submittedAt: NOW,
+          transactionId: open.rows[0]?.id ?? '',
+        };
+
+        const failure = await activities.requestState(input).catch((error: unknown) => error);
+        expect(failure).toBeInstanceOf(ApplicationFailure);
+        expect(failure).toMatchObject({ type: TRANSACTION_OPEN, nonRetryable: false });
+
+        await client.query('rollback');
+        expect(await activities.requestState(input)).toBe('missing');
+      } finally {
+        client.release();
+      }
     });
   });
 

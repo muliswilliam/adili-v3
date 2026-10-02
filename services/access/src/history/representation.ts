@@ -7,8 +7,12 @@ import {
 import { z } from 'zod';
 
 import { outcomeSchema } from '../decision.js';
-import type { RegisterRow } from '../register/access-register.js';
-import { registerEntrySchema, toRegisterEntry } from '../register/representation.js';
+
+import {
+  registerEntrySchema,
+  type TimelineRow,
+  toRegisterEntry,
+} from '../register/representation.js';
 import { commissionRefSchema } from '../requests/representation.js';
 
 /**
@@ -81,7 +85,7 @@ export interface HistorySubject {
 const APPLICANT_KINDS: readonly AccessRegisterKind[] = ['downloaded', 'withdrawn'];
 
 export function toAccessHistoryEntry(
-  row: RegisterRow,
+  row: TimelineRow,
   subject: HistorySubject,
 ): AccessHistoryEntry {
   const details = row.details;

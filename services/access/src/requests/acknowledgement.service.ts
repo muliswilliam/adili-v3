@@ -7,7 +7,7 @@ import { v5 as uuidv5 } from 'uuid';
 
 import { nairobiDate } from '../clock.js';
 import type { AccessDatabase } from '../db/database.js';
-import { InternalApiRejected } from '../internal-api/internal-api.js';
+import { UpstreamRefused } from '../upstream-refusal.js';
 import { type AccessTemplate, NotificationsClient } from '../notifications/notifications-client.js';
 import { systemContext } from '../system-context.js';
 import { applicantRequestsUrl } from './links.js';
@@ -101,7 +101,7 @@ export class AcknowledgementService {
         );
       }
     } catch (error) {
-      if (error instanceof InternalApiRejected) {
+      if (error instanceof UpstreamRefused) {
         this.logger.error(
           { requestId: row.id, channel, err: errorType(error) },
           'Acknowledgement refused by notifications',

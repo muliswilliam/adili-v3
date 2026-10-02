@@ -77,7 +77,26 @@ const staffSchema = z.object({
 const applicantSchema = z.object({
   personId: z.uuid(),
   identityStatus: z.enum(['verified', 'pending-verification']),
+  fullName: z.string().min(1),
+  identityDocument: z.object({
+    kind: z.enum(['national-id', 'passport']),
+    number: z.string().min(1),
+    country: z.string().nullable(),
+  }),
+  contacts: z.object({ email: z.string().nullable(), phone: z.string().nullable() }),
 });
+
+/** The applicant as access holds them: only what it reads, nothing the directory adds. */
+function applicantOf(found: z.infer<typeof applicantSchema>): ApplicantFacts {
+  const { personId, identityStatus, fullName, identityDocument, contacts } = found;
+  return {
+    personId,
+    identityStatus,
+    fullName,
+    identityDocument: { ...identityDocument },
+    contacts: { email: contacts.email, phone: contacts.phone },
+  };
+}
 
 const leaOfficerSchema = z.object({
   personId: z.uuid(),
@@ -94,7 +113,7 @@ const none = (): null => null;
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client, with the access service's own token (`directory:internal`), acting
- * for the Commission in `X-Acting-Tenant` (ADR-013 §8.7). A Commission is cached for a few
+ * for the Commission in `X-Acting-Tenant` (ADR-013 §8.8). A Commission is cached for a few
  * minutes: a name changes rarely.
  */
 export class HttpDirectoryClient extends DirectoryClient {
@@ -220,9 +239,7 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: applicantSchema, otherwise: { 404: none } },
     );
-    return found === null
-      ? null
-      : { personId: found.personId, identityStatus: found.identityStatus };
+    return found === null ? null : applicantOf(found);
   }
 
   async verifyApplicantIdentity(input: ApplicantVerificationInput): Promise<ApplicantFacts | null> {
@@ -239,9 +256,7 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: applicantSchema, otherwise: { 404: none } },
     );
-    return found === null
-      ? null
-      : { personId: found.personId, identityStatus: found.identityStatus };
+    return found === null ? null : applicantOf(found);
   }
 
   async leaOfficer(personId: string, tenant: string): Promise<LeaOfficerFacts | null> {

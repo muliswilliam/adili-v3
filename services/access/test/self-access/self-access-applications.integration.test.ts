@@ -294,7 +294,7 @@ describe('Written self-access applications (#303)', () => {
       expect.objectContaining({
         subjectKind: 'self-access',
         kind: 'self-access',
-        legalBasis: 'admin-mechanism-32',
+        legalBasis: 'self-access',
         personId: anne.personId,
         actor: officer.sub,
         actorName: 'Peter Access',

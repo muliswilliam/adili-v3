@@ -14,15 +14,20 @@ export interface AuditedResource {
 }
 
 /**
+ * The bases a read can be made on (ADR-008 `legal_basis`): a provision (`act-s36-1` for Form K,
+ * `act-s36-2` for law enforcement, `self-access` for a declarant's access to their own declaration
+ * under Administrative Mechanism 32) or the work the read serves (`review-case`). One word per
+ * basis across the audit trail: the access register uses the same ones.
+ */
+export const READ_LEGAL_BASES = ['act-s36-1', 'act-s36-2', 'self-access', 'review-case'] as const;
+export type ReadLegalBasisCode = (typeof READ_LEGAL_BASES)[number];
+
+/**
  * Why a read was allowed (ADR-008 `legal_basis`): the basis and the act under it that authorises
  * this read.
  */
 export interface ReadLegalBasis {
-  /**
-   * The basis, e.g. a provision (`act-s36-1` for Form K, `act-s36-2` for law enforcement,
-   * `self-access` for Administrative Mechanism 32) or the work the read serves (`review-case`).
-   */
-  basis: string;
+  basis: ReadLegalBasisCode;
   /**
    * The act under it that authorises this read, e.g. a grant's `ARQ` or `LEA` reference or the
    * review case's id; null when none.

@@ -1,9 +1,19 @@
 /**
  * `AccessRequestWorkflow` (ADR-003), hosted by the access worker. Bundled into Temporal's
- * deterministic sandbox: import only `@temporalio/workflow` and types.
+ * deterministic sandbox: import only `@temporalio/workflow` and types (and constants modules that
+ * import nothing else).
  */
-import { condition, defineSignal, proxyActivities, setHandler, sleep } from '@temporalio/workflow';
+import {
+  ActivityFailure,
+  condition,
+  defineSignal,
+  log,
+  proxyActivities,
+  setHandler,
+  sleep,
+} from '@temporalio/workflow';
 
+import { ACTIVITY_RETRY } from '../activity-retry.js';
 import type { AccessRequestActivities } from './activities.js';
 import {
   ACCESS_REQUEST_SIGNALS,
@@ -11,47 +21,38 @@ import {
   type AccessRequestSignal,
   type AccessRequestWorkflowInput,
   dayAfterReceipt,
-  DECISION_CHECK_INTERVAL,
   OFFICER_REMINDER_DAYS,
+  REQUEST_CHECK_INTERVAL,
+  type RequestState,
 } from './contract.js';
 import type { DecisionActivities } from './decision-activities.js';
 
-/**
- * Calls to the directory, notifications and the database: retried with backoff until they
- * succeed, so an outage delays a notice or a reminder, never loses it. The first retry comes after
- * a second, each later one twice as late, at most five minutes apart.
- */
-const RETRY = {
-  initialInterval: '1 second',
-  backoffCoefficient: 2,
-  maximumInterval: '5 minutes',
-} as const;
-
-const { resolution, closeWindow, remindOfficer } = proxyActivities<AccessRequestActivities>({
-  // A transaction and a few messages.
-  startToCloseTimeout: '1 minute',
-  retry: RETRY,
-});
-
-const { decisionState, decisionNotices, packageReady, expirePackage } =
-  proxyActivities<DecisionActivities>({
+const { requestState, resolution, closeWindow, remindOfficer } =
+  proxyActivities<AccessRequestActivities>({
     // A transaction and a few messages.
     startToCloseTimeout: '1 minute',
-    retry: RETRY,
+    retry: ACTIVITY_RETRY,
   });
+
+const { decisionNotices, packageReady, expirePackage } = proxyActivities<DecisionActivities>({
+  // A transaction and a few messages.
+  startToCloseTimeout: '1 minute',
+  retry: ACTIVITY_RETRY,
+});
 
 const { issuePackage } = proxyActivities<DecisionActivities>({
   // The disclosure from declarations (2 s per attempt), rendering and signing at documents
   // (30 s per attempt, ADR-013 §2), then a transaction.
   startToCloseTimeout: '3 minutes',
-  retry: RETRY,
+  retry: ACTIVITY_RETRY,
 });
 
 /** What ends the run early: the applicant withdrew, the officer decided, or no request is there. */
 type Stop = 'withdrawn' | 'decided' | 'missing';
 
-/** What the signals told the run so far. */
+/** What the signals (and the reads that make up for lost ones) told the run so far. */
 interface RunState {
+  verified: boolean;
   resolved: boolean;
   consented: boolean;
   stop: Stop | null;
@@ -60,22 +61,39 @@ interface RunState {
 }
 
 /**
- * `AccessRequestWorkflow(requestId)` (spec 10, Act s.36(3)), started when a request is
- * `submitted` (at receipt, or when the access officer verifies a passport applicant) with the
- * request as workflow id. It waits for the access officer to resolve the officer Form K names;
- * then it notifies the declarant and holds the window for representations (seven days) unless
+ * `AccessRequestWorkflow(requestId)` (spec 10, Act s.36(3)), started at receipt with the request
+ * as workflow id, inside the receiving transaction; it first waits for that transaction to end
+ * (a rolled-back receipt ends it as `missing`). A passport applicant's request waits for the
+ * access officer to verify them; then the run waits for the officer to resolve the officer Form
+ * K names, notifies the declarant and holds the window for representations (seven days) unless
  * they consent earlier, after which the request is `under-decision` until the officer decides.
  * The decision is told to both parties; a grant's package is issued to the applicant, who is
  * told it is ready, and it expires at the end of its download window (fourteen days).
- * Alongside, the access officers are reminded at day five while the officer is unidentified and
- * of the thirty-day deadline at days twenty and twenty-eight. A request the officer cannot
- * identify closes, with the applicant told. Withdrawal ends it at any point before the decision.
+ * Alongside, from receipt, the access officers are reminded at day five while the officer is
+ * unidentified (or the applicant unverified) and of the thirty-day deadline at days twenty and
+ * twenty-eight. A request the officer cannot identify closes, with the applicant told.
+ * Withdrawal ends it at any point before the decision.
+ *
+ * Every wait recovers from a lost signal by reading the request every `REQUEST_CHECK_INTERVAL`.
+ * A step that waits (the resolution's notices) and fails after its retries is tried again at the
+ * next read; a missed reminder is logged and the run goes on; any other step that finally fails
+ * (the decision's notices, the package) fails the run, with the request as it is, for an operator
+ * to reset it in Temporal.
  */
 export async function accessRequest(
   input: AccessRequestWorkflowInput,
 ): Promise<AccessRequestResult> {
-  const state: RunState = { resolved: false, consented: false, stop: null, ended: false };
+  const state: RunState = {
+    verified: false,
+    resolved: false,
+    consented: false,
+    stop: null,
+    ended: false,
+  };
   const on: Record<AccessRequestSignal, () => void> = {
+    verified: () => {
+      state.verified = true;
+    },
     resolved: () => {
       state.resolved = true;
     },
@@ -91,21 +109,42 @@ export async function accessRequest(
   };
   for (const name of ACCESS_REQUEST_SIGNALS) setHandler(defineSignal(name), on[name]);
 
-  const [result] = await Promise.all([course(input, state), reminders(input, state)]);
-  return result;
+  const received = await untilRecorded(input);
+  const closed = stopOf(received);
+  if (closed !== null) return { outcome: stopWith(state, closed) };
+  try {
+    const [result] = await Promise.all([course(input, state, received), reminders(input, state)]);
+    return result;
+  } catch (error) {
+    if (error instanceof ActivityFailure) {
+      log.error('AccessRequestWorkflow step failed after its retries', {
+        requestId: input.requestId,
+        activity: error.activityType,
+      });
+    }
+    throw error;
+  }
 }
 
-/** Resolution, the declarant's notice and window, then the decision and what follows it. */
+/**
+ * Verification, resolution, the declarant's notice and window, then the decision and what
+ * follows it.
+ */
 async function course(
   input: AccessRequestWorkflowInput,
   state: RunState,
+  received: RequestState,
 ): Promise<AccessRequestResult> {
   try {
+    if (received === 'held') {
+      const stop = await untilVerified(input, state);
+      if (stop !== null) return { outcome: stop };
+    }
+
     const notified = await untilNotified(input, state);
     if (typeof notified !== 'string') return notified;
 
-    const window = new Date(notified).getTime() - Date.now();
-    if (window > 0) await condition(() => state.consented || state.stop !== null, window);
+    await untilWindowEnds(input, state, new Date(notified).getTime());
     if (state.stop === 'withdrawn' || state.stop === 'missing') return { outcome: state.stop };
     // Decided already (the declarant consented and the consent's signal was lost): the window
     // is closed, and closing it changes nothing.
@@ -120,19 +159,141 @@ async function course(
 }
 
 /**
- * Waits for the access officer's decision, or a withdrawal. The signals save waiting; every
- * `DECISION_CHECK_INTERVAL` without one the request itself is read, so a signal lost after its
- * transaction committed delays the decision's notices and package, never loses them.
+ * The request as it stands once the receiving transaction has ended (`requestState` retries
+ * until it has); read again every `REQUEST_CHECK_INTERVAL` while the database cannot be reached.
+ */
+async function untilRecorded(input: AccessRequestWorkflowInput): Promise<RequestState> {
+  for (;;) {
+    const found = await check(input);
+    if (found !== null) return found;
+    await sleep(REQUEST_CHECK_INTERVAL);
+  }
+}
+
+/**
+ * The request read now; null when that failed after its retries (logged), so the wait goes on
+ * and reads it again at its next check.
+ */
+async function check(input: AccessRequestWorkflowInput): Promise<RequestState | null> {
+  try {
+    return await requestState(input);
+  } catch (error) {
+    if (!(error instanceof ActivityFailure)) throw error;
+    log.warn('Could not read the access request; reading it again later', {
+      requestId: input.requestId,
+    });
+    return null;
+  }
+}
+
+/** The stop a state read means, if any: decided, withdrawn, or not there. */
+function stopOf(found: RequestState | null): Stop | null {
+  return found === 'decided' || found === 'withdrawn' || found === 'missing' ? found : null;
+}
+
+/** Records a stop the request was read in, unless a signal came first; returns the run's stop. */
+function stopWith(state: RunState, stop: Stop): Stop {
+  state.stop ??= stop;
+  return state.stop;
+}
+
+/**
+ * Waits for the access officer to verify a passport applicant (S2): the `verified` signal, or
+ * the request read as no longer held. Null once verified; the stop when the request closed.
+ */
+async function untilVerified(
+  input: AccessRequestWorkflowInput,
+  state: RunState,
+): Promise<Stop | null> {
+  for (;;) {
+    await condition(() => state.verified || state.stop !== null, REQUEST_CHECK_INTERVAL);
+    if (state.stop !== null) return state.stop;
+    if (state.verified) return null;
+    const found = await check(input);
+    if (found === null || found === 'held') continue;
+    const stop = stopOf(found);
+    return stop === null ? null : stopWith(state, stop);
+  }
+}
+
+/**
+ * Waits for the officer named to be resolved (the `resolved` signal, or the request read as
+ * resolved), then has the declarant notified: the end of their window, or how the run ended when
+ * the officer cannot be identified or the request closed. Notifying that fails after its retries
+ * is tried again at the next check.
+ */
+async function untilNotified(
+  input: AccessRequestWorkflowInput,
+  state: RunState,
+): Promise<string | AccessRequestResult> {
+  for (;;) {
+    await condition(() => state.resolved || state.stop !== null, REQUEST_CHECK_INTERVAL);
+    if (state.stop !== null) return { outcome: state.stop };
+    if (!state.resolved) {
+      const found = await check(input);
+      if (found === null || found === 'held' || found === 'unresolved') continue;
+      const stop = stopOf(found);
+      if (stop !== null) return { outcome: stopWith(state, stop) };
+    }
+    state.resolved = false;
+    let resolved;
+    try {
+      resolved = await resolution(input);
+    } catch (error) {
+      if (!(error instanceof ActivityFailure)) throw error;
+      log.warn('Could not notify on the resolution; trying again later', {
+        requestId: input.requestId,
+      });
+      continue;
+    }
+    switch (resolved.outcome) {
+      case 'notified':
+        return resolved.windowEndsAt;
+      case 'cannot-identify':
+      case 'withdrawn':
+      case 'missing':
+        return { outcome: resolved.outcome };
+      case 'unresolved':
+        continue;
+    }
+  }
+}
+
+/**
+ * Holds the declarant's window for representations until `windowEndsAt`, unless they consent
+ * (the `consented` signal, or the request read as `under-decision`) or the request stops.
+ */
+async function untilWindowEnds(
+  input: AccessRequestWorkflowInput,
+  state: RunState,
+  windowEndsAt: number,
+): Promise<void> {
+  const settled = () => state.consented || state.stop !== null;
+  for (;;) {
+    const left = windowEndsAt - Date.now();
+    if (left <= 0) return;
+    await condition(settled, Math.min(left, REQUEST_CHECK_INTERVAL));
+    if (settled() || windowEndsAt <= Date.now()) return;
+    const found = await check(input);
+    if (found === 'under-decision') return;
+    const stop = stopOf(found);
+    if (stop !== null) {
+      stopWith(state, stop);
+      return;
+    }
+  }
+}
+
+/**
+ * Waits for the access officer's decision, or a withdrawal: the signals, or the request read as
+ * decided or closed.
  */
 async function untilDecided(input: AccessRequestWorkflowInput, state: RunState): Promise<Stop> {
   for (;;) {
-    await condition(() => state.stop !== null, DECISION_CHECK_INTERVAL);
+    await condition(() => state.stop !== null, REQUEST_CHECK_INTERVAL);
     if (state.stop !== null) return state.stop;
-    const found = await decisionState(input);
-    if (found !== 'undecided') {
-      state.stop = found;
-      return found;
-    }
+    const stop = stopOf(await check(input));
+    if (stop !== null) return stopWith(state, stop);
   }
 }
 
@@ -157,35 +318,9 @@ async function afterDecision(input: AccessRequestWorkflowInput): Promise<'decide
 }
 
 /**
- * Waits for the officer named to be resolved, then has the declarant notified: the end of their
- * window, or how the run ended when the officer cannot be identified or the request closed.
- */
-async function untilNotified(
-  input: AccessRequestWorkflowInput,
-  state: RunState,
-): Promise<string | AccessRequestResult> {
-  for (;;) {
-    await condition(() => state.resolved || state.stop !== null);
-    if (state.stop !== null) return { outcome: state.stop };
-    state.resolved = false;
-    const resolved = await resolution(input);
-    switch (resolved.outcome) {
-      case 'notified':
-        return resolved.windowEndsAt;
-      case 'cannot-identify':
-      case 'withdrawn':
-      case 'missing':
-        return { outcome: resolved.outcome };
-      case 'unresolved':
-        continue;
-    }
-  }
-}
-
-/**
  * The access officers' reminders, counted from receipt. One whose next reminder is due already
- * (a request held for the applicant's verification and released late) is passed over, so a late
- * start sends one reminder, not several.
+ * (a run that fell behind, e.g. after an outage) is passed over, so a late run sends one
+ * reminder, not several. A reminder that fails after its retries is logged and passed over.
  */
 async function reminders(input: AccessRequestWorkflowInput, state: RunState): Promise<void> {
   const done = () => state.ended || state.stop !== null;
@@ -197,7 +332,15 @@ async function reminders(input: AccessRequestWorkflowInput, state: RunState): Pr
     if (next !== undefined && dayAfterReceipt(input.submittedAt, next).getTime() <= Date.now()) {
       continue;
     }
-    if ((await remindOfficer({ ...input, day })) === 'missing') {
+    let reminded;
+    try {
+      reminded = await remindOfficer({ ...input, day });
+    } catch (error) {
+      if (!(error instanceof ActivityFailure)) throw error;
+      log.warn('Could not remind the access officers', { requestId: input.requestId, day });
+      continue;
+    }
+    if (reminded === 'missing') {
       state.stop ??= 'missing';
       return;
     }

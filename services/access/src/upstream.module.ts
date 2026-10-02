@@ -31,7 +31,7 @@ const tokens = (scope: string) =>
 
 /**
  * The other services' internal APIs the access service calls, with its own token through clients
- * generated from their contracts (ADR-013 §2, §8.7): Commissions, roster records, staff and
+ * generated from their contracts (ADR-013 §2, §8.8): Commissions, roster records, staff and
  * applicants (directory), scoped disclosures and full documents (declarations), packages, certified copies
  * and representation attachments (documents), and messages (notifications).
  */

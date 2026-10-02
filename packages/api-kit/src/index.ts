@@ -9,8 +9,10 @@ export {
   type EventAlongsideRead,
   ReadAudit,
   readAuditOf,
+  READ_LEGAL_BASES,
   type ReadDisclosure,
   type ReadLegalBasis,
+  type ReadLegalBasisCode,
 } from './audit/read-audit.js';
 export {
   ActingSubject,

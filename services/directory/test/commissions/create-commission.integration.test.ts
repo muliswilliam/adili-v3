@@ -183,6 +183,7 @@ describe('S5 validation', () => {
   it.each([
     ['Platform', 'upper case'],
     ['platform', 'reserved'],
+    ['lea', 'reserved for law enforcement accounts'],
     ['new', 'reserved for the console create route'],
     ['x', 'too short'],
     ['too-long-key-abcdefghijk', 'too long and a hyphen'],

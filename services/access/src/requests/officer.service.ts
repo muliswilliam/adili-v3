@@ -4,7 +4,12 @@ import { DATABASE, FieldCipher, withTenant } from '@adili/data-access';
 import { CANNOT_IDENTIFY_DECLINE_REASON } from '@adili/events/contracts';
 import { and, eq, gte, ilike, inArray, lt, not, or, type SQL, sql } from 'drizzle-orm';
 
-import { commissionTenant, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import {
+  accessOfficerName,
+  commissionTenant,
+  ownCommissionTenant,
+  requireAccessOfficer,
+} from '../access.js';
 import { Clock } from '../clock.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
 import {
@@ -72,6 +77,7 @@ import {
   CLOSED_STATUSES,
   representations,
 } from './schema.js';
+import { requestRow } from './request-row.js';
 import { officerTimeline, registerEntriesOf } from './timeline.js';
 
 /** Statuses in which the officer named in a request can be resolved. */
@@ -176,12 +182,19 @@ export class OfficerService {
   }
 
   /** A request of the caller's Commission with its Form K, representations and timeline. */
-  async get(principal: Principal, requestId: string): Promise<OfficerRequestView> {
+  async get(
+    principal: Principal,
+    requestId: string,
+    audit: ReadAudit,
+  ): Promise<OfficerRequestView> {
     const tenant = ownCommissionTenant(principal);
-    const found = await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
-      officerRecord(tx, requestId),
+    const found = notFoundIfInvisible(
+      await withTenant(this.db, { tenant, subject: principal.subject }, (tx) =>
+        officerRecord(tx, requestId),
+      ),
     );
-    return this.view(notFoundIfInvisible(found));
+    audit.resource({ tenant, subjectPersonId: found.row.resolvedPersonId });
+    return this.view(found);
   }
 
   /**
@@ -223,6 +236,7 @@ export class OfficerService {
     principal: Principal,
     requestId: string,
     search: string,
+    audit: ReadAudit,
   ): Promise<RosterCandidates> {
     const tenant = ownCommissionTenant(principal);
     requireAccessOfficer(principal, 'search the roster for the officer a request names');
@@ -231,7 +245,7 @@ export class OfficerService {
         requestRow(tx, requestId),
       ),
     );
-    return rosterCandidates(this.directory, tenant, search);
+    return rosterCandidates(this.directory, tenant, search, audit);
   }
 
   /**
@@ -284,7 +298,22 @@ export class OfficerService {
         .where(eq(accessRequests.id, current.id))
         .returning();
       if (!updated) throw new Error('The access request was not resolved');
-      if (record === null) {
+      if (record !== null) {
+        // Who identified the declarant, and as which record; the `notified` entry follows from
+        // the workflow.
+        await this.register.record(tx, {
+          tenant,
+          subjectKind: 'access-request',
+          subjectId: updated.id,
+          reference: updated.reference,
+          personId: record.personId,
+          kind: 'identified',
+          actor: { subject: principal.subject, name: principal.name },
+          at: now,
+          details: { rosterRecordId: record.id },
+          eventData: { rosterRecordId: record.id },
+        });
+      } else {
         await this.register.record(tx, {
           tenant,
           subjectKind: 'access-request',
@@ -330,7 +359,7 @@ export class OfficerService {
         const decision = decisionOf(
           input,
           current.scope,
-          { subject: principal.subject, name: principal.name ?? principal.subject },
+          { subject: principal.subject, name: accessOfficerName(principal) },
           now,
         );
         if (isDecisionRejection(decision)) {
@@ -427,16 +456,6 @@ async function officerRecord(
     entries: (await registerEntriesOf(tx, [row.id])).get(row.id) ?? [],
     representations: representationsRow ?? null,
   };
-}
-
-async function requestRow(
-  tx: AccessTransaction,
-  requestId: string,
-  { lock = false }: { lock?: boolean } = {},
-): Promise<AccessRequestRow | undefined> {
-  const query = tx.select().from(accessRequests).where(eq(accessRequests.id, requestId));
-  const [row] = lock ? await query.for('update') : await query;
-  return row;
 }
 
 function requireResolvable(row: AccessRequestRow): void {

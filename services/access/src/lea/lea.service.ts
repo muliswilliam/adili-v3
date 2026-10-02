@@ -1,18 +1,24 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { notFoundIfInvisible, PLATFORM_TENANT, type Principal } from '@adili/api-kit';
+import { notFoundIfInvisible, type Principal, type ReadAudit } from '@adili/api-kit';
 import { DATABASE, type TenantContext, withTenant } from '@adili/data-access';
 import type { AccessRequestReceivedData } from '@adili/events/contracts';
 import { allocateReference, LEA } from '@adili/numbering';
+import { LAW_ENFORCEMENT_TENANT } from '@adili/roles';
 import { and, desc, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { isLeaOfficer, LEA_TENANT, ownCommissionTenant, requireAccessOfficer } from '../access.js';
+import {
+  accessOfficerName,
+  isLeaOfficer,
+  ownCommissionTenant,
+  requireAccessOfficer,
+} from '../access.js';
 import { addDays, Clock, nairobiYear } from '../clock.js';
 import { config } from '../config.js';
 import type { AccessDatabase, AccessTransaction } from '../db/database.js';
+import { responsibleCommission } from '../commissions/responsible-commission.js';
 import { decisionOf, type DecisionInput, isDecisionRejection } from '../decision.js';
 import {
-  type CommissionFacts,
   DirectoryClient,
   DirectoryUnavailable,
   type LeaOfficerFacts,
@@ -23,6 +29,7 @@ import { AccessRegister, type RegisterRow } from '../register/access-register.js
 import type { RosterCandidates } from '../requests/officer-representation.js';
 import { rosterCandidates } from '../requests/roster-candidates.js';
 import { applicantTimeline, officerTimeline, registerEntriesOf } from '../requests/timeline.js';
+import { currentTransactionId } from '../workflow-control.js';
 import { LeaRequestWorkflows } from './lea-workflows.js';
 import {
   type LeaRequest,
@@ -61,13 +68,19 @@ export class LeaService {
    * of an agency in the directory, the one the token was issued to (403 otherwise); the request
    * is stored with its `LEA` reference (allocated at receipt), the agency and the account's
    * provenance, its fourteen-day deadline, the `received` register entry and its event, in one
-   * transaction of the Commission's context. `LeaRequestWorkflow` starts as its last step (503
-   * `workflow-unavailable` and nothing stored when Temporal cannot be reached). Nobody is told:
-   * the declarant only after a grant.
+   * transaction of the Commission's context. `LeaRequestWorkflow` starts in it, before the
+   * reference is allocated, so the per-Commission reference counter is not locked across the call
+   * to Temporal (503 `workflow-unavailable` and nothing stored when Temporal cannot be reached;
+   * workflow-control.ts says why the start comes before the commit). Nobody is told: the declarant
+   * only after a grant.
    */
   async submit(principal: Principal, input: LeaRequestInput): Promise<LeaRequest> {
     const personId = leaOfficerPersonId(principal);
-    const commission = await this.commission(input.commission);
+    const commission = await responsibleCommission(this.directory, input.commission, () =>
+      badRequest('No such Responsible Commission.', [
+        { path: 'commission', message: 'is not a Responsible Commission' },
+      ]),
+    );
     const officer = await this.activeOfficer(principal, personId, commission.slug);
 
     const id = uuidv7();
@@ -77,6 +90,13 @@ export class LeaService {
       this.db,
       { tenant: commission.slug, subject: principal.subject },
       async (tx) => {
+        await this.workflows.start({
+          tenant: commission.slug,
+          requestId: id,
+          receivedAt: now.toISOString(),
+          deadlineAt: deadlineAt.toISOString(),
+          transactionId: await currentTransactionId(tx),
+        });
         const reference = await allocateReference(tx, LEA, {
           issuer: commission.issuerCode,
           period: nairobiYear(now),
@@ -119,13 +139,6 @@ export class LeaService {
           details: { agencyCode: officer.agency.code },
           eventData,
         });
-        // Last, inside the transaction: a request never runs without its fourteen-day clock.
-        await this.workflows.start({
-          tenant: commission.slug,
-          requestId: id,
-          receivedAt: now.toISOString(),
-          deadlineAt: deadlineAt.toISOString(),
-        });
         return { row: inserted, entry: received };
       },
     );
@@ -135,7 +148,7 @@ export class LeaService {
   /** The officer's own requests, latest first, across Commissions. */
   async list(principal: Principal): Promise<LeaRequest[]> {
     leaOfficerPersonId(principal);
-    const context = { tenant: LEA_TENANT, subject: principal.subject };
+    const context = { tenant: LAW_ENFORCEMENT_TENANT, subject: principal.subject };
     const { rows, entries } = await withTenant(this.db, context, async (tx) => {
       const own = await tx
         .select()
@@ -155,12 +168,13 @@ export class LeaService {
    * Commission's access officer and supervisor see it whole. Anyone else, another officer or
    * Commission and EACC included, gets 404.
    */
-  async get(principal: Principal, requestId: string): Promise<LeaRequest> {
+  async get(principal: Principal, requestId: string, audit: ReadAudit): Promise<LeaRequest> {
     const reader = readerOf(principal);
-    const found = await withTenant(this.db, reader.context, (tx) =>
-      leaRecord(tx, requestId, reader),
+    const found = notFoundIfInvisible(
+      await withTenant(this.db, reader.context, (tx) => leaRecord(tx, requestId, reader)),
     );
-    return this.view(notFoundIfInvisible(found), reader, principal);
+    audit.resource({ tenant: found.row.tenant, subjectPersonId: found.row.resolvedPersonId });
+    return this.view(found, reader, principal);
   }
 
   /**
@@ -171,6 +185,7 @@ export class LeaService {
     principal: Principal,
     requestId: string,
     search: string,
+    audit: ReadAudit,
   ): Promise<RosterCandidates> {
     const tenant = ownCommissionTenant(principal);
     requireAccessOfficer(principal, 'search the roster for the officer a request names');
@@ -179,7 +194,7 @@ export class LeaService {
         leaRow(tx, requestId),
       ),
     );
-    return rosterCandidates(this.directory, tenant, search);
+    return rosterCandidates(this.directory, tenant, search, audit);
   }
 
   /**
@@ -230,7 +245,7 @@ export class LeaService {
           resolvedName: record.fullName,
           verification: {
             by: principal.subject,
-            byName: principal.name ?? principal.subject,
+            byName: accessOfficerName(principal),
             at: now.toISOString(),
             note: body.note,
             provenance: provenanceOf(officer, now),
@@ -281,7 +296,7 @@ export class LeaService {
       const decision = decisionOf(
         input,
         current.scope,
-        { subject: principal.subject, name: principal.name ?? principal.subject },
+        { subject: principal.subject, name: accessOfficerName(principal) },
         now,
       );
       if (isDecisionRejection(decision)) {
@@ -321,23 +336,6 @@ export class LeaService {
         ? officerTimeline(found.entries)
         : applicantTimeline(found.entries, principal.subject);
     return toLeaRequest(found.row, timeline);
-  }
-
-  /** The Commission the request names; 400 at `commission` when there is none. */
-  private async commission(slug: string): Promise<CommissionFacts> {
-    const unknown = () =>
-      badRequest('No such Responsible Commission.', [
-        { path: 'commission', message: 'is not a Responsible Commission' },
-      ]);
-    if (slug === PLATFORM_TENANT) throw unknown();
-    try {
-      const commission = await this.directory.findCommission(slug);
-      if (commission === null) throw unknown();
-      return commission;
-    } catch (error) {
-      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
-      throw error;
-    }
   }
 
   /**
@@ -407,7 +405,10 @@ function leaOfficerPersonId(principal: Principal): string {
 function readerOf(principal: Principal): Reader {
   if (isLeaOfficer(principal)) {
     leaOfficerPersonId(principal);
-    return { kind: 'lea-officer', context: { tenant: LEA_TENANT, subject: principal.subject } };
+    return {
+      kind: 'lea-officer',
+      context: { tenant: LAW_ENFORCEMENT_TENANT, subject: principal.subject },
+    };
   }
   return {
     kind: 'commission',

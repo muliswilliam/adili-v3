@@ -6,8 +6,11 @@ import { APPLICANT, DECLARANT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { TRANSACTION_OPEN } from '../../src/activity-retry.js';
 import { accessRegister } from '../../src/db/schema.js';
 import type { VersionDocument } from '../../src/declarations/declarations-client.js';
+import { CertifiedCopyIssuance } from '../../src/self-access/certified-copy-issuance.js';
+import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
 import type { CertifiedCopy } from '../../src/self-access/representation.js';
 import { type AccessApi, type Caller, startAccessApi } from '../support/access-api.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -164,7 +167,7 @@ describe('Certified copies (S13)', () => {
         tenant: 'psc',
         subjectKind: 'self-access',
         kind: 'self-access',
-        legalBasis: 'admin-mechanism-32',
+        legalBasis: 'self-access',
         personId: anne.personId,
         reference: null,
         actor: anne.sub,
@@ -223,7 +226,7 @@ describe('Certified copies (S13)', () => {
     );
   });
 
-  it("S13: another person sees nothing of Anne's copy (404), and asking for her version gets them nothing issued", async () => {
+  it("S13: another person sees nothing of Anne's copy (404), and asking for her version is 404 at once, with nothing ordered", async () => {
     given();
     const mine = (await ask()).json<CertifiedCopy>();
     await untilSettled(mine.id);
@@ -231,25 +234,37 @@ describe('Certified copies (S13)', () => {
     expect((await api.get(`/v1/me/certified-copies/${mine.id}`, otieno)).statusCode).toBe(404);
     expect((await api.get('/v1/me/certified-copies', otieno)).json()).toEqual([]);
 
-    // Declarations has no such version of Otieno's: his copy fails, nothing is issued or registered.
-    const theirs = (await ask(otieno)).json<CertifiedCopy>();
-    const failed = await untilSettled(theirs.id, otieno);
-    expect(failed).toMatchObject({ status: 'failed', documentId: null, reference: null });
-    expect(api.declarations.fullDocumentCalls.at(-1)).toMatchObject({
+    // Declarations lists no such version of Otieno's at the PSC: 404, as if it did not exist.
+    const theirs = await ask(otieno);
+    expect(theirs.statusCode, theirs.body).toBe(404);
+    expect(api.declarations.personVersionsCalls.at(-1)).toEqual({
+      tenant: 'psc',
       personId: otieno.personId,
-      actingSubject: otieno.sub,
     });
+    expect((await api.get('/v1/me/certified-copies', otieno)).json()).toEqual([]);
+    expect(api.declarations.fullDocumentCalls).toHaveLength(1);
     expect(api.documents.issued).toHaveLength(1);
     expect(await api.events(ACCESS_CERTIFIED_COPY_ISSUED)).toHaveLength(1);
   });
 
+  it('S13: a version number the declarant never submitted is 404, and declarations unreachable is 503, nothing ordered', async () => {
+    given();
+    const other = await ask(anne, { commission: 'psc', declarationId: DECLARATION_ID, version: 2 });
+    expect(other.statusCode).toBe(404);
+
+    api.declarations.failCalls(1, 'personVersions');
+    const down = await ask();
+    expect(down.statusCode).toBe(503);
+    expect((await api.get('/v1/me/certified-copies', anne)).json()).toEqual([]);
+  });
+
   it('S13: a failed copy is tried again when asked again', async () => {
-    api.clock.set(NOW);
-    api.directory.givenCommission('psc', 'Public Service Commission');
+    given();
+    api.declarations.withholdFullDocuments();
     const first = (await ask()).json<CertifiedCopy>();
     expect(await untilSettled(first.id)).toMatchObject({ status: 'failed' });
 
-    api.declarations.givenFullDocument(versionOne());
+    api.declarations.withholdFullDocuments(false);
     const again = await ask();
 
     expect(again.statusCode, again.body).toBe(202);
@@ -257,9 +272,55 @@ describe('Certified copies (S13)', () => {
     expect(await untilSettled(first.id)).toMatchObject({ status: 'issued' });
   });
 
+  it('S13: a failed copy ordered again is issued, even when its workflow runs before the order commits', async () => {
+    given();
+    api.declarations.withholdFullDocuments();
+    const first = (await ask()).json<CertifiedCopy>();
+    expect(await untilSettled(first.id)).toMatchObject({ status: 'failed' });
+    api.declarations.withholdFullDocuments(false);
+
+    // The order of it again stays open while the new run's first activity runs: the copy is
+    // still `failed` to every other transaction until it commits.
+    await api.asTenant({ tenant: 'psc', subject: anne.sub }, async (tx) => {
+      const copy = await api.app.get(CertifiedCopyIssuance).order(tx, {
+        tenant: 'psc',
+        commissionName: 'Public Service Commission',
+        personId: anne.personId,
+        declarationId: DECLARATION_ID,
+        version: 1,
+        requestedBy: { subject: anne.sub, name: anne.name },
+        applicationId: null,
+        at: new Date(NOW),
+      });
+      expect(copy).toMatchObject({ id: first.id, status: 'pending' });
+      const run = api.temporal.workflow.getHandle(certifiedCopyWorkflowId(copy.id));
+      const pending = await api.eventually(async () => {
+        const activity = (await run.describe()).raw.pendingActivities?.[0];
+        return activity && (activity.attempt ?? 0) >= 2 ? activity : undefined;
+      });
+      expect(pending.lastFailure?.applicationFailureInfo?.type).toBe(TRANSACTION_OPEN);
+    });
+
+    expect(await untilSettled(first.id)).toMatchObject({ status: 'issued' });
+    expect(api.documents.issued).toHaveLength(1);
+  });
+
+  it('S13: issuing refused by documents (not retried): the copy is recorded failed, and can be ordered again', async () => {
+    given();
+    api.documents.refuseCalls(1);
+
+    const copy = (await ask()).json<CertifiedCopy>();
+
+    expect(await untilSettled(copy.id)).toMatchObject({ status: 'failed' });
+    expect(api.documents.issued).toHaveLength(0);
+    const again = await ask();
+    expect(again.json<CertifiedCopy>()).toMatchObject({ id: copy.id, status: 'pending' });
+    expect(await untilSettled(copy.id)).toMatchObject({ status: 'issued' });
+  });
+
   it('S13: declarations and documents outages delay the copy, never lose it', async () => {
     given();
-    api.declarations.failCalls(1);
+    api.declarations.failCalls(1, 'fullDocument');
     api.documents.failCalls(1);
 
     const copy = (await ask()).json<CertifiedCopy>();

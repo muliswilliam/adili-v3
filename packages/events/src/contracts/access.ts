@@ -1,3 +1,5 @@
+import type { ReadLegalBasisCode } from '@adili/api-kit';
+
 /**
  * Event contracts the access service publishes (spec 10, Act s.36, ADR-008 access register): one
  * event per access-register entry, read by the audit service (every entry, with its legal basis)
@@ -8,20 +10,31 @@
 
 /**
  * The law each access-register entry rests on: Act s.36(1) for Form K requests, s.36(2) with
- * Regulation 23 for law enforcement requests, Administrative Mechanism 32 for a declarant's
- * access to their own declaration (certified copies).
+ * Regulation 23 for law enforcement requests, `self-access` (Administrative Mechanism 32) for a
+ * declarant's access to their own declaration (certified copies). The same words the audit
+ * trail's reads use (api-kit `READ_LEGAL_BASES`, ADR-008).
  */
-export const ACCESS_LEGAL_BASES = ['act-s36-1', 'act-s36-2', 'admin-mechanism-32'] as const;
+export const ACCESS_LEGAL_BASES = [
+  'act-s36-1',
+  'act-s36-2',
+  'self-access',
+] as const satisfies readonly ReadLegalBasisCode[];
 export type AccessLegalBasis = (typeof ACCESS_LEGAL_BASES)[number];
 
 /** What an access-register entry is about. */
 export const ACCESS_SUBJECT_KINDS = ['access-request', 'lea-request', 'self-access'] as const;
 export type AccessSubjectKind = (typeof ACCESS_SUBJECT_KINDS)[number];
 
-/** The steps the access register records (access.yaml `RegisterEntry.kind`). */
+/**
+ * The steps the access register records. All but `identified` show in request timelines
+ * (access.yaml `RegisterEntry.kind`); `identified` (the access officer resolved the officer a
+ * Form K names to a roster record) is recorded and published, but kept out of timelines until the
+ * front ends show it.
+ */
 export const ACCESS_REGISTER_KINDS = [
   'received',
   'verified',
+  'identified',
   'notified',
   'representations',
   'decided',
@@ -53,24 +66,76 @@ export type AccessGround = (typeof ACCESS_GROUNDS)[number];
  */
 export const CANNOT_IDENTIFY_DECLINE_REASON = 'other';
 
-export const ACCESS_REQUEST_RECEIVED = 'access.request.received.v1';
-export const ACCESS_REQUEST_VERIFIED = 'access.request.verified.v1';
-export const ACCESS_REQUEST_NOTIFIED = 'access.request.notified.v1';
-export const ACCESS_REQUEST_REPRESENTATIONS = 'access.request.representations.v1';
-export const ACCESS_REQUEST_DECIDED = 'access.request.decided.v1';
-export const ACCESS_REQUEST_PACKAGE_ISSUED = 'access.request.package-issued.v1';
-export const ACCESS_REQUEST_DOWNLOADED = 'access.request.downloaded.v1';
-export const ACCESS_REQUEST_EXPIRED = 'access.request.expired.v1';
-export const ACCESS_REQUEST_WITHDRAWN = 'access.request.withdrawn.v1';
-export const ACCESS_REQUEST_CANNOT_IDENTIFY = 'access.request.cannot-identify.v1';
+/**
+ * The event each step of a Form K request publishes, by register kind: `access.request.<kind>.v1`.
+ * Every kind a Form K request records is here, and nothing else (no self-access step).
+ */
+export const ACCESS_REQUEST_EVENTS = {
+  received: 'access.request.received.v1',
+  verified: 'access.request.verified.v1',
+  identified: 'access.request.identified.v1',
+  notified: 'access.request.notified.v1',
+  representations: 'access.request.representations.v1',
+  decided: 'access.request.decided.v1',
+  'package-issued': 'access.request.package-issued.v1',
+  downloaded: 'access.request.downloaded.v1',
+  expired: 'access.request.expired.v1',
+  withdrawn: 'access.request.withdrawn.v1',
+  'cannot-identify': 'access.request.cannot-identify.v1',
+} as const satisfies { [K in AccessRegisterKind]?: `access.request.${K}.v1` };
+export type AccessRequestEventKind = keyof typeof ACCESS_REQUEST_EVENTS;
 
-export const LEA_REQUEST_RECEIVED = 'lea.request.received.v1';
-export const LEA_REQUEST_VERIFIED = 'lea.request.verified.v1';
-export const LEA_REQUEST_DECIDED = 'lea.request.decided.v1';
-export const LEA_REQUEST_PACKAGE_ISSUED = 'lea.request.package-issued.v1';
-export const LEA_REQUEST_DOWNLOADED = 'lea.request.downloaded.v1';
+/**
+ * The event each step of a law enforcement request publishes, by register kind:
+ * `lea.request.<kind>.v1`. No representations (the declarant is told only after a grant, r.23(2))
+ * and no cannot-identify.
+ */
+export const LEA_REQUEST_EVENTS = {
+  received: 'lea.request.received.v1',
+  verified: 'lea.request.verified.v1',
+  notified: 'lea.request.notified.v1',
+  decided: 'lea.request.decided.v1',
+  'package-issued': 'lea.request.package-issued.v1',
+  downloaded: 'lea.request.downloaded.v1',
+  expired: 'lea.request.expired.v1',
+  withdrawn: 'lea.request.withdrawn.v1',
+} as const satisfies { [K in AccessRegisterKind]?: `lea.request.${K}.v1` };
+export type LeaRequestEventKind = keyof typeof LEA_REQUEST_EVENTS;
 
+export const ACCESS_REQUEST_RECEIVED = ACCESS_REQUEST_EVENTS.received;
+export const ACCESS_REQUEST_VERIFIED = ACCESS_REQUEST_EVENTS.verified;
+export const ACCESS_REQUEST_IDENTIFIED = ACCESS_REQUEST_EVENTS.identified;
+export const ACCESS_REQUEST_NOTIFIED = ACCESS_REQUEST_EVENTS.notified;
+export const ACCESS_REQUEST_REPRESENTATIONS = ACCESS_REQUEST_EVENTS.representations;
+export const ACCESS_REQUEST_DECIDED = ACCESS_REQUEST_EVENTS.decided;
+export const ACCESS_REQUEST_PACKAGE_ISSUED = ACCESS_REQUEST_EVENTS['package-issued'];
+export const ACCESS_REQUEST_DOWNLOADED = ACCESS_REQUEST_EVENTS.downloaded;
+export const ACCESS_REQUEST_EXPIRED = ACCESS_REQUEST_EVENTS.expired;
+export const ACCESS_REQUEST_WITHDRAWN = ACCESS_REQUEST_EVENTS.withdrawn;
+export const ACCESS_REQUEST_CANNOT_IDENTIFY = ACCESS_REQUEST_EVENTS['cannot-identify'];
+
+export const LEA_REQUEST_RECEIVED = LEA_REQUEST_EVENTS.received;
+export const LEA_REQUEST_VERIFIED = LEA_REQUEST_EVENTS.verified;
+export const LEA_REQUEST_NOTIFIED = LEA_REQUEST_EVENTS.notified;
+export const LEA_REQUEST_DECIDED = LEA_REQUEST_EVENTS.decided;
+export const LEA_REQUEST_PACKAGE_ISSUED = LEA_REQUEST_EVENTS['package-issued'];
+export const LEA_REQUEST_DOWNLOADED = LEA_REQUEST_EVENTS.downloaded;
+export const LEA_REQUEST_EXPIRED = LEA_REQUEST_EVENTS.expired;
+export const LEA_REQUEST_WITHDRAWN = LEA_REQUEST_EVENTS.withdrawn;
+
+/** A self-access step (a certified copy issued) publishes this. */
 export const ACCESS_CERTIFIED_COPY_ISSUED = 'access.certified-copy.issued.v1';
+
+/** Every event type the access service publishes. */
+export const ACCESS_EVENT_TYPES = [
+  ...Object.values(ACCESS_REQUEST_EVENTS),
+  ...Object.values(LEA_REQUEST_EVENTS),
+  ACCESS_CERTIFIED_COPY_ISSUED,
+] as const;
+export type AccessEventType =
+  | (typeof ACCESS_REQUEST_EVENTS)[AccessRequestEventKind]
+  | (typeof LEA_REQUEST_EVENTS)[LeaRequestEventKind]
+  | typeof ACCESS_CERTIFIED_COPY_ISSUED;
 
 /**
  * The data of every access event: the register entry it reports. The CloudEvents `tenant`
@@ -115,6 +180,52 @@ export interface AccessRequestDecidedData extends AccessRegisterEventData {
   kind: 'decided';
   outcome: AccessOutcome;
   grounds: AccessGround[];
+}
+
+/**
+ * `access.request.identified.v1`: the access officer (the actor) resolved the officer named in
+ * Form K to a roster record of the Commission, whose person is now the entry's `personId`.
+ */
+export interface AccessRequestIdentifiedData extends AccessRegisterEventData {
+  kind: 'identified';
+  rosterRecordId: string;
+}
+
+/**
+ * `access.request.notified.v1`: the declarant was told of the request (Act s.36(3)); their window
+ * for representations ends at `windowEndsAt`. (`lea.request.notified.v1`, the declarant told after
+ * a grant, r.23(2), opens no window and carries the entry only.)
+ */
+export interface AccessRequestNotifiedData extends AccessRegisterEventData {
+  kind: 'notified';
+  /** ISO 8601. */
+  windowEndsAt: string;
+}
+
+/**
+ * `access.request.package-issued.v1` / `lea.request.package-issued.v1`: the recipient's
+ * Confidential package was issued; downloadable until `downloadExpiresAt`.
+ */
+export interface AccessPackageIssuedData extends AccessRegisterEventData {
+  kind: 'package-issued';
+  documentId: string;
+  /** ISO 8601. */
+  downloadExpiresAt: string;
+}
+
+/** `access.request.downloaded.v1` / `lea.request.downloaded.v1`: the package was downloaded. */
+export interface AccessPackageDownloadedData extends AccessRegisterEventData {
+  kind: 'downloaded';
+  documentId: string;
+}
+
+/**
+ * `access.request.expired.v1` / `lea.request.expired.v1`: the package's download window ended
+ * (the request is closed).
+ */
+export interface AccessPackageExpiredData extends AccessRegisterEventData {
+  kind: 'expired';
+  documentId: string;
 }
 
 /**

@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
+import { ACCESS_REQUEST_IDENTIFIED } from '@adili/events/contracts';
+import { accessRequestIdentifiedDataSchema } from '@adili/events/contracts/schemas';
+import { asc, eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { accessRegister } from '../../src/db/schema.js';
 import { accessRequestWorkflowId } from '../../src/requests/contract.js';
 import type { RosterCandidates } from '../../src/requests/officer-representation.js';
 import type { OfficerRequestView } from '../../src/requests/officer-view.js';
@@ -111,6 +115,44 @@ describe('Resolving the officer a request names (S3)', () => {
       ).json<OfficerRequestView>();
       expect(officerView.timeline.map((entry) => entry.kind)).toEqual(['received', 'notified']);
       expect(officerView.windowEndsAt).toBe('2027-03-16T18:30:00.000Z');
+    });
+
+    it('S3: the register records who identified the declarant, as which roster record', async () => {
+      const { anne } = givenCommissions(api, NOW);
+      const { id, reference } = await submitRequest(api);
+      api.clock.set(RESOLVED_AT);
+
+      expect((await resolve(api, id, anne.id)).statusCode).toBe(200);
+
+      const entries = await api.asPlatform((tx) =>
+        tx
+          .select()
+          .from(accessRegister)
+          .where(eq(accessRegister.subjectId, id))
+          .orderBy(asc(accessRegister.at), asc(accessRegister.id)),
+      );
+      expect(entries.find((entry) => entry.kind === 'identified')).toMatchObject({
+        subjectKind: 'access-request',
+        reference,
+        personId: anne.personId,
+        actor: officer.sub,
+        actorName: 'Peter Access',
+        legalBasis: 'act-s36-1',
+        at: new Date(RESOLVED_AT),
+        details: { rosterRecordId: anne.id },
+      });
+      const [identified] = await api.events(ACCESS_REQUEST_IDENTIFIED);
+      expect(accessRequestIdentifiedDataSchema.parse(identified?.data)).toMatchObject({
+        kind: 'identified',
+        actor: officer.sub,
+        personId: anne.personId,
+        rosterRecordId: anne.id,
+      });
+      // The notice that follows is the workflow's, as before.
+      await untilNotified(api, id);
+      expect(
+        (await api.events('access.request.notified.v1')).map((event) => event.data.actor),
+      ).toEqual([null]);
     });
 
     it('S3: once only: a second resolution is 409 `officer-resolved`', async () => {
@@ -327,18 +369,19 @@ describe('Resolving the officer a request names (S3)', () => {
   });
 
   describe("the request's workflow", () => {
-    it('starts at receipt for a submitted request, not for one held for verification', async () => {
+    it('starts at receipt for every request, held for verification or not (its reminders count from receipt)', async () => {
       givenCommissions(api, NOW);
       const submitted = await submitRequest(api);
       api.directory.givenApplicant(mercy.personId, 'pending-verification');
       const held = await submitRequest(api, { ...COMPLETE, responsibleCommission: 'tsc' });
 
+      expect(held.status).toBe('pending-applicant-verification');
       expect((await workflowOf(submitted.id).describe()).status.name).toBe('RUNNING');
-      await expect(workflowOf(held.id).describe()).rejects.toThrow();
+      expect((await workflowOf(held.id).describe()).status.name).toBe('RUNNING');
     });
 
-    it("starts when the access officer verifies a passport applicant's request", async () => {
-      givenCommissions(api, NOW);
+    it("S2: a held request's workflow goes on once the access officer verifies the applicant: the officer named is resolved and the declarant notified", async () => {
+      const { anne } = givenCommissions(api, NOW);
       api.directory.givenApplicant(mercy.personId, 'pending-verification');
       const held = await submitRequest(api);
 
@@ -348,9 +391,13 @@ describe('Resolving the officer a request names (S3)', () => {
         officer,
         { verified: true, note: 'Passport particulars checked.' },
       );
-
       expect(verified.statusCode, verified.body).toBe(200);
-      expect((await workflowOf(held.id).describe()).status.name).toBe('RUNNING');
+      const resolved = await resolve(api, held.id, anne.id);
+      expect(resolved.statusCode, resolved.body).toBe(200);
+
+      expect(await untilNotified(api, held.id)).toMatchObject({
+        status: 'awaiting-representations',
+      });
     });
 
     it('S8: ends when the applicant withdraws', async () => {
