@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { ACCESS_OFFICER } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -320,6 +320,36 @@ describe('RequestDetailView (spec 10 FE-5)', () => {
     const decision = within(side()).getByRole('region', { name: 'Decision' });
     expect(within(decision).getByText('Frivolous, vexatious or scandalous')).toBeTruthy();
     expect(within(decision).getByText('Does not promote the objectives of the Act')).toBeTruthy();
+  });
+
+  it('a grant with no package an hour on says none was issued, as every audience reads it', async () => {
+    renderDetail(await viewOf(R.noPackage));
+    const pkg = within(side()).getByRole('region', { name: 'Package' });
+    expect(pkg.textContent).toContain('No package has been issued for this grant.');
+    expect(within(pkg).queryByRole('status')).toBeNull();
+  });
+
+  it('a package still preparing an hour after the grant turns into none issued, by itself', async () => {
+    const view = await viewOf(R.preparing);
+    vi.useFakeTimers();
+    try {
+      renderDetail(view);
+      let pkg = within(side()).getByRole('region', { name: 'Package' });
+      expect(within(pkg).getByRole('status').textContent).toContain('Preparing');
+      act(() => {
+        vi.advanceTimersByTime(61 * 60_000);
+      });
+      pkg = within(side()).getByRole('region', { name: 'Package' });
+      expect(pkg.textContent).toContain('No package has been issued for this grant.');
+      // The page stopped looking for it: twenty polls while preparing, none after.
+      const polls = invalidate.mock.calls.length;
+      act(() => {
+        vi.advanceTimersByTime(10 * 60_000);
+      });
+      expect(invalidate.mock.calls.length).toBe(polls);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('closed requests say how they closed', async () => {

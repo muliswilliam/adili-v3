@@ -15,7 +15,8 @@
  * - `cannot`, `withdrawn`: closed; `denied`: decided with two grounds.
  * - `granted`: package issued, not downloaded yet; `partial`: partially granted, its package
  *   downloaded twice; `endsToday`: the download window ends today; `expired`: the window closed;
- *   `preparing`: granted a minute ago, the package not issued yet (it stays so).
+ *   `preparing`: granted a minute ago, the package not issued yet (it stays so); `noPackage`:
+ *   granted two days ago and never issued one (as a grant with nothing to disclose, #259).
  * - Older decided requests fill a second page.
  *
  * Only the access officer acts (roster search, resolve, verify); a supervisor gets 403, as the
@@ -74,6 +75,7 @@ export const MOCK_REQUEST_IDS = {
   endsToday: 'a11c0000-0000-4000-8000-000000000014',
   expired: 'a11c0000-0000-4000-8000-000000000015',
   preparing: 'a11c0000-0000-4000-8000-000000000016',
+  noPackage: 'a11c0000-0000-4000-8000-000000000017',
 } as const;
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
@@ -762,6 +764,28 @@ const SEEDS: Seed[] = [
       outcome: 'grant',
       afterDays: -0.001,
       reasons: 'A legitimate research interest in public procurement.',
+    },
+  },
+  {
+    id: R.noPackage,
+    reference: 'ARQ-PSC-2026-0000141-0',
+    applicant: ESTHER,
+    sought: {
+      name: 'Lilian Wairimu Njoroge',
+      entity: 'The National Treasury',
+      workStation: 'Treasury Building, Nairobi',
+    },
+    informationSought: 'Other information declared in 2025.',
+    reason: 'Our research on public finance.',
+    scope: { ...SCOPE_2026_ASSETS, years: [2025], sections: ['other'] },
+    receivedDaysAgo: 30,
+    status: 'granted',
+    resolved: K.lilian,
+    notifiedAfterDays: 2,
+    decision: {
+      outcome: 'grant',
+      afterDays: -2,
+      reasons: 'A legitimate research interest in public finance.',
     },
   },
 ];

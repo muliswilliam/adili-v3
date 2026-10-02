@@ -29,6 +29,7 @@ import type { ReactNode } from 'react';
 
 import { getRepresentationAttachmentLink } from '../../server/access-requests';
 import type { OfficerRequestView, Representations } from '../../server/access/types';
+import { downloadFrom } from '../download';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
 import { lastEntry } from './request-view';
@@ -241,7 +242,7 @@ export function RepresentationsCard({ view }: { view: OfficerRequestView }) {
       data: { requestId: view.id, uploadId },
     }).catch(() => null);
     if (result?.ok) {
-      window.location.assign(result.data.downloadUrl);
+      downloadFrom(result.data.downloadUrl);
       return;
     }
     if (result?.error.kind === 'unauthenticated') {

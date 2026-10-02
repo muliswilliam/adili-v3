@@ -1,20 +1,12 @@
-import { useToast } from '@adili/ui';
+import { PACKAGE_PREPARING_FOR_MS, unissuedPackageState, useToast } from '@adili/ui';
 import { useState } from 'react';
 
 import type { LeaRequest } from '../../server/access/types';
 import { getLeaPackageLink } from '../../server/lea-requests';
+import { downloadFrom } from '../download';
 import { goToSignIn } from '../sign-in-redirect';
+import { useNowAt } from '../use-now-at';
 import { messages as m } from './messages';
-
-/** Hands a link to the browser (a seam, so tests need not navigate). */
-export const browser = {
-  open(url: string): void {
-    window.location.assign(url);
-  },
-};
-
-/** How long after a grant a missing package still reads as being prepared. */
-const PREPARING_FOR_MS = 60 * 60 * 1000;
 
 /** Where the package of the officer's request stands, as the list and the request page show it. */
 export type PackageState =
@@ -32,15 +24,27 @@ export function packageState(
 ): PackageState {
   if (request.status !== 'granted' || !request.decision) return { kind: 'none' };
   const pkg = request.package;
-  if (!pkg) {
-    return now - Date.parse(request.decision.decidedAt) < PREPARING_FOR_MS
-      ? { kind: 'preparing' }
-      : { kind: 'missing' };
-  }
+  // The shared rule: preparing for an hour after the grant, then no package.
+  if (!pkg) return { kind: unissuedPackageState(request.decision.decidedAt, now) };
   const base = { until: pkg.downloadExpiresAt, issuedAt: pkg.issuedAt, downloads: pkg.downloads };
   return Date.parse(pkg.downloadExpiresAt) <= now
     ? { kind: 'closed', ...base }
     : { kind: 'ready', documentId: pkg.documentId, ...base };
+}
+
+/**
+ * `packageState` read against the loader's `now`, moving on by itself an hour after a grant whose
+ * package has not come, so "Preparing" turns into "No package has been issued" without a reload.
+ */
+export function usePackageState(
+  request: Pick<LeaRequest, 'status' | 'decision' | 'package'>,
+  serverNow: string,
+): PackageState {
+  const turnsAt =
+    request.status === 'granted' && request.decision && !request.package
+      ? Date.parse(request.decision.decidedAt) + PACKAGE_PREPARING_FOR_MS
+      : null;
+  return packageState(request, useNowAt(Date.parse(serverNow), turnsAt));
 }
 
 /**
@@ -56,7 +60,7 @@ export function usePackageDownload(onDone: () => void) {
     const result = await getLeaPackageLink({ data: { documentId } }).catch(() => null);
     setBusy(null);
     if (result?.ok) {
-      browser.open(result.data.downloadUrl);
+      downloadFrom(result.data.downloadUrl);
       onDone();
       return;
     }

@@ -202,6 +202,8 @@ export const en = {
   restricted: 'Restricted',
   preparing: 'Preparing the certified copy.',
   preparingSlow: 'This is taking longer than usual. The page updates when the copy is ready.',
+  preparingStopped: 'This is taking longer than usual. Check again in a few minutes.',
+  checkAgain: 'Check again',
   failedText: 'Could not issue the copy. Nothing was issued.',
   failedHint:
     'Record the application again to try once more. If it fails again, contact the platform administrator.',

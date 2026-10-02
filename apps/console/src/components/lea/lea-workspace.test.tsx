@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { LAW_ENFORCEMENT } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -21,9 +21,11 @@ import {
 import { MyRequest } from './my-request';
 import { MyRequests } from './my-requests';
 import { NewRequestForm } from './new-request-form';
-import { browser } from './package';
+import { downloadFrom } from '../download';
 
 const invalidate = vi.fn(() => Promise.resolve());
+
+vi.mock('../download', () => ({ downloadFrom: vi.fn() }));
 
 vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ invalidate }),
@@ -124,8 +126,32 @@ describe("the officer's requests (spec 10 FE-6)", () => {
     expect(screen.getByText('We could not load your requests')).toBeTruthy();
   });
 
+  it('a package not issued an hour after the grant turns from preparing to none issued', async () => {
+    const granted = await requestOf(L.granted);
+    if (!granted.decision) throw new Error('not decided');
+    const fresh = {
+      ...granted,
+      package: null,
+      decision: { ...granted.decision, decidedAt: NOW },
+    };
+    vi.useFakeTimers();
+    try {
+      wrap(<MyRequest request={fresh} now={NOW} />);
+      expect(screen.getByText(/^Preparing your package/)).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(61 * 60_000);
+      });
+      expect(
+        screen.getByText(
+          'No package has been issued for this grant. Contact the Commission if you need the declaration.',
+        ),
+      ).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('downloads a granted package with a fresh link from documents', async () => {
-    const assign = vi.spyOn(browser, 'open').mockImplementation(() => undefined);
     vi.mocked(getLeaPackageLink).mockResolvedValue({
       ok: true,
       data: { downloadUrl: '/api/mock-files/x', expiresAt: NOW, sha256: '0' },
@@ -133,12 +159,11 @@ describe("the officer's requests (spec 10 FE-6)", () => {
     wrap(<MyRequest request={await requestOf(L.granted)} now={NOW} />);
     fireEvent.click(screen.getByRole('button', { name: 'Download package' }));
     await waitFor(() => {
-      expect(assign).toHaveBeenCalledWith('/api/mock-files/x');
+      expect(downloadFrom).toHaveBeenCalledWith('/api/mock-files/x');
     });
     expect(
       screen.getByText('Watermarked with your name. Every download is recorded.'),
     ).toBeTruthy();
-    assign.mockRestore();
   });
 
   it('says the download window closed', async () => {

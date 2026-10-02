@@ -27,7 +27,7 @@ import type { LeaRequest, LeaRequestStatus } from '../../server/access/types';
 import { CursorPager } from '../cursor-pager';
 import { LoadError } from '../load-error';
 import { messages as m } from './messages';
-import { packageState, usePackageDownload } from './package';
+import { usePackageDownload, usePackageState } from './package';
 
 /** Requests per page of the list. */
 export const MY_REQUESTS_PAGE_SIZE = 20;
@@ -149,7 +149,7 @@ function RequestLink({ request }: { request: LeaRequest }) {
 function Action({ request, now }: { request: LeaRequest; now: string }) {
   const router = useRouter();
   const { busy, download } = usePackageDownload(() => void router.invalidate());
-  const state = packageState(request, Date.parse(now));
+  const state = usePackageState(request, now);
   switch (state.kind) {
     case 'ready':
       return (

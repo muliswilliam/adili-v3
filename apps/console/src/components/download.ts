@@ -35,6 +35,43 @@ export async function downloadAttachment(
   }
 }
 
+/**
+ * Starts a download from a short-lived link that answers with an attachment (a presigned URL):
+ * the browser saves the file and the page stays. Every link-based download in the console goes
+ * through here (or `pendingTab`), so tests replace one module.
+ */
+export function downloadFrom(url: string): void {
+  window.location.assign(url);
+}
+
+/** A tab opened in the click, pointed at its link once that comes back. */
+export interface PendingTab {
+  show: (url: string) => void;
+  close: () => void;
+}
+
+/**
+ * Opens a new tab in the click, for a document to read or print whose link is fetched first:
+ * opening it later, after the fetch, the browser blocks it as a pop-up. `show` points the tab at
+ * the link (cut off from this page), or opens the link here when the tab was blocked anyway.
+ */
+export function pendingTab(): PendingTab {
+  const tab = window.open('', '_blank');
+  return {
+    show(url) {
+      if (!tab) {
+        window.location.assign(url);
+        return;
+      }
+      tab.opener = null;
+      tab.location.href = url;
+    },
+    close() {
+      tab?.close();
+    },
+  };
+}
+
 /** Saves `file` as a download named `fileName`, as a link with `download` would. */
 export function saveFile(file: Blob, fileName: string): void {
   const url = URL.createObjectURL(file);

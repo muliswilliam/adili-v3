@@ -32,21 +32,27 @@ import {
   ViewIcon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import { getCertifiedCopyLink, markSelfAccessDelivered } from '../../../server/self-access';
 import type { SelfAccessApplicationDetail } from '../../../server/self-access.server';
 import { ReadOnlyBadge } from '../../commissions/badges';
+import { pendingTab } from '../../download';
 import { Page } from '../../page';
+import { type Poll, usePollWhile } from '../../use-poll-while';
 import { goToSignIn } from '../../sign-in-redirect';
 import { Muted, SideCard } from '../side-cards';
 import { type ApplicationState, applicationState, deadlineRuns } from './application-view';
 import { StateBadge } from './applications-list';
 import { messages as m } from './messages';
 
-/** How often the page looks again while the copy is prepared, and after how many it says so. */
+/**
+ * How often the page looks again while the copy is prepared, after how many it says it is slow,
+ * and after how many it stops (two minutes) and offers to check again.
+ */
 const PREPARING_POLL_MS = 2000;
 const PREPARING_SLOW_AFTER = 15;
+const PREPARING_POLLS = 60;
 
 /**
  * One written self-access application (spec 10 slice #302): the application with its identity
@@ -64,7 +70,7 @@ export function ApplicationDetailView({
   commissionCode: string;
 }) {
   const state = applicationState(application);
-  const slow = usePreparingPolling(state === 'preparing');
+  const poll = usePollWhile(state === 'preparing', PREPARING_POLL_MS, PREPARING_POLLS);
 
   return (
     <Page>
@@ -112,7 +118,7 @@ export function ApplicationDetailView({
       <div className="grid items-start gap-4 min-[1080px]:grid-cols-[minmax(0,1fr)_380px]">
         <ApplicationCard application={application} commissionCode={commissionCode} />
         <aside className="order-first grid min-w-0 gap-4 min-[1080px]:order-none">
-          <CopyCard application={application} state={state} readOnly={readOnly} slow={slow} />
+          <CopyCard application={application} state={state} readOnly={readOnly} poll={poll} />
         </aside>
       </div>
     </Page>
@@ -265,12 +271,12 @@ function CopyCard({
   application,
   state,
   readOnly,
-  slow,
+  poll,
 }: {
   application: SelfAccessApplicationDetail;
   state: ApplicationState;
   readOnly: boolean;
-  slow: boolean;
+  poll: Poll;
 }) {
   if (state === 'preparing') {
     return (
@@ -279,7 +285,16 @@ function CopyCard({
           <Spinner className="size-4" />
           {m.preparing}
         </p>
-        {slow ? <p className="text-[13px] text-muted-foreground">{m.preparingSlow}</p> : null}
+        {poll.exhausted ? (
+          <div className="grid justify-items-start gap-2">
+            <p className="text-[13px] text-muted-foreground">{m.preparingStopped}</p>
+            <Button variant="secondary" size="sm" onClick={poll.restart}>
+              {m.checkAgain}
+            </Button>
+          </div>
+        ) : poll.polls >= PREPARING_SLOW_AFTER ? (
+          <p className="text-[13px] text-muted-foreground">{m.preparingSlow}</p>
+        ) : null}
       </SideCard>
     );
   }
@@ -337,7 +352,7 @@ function DownloadAction({
     setBusy(true);
     setError(null);
     // Opened in the click, so the browser does not block it as a pop-up; filled in once known.
-    const tab = window.open('', '_blank');
+    const tab = pendingTab();
     const result = await getCertifiedCopyLink({ data: { documentId } }).catch(
       (): Awaited<ReturnType<typeof getCertifiedCopyLink>> => ({
         ok: false,
@@ -346,15 +361,10 @@ function DownloadAction({
     );
     setBusy(false);
     if (result.ok) {
-      if (tab) {
-        tab.opener = null;
-        tab.location.href = result.data.downloadUrl;
-      } else {
-        window.location.assign(result.data.downloadUrl);
-      }
+      tab.show(result.data.downloadUrl);
       return;
     }
-    tab?.close();
+    tab.close();
     if (result.error.kind === 'unauthenticated') {
       goToSignIn();
       return;
@@ -476,24 +486,4 @@ function MarkDelivered({ application }: { application: SelfAccessApplicationDeta
       </Dialog>
     </>
   );
-}
-
-/**
- * While the certified copy is prepared (seconds), reload the application so the page moves on
- * by itself; after a while it says it is taking long, and keeps looking.
- */
-function usePreparingPolling(active: boolean): boolean {
-  const router = useRouter();
-  const [polls, setPolls] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(() => {
-      setPolls((count) => count + 1);
-      void router.invalidate();
-    }, PREPARING_POLL_MS);
-    return () => {
-      clearInterval(timer);
-    };
-  }, [active, router]);
-  return active && polls >= PREPARING_SLOW_AFTER;
 }

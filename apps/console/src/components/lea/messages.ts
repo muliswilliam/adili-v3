@@ -1,4 +1,4 @@
-import { formatNumber, plural } from '@adili/ui';
+import { accessMessages, formatNumber, plural } from '@adili/ui';
 
 /**
  * Copy of the law enforcement workspace (spec 10 FE-6), from the console prototype
@@ -136,8 +136,7 @@ export const en = {
   watermarked: 'Watermarked with your name. Every download is recorded.',
   packagePreparing:
     'Preparing your package: the granted scope is rendered, watermarked and signed.',
-  noPackage:
-    'No package has been issued for this grant. Contact the Commission if you need the declaration.',
+  noPackage: `${accessMessages.noPackage} Contact the Commission if you need the declaration.`,
   downloadFailed: 'The package could not be downloaded. Try again.',
   windowClosedToast: 'The download window has closed.',
   withdrawn: 'Withdrawn',

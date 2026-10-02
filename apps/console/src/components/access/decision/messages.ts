@@ -1,4 +1,4 @@
-import { formatNumber, plural } from '@adili/ui';
+import { accessMessages, formatNumber } from '@adili/ui';
 
 import { DECISION_REASONS_MAX } from '../../../server/access/schemas';
 
@@ -62,8 +62,7 @@ export const en = {
   } satisfies Record<Outcome, string>,
   confirmGrounds: 'Grounds:',
   packageGoesTo: (name: string) => `A Confidential package goes to ${name}`,
-  packageScope: (scope: string, days: number) =>
-    `${scope}. Watermarked, downloadable for ${plural(days, 'day')}.`,
+  packageScope: (scope: string) => `${scope}. Watermarked, downloadable for a limited time.`,
 
   // Server answers
   notRecordedTitle: 'The decision was not recorded',
@@ -106,6 +105,8 @@ export const en = {
   packageTitle: 'Package',
   confidential: 'Confidential',
   preparing: 'Preparing: rendering the granted scope, watermarking and signing.',
+  noPackage: accessMessages.noPackage,
+  noPackageWhy: 'The granted scope holds nothing to disclose, or issuing it failed.',
   issued: 'Issued',
   downloadUntil: 'Download until',
   windowClosed: 'Window closed',
