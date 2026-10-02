@@ -1944,6 +1944,7 @@
       "realmRoles": ["default-roles-adili", "platform-admin"]
     },
     {
+      "id": "7159c22a-33fd-4ba0-bcfd-23c91d6acd8e",
       "username": "applicant",
       "email": "applicant@demo.adili.go.ke",
       "emailVerified": true,
@@ -1951,8 +1952,9 @@
       "lastName": "Wambua",
       "enabled": true,
       "attributes": {
-        "tenant": ["public"],
-        "phone": ["+254700000012"]
+        "person_id": ["2c2097c9-c981-44f4-8343-3e5a124422cd"],
+        "phone": ["+254700000012"],
+        "identityStatus": ["verified"]
       },
       "credentials": [
         {
@@ -1964,6 +1966,7 @@
       "realmRoles": ["default-roles-adili", "applicant"]
     },
     {
+      "id": "21aa54e7-20f5-4942-a0ab-990fad9cb8c2",
       "username": "law-enforcement",
       "email": "law-enforcement@demo.adili.go.ke",
       "emailVerified": true,
@@ -1973,6 +1976,7 @@
       "attributes": {
         "tenant": ["lea"],
         "agency": ["DCI"],
+        "person_id": ["a0221136-2e38-49ef-8a9b-7cdc1882e84e"],
         "phone": ["+254700000013"]
       },
       "credentials": [
