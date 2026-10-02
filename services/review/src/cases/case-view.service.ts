@@ -4,6 +4,7 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 
+import { clarificationItems } from '../clarifications/representation.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { determinationView } from '../determinations/representation.js';
 import { determinations } from '../determinations/schema.js';
@@ -269,13 +270,7 @@ function clarificationView(
     caseId: row.caseId,
     reference: row.reference,
     status: row.status,
-    items: row.items.map((item) => ({
-      sectionKey: item.sectionKey,
-      personKey: item.personKey,
-      itemId: item.itemId,
-      requirement: item.requirement,
-      text: item.text,
-    })),
+    items: clarificationItems(row),
     issuedAt: row.issuedAt?.toISOString() ?? null,
     dueAt: row.dueAt?.toISOString() ?? null,
     respondedAt: row.respondedAt?.toISOString() ?? null,

@@ -10,10 +10,8 @@ import {
 import { REVIEW_INTERNAL_SCOPE } from '@adili/roles';
 import { z } from 'zod';
 
-import {
-  type DeterminationLetterPayload,
-  DeterminationLetterPayloadService,
-} from './letter-payload.service.js';
+import { DeterminationLetterPayloadService } from './letter-payload.service.js';
+import type { DeterminationLetterPayload } from './representation.js';
 
 /**
  * Internal: not routed by the public entrypoint. The documents service pulls a decision letter's

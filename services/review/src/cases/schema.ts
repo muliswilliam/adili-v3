@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
-import type { Evidence, ItemRef } from '../rules/index.js';
+import type { Evidence, ItemRef, RuleId } from '../rules/index.js';
 
 /**
  * The review database (spec 07a): review cases, their risk flags, assignment history,
@@ -263,7 +263,7 @@ export const reviewFlags = pgTable(
       .references(() => reviewCases.id),
     /** The version whose processing raised it. */
     versionId: uuid().notNull(),
-    ruleId: text().notNull(),
+    ruleId: text().$type<RuleId>().notNull(),
     severity: text({ enum: FLAG_SEVERITIES }).notNull(),
     title: text().notNull(),
     indicator: text().notNull(),

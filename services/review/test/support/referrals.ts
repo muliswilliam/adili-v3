@@ -14,6 +14,7 @@ import {
   reviewFlags,
 } from '../../src/db/schema.js';
 import type { SubjectKind } from '../../src/enforcement/schema.js';
+import type { RuleId } from '../../src/rules/index.js';
 import type { ReferralView } from '../../src/referrals/representation.js';
 import type { Caller, ReviewApi } from './review-api.js';
 
@@ -23,7 +24,7 @@ export async function givenFlag(
   tenant: string,
   caseId: string,
   versionId: string,
-  ruleId: string,
+  ruleId: RuleId,
 ): Promise<string> {
   const id = uuidv7();
   await api.asPlatform((tx) =>
