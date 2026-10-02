@@ -1,3 +1,5 @@
+import { formatNumber } from '@adili/ui';
+
 import type { Draft, MaterialChangeEntry, OtherInformation } from './contents';
 import { countryName, UNANSWERED } from './format';
 import { CHANGE_KIND_WORDS, MEMBERSHIP_KIND_LABELS } from './labels';
@@ -113,5 +115,5 @@ export function dualCitizenshipLine(dual: DraftDualCitizenship | undefined): str
 
 /** "{n} / 4,000 characters". */
 export function freeTextCounter(length: number): string {
-  return `${length.toLocaleString('en-KE')} / ${FREE_TEXT_LIMIT.toLocaleString('en-KE')} characters`;
+  return `${formatNumber(length)} / ${formatNumber(FREE_TEXT_LIMIT)} characters`;
 }
