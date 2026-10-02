@@ -1,15 +1,7 @@
 import { DeclarationSchema, type DeclarationV1 } from '@adili/forms';
 
 import type { ReviewClient } from './review/client.server';
-import type {
-  Assignee,
-  CaseDetail,
-  CaseListItem,
-  CaseStatus,
-  Flag,
-  Note,
-  RegistryView,
-} from './review/types';
+import type { Assignee, CaseDetail, CaseListItem, Flag, Note, RegistryView } from './review/types';
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
@@ -249,69 +241,35 @@ export async function recheck(client: ReviewClient, caseId: string): Promise<Rec
 export interface Reviewer {
   subject: string;
   name: string;
-  /** Review cases the reviewer holds now (as far as the queue shows; see `loadReviewers`). */
+  /** Open review cases the reviewer holds now. */
   open: number;
   /** The reviewer held this case before (a reviewer of record). */
   ofRecord: boolean;
 }
 
-/** Statuses of a case someone holds. */
-const HELD: readonly CaseStatus[] = [
-  'assigned',
-  'awaiting-clarification',
-  'clarified',
-  'ready-for-determination',
-  'sample-review',
-  'further-action',
-];
-
 /**
- * The reviewers a supervisor can reassign a case to. review.yaml lists no reviewers, so this reads
- * them off the Commission's queue: everyone holding a case (the first 100 per status, enough to
- * name them), with the count, plus the case's reviewers of record and the supervisor. A reviewer
- * who has never held a case is missing until the contract lists the Commission's reviewers.
+ * `GET /v1/commissions/{slug}/review/queue/reviewers`: the Commission's reviewers and
+ * supervisors (as the directory has its staff) with the open cases each holds, by name; the
+ * case's holder left out and its reviewers of record marked.
  */
 export async function loadReviewers(
   client: ReviewClient,
   slug: string,
   detail: { assignee: string | null; reviewerHistory: Assignee[] },
-  self: { subject: string; name: string },
 ): Promise<ServiceResult<Reviewer[]>> {
-  const pages = await Promise.all(
-    HELD.map((status) =>
-      callService(() =>
-        client.GET('/v1/commissions/{slug}/review/queue', {
-          params: { path: { slug }, query: { status, limit: 100 } },
-        }),
-      ),
-    ),
+  const result = await callService(() =>
+    client.GET('/v1/commissions/{slug}/review/queue/reviewers', { params: { path: { slug } } }),
   );
-
-  const reviewers = new Map<string, Reviewer>();
-  const add = (subject: string, name: string) => {
-    const known = reviewers.get(subject);
-    if (known) return known;
-    const reviewer = {
-      subject,
-      name,
-      open: 0,
-      ofRecord: detail.reviewerHistory.some((each) => each.subject === subject),
-    };
-    reviewers.set(subject, reviewer);
-    return reviewer;
-  };
-  for (const page of pages) {
-    if (!page.ok) return page;
-    for (const item of page.data.items) {
-      if (item.assignee) add(item.assignee.subject, item.assignee.name).open += 1;
-    }
-  }
-  for (const each of detail.reviewerHistory) add(each.subject, each.name);
-  add(self.subject, self.name);
+  if (!result.ok) return result;
   return {
     ok: true,
-    data: [...reviewers.values()]
-      .filter((reviewer) => reviewer.subject !== detail.assignee)
-      .sort((a, b) => a.name.localeCompare(b.name)),
+    data: result.data.items
+      .filter((member) => member.subject !== detail.assignee)
+      .map((member) => ({
+        subject: member.subject,
+        name: member.name,
+        open: member.openCases,
+        ofRecord: detail.reviewerHistory.some((each) => each.subject === member.subject),
+      })),
   };
 }

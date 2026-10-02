@@ -84,9 +84,9 @@ export const markCaseFlagReviewed = createServerFn({ method: 'POST' })
 const staffMember = z.object({ subject: z.string().min(1).max(200), name: z.string().max(200) });
 
 /**
- * The reviewers a supervisor can give the case to (see `loadReviewers`). The page passes the
- * holder and the reviewers of record it already has, for the labels only: the reassignment
- * itself is checked by the review service.
+ * The reviewers a supervisor can give the case to, or filter the queue by (see `loadReviewers`).
+ * The page passes the holder and the reviewers of record it already has, for the labels only:
+ * the reassignment itself is checked by the review service.
  */
 export const getReviewers = createServerFn({ method: 'GET' })
   .validator(
@@ -97,13 +97,11 @@ export const getReviewers = createServerFn({ method: 'GET' })
     }),
   )
   .handler(({ data }): Promise<ServiceResult<Reviewer[]>> =>
-    asStaffMember((client, user) =>
-      loadReviewers(
-        client,
-        data.slug,
-        { assignee: data.assignee, reviewerHistory: data.reviewerHistory },
-        user,
-      ),
+    asStaffMember((client) =>
+      loadReviewers(client, data.slug, {
+        assignee: data.assignee,
+        reviewerHistory: data.reviewerHistory,
+      }),
     ),
   );
 

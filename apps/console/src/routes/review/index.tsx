@@ -111,7 +111,7 @@ function QueuePageView({ load }: { load: QueueLoad | null }) {
 }
 
 /**
- * The reviewers a supervisor can filter by: those who hold review cases in the Commission (as the
+ * The reviewers a supervisor can filter by: the Commission's reviewers and supervisors (as the
  * reassign dialog lists them), the supervisor aside (that is Mine). Null for reviewers, while
  * they load, or when they could not be loaded (the filter then offers Mine and Unassigned).
  */

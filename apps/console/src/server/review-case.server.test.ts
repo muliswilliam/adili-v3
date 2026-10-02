@@ -1,15 +1,7 @@
 import createClient from 'openapi-fetch';
 import { describe, expect, it } from 'vitest';
 
-import {
-  CASE_ID,
-  caseData,
-  caseItem,
-  DOCUMENT,
-  ME,
-  registryView,
-  WAFULA,
-} from '../review-case/fixtures';
+import { CASE_ID, caseData, DOCUMENT, ME, registryView, WAFULA } from '../review-case/fixtures';
 import {
   claim,
   loadCase,
@@ -110,49 +102,59 @@ describe('claim', () => {
 });
 
 describe('loadReviewers', () => {
-  it('lists who holds cases, with how many, the reviewers of record and the supervisor', async () => {
-    const asked: string[] = [];
+  const list = (items: unknown[]) => () => json(200, { items });
+
+  it("lists the Commission's reviewers with their open cases, marking the reviewers of record", async () => {
+    const paths: string[] = [];
     const result = await loadReviewers(
       client((request) => {
-        const url = new URL(request.url);
-        asked.push(url.searchParams.get('status') ?? '');
-        const items =
-          url.searchParams.get('status') === 'assigned'
-            ? [caseItem({ assignee: WAFULA }), caseItem({ assignee: WAFULA })]
-            : [];
-        return json(200, { items, nextCursor: null });
+        paths.push(new URL(request.url).pathname);
+        return list([
+          { subject: ME.subject, name: 'Kiprono Chebet', supervisor: true, openCases: 0 },
+          { subject: 'old', name: 'Mercy Wambui', supervisor: false, openCases: 1 },
+          { subject: WAFULA.subject, name: 'Wafula Barasa', supervisor: false, openCases: 2 },
+        ])();
       }),
       'psc',
       { assignee: null, reviewerHistory: [{ subject: 'old', name: 'Mercy Wambui' }] },
-      { subject: ME.subject, name: 'Kiprono Chebet' },
     );
     if (!result.ok) throw new Error(JSON.stringify(result.error));
-    expect(asked).toContain('awaiting-clarification');
+    // One read, not one per status.
+    expect(paths).toEqual(['/v1/commissions/psc/review/queue/reviewers']);
     expect(result.data).toEqual([
       { subject: ME.subject, name: 'Kiprono Chebet', open: 0, ofRecord: false },
-      { subject: 'old', name: 'Mercy Wambui', open: 0, ofRecord: true },
+      { subject: 'old', name: 'Mercy Wambui', open: 1, ofRecord: true },
       { subject: WAFULA.subject, name: 'Wafula Barasa', open: 2, ofRecord: false },
     ]);
   });
 
-  it('leaves out the officer holding the case', async () => {
+  it('leaves out the reviewer holding the case', async () => {
     const result = await loadReviewers(
-      client(() => json(200, { items: [caseItem({ assignee: WAFULA })], nextCursor: null })),
+      client(
+        list([
+          { subject: WAFULA.subject, name: 'Wafula Barasa', supervisor: false, openCases: 1 },
+          { subject: ME.subject, name: 'Achieng Njeri', supervisor: true, openCases: 0 },
+        ]),
+      ),
       'psc',
       { assignee: WAFULA.subject, reviewerHistory: [WAFULA] },
-      ME,
     );
     expect(result.ok && result.data.map((each) => each.name)).toEqual(['Achieng Njeri']);
   });
 
-  it('fails when the queue cannot be read', async () => {
+  it('fails when the reviewers cannot be read', async () => {
     const result = await loadReviewers(
-      client(() => json(404, { type: 'about:blank', title: 'Not found', status: 404 })),
+      client(() =>
+        json(502, {
+          type: 'directory-unavailable',
+          title: 'Upstream service unavailable',
+          status: 502,
+        }),
+      ),
       'psc',
       { assignee: null, reviewerHistory: [] },
-      ME,
     );
-    expect(result.ok).toBe(false);
+    expect(result).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
   });
 });
 
