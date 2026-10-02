@@ -439,8 +439,10 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
         // Below 1100px the panes become two views with a switch (the prototype's `.mview`).
         className="max-[1099px]:grid-cols-1 max-[1099px]:[&>[role=separator]]:hidden"
         mainClassName={cn(view === 'review' && 'max-[1099px]:hidden')}
+        // No scroll anchoring in the review pane: when a tab's content changed or a tab opened,
+        // the browser kept a card in place and scrolled the tab's top out of sight.
         sideClassName={cn(
-          'min-[1100px]:sticky min-[1100px]:top-[72px] min-[1100px]:max-h-[calc(100dvh-88px)] min-[1100px]:overflow-y-auto min-[1100px]:rounded-2xl',
+          'min-[1100px]:sticky min-[1100px]:top-[72px] min-[1100px]:max-h-[calc(100dvh-88px)] min-[1100px]:overflow-y-auto min-[1100px]:[overflow-anchor:none] min-[1100px]:rounded-2xl',
           view === 'declaration' && 'max-[1099px]:hidden',
         )}
       />
