@@ -174,6 +174,9 @@ describe('copilotPolicyChanged', () => {
       },
     );
     expect(mocks.requestCopilot).toHaveBeenCalledTimes(total);
+    // Every case once, none twice across pages or runs (N16).
+    const requested = vi.mocked(mocks.requestCopilot).mock.calls.map(([request]) => request.caseId);
+    expect(requested).toEqual(cases);
     expect(pages).toHaveLength(COPILOT_POLICY_PAGES_PER_RUN + 1);
     // The last run is a continuation of the first.
     expect(runIds.last).not.toBe(runIds.first);
