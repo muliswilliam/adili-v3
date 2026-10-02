@@ -93,6 +93,8 @@ export interface DiffTableMessages {
   /** The percentage cell, for screen readers: "40.8" → "Up 40.8 percent". */
   percentUp: (percent: string) => string;
   percentDown: (percent: string) => string;
+  /** A change too small for one decimal: "0.1" → "less than 0.1" (shown as "+<0.1%"). */
+  lessThan: (percent: string) => string;
 }
 
 const DEFAULT_MESSAGES: DiffTableMessages = {
@@ -116,6 +118,7 @@ const DEFAULT_MESSAGES: DiffTableMessages = {
   removedItem: (amount) => `No longer declared, previously ${amount}`,
   percentUp: (percent) => `Up ${percent} percent`,
   percentDown: (percent) => `Down ${percent} percent`,
+  lessThan: (percent) => `less than ${percent}`,
 };
 
 // A true minus sign, so negative amounts line up with positive ones in tabular figures.
@@ -283,11 +286,14 @@ function DiffTableRow({
   } else if (delta === 0) {
     percentCell = <Spoken shown="0.0%" said={copy.noChange} />;
   } else {
-    const digits = percentDigits(percent);
+    // Under 0.05% one decimal rounds to 0.0, which would read as no change.
+    const tiny = percentDigits(percent) === '0.0';
+    const digits = tiny ? '0.1' : percentDigits(percent);
+    const said = tiny ? copy.lessThan(digits) : digits;
     percentCell = (
       <Spoken
-        shown={`${percent > 0 ? '+' : MINUS}${digits}%`}
-        said={percent > 0 ? copy.percentUp(digits) : copy.percentDown(digits)}
+        shown={`${percent > 0 ? '+' : MINUS}${tiny ? '<' : ''}${digits}%`}
+        said={percent > 0 ? copy.percentUp(said) : copy.percentDown(said)}
       />
     );
   }
