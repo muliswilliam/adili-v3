@@ -29,6 +29,41 @@ describe('sourceRefResolver', () => {
     });
   });
 
+  it('says whose statement a jointly held item is, so its two chips read apart (e2e 07, 17)', () => {
+    const joint = (id: string) => ({
+      id,
+      description: 'Residential plot with two-bedroom flat, Ruaka',
+    });
+    const document = {
+      statements: [
+        {
+          personKey: 'officer',
+          personName: { firstName: 'Wanjiku', surname: 'Kamau' },
+          assets: [joint('a1'), { id: 'a2', description: 'Apartment, Dubai Marina' }],
+        },
+        {
+          personKey: SPOUSE,
+          personName: { firstName: 'Peter', surname: 'Kamau' },
+          assets: [joint('b1')],
+        },
+      ],
+    };
+    const shared = sourceRefResolver(document);
+    expect(shared(ref({ personKey: 'officer', itemId: 'a1' }))).toMatchObject({
+      label: 'Residential plot with two-bedroom flat, Ruaka',
+      detail: 'Wanjiku Kamau',
+    });
+    expect(shared(ref({ personKey: SPOUSE, itemId: 'b1' }))).toMatchObject({
+      label: 'Residential plot with two-bedroom flat, Ruaka',
+      detail: 'Peter Kamau',
+    });
+    // An item only one statement has keeps its description alone.
+    expect(shared(ref({ personKey: 'officer', itemId: 'a2' }))).toMatchObject({
+      label: 'Apartment, Dubai Marina',
+      detail: null,
+    });
+  });
+
   it("opens a person's statement, by person key or a statement section key", () => {
     expect(resolve(ref({ sectionKey: `statement:${SPOUSE}` }))).toMatchObject({
       label: 'Lilian Otieno · Spouse',

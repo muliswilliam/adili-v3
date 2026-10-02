@@ -49,6 +49,27 @@ describe('SourceRefLink', () => {
     expect(onOpen).toHaveBeenCalledWith(HOUSE);
   });
 
+  it('shows a detail after the label that is never cut, to tell like chips apart', () => {
+    render(
+      <SourceRefLink
+        sourceRef={HOUSE}
+        label="Residential plot with two-bedroom flat, Ruaka"
+        detail="Peter Mwangi Kamau"
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const link = screen.getByRole('button', {
+      name: 'Open in the declaration: Residential plot with two-bedroom flat, Ruaka',
+    });
+    expect(link.textContent).toBe(
+      'Residential plot with two-bedroom flat, Ruaka· Peter Mwangi Kamau',
+    );
+    const detail = screen.getByText('· Peter Mwangi Kamau');
+    expect(detail.className).toContain('shrink-0');
+    expect(detail.className).not.toContain('truncate');
+  });
+
   it('names the target with the label when there is no longer description', () => {
     render(
       <SourceRefLink onOpen={vi.fn()} sourceRef={BIO} label="Personal and employment details" />,

@@ -268,6 +268,7 @@ export function Refs({
           key={one.anchorId}
           sourceRef={one.ref}
           label={one.label}
+          detail={one.detail}
           targetLabel={one.targetLabel}
           onOpen={() => {
             onOpenSource(one);

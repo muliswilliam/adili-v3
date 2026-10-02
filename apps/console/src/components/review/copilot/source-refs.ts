@@ -13,6 +13,11 @@ export interface ResolvedRef {
   ref: SourceRef;
   /** The chip's text: the item's description, a statement, a section. */
   label: string;
+  /**
+   * Whose statement an item is in, when another statement has an item described the same way
+   * (a plot held jointly with the spouse), so the two chips read apart; null otherwise.
+   */
+  detail: string | null;
   /** Where it goes, for the accessible name: "Assets · Plot Kisumu/Manyatta/1234 · John Otieno". */
   targetLabel: string;
   /** The element in the declaration pane, see `declarationAnchorId`. */
@@ -117,6 +122,16 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
   const statements = statementsOf(document);
   const statementOf = (personKey: string | null) =>
     statements.find((each) => each.personKey === personKey) ?? null;
+  // How many statements hold an item described this way.
+  const holders = new Map<string, number>();
+  for (const statement of statements) {
+    const described = new Set(
+      CATEGORIES.flatMap((category) => statement.items[category].map((item) => item.description)),
+    );
+    for (const description of described) {
+      if (description) holders.set(description, (holders.get(description) ?? 0) + 1);
+    }
+  }
 
   function itemRef(ref: SourceRef, itemId: string): ResolvedRef | null {
     for (const statement of statements) {
@@ -124,9 +139,11 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
         const item = statement.items[category].find((each) => each.id === itemId);
         if (!item) continue;
         const label = item.description || t.categories[category];
+        const shared = (holders.get(item.description) ?? 0) > 1 && statement.personName;
         return {
           ref,
           label,
+          detail: shared || null,
           targetLabel: [t.categories[category], label, statement.personName]
             .filter(Boolean)
             .join(' · '),
@@ -145,6 +162,7 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
     return {
       ref,
       label,
+      detail: null,
       targetLabel: label,
       anchorId: declarationAnchorId({ kind: 'statement', personKey: statement.personKey }),
       target: 'person',
@@ -158,6 +176,7 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
     return {
       ref,
       label,
+      detail: null,
       targetLabel: label,
       anchorId: declarationAnchorId({ kind: 'section', section }),
       target: 'section',

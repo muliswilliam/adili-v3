@@ -60,6 +60,11 @@ export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'chil
   /** The chip's text, e.g. the item's description. Long text is cut with an ellipsis. */
   label: string;
   /**
+   * Muted text after the label that is never cut, for what tells two chips of the same label
+   * apart, e.g. whose statement a jointly held item is in.
+   */
+  detail?: string | null;
+  /**
    * The full target for the accessible name, e.g. "Assets, Building, 4-bedroom house on LR
    * 12715/482, Wanjiku Njeri Kamau". Defaults to `label`.
    */
@@ -83,6 +88,7 @@ export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'chil
 export function SourceRefLink({
   sourceRef,
   label,
+  detail,
   targetLabel,
   icon,
   onOpen,
@@ -128,6 +134,11 @@ export function SourceRefLink({
     >
       <Icon icon={icon ?? TARGET_ICONS[target]} />
       <span className="truncate">{label}</span>
+      {detail ? (
+        <span className="shrink-0 font-normal whitespace-nowrap text-muted-foreground">
+          · {detail}
+        </span>
+      ) : null}
     </button>
   );
 }
