@@ -7,7 +7,7 @@ import type { ItemPin } from '../../../review-case/flags';
 import { DOCUMENT, PLOT } from '../../../review-case/fixtures';
 import { DeclarationPane } from './declaration-pane';
 
-function renderPane(pin: ItemPin) {
+function renderPane(pin: ItemPin, sectionPins = new Map<string, ItemPin>()) {
   const onPin = vi.fn();
   render(
     <DeclarationPane
@@ -16,6 +16,7 @@ function renderPane(pin: ItemPin) {
       versions={1}
       highlight={null}
       pins={new Map([[PLOT, pin]])}
+      sectionPins={sectionPins}
       onPin={onPin}
       onAttachment={vi.fn()}
       attachmentState={() => 'idle'}
@@ -45,5 +46,19 @@ describe('DeclarationPane item pins', () => {
     // Two bars of three lit, as a medium SeverityBadge.
     const bars = [...pin.querySelectorAll('rect')].map((bar) => bar.getAttribute('opacity'));
     expect(bars).toEqual(['1', '1', '0.25']);
+  });
+
+  it("Q10: pins flags on a section as a whole to the section's heading", () => {
+    const { onPin } = renderPane(
+      { count: 1, severity: 'low', flagId: 'flag-1' },
+      new Map([['statement:officer', { count: 2, severity: 'high', flagId: 'flag-3' }]]),
+    );
+
+    const pin = screen.getByRole('button', {
+      name: '2 indicators on this section, highest high. Show in flags.',
+    });
+    expect(pin.closest('#case-declaration-section-statement-officer')).toBeTruthy();
+    fireEvent.click(pin);
+    expect(onPin).toHaveBeenCalledWith('flag-3');
   });
 });

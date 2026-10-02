@@ -29,7 +29,7 @@ import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useState } from 'react';
 import { flushSync } from 'react-dom';
 
-import { flagTarget, pinsByItem } from '../../../review-case/flags';
+import { flagTarget, pinsByItem, pinsBySection } from '../../../review-case/flags';
 import { CASE_COPY, REGISTRY_COPY } from '../../../review-case/messages';
 import { recheckAccess, registryNeedsAttention } from '../../../review-case/registry';
 import { CASE_TAB_LABELS, CASE_TABS, type CaseTab, tabCount } from '../../../review-case/tabs';
@@ -114,6 +114,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
 
   const holder = holdsCase(item, viewer);
   const pins = pinsByItem(detail.flags);
+  const sectionPins = pinsBySection(detail.flags);
   const previousVersion = item.currentVersion > 1 ? item.currentVersion - 1 : null;
 
   // A pulse plays once; clear it so the same flag can pulse again.
@@ -415,6 +416,7 @@ export function CaseView({ load, viewer, slug, now, tab, onTab }: CaseViewProps)
       versions={detail.versions.length}
       highlight={highlight}
       pins={pins}
+      sectionPins={sectionPins}
       onPin={showFlag}
       onAttachment={(attachment) => void download(attachment)}
       attachmentState={(uploadId) => downloads[uploadId] ?? 'idle'}

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Severity } from '../server/review/types';
 import { DOCUMENT, flag, ME, PLOT, SALARY } from './fixtures';
-import { evidenceLine, flagTarget, flagTargetLine, groupFlags, pinsByItem } from './flags';
+import {
+  evidenceLine,
+  flagTarget,
+  flagTargetLine,
+  groupFlags,
+  pinsByItem,
+  pinsBySection,
+} from './flags';
 
 const reviewed = { at: '2026-10-02T07:47:00Z', by: ME, note: 'Explained by the bank statement.' };
 
@@ -187,5 +195,32 @@ describe('pinsByItem', () => {
 
     expect(pins.get(SALARY)).toEqual({ count: 2, severity: 'high', flagId: 'high' });
     expect(pins.get(PLOT)).toEqual({ count: 1, severity: 'medium', flagId: 'plot' });
+  });
+});
+
+describe('pinsBySection', () => {
+  it('Q10: counts the open flags on a section as a whole, by its section key', () => {
+    const onSection = (id: string, severity: Severity, sectionKey: string | null) =>
+      flag({ id, severity, itemRefs: [{ personKey: 'officer', itemId: null, sectionKey }] });
+    const pins = pinsBySection(
+      [
+        onSection('nil', 'medium', 'statement:officer'),
+        onSection('vehicle', 'high', 'statement:officer'),
+        // A reference without a section key is the person's statement.
+        onSection('pin', 'low', null),
+        onSection('supplier', 'high', 'other'),
+        onSection('reviewed', 'high', 'other'),
+        // On an item: the item's pin, not the section's.
+        flag({ id: 'plot', itemRefs: [{ personKey: 'officer', itemId: PLOT, sectionKey: null }] }),
+      ].map((each) => (each.id === 'reviewed' ? { ...each, reviewed } : each)),
+    );
+
+    expect(pins.get('statement:officer')).toEqual({
+      count: 3,
+      severity: 'high',
+      flagId: 'vehicle',
+    });
+    expect(pins.get('other')).toEqual({ count: 1, severity: 'high', flagId: 'supplier' });
+    expect(pins.size).toBe(2);
   });
 });

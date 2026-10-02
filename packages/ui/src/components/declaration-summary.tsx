@@ -181,6 +181,11 @@ export type DeclarationSummaryProps = Omit<ComponentProps<'div'>, 'children'> & 
   highlight?: string | null;
   /** Under an item's tags, e.g. a button to the indicators on it. */
   itemExtras?: (context: DeclarationItemContext) => ReactNode;
+  /**
+   * At the end of a section's heading, by the section key `highlight` takes (`bio`, `household`,
+   * `statement:<personKey>`, `other`), e.g. a button to the indicators on the section as a whole.
+   */
+  sectionExtras?: (sectionKey: string) => ReactNode;
   /** Downloads an attachment; without it, attachments are listed by name only. */
   onAttachment?: (attachment: Attachment) => void;
   /** Where each attachment's download stands, by upload id. */
@@ -227,6 +232,7 @@ function Section({
   number,
   title,
   aside,
+  extras,
   highlighted,
   children,
 }: {
@@ -234,6 +240,8 @@ function Section({
   number?: string;
   title?: ReactNode;
   aside?: ReactNode;
+  /** At the end of the heading line (`sectionExtras`). */
+  extras?: ReactNode;
   highlighted?: boolean;
   children: ReactNode;
 }) {
@@ -256,6 +264,9 @@ function Section({
           {title}
           {aside ? (
             <span className="text-[13px] font-normal text-muted-foreground">{aside}</span>
+          ) : null}
+          {extras ? (
+            <span className="ml-auto text-sm font-normal tracking-normal">{extras}</span>
           ) : null}
         </h3>
       ) : null}
@@ -355,8 +366,7 @@ function ItemRow({
       data-highlighted={highlighted || undefined}
       className={cn(
         'grid scroll-mt-32 grid-cols-[32px_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-t border-border/60 px-3.5 py-2.5 transition-colors first:border-t-0',
-        highlighted &&
-          'bg-brand-faint shadow-highlight motion-safe:animate-highlight',
+        highlighted && 'bg-brand-faint shadow-highlight motion-safe:animate-highlight',
       )}
     >
       <span className="grid size-8 place-items-center rounded-tile bg-muted text-secondary-foreground">
@@ -408,13 +418,14 @@ function StatementCard({
   statement: Statement;
   name: string;
   props: Required<Pick<DeclarationSummaryProps, 'anchorPrefix' | 'attachmentState'>> &
-    Pick<DeclarationSummaryProps, 'highlight' | 'itemExtras' | 'onAttachment'>;
+    Pick<DeclarationSummaryProps, 'highlight' | 'itemExtras' | 'sectionExtras' | 'onAttachment'>;
   labels: DeclarationLabels;
   messages: DeclarationSummaryMessages;
 }) {
   const kind = personKind(statement.personKey);
   const sectionKey = `statement:${statement.personKey}`;
   const highlighted = props.highlight === sectionKey;
+  const extras = props.sectionExtras?.(sectionKey);
   const nil = {
     income: statement.incomeNil,
     assets: statement.assetsNil,
@@ -435,6 +446,7 @@ function StatementCard({
           <h4 className="text-[14.5px] font-semibold">{name}</h4>
           <div className="text-[13px] text-muted-foreground">{messages.relation[kind]}</div>
         </div>
+        {extras ? <div className="ml-auto shrink-0">{extras}</div> : null}
       </div>
       {statement.knowledgeLimitation?.trim() ? (
         <p className="border-b px-3.5 py-2.5 text-[13px] text-secondary-foreground">
@@ -654,13 +666,15 @@ function TotalsTable({
  * statement (8) with income, assets and liabilities, other information (9), the attachments and
  * the solemn declaration. Items and sections carry anchors (`anchorIdFor`) so a reviewer can be
  * sent to one and see it highlighted; `itemExtras` adds controls to an item, e.g. the indicators
- * pinned to it. Lay it inside a card; it brings its own section padding and hairlines.
+ * pinned to it, and `sectionExtras` to a section's heading. Lay it inside a card; it brings its
+ * own section padding and hairlines.
  */
 export function DeclarationSummary({
   document,
   version,
   highlight = null,
   itemExtras,
+  sectionExtras,
   onAttachment,
   attachmentState = () => 'idle',
   anchorPrefix = 'declaration',
@@ -688,7 +702,14 @@ export function DeclarationSummary({
   const employment = officer.employment;
   const grand = householdTotals(statements);
   const attachments = declarationAttachments(document);
-  const shared = { anchorPrefix, attachmentState, highlight, itemExtras, onAttachment };
+  const shared = {
+    anchorPrefix,
+    attachmentState,
+    highlight,
+    itemExtras,
+    sectionExtras,
+    onAttachment,
+  };
 
   const personal: [string, ReactNode][] = [
     [messages.fields.surname, officer.name.surname],
@@ -755,6 +776,7 @@ export function DeclarationSummary({
         id={sectionAnchorId('bio', anchorPrefix)}
         number="1-5"
         title={messages.personal}
+        extras={sectionExtras?.('bio')}
         highlighted={highlight === 'bio'}
       >
         <Fields rows={personal} />
@@ -768,7 +790,7 @@ export function DeclarationSummary({
           highlight === 'household' && 'bg-brand-faint motion-safe:animate-highlight',
         )}
       >
-        <Section number="6" title={messages.spouses}>
+        <Section number="6" title={messages.spouses} extras={sectionExtras?.('household')}>
           {document.spouses.items.length > 0 ? (
             <ul className="grid gap-2.5">
               {document.spouses.items.map((spouse) => (
@@ -823,6 +845,7 @@ export function DeclarationSummary({
         id={sectionAnchorId('other', anchorPrefix)}
         number="9"
         title={messages.other}
+        extras={sectionExtras?.('other')}
         highlighted={highlight === 'other'}
       >
         <OtherInformation document={document} names={names} labels={labels} messages={messages} />

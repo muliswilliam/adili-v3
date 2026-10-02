@@ -247,16 +247,33 @@ export interface ItemPin {
 
 /** Open flags on each item, for the pins in the declaration pane. */
 export function pinsByItem(flags: readonly Flag[]): Map<string, ItemPin> {
+  return pinsBy(flags, (ref) => (ref.itemId ? [ref.itemId] : []));
+}
+
+/**
+ * Open flags on a section as a whole (a reference with no item: a category declared nil, a
+ * registry record no item declares), by the section key the declaration pane anchors, for the
+ * pins on its section headings.
+ */
+export function pinsBySection(flags: readonly Flag[]): Map<string, ItemPin> {
+  return pinsBy(flags, (ref) =>
+    ref.itemId ? [] : [ref.sectionKey ?? `statement:${ref.personKey}`],
+  );
+}
+
+function pinsBy(
+  flags: readonly Flag[],
+  keysOf: (ref: Flag['itemRefs'][number]) => string[],
+): Map<string, ItemPin> {
   const pins = new Map<string, ItemPin>();
   const ordered = [...flags.filter(isOpen)].sort(
     (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
   );
   for (const flag of ordered) {
-    const items = new Set(flag.itemRefs.flatMap((ref) => (ref.itemId ? [ref.itemId] : [])));
-    for (const itemId of items) {
-      const pin = pins.get(itemId);
+    for (const key of new Set(flag.itemRefs.flatMap(keysOf))) {
+      const pin = pins.get(key);
       if (pin) pin.count += 1;
-      else pins.set(itemId, { count: 1, severity: flag.severity, flagId: flag.id });
+      else pins.set(key, { count: 1, severity: flag.severity, flagId: flag.id });
     }
   }
   return pins;

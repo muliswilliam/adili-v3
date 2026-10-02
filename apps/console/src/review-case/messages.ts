@@ -85,6 +85,8 @@ export const CASE_COPY = {
     unavailableBody: 'Flags, notes and clarifications are still available.',
     downloadFailed: 'The document could not be downloaded. Try again.',
     pinned: (count: number) => plural(count, 'indicator'),
+    sectionPinnedLabel: (count: number, severity: Severity) =>
+      `${plural(count, 'indicator')} on this section, highest ${SEVERITY_LABELS[severity].toLowerCase()}. Show in flags.`,
     pinnedLabel: (count: number, severity: Severity) =>
       `${plural(count, 'indicator')} on this item, highest ${SEVERITY_LABELS[severity].toLowerCase()}. Show in flags.`,
   },
