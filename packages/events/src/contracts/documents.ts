@@ -21,6 +21,9 @@ export const DOCUMENT_TYPES = [
   'access-package',
   'access-nil-letter',
   'certified-copy',
+  'form-m',
+  'compliance-report-receipt',
+  'ncr',
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
@@ -66,6 +69,18 @@ export const ACCESS_NIL_LETTER = 'access-nil-letter' satisfies DocumentType;
 
 /** A declarant's certified copy of one of their submitted versions (spec 10): restricted. */
 export const CERTIFIED_COPY = 'certified-copy' satisfies DocumentType;
+
+/** A Commission's compliance report to EACC as filed (spec 09, Regs r.25(2)): restricted. */
+export const FORM_M = 'form-m' satisfies DocumentType;
+
+/**
+ * The signed acknowledgement that EACC received a Commission's compliance report (spec 09): its
+ * reference, the SHA-256 of the report as received and when. Restricted.
+ */
+export const COMPLIANCE_REPORT_RECEIPT = 'compliance-report-receipt' satisfies DocumentType;
+
+/** EACC's national consolidated report of the year's compliance reports (spec 09): restricted. */
+export const NATIONAL_CONSOLIDATED_REPORT = 'ncr' satisfies DocumentType;
 
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;

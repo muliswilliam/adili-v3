@@ -351,7 +351,7 @@ paths:
       tags:
         - documents
       summary: Metadata of an issued document (owner)
-      description: The person the document is about, or staff of the issuing Commission named among the document's additional downloaders; anyone else gets 404.
+      description: The person the document is about, staff of the issuing Commission named among the document's additional downloaders, or for a referral package an EACC analyst or supervisor (a token of the EACC tenant); anyone else gets 404.
       operationId: getDocument
       parameters:
         - name: documentId
@@ -378,7 +378,7 @@ paths:
       tags:
         - documents
       summary: Short-lived presigned download of an issued PDF (owner)
-      description: The document's subject person (the `person_id` of their token), or an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
+      description: The document's subject person (the `person_id` of their token), an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role), or for a referral package any Commission sent EACC an EACC analyst or supervisor (a token of the EACC tenant; no other document is theirs to download, spec 09); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
       operationId: getDocumentDownload
       parameters:
         - name: documentId
@@ -414,7 +414,7 @@ paths:
       tags:
         - internal
       summary: Render, sign and register a document (services)
-      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. One document per type and subject: issuing again returns it with 200."
+      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. The reporting service's documents carry their payload and have no subject person: a form-m the submitted form-m.v1 document with its RPT reference, a compliance-report-receipt the report's reference, SHA-256 and time of receipt, an ncr (issued for the EACC tenant) the approved national consolidated report's aggregates and narrative. One document per type and subject: issuing again returns it with 200."
       operationId: issueDocument
       parameters:
         - name: X-Acting-Tenant
@@ -888,6 +888,9 @@ components:
         - access-package
         - access-nil-letter
         - certified-copy
+        - form-m
+        - compliance-report-receipt
+        - ncr
       description: Document types with a template; later specs add theirs
     DisclosureLevel:
       type: string
@@ -922,7 +925,7 @@ components:
             - type: string
               format: uuid
             - type: 'null'
-          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package'
+          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr'
         watermark:
           $ref: '#/components/schemas/Watermark'
         downloadWindowDays:
@@ -948,6 +951,9 @@ components:
             - $ref: '#/components/schemas/AccessPackagePayload'
             - $ref: '#/components/schemas/AccessNilLetterPayload'
             - $ref: '#/components/schemas/CertifiedCopyPayload'
+            - $ref: '#/components/schemas/FormMPayload'
+            - $ref: '#/components/schemas/ComplianceReportReceiptPayload'
+            - $ref: '#/components/schemas/NcrPayload'
           description: "The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`)"
       required:
         - type
@@ -1529,6 +1535,681 @@ components:
         - submittedAt
         - document
       description: "Payload of certified-copy v1: the declarations service's full document of a submitted version (FullVersionDocument without its identifiers and hash)"
+    FormMPayload:
+      type: object
+      properties:
+        schemaVersion:
+          type: string
+          const: form-m.v1
+        partI:
+          type: object
+          properties:
+            commissionName:
+              type: string
+              minLength: 1
+              maxLength: 200
+            issuerCode:
+              type: string
+              pattern: ^[A-Z0-9]{2,20}$
+            contactDetails:
+              type: string
+              maxLength: 200
+            physicalAddress:
+              type: string
+              maxLength: 200
+            emailAddress:
+              type: string
+              format: email
+            period:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date
+                to:
+                  type: string
+                  format: date
+                financialYearStart:
+                  type: integer
+                  minimum: 2025
+              required:
+                - from
+                - to
+                - financialYearStart
+              additionalProperties: false
+          required:
+            - commissionName
+            - issuerCode
+            - contactDetails
+            - physicalAddress
+            - emailAddress
+            - period
+          additionalProperties: false
+        partII:
+          type: object
+          properties:
+            initial:
+              $ref: '#/components/schemas/FormMDeclarationSection'
+            biennial:
+              allOf:
+                - $ref: '#/components/schemas/FormMDeclarationSection'
+                - type: object
+                  properties:
+                    noCycleInPeriod:
+                      type: boolean
+                  additionalProperties: false
+            final:
+              $ref: '#/components/schemas/FormMDeclarationSection'
+            clarifications:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      natureInGeneralTerms:
+                        type: string
+                        maxLength: 300
+                      statusOfCompliance:
+                        type: string
+                        enum:
+                          - responded
+                          - resolved
+                          - pending
+                          - overdue
+                          - withdrawn
+                      clarificationReference:
+                        type: string
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - natureInGeneralTerms
+                      - statusOfCompliance
+                    additionalProperties: false
+              required:
+                - items
+              additionalProperties: false
+            accessRequests:
+              type: object
+              properties:
+                received:
+                  type: integer
+                  minimum: 0
+                granted:
+                  type: integer
+                  minimum: 0
+                declined:
+                  type: integer
+                  minimum: 0
+                declineReasons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      reason:
+                        type: string
+                        enum:
+                          - public-interest
+                          - prejudice-proceeding
+                          - frivolous-vexatious
+                          - not-objectives
+                          - other
+                      count:
+                        type: integer
+                        minimum: 0
+                    required:
+                      - reason
+                      - count
+                    additionalProperties: false
+                dataUnavailable:
+                  type: boolean
+              required:
+                - received
+                - granted
+                - declined
+                - declineReasons
+                - dataUnavailable
+              additionalProperties: false
+            complaints:
+              type: object
+              properties:
+                registerMaintained:
+                  type:
+                    - boolean
+                    - 'null'
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      nature:
+                        type: string
+                        maxLength: 300
+                      status:
+                        type: string
+                        maxLength: 100
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - nature
+                      - status
+                    additionalProperties: false
+              required:
+                - registerMaintained
+                - items
+              additionalProperties: false
+          required:
+            - initial
+            - biennial
+            - final
+            - clarifications
+            - accessRequests
+            - complaints
+          additionalProperties: false
+        partIII:
+          type: object
+          properties:
+            compiledBy:
+              $ref: '#/components/schemas/FormMSignatory'
+            confirmedBy:
+              $ref: '#/components/schemas/FormMSignatory'
+          required:
+            - compiledBy
+            - confirmedBy
+          additionalProperties: false
+        meta:
+          type: object
+          properties:
+            compiledAt:
+              type: string
+              format: date-time
+            reference:
+              type: string
+            source:
+              type: string
+              enum:
+                - hosted
+                - federated
+          required:
+            - reference
+          additionalProperties: false
+      required:
+        - schemaVersion
+        - partI
+        - partII
+        - partIII
+        - meta
+      additionalProperties: false
+      description: 'Payload of form-m v1: the submitted `form-m.v1` document as filed (FormMV1), with its RPT reference in `meta.reference`. Sent by the reporting service; the template prints every part of the prescribed form'
+    ComplianceReportReceiptPayload:
+      type: object
+      properties:
+        reference:
+          type: string
+        sha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        submittedAt:
+          type: string
+          format: date-time
+        commissionName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuerCode:
+          type: string
+          pattern: ^[A-Z0-9]{2,20}$
+        financialYear:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        late:
+          type: boolean
+        source:
+          type: string
+          enum:
+            - hosted
+            - federated
+      required:
+        - reference
+        - sha256
+        - submittedAt
+        - commissionName
+        - issuerCode
+        - financialYear
+        - dueDate
+        - late
+        - source
+      additionalProperties: false
+      description: "Payload of compliance-report-receipt v1: the submitted report's RPT reference, the SHA-256 of its form-m.v1 document as received, the time of receipt, the Commission and the financial year with its due date and whether the report was late. Sent by the reporting service"
+    NcrPayload:
+      type: object
+      properties:
+        reference:
+          type: string
+        financialYear:
+          type: string
+          pattern: ^\d{4}\/\d{4}$
+        builtAt:
+          type: string
+          format: date-time
+        reportsIncluded:
+          type: integer
+          minimum: 0
+        aggregates:
+          type: object
+          properties:
+            reporting:
+              type: object
+              properties:
+                commissions:
+                  type: integer
+                  minimum: 0
+                reported:
+                  type: integer
+                  minimum: 0
+                onTime:
+                  type: integer
+                  minimum: 0
+                late:
+                  type: integer
+                  minimum: 0
+                notReported:
+                  type: integer
+                  minimum: 0
+                rate:
+                  anyOf:
+                    - type: number
+                      minimum: 0
+                      maximum: 1
+                    - type: 'null'
+              required:
+                - commissions
+                - reported
+                - onTime
+                - late
+                - notReported
+                - rate
+            national:
+              type: object
+              properties:
+                initial:
+                  type: object
+                  properties:
+                    expected:
+                      type: integer
+                      minimum: 0
+                    declared:
+                      type: integer
+                      minimum: 0
+                    notDeclared:
+                      type: integer
+                      minimum: 0
+                    rate:
+                      anyOf:
+                        - type: number
+                          minimum: 0
+                          maximum: 1
+                        - type: 'null'
+                  required:
+                    - expected
+                    - declared
+                    - notDeclared
+                    - rate
+                biennial:
+                  type: object
+                  properties:
+                    expected:
+                      type: integer
+                      minimum: 0
+                    declared:
+                      type: integer
+                      minimum: 0
+                    notDeclared:
+                      type: integer
+                      minimum: 0
+                    rate:
+                      anyOf:
+                        - type: number
+                          minimum: 0
+                          maximum: 1
+                        - type: 'null'
+                  required:
+                    - expected
+                    - declared
+                    - notDeclared
+                    - rate
+                final:
+                  type: object
+                  properties:
+                    expected:
+                      type: integer
+                      minimum: 0
+                    declared:
+                      type: integer
+                      minimum: 0
+                    notDeclared:
+                      type: integer
+                      minimum: 0
+                    rate:
+                      anyOf:
+                        - type: number
+                          minimum: 0
+                          maximum: 1
+                        - type: 'null'
+                  required:
+                    - expected
+                    - declared
+                    - notDeclared
+                    - rate
+                all:
+                  type: object
+                  properties:
+                    expected:
+                      type: integer
+                      minimum: 0
+                    declared:
+                      type: integer
+                      minimum: 0
+                    notDeclared:
+                      type: integer
+                      minimum: 0
+                    rate:
+                      anyOf:
+                        - type: number
+                          minimum: 0
+                          maximum: 1
+                        - type: 'null'
+                  required:
+                    - expected
+                    - declared
+                    - notDeclared
+                    - rate
+                clarifications:
+                  type: integer
+                  minimum: 0
+                accessRequests:
+                  type: object
+                  properties:
+                    received:
+                      type: integer
+                      minimum: 0
+                    granted:
+                      type: integer
+                      minimum: 0
+                    declined:
+                      type: integer
+                      minimum: 0
+                  required:
+                    - received
+                    - granted
+                    - declined
+              required:
+                - initial
+                - biennial
+                - final
+                - all
+                - clarifications
+                - accessRequests
+            byCommission:
+              type: object
+              propertyNames:
+                type: string
+                minLength: 1
+                maxLength: 20
+              additionalProperties:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    minLength: 1
+                    maxLength: 200
+                  status:
+                    type: string
+                    enum:
+                      - not-reported
+                      - submitted-on-time
+                      - submitted-late
+                  reference:
+                    anyOf:
+                      - type: string
+                        maxLength: 60
+                      - type: 'null'
+                  submittedAt:
+                    anyOf:
+                      - type: string
+                        format: date-time
+                      - type: 'null'
+                  initial:
+                    anyOf:
+                      - type: object
+                        properties:
+                          expected:
+                            type: integer
+                            minimum: 0
+                          declared:
+                            type: integer
+                            minimum: 0
+                          notDeclared:
+                            type: integer
+                            minimum: 0
+                          rate:
+                            anyOf:
+                              - type: number
+                                minimum: 0
+                                maximum: 1
+                              - type: 'null'
+                        required:
+                          - expected
+                          - declared
+                          - notDeclared
+                          - rate
+                      - type: 'null'
+                  biennial:
+                    anyOf:
+                      - type: object
+                        properties:
+                          expected:
+                            type: integer
+                            minimum: 0
+                          declared:
+                            type: integer
+                            minimum: 0
+                          notDeclared:
+                            type: integer
+                            minimum: 0
+                          rate:
+                            anyOf:
+                              - type: number
+                                minimum: 0
+                                maximum: 1
+                              - type: 'null'
+                          noCycleInPeriod:
+                            type: boolean
+                        required:
+                          - expected
+                          - declared
+                          - notDeclared
+                          - rate
+                          - noCycleInPeriod
+                      - type: 'null'
+                  final:
+                    anyOf:
+                      - type: object
+                        properties:
+                          expected:
+                            type: integer
+                            minimum: 0
+                          declared:
+                            type: integer
+                            minimum: 0
+                          notDeclared:
+                            type: integer
+                            minimum: 0
+                          rate:
+                            anyOf:
+                              - type: number
+                                minimum: 0
+                                maximum: 1
+                              - type: 'null'
+                        required:
+                          - expected
+                          - declared
+                          - notDeclared
+                          - rate
+                      - type: 'null'
+                required:
+                  - name
+                  - status
+                  - reference
+                  - submittedAt
+                  - initial
+                  - biennial
+                  - final
+          required:
+            - reporting
+            - national
+            - byCommission
+        narrative:
+          type: object
+          properties:
+            overview:
+              type: string
+              maxLength: 20000
+            findings:
+              type: string
+              maxLength: 20000
+            recommendations:
+              type: string
+              maxLength: 20000
+          required:
+            - overview
+            - findings
+            - recommendations
+        author:
+          type: string
+          minLength: 1
+          maxLength: 200
+        approver:
+          type: string
+          minLength: 1
+          maxLength: 200
+        approvedAt:
+          type: string
+          format: date-time
+      required:
+        - reference
+        - financialYear
+        - builtAt
+        - reportsIncluded
+        - aggregates
+        - narrative
+        - author
+        - approver
+        - approvedAt
+      description: "Payload of ncr v1: the approved national consolidated report's NCR reference, financial year, build time and reports included, the aggregates reporting built (`reporting`, `national` and `byCommission`; counts and rates only), the narrative sections, the author and the approver. Sent by the reporting service"
+    FormMDeclarationSection:
+      type: object
+      properties:
+        expected:
+          type: integer
+          minimum: 0
+        declared:
+          type: integer
+          minimum: 0
+        notDeclared:
+          type: integer
+          minimum: 0
+        nonFilers:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              designation:
+                type: string
+              identifier:
+                type: string
+              date:
+                type: string
+                format: date
+              actionTaken:
+                type: string
+                enum:
+                  - none
+                  - notice-to-comply
+                  - warning
+                  - salary-stoppage
+                  - disciplinary-referral
+                  - referred-to-eacc
+              complied:
+                type: string
+                enum:
+                  - yes
+                  - no
+                  - pending
+              remarks:
+                type: string
+                maxLength: 500
+              obligationId:
+                type: string
+                format: uuid
+            required:
+              - name
+              - designation
+              - identifier
+              - date
+              - actionTaken
+              - complied
+            additionalProperties: false
+        noCycleInPeriod:
+          type: boolean
+      required:
+        - expected
+        - declared
+        - notDeclared
+        - nonFilers
+      additionalProperties: false
+    FormMSignatory:
+      type: object
+      properties:
+        name:
+          anyOf:
+            - type: string
+              maxLength: 200
+            - type: 'null'
+        designation:
+          anyOf:
+            - type: string
+              maxLength: 100
+            - type: 'null'
+        date:
+          anyOf:
+            - type: string
+              format: date
+            - type: 'null'
+      required:
+        - name
+        - designation
+        - date
+      additionalProperties: false
     DisclosedDeclaration:
       type: object
       properties:

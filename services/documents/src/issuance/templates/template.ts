@@ -24,9 +24,10 @@ export interface DocumentTemplate<TPayload = unknown> {
   title: string;
   /**
    * What an issue request of the type must carry besides the payload: a watermark, a download
-   * window, a subject person (someone must be able to download it). Absent means optional.
+   * window, a subject person (someone must be able to download it). Absent means optional;
+   * `subjectPerson: 'refused'` refuses one (a Commission's report belongs to no person).
    */
-  requires?: { watermark?: boolean; downloadWindow?: boolean; subjectPerson?: boolean };
+  requires?: { watermark?: boolean; downloadWindow?: boolean; subjectPerson?: boolean | 'refused' };
   /** The fields the template renders; validated before anything is rendered. */
   payload: z.ZodType<TPayload>;
   /** The reference number the document is about (a declaration's), or null when none. */

@@ -22,8 +22,8 @@ import {
   type DocumentType,
   newVerificationId,
 } from '@adili/events/contracts';
-import { ACCESS_OFFICER } from '@adili/roles';
-import { and, arrayContains, eq } from 'drizzle-orm';
+import { ACCESS_OFFICER, EACC_TENANT } from '@adili/roles';
+import { and, arrayContains, eq, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
@@ -36,7 +36,7 @@ import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner, type SignedRecord } from './record-signer.js';
 import { PdfRenderer } from './renderer.js';
-import { type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
+import { eaccReadableTypes, type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
 import type { DocumentDownload, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
 import { footerDocument, type Watermark, watermarked } from './templates/page.js';
@@ -599,9 +599,12 @@ export class IssuanceService {
 
   /**
    * The document when the caller is its subject person (read under the person policy across
-   * Commissions) or, failing that, an access officer of the issuing Commission named among its
-   * additional downloaders (read in their own tenant's context): one who is no longer an access
-   * officer there downloads it no more. Anyone else gets the same 404.
+   * Commissions), an access officer of the issuing Commission named among its additional
+   * downloaders (read in their own tenant's context): one who is no longer an access officer
+   * there downloads it no more, or an EACC analyst or supervisor and the document is of a type
+   * EACC reads from every Commission (a referral package, pulled-payloads.ts `eaccReaders`; read
+   * in EACC's context, which the database admits to those types only). Anyone else gets the
+   * same 404.
    */
   private async owned(
     { personId, subject, tenant, roles }: Downloader,
@@ -613,6 +616,17 @@ export class IssuanceService {
         )
       : [];
     if (asSubjectPerson) return asSubjectPerson;
+    // An EACC officer's own documents are theirs as its subject person (above); as EACC, the
+    // types EACC reads from every Commission only.
+    const eaccTypes = tenant === EACC_TENANT ? eaccReadableTypes(roles) : [];
+    if (eaccTypes.length > 0) {
+      const [asEacc] = await withTenant(this.db, { tenant: EACC_TENANT, subject }, (tx) =>
+        withRecord(tx).where(
+          and(eq(issuedDocuments.id, id), inArray(issuedDocuments.type, eaccTypes)),
+        ),
+      );
+      return notFoundIfInvisible(asEacc);
+    }
     const [asDownloader] =
       tenant && roles.includes(ACCESS_OFFICER)
         ? await withTenant(this.db, { tenant, subject }, (tx) =>
@@ -726,7 +740,15 @@ function missingRequirements(
   const missing: { path: string; message: string }[] = [];
   const required = (path: string) =>
     missing.push({ path, message: `Required for ${template.type} documents` });
-  if (requires.subjectPerson && request.subjectPersonId === null) required('subjectPersonId');
+  if (requires.subjectPerson === true && request.subjectPersonId === null) {
+    required('subjectPersonId');
+  }
+  if (requires.subjectPerson === 'refused' && request.subjectPersonId !== null) {
+    missing.push({
+      path: 'subjectPersonId',
+      message: `Must be null: no person downloads a ${template.type} as its subject`,
+    });
+  }
   if (requires.watermark && !request.watermark) required('watermark');
   if (requires.downloadWindow && request.downloadWindowDays === undefined) {
     required('downloadWindowDays');

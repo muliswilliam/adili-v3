@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { accessTemplates } from './access-templates.js';
 import { determinationTemplates } from './determination-templates.js';
+import { formMTemplates } from './form-m-templates.js';
 import {
   CHANNELS,
   type Channel,
@@ -246,10 +247,10 @@ function clarificationReminderEmail(params: ClarificationReminderParams): Render
 /**
  * Every message the service can send, by template id. Params are validated before rendering.
  *
- * Later specs add theirs here, which widens the contract's `TemplateId` enum: 09 Form M (draft
- * ready, reminder, chase, receipt). Spec 08's decision, notice and salary templates are in
- * determination-templates.ts; spec 10's access templates, the Form K acknowledgement among them,
- * in access-templates.ts.
+ * Later specs add theirs here, which widens the contract's `TemplateId` enum. Spec 08's decision,
+ * notice and salary templates are in determination-templates.ts; spec 09's Form M templates
+ * (draft ready, reminder, receipt, chase) in form-m-templates.ts; spec 10's access templates, the
+ * Form K acknowledgement among them, in access-templates.ts.
  */
 export const templates = {
   'onboarding-otp-email': define({
@@ -365,6 +366,7 @@ export const templates = {
   }),
   ...determinationTemplates,
   ...accessTemplates,
+  ...formMTemplates,
 } as const;
 
 export type TemplateId = keyof typeof templates;

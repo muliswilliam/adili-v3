@@ -11,6 +11,9 @@ import { accessNilLetterPayload } from './templates/access-nil-letter.v1.js';
 import { accessPackagePayload } from './templates/access-package.v1.js';
 import { acknowledgementSlipPayload } from './templates/acknowledgement-slip.v1.js';
 import { certifiedCopyPayload } from './templates/certified-copy.v1.js';
+import { complianceReportReceiptPayload } from './templates/compliance-report-receipt.v1.js';
+import { formMPayload } from './templates/form-m.v1.js';
+import { ncrPayload } from './templates/ncr.v1.js';
 
 /**
  * Request and response shapes of the issuance API, mirroring
@@ -58,7 +61,7 @@ export const issueDocumentBody = z.object({
     }),
   subjectPersonId: z.uuid().nullable().meta({
     description:
-      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package',
+      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr',
   }),
   watermark: watermarkSchema.optional(),
   downloadWindowDays: z.int().min(1).max(MAX_DOWNLOAD_WINDOW_DAYS).optional().meta({
@@ -90,6 +93,9 @@ export const issueDocumentBody = z.object({
       accessPackagePayload,
       accessNilLetterPayload,
       certifiedCopyPayload,
+      formMPayload,
+      complianceReportReceiptPayload,
+      ncrPayload,
     ])
     .meta({
       description:

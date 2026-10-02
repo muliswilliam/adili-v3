@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -822,6 +824,60 @@ describe('internal messages API', () => {
         expect(response.json()).toMatchObject({ errors: [{ path: 'params.step' }] });
         expect(directory.lookups).toHaveLength(0);
       });
+    });
+  });
+
+  describe('Form M emails to Commission staff (spec 09)', () => {
+    /** The params the reporting service sends each template, to a staff member's address. */
+    const PARAMS: Record<string, Record<string, string | number>> = {
+      'form-m-draft-ready-email': { financialYear: '2027/2028', dueDate: '2028-07-31' },
+      'form-m-reminder-email': { financialYear: '2027/2028', dueDate: '2028-07-31', daysLeft: 14 },
+      'form-m-receipt-email': {
+        financialYear: '2027/2028',
+        reference: 'RPT-PSC-2028-0000001-O',
+        submittedOn: '2028-07-15',
+        late: 'no',
+      },
+      'form-m-chase-email': { financialYear: '2027/2028', dueDate: '2028-07-31', round: 1 },
+    };
+    /** As reporting's notifications client sends it: an address, English, the Commission. */
+    const message = (template: string) => ({
+      channel: 'email',
+      recipient: { kind: 'address', to: 'supervisor@psc.go.ke' },
+      template,
+      params: PARAMS[template],
+      locale: 'en',
+      tenant: 'psc',
+    });
+
+    it.each(Object.keys(PARAMS))(
+      'emails %s to the staff address, with no report attached',
+      async (template) => {
+        const response = await send(message(template), {
+          ...auth,
+          'idempotency-key': randomUUID(),
+        });
+
+        expect(response.statusCode, response.body).toBe(201);
+        expect(response.json()).toMatchObject({ template, status: 'sent' });
+        expect(email.sent).toHaveLength(1);
+        expect(email.sent[0]?.to).toBe('supervisor@psc.go.ke');
+        expect(email.sent[0]?.subject).toContain('Form M');
+        expect(email.sent[0]?.text).toContain('2027/2028');
+        expect(Object.keys(email.sent[0] ?? {}).sort()).toEqual(['html', 'subject', 'text', 'to']);
+        expect(directory.lookups).toHaveLength(0);
+      },
+    );
+
+    it('rejects a reminder whose due date is not 31 July after the year', async () => {
+      const response = await send({
+        ...message('form-m-reminder-email'),
+        params: { ...PARAMS['form-m-reminder-email'], dueDate: '2028-06-30' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ errors: [{ path: 'params.dueDate' }] });
+      expect(email.sent).toHaveLength(0);
     });
   });
 });

@@ -8,6 +8,7 @@ import {
   SALARY_STOPPAGE,
   WARNING,
 } from '@adili/events/contracts';
+import { EACC_ROLES } from '@adili/roles';
 import { z } from 'zod';
 
 import type { ReviewRecord } from '../review/review-client.js';
@@ -35,6 +36,12 @@ export interface PulledPayload {
    * the declarant is never told of).
    */
   owner: 'declarant' | 'declarant-if-onboarded' | 'nobody';
+  /**
+   * EACC roles who may download a document of the type issued by any Commission, with a token of
+   * the EACC tenant (spec 09: the referral packages Commissions send EACC). None: nobody at EACC.
+   * The database admits the EACC tenant to these types only (issued_documents_eacc_read).
+   */
+  eaccReaders?: readonly string[];
 }
 
 function source(idField: string, description: string): z.ZodType<Record<string, string>> {
@@ -91,8 +98,19 @@ const PULLED: Partial<Record<DocumentType, PulledPayload>> = {
     source: referralPackageSource,
     subjectRef: (id) => `referral:${id}`,
     owner: 'nobody',
+    eaccReaders: EACC_ROLES,
   },
 };
+
+/**
+ * The document types an EACC account holding `roles` may download from any Commission: those
+ * whose `eaccReaders` include one of its roles.
+ */
+export function eaccReadableTypes(roles: readonly string[]): DocumentType[] {
+  return (Object.keys(PULLED) as DocumentType[]).filter((type) =>
+    PULLED[type]?.eaccReaders?.some((role) => roles.includes(role)),
+  );
+}
 
 /** How a document of `type` gets its fields, or undefined when the request carries them. */
 export function pulledPayloadOf(type: DocumentType): PulledPayload | undefined {

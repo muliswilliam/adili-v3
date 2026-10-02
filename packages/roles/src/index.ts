@@ -29,6 +29,9 @@ export const EACC_ANALYST = 'eacc-analyst';
 /** EACC supervisor: national oversight. */
 export const EACC_SUPERVISOR = 'eacc-supervisor';
 
+/** The tenant key of every EACC account (the `tenant` claim): national oversight, no Commission. */
+export const EACC_TENANT = 'eacc';
+
 /** Investigates the audit trail across the platform. */
 export const AUDITOR = 'auditor';
 

@@ -86,9 +86,12 @@ export function portalLink(url: string): string {
   return `<a href="${esc(url)}"><b>${esc(new URL(url).host)}</b></a>`;
 }
 
-/** How to check the letter, and what the check shows of a Restricted letter. */
-export function restrictedVerifyNote(verificationId: string): string {
-  return `<p class="fine">Check that this letter is genuine: scan the QR code at the foot of any page, or enter <span class="mono nw">${esc(verificationId)}</span> on the Adili Online verify page. The check shows only the reference, type, Commission and date.</p>`;
+/**
+ * How to check the letter (or the document `what` names, e.g. `receipt`), and what the check shows
+ * of a Restricted document.
+ */
+export function restrictedVerifyNote(verificationId: string, what = 'letter'): string {
+  return `<p class="fine">Check that this ${esc(what)} is genuine: scan the QR code at the foot of any page, or enter <span class="mono nw">${esc(verificationId)}</span> on the Adili Online verify page. The check shows only the reference, type, Commission and date.</p>`;
 }
 
 /** The closing: the Commission's name and the note of the digital signature. */

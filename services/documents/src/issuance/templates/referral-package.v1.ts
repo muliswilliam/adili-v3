@@ -15,7 +15,9 @@ import {
   letterhead,
   LINE,
   MUTED,
+  RULED_TABLE_STYLES,
   signatureNote,
+  twoLineHash,
   verificationPanel,
 } from './page.js';
 import {
@@ -193,7 +195,7 @@ export const referralPackagePayload = z
 
 export type ReferralPackagePayload = z.infer<typeof referralPackagePayload>;
 
-const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYLES}
+const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYLES}${RULED_TABLE_STYLES}
 .cpill{flex:none;padding:1.2mm 3.2mm;border-radius:999px;background:#c9291e;color:#fff;font-weight:700;font-size:8.2pt;letter-spacing:0.08em}
 .doc-h{margin:5mm 0 4mm}
 .to{margin:3mm 0;line-height:1.45}
@@ -204,13 +206,6 @@ const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYL
 .conf{margin:4mm 0;padding:3mm 4mm;border:0.3mm solid #f1c2be;border-left:1.2mm solid #c9291e;border-radius:1mm;font-size:8.4pt;color:#5c1510;break-inside:avoid}
 .part{break-before:page}
 .part h2.ph{font-size:13pt;font-weight:700;margin:0 0 3mm}
-.ft{width:100%;border-collapse:collapse;font-size:7.8pt;line-height:1.35;margin:1mm 0 3mm}
-.ft th,.ft td{border:0.25mm solid #a8a6a1;padding:1.3mm 1.6mm;text-align:left;vertical-align:top}
-.ft th{background:#f1f0ed;font-weight:600}
-.ft tr{break-inside:avoid}
-.ft .n{width:7mm;text-align:center}
-.ft .sub{color:${MUTED};display:block}
-.hashc{font-family:'DejaVu Sans Mono','Liberation Mono',monospace;font-size:6.6pt;line-height:1.35;word-break:break-all}
 .card{border:0.25mm solid ${LINE};border-radius:1.6mm;padding:3mm 4mm;margin:0 0 3mm;break-inside:avoid}
 .card .h{font-weight:700}
 .card .s{color:${MUTED};font-size:8pt}
@@ -221,16 +216,11 @@ const STYLES = `${LETTERHEAD_STYLES}${CONTENT_STYLES}${DECLARATION_DOCUMENT_STYL
 .version .vh{display:flex;justify-content:space-between;gap:4mm;padding-bottom:2mm;border-bottom:0.35mm solid #1a1a1a}
 .version .vh .t{font-size:12pt;font-weight:700}`;
 
-/** A hash in two lines, so it fits a table column. */
-function hash(sha256: string): string {
-  return `<span class="hashc">${sha256.slice(0, 32)}<br />${sha256.slice(32)}</span>`;
-}
-
 function manifestTable(manifest: ReferralPackagePayload['manifest']): string {
   const rows = manifest
     .map(
       (item, index) =>
-        `<tr><td class="n">${index + 1}</td><td>${esc(KIND_NAMES[item.kind])}${item.documentId ? `<span class="sub mono">${esc(item.documentId)}</span>` : ''}</td><td class="mono">${esc(item.reference)}</td><td>${hash(item.sha256)}</td></tr>`,
+        `<tr><td class="n">${index + 1}</td><td>${esc(KIND_NAMES[item.kind])}${item.documentId ? `<span class="sub mono">${esc(item.documentId)}</span>` : ''}</td><td class="mono">${esc(item.reference)}</td><td>${twoLineHash(item.sha256)}</td></tr>`,
     )
     .join('');
   return `<table class="ft"><thead><tr><th class="n">No</th><th>Item</th><th>Reference</th><th style="width:52mm">SHA-256</th></tr></thead><tbody>${rows}</tbody></table>`;

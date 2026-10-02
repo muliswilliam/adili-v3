@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * Metadata of an issued document (owner)
-         * @description The person the document is about, or staff of the issuing Commission named among the document's additional downloaders; anyone else gets 404.
+         * @description The person the document is about, staff of the issuing Commission named among the document's additional downloaders, or for a referral package an EACC analyst or supervisor (a token of the EACC tenant); anyone else gets 404.
          */
         get: operations["getDocument"];
         put?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned download of an issued PDF (owner)
-         * @description The document's subject person (the `person_id` of their token), or an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
+         * @description The document's subject person (the `person_id` of their token), an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role), or for a referral package any Commission sent EACC an EACC analyst or supervisor (a token of the EACC tenant; no other document is theirs to download, spec 09); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
          */
         get: operations["getDocumentDownload"];
         put?: never;
@@ -195,7 +195,7 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person. The reporting service's documents carry their payload and have no subject person: a form-m the submitted form-m.v1 document with its RPT reference, a compliance-report-receipt the report's reference, SHA-256 and time of receipt, an ncr (issued for the EACC tenant) the approved national consolidated report's aggregates and narrative. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
         delete?: never;
@@ -372,7 +372,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "access-package" | "access-nil-letter" | "certified-copy";
+        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "access-package" | "access-nil-letter" | "certified-copy" | "form-m" | "compliance-report-receipt" | "ncr";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -388,7 +388,7 @@ export interface components {
              * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
              */
             subjectRef: string;
-            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package */
+            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr */
             subjectPersonId: string | null;
             watermark?: components["schemas"]["Watermark"];
             /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
@@ -396,7 +396,7 @@ export interface components {
             /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
             additionalDownloaders?: string[];
             /** @description The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`) */
-            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["DecisionLetterSource"] | components["schemas"]["ActionLetterSource"] | components["schemas"]["ReferralPackageSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"];
+            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["DecisionLetterSource"] | components["schemas"]["ActionLetterSource"] | components["schemas"]["ReferralPackageSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"] | components["schemas"]["FormMPayload"] | components["schemas"]["ComplianceReportReceiptPayload"] | components["schemas"]["NcrPayload"];
         };
         /** @description A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
         ClarificationLetterSource: {
@@ -602,6 +602,203 @@ export interface components {
             /** Format: date-time */
             submittedAt: string;
             document: components["schemas"]["DeclarationV1"];
+        };
+        /** @description Payload of form-m v1: the submitted `form-m.v1` document as filed (FormMV1), with its RPT reference in `meta.reference`. Sent by the reporting service; the template prints every part of the prescribed form */
+        FormMPayload: {
+            /** @constant */
+            schemaVersion: "form-m.v1";
+            partI: {
+                commissionName: string;
+                issuerCode: string;
+                contactDetails: string;
+                physicalAddress: string;
+                /** Format: email */
+                emailAddress: string;
+                period: {
+                    /** Format: date */
+                    from: string;
+                    /** Format: date */
+                    to: string;
+                    financialYearStart: number;
+                };
+            };
+            partII: {
+                initial: components["schemas"]["FormMDeclarationSection"];
+                biennial: components["schemas"]["FormMDeclarationSection"] & {
+                    noCycleInPeriod?: boolean;
+                };
+                final: components["schemas"]["FormMDeclarationSection"];
+                clarifications: {
+                    items: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        natureInGeneralTerms: string;
+                        /** @enum {string} */
+                        statusOfCompliance: "responded" | "resolved" | "pending" | "overdue" | "withdrawn";
+                        clarificationReference?: string;
+                    }[];
+                };
+                accessRequests: {
+                    received: number;
+                    granted: number;
+                    declined: number;
+                    declineReasons: {
+                        /** @enum {string} */
+                        reason: "public-interest" | "prejudice-proceeding" | "frivolous-vexatious" | "not-objectives" | "other";
+                        count: number;
+                    }[];
+                    dataUnavailable: boolean;
+                };
+                complaints: {
+                    registerMaintained: boolean | null;
+                    items: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        nature: string;
+                        status: string;
+                    }[];
+                };
+            };
+            partIII: {
+                compiledBy: components["schemas"]["FormMSignatory"];
+                confirmedBy: components["schemas"]["FormMSignatory"];
+            };
+            meta: {
+                /** Format: date-time */
+                compiledAt?: string;
+                reference: string;
+                /** @enum {string} */
+                source?: "hosted" | "federated";
+            };
+        };
+        /** @description Payload of compliance-report-receipt v1: the submitted report's RPT reference, the SHA-256 of its form-m.v1 document as received, the time of receipt, the Commission and the financial year with its due date and whether the report was late. Sent by the reporting service */
+        ComplianceReportReceiptPayload: {
+            reference: string;
+            sha256: string;
+            /** Format: date-time */
+            submittedAt: string;
+            commissionName: string;
+            issuerCode: string;
+            financialYear: string;
+            /** Format: date */
+            dueDate: string;
+            late: boolean;
+            /** @enum {string} */
+            source: "hosted" | "federated";
+        };
+        /** @description Payload of ncr v1: the approved national consolidated report's NCR reference, financial year, build time and reports included, the aggregates reporting built (`reporting`, `national` and `byCommission`; counts and rates only), the narrative sections, the author and the approver. Sent by the reporting service */
+        NcrPayload: {
+            reference: string;
+            financialYear: string;
+            /** Format: date-time */
+            builtAt: string;
+            reportsIncluded: number;
+            aggregates: {
+                reporting: {
+                    commissions: number;
+                    reported: number;
+                    onTime: number;
+                    late: number;
+                    notReported: number;
+                    rate: number | null;
+                };
+                national: {
+                    initial: {
+                        expected: number;
+                        declared: number;
+                        notDeclared: number;
+                        rate: number | null;
+                    };
+                    biennial: {
+                        expected: number;
+                        declared: number;
+                        notDeclared: number;
+                        rate: number | null;
+                    };
+                    final: {
+                        expected: number;
+                        declared: number;
+                        notDeclared: number;
+                        rate: number | null;
+                    };
+                    all: {
+                        expected: number;
+                        declared: number;
+                        notDeclared: number;
+                        rate: number | null;
+                    };
+                    clarifications: number;
+                    accessRequests: {
+                        received: number;
+                        granted: number;
+                        declined: number;
+                    };
+                };
+                byCommission: {
+                    [key: string]: {
+                        name: string;
+                        /** @enum {string} */
+                        status: "not-reported" | "submitted-on-time" | "submitted-late";
+                        reference: string | null;
+                        submittedAt: string | null;
+                        initial: {
+                            expected: number;
+                            declared: number;
+                            notDeclared: number;
+                            rate: number | null;
+                        } | null;
+                        biennial: {
+                            expected: number;
+                            declared: number;
+                            notDeclared: number;
+                            rate: number | null;
+                            noCycleInPeriod: boolean;
+                        } | null;
+                        final: {
+                            expected: number;
+                            declared: number;
+                            notDeclared: number;
+                            rate: number | null;
+                        } | null;
+                    };
+                };
+            };
+            narrative: {
+                overview: string;
+                findings: string;
+                recommendations: string;
+            };
+            author: string;
+            approver: string;
+            /** Format: date-time */
+            approvedAt: string;
+        };
+        FormMDeclarationSection: {
+            expected: number;
+            declared: number;
+            notDeclared: number;
+            nonFilers: {
+                name: string;
+                designation: string;
+                identifier: string;
+                /** Format: date */
+                date: string;
+                /** @enum {string} */
+                actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                /** @enum {string} */
+                complied: "yes" | "no" | "pending";
+                remarks?: string;
+                /** Format: uuid */
+                obligationId?: string;
+            }[];
+            noCycleInPeriod?: boolean;
+        };
+        FormMSignatory: {
+            name: string | null;
+            designation: string | null;
+            date: string | null;
         };
         /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
         DisclosedDeclaration: {

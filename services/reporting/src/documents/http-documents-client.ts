@@ -29,9 +29,10 @@ export interface HttpDocumentsClientOptions {
 }
 
 /**
- * The issue request as documents' contract declares it. It declares only the acknowledgement slip
- * so far; the Form M, receipt and NCR types and their payloads join it with their templates
- * (#218), until then the body is sent as reporting builds it.
+ * The issue request as documents' contract declares it, with the Form M, receipt and NCR
+ * payloads (`FormMPayload`, `ComplianceReportReceiptPayload`, `NcrPayload`). Reporting builds
+ * them as `FormMV1` and plain records, so the body is cast; documents validates each payload
+ * against its template.
  */
 type IssueDocumentBody =
   paths['/internal/v1/documents/issue']['post']['requestBody']['content']['application/json'];
