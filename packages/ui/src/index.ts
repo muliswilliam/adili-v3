@@ -17,6 +17,17 @@ export {
   formatFileSize,
 } from './components/attachment-list';
 export {
+  APPROVAL_CARD_MESSAGES,
+  ApprovalCard,
+  type ApprovalCardMessages,
+  type ApprovalCardProps,
+  type ApprovalConsequence,
+  ApprovalConsequences,
+  type ApprovalConsequencesProps,
+  CANNOT_APPROVE_REASONS,
+  type CannotApproveReason,
+} from './components/approval-card';
+export {
   type Assignee,
   AssigneeAvatar,
   type AssigneeAvatarProps,
@@ -27,6 +38,15 @@ export {
 } from './components/assignee-chip';
 export { Avatar, type AvatarProps, type AvatarTone } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
+export {
+  BATCH_PHASES,
+  BATCH_SELECTOR_MESSAGES,
+  type BatchPhase,
+  type BatchProgress,
+  BatchSelector,
+  type BatchSelectorMessages,
+  type BatchSelectorProps,
+} from './components/batch-selector';
 export {
   BREAKER_BADGE_MESSAGES,
   BREAKER_STATES,
@@ -245,6 +265,15 @@ export { Icon, type IconProps } from './components/icon';
 export { IconTile, type IconTileProps, iconTileVariants } from './components/icon-tile';
 export { controlClassName, Input } from './components/input';
 export { Label } from './components/label';
+export {
+  LADDER_STEP_STATUSES,
+  LADDER_STEPPER_MESSAGES,
+  type LadderStepperMessages,
+  type LadderStepperProps,
+  type LadderStepperStep,
+  LadderStepper,
+  type LadderStepStatus,
+} from './components/ladder-stepper';
 export { LateBadge, type LateBadgeProps } from './components/late-badge';
 export { Logo, LogoMark, LogoWordmark, type LogoProps } from './components/logo';
 export { MaskedContact, type MaskedContactProps } from './components/masked-contact';
@@ -279,6 +308,14 @@ export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
+export {
+  DETERMINATION_OUTCOMES,
+  type DeterminationOutcome,
+  OUTCOME_BADGE_MESSAGES,
+  OutcomeBadge,
+  type OutcomeBadgeMessages,
+  type OutcomeBadgeProps,
+} from './components/outcome-badge';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export {
   PRIORITY_BADGE_MESSAGES,
