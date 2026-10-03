@@ -1,13 +1,20 @@
-import { ApiParam } from '@nestjs/swagger';
-import { TENANT_KEY } from '@adili/api-kit';
+import { ApiParam, ApiQuery } from '@nestjs/swagger';
+import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { gateCellSchema } from '../policy/gate-policies.js';
 import { PROVIDER_CLASSES } from '../providers/port.js';
+import { TASK_NAMES } from '../tasks/task.js';
 
-/** The `tenant` path parameter (contract `Tenant`). */
-export const tenantParam = z.string().regex(TENANT_KEY);
+/**
+ * The `tenant` path parameter (contract `Tenant`): a tenant key, never the reserved `platform`
+ * context of cross-tenant work.
+ */
+export const tenantParam = z
+  .string()
+  .regex(TENANT_KEY)
+  .refine((tenant) => tenant !== PLATFORM_TENANT, { message: 'Must name a tenant' });
 
 /** Documents the `tenant` path parameter. */
 export const ApiTenantParam = () =>
@@ -46,3 +53,19 @@ export const budgetInput = z.strictObject({
     .max(2_147_483_647)
     .meta({ description: 'Jobs created per minute' }),
 });
+
+/** The `approvalRef` query parameter of a route removal. */
+export const approvalRefQuery = z.string().trim().min(1).max(200);
+
+/** Documents the `task` path parameter. */
+export const ApiTaskParam = () =>
+  ApiParam({ name: 'task', schema: { type: 'string', enum: [...TASK_NAMES] } });
+
+/** Documents the `approvalRef` query parameter. */
+export const ApiApprovalQuery = () =>
+  ApiQuery({
+    name: 'approvalRef',
+    required: true,
+    description: 'The decision the change rests on, e.g. an EACC approval number',
+    schema: { type: 'string', minLength: 1, maxLength: 200 },
+  });

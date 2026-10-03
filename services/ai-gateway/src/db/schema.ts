@@ -1,3 +1,4 @@
+import type { FieldEnvelope } from '@adili/data-access';
 import { eventsSchema } from '@adili/events/schema';
 import { type AnyColumn, type SQL, sql } from 'drizzle-orm';
 import {
@@ -117,8 +118,14 @@ export const jobs = pgTable(
       'jobs_reason_matches_status',
       sql`(${table.status} in ('failed', 'blocked')) = (${table.reason} is not null)`,
     ),
-    // A retry with the same key finds the first job.
-    uniqueIndex('jobs_caller_idempotency_key_idx').on(table.caller, table.idempotencyKey),
+    // A retry with the same key finds the first job. Keys are the caller's for one tenant: a
+    // transaction sees only its tenant's jobs (row-level security), so the key is unique per
+    // tenant too.
+    uniqueIndex('jobs_tenant_caller_idempotency_key_idx').on(
+      table.tenant,
+      table.caller,
+      table.idempotencyKey,
+    ),
     // The result cache: at most one live or succeeded job per key. Failed and blocked jobs, and
     // declines recorded with violations, drop out, so a repeat call tries again.
     uniqueIndex('jobs_cache_idx')
@@ -215,8 +222,9 @@ export type FeedbackReason = (typeof FEEDBACK_REASONS)[number];
 /**
  * Reviewers' ratings of job outputs (spec 07c): one per reviewer per block of a job's output (a
  * summary's section, a flag's explanation, or the output as a whole), a later rating by the same
- * reviewer of the same block replacing the earlier one. The note is the reviewer's own words and
- * stays here; events carry the rating, reason and block only.
+ * reviewer of the same block replacing the earlier one. The note is the reviewer's own words, so
+ * it is encrypted under the tenant's key like any content (the gateway keeps no content in the
+ * clear); events carry the rating, reason and block only.
  */
 export const feedback = pgTable(
   'feedback',
@@ -226,13 +234,17 @@ export const feedback = pgTable(
     jobId: uuid()
       .notNull()
       .references(() => jobs.id),
+    /** The job's tenant, for row-level security. */
+    tenant: text().notNull(),
     /** The reviewer, as the calling service knows them (its token's `sub`). */
     reviewerSubject: text().notNull(),
     /** The block rated (`overview`, `flag:<id>`, ...); null for the output as a whole. */
     block: text(),
     rating: text({ enum: FEEDBACK_RATINGS }).notNull(),
     reason: text({ enum: FEEDBACK_REASONS }),
-    note: text(),
+    /** The note, sealed under the tenant's key (record id: the rating's id); null without one. */
+    noteCiphertext: text(),
+    noteEnvelope: jsonb().$type<FieldEnvelope>(),
     at: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -245,7 +257,10 @@ export const feedback = pgTable(
       'feedback_reason_check',
       sql`${table.reason} is null or ${table.reason} in ('inaccurate', 'missed-something', 'unclear', 'too-long', 'other')`,
     ),
-    check('feedback_note_length', sql`char_length(${table.note}) <= 1000`),
+    check(
+      'feedback_note_sealed',
+      sql`(${table.noteCiphertext} is null) = (${table.noteEnvelope} is null)`,
+    ),
   ],
 );
 
@@ -255,6 +270,7 @@ export const AUDIT_ACTIONS = [
   'ai.job.finished',
   'ai.gate-policy.changed',
   'ai.budget.changed',
+  'ai.route.changed',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -290,7 +306,7 @@ export const auditRecords = pgTable(
     reason: text({ enum: JOB_REASONS }),
     /** The job's `violations`, when its output failed its task's own checks. */
     violations: jsonb().$type<OutputViolation[]>(),
-    // A change (`ai.gate-policy.changed`, `ai.budget.changed`).
+    // A change (`ai.gate-policy.changed`, `ai.budget.changed`, `ai.route.changed`).
     approvalRef: text(),
     /** What changed: the values before and after. */
     change: jsonb().$type<{ before: unknown; after: unknown }>(),

@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import { getCaseCopilot, rateCopilotOutput, refreshCaseCopilot } from '../../../server/copilot';
 import type { Copilot } from '../../../server/copilot.server';
 import type { CaseDetail } from '../../../server/review/types';
-import { type CopilotAccess, hasPreviousDeclaration } from './copilot-view';
+import type { CopilotAccess } from './copilot-view';
 import { CopilotLauncher, CopilotPanel, type CopilotPanelProps } from './copilot-panel';
 import { highlightInDeclaration, type ResolvedRef, sourceRefResolver } from './source-refs';
 import { type CopilotApi, useCaseCopilot } from './use-case-copilot';
@@ -22,6 +22,8 @@ export interface CaseCopilotProps {
   detail: Pick<CaseDetail, 'flags' | 'document' | 'versions'>;
   /** `assignee` for the reviewer holding the case, `supervisor`, else `viewer`. */
   access: CopilotAccess;
+  /** The name of the reviewer holding the case, whose ratings a supervisor reads. */
+  assigneeName?: string;
   /** The panel is open; closed, the launcher bar shows its state. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,6 +58,7 @@ export function CaseCopilot({
   caseId,
   detail,
   access,
+  assigneeName,
   open,
   onOpenChange,
   explain,
@@ -91,10 +94,10 @@ export function CaseCopilot({
     <CopilotPanel
       state={state}
       access={access}
+      assigneeName={assigneeName}
       flags={detail.flags}
       versions={detail.versions}
       resolveRef={resolveRef}
-      hasPrevious={hasPreviousDeclaration(detail.flags)}
       onClose={() => {
         onOpenChange(false);
       }}

@@ -25,6 +25,7 @@ import {
   resetReviewMock,
 } from '../../../server/review/mock.server';
 import type { CaseDetail, CopilotView } from '../../../server/review/types';
+import { goToSignIn } from '../../sign-in-redirect';
 import { CaseCopilot, type CaseCopilotProps } from './case-copilot';
 import { CopilotPanel } from './copilot-panel';
 import type { CopilotAccess } from './copilot-view';
@@ -34,6 +35,8 @@ import type { CaseCopilot as CopilotState } from './use-case-copilot';
 const ME = 'a1b2c3d4-0000-4000-8000-000000000001';
 
 // The server functions, answered by the review mock as the signed-in reviewer.
+vi.mock('../../sign-in-redirect', () => ({ goToSignIn: vi.fn() }));
+
 vi.mock('../../../server/copilot', async () => {
   const { loadCopilot, refreshCopilot, rateOutput } =
     await import('../../../server/copilot.server');
@@ -88,6 +91,7 @@ const detail: Pick<CaseDetail, 'flags' | 'document' | 'versions'> = {
       submittedAt: '2026-04-01T00:00:00Z',
       late: false,
       amendment: false,
+      firstOnAdili: false,
     },
   ],
 };
@@ -148,6 +152,25 @@ describe('CaseCopilot (S15)', () => {
     expect(screen.getByText('Indicators, not findings. A named reviewer decides.')).toBeTruthy();
   });
 
+  it("ends every label's description with the output's disclaimer (design.md AiLabel, Q10)", async () => {
+    await mount();
+    const labels = screen.getAllByRole('img', { name: /AI-assisted|^AI\./ });
+    expect(labels.length).toBeGreaterThan(1);
+    for (const label of labels) {
+      expect(label.getAttribute('aria-label')).toMatch(
+        /indicators, not findings: a named reviewer examines the record and decides\.$/,
+      );
+    }
+    fireEvent.mouseDown(screen.getByRole('tab', { name: /Flags/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Flags/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Value changed by 150%/ }));
+    const explained = screen.getAllByRole('img', { name: /^AI\./ });
+    expect(explained.length).toBeGreaterThan(0);
+    for (const label of explained) {
+      expect(label.getAttribute('aria-label')).toMatch(/examines the record and decides\.$/);
+    }
+  });
+
   it('opens a source in the declaration pane, highlighted', async () => {
     document.body.insertAdjacentHTML(
       'beforeend',
@@ -157,11 +180,11 @@ describe('CaseCopilot (S15)', () => {
     const changes = screen.getByRole('region', { name: 'Changes since previous version' });
     fireEvent.click(
       within(changes).getByRole('button', {
-        name: 'Open in the declaration: Assets · Plot Kisumu/Manyatta/1234 · John Otieno',
+        name: 'Open in the declaration: Assets · Plot Kisumu/Manyatta/1234 · John Kennedy Otieno',
       }),
     );
     const target = document.getElementById(`decl-item-${MOCK_ITEM_IDS.plot}`);
-    expect(target?.hasAttribute('data-copilot-highlight')).toBe(true);
+    expect(target?.hasAttribute('data-target-highlight')).toBe(true);
     target?.remove();
   });
 
@@ -246,7 +269,7 @@ describe('CaseCopilot (S15)', () => {
   });
 
   it('shows a supervisor the rating read-only, with refresh', async () => {
-    // The supervisor rated it earlier; the view lists the caller's own ratings.
+    // The reviewer holding the case rated it; the view lists the assignee's ratings to everyone.
     const client = mockReviewClient(ME, 'Grace Wanjiru');
     const loaded = await loadCopilot(client, CASE);
     if (!loaded.ok) throw new Error('not ok');
@@ -256,8 +279,9 @@ describe('CaseCopilot (S15)', () => {
       reason: null,
       note: null,
     });
-    await mount({ access: 'supervisor' });
-    expect(screen.getByText('Rated helpful')).toBeTruthy();
+    await mount({ access: 'supervisor', assigneeName: 'Grace Wanjiru' });
+    // Whose rating it is, as the supervisor did not give it.
+    expect(screen.getByText('Grace Wanjiru: helpful')).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Rate the overview' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Refresh summary and explanations' })).toBeTruthy();
   });
@@ -305,8 +329,13 @@ describe('CaseCopilot (S15)', () => {
 /** The panel in one state, as the hook would hand it over. */
 function renderState(
   view: Partial<CopilotView>,
-  { access = 'assignee', stopped = false }: { access?: CopilotAccess; stopped?: boolean } = {},
+  {
+    access = 'assignee',
+    stopped = false,
+    sessionEnded = false,
+  }: { access?: CopilotAccess; stopped?: boolean; sessionEnded?: boolean } = {},
   flags = mockFlags(CASE),
+  versions: CaseDetail['versions'] = detail.versions,
 ) {
   const at = '2026-10-01T06:00:00Z';
   const copilot: Copilot = readCopilotView({
@@ -324,6 +353,7 @@ function renderState(
     copilot,
     error: null,
     stopped,
+    sessionEnded,
     refreshing: false,
     retry: vi.fn(),
     refresh: vi.fn(() => Promise.resolve(null)),
@@ -337,9 +367,8 @@ function renderState(
         state={state}
         access={access}
         flags={flags}
-        versions={detail.versions}
+        versions={versions}
         resolveRef={sourceRefResolver(MOCK_DECLARATION)}
-        hasPrevious={!flags.some((flag) => flag.ruleId === 'no-previous-version')}
         onClose={vi.fn()}
         onRefresh={onRefresh}
         onOpenSource={vi.fn()}
@@ -365,6 +394,71 @@ describe('CopilotPanel states (S15)', () => {
     expect(screen.getByText('Still preparing.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
     expect(state.retry).toHaveBeenCalled();
+  });
+
+  it.each(['pending', 'stale'] as const)(
+    '%s when the session ended: says so instead of preparing forever (Q8)',
+    (status) => {
+      renderState(status === 'pending' ? { status, ...nothing } : { status }, {
+        sessionEnded: true,
+      });
+      expect(screen.getByText('Your session has ended.')).toBeTruthy();
+      expect(screen.queryByText('Preparing summary…')).toBeNull();
+      expect(screen.queryByText('Declaration or registry results changed. Updating…')).toBeNull();
+      // Nothing is loading any more, so no skeleton says it is.
+      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      expect(goToSignIn).toHaveBeenCalledWith();
+    },
+  );
+
+  it('keeps the panel (and the focus in it) when the outputs arrive (N1)', () => {
+    const at = '2026-10-01T06:00:00Z';
+    const view = (over: Partial<CopilotView>): Copilot =>
+      readCopilotView({
+        status: 'ready',
+        forVersionId: CASE,
+        generatedAt: at,
+        failureReason: null,
+        summary: mockSummary(at),
+        explanations: mockExplanations(at),
+        jobs: { summarize: 'aaaa0000-0000-4000-8000-000000000001', explain: null },
+        feedback: [],
+        ...over,
+      });
+    const state = (copilot: Copilot): CopilotState => ({
+      copilot,
+      error: null,
+      stopped: false,
+      sessionEnded: false,
+      refreshing: false,
+      retry: vi.fn(),
+      refresh: vi.fn(() => Promise.resolve(null)),
+      ratingOf: () => null,
+      rate: vi.fn(() => Promise.resolve()),
+    });
+    const panelOf = (copilot: Copilot) => (
+      <TooltipProvider>
+        <CopilotPanel
+          state={state(copilot)}
+          access="assignee"
+          flags={mockFlags(CASE)}
+          versions={detail.versions}
+          resolveRef={sourceRefResolver(MOCK_DECLARATION)}
+          onClose={vi.fn()}
+          onRefresh={vi.fn()}
+          onOpenSource={vi.fn()}
+          now={new Date(NOW_MS)}
+        />
+      </TooltipProvider>
+    );
+    const { rerender } = render(panelOf(view({ status: 'pending', ...nothing })));
+    const before = panel();
+    const close = screen.getByRole('button', { name: 'Close Copilot' });
+    close.focus();
+    rerender(panelOf(view({})));
+    expect(panel()).toBe(before);
+    expect(document.activeElement).toBe(close);
   });
 
   it('stale: the old content greyed out under a banner', () => {
@@ -402,11 +496,11 @@ describe('CopilotPanel states (S15)', () => {
     expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 
-  it('not enabled: says so, explains why, and offers a refresh, which asks again', () => {
+  it('not enabled: says so, explains why, and offers no refresh', () => {
     renderState({ status: 'not-enabled', ...nothing });
     expect(screen.getByText('AI assistance is not enabled for this Commission.')).toBeTruthy();
-    // The Commission's policy may have changed since: refresh asks the gateway again.
-    expect(screen.getByRole('button', { name: 'Refresh summary and explanations' })).toBeTruthy();
+    // Refresh could only end blocked again; a policy change asks again by itself (e2e 37).
+    expect(screen.queryByRole('button', { name: 'Refresh summary and explanations' })).toBeNull();
     expect(screen.queryByRole('tablist')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Learn why' }));
     const dialog = screen.getByRole('dialog', { name: 'Why AI is not enabled' });
@@ -414,20 +508,43 @@ describe('CopilotPanel states (S15)', () => {
   });
 
   it('first declaration: nothing to compare', () => {
-    const flags = mockFlags(CASE);
-    const [one] = flags;
-    if (!one) throw new Error('no flags');
-    const first = {
-      ...one,
-      id: 'f1a90000-0000-4000-8000-0000000000ff',
-      ruleId: 'no-previous-version' as const,
-    };
+    const [v1] = detail.versions;
+    if (!v1) throw new Error('no version');
     renderState(
       { summary: { ...mockSummary('2026-10-01T06:00:00Z'), changesSincePrevious: [] } },
       {},
-      [...flags, first],
+      mockFlags(CASE),
+      [{ ...v1, firstOnAdili: true }],
     );
     expect(screen.getByText('First declaration on Adili. Nothing to compare.')).toBeTruthy();
+  });
+
+  it('stale after an amendment: version 1’s output still says it had nothing to compare (e2e 18)', () => {
+    const [v1] = detail.versions;
+    if (!v1) throw new Error('no version');
+    // The amendment replaced version 1's flags, its no-previous-version among them.
+    renderState(
+      {
+        status: 'stale',
+        forVersionId: v1.versionId,
+        summary: { ...mockSummary('2026-10-01T06:00:00Z'), changesSincePrevious: [] },
+      },
+      {},
+      mockFlags('fe150000-0000-4000-8000-000000000002'),
+      [
+        { ...v1, firstOnAdili: true },
+        {
+          versionId: 'fe150000-0000-4000-8000-000000000002',
+          version: 2,
+          submittedAt: '2026-05-01T00:00:00Z',
+          late: false,
+          amendment: true,
+          firstOnAdili: false,
+        },
+      ],
+    );
+    expect(screen.getByText('First declaration on Adili. Nothing to compare.')).toBeTruthy();
+    expect(screen.queryByText('No material changes.')).toBeNull();
   });
 
   it('no changes on a later declaration', () => {

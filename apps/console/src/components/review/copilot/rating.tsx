@@ -14,6 +14,7 @@ export function Rating({
   jobId,
   block,
   group,
+  ratedBy,
 }: {
   state: CaseCopilot;
   access: CopilotAccess;
@@ -21,6 +22,8 @@ export function Rating({
   block: CopilotBlock;
   /** Names the control: "Rate the overview". */
   group: string;
+  /** Who gave the rating a supervisor reads: the reviewer holding the case. */
+  ratedBy?: string;
 }) {
   const value = state.ratingOf(jobId, block);
   if (access === 'viewer' || !jobId) return null;
@@ -30,6 +33,7 @@ export function Rating({
       className="w-full"
       value={value}
       readOnly={access === 'supervisor'}
+      ratedBy={access === 'supervisor' ? ratedBy : undefined}
       messages={{ group }}
       onRate={(feedback) => state.rate(jobId, block, feedback)}
     />

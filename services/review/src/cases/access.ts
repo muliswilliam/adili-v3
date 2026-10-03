@@ -57,3 +57,14 @@ export function requireSupervisor(principal: Principal): void {
     { code: 'supervisor-required' },
   );
 }
+
+/**
+ * 403 `not-the-assignee`: the case is someone else's to work. `detail` says what only its
+ * assignee (or, where stated, a supervisor) may do.
+ */
+export function notTheAssignee(detail: string): ProblemException {
+  return new ProblemException(
+    { type: 'not-the-assignee', title: 'Forbidden', status: HttpStatus.FORBIDDEN, detail },
+    { code: 'not-the-assignee' },
+  );
+}

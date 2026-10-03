@@ -84,6 +84,10 @@ export const OPEN_CLARIFICATION_STATUSES = ['issued', 'overdue'] as const;
 /** review.yaml `Requirement` (Act s.35(4)). */
 export const REQUIREMENTS = ['provide-omitted', 'explain-discrepancy', 'correct'] as const;
 
+/** A clarification letter's language (review.yaml `LetterLanguage`): English or Swahili. */
+export const LETTER_LANGUAGES = ['en', 'sw'] as const;
+export type LetterLanguage = (typeof LETTER_LANGUAGES)[number];
+
 /** Kinds of timeline entry; later slices add theirs. */
 export type TimelineKind =
   | 'case-created'
@@ -183,7 +187,8 @@ export const reviewCases = pgTable(
 
 /**
  * Every submitted version a case has processed, as the version's metadata gave it: number,
- * submission, lateness and whether it amended an earlier one. Facts only, no content.
+ * submission, lateness, whether it amended an earlier one and whether it had any earlier
+ * declaration to compare with. Facts only, no content.
  */
 export const reviewCaseVersions = pgTable(
   'review_case_versions',
@@ -198,6 +203,11 @@ export const reviewCaseVersions = pgTable(
     submittedAt: timestamp({ withTimezone: true }).notNull(),
     late: boolean().notNull(),
     amendment: boolean().notNull(),
+    /**
+     * The rules found no earlier declaration on Adili to compare it with (`no-previous-version`).
+     * Kept here because an amendment replaces the version's unreviewed flags, that one included.
+     */
+    firstOnAdili: boolean().notNull().default(false),
     processedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex('review_case_versions_case_version_key').on(table.caseId, table.version)],
@@ -269,6 +279,11 @@ export interface ClarificationItem {
    * content stays labelled); null or absent when the reviewer wrote it.
    */
   aiJobId?: string | null;
+  /**
+   * The language that job drafted in (`review_copilot_drafts.language`), recorded with it on
+   * save; null or absent when the reviewer wrote the item.
+   */
+  aiLanguage?: LetterLanguage | null;
 }
 
 /**
@@ -286,6 +301,11 @@ export interface ClarificationLetter {
    * issued before it was recorded.
    */
   aiAssisted?: boolean;
+  /**
+   * The letter's language: its own text, labels and requirements are in it. Absent from letters
+   * issued before it was recorded, which are English.
+   */
+  language?: LetterLanguage;
   items: { label: string; requirementLabel: string; text: string; aiAssisted?: boolean }[];
 }
 
@@ -307,6 +327,15 @@ export const clarifications = pgTable(
     opening: text(),
     /** The Draft with AI job that drafted the opening paragraph; null when the reviewer wrote it. */
     openingAiJobId: uuid(),
+    /** The language that job drafted the opening in; null when the reviewer wrote it. */
+    openingAiLanguage: text({ enum: LETTER_LANGUAGES }),
+    /**
+     * Whether any save named AI-drafted text (ADR-007): kept once set, so an edit that leaves out
+     * an item's or the opening's job never issues the letter unlabelled.
+     */
+    aiAssisted: boolean().notNull().default(false),
+    /** The letter's language, chosen in the composer; the issued letter fixes it. */
+    language: text({ enum: LETTER_LANGUAGES }).notNull().default('en'),
     issuedAt: timestamp({ withTimezone: true }),
     dueAt: timestamp({ withTimezone: true }),
     respondedAt: timestamp({ withTimezone: true }),
@@ -330,6 +359,11 @@ export const clarifications = pgTable(
     check(
       'clarifications_status_check',
       sql`${table.status} in (${inList(CLARIFICATION_STATUSES)})`,
+    ),
+    check('clarifications_language_check', sql`${table.language} in (${inList(LETTER_LANGUAGES)})`),
+    check(
+      'clarifications_opening_ai_language_check',
+      sql`${table.openingAiLanguage} in (${inList(LETTER_LANGUAGES)})`,
     ),
   ],
 );

@@ -135,6 +135,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ai/routing/{task}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Route a task's calls for every tenant without its own route (audited)
+         * @description The next job of the task follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).
+         */
+        put: operations["setDefaultRoute"];
+        post?: never;
+        /** Remove a task's default route, back to the configured provider and model (audited) */
+        delete: operations["removeDefaultRoute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/tenants/{tenant}/routing/{task}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Route a task's calls for one tenant, over the default route (audited)
+         * @description The next job of the task for the tenant follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).
+         */
+        put: operations["setTenantRoute"];
+        post?: never;
+        /** Remove a tenant's route of a task, back to the default route (audited) */
+        delete: operations["removeTenantRoute"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ai/usage": {
         parameters: {
             query?: never;
@@ -179,7 +221,7 @@ export interface paths {
         };
         /**
          * Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
-         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process.
+         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded.
          */
         get: operations["getTenantAiStatus"];
         put?: never;
@@ -375,7 +417,7 @@ export interface components {
                 text: string;
             }[];
         };
-        /** @description Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`) */
+        /** @description Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted` */
         NarrateComplianceReportInput: {
             /** @constant */
             kind: "narrate-compliance-report";
@@ -423,7 +465,8 @@ export interface components {
             }[];
             candidates: {
                 id: string;
-                kind: string;
+                /** @enum {string} */
+                kind: "rate-change" | "threshold-breach" | "chronic-late-reporting" | "clarification-ratio-outlier" | "size-band-outlier" | "non-reporting";
                 /** @description Commission slug, entity type, or `national` */
                 subject: string;
                 values: {
@@ -541,8 +584,10 @@ export interface components {
             tenant: string;
             /** @description Some data class may be sent to the tenant's routed provider class */
             enabled: boolean;
-            /** @description The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
+            /** @description The provider class of the tenant's reviewer task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
             providerClass: components["schemas"]["ProviderClass"] | null;
+            /** @description The provider the tenant's reviewer task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is */
+            provider: string | null;
             /** @description Data classes every routed provider class may process, in DataClass order */
             dataClasses: components["schemas"]["DataClass"][];
         };
@@ -598,6 +643,18 @@ export interface components {
             providerClass: components["schemas"]["ProviderClass"] | null;
             model: string;
             params: components["schemas"]["RouteParams"];
+            /** @description True for a task with no default route, which follows the gateway's configured provider and model; false for a route set through this API */
+            configured: boolean;
+        };
+        /** @description A task's route: provider, model and call parameters */
+        RouteInput: {
+            /** @description A provider this gateway is configured to reach (`Route.provider` names them) */
+            provider: string;
+            model: string;
+            /** @default {} */
+            params: components["schemas"]["RouteParams"];
+            /** @description The decision the change rests on, e.g. an EACC approval number */
+            approvalRef: string;
         };
         BudgetInput: {
             /** @description Tokens (in and out) per calendar month, Africa/Nairobi */
@@ -734,7 +791,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -889,7 +946,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -945,7 +1002,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1058,6 +1115,196 @@ export interface operations {
             };
             /** @description Caller is not a platform admin */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    setDefaultRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Route"];
+                };
+            };
+            /** @description Request failed validation, or the provider is not one this gateway reaches */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    removeDefaultRoute: {
+        parameters: {
+            query: {
+                /** @description The decision the change rests on, e.g. an EACC approval number */
+                approvalRef: string;
+            };
+            header?: never;
+            path: {
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The task has no default route */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    setTenantRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant: string;
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RouteInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Route"];
+                };
+            };
+            /** @description Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    removeTenantRoute: {
+        parameters: {
+            query: {
+                /** @description The decision the change rests on, e.g. an EACC approval number */
+                approvalRef: string;
+            };
+            header?: never;
+            path: {
+                tenant: string;
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The tenant has no route of its own for the task */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1212,7 +1459,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Requires a service token with scope ai */
+            /** @description Requires a service token with scope ai:internal */
             403: {
                 headers: {
                     [name: string]: unknown;

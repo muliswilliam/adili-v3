@@ -2,6 +2,7 @@ import {
   AI_PROVIDER_NAMES,
   Button,
   Card,
+  cn,
   EmptyState,
   FilterChip,
   Icon,
@@ -20,10 +21,10 @@ import {
   UsageMeter,
 } from '@adili/ui';
 import {
+  Add01Icon,
   ArrowRight01Icon,
   Building03Icon,
   Search01Icon,
-  SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId, useState } from 'react';
 
@@ -43,6 +44,7 @@ import { CommissionDrawer } from './commission-drawer';
 import { GateDialog, type SaveGate } from './gate-dialog';
 import { messages as m } from './messages';
 import { DataClassesTip, GateCell } from './parts';
+import { type RemoveRoute, RouteDialog, type SaveRoute } from './route-dialog';
 import {
   AI_FILTERS,
   type AiFilter,
@@ -65,6 +67,8 @@ export interface AiPolicyViewProps {
   onSearchChange: (next: AiPolicySearch) => void;
   saveGate: SaveGate;
   saveBudget: SaveBudget;
+  saveRoute: SaveRoute;
+  removeRoute: RemoveRoute;
   onUnauthenticated: () => void;
   /** Offered when the gateway refuses the viewer (403). */
   forbiddenAction?: ReactNode;
@@ -72,6 +76,9 @@ export interface AiPolicyViewProps {
 
 /** Which Commission is open, and in what: its drawer, or one of the drawer's dialogs. */
 type Open = { slug: string; view: 'drawer' | 'gate' | 'budget' } | null;
+
+/** The route being edited (with its scope as the table names it), or a new one; null: none. */
+type OpenRoute = { route: Route | null; scope: string | null } | null;
 
 const FILTER_LABELS: Record<AiFilter, string> = {
   all: m.filterAll,
@@ -87,12 +94,14 @@ const isForbidden = (result: ServiceResult<unknown> | null) =>
  * The AI policy page for platform admins (spec 07c FE-4, S16): per Commission the classification
  * gate (provider classes allowed per data class), this month's usage against the budget and the
  * rate limit, each Commission's detail in a drawer with its policy and budget dialogs; and the
- * routing table, read only. Search, filter and page apply in the browser: the page reads every
- * Commission once per visit.
+ * routing table, each route editable, a Commission's own route removable and an edited default
+ * route resettable to the configured provider (story 17). Search, filter and page apply in the
+ * browser: the page reads every Commission once per visit.
  */
 export function AiPolicyView(props: AiPolicyViewProps) {
   const { result, search, onSearchChange } = props;
   const [open, setOpen] = useState<Open>(null);
+  const [openRoute, setOpenRoute] = useState<OpenRoute>(null);
   if (isForbidden(result)) {
     return (
       <Page narrow>
@@ -154,7 +163,16 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           )}
         </TabsContent>
         <TabsContent value="routing">
-          <RoutingCard overview={overview} failed={result?.ok === false} />
+          <RoutingCard
+            overview={overview}
+            failed={result?.ok === false}
+            onEdit={(route, scope) => {
+              setOpenRoute({ route, scope });
+            }}
+            onAdd={() => {
+              setOpenRoute({ route: null, scope: null });
+            }}
+          />
         </TabsContent>
       </Tabs>
       <CommissionDrawer
@@ -174,6 +192,20 @@ export function AiPolicyView(props: AiPolicyViewProps) {
           row={row}
           save={props.saveGate}
           onClose={back}
+          onUnauthenticated={props.onUnauthenticated}
+        />
+      ) : null}
+      {openRoute ? (
+        <RouteDialog
+          route={openRoute.route}
+          scope={openRoute.scope}
+          commissions={tenants}
+          routes={overview?.routing.ok ? overview.routing.data : []}
+          save={props.saveRoute}
+          remove={props.removeRoute}
+          onClose={() => {
+            setOpenRoute(null);
+          }}
           onUnauthenticated={props.onUnauthenticated}
         />
       ) : null}
@@ -208,6 +240,7 @@ function CommissionsCard({
   const shown = filterRows(searched, filter);
   const page = pageOf(shown, search.page);
   const month = overview ? usageMonth(overview.tenants) : null;
+  const usageLabel = month ? m.columnUsage(shortMonth(month)) : m.columnUsageThisMonth;
   // A search or filter change starts again from the first page.
   const setFilters = (patch: Pick<AiPolicySearch, 'q' | 'show'>) => {
     onSearchChange({ ...search, ...patch, page: undefined });
@@ -275,7 +308,7 @@ function CommissionsCard({
       ) : (
         <>
           <Table caption={m.caption}>
-            <TableHeader>
+            <TableHeader className="max-sm:sr-only">
               <TableRow>
                 <TableHead>{m.columnCommission}</TableHead>
                 {DATA_CLASSES.map((dataClass) => (
@@ -283,9 +316,7 @@ function CommissionsCard({
                     <DataClassHead dataClass={dataClass} />
                   </TableHead>
                 ))}
-                <TableHead>
-                  {month ? m.columnUsage(shortMonth(month)) : m.columnUsageThisMonth}
-                </TableHead>
+                <TableHead>{usageLabel}</TableHead>
                 <TableHead className="text-right">{m.columnRateLimit}</TableHead>
                 <TableHead>
                   <span className="sr-only">{m.columnCommission}</span>
@@ -294,7 +325,7 @@ function CommissionsCard({
             </TableHeader>
             <TableBody>
               {page.rows.map((row) => (
-                <CommissionRow key={row.slug} row={row} onOpen={onOpen} />
+                <CommissionRow key={row.slug} row={row} usageLabel={usageLabel} onOpen={onOpen} />
               ))}
             </TableBody>
           </Table>
@@ -325,6 +356,16 @@ function CommissionsCard({
   );
 }
 
+/**
+ * On phones (under `sm`) a row of the Commissions or Routing table becomes a card of labelled
+ * lines ("Synthetic  External", "Rate limit  60 a minute"), as `ReminderHistory` does, instead
+ * of a table cut off at the right that only scrolls sideways. The header row stays for screen
+ * readers; each line's label is its column's name.
+ */
+const PHONE_ROW = 'max-sm:grid max-sm:gap-y-1 max-sm:px-4 max-sm:py-3.5';
+const PHONE_LINE =
+  'max-sm:flex max-sm:min-h-6 max-sm:items-center max-sm:justify-between max-sm:gap-3 max-sm:p-0 max-sm:first:pl-0 max-sm:last:pr-0 max-sm:before:font-sans max-sm:before:text-[13px] max-sm:before:font-normal max-sm:before:text-muted-foreground max-sm:before:content-data-label';
+
 /** "Highly confidential" carries the tip that says what each data class is. */
 function DataClassHead({ dataClass }: { dataClass: DataClass }) {
   if (dataClass !== 'highly-confidential') return m.dataClass[dataClass];
@@ -336,11 +377,23 @@ function DataClassHead({ dataClass }: { dataClass: DataClass }) {
   );
 }
 
-function CommissionRow({ row, onOpen }: { row: AiTenantRow; onOpen: (slug: string) => void }) {
+function CommissionRow({
+  row,
+  usageLabel,
+  onOpen,
+}: {
+  row: AiTenantRow;
+  /** The usage column's name, the label of its line on phones. */
+  usageLabel: string;
+  onOpen: (slug: string) => void;
+}) {
   const enabled = isEnabled(row);
   return (
-    <TableRow>
-      <TableHead scope="row" className="min-w-[220px] py-3 font-normal">
+    <TableRow className={PHONE_ROW}>
+      <TableHead
+        scope="row"
+        className="min-w-[220px] py-3 font-normal max-sm:min-w-0 max-sm:p-0 max-sm:pr-8 max-sm:pb-1.5 max-sm:first:pl-0"
+      >
         <TableRowLink asChild>
           <button
             type="button"
@@ -358,11 +411,23 @@ function CommissionRow({ row, onOpen }: { row: AiTenantRow; onOpen: (slug: strin
         </span>
       </TableHead>
       {DATA_CLASSES.map((dataClass) => (
-        <TableCell key={dataClass} className="whitespace-nowrap">
+        <TableCell
+          key={dataClass}
+          data-label={m.dataClass[dataClass]}
+          className={cn('whitespace-nowrap', PHONE_LINE)}
+        >
           <GateCell row={row} dataClass={dataClass} />
         </TableCell>
       ))}
-      <TableCell className="min-w-[190px]">
+      <TableCell
+        data-label={usageLabel}
+        className={cn(
+          'min-w-[190px] max-sm:min-w-0',
+          PHONE_LINE,
+          // A meter goes under its label; a line of text stays beside it.
+          enabled && row.usage !== null && 'max-sm:flex-col max-sm:items-stretch max-sm:gap-1',
+        )}
+      >
         {row.usage === null ? (
           <span className="text-[13px] text-muted-foreground">{m.usageUnavailable}</span>
         ) : enabled ? (
@@ -373,10 +438,13 @@ function CommissionRow({ row, onOpen }: { row: AiTenantRow; onOpen: (slug: strin
           </span>
         )}
       </TableCell>
-      <TableCell className="text-right whitespace-nowrap tabular-nums">
+      <TableCell
+        data-label={m.columnRateLimit}
+        className={cn('text-right whitespace-nowrap tabular-nums max-sm:text-left', PHONE_LINE)}
+      >
         {row.usage ? m.perMinuteShort(row.usage.perMinute) : null}
       </TableCell>
-      <TableCell className="w-10 text-muted-foreground">
+      <TableCell className="w-10 text-muted-foreground max-sm:absolute max-sm:top-3.5 max-sm:right-4 max-sm:w-auto max-sm:p-0">
         <Icon icon={ArrowRight01Icon} className="size-4" aria-hidden="true" />
       </TableCell>
     </TableRow>
@@ -411,7 +479,17 @@ function CommissionsSkeleton() {
   );
 }
 
-function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; failed: boolean }) {
+function RoutingCard({
+  overview,
+  failed,
+  onEdit,
+  onAdd,
+}: {
+  overview: AiPolicyOverview | null;
+  failed: boolean;
+  onEdit: (route: Route, scope: string | null) => void;
+  onAdd: () => void;
+}) {
   if (failed) {
     return (
       <LoadError title={m.loadErrorTitle} detail={m.loadErrorDetail} retryLabel={m.tryAgain} />
@@ -426,23 +504,35 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
   const names = new Map(overview?.tenants.map((tenant) => [tenant.slug, tenant.name]));
   return (
     <Card className="overflow-hidden p-0 sm:p-0">
-      <p className="flex items-center gap-1.5 border-b px-4 py-3 text-[13px] text-muted-foreground">
-        <Icon icon={SquareLock02Icon} className="size-3.5" />
-        {m.routingConfigured}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <p className="text-[13px] text-muted-foreground">{m.routingAudited}</p>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={routing === null || !overview?.tenants.length}
+          aria-haspopup="dialog"
+          onClick={onAdd}
+        >
+          <Icon icon={Add01Icon} />
+          {m.addRoute}
+        </Button>
+      </div>
       {routing === null ? (
         <CommissionsSkeleton />
       ) : routing.data.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">{m.routingEmpty}</p>
       ) : (
         <Table caption={m.routingCaption}>
-          <TableHeader>
+          <TableHeader className="max-sm:sr-only">
             <TableRow>
               <TableHead>{m.columnTask}</TableHead>
               <TableHead>{m.columnScope}</TableHead>
               <TableHead>{m.columnProvider}</TableHead>
               <TableHead>{m.columnModel}</TableHead>
               <TableHead>{m.columnParameters}</TableHead>
+              <TableHead>
+                <span className="sr-only">{m.editRoute}</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -451,6 +541,7 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
                 key={`${route.task}|${route.tenant ?? ''}`}
                 route={route}
                 scope={route.tenant ? (names.get(route.tenant) ?? route.tenant) : null}
+                onEdit={onEdit}
               />
             ))}
           </TableBody>
@@ -460,17 +551,40 @@ function RoutingCard({ overview, failed }: { overview: AiPolicyOverview | null; 
   );
 }
 
-function RouteRow({ route, scope }: { route: Route; scope: string | null }) {
+function RouteRow({
+  route,
+  scope,
+  onEdit,
+}: {
+  route: Route;
+  scope: string | null;
+  onEdit: (route: Route, scope: string | null) => void;
+}) {
   const params = routeParams(route.params);
   return (
-    <TableRow>
-      <TableCell className="font-mono text-[12.5px] whitespace-nowrap">{route.task}</TableCell>
-      <TableCell className="min-w-[150px]">
+    <TableRow className={PHONE_ROW}>
+      <TableCell className="font-mono text-[12.5px] whitespace-nowrap max-sm:p-0 max-sm:pr-16 max-sm:pb-1.5 max-sm:font-semibold max-sm:first:pl-0">
+        {route.task}
+      </TableCell>
+      <TableCell
+        data-label={m.columnScope}
+        className={cn('min-w-[150px] max-sm:min-w-0', PHONE_LINE)}
+      >
         {scope ?? <span className="text-muted-foreground">{m.allCommissions}</span>}
       </TableCell>
-      <TableCell>{AI_PROVIDER_NAMES[route.provider] ?? route.provider}</TableCell>
-      <TableCell className="font-mono text-[12.5px] whitespace-nowrap">{route.model}</TableCell>
-      <TableCell className="min-w-[220px]">
+      <TableCell data-label={m.columnProvider} className={PHONE_LINE}>
+        {AI_PROVIDER_NAMES[route.provider] ?? route.provider}
+      </TableCell>
+      <TableCell
+        data-label={m.columnModel}
+        className={cn('font-mono text-[12.5px] whitespace-nowrap', PHONE_LINE)}
+      >
+        {route.model}
+      </TableCell>
+      <TableCell
+        data-label={m.columnParameters}
+        className={cn('min-w-[220px] max-sm:min-w-0', PHONE_LINE)}
+      >
         {params.length === 0 ? (
           <span className="text-[12.5px] text-muted-foreground">{m.taskDefaults}</span>
         ) : (
@@ -483,6 +597,19 @@ function RouteRow({ route, scope }: { route: Route; scope: string | null }) {
             ))}
           </dl>
         )}
+      </TableCell>
+      <TableCell className="w-16 text-right max-sm:absolute max-sm:top-2 max-sm:right-3 max-sm:w-auto max-sm:p-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-haspopup="dialog"
+          aria-label={m.editRouteLabel(route.task, scope ?? m.allCommissions)}
+          onClick={() => {
+            onEdit(route, scope);
+          }}
+        >
+          {m.editRoute}
+        </Button>
       </TableCell>
     </TableRow>
   );

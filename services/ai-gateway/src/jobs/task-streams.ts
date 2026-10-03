@@ -2,10 +2,11 @@ import { setTimeout as sleep } from 'node:timers/promises';
 
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { InjectDatabase } from '@adili/data-access';
 import { eq } from 'drizzle-orm';
 
-import { type Job, jobs, type schema } from '../db/schema.js';
+import { asTenant, type GatewayDatabase } from '../db/context.js';
+import { type Job, jobs } from '../db/schema.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
 import { UnknownTokenError } from '../policy/minimisation.js';
 import { type PreparedPrompt, preparePrompt, streamedRequest } from '../policy/prompt.js';
@@ -77,7 +78,7 @@ export class TaskStreams {
   private readonly logger = new Logger(TaskStreams.name);
 
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly jobs: JobsService,
     private readonly executor: JobExecutor,
     private readonly providers: ProviderRegistry,
@@ -292,7 +293,9 @@ export class TaskStreams {
     // Already ended elsewhere (the janitor took it for abandoned): report what it is now.
     const [row] = finished
       ? [finished]
-      : await this.db.select().from(jobs).where(eq(jobs.id, job.id));
+      : await asTenant(this.db, job.tenant, (tx) =>
+          tx.select().from(jobs).where(eq(jobs.id, job.id)),
+        );
     if (row?.status === 'succeeded') yield { event: 'final', data: { job: toJobView(row) } };
     else yield { event: 'error', data: { reason: row?.reason ?? 'provider' } };
   }

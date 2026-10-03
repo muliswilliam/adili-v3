@@ -5,6 +5,7 @@ import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { AiGatewayUnavailable } from '../../src/ai-gateway/ai-gateway-client.js';
 import type { CopilotActivities } from '../../src/copilot/activities.js';
 import { DeclarationsUnavailable } from '../../src/declarations/declarations-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
@@ -65,9 +66,10 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     runRules: vi.fn(() => Promise.resolve([noPrevious])),
     upsertCase: vi.fn(() => Promise.resolve({ outcome: 'created' as const, caseId: 'case-1' })),
     requestCopilot: vi.fn(() => Promise.resolve()),
+    settleCopilot: vi.fn(() => Promise.resolve()),
     recordCopilotJob: vi.fn(() => Promise.resolve()),
     copilotUnavailable: vi.fn(() => Promise.resolve()),
-    notEnabledCopilots: vi.fn(() => Promise.resolve([])),
+    notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: [], next: null })),
     ...overrides,
   };
 }
@@ -143,7 +145,9 @@ describe('DeclarationProcessingWorkflow', () => {
 
   it('records the copilot as failed, and still ends with the case, when the gateway stays unreachable', async () => {
     const mocks = activities({
-      requestCopilot: vi.fn(() => Promise.reject(new Error('ai-gateway unreachable'))),
+      requestCopilot: vi.fn(() =>
+        Promise.reject(new AiGatewayUnavailable('ai-gateway unreachable')),
+      ),
     });
 
     const result = await env.execute(declarationProcessing, {

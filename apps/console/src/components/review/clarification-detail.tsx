@@ -301,10 +301,11 @@ export function ClarificationDetailView({
                 reviewCase={reviewCase}
                 reportingEntity={reportingEntityOf(document)}
                 items={clarification.items.map((item) => ({
-                  label: labelOf(item, clarificationTargets(document)),
+                  label: labelOf(item, clarificationTargets(document), clarification.language),
                   requirement: item.requirement,
                   text: item.text,
                 }))}
+                language={clarification.language}
                 opening={clarification.opening}
                 aiAssisted={
                   clarification.openingAiJobId !== null ||
@@ -418,7 +419,11 @@ function ItemsAndResponses({
                       size="sm"
                       text="AI-assisted"
                       messages={{
-                        noDetails: 'Drafted with AI, then approved by the reviewer who issued it',
+                        // Only an issued clarification has been approved by anyone.
+                        noDetails:
+                          status === 'draft'
+                            ? 'Drafted with AI; the reviewer checks it before issuing'
+                            : 'Drafted with AI, then approved by the reviewer who issued it',
                       }}
                     />
                   ) : null}

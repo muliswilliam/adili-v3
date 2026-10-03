@@ -92,8 +92,11 @@ export function aggregateKeys(input: NarrateInput): Set<string> {
   );
 }
 
-/** A financial year label, "2025/26", "2025-26" or "FY2025/2026", or a range of years, "2024–2026". */
-const FY_LABEL = /\b(?:FY\s?)?(\d{4})[/\-–](\d{2}|\d{4})\b/giu;
+/**
+ * A financial year label, "2025/26", "2025-26" or "FY2025/2026", or a range of years, "2024-2026".
+ * The dash is a hyphen, an en dash or an em dash, as in a range of figures (RANGE_JOIN).
+ */
+const FY_LABEL = /\b(?:FY\s?)?(\d{4})[/\-\u2013\u2014](\d{2}|\d{4})\b/giu;
 
 /** A bare four-digit whole number in this range reads as a year, not a count ("in 2025"). */
 const YEARS = { from: 1900, to: 2099 };
@@ -104,10 +107,15 @@ const MAX_PERCENT_DECIMALS = 2;
 /**
  * A number as written: digits with optional thousands separators (comma, thin or narrow
  * no-break space), decimals, and a percentage unit. Digits after a letter and a dot count
- * ("s.31"); digits after a number's own separator do not.
+ * ("s.31"); digits after a number's decimal point do not. A thousands group is read whole, so
+ * digits after a comma that makes no group are a number of their own: "17,5%" states 17 and 5%,
+ * "120,45" states 120 and 45, and each is checked. A group is three digits and no more, so
+ * "11,2045" states 11 and 2045, not 11,204. A decimal point with no digits before it and no letter
+ * either starts a fraction: ".5%" states 0.5%, not 5%. A full stop then a space starts no
+ * fraction ("filed. 12 Commissions" states 12).
  */
 const NUMBER =
-  /(?<!\d|\d[.,])(\d{1,3}(?:[,\u2009\u202f]\d{3})+|\d+)(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
+  /(?<!\d|\d\.)(?:(\d{1,3}(?:[,\u2009\u202f]\d{3}(?!\d))+|\d+)|(?<![\p{L}\d])(?=\.\d))(?:\.(\d+))?(\s*(?:%|per\s?cent\b|percentage points?\b|pp\b))?/giu;
 
 interface Mention {
   value: number;
@@ -116,7 +124,7 @@ interface Mention {
   percent: boolean;
   /**
    * A unit carried back from the end of a range or list ("8.2 to 16.4%"). It is a second reading,
-   * not a replacement: "670 – 8.2%" or "Of 960, 16.4%" may be a count next to a share, so the
+   * not a replacement: "670 - 8.2%" or "Of 960, 16.4%" may be a count next to a share, so the
    * number is stated if the input holds it as written or as a percentage.
    */
   carried: boolean;
@@ -129,10 +137,12 @@ const LABEL_GAP = '\uE000';
 
 /**
  * What joins two numbers of one range or list, "8.2 to 16.4%", "between 8.2 and 16.4%",
- * "8.2–16.4%" or "5.1, 8.2 and 16.4%", with at most an FY label before the join ("8.2 in
+ * "8.2-16.4%" or "5.1, 8.2 and 16.4%", with at most an FY label before the join ("8.2 in
  * FY2024/25 to 16.4%"). Nothing else: a unit does not carry across other words or a sentence.
+ * The dash is a hyphen, an en dash or an em dash.
  */
-const RANGE_JOIN = /^\s*(?:(?:in\s+)?\uE000\s*)?(?:to|and|,(?:\s*(?:and|to)\b)?|[-–—])\s*$/iu;
+const RANGE_JOIN =
+  /^\s*(?:(?:in\s+)?\uE000\s*)?(?:to|and|,(?:\s*(?:and|to)\b)?|[-\u2013\u2014])\s*$/iu;
 
 /**
  * The numbers in `text`. A unit written once, after the last number of a range or list, is carried
@@ -197,7 +207,7 @@ function round(value: number, decimals: number): number {
   return Math.round(Number((value * scale).toPrecision(12))) / scale;
 }
 
-function same(a: number, b: number): boolean {
+function approxEqual(a: number, b: number): boolean {
   return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
 }
 
@@ -207,12 +217,12 @@ function same(a: number, b: number): boolean {
  * decimal matches rounded as written. A number with a carried unit matches either way. Nothing
  * derived: a difference or ratio passes only when the input carries it.
  */
-function stated(mention: Mention, known: InputNumbers, years: ReadonlySet<number>): boolean {
-  if (mention.carried && statedAs({ ...mention, percent: true }, known, years)) return true;
-  return statedAs(mention, known, years);
+function inputStates(mention: Mention, known: InputNumbers, years: ReadonlySet<number>): boolean {
+  if (mention.carried && inputStatesAs({ ...mention, percent: true }, known, years)) return true;
+  return inputStatesAs(mention, known, years);
 }
 
-function statedAs(
+function inputStatesAs(
   { value, decimals, percent, year }: Mention,
   known: InputNumbers,
   years: ReadonlySet<number>,
@@ -220,17 +230,17 @@ function statedAs(
   if (percent) {
     return (
       decimals <= MAX_PERCENT_DECIMALS &&
-      known.rates.some((each) => same(round(each * 100, decimals), value))
+      known.rates.some((each) => approxEqual(round(each * 100, decimals), value))
     );
   }
   if (year) return years.has(value);
-  if (decimals === 0) return known.all.some((each) => same(each, value));
-  return known.all.some((each) => same(round(each, decimals), value));
+  if (decimals === 0) return known.all.some((each) => approxEqual(each, value));
+  return known.all.some((each) => approxEqual(round(each, decimals), value));
 }
 
 /**
  * The mentions in `text` the input does not state; a year or FY label counts when it is an input
- * FY, and a range of years ("2024–2026") when both its years are.
+ * FY, and a range of years ("2024-2026") when both its years are.
  */
 function foreignNumbers(text: string, known: InputNumbers, years: ReadonlySet<number>): Mention[] {
   const labels = [...text.matchAll(FY_LABEL)];
@@ -247,12 +257,15 @@ function foreignNumbers(text: string, known: InputNumbers, years: ReadonlySet<nu
       year: true,
     }));
   const rest = text.replaceAll(FY_LABEL, ` ${LABEL_GAP} `);
-  return [...foreignLabels, ...mentions(rest).filter((mention) => !stated(mention, known, years))];
+  return [
+    ...foreignLabels,
+    ...mentions(rest).filter((mention) => !inputStates(mention, known, years)),
+  ];
 }
 
 /**
  * The years a label names: the one an FY ends in ("2025/26" is 2026), or both ends of a range
- * whose years are not consecutive ("2024–2026", "2025/27").
+ * whose years are not consecutive ("2024-2026", "2025/27").
  */
 function labelYears(start: number, end: string): number[] {
   const year = end.length === 2 ? Math.floor(start / 100) * 100 + Number(end) : Number(end);

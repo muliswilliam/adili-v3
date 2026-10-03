@@ -2,38 +2,3 @@
 @import '@adili/ui/styles.css';
 
 @source './';
-
-/*
- * The Copilot panel (spec 07c FE-2): a flag opened from "Worth attention" pulses once, and the
- * declaration pane's target of a source link (`data-copilot-highlight`, set for a moment by
- * `highlightInDeclaration`) is marked with the brand edge the 07a prototype uses.
- */
-@keyframes copilot-flag-pulse {
-  0% {
-    box-shadow: 0 0 0 3px var(--color-brand);
-  }
-  100% {
-    box-shadow: var(--shadow-card);
-  }
-}
-
-@keyframes copilot-highlight {
-  0% {
-    background-color: var(--color-brand-subtle);
-  }
-  100% {
-    background-color: var(--color-brand-faint);
-  }
-}
-
-[data-copilot-highlight] {
-  background-color: var(--color-brand-faint);
-  box-shadow: inset 3px 0 0 var(--color-brand);
-  animation: copilot-highlight 1.6s ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-copilot-highlight] {
-    animation: none;
-  }
-}

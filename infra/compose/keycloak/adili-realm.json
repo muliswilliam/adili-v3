@@ -380,7 +380,7 @@
         "directory:roster-national-id",
         "documents:internal",
         "messages",
-        "ai"
+        "ai:internal"
       ],
       "optionalClientScopes": []
     },
@@ -1236,8 +1236,8 @@
       ]
     },
     {
-      "name": "ai",
-      "description": "Run AI tasks and read their jobs through the ai-gateway (/internal/v1/tasks, /internal/v1/jobs, spec 07c)",
+      "name": "ai:internal",
+      "description": "Run AI tasks, read their jobs, rate their outputs and read a tenant's AI status through the ai-gateway (/internal/v1/tasks, /internal/v1/jobs, /internal/v1/jobs/{id}/feedback, /internal/v1/tenants/{tenant}/status, spec 07c)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

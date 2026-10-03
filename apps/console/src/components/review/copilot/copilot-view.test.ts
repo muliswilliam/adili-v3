@@ -46,6 +46,15 @@ describe('failureReasonText', () => {
     expect(failureReasonText('refused')).toBe('declined by the AI model');
     expect(failureReasonText('validation')).toBe('output failed its checks');
     expect(failureReasonText('budget')).toBe('monthly AI budget used up');
+    expect(failureReasonText('output-purged')).toBe('the output expired before it was saved');
+    // The review service's own reasons too (review.yaml `CopilotView.failureReason`).
+    expect(failureReasonText('rejected')).toBe('the AI service refused the request');
+    expect(failureReasonText('ai-gateway-unavailable')).toBe('AI service unavailable');
+    expect(failureReasonText('declarations-unavailable')).toBe('the declaration could not be read');
+    expect(failureReasonText('key-service-unavailable')).toBe(
+      'the Commission key service is unavailable',
+    );
+    expect(failureReasonText('internal-error')).toBe('an error in the review service');
     expect(failureReasonText('something-new')).toBe('unknown error');
     expect(failureReasonText(null)).toBe('unknown error');
   });
@@ -62,8 +71,22 @@ describe('budgetResetDate', () => {
 
 describe('versionNumber', () => {
   const versions = [
-    { versionId: 'v1', version: 1, submittedAt: '', late: false, amendment: false },
-    { versionId: 'v2', version: 2, submittedAt: '', late: false, amendment: true },
+    {
+      versionId: 'v1',
+      version: 1,
+      submittedAt: '',
+      late: false,
+      amendment: false,
+      firstOnAdili: true,
+    },
+    {
+      versionId: 'v2',
+      version: 2,
+      submittedAt: '',
+      late: false,
+      amendment: true,
+      firstOnAdili: false,
+    },
   ];
   it('is the number of the version the copilot was produced for', () => {
     expect(versionNumber('v1', versions)).toBe('1');
@@ -77,11 +100,31 @@ describe('flags', () => {
     expect(titles).toEqual(['high', 'medium', 'medium', 'info', 'low']);
   });
 
-  it('knows a first declaration by its rule', () => {
-    const flags = mockFlags('v');
-    const [one] = flags;
-    if (!one) throw new Error('no flags');
-    expect(hasPreviousDeclaration(flags)).toBe(true);
-    expect(hasPreviousDeclaration([{ ...one, ruleId: 'no-previous-version' }])).toBe(false);
+  it('knows a first declaration by the version the output is for (e2e 18)', () => {
+    const versions = [
+      {
+        versionId: 'v1',
+        version: 1,
+        submittedAt: '',
+        late: false,
+        amendment: false,
+        firstOnAdili: true,
+      },
+      {
+        versionId: 'v2',
+        version: 2,
+        submittedAt: '',
+        late: false,
+        amendment: true,
+        firstOnAdili: false,
+      },
+    ];
+    // Version 1's output, stale after the amendment, had nothing to compare.
+    expect(hasPreviousDeclaration(versions, 'v1')).toBe(false);
+    expect(hasPreviousDeclaration(versions, 'v2')).toBe(true);
+    // No output yet: the current version.
+    expect(hasPreviousDeclaration(versions, null)).toBe(true);
+    expect(hasPreviousDeclaration(versions.slice(0, 1), null)).toBe(false);
+    expect(hasPreviousDeclaration([], null)).toBe(true);
   });
 });

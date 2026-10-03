@@ -13,6 +13,7 @@ import {
 import { Building03Icon, LockIcon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
+import { PERSON_FIELD_LABELS } from '../../declaration/field-labels';
 import type { LoadedSection } from '../../server/declarations.server';
 import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from '../../declaration/bio';
 import type { Draft, EmploymentNature, MaritalStatus, Officer } from '../../declaration/contents';
@@ -137,7 +138,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
 
       <Card className="grid gap-5 p-5 sm:grid-cols-2">
         <FormField
-          label="Date of birth"
+          label={PERSON_FIELD_LABELS.dateOfBirth}
           error={error('birthDate')}
           controlId={fieldId('birthDate')}
         >

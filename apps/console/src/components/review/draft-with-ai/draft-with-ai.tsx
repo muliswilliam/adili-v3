@@ -17,13 +17,10 @@ import {
   Money03Icon,
   SparklesIcon,
 } from '@hugeicons/core-free-icons';
-import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import {
   addPick,
-  DEFAULT_DRAFT_LANGUAGE,
-  DRAFT_LANGUAGES,
-  type DraftLanguage,
   type DraftFlag,
   type DraftPick,
   type DraftSelection,
@@ -39,6 +36,7 @@ import type { AiDraft } from '../../../server/copilot-drafts.server';
 import type { CopilotDraftInput } from '../../../server/review/types';
 import type { ServiceError, ServiceResult } from '../../../server/service-call';
 import type { ComposerApi } from '../composer/clarification-composer';
+import { LANGUAGE_NAMES } from '../composer/messages';
 import { SeverityBadge } from '../copilot/severity-badge';
 import { POLL_STOP_AFTER_MS, pollDelay } from '../copilot/use-case-copilot';
 import { messages as t } from './messages';
@@ -125,7 +123,8 @@ async function fetchDraft(
 
 /**
  * Draft with AI in the clarification composer (spec 07c FE-3, S12): the picked flags and items
- * as chips, a list to add more, the letter's language and the button. The review service waits
+ * as chips, a list to add more and the button; it drafts in the letter's language, chosen in the
+ * composer. The review service waits
  * up to 10 s for the draft; a slower one is polled (2, 3, 5, 8, 13, then every 15 s, for up to
  * two minutes). A ready draft's items and opening paragraph go into the composer as ordinary
  * items, labelled until edited, and the picks are cleared; nothing is saved or issued here.
@@ -140,12 +139,15 @@ export function DraftWithAi({
   onNotEnabled,
   server = draftServer,
 }: DraftWithAiProps) {
-  const id = useId();
   const { toast } = useToast();
-  const [language, setLanguage] = useState<DraftLanguage>(DEFAULT_DRAFT_LANGUAGE);
+  const { language } = api.state;
   const [phase, setPhase] = useState<Phase>('idle');
   // The composer closed (this unmounted) while drafting: drop the answer.
   const alive = useRef(true);
+  // The Idempotency-Key of the draft last asked for that got no answer (a timeout, the network),
+  // with what it was asked for: asking again for the same is a retry of that draft, which the
+  // review service answers without drafting (and paying for) it twice. Any answer drops it.
+  const unanswered = useRef<{ input: string; key: string } | null>(null);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -157,16 +159,27 @@ export function DraftWithAi({
   const options = pickable(selection, flags, api.targets);
   const count = picked.flags.length + picked.items.length;
   const busy = phase !== 'idle';
+  // The letter's language holds while drafting; the composer frees it again if this unmounts.
+  const { setDrafting } = api;
+  useEffect(() => {
+    setDrafting(busy);
+    return () => {
+      setDrafting(false);
+    };
+  }, [busy, setDrafting]);
 
   async function draft() {
     if (count === 0 || busy) return;
     setPhase('busy');
     const input = draftInput(selection, flags, api.targets, language);
+    const asked = JSON.stringify(input);
+    const key = unanswered.current?.input === asked ? unanswered.current.key : crypto.randomUUID();
+    unanswered.current = { input: asked, key };
     let outcome: Awaited<ReturnType<typeof fetchDraft>>;
     try {
       outcome = await fetchDraft(
         server,
-        { ...input, caseId, key: crypto.randomUUID() },
+        { ...input, caseId, key },
         () => alive.current,
         () => {
           setPhase('pending');
@@ -178,6 +191,9 @@ export function DraftWithAi({
       return;
     }
     if (outcome === null) return;
+    const answered =
+      outcome !== 'timeout' && !(!outcome.ok && outcome.error.kind === 'unavailable');
+    if (answered) unanswered.current = null;
     if (outcome === 'timeout') {
       finish(t.failed(reasonText('timeout')), true);
       return;
@@ -199,6 +215,7 @@ export function DraftWithAi({
       api.insert({
         label: done.label,
         jobId: done.jobId,
+        language: input.language,
         opening: done.opening,
         items: done.items,
       });
@@ -300,27 +317,9 @@ export function DraftWithAi({
         ) : null}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <label
-          htmlFor={`${id}-language`}
-          className="text-[12.5px] font-semibold text-ai-subtle-foreground"
-        >
-          {t.language}
-        </label>
-        <Select
-          id={`${id}-language`}
-          value={language}
-          disabled={busy}
-          onValueChange={(value) => {
-            setLanguage(value as DraftLanguage);
-          }}
-          className="h-8 w-auto bg-card text-[13.5px]"
-        >
-          {DRAFT_LANGUAGES.map((each) => (
-            <SelectItem key={each} value={each}>
-              {t.languages[each]}
-            </SelectItem>
-          ))}
-        </Select>
+        <span className="text-[12.5px] text-ai-subtle-foreground">
+          {t.draftsIn(LANGUAGE_NAMES[language])}
+        </span>
         <span className="flex-1" />
         <span
           role="status"

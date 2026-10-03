@@ -12,12 +12,14 @@
  *
  * Also answers the review service's Commission AI status (review.yaml `getCommissionAiStatus`,
  * which reads the gateway's tenant status) from the same store, so a policy saved here shows on
- * the Commission's own policy page (`mockTenantAiStatus`).
+ * the Commission's own policy page (`mockTenantAiStatus`). Routes can be set and removed as the
+ * gateway does, to the one provider it reaches (`anthropic`).
  */
 import createClient from 'openapi-fetch';
 
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
+import { isCommissionTask, TASK_NAMES } from './tasks';
 import type {
   DataClass,
   GateRule,
@@ -85,6 +87,7 @@ function syntheticRule(allowed: boolean, approvalRef: string, changedAt: string)
 /** Back to the seeded store. */
 export function resetAiGatewayMock() {
   tenants.clear();
+  routes.splice(0, routes.length, ...SEED_ROUTES);
   const seed: Record<string, StoredTenant> = {
     demo: {
       rules: [syntheticRule(true, 'EACC/AI/2026/001', '2026-08-04T06:12:00Z')],
@@ -124,12 +127,18 @@ function tenantOf(slug: string): StoredTenant {
   return tenant;
 }
 
-const ROUTES: Route[] = [
-  route(null, 'summarize-declaration', 4_000, 60_000),
+/** The providers the mock gateway reaches; a route to any other is refused, as the gateway does. */
+const PROVIDERS: Record<string, ProviderClass> = { anthropic: 'external' };
+
+/** Stored routes; summarize-declaration has no default route, so it shows the configured one. */
+const SEED_ROUTES: Route[] = [
   route(null, 'explain-flags', 3_000, 45_000),
   route(null, 'draft-clarification', 2_000, 10_000),
   route('psc', 'draft-clarification', 3_000, 10_000),
 ];
+
+/** The routing table; reset with the rest of the store. */
+const routes: Route[] = [];
 
 function route(
   tenant: string | null,
@@ -144,7 +153,28 @@ function route(
     providerClass: 'external',
     model: 'claude-opus-5-5',
     params: { maxOutputTokens, timeoutMs },
+    configured: false,
   };
+}
+
+/**
+ * The effective table, as the gateway lists it: the stored routes, then the configured one of
+ * every task without a default route.
+ */
+function routingTable(): Route[] {
+  const defaults = new Set(routes.filter((each) => each.tenant === null).map((each) => each.task));
+  return [
+    ...routes,
+    ...TASK_NAMES.filter((task) => !defaults.has(task)).map((task): Route => ({
+      tenant: null,
+      task,
+      provider: 'anthropic',
+      providerClass: 'external',
+      model: 'claude-opus-5-5',
+      params: {},
+      configured: true,
+    })),
+  ];
 }
 
 /** The month usage is counted in, as the gateway would report it (Nairobi time). */
@@ -180,6 +210,7 @@ function gateOf(slug: string): GateRuleInput[] {
 export function mockTenantAiStatus(slug: string): {
   enabled: boolean;
   providerClass: ProviderClass | null;
+  provider: string | null;
   dataClasses: DataClass[];
 } {
   ensureSeeded();
@@ -192,7 +223,7 @@ export function mockTenantAiStatus(slug: string): {
     ),
   );
   const sent: DataClass = SYNTHETIC_DATA_TENANTS.has(slug) ? 'synthetic' : 'highly-confidential';
-  return { enabled: dataClasses.includes(sent), providerClass, dataClasses };
+  return { enabled: dataClasses.includes(sent), providerClass, provider: 'anthropic', dataClasses };
 }
 
 interface Caller {
@@ -262,7 +293,17 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
     return setGatePolicy(request, policy[1], caller);
   }
 
-  if (method === 'GET' && pathname === '/v1/ai/routing') return json(200, ROUTES);
+  if (method === 'GET' && pathname === '/v1/ai/routing') return json(200, routingTable());
+
+  const routing = /^\/v1\/ai\/(?:tenants\/([a-z][a-z0-9]{1,19})\/)?routing\/([a-z-]+)$/.exec(
+    pathname,
+  );
+  const task = TASK_NAMES.find((each) => each === routing?.[2]);
+  if (routing && task) {
+    const tenant = routing[1] ?? null;
+    if (method === 'PUT') return setRoute(request, tenant, task);
+    if (method === 'DELETE') return removeRoute(request, tenant, task);
+  }
 
   if (method === 'GET' && pathname === '/v1/ai/usage') {
     return json(200, {
@@ -282,6 +323,53 @@ export async function mockAiGatewayFetch(request: Request): Promise<Response> {
   }
 
   return problem(404, 'Not found');
+}
+
+/** Sets the route of a task for every tenant (null) or one, as `PUT .../routing/{task}`. */
+async function setRoute(request: Request, tenant: string | null, task: Route['task']) {
+  const body = await readJson(request);
+  const input = isRecord(body) ? body : {};
+  const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+  const provider = text(input.provider);
+  const model = text(input.model);
+  const approvalRef = text(input.approvalRef);
+  const params = isRecord(input.params) ? input.params : {};
+  const errors: { path: string; message: string }[] = [];
+  if (!(provider in PROVIDERS)) {
+    errors.push({ path: 'provider', message: 'Must be a provider this gateway reaches' });
+  }
+  if (model.length < 1 || model.length > 200) errors.push({ path: 'model', message: 'Required' });
+  if (approvalRef.length < 1 || approvalRef.length > 200) {
+    errors.push({ path: 'approvalRef', message: 'Enter the approval reference' });
+  }
+  if (errors.length > 0) return validation(errors);
+  // As the gateway: no Commission calls an EACC task, so it has no Commission's own route.
+  if (tenant !== null && !isCommissionTask(task)) {
+    return validation([{ path: 'task', message: 'Must be a task a Commission calls' }]);
+  }
+  const next: Route = {
+    tenant,
+    task,
+    provider,
+    providerClass: PROVIDERS[provider] ?? null,
+    model,
+    params: params,
+    configured: false,
+  };
+  const index = routes.findIndex((each) => each.task === task && each.tenant === tenant);
+  if (index === -1) routes.push(next);
+  else routes[index] = next;
+  return json(200, next);
+}
+
+/** Removes a task's route, as `DELETE .../routing/{task}?approvalRef=`. */
+function removeRoute(request: Request, tenant: string | null, task: Route['task']) {
+  const approvalRef = new URL(request.url).searchParams.get('approvalRef')?.trim() ?? '';
+  if (!approvalRef) return validation([{ path: 'approvalRef', message: 'Required' }]);
+  const index = routes.findIndex((each) => each.task === task && each.tenant === tenant);
+  if (index === -1) return problem(404, 'There is no such route.');
+  routes.splice(index, 1);
+  return new Response(null, { status: 204 });
 }
 
 /** Rules in the contract's order: data class, then provider class. */

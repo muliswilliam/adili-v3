@@ -1,11 +1,12 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { callerOf, type Principal, ProblemException } from '@adili/api-kit';
-import { type Database, InjectDatabase } from '@adili/data-access';
+import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { CACHE_KEY, type Job, jobs, type schema, servesCache } from '../db/schema.js';
+import { asTenant, type GatewayDatabase, type GatewayTransaction } from '../db/context.js';
+import { CACHE_KEY, type Job, jobs, servesCache } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
@@ -96,7 +97,7 @@ function keyReused(): ProblemException {
 @Injectable()
 export class JobsService {
   constructor(
-    @InjectDatabase() private readonly db: Database<typeof schema>,
+    @InjectDatabase() private readonly db: GatewayDatabase,
     private readonly routing: Routing,
     private readonly admission: Admission,
     private readonly budgets: Budgets,
@@ -177,22 +178,35 @@ export class JobsService {
     const route = await this.routing.route(tenant, task.name);
     const { fields, requestHash } = jobKey(task, request, promptVersion, route, tenant, principal);
 
+    // The caller's transactions see the acting tenant's jobs only (row-level security).
+    const asCaller = <T>(work: (tx: GatewayTransaction) => Promise<T>) =>
+      asTenant(this.db, tenant, work, fields.caller);
     for (let attempt = 0; attempt < MAX_CREATE_ATTEMPTS; attempt++) {
-      const [previous] = await this.db
-        .select()
-        .from(jobs)
-        .where(and(eq(jobs.caller, fields.caller), eq(jobs.idempotencyKey, idempotencyKey)));
+      const [previous] = await asCaller((tx) =>
+        tx
+          .select()
+          .from(jobs)
+          .where(
+            and(
+              eq(jobs.tenant, tenant),
+              eq(jobs.caller, fields.caller),
+              eq(jobs.idempotencyKey, idempotencyKey),
+            ),
+          ),
+      );
       if (previous) {
         if (previous.requestHash !== requestHash) throw keyReused();
         return { kind: 'previous', job: previous };
       }
 
-      const [cached] = await this.db
-        .select()
-        .from(jobs)
-        .where(
-          and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
-        );
+      const [cached] = await asCaller((tx) =>
+        tx
+          .select()
+          .from(jobs)
+          .where(
+            and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
+          ),
+      );
       if (cached) return { kind: 'cached', job: cached };
 
       const limit = await this.budgets.rateLimited(tenant);
@@ -203,7 +217,7 @@ export class JobsService {
         });
       }
       const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
-      const created = await this.db.transaction(async (tx) => {
+      const created = await asCaller(async (tx) => {
         const [job] = await tx
           .insert(jobs)
           .values({
@@ -236,8 +250,8 @@ export class JobsService {
 
   /** A job is visible only to the caller that created it, acting for the job's tenant. */
   async get(id: string, tenant: string, principal: Principal): Promise<JobView | undefined> {
-    const job = await this.find(id, callerOf(principal));
-    return job?.tenant === tenant ? toJobView(job) : undefined;
+    const job = await this.find(id, tenant, callerOf(principal));
+    return job ? toJobView(job) : undefined;
   }
 
   /**
@@ -252,14 +266,20 @@ export class JobsService {
       return toJobView(job);
     }
     await this.workflows.waitForEnd(job.id, waitSeconds * 1000);
-    return toJobView((await this.find(job.id, job.caller)) ?? job);
+    return toJobView((await this.find(job.id, job.tenant, job.caller)) ?? job);
   }
 
-  private async find(id: string, caller: string): Promise<Job | undefined> {
-    const [job] = await this.db
-      .select()
-      .from(jobs)
-      .where(and(eq(jobs.id, id), eq(jobs.caller, caller)));
+  private async find(id: string, tenant: string, caller: string): Promise<Job | undefined> {
+    const [job] = await asTenant(
+      this.db,
+      tenant,
+      (tx) =>
+        tx
+          .select()
+          .from(jobs)
+          .where(and(eq(jobs.id, id), eq(jobs.tenant, tenant), eq(jobs.caller, caller))),
+      caller,
+    );
     return job;
   }
 }

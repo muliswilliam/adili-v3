@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
+import { asReviewer } from './as-viewer.server';
 import { getBff } from './bff.server';
 import {
   type ClarificationDetail,
@@ -14,7 +15,7 @@ import {
   withdraw,
 } from './clarifications.server';
 import { documentsClient } from './documents/client.server';
-import { reviewClient, type ReviewClient } from './review/client.server';
+import { reviewClient } from './review/client.server';
 import type { Clarification } from './review/types';
 import { callService, type ServiceResult } from './service-call';
 
@@ -23,14 +24,6 @@ import { callService, type ServiceResult } from './service-call';
  * signed-in reviewer or supervisor. Tokens stay on the server; downloads come back as
  * short-lived links.
  */
-
-async function asReviewer<T>(
-  work: (client: ReviewClient, subject: string, accessToken: string) => Promise<ServiceResult<T>>,
-): Promise<ServiceResult<T>> {
-  const session = await getBff().getSession(getRequest());
-  if (!session) return { ok: false, error: { kind: 'unauthenticated' } };
-  return work(reviewClient(session.accessToken), session.user.subject, session.accessToken);
-}
 
 const id = z.uuid();
 
@@ -41,7 +34,7 @@ export const getClarificationDetail = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<ClarificationDetailLoad> => {
     const now = new Date().toISOString();
     return {
-      ...(await asReviewer((client, subject) =>
+      ...(await asReviewer((client, { subject }) =>
         loadClarificationDetail(client, data.caseId, data.clarificationId, subject, now),
       )),
       now,
@@ -67,9 +60,10 @@ export const raiseFollowUpClarification = createServerFn({ method: 'POST' })
   );
 
 /** review.yaml `ClarificationItemInput`, as the composer sends it. */
-const item = z.object({
-  sectionKey: z.string().nullable(),
-  personKey: z.string().nullable(),
+export const clarificationItemInput = z.object({
+  // Bounds as `CopilotDraftInput.itemRefs` has them; review checks the keys' shape.
+  sectionKey: z.string().max(100).nullable(),
+  personKey: z.string().max(80).nullable(),
   itemId: z.uuid().nullable(),
   requirement: z.enum(['provide-omitted', 'explain-discrepancy', 'correct']),
   text: z.string().trim().min(1).max(1000),
@@ -81,11 +75,13 @@ const composed = z.object({
   caseId: id,
   /** The draft being edited, or null for a new one. */
   clarificationId: id.nullable(),
-  items: z.array(item).max(50),
+  items: z.array(clarificationItemInput).max(50),
   /** The letter's opening paragraph (Draft with AI's), or null for none. */
   opening: z.string().max(800).nullable(),
   /** The Draft with AI job that drafted the opening paragraph, or null. */
   openingAiJobId: z.uuid().nullable(),
+  /** The letter's language (review.yaml `LetterLanguage`). */
+  language: z.enum(['en', 'sw']),
   /** One per composer, reused on retry, so a retried create makes one draft. */
   draftKey: id,
 });
@@ -99,7 +95,12 @@ export const saveClarificationDraft = createServerFn({ method: 'POST' })
         client,
         data.caseId,
         data.clarificationId,
-        { items: data.items, opening: data.opening, openingAiJobId: data.openingAiJobId },
+        {
+          items: data.items,
+          opening: data.opening,
+          openingAiJobId: data.openingAiJobId,
+          language: data.language,
+        },
         data.draftKey,
       ),
     ),
@@ -118,7 +119,12 @@ export const issueComposedClarification = createServerFn({ method: 'POST' })
       reviewClient(session.accessToken),
       data.caseId,
       data.clarificationId,
-      { items: data.items, opening: data.opening, openingAiJobId: data.openingAiJobId },
+      {
+        items: data.items,
+        opening: data.opening,
+        openingAiJobId: data.openingAiJobId,
+        language: data.language,
+      },
       { draft: data.draftKey, issue: data.issueKey },
     );
   });
@@ -144,7 +150,7 @@ export const getResponseAttachmentLink = createServerFn({ method: 'GET' })
 export const getLetterLink = createServerFn({ method: 'GET' })
   .validator(z.object({ documentId: id }))
   .handler(({ data }): Promise<ServiceResult<DownloadLink>> =>
-    asReviewer((_client, _subject, accessToken) =>
+    asReviewer((_client, { accessToken }) =>
       callService(() =>
         documentsClient(accessToken).GET('/v1/documents/{documentId}/download', {
           params: { path: { documentId: data.documentId } },

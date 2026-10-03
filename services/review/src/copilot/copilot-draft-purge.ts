@@ -5,18 +5,20 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { lte, sql } from 'drizzle-orm';
+import { and, isNull, lte, sql } from 'drizzle-orm';
 
 import type { ReviewSchema } from '../db/schema.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { reviewCopilotDrafts } from './draft-schema.js';
 
-/** How often expired drafts are deleted. Reads never serve one past its day meanwhile. */
+/** How often expired drafts' text is purged. Reads never serve one past its day meanwhile. */
 export const DRAFT_PURGE_INTERVAL_MS = 15 * 60_000;
 
 /**
- * Deletes clarification drafts past their 24 hours (spec 07c S12), every quarter hour, on every
- * replica: the delete is idempotent, and a draft past its day already reads as gone.
+ * Purges the drafted text of clarification drafts past their 24 hours (spec 07c S12), every
+ * quarter hour, on every replica: the purge is idempotent, and a draft past its day already reads
+ * as gone. The draft's row stays without its text: which job drafted on the case, for whom, so a
+ * clarification saved later still names its AI-drafted items (ADR-007).
  */
 @Injectable()
 export class CopilotDraftPurge implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -38,17 +40,23 @@ export class CopilotDraftPurge implements OnApplicationBootstrap, OnApplicationS
     clearInterval(this.timer);
   }
 
-  /** Deletes every Commission's expired drafts; how many. */
+  /** Purges the text of every Commission's expired drafts; how many. */
   async purge(): Promise<number> {
-    const deleted = await withTenant(
+    const purged = await withTenant(
       this.db,
       { tenant: 'platform', subject: SYSTEM_SUBJECT },
       (tx) =>
         tx
-          .delete(reviewCopilotDrafts)
-          .where(lte(reviewCopilotDrafts.expiresAt, sql`now()`))
+          .update(reviewCopilotDrafts)
+          .set({ ciphertext: null, envelope: null, purgedAt: sql`now()` })
+          .where(
+            and(
+              lte(reviewCopilotDrafts.expiresAt, sql`now()`),
+              isNull(reviewCopilotDrafts.purgedAt),
+            ),
+          )
           .returning({ id: reviewCopilotDrafts.id }),
     );
-    return deleted.length;
+    return purged.length;
   }
 }

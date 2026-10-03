@@ -17,14 +17,33 @@ export type TaskName = (typeof TASK_NAMES)[number];
 export const taskNameSchema = z.enum(TASK_NAMES);
 
 /**
- * The tasks a Commission's officers call; the rest serve EACC alone (`narrate-compliance-report`
- * drafts the national report). A Commission's AI status reads only these routes.
+ * Tasks only EACC calls: `narrate-compliance-report` drafts the national report (NCR), not a
+ * Commission's Form M (ADR-007).
  */
-export const COMMISSION_TASKS = [
-  'summarize-declaration',
-  'explain-flags',
-  'draft-clarification',
-] as const satisfies readonly TaskName[];
+export const EACC_TASKS = ['narrate-compliance-report'] as const satisfies readonly TaskName[];
+
+/**
+ * The tasks a Commission's tenant calls, and may route: every task but EACC's, so a new task counts
+ * unless it is listed there.
+ */
+export const COMMISSION_TASKS = TASK_NAMES.filter(
+  (task): task is Exclude<TaskName, (typeof EACC_TASKS)[number]> =>
+    !(EACC_TASKS as readonly TaskName[]).includes(task),
+);
+
+/**
+ * Tasks a declarant's own questions call (Ask Adili, spec 11): public law and field paths only, so
+ * they work whatever the Commission's AI policy and are not its officers' AI assistance.
+ */
+export const DECLARANT_TASKS = ['answer-declarant-question'] as const satisfies readonly TaskName[];
+
+/**
+ * The Commission tasks its officers call to review declarations. A Commission's AI status reads
+ * only these routes.
+ */
+export const REVIEWER_TASKS = COMMISSION_TASKS.filter(
+  (task) => !(DECLARANT_TASKS as readonly TaskName[]).includes(task),
+);
 
 /** Contract `AiLabel`: present on every job output. */
 export const aiLabelSchema = z
@@ -77,7 +96,7 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   disclaimer?: Readonly<Record<Language, string>>;
   /**
    * Hours a finished job keeps this task's output, when shorter than the service-wide
-   * `AI_OUTPUT_RETENTION_DAYS` (a clarification draft is kept 24 hours, spec 07c).
+   * `AI_OUTPUT_RETENTION_HOURS` (a clarification draft is kept 24 hours, spec 07c).
    */
   outputRetentionHours?: number;
 }

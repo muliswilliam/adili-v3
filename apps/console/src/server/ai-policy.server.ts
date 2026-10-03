@@ -6,10 +6,13 @@ import type {
   GateRuleInput,
   ProviderClass,
   Route,
+  RouteInput,
+  TaskName,
   TenantPolicy,
   TenantUsage,
   UsageList,
 } from './ai-gateway/types';
+import { isCommissionTask } from './ai-gateway/tasks';
 import { callDirectory, type DirectoryClient } from './directory/client';
 import { callService, type ServiceResult } from './service-call';
 
@@ -102,7 +105,7 @@ const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
  * default route. Routes to a provider the gateway cannot reach send nothing anywhere.
  */
 export function routedClasses(routes: readonly Route[], tenant: string): ProviderClass[] {
-  const tasks = new Set(routes.map((route) => route.task));
+  const tasks = new Set(routes.map((route) => route.task).filter(isCommissionTask));
   const classes = new Set(
     [...tasks].flatMap((task) => {
       const route =
@@ -202,4 +205,50 @@ export function saveTenantBudget(
       body: budget,
     }),
   );
+}
+
+/**
+ * `PUT /v1/ai/routing/{task}` (tenant null: every Commission without its own route) or
+ * `PUT /v1/ai/tenants/{tenant}/routing/{task}`: where the task's calls go, audited with the
+ * approval reference. The next job follows it.
+ */
+export function saveRoute(
+  gateway: AiGatewayClient,
+  tenant: string | null,
+  task: TaskName,
+  route: RouteInput,
+): Promise<ServiceResult<Route>> {
+  return callService(() =>
+    tenant === null
+      ? gateway.PUT('/v1/ai/routing/{task}', { params: { path: { task } }, body: route })
+      : gateway.PUT('/v1/ai/tenants/{tenant}/routing/{task}', {
+          params: { path: { tenant, task } },
+          body: route,
+        }),
+  );
+}
+
+/**
+ * `DELETE /v1/ai/tenants/{tenant}/routing/{task}`: the Commission's own route goes, and the task
+ * follows the route of every Commission again; or `DELETE /v1/ai/routing/{task}` (tenant null):
+ * the default route goes, and the task is back on the gateway's configured provider and model.
+ * Audited with the approval reference.
+ */
+export function deleteRoute(
+  gateway: AiGatewayClient,
+  tenant: string | null,
+  task: TaskName,
+  approvalRef: string,
+): Promise<ServiceResult<null>> {
+  // 204: no body, so nothing to read but the outcome.
+  return callService(async () => ({
+    ...(await (tenant === null
+      ? gateway.DELETE('/v1/ai/routing/{task}', {
+          params: { path: { task }, query: { approvalRef } },
+        })
+      : gateway.DELETE('/v1/ai/tenants/{tenant}/routing/{task}', {
+          params: { path: { tenant, task }, query: { approvalRef } },
+        }))),
+    data: null,
+  }));
 }

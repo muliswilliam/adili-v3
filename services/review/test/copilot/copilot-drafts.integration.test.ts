@@ -98,13 +98,13 @@ describe('review copilot drafts', () => {
     label: {
       aiAssisted: true,
       task: 'draft-clarification',
-      promptVersion: 1,
+      promptVersion: 2,
       provider: 'replay',
       model: 'claude-opus-5-5',
       generatedAt: '2028-01-20T08:05:00.000Z',
       disclaimer: 'Viashiria, si matokeo. Afisa aliyetajwa ndiye anayeamua.',
     },
-    opening: 'Tume inaomba ufafanuzi.',
+    opening: 'Ombi hili linahusu kiwanja cha Karen Ridge.',
     items: input.selections.map((selection) => ({
       ref: selection.ref,
       requirement: selection.requirement ?? 'explain-discrepancy',
@@ -159,7 +159,7 @@ describe('review copilot drafts', () => {
       status: 'ready',
       jobId: api.ai.jobsOf('draft-clarification')[0]?.id,
       label: expect.objectContaining({ aiAssisted: true, task: 'draft-clarification' }) as object,
-      opening: 'Tume inaomba ufafanuzi.',
+      opening: 'Ombi hili linahusu kiwanja cha Karen Ridge.',
       items: [
         {
           sectionKey: 'statement:officer',
@@ -182,6 +182,8 @@ describe('review copilot drafts', () => {
         tenant: 'psc',
         dataClass: 'synthetic',
         subjectRef: `review-case:${caseId}`,
+        // v2: the opening is a lead-in to the letter's own introduction, not a second one.
+        promptVersion: 2,
         input: {
           kind: 'draft-clarification',
           commissionName: expect.any(String) as string,
@@ -211,12 +213,54 @@ describe('review copilot drafts', () => {
     expect(await api.asPlatform((tx) => tx.select().from(clarifications))).toEqual([]);
     const rows = await draftRows();
     expect(rows).toEqual([
-      expect.objectContaining({ id: draft.id, caseId, requestedBy: 'reviewer-a', status: 'ready' }),
+      // The language it was asked in, which the clarification's drafted parts record (Q36).
+      expect.objectContaining({
+        id: draft.id,
+        caseId,
+        requestedBy: 'reviewer-a',
+        status: 'ready',
+        language: 'sw',
+      }),
     ]);
     const stored = await api.asPlatform((tx) =>
       tx.execute<{ row: string }>(sql`select t::text as row from review_copilot_drafts t`),
     );
     expect(stored.rows.map((r) => r.row).join('\n')).not.toContain('Karen');
+    // Nor is the answer kept in clear for the Idempotency-Key's replay.
+    const replays = await api.asPlatform((tx) =>
+      tx.execute<{ row: string }>(sql`select t::text as row from idempotency_keys t`),
+    );
+    expect(replays.rows.map((r) => r.row).join('\n')).not.toContain(DRAFTED);
+  });
+
+  it('a retry with the same key gets the same draft, another selection a 422, and once its 24 hours are over a 409', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    api.ai.endWithinWait((call) => ({
+      status: 'succeeded',
+      reason: null,
+      output: output(call.request.input as DraftClarificationInput),
+    }));
+    const key = randomUUID();
+    const first = (await post(caseId, draftInput(flagId), assignee, key)).json<CopilotDraft>();
+    const again = await post(caseId, draftInput(flagId), assignee, key);
+    expect(again.statusCode).toBe(200);
+    expect(again.json()).toEqual(first);
+    expect(api.ai.jobsOf('draft-clarification')).toHaveLength(1);
+
+    await api.asPlatform((tx) =>
+      tx
+        .update(reviewCopilotDrafts)
+        .set({ expiresAt: sql`now() - interval '1 second'` })
+        .where(eq(reviewCopilotDrafts.id, first.id)),
+    );
+    const expired = await post(caseId, draftInput(flagId), assignee, key);
+    expect(expired.statusCode).toBe(409);
+    expect(expired.json()).toMatchObject({ type: 'draft-expired' });
+    expect(expired.body).not.toContain(DRAFTED);
+    // The same key for another selection.
+    const reused = await post(caseId, { ...draftInput(flagId), language: 'en' }, assignee, key);
+    expect(reused.statusCode).toBe(422);
+    expect(reused.json()).toMatchObject({ type: 'idempotency-key-reused' });
   });
 
   it('answers 202 with a pending draft when the wait runs out, which the assignee polls until ready', async () => {
@@ -273,7 +317,7 @@ describe('review copilot drafts', () => {
     expect(later.statusCode).toBe(200);
     expect(later.json()).toMatchObject({
       status: 'ready',
-      opening: 'Tume inaomba ufafanuzi.',
+      opening: 'Ombi hili linahusu kiwanja cha Karen Ridge.',
       items: [{ itemId: raised.id, text: DRAFTED, aiJobId: job.id }],
     });
     const [row] = await draftRows();
@@ -307,6 +351,18 @@ describe('review copilot drafts', () => {
 
     expect((await api.get(draftPath(draft.id), assignee)).statusCode).toBe(404);
     expect((await api.get(draftPath(draft.id), otherReviewer)).statusCode).toBe(404);
+  });
+
+  it('reports a succeeded job whose output the gateway purged as output-purged (Q24)', async () => {
+    const { caseId, flagId } = await flaggedCase();
+    const pending = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
+    api.ai.succeed(pending.jobId ?? '', null as unknown as Record<string, unknown>);
+
+    expect((await api.get(draftPath(pending.id), assignee)).json()).toMatchObject({
+      status: 'failed',
+      failureReason: 'output-purged',
+      items: [],
+    });
   });
 
   it('reports a failed job with its reason, and a request the gateway refuses as rejected', async () => {
@@ -347,9 +403,19 @@ describe('review copilot drafts', () => {
     expect(api.ai.feedback.map((call) => [call.jobId, call.feedback.rating])).toEqual([
       [jobId, 'helpful'],
     ]);
+    // A draft is its requester's alone, as its poll is: anyone else, 404.
     expect((await api.send('PUT', feedbackPath(jobId), otherReviewer, helpful)).statusCode).toBe(
-      403,
+      404,
     );
+
+    // Also once the case is theirs: they did not ask for it.
+    await api.asPlatform((tx) =>
+      tx.update(reviewCases).set({ assignee: 'reviewer-b' }).where(eq(reviewCases.id, caseId)),
+    );
+    expect((await api.send('PUT', feedbackPath(jobId), otherReviewer, helpful)).statusCode).toBe(
+      404,
+    );
+    expect(api.ai.feedback).toHaveLength(1);
   });
 
   it('is for the assignee only: another reviewer or a supervisor 403, another Commission 404, and a draft is polled only by who asked', async () => {
@@ -429,7 +495,7 @@ describe('review copilot drafts', () => {
     expect(await draftRows()).toEqual([]);
   });
 
-  it('purges drafts after 24 hours; until the purge runs, an expired draft is already gone', async () => {
+  it("purges drafts' text after 24 hours, keeping which job drafted; until the purge runs, an expired draft is already gone", async () => {
     const { caseId, flagId } = await flaggedCase();
     const old = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
     const fresh = (await post(caseId, draftInput(flagId))).json<CopilotDraft>();
@@ -445,6 +511,16 @@ describe('review copilot drafts', () => {
 
     expect((await api.get(draftPath(old.id), assignee)).statusCode).toBe(404);
     expect(await api.app.get(CopilotDraftPurge).purge()).toBe(1);
-    expect((await draftRows()).map((r) => r.id)).toEqual([fresh.id]);
+    const rows = await draftRows();
+    expect(rows.find((r) => r.id === old.id)).toMatchObject({
+      jobId: old.jobId,
+      ciphertext: null,
+      envelope: null,
+      purgedAt: expect.any(Date) as Date,
+    });
+    expect(rows.find((r) => r.id === fresh.id)).toMatchObject({ purgedAt: null });
+    // Idempotent: a purged draft is not purged again.
+    expect(await api.app.get(CopilotDraftPurge).purge()).toBe(0);
+    expect((await api.get(draftPath(old.id), assignee)).statusCode).toBe(404);
   });
 });

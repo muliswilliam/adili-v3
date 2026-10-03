@@ -77,7 +77,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -214,7 +214,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -268,7 +268,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -360,6 +360,206 @@ paths:
                   $ref: '#/components/schemas/Route'
         '403':
           description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /v1/ai/routing/{task}:
+    put:
+      tags:
+        - policy
+      summary: Route a task's calls for every tenant without its own route (audited)
+      description: The next job of the task follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).
+      operationId: setDefaultRoute
+      parameters:
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          description: Request failed validation, or the provider is not one this gateway reaches
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+    delete:
+      tags:
+        - policy
+      summary: Remove a task's default route, back to the configured provider and model (audited)
+      operationId: removeDefaultRoute
+      parameters:
+        - name: approvalRef
+          required: true
+          in: query
+          description: The decision the change rests on, e.g. an EACC approval number
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
+      responses:
+        '204':
+          description: Removed
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The task has no default route
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+  /v1/ai/tenants/{tenant}/routing/{task}:
+    put:
+      tags:
+        - policy
+      summary: Route a task's calls for one tenant, over the default route (audited)
+      description: The next job of the task for the tenant follows it. Audited with the approval reference and announced by `ai.policy.changed.v1` (action `ai.route.changed`).
+      operationId: setTenantRoute
+      parameters:
+        - name: tenant
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteInput'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+        '400':
+          description: Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      security:
+        - bearer: []
+    delete:
+      tags:
+        - policy
+      summary: Remove a tenant's route of a task, back to the default route (audited)
+      operationId: removeTenantRoute
+      parameters:
+        - name: tenant
+          required: true
+          in: path
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: approvalRef
+          required: true
+          in: query
+          description: The decision the change rests on, e.g. an EACC approval number
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: task
+          required: true
+          in: path
+          schema:
+            type: string
+            enum:
+              - summarize-declaration
+              - explain-flags
+              - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
+      responses:
+        '204':
+          description: Removed
+        '400':
+          description: Request failed validation
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Caller is not a platform admin
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: The tenant has no route of its own for the task
           content:
             application/problem+json:
               schema:
@@ -465,7 +665,7 @@ paths:
       tags:
         - internal
       summary: Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
-      description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process."
+      description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded."
       operationId: getTenantAiStatus
       parameters:
         - name: X-Acting-Tenant
@@ -495,7 +695,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '403':
-          description: Requires a service token with scope ai
+          description: Requires a service token with scope ai:internal
           content:
             application/problem+json:
               schema:
@@ -1183,6 +1383,13 @@ components:
                 type: string
               kind:
                 type: string
+                enum:
+                  - rate-change
+                  - threshold-breach
+                  - chronic-late-reporting
+                  - clarification-ratio-outlier
+                  - size-band-outlier
+                  - non-reporting
               subject:
                 type: string
                 description: Commission slug, entity type, or `national`
@@ -1228,7 +1435,7 @@ components:
         - candidates
         - section
         - language
-      description: 'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`)'
+      description: 'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted`'
     NarrateComplianceReportOutput:
       type: object
       properties:
@@ -1561,7 +1768,12 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ProviderClass'
             - type: 'null'
-          description: The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
+          description: The provider class of the tenant's reviewer task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
+        provider:
+          description: The provider the tenant's reviewer task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is
+          type:
+            - string
+            - 'null'
         dataClasses:
           type: array
           items:
@@ -1571,6 +1783,7 @@ components:
         - tenant
         - enabled
         - providerClass
+        - provider
         - dataClasses
     GateRuleInput:
       type: object
@@ -1704,6 +1917,9 @@ components:
           type: string
         params:
           $ref: '#/components/schemas/RouteParams'
+        configured:
+          type: boolean
+          description: True for a task with no default route, which follows the gateway's configured provider and model; false for a route set through this API
       required:
         - tenant
         - task
@@ -1711,6 +1927,33 @@ components:
         - providerClass
         - model
         - params
+        - configured
+    RouteInput:
+      type: object
+      properties:
+        provider:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: A provider this gateway is configured to reach (`Route.provider` names them)
+        model:
+          type: string
+          minLength: 1
+          maxLength: 200
+        params:
+          default: {}
+          $ref: '#/components/schemas/RouteParams'
+        approvalRef:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The decision the change rests on, e.g. an EACC approval number
+      required:
+        - provider
+        - model
+        - approvalRef
+      additionalProperties: false
+      description: "A task's route: provider, model and call parameters"
     BudgetInput:
       type: object
       properties:

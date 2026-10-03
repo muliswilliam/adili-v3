@@ -17,18 +17,31 @@ interface Label {
 
 const en = (text: string): Label => ({ en: text, sw: '' });
 
-/** What each s.35(4) requirement asks of the declarant, in plain words. */
+/**
+ * What each s.35(4) requirement asks of the declarant, in plain words. `ask` is part of what the
+ * letter asks, so it is shown in the clarification's letter language (`Clarification.language`),
+ * with its Swahili done; the placeholder is the portal's own copy.
+ */
 export const REQUIREMENTS = {
   'provide-omitted': {
-    ask: en('Your Commission asks you to provide the omitted information for:'),
+    ask: {
+      en: 'Your Commission asks you to provide the omitted information for:',
+      sw: 'Tume yako inakuomba utoe taarifa zilizoachwa kuhusu:',
+    },
     placeholder: en('Give the missing details. Attach a statement if you have one.'),
   },
   'explain-discrepancy': {
-    ask: en('Your Commission asks you to explain the discrepancy in:'),
+    ask: {
+      en: 'Your Commission asks you to explain the discrepancy in:',
+      sw: 'Tume yako inakuomba ueleze tofauti iliyopo katika:',
+    },
     placeholder: en('Explain in your own words. Short, clear answers are best.'),
   },
   correct: {
-    ask: en('Your Commission asks you to correct:'),
+    ask: {
+      en: 'Your Commission asks you to correct:',
+      sw: 'Tume yako inakuomba usahihishe:',
+    },
     placeholder: en('Say what the correct entry is and why.'),
   },
 } satisfies Record<Requirement, { ask: Label; placeholder: Label }>;

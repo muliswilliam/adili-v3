@@ -1007,7 +1007,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Re-request the summary and explanations (assignee or supervisor) */
+        /**
+         * Re-request the summary and explanations (assignee or supervisor)
+         * @description A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the Commission may use it now. The console offers no Refresh there, as a change of the Commission's AI policy or route already requests not-enabled copilots again; the API keeps it on purpose, for a request made right after such a change and for tooling.
+         */
         post: operations["refreshCaseCopilot"];
         delete?: never;
         options?: never;
@@ -1028,7 +1031,7 @@ export interface paths {
         put?: never;
         /**
          * Draft clarification items from selected flags and items (assignee); nothing is issued
-         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft. Audited read (`review.copilot.drafted`).
+         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over. Audited read (`review.copilot.drafted`).
          */
         post: operations["draftClarificationWithAi"];
         delete?: never;
@@ -1176,7 +1179,7 @@ export interface components {
             forVersionId: string | null;
             /** Format: date-time */
             generatedAt: string | null;
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, or `declarations-unavailable` when the declaration could not be read */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
             failureReason: string | null;
             /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
             summary: {
@@ -1192,7 +1195,7 @@ export interface components {
                 /** Format: uuid */
                 explain: string | null;
             };
-            /** @description The caller's own ratings of the outputs shown (`jobs`) */
+            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee */
             feedback: {
                 /** Format: uuid */
                 jobId: string;
@@ -1210,8 +1213,7 @@ export interface components {
                 sectionKey: string | null;
                 requirement: components["schemas"]["Requirement"] | null;
             }[];
-            /** @enum {string} */
-            language: "en" | "sw";
+            language: components["schemas"]["LetterLanguage"];
         };
         CopilotDraft: {
             /** Format: uuid */
@@ -1227,7 +1229,7 @@ export interface components {
             opening: string | null;
             /** @description Empty until ready */
             items: components["schemas"]["ClarificationItemInput"][];
-            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), or `rejected` when the gateway refused the request */
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request */
             failureReason: string | null;
         };
         CommissionAiStatus: {
@@ -1238,6 +1240,8 @@ export interface components {
              * @enum {string|null}
              */
             providerClass: "external" | "self-hosted" | null;
+            /** @description The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is */
+            provider: string | null;
             /** @description Data classes that provider class may process for the Commission */
             dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
         };
@@ -1315,6 +1319,8 @@ export interface components {
                 versionId: string;
                 /** @description The version amended an earlier one of the same declaration */
                 amendment: boolean;
+                /** @description The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag */
+                firstOnAdili: boolean;
                 version: number;
                 /** Format: date-time */
                 submittedAt: string;
@@ -1361,7 +1367,14 @@ export interface components {
              */
             aiJobId?: string | null;
         };
+        /**
+         * @description The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written.
+         * @enum {string}
+         */
+        LetterLanguage: "en" | "sw";
         ClarificationInput: {
+            /** @description The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows. */
+            language?: components["schemas"]["LetterLanguage"];
             items: components["schemas"]["ClarificationItemInput"][];
             /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
             opening?: string | null;
@@ -1390,6 +1403,8 @@ export interface components {
             items: (components["schemas"]["ClarificationItemInput"] & {
                 /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno") */
                 label?: string;
+                /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
+                aiLanguage?: components["schemas"]["LetterLanguage"] | null;
             })[];
             /** Format: date-time */
             issuedAt: string | null;
@@ -1417,6 +1432,9 @@ export interface components {
              * @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer
              */
             openingAiJobId: string | null;
+            /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
+            openingAiLanguage: components["schemas"]["LetterLanguage"] | null;
+            language: components["schemas"]["LetterLanguage"];
             response: {
                 items: {
                     index: number;
@@ -1461,9 +1479,11 @@ export interface components {
             };
             declarationReference: string;
             clarificationReference: string;
+            /** @description The template prints its own text (heading, introduction, how to respond, sign-off, the AI note and the verification lines) in this language. `items[].label` and `items[].requirementLabel` already are; the opening and the items' text are the reviewer's, printed as written. Letters issued before it was recorded are `en`. */
+            language: components["schemas"]["LetterLanguage"];
             /** @description Printed before the items; null when the letter has no opening paragraph */
             opening: string | null;
-            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. */
+            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out. */
             aiAssisted: boolean;
             items: {
                 label: string;
@@ -2393,7 +2413,7 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
-            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2456,7 +2476,7 @@ export interface operations {
                     "application/json": components["schemas"]["Clarification"];
                 };
             };
-            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` that names no ready Draft with AI of the case */
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -3945,7 +3965,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description Already pending (problem type `copilot-pending`). A case whose copilot was `not-enabled` is requested again: the ai-gateway decides whether the Commission may use it now */
+            /** @description Already pending (problem type `copilot-pending`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4020,7 +4040,7 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4157,7 +4177,7 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
-            502: {
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

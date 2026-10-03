@@ -5,6 +5,8 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { jobs } from '../../src/db/schema.js';
+import { JobExecutor } from '../../src/jobs/job-executor.js';
+import { JobWorkflows } from '../../src/jobs/job-workflows.js';
 import { JobsJanitor } from '../../src/jobs/jobs-janitor.js';
 import { contractErrors } from '../support/contract.js';
 import {
@@ -499,15 +501,18 @@ describe('task jobs', () => {
       expect(job?.tenant).toBe('kcomm');
     });
 
-    it('refuses callers without the ai scope', async () => {
-      const unscoped = { authorization: `Bearer ${await t.token({ scope: 'profile' })}` };
+    it.each(['profile', 'profile ai'])(
+      'refuses callers without the ai:internal scope (%s)',
+      async (scope) => {
+        const unscoped = { authorization: `Bearer ${await t.token({ scope })}` };
 
-      const response = await runTask('summarize-declaration', taskRequest(freshInput()), {
-        headers: unscoped,
-      });
+        const response = await runTask('summarize-declaration', taskRequest(freshInput()), {
+          headers: unscoped,
+        });
 
-      expect(response.statusCode).toBe(403);
-    });
+        expect(response.statusCode).toBe(403);
+      },
+    );
   });
 
   describe('janitor', () => {
@@ -554,14 +559,14 @@ describe('task jobs', () => {
       });
     });
 
-    it('purges outputs past retention, which then no longer serve the cache', async () => {
+    it('purges outputs past the 24 hour retention, which then no longer serve the cache', async () => {
       const input = freshInput();
       await recordSuccess(input);
       const first = (await runTask('summarize-declaration', taskRequest(input))).json<Job>();
       await untilFinished(first.id);
       await t.db
         .update(jobs)
-        .set({ finishedAt: sql`now() - interval '31 days'` })
+        .set({ finishedAt: sql`now() - interval '25 hours'` })
         .where(eq(jobs.id, first.id));
 
       await t.app.get(JobsJanitor).sweep();
@@ -573,7 +578,7 @@ describe('task jobs', () => {
       expect(again.id).not.toBe(first.id);
     });
 
-    it('purges a clarification draft after 24 hours and keeps a summary for its full window', async () => {
+    it('purges a clarification draft after 24 hours even when the service keeps outputs longer', async () => {
       const finished = async (task: 'draft-clarification' | 'summarize-declaration') => {
         const id = randomUUID();
         await t.db.insert(jobs).values({
@@ -599,7 +604,10 @@ describe('task jobs', () => {
       const draft = await finished('draft-clarification');
       const summary = await finished('summarize-declaration');
 
-      await t.app.get(JobsJanitor).sweep();
+      // A service configured to keep outputs for 30 days still drops drafts after 24 hours.
+      await new JobsJanitor(t.serviceDb, t.app.get(JobWorkflows), t.app.get(JobExecutor), {
+        outputRetentionHours: 30 * 24,
+      }).sweep();
 
       const outputs = await t.db
         .select({ id: jobs.id, output: jobs.output, purgedAt: jobs.outputPurgedAt })

@@ -13,6 +13,7 @@ import {
   type ClarificationItem,
   type ClarificationStatus,
   clarificationResponses,
+  type LetterLanguage,
   clarifications,
   reviewCases,
   reviewTimeline,
@@ -83,7 +84,7 @@ export class ClarificationsService {
         .where(eq(reviewCases.id, caseId));
       const reviewCase = notFoundIfInvisible(found);
       requireAssignee(principal, reviewCase.assignee);
-      await requireDraftedOnCase(tx, caseId, input);
+      const drafted = await requireDraftedOnCase(tx, principal, caseId, input);
       const [created] = await tx
         .insert(clarifications)
         .values({
@@ -92,9 +93,9 @@ export class ClarificationsService {
           caseId,
           personId: reviewCase.personId,
           status: 'draft',
-          items: storedItems(input),
-          opening: input.opening,
-          openingAiJobId: input.openingAiJobId,
+          ...storedText(input, drafted),
+          language: input.language,
+          aiAssisted: drafted.size > 0,
           createdBy: principal.subject,
         })
         .returning();
@@ -112,13 +113,21 @@ export class ClarificationsService {
       const { clarification, reviewCase } = await lockForWork(tx, tenant, clarificationId);
       requireAssignee(principal, reviewCase.assignee);
       if (clarification.status !== 'draft') throw notADraft();
-      await requireDraftedOnCase(tx, reviewCase.id, input, aiJobIdsOf(clarification));
+      const drafted = await requireDraftedOnCase(
+        tx,
+        principal,
+        reviewCase.id,
+        input,
+        draftedLanguagesOf(clarification),
+      );
       const [updated] = await tx
         .update(clarifications)
         .set({
-          items: storedItems(input),
-          opening: input.opening,
-          openingAiJobId: input.openingAiJobId,
+          ...storedText(input, drafted),
+          // A language change keeps each drafted part's own language: the composer says so.
+          language: input.language,
+          // Once AI-assisted, always: a save that leaves the jobs out keeps the label (ADR-007).
+          aiAssisted: clarification.aiAssisted || drafted.size > 0,
         })
         .where(eq(clarifications.id, clarificationId))
         .returning();
@@ -275,8 +284,8 @@ export class ClarificationsService {
   }
 
   /**
-   * The assignee raises a follow-up: a new draft of the same case with the items of the
-   * clarification it follows and `followUpOf` naming it, with a timeline entry in the same
+   * The assignee raises a follow-up: a new draft of the same case with the items, opening and
+   * language of the clarification it follows and `followUpOf` naming it, with a timeline entry in the same
    * transaction. Once issued it has its own `CLR` reference, letter and clock.
    */
   async followUp(principal: Principal, clarificationId: string): Promise<ClarificationView> {
@@ -306,6 +315,9 @@ export class ClarificationsService {
           items: clarification.items.map((item) => ({ ...item, id: uuidv7() })),
           opening: clarification.opening,
           openingAiJobId: clarification.openingAiJobId,
+          openingAiLanguage: clarification.openingAiLanguage,
+          language: clarification.language,
+          aiAssisted: clarification.aiAssisted,
           followUpOf: clarificationId,
           createdBy: principal.subject,
         })
@@ -429,7 +441,10 @@ async function responseOf(tx: ReviewTransaction, clarificationId: string) {
   return response ?? null;
 }
 
-function storedItems(input: ClarificationInput): ClarificationItem[] {
+function storedItems(
+  input: ClarificationInput,
+  drafted: ReadonlyMap<string, LetterLanguage | null> = new Map(),
+): ClarificationItem[] {
   return input.items.map((item) => ({
     id: uuidv7(),
     sectionKey: item.sectionKey ?? null,
@@ -438,7 +453,37 @@ function storedItems(input: ClarificationInput): ClarificationItem[] {
     requirement: item.requirement,
     text: item.text,
     aiJobId: item.aiJobId ?? null,
+    aiLanguage: item.aiJobId ? (drafted.get(item.aiJobId) ?? null) : null,
   }));
+}
+
+/** The items and opening as stored, each drafted part with the language its job drafted in. */
+function storedText(
+  input: ClarificationInput,
+  drafted: ReadonlyMap<string, LetterLanguage | null>,
+) {
+  return {
+    items: storedItems(input, drafted),
+    opening: input.opening,
+    openingAiJobId: input.openingAiJobId,
+    openingAiLanguage: input.openingAiJobId ? (drafted.get(input.openingAiJobId) ?? null) : null,
+  };
+}
+
+/** The Draft with AI jobs a clarification's text came from, each with the language it drafted in. */
+function draftedLanguagesOf(clarification: {
+  items: ClarificationItem[];
+  openingAiJobId: string | null;
+  openingAiLanguage: LetterLanguage | null;
+}): Map<string, LetterLanguage | null> {
+  const drafted = new Map<string, LetterLanguage | null>();
+  for (const item of clarification.items) {
+    if (item.aiJobId) drafted.set(item.aiJobId, item.aiLanguage ?? null);
+  }
+  if (clarification.openingAiJobId) {
+    drafted.set(clarification.openingAiJobId, clarification.openingAiLanguage);
+  }
+  return drafted;
 }
 
 /** The Draft with AI jobs a clarification's text came from. */
@@ -454,42 +499,55 @@ function aiJobIdsOf(clarification: {
 }
 
 /**
- * Every Draft with AI job the input names (`aiJobId`, `openingAiJobId`) drafted on this case: a
- * ready draft of the case's, or one the clarification already names (its drafts may be purged
- * since). 400 otherwise, so the AI label (ADR-007) always points at a draft of the case.
+ * Every Draft with AI job the input names (`aiJobId`, `openingAiJobId`) drafted on this case by
+ * the caller: a ready draft of theirs (its text purged after its 24 hours or not: which job
+ * drafted it is kept, so the label survives the purge), or one the clarification already names.
+ * 400 otherwise, so the AI label (ADR-007) always points at a draft of the case. The jobs named,
+ * each with the language it drafted in (null when not known).
  */
 async function requireDraftedOnCase(
   tx: ReviewTransaction,
+  principal: Principal,
   caseId: string,
   input: ClarificationInput,
-  known = new Set<string>(),
-): Promise<void> {
+  known: ReadonlyMap<string, LetterLanguage | null> = new Map(),
+): Promise<Map<string, LetterLanguage | null>> {
   const named = [
     ...aiJobIdsOf({ items: storedItems(input), openingAiJobId: input.openingAiJobId }),
   ];
-  const unknown = named.filter((id) => !known.has(id));
-  if (unknown.length === 0) return;
-  const drafted = await tx
-    .selectDistinct({ jobId: reviewCopilotDrafts.jobId })
+  if (named.length === 0) return new Map();
+  const drafts = await tx
+    .select({
+      jobId: reviewCopilotDrafts.jobId,
+      language: reviewCopilotDrafts.language,
+      requestedBy: reviewCopilotDrafts.requestedBy,
+      status: reviewCopilotDrafts.status,
+    })
     .from(reviewCopilotDrafts)
-    .where(
-      and(
-        eq(reviewCopilotDrafts.caseId, caseId),
-        eq(reviewCopilotDrafts.status, 'ready'),
-        inArray(reviewCopilotDrafts.jobId, unknown),
-      ),
-    );
-  if (drafted.length < unknown.length) {
+    .where(and(eq(reviewCopilotDrafts.caseId, caseId), inArray(reviewCopilotDrafts.jobId, named)));
+  const drafted = new Map<string, LetterLanguage>();
+  for (const draft of drafts) {
+    if (draft.jobId === null) continue;
+    // One the clarification names already may be another reviewer's, from before a reassignment.
+    const usable =
+      known.has(draft.jobId) ||
+      (draft.requestedBy === principal.subject && draft.status === 'ready');
+    if (usable) drafted.set(draft.jobId, draft.language);
+  }
+  const unknown = named.filter((id) => !known.has(id));
+  if (unknown.some((id) => !drafted.has(id))) {
     throw new ProblemException(
       {
         type: 'ai-draft-not-on-case',
         title: 'Bad Request',
         status: HttpStatus.BAD_REQUEST,
-        detail: 'An AI-drafted item or opening names no Draft with AI of this case.',
+        detail: 'An AI-drafted item or opening names no Draft with AI of yours on this case.',
       },
       { code: 'ai-draft-not-on-case' },
     );
   }
+  // A job the clarification names already keeps the language saved with it, should its row go.
+  return new Map(named.map((id) => [id, drafted.get(id) ?? known.get(id) ?? null]));
 }
 
 function notADraft(): ProblemException {

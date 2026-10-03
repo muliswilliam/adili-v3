@@ -30,6 +30,16 @@ const year = {
   }),
 };
 
+/** reporting.yaml `PatternCandidate.kind`: the patterns reporting computes; the prompt names each. */
+export const CANDIDATE_KINDS = [
+  'rate-change',
+  'threshold-breach',
+  'chronic-late-reporting',
+  'clarification-ratio-outlier',
+  'size-band-outlier',
+  'non-reporting',
+] as const;
+
 /** Sections whose draft includes findings, each of which must cite a candidate. */
 const sectionsWithFindings: ReadonlySet<string> = new Set(['findings', 'all']);
 
@@ -41,7 +51,7 @@ const input = z
     candidates: z.array(
       z.object({
         id: z.string(),
-        kind: z.string(),
+        kind: z.enum(CANDIDATE_KINDS),
         subject: z.string().meta({ description: 'Commission slug, entity type, or `national`' }),
         values: z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
         aggregateKeys: z.array(z.string()).min(1),
@@ -60,7 +70,7 @@ const input = z
   })
   .meta({
     description:
-      'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`)',
+      'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted`',
   });
 
 const output = z.object({

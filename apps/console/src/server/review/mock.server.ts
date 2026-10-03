@@ -62,6 +62,7 @@ import {
   type MockDeclarant,
   MOCK_DECLARATION,
   MOCK_FLAG_IDS,
+  mockDraftLanguage,
   mockFlags,
   resetCopilotMock,
 } from './copilot-mock.server';
@@ -231,6 +232,7 @@ function storedCase(item: CaseListItem, overrides: Partial<StoredCase> = {}): St
         submittedAt: item.receivedAt,
         late: item.late,
         amendment: false,
+        firstOnAdili: (overrides.flags ?? []).some((flag) => flag.ruleId === 'no-previous-version'),
       },
     ],
     declarationsDown: false,
@@ -283,6 +285,8 @@ function clarification(
     followUpOf: null,
     opening: null,
     openingAiJobId: null,
+    openingAiLanguage: null,
+    language: 'en',
     response: null,
     ...overrides,
   };
@@ -354,7 +358,7 @@ function officerDeclaration(
             type: 'salary-emoluments',
             description: `Salary from ${employer}`,
             amount: kes(3_120_000),
-            location: { inKenya: true, county: 'Nairobi' },
+            location: { inKenya: true, county: '047' },
             change: { changed: false },
           },
         ],
@@ -365,7 +369,7 @@ function officerDeclaration(
             type: 'land',
             description: 'Plot Nyeri/Mukurwe-ini/1187',
             value: kes(2_400_000),
-            location: { inKenya: true, county: 'Nyeri', detail: 'Mukurwe-ini' },
+            location: { inKenya: true, county: '019', detail: 'Mukurwe-ini' },
             joint: { isJoint: false },
             change: { changed: false },
           },
@@ -494,6 +498,7 @@ export function resetReviewMock(
           submittedAt: mineItem.receivedAt,
           late: true,
           amendment: false,
+          firstOnAdili: false,
         },
         {
           versionId: C.mine,
@@ -501,6 +506,7 @@ export function resetReviewMock(
           submittedAt: atMinutes(now, -15, 182),
           late: false,
           amendment: true,
+          firstOnAdili: false,
         },
       ],
       notes: [
@@ -618,11 +624,20 @@ export function resetReviewMock(
   const seed = (value: Clarification) => clarifications.set(value.id, value);
   // Drafted with AI (the plot's item and the opening), then edited and issued (ADR-007 label).
   seed(
-    clarification(K.issued, C.mine, 42, [{ ...PLOT, aiJobId: MOCK_DRAFT_JOB_ID }, SACCO], 8, now, {
-      opening:
-        'Thank you for your biennial declaration. The points below relate to changes since your previous declaration.',
-      openingAiJobId: MOCK_DRAFT_JOB_ID,
-    }),
+    clarification(
+      K.issued,
+      C.mine,
+      42,
+      [{ ...PLOT, aiJobId: MOCK_DRAFT_JOB_ID, aiLanguage: 'en' }, SACCO],
+      8,
+      now,
+      {
+        opening:
+          'Thank you for your biennial declaration. The points below relate to changes since your previous declaration.',
+        openingAiJobId: MOCK_DRAFT_JOB_ID,
+        openingAiLanguage: 'en',
+      },
+    ),
   );
   const late = clarification(K.late, C.mine, 17, [PLOT, SACCO], 40, now);
   const lateAt = at(Date.parse(late.dueAt ?? ''), 3);
@@ -751,6 +766,8 @@ function draftOf(
     followUpOf,
     opening: null,
     openingAiJobId: null,
+    openingAiLanguage: null,
+    language: 'en',
     response: null,
   };
 }
@@ -1153,6 +1170,8 @@ async function act(
     ...draftOf(randomUUID(), found.caseId, found.items, found.id),
     opening: found.opening,
     openingAiJobId: found.openingAiJobId,
+    openingAiLanguage: found.openingAiLanguage,
+    language: found.language,
   };
   clarifications.set(draft.id, draft);
   return json(201, draft);
@@ -1182,7 +1201,10 @@ async function once(request: Request, work: () => Promise<Response>): Promise<Re
 /** review.yaml `ClarificationInput`, checked as the service does; null when invalid. */
 async function contentOf(
   request: Request,
-): Promise<{ items: Item[]; opening: string | null; openingAiJobId: string | null } | null> {
+): Promise<Pick<
+  Clarification,
+  'items' | 'opening' | 'openingAiJobId' | 'openingAiLanguage' | 'language'
+> | null> {
   const body = await readJson(request);
   const items = isRecord(body) ? body.items : null;
   if (!Array.isArray(items) || items.length > 50) return null;
@@ -1192,6 +1214,9 @@ async function contentOf(
   }
   const openingAiJobId = isRecord(body) ? (body.openingAiJobId ?? null) : null;
   if (openingAiJobId !== null && typeof openingAiJobId !== 'string') return null;
+  // Left out: English, as the service has it.
+  const language = isRecord(body) ? (body.language ?? 'en') : 'en';
+  if (language !== 'en' && language !== 'sw') return null;
   const valid: Item[] = [];
   const optional = (value: unknown) => (typeof value === 'string' ? value : null);
   for (const item of items) {
@@ -1206,6 +1231,8 @@ async function contentOf(
       requirement: requirement as Item['requirement'],
       text: text.trim(),
       aiJobId: optional(item.aiJobId),
+      // The service records the language the job drafted in (a seeded job's is English).
+      aiLanguage: draftedLanguage(optional(item.aiJobId)),
     });
   }
   const trimmed = opening?.trim() ?? '';
@@ -1213,8 +1240,13 @@ async function contentOf(
     items: valid,
     opening: trimmed === '' ? null : trimmed,
     openingAiJobId: trimmed === '' ? null : openingAiJobId,
+    openingAiLanguage: trimmed === '' ? null : draftedLanguage(openingAiJobId),
+    language,
   };
 }
+
+const draftedLanguage = (jobId: string | null): 'en' | 'sw' | null =>
+  jobId === MOCK_DRAFT_JOB_ID ? 'en' : mockDraftLanguage(jobId);
 
 async function createDraft(request: Request, caseId: string, caller: Assignee) {
   const stored = cases.get(caseId);

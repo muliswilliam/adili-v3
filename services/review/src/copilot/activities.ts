@@ -1,17 +1,20 @@
+import { FieldCipherError } from '@adili/data-access';
 import { Injectable } from '@nestjs/common';
+import { ApplicationFailure } from '@temporalio/common';
 
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import type {
   CopilotActivityRequest,
   CopilotJobFinished,
   CopilotUnavailableReason,
+  NotEnabledPage,
 } from './contract.js';
 import { COPILOT_FAILURES, CopilotRequests } from './copilot-requests.js';
 
 /**
  * The copilot's activities (spec 07c), hosted by the review worker. Every public method is an
- * activity named after it; each is safe to retry. An unreachable declarations service or
- * ai-gateway propagates, so Temporal retries with backoff.
+ * activity named after it; each is safe to retry. An unreachable declarations service,
+ * ai-gateway or key service propagates, so Temporal retries with backoff.
  */
 @Injectable()
 export class CopilotActivities {
@@ -19,17 +22,26 @@ export class CopilotActivities {
 
   /** `requestCopilot(caseId)`: asks the gateway for the case's summary and explanations. */
   requestCopilot(request: CopilotActivityRequest): Promise<void> {
-    return this.requests.request({ ...request, actingSubject: SYSTEM_SUBJECT });
+    return cipherFailures(this.requests.request({ ...request, actingSubject: SYSTEM_SUBJECT }));
+  }
+
+  /** Pulls the latest request's jobs and records those that have ended. */
+  settleCopilot({ tenant, caseId }: { tenant: string; caseId: string }): Promise<void> {
+    return cipherFailures(this.requests.settle(tenant, caseId));
   }
 
   /** Pulls an ended job's outcome from the gateway and records it on the case's copilot. */
   recordCopilotJob({ tenant, caseId, jobId }: CopilotJobFinished): Promise<void> {
-    return this.requests.recordJob(tenant, caseId, jobId);
+    return cipherFailures(this.requests.recordJob(tenant, caseId, jobId));
   }
 
-  /** The cases of the Commission whose copilot is `not-enabled`. */
-  notEnabledCopilots({ tenant }: { tenant: string }): Promise<string[]> {
-    return this.requests.notEnabled(tenant);
+  /** A page of the cases of the Commission whose copilot is `not-enabled`, after `after`. */
+  notEnabledCopilots(page: {
+    tenant: string;
+    after: string | null;
+    limit: number;
+  }): Promise<NotEnabledPage> {
+    return this.requests.notEnabled(page);
   }
 
   /**
@@ -49,5 +61,26 @@ export class CopilotActivities {
       request.reason ?? COPILOT_FAILURES.unavailable,
       { jobId: request.jobId },
     );
+  }
+}
+
+/**
+ * A key service outage (`FieldCipherError` `unavailable`) propagates as it is: retried, then the
+ * copilot is `key-service-unavailable`. Any other cipher failure (a record that does not decrypt)
+ * is the service's own: not retried, and recorded as `internal-error`.
+ */
+async function cipherFailures<T>(work: Promise<T>): Promise<T> {
+  try {
+    return await work;
+  } catch (error) {
+    if (error instanceof FieldCipherError && error.code !== 'unavailable') {
+      throw ApplicationFailure.create({
+        message: error.message,
+        type: `FieldCipherError:${error.code}`,
+        nonRetryable: true,
+        cause: error,
+      });
+    }
+    throw error;
   }
 }

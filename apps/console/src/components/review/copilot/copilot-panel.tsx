@@ -3,7 +3,7 @@ import { Alert02Icon, Cancel01Icon, RefreshIcon } from '@hugeicons/core-free-ico
 import { type ReactNode, useEffect, useId, useState } from 'react';
 
 import type { CaseDetail, Flag } from '../../../server/review/types';
-import { type CopilotAccess, explanationBlock } from './copilot-view';
+import { type CopilotAccess, explanationBlock, hasPreviousDeclaration } from './copilot-view';
 import { flagAnchor, FlagsTab, SelectionBar } from './flags-tab';
 import {
   AiTile,
@@ -15,6 +15,7 @@ import {
   PanelLabel,
   type ResolveRef,
   RetryButton,
+  SessionEnded,
   TabContent,
 } from './panel-parts';
 import { Failed, NotEnabled, Waiting, WhyDialog } from './panel-states';
@@ -36,13 +37,13 @@ export type { CopilotTab } from './panel-parts';
 export interface CopilotPanelProps {
   state: CaseCopilot;
   access: CopilotAccess;
+  /** The name of the reviewer holding the case, whose ratings a supervisor reads. */
+  assigneeName?: string;
   /** The case's flags (review.yaml `Flag`), explained on the Flags tab. */
   flags: Flag[];
   versions: CaseDetail['versions'];
   /** Reads a source ref against the case's declaration; null leaves the ref out. */
   resolveRef: ResolveRef;
-  /** The case has an earlier declaration, so "Changes since previous version" can say none. */
-  hasPrevious: boolean;
   onClose: () => void;
   /** Re-requests the outputs; the container shows what went wrong. */
   onRefresh: () => void;
@@ -62,10 +63,10 @@ export interface CopilotPanelProps {
 export function CopilotPanel({
   state,
   access,
+  assigneeName,
   flags,
   versions,
   resolveRef,
-  hasPrevious,
   onClose,
   onRefresh,
   onOpenSource,
@@ -80,11 +81,12 @@ export function CopilotPanel({
   );
   const [pulse, setPulse] = useState<string | null>(null);
   const [whyOpen, setWhyOpen] = useState(false);
-  const { copilot, error, stopped, refreshing } = state;
+  const { copilot, error, stopped, sessionEnded, refreshing } = state;
   const status = copilot?.status ?? null;
   const busy = status === 'pending' || status === 'stale';
-  // Not enabled may have changed since (the Commission's AI policy): a refresh asks again.
-  const canRefresh = access !== 'viewer' && copilot !== null;
+  // Not enabled can only end not enabled again: a change of the Commission's AI policy or route
+  // already asks again (review's policy-change workflow), so there is nothing to refresh.
+  const canRefresh = access !== 'viewer' && copilot !== null && status !== 'not-enabled';
 
   function openFlag(flagId: string) {
     setTab('flags');
@@ -113,6 +115,8 @@ export function CopilotPanel({
   }, [pulse]);
 
   const content = copilot && (status === 'ready' || status === 'stale') ? copilot.summary : null;
+  // Whether "Changes since previous version" can say none: for the version the output is for.
+  const hasPrevious = hasPreviousDeclaration(versions, copilot?.forVersionId ?? null);
 
   const top = (
     <div className="sticky top-0 z-[3] rounded-t-2xl bg-card">
@@ -184,17 +188,21 @@ export function CopilotPanel({
   if (!copilot) {
     body = error ? (
       <PanelBody>
-        <Callout
-          tone="warning"
-          icon={Alert02Icon}
-          action={
-            error === 'unavailable' ? (
-              <RetryButton onClick={state.retry}>{t.tryAgain}</RetryButton>
-            ) : null
-          }
-        >
-          {error === 'unauthenticated' ? t.sessionEnded : t.loadFailed}
-        </Callout>
+        {error === 'unauthenticated' ? (
+          <SessionEnded />
+        ) : (
+          <Callout
+            tone="warning"
+            icon={Alert02Icon}
+            action={
+              error === 'unavailable' ? (
+                <RetryButton onClick={state.retry}>{t.tryAgain}</RetryButton>
+              ) : null
+            }
+          >
+            {t.loadFailed}
+          </Callout>
+        )}
         <p className="text-[13px] text-muted-foreground">{t.worksAsUsual}</p>
       </PanelBody>
     ) : (
@@ -219,12 +227,18 @@ export function CopilotPanel({
       />
     );
   } else if (!content) {
-    body = <Waiting stopped={stopped} onCheckAgain={state.retry} />;
+    body = <Waiting stopped={stopped} sessionEnded={sessionEnded} onCheckAgain={state.retry} />;
   } else {
     const stale = status === 'stale';
     body = (
       <>
-        <TabContent value="summary" stale={stale} stopped={stopped} onCheckAgain={state.retry}>
+        <TabContent
+          value="summary"
+          stale={stale}
+          stopped={stopped}
+          sessionEnded={sessionEnded}
+          onCheckAgain={state.retry}
+        >
           <SummaryTab
             summary={content}
             flags={flags}
@@ -236,6 +250,7 @@ export function CopilotPanel({
               <Rating
                 state={state}
                 access={access}
+                ratedBy={assigneeName}
                 jobId={copilot.jobs.summarize}
                 block={block}
                 group={group}
@@ -243,7 +258,13 @@ export function CopilotPanel({
             )}
           />
         </TabContent>
-        <TabContent value="flags" stale={stale} stopped={stopped} onCheckAgain={state.retry}>
+        <TabContent
+          value="flags"
+          stale={stale}
+          stopped={stopped}
+          sessionEnded={sessionEnded}
+          onCheckAgain={state.retry}
+        >
           <FlagsTab
             flags={flags}
             explanations={copilot.explanations?.explanations ?? []}
@@ -260,6 +281,7 @@ export function CopilotPanel({
               <Rating
                 state={state}
                 access={access}
+                ratedBy={assigneeName}
                 jobId={copilot.jobs.explain}
                 block={explanationBlock(flagId)}
                 group={group}
@@ -283,7 +305,8 @@ export function CopilotPanel({
     </aside>
   );
 
-  return content ? (
+  // Always inside Tabs, so the panel (and the focus in it) stays when the outputs arrive.
+  return (
     <Tabs
       value={tab}
       onValueChange={(value) => {
@@ -292,7 +315,5 @@ export function CopilotPanel({
     >
       {panel}
     </Tabs>
-  ) : (
-    panel
   );
 }

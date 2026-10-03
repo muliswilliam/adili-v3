@@ -1,6 +1,6 @@
 {
-  "id": "6f123d0e-be15-4438-b951-15f62e7d0703",
-  "prevId": "902248db-ef7c-485e-82e8-e8b0a41acc84",
+  "id": "ea1c97ee-9541-4e02-8b52-341a4089359a",
+  "prevId": "dee4fc3f-effc-45d9-b764-00d0b6e5f13a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -129,6 +129,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "violations": {
+          "name": "violations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "approval_ref": {
           "name": "approval_ref",
           "type": "text",
@@ -239,7 +245,7 @@
         "id": {
           "name": "id",
           "type": "uuid",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true
         },
         "job_id": {
@@ -248,11 +254,23 @@
           "primaryKey": false,
           "notNull": true
         },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "reviewer_subject": {
           "name": "reviewer_subject",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "block": {
+          "name": "block",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "rating": {
           "name": "rating",
@@ -266,9 +284,15 @@
           "primaryKey": false,
           "notNull": false
         },
-        "note": {
-          "name": "note",
+        "note_ciphertext": {
+          "name": "note_ciphertext",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "note_envelope": {
+          "name": "note_envelope",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -296,26 +320,24 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "feedback_job_id_reviewer_subject_pk": {
-          "name": "feedback_job_id_reviewer_subject_pk",
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "feedback_job_id_reviewer_subject_block_unique": {
+          "name": "feedback_job_id_reviewer_subject_block_unique",
+          "nullsNotDistinct": true,
           "columns": [
             "job_id",
-            "reviewer_subject"
-          ]
-        }
-      },
-      "uniqueConstraints": {
-        "feedback_id_unique": {
-          "name": "feedback_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "id"
+            "reviewer_subject",
+            "block"
           ]
         }
       },
       "policies": {},
       "checkConstraints": {
+        "feedback_block_check": {
+          "name": "feedback_block_check",
+          "value": "char_length(\"feedback\".\"block\") <= 64"
+        },
         "feedback_rating_check": {
           "name": "feedback_rating_check",
           "value": "\"feedback\".\"rating\" in ('helpful', 'not-helpful')"
@@ -324,9 +346,9 @@
           "name": "feedback_reason_check",
           "value": "\"feedback\".\"reason\" is null or \"feedback\".\"reason\" in ('inaccurate', 'missed-something', 'unclear', 'too-long', 'other')"
         },
-        "feedback_note_length": {
-          "name": "feedback_note_length",
-          "value": "char_length(\"feedback\".\"note\") <= 1000"
+        "feedback_note_sealed": {
+          "name": "feedback_note_sealed",
+          "value": "(\"feedback\".\"note_ciphertext\" is null) = (\"feedback\".\"note_envelope\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -370,6 +392,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "changed_by_name": {
+          "name": "changed_by_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "changed_at": {
           "name": "changed_at",
@@ -515,6 +543,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "violations": {
+          "name": "violations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "tokens_in": {
           "name": "tokens_in",
           "type": "integer",
@@ -564,9 +598,15 @@
         }
       },
       "indexes": {
-        "jobs_caller_idempotency_key_idx": {
-          "name": "jobs_caller_idempotency_key_idx",
+        "jobs_tenant_caller_idempotency_key_idx": {
+          "name": "jobs_tenant_caller_idempotency_key_idx",
           "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "caller",
               "isExpression": false,
@@ -644,7 +684,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"jobs\".\"status\" in ('queued', 'running', 'succeeded') and \"jobs\".\"output_purged_at\" is null",
+          "where": "\"jobs\".\"status\" in ('queued', 'running', 'succeeded') and \"jobs\".\"output_purged_at\" is null and \"jobs\".\"violations\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}

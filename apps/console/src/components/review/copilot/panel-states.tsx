@@ -19,14 +19,30 @@ import {
 } from '@hugeicons/core-free-icons';
 
 import { budgetResetDate, failureReasonText } from './copilot-view';
-import { Callout, PanelBody, RetryButton } from './panel-parts';
+import { Callout, PanelBody, RetryButton, SessionEnded } from './panel-parts';
 import { messages as t } from './messages';
 
 /** The Copilot panel while it has no outputs to show: waiting, not enabled, failed. */
 
 const SKELETON_WIDTHS = [92, 80, 96, 60, 0, 40, 88, 75, 83, 0, 45, 90, 70];
 
-export function Waiting({ stopped, onCheckAgain }: { stopped: boolean; onCheckAgain: () => void }) {
+export function Waiting({
+  stopped,
+  sessionEnded = false,
+  onCheckAgain,
+}: {
+  stopped: boolean;
+  /** The session ended while waiting: polling stopped for good. */
+  sessionEnded?: boolean;
+  onCheckAgain: () => void;
+}) {
+  if (sessionEnded) {
+    return (
+      <PanelBody className="pt-3">
+        <SessionEnded />
+      </PanelBody>
+    );
+  }
   return (
     <PanelBody className="pt-3">
       {stopped ? (

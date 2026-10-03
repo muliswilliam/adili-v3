@@ -5,7 +5,7 @@ import { tenantAiStatusSchema } from './admin/tenant-status.js';
 import { feedbackInputSchema, feedbackViewSchema } from './feedback/feedback.service.js';
 import { jobReasonSchema, jobStatusSchema } from './jobs/job-states.js';
 import { jobViewSchema } from './jobs/job-view.js';
-import { routeParamsSchema, routeViewSchema } from './jobs/routing.js';
+import { routeInputSchema, routeParamsSchema, routeViewSchema } from './jobs/routing.js';
 import { anyTaskRequestSchema, dataClassSchema } from './jobs/task-request.js';
 import { tenantUsageSchema, usageListSchema } from './policy/budgets.js';
 import {
@@ -62,6 +62,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   GatePolicyList: gatePolicyListSchema,
   RouteParams: routeParamsSchema,
   Route: routeViewSchema,
+  RouteInput: routeInputSchema,
   BudgetInput: budgetInput,
   TenantUsage: tenantUsageSchema,
   UsageList: usageListSchema,

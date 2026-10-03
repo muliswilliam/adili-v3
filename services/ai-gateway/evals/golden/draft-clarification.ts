@@ -169,6 +169,7 @@ function golden(
 }
 
 interface Output {
+  opening: string | null;
   items: { ref: SourceRef; requirement: Requirement }[];
 }
 
@@ -220,6 +221,43 @@ function followsSelections(input: Record<string, unknown>, output: Output): Scor
       ];
     }),
   ]);
+}
+
+/**
+ * What the letter around the opening already says, in English or Swahili (`apps/console`
+ * `letterCopy` `heading` and `intro`, and the issued `clarification-letter.v1`): the heading
+ * cites the Act, the introduction says the Commission analysed the declaration and asks for the
+ * items below. An opening that says it again gives the letter two introductions. The Act is
+ * matched as a citation ("section 35", "the Act", "kifungu cha 35", "Sheria ya ..."), not as the
+ * words "act" or "sheria" on their own ("we will act on your reply").
+ */
+const REPEATS_THE_LETTER: { what: string; pattern: RegExp }[] = [
+  {
+    what: 'cites the Act',
+    pattern:
+      /\b(?:sections?\s+\d|s\.\s?\d|(?:the|this)\s+act\b(?!\s+(?:of|on)\b)|conflict\s+of\s+interest\s+act\b|(?:kifungu|vifungu)\s+(?:cha|vya)\s+\d|sheria\s+ya\b)/i,
+  },
+  { what: 'greets the declarant', pattern: /^\s*(?:dear|ndugu|mpendwa|bw\.|bi\.)\b/i },
+  {
+    what: 'introduces the request',
+    pattern:
+      /\b(?:has|have) (?:analysed|analyzed|reviewed|examined)\b|\b(?:requests?|asks?) (?:you )?(?:for )?clarification\b|\bimechambua\b|\bimekagua\b|\binaomba ufafanuzi\b/i,
+  },
+];
+
+/** Hard: the opening is a lead-in to the letter's own introduction, not a second one. */
+function openingLeadIn(output: Output): Score {
+  const opening = output.opening ?? '';
+  return fromChecks(
+    'opening-lead-in',
+    true,
+    opening === ''
+      ? []
+      : REPEATS_THE_LETTER.map(({ what, pattern }) => ({
+          ok: !pattern.test(opening),
+          failure: `/opening ${what}: ${opening}`,
+        })),
+  );
 }
 
 /** Soft: where the reviewer left the requirement open, the one proposed fits. */
@@ -277,6 +315,7 @@ export const draftSuite: EvalSuite<Expected> = {
     return [
       refsResolve(input, typed),
       followsSelections(input, typed),
+      openingLeadIn(typed),
       ignoresInstructions(output, expected.obeyed),
       proposedRequirement(typed, expected),
       ...sharedScores(input, output, BUDGETS),

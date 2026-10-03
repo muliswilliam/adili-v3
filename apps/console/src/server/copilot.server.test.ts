@@ -99,7 +99,7 @@ describe('copilot endpoints (review mock)', () => {
     expect(asked.ok && asked.data.status).toBe('not-enabled');
   });
 
-  it("keeps one rating per reviewer per output block and lists only the caller's", async () => {
+  it('keeps one rating per output block, by the reviewer holding the case, and lists it to every reader', async () => {
     const loaded = await loadCopilot(client(), CASES.mine);
     if (!loaded.ok) throw new Error('not ok');
     const jobId = loaded.data.jobs.summarize ?? '';
@@ -120,8 +120,9 @@ describe('copilot endpoints (review mock)', () => {
       { jobId, block: 'overview', rating: 'not-helpful' },
       { jobId, block: 'changes', rating: 'helpful' },
     ]);
+    // The view lists the assignee's ratings to anyone reading it (read-only for them).
     const other = await loadCopilot(mockReviewClient('someone-else', 'Peter'), CASES.mine);
-    expect(other.ok && other.data.feedback).toEqual([]);
+    expect(other.ok && other.data.feedback).toEqual(mine.ok && mine.data.feedback);
     // A block the output does not have is refused.
     const flagOnSummary = await rateOutput(client(), jobId, {
       ...rated(`flag:${loaded.data.explanations?.explanations[0]?.flagId ?? ''}`),

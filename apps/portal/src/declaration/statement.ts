@@ -1,3 +1,5 @@
+import { countryName, countyName } from '@adili/ui';
+
 import type {
   AssetItem,
   AssetType,
@@ -9,7 +11,7 @@ import type {
   Money,
   Statement,
 } from './contents';
-import { blank, countryName, countyName } from './format';
+import { blank } from './format';
 
 /**
  * Pure rules for a financial statement (paragraph 8): the three categories, what an item needs
@@ -289,15 +291,15 @@ export function itemSummary(category: Category, item: Item): string[] {
       [details.institution, details.accountType].filter(Boolean).join(', '),
       details.debtor ? `Owed by ${details.debtor}` : undefined,
     );
-    const county = countyName(any.location?.county);
+    const county = any.location?.county ? countyName(any.location.county) : undefined;
     parts.push(
       any.location?.inKenya === false
-        ? countryName(any.location.country)
+        ? any.location.country && countryName(any.location.country)
         : county
           ? `${county} County`
           : undefined,
     );
-  } else if (any.location?.inKenya === false) {
+  } else if (any.location?.inKenya === false && any.location.country) {
     parts.push(countryName(any.location.country));
   }
   return parts.filter((part): part is string => typeof part === 'string' && part.trim() !== '');
