@@ -38,6 +38,8 @@ export const IDENTIFIER_CLASSES = [
   'BIRTH_DATE',
   'BIRTH_PLACE',
   'ACCOUNT',
+  /** A membership, payroll or staff number a document labels (UW-00781). */
+  'MEMBER_NUMBER',
 ] as const;
 export type IdentifierClass = (typeof IDENTIFIER_CLASSES)[number];
 
@@ -274,7 +276,7 @@ const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
  * an ID or account number by its shape already.
  */
 const DOCUMENT_NUMBER_PATTERN = new RegExp(
-  String.raw`(?<![\p{L}\p{N}])(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)\s+(?:no\.?|number)|nambari\s+ya\s+(?:uanachama|mwanachama|mshahara))[ \t]*[:\-]?[ \t]*((?=[A-Z0-9/-]*[A-Z])(?=[A-Z0-9/-]*\d)[A-Z0-9][A-Z0-9/-]{2,})`,
+  String.raw`(?<![\p{L}\p{N}])(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)\s+(?:no\.?|number)|nambari\s+ya\s+(?:uanachama|mwanachama|mshahara))[ \t]*[:\-]?[ \t]*((?=[A-Za-z0-9/-]*[A-Za-z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9][A-Za-z0-9/-]{2,})`,
   'gu',
 );
 
@@ -384,11 +386,15 @@ function collect(
       collectName(value, known);
     } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
       for (const pattern of DOCUMENT_NAME_PATTERNS) {
-        for (const match of value.matchAll(pattern)) collectName(match[1] ?? '', known, true);
+        for (const match of value.matchAll(pattern)) {
+          const span = match[1] ?? '';
+          // A company or society after a party label (a borrower, a holder) is no one's name.
+          if (!isOrganisation(span)) collectName(span, known, true);
+        }
       }
       for (const match of value.matchAll(DOCUMENT_NUMBER_PATTERN)) {
         const number = match[1] ?? '';
-        if (!known.has(number)) known.set(number, 'FILE_NUMBER');
+        if (!known.has(number)) known.set(number, 'MEMBER_NUMBER');
       }
       for (const match of value.matchAll(DOCUMENT_ADDRESS_PATTERN)) {
         const address = match[1]?.trim() ?? '';
@@ -423,10 +429,19 @@ const NOT_NAMES = new Set([
   ...['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of'],
   // Courtesy titles and forms of address a salutation runs into ("Dear Mr. Ouma", "Dear Sir").
   ...['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam'],
-  // A company or office a party label runs into ("Borrower: Tumaini Produce Limited").
-  ...['limited', 'ltd', 'ltd.', 'plc', 'company', 'co.', 'bank', 'sacco', 'society'],
-  ...['holdings', 'enterprises', 'branch', 'manager', 'officer', 'secretary'],
+  // An office a signatory's name runs into ("Kevin Odera Branch Manager").
+  ...['branch', 'manager', 'officer', 'secretary'],
 ]);
+
+/** Words that make a span a company or society, not a person: "Tumaini Fresh Produce Limited". */
+const ORGANISATION_WORDS = new Set([
+  ...['limited', 'ltd', 'ltd.', 'plc', 'company', 'co.', 'bank', 'sacco', 'society'],
+  ...['holdings', 'enterprises', 'cooperative', 'trust', 'group', 'chama'],
+]);
+
+function isOrganisation(span: string): boolean {
+  return span.split(/[\s,&]+/u).some((word) => ORGANISATION_WORDS.has(word.toLowerCase()));
+}
 
 /**
  * Each part of a name on its own, so it is found in free text in any order or form. Of names a
@@ -449,6 +464,7 @@ function fieldClass(key: string): IdentifierClass | undefined {
  * `PF 2003 001184`); a known one is found in any of those forms.
  */
 const COMPACT_CLASSES: ReadonlySet<IdentifierClass> = new Set([
+  'MEMBER_NUMBER',
   'ID',
   'KRA_PIN',
   'PASSPORT',
