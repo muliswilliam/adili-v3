@@ -1,4 +1,10 @@
-import { DIFF_HIGHLIGHT_PERCENT, type DiffGroup, diffPercent, type DiffRow } from '@adili/ui';
+import {
+  DIFF_HIGHLIGHT_PERCENT,
+  type DiffGroup,
+  diffKind,
+  diffPercent,
+  type DiffRow,
+} from '@adili/ui';
 
 import type { VersionComparison } from '../server/review/types';
 import { CATEGORIES, type Relation, relationOf } from './declaration';
@@ -56,9 +62,11 @@ const TYPE_LABELS: Record<Category, Record<string, string>> = {
 
 const typeLabel = (category: Category, type: string) => TYPE_LABELS[category][type] ?? type;
 
-/** A matched change the rules would flag and the table shades (`DIFF_HIGHLIGHT_PERCENT` or more). */
-const isBig = (item: { previousCents: number; currentCents: number }) =>
-  Math.abs(diffPercent({ id: '', label: '', ...item }) ?? 0) >= DIFF_HIGHLIGHT_PERCENT;
+/**
+ * A row the table shades: a matched change of `DIFF_HIGHLIGHT_PERCENT` or more, by the same
+ * percentage the table shows (from the amounts, unrounded, as the rules flag it).
+ */
+const isBig = (row: DiffRow) => Math.abs(diffPercent(row) ?? 0) >= DIFF_HIGHLIGHT_PERCENT;
 
 function matchedRow(
   personKey: string,
@@ -68,7 +76,7 @@ function matchedRow(
   // Whether the declarant marked it matters for a change the rules would flag (`isBig`);
   // a mark on a smaller change or none is worth showing too. Other rows speak for themselves.
   const marked = item.flaggedByDeclarant;
-  return {
+  const row: DiffRow = {
     id: `${personKey}:matched:${String(index)}`,
     label: typeLabel(item.category, item.type),
     description: item.description,
@@ -77,10 +85,9 @@ function matchedRow(
     // Null says why there is no percentage; otherwise the table works it out from the amounts,
     // to one decimal (the service rounds to whole percent).
     ...(item.deltaPercent === null ? { deltaPercent: null } : {}),
-    ...(marked || isBig(item)
-      ? { note: marked ? COMPARE_COPY.marked : COMPARE_COPY.notMarked }
-      : {}),
   };
+  if (marked || isBig(row)) row.note = marked ? COMPARE_COPY.marked : COMPARE_COPY.notMarked;
+  return row;
 }
 
 function statementOf(statement: ComparedStatementInput): ComparedStatement {
@@ -127,15 +134,18 @@ function statementOf(statement: ComparedStatementInput): ComparedStatement {
 }
 
 export function comparisonView(comparison: VersionComparison): ComparisonView {
-  const matched = comparison.statements.flatMap((statement) => statement.matched);
+  const statements = comparison.statements.map(statementOf);
+  const matchedRows = statements
+    .flatMap((statement) => statement.groups.flatMap((group) => group.rows))
+    .filter((row) => diffKind(row) === 'matched');
   return {
     previousVersion: comparison.previousVersion,
     currentVersion: comparison.currentVersion,
     previousIsEarlierVersion: comparison.previousVersion < comparison.currentVersion,
-    statements: comparison.statements.map(statementOf),
+    statements,
     counts: {
-      matched: matched.length,
-      changedBig: matched.filter(isBig).length,
+      matched: matchedRows.length,
+      changedBig: matchedRows.filter(isBig).length,
       oneVersionOnly: comparison.statements.reduce(
         (total, statement) => total + statement.onlyPrevious.length + statement.onlyCurrent.length,
         0,

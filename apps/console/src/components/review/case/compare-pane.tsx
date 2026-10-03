@@ -55,7 +55,7 @@ export function CompareSwitch({
 }) {
   return (
     <Switch
-      checked={checked && !blocked}
+      checked={checked}
       onCheckedChange={onCheckedChange}
       label={t.compare.toggle(previousVersion)}
       blockedReason={blocked ? t.compare.firstDeclaration : undefined}

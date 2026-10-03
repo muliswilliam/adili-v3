@@ -1,3 +1,6 @@
+import { DiffTable } from '@adili/ui';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type { VersionComparison } from '../server/review/types';
@@ -186,5 +189,58 @@ describe('comparisonView (S10, S19)', () => {
     expect(view.statements[2]?.groups).toEqual([]);
     expect(view.statements[2]?.empty).toBe(true);
     expect(officer?.empty).toBe(false);
+  });
+});
+
+describe('comparisonView at the 25% threshold', () => {
+  const at = (previousCents: number, currentCents: number) =>
+    comparisonView({
+      previousVersion: 1,
+      currentVersion: 2,
+      statements: [
+        {
+          personKey: 'officer',
+          personName: 'John Kennedy Otieno',
+          matched: [
+            {
+              category: 'assets',
+              type: 'land',
+              description: 'Plot Kisumu/Manyatta/1234',
+              previousCents,
+              currentCents,
+              deltaCents: currentCents - previousCents,
+              // The service rounds 24.6% up to 25.
+              deltaPercent: Math.round(((currentCents - previousCents) / previousCents) * 100),
+              flaggedByDeclarant: false,
+            },
+          ],
+          onlyPrevious: [],
+          onlyCurrent: [],
+        },
+      ],
+    });
+
+  const shaded = (view: ReturnType<typeof comparisonView>) =>
+    renderToStaticMarkup(
+      createElement(DiffTable, {
+        caption: 'Changes',
+        previousVersion: 1,
+        currentVersion: 2,
+        groups: view.statements[0]?.groups ?? [],
+      }),
+    ).includes('data-big');
+
+  it('neither counts, notes nor shades a 24.6% change', () => {
+    const view = at(100_000_000, 124_600_000);
+    expect(view.counts.changedBig).toBe(0);
+    expect(view.statements[0]?.groups[0]?.rows[0]?.note).toBeUndefined();
+    expect(shaded(view)).toBe(false);
+  });
+
+  it('counts, notes and shades a 25.0% change', () => {
+    const view = at(100_000_000, 125_000_000);
+    expect(view.counts.changedBig).toBe(1);
+    expect(view.statements[0]?.groups[0]?.rows[0]?.note).toBe('Not marked');
+    expect(shaded(view)).toBe(true);
   });
 });
