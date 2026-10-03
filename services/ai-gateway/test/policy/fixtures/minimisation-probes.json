@@ -3240,5 +3240,887 @@
     "input": "Members' Shares: KES 120,000",
     "mustHide": [],
     "mustKeep": ["Members' Shares: KES 120,000"]
+  },
+  {
+    "id": "r21-std-1",
+    "input": "Title downloaded via eCITIZEN NAKURU/NJORO/1234 on request.",
+    "mustHide": ["NJORO"],
+    "mustKeep": ["Title downloaded via", "on request."]
+  },
+  {
+    "id": "r21-std-2",
+    "input": "File 2021/LR NAIROBI/BLOCK 82/123 refers.",
+    "mustHide": ["NAIROBI"],
+    "mustKeep": ["File", "refers."]
+  },
+  {
+    "id": "r21-std-3",
+    "input": "Parcel 12/KISUMU MUNICIPALITY BLOCK 7/412 is charged.",
+    "mustHide": ["MUNICIPALITY"],
+    "mustKeep": ["Parcel", "is charged."]
+  },
+  {
+    "id": "r21-std-4",
+    "input": "Paid on iTAX KSM/123 rates.",
+    "mustHide": ["KSM"],
+    "mustKeep": ["Paid on", "rates."]
+  },
+  {
+    "id": "r21-std-5",
+    "input": "Title No. NAIROBI/BLOCK 110/456 and KAJIADO/KITENGELA/12345",
+    "mustHide": ["KITENGELA"],
+    "mustKeep": ["Title No."]
+  },
+  {
+    "id": "r21-std-6",
+    "input": "Plot NAKURU/NJORO/1234/5 and Ref: ABC/NAKURU/NJORO/123",
+    "mustHide": ["NJORO"],
+    "mustKeep": ["Plot", "Ref:"]
+  },
+  {
+    "id": "r21-std-7",
+    "input": "Land: MOMBASA/BLOCK XVII/123, KJD/KAPUTIEI NORTH/123",
+    "mustHide": ["XVII", "KAPUTIEI"],
+    "mustKeep": ["Land:"]
+  },
+  {
+    "id": "r21-std-8",
+    "input": "Borrower: John Kamau 0712345678, Dr. Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Borrower:"]
+  },
+  {
+    "id": "r21-std-9",
+    "input": "BORROWERS: JOHN KAMAU ID 12345678 MARY WANJIRU",
+    "mustHide": ["KAMAU", "WANJIRU"],
+    "mustKeep": ["BORROWERS:"]
+  },
+  {
+    "id": "r21-std-10",
+    "input": "Guarantors: John Kamau ID 12345678, Mrs. Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Guarantors:"]
+  },
+  {
+    "id": "r21-std-11",
+    "input": "Members: Mary Wanjiru Membership No. 3310 and Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:", "Membership No."]
+  },
+  {
+    "id": "r21-std-12",
+    "input": "Member Deposits: KES 50,000\nMember No.: 3310",
+    "mustHide": [],
+    "mustKeep": ["Member Deposits:", "Member No.:"]
+  },
+  {
+    "id": "r21-std-13",
+    "input": "Beneficiaries: Mary Wanjiru of Nakuru Town, Peter Otieno of Westlands Road Nairobi",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Beneficiaries:"]
+  },
+  {
+    "id": "r21-std-14",
+    "input": "Applicant: John Kamau ID 12345678 Toyota Premio KCA 123A",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Applicant:", "Toyota Premio"]
+  },
+  {
+    "id": "r21-std-15",
+    "input": "Children: Mary Wanjiru 0712345678 Peter Otieno 0722345678 Grace Njeri",
+    "mustHide": ["Wanjiru", "Otieno", "Njeri"],
+    "mustKeep": ["Children:"]
+  },
+  {
+    "id": "r21-std-16",
+    "input": "Parties: John Kamau P.O. Box 123 Nakuru Plot No. 45 and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Parties:"]
+  },
+  {
+    "id": "r21-std-17",
+    "input": "Proprietor: John Kamau ID 12345678 Equity Bank Limited",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Proprietor:", "Equity Bank Limited"]
+  },
+  {
+    "id": "r21-std-18",
+    "input": "Members: Mary Wanjiru Payroll Number 4455, Peter Otieno Staff No. 12",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:", "Payroll Number", "Staff No."]
+  },
+  {
+    "id": "r21-std-19",
+    "input": "Borrower: John Kamau ID 12345678\nLoan Amount: KES 100,000",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Borrower:", "Loan Amount:"]
+  },
+  {
+    "id": "r21-std-20",
+    "input": "Applicants: John Kamau KRA PIN A123456789Z of Kisumu City and Mary Wanjiru Akinyi",
+    "mustHide": ["Kamau", "Wanjiru", "Akinyi"],
+    "mustKeep": ["Applicants:"]
+  },
+  {
+    "id": "r21-std-21",
+    "input": "Borrower: John Kamau ID 12345678 Freehold Absolute",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Borrower:", "Freehold Absolute"]
+  },
+  {
+    "id": "r21-std-22",
+    "input": "Members: Achieng Otieno 0712345678 Wanjiku Kamau",
+    "mustHide": ["Achieng", "Otieno", "Wanjiku", "Kamau"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-23",
+    "input": "Borrowers: John Kamau 0712345678 Hope Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru", "Hope"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r21-std-24",
+    "input": "Borrowers: John Kamau 0712345678 Faith Akinyi",
+    "mustHide": ["Kamau", "Akinyi", "Faith"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r21-std-25",
+    "input": "Members: John Kamau ID 12345678 Mercy Achieng",
+    "mustHide": ["Kamau", "Achieng", "Mercy"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-26",
+    "input": "Guarantors: John Kamau ID 12345678 Rose Atieno",
+    "mustHide": ["Kamau", "Atieno", "Rose"],
+    "mustKeep": ["Guarantors:"]
+  },
+  {
+    "id": "r21-std-27",
+    "input": "Parties: John Kamau ID 12345678 Joy Wambui",
+    "mustHide": ["Kamau", "Wambui"],
+    "mustKeep": ["Parties:"]
+  },
+  {
+    "id": "r21-std-28",
+    "input": "Borrowers: John Kamau ID 12345678 Sharon Chebet",
+    "mustHide": ["Kamau", "Chebet", "Sharon"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r21-std-29",
+    "input": "Members: Mary Wanjiru ID 12345678 House No. 4 Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-30",
+    "input": "Members: Mary Wanjiru 0712345678 Nakuru Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-31",
+    "input": "Applicants: Mary Wanjiru ID 12345678\nPeter Otieno ID 23456789",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Applicants:"]
+  },
+  {
+    "id": "r21-std-32",
+    "input": "Children: Mary Wanjiru (ID 12345678); Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Children:"]
+  },
+  {
+    "id": "r21-std-33",
+    "input": "Parties: Mary Wanjiru, ID 12345678 / Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Parties:"]
+  },
+  {
+    "id": "r21-std-34",
+    "input": "Member No. 3310 Mary Wanjiru",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Member No."]
+  },
+  {
+    "id": "r21-std-35",
+    "input": "Member Number: 3310\nMember Name: Mary Wanjiru",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Member Number:", "Member Name:"]
+  },
+  {
+    "id": "r21-std-36",
+    "input": "Members: Mary Wanjiru Member Deposits KES 5,000 Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-37",
+    "input": "Applicant: Mary Wanjiru 0712345678 Commercial Bank of Africa",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Applicant:", "Commercial Bank of Africa"]
+  },
+  {
+    "id": "r21-std-38",
+    "input": "Beneficiaries: Mary Wanjiru 0712345678 Residential Plot",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Beneficiaries:", "Residential Plot"]
+  },
+  {
+    "id": "r21-spec-1",
+    "input": "Proprietor: John Kamau ID 12345678 Kakuzi Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Estate"]
+  },
+  {
+    "id": "r21-spec-2",
+    "input": "Borrower: John Kamau Tel 0712345678 Mwananchi Traders",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mwananchi Traders"]
+  },
+  {
+    "id": "r21-spec-3",
+    "input": "Owner: John Kamau ID 12345678 Sunrise Apartments",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Sunrise Apartments"]
+  },
+  {
+    "id": "r21-spec-4",
+    "input": "Owner: John Kamau ID 12345678 Toyota Sienta",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Sienta"]
+  },
+  {
+    "id": "r21-spec-5",
+    "input": "Owner: John Kamau ID 12345678 Mazda Demio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mazda Demio"]
+  },
+  {
+    "id": "r21-spec-6",
+    "input": "Owner: John Kamau ID 12345678 Subaru Forester",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Subaru Forester"]
+  },
+  {
+    "id": "r21-spec-7",
+    "input": "Owner: John Kamau ID 12345678 Isuzu D-Max",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Isuzu D-Max"]
+  },
+  {
+    "id": "r21-spec-8",
+    "input": "Owner: John Kamau ID 12345678 Nissan Note",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nissan Note"]
+  },
+  {
+    "id": "r21-spec-9",
+    "input": "Proprietor: John Kamau ID 12345678 Runda Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Runda Estate"]
+  },
+  {
+    "id": "r21-spec-10",
+    "input": "Proprietor: John Kamau ID 12345678 Kileleshwa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kileleshwa"]
+  },
+  {
+    "id": "r21-spec-11",
+    "input": "Proprietor: John Kamau ID 12345678 Agricultural",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Agricultural"]
+  },
+  {
+    "id": "r21-spec-12",
+    "input": "Proprietor: John Kamau ID 12345678 Commercial",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Commercial"]
+  },
+  {
+    "id": "r21-spec-13",
+    "input": "Employee: John Kamau ID 12345678 Kenya Pipeline",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Pipeline"]
+  },
+  {
+    "id": "r21-spec-14",
+    "input": "Employee: John Kamau Staff No. 4521 Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-15",
+    "input": "Borrower: John Kamau ID 12345678 Stanbic",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Stanbic"]
+  },
+  {
+    "id": "r21-spec-16",
+    "input": "Borrower: John Kamau ID 12345678 I&M Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["I&M Bank"]
+  },
+  {
+    "id": "r21-spec-17",
+    "input": "Borrower: John Kamau ID 12345678 NCBA",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["NCBA"]
+  },
+  {
+    "id": "r21-spec-18",
+    "input": "Proprietor: John Kamau ID 12345678 Absolute",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Absolute"]
+  },
+  {
+    "id": "r21-spec-19",
+    "input": "Proprietor: John Kamau ID 12345678 Leasehold 99 years",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Leasehold 99 years"]
+  },
+  {
+    "id": "r21-spec-20",
+    "input": "Shareholder: John Kamau ID 12345678 Safaricom PLC 1,000 Ordinary",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Safaricom PLC"]
+  },
+  {
+    "id": "r21-spec-21",
+    "input": "Shareholder: John Kamau ID 12345678 Kakuzi 500 shares",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi 500"]
+  },
+  {
+    "id": "r21-spec-22",
+    "input": "Owner: John Kamau ID 12345678 Toyota Probox",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Probox"]
+  },
+  {
+    "id": "r21-spec-23",
+    "input": "Employee: John Kamau Payroll No. 7781 Kenya Power",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Power"]
+  },
+  {
+    "id": "r21-spec-24",
+    "input": "Member: John Kamau Member No. 3310 Mwalimu Sacco",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mwalimu Sacco"]
+  },
+  {
+    "id": "r21-spec-25",
+    "input": "Member: John Kamau Member No. 3310 Stima",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Stima"]
+  },
+  {
+    "id": "r21-spec-26",
+    "input": "Borrower: John Kamau ID 12345678 Kenya Commercial Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Commercial Bank"]
+  },
+  {
+    "id": "r21-spec-27",
+    "input": "Proprietor: John Kamau ID 12345678 Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kiambu"]
+  },
+  {
+    "id": "r21-spec-28",
+    "input": "Proprietor: John Kamau ID 12345678 Karen",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Karen"]
+  },
+  {
+    "id": "r21-spec-29",
+    "input": "Proprietor: John Kamau ID 12345678 Ruiru Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Ruiru Kiambu"]
+  },
+  {
+    "id": "r21-spec-30",
+    "input": "Employee: John Kamau ID 12345678 Bamburi Cement",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bamburi Cement"]
+  },
+  {
+    "id": "r21-spec-31",
+    "input": "Employee: John Kamau ID 12345678 Teachers Service Commission",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Teachers Service Commission"]
+  },
+  {
+    "id": "r21-spec-32",
+    "input": "Owner: John Kamau ID 12345678 Toyota Axio Silver",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Axio Silver"]
+  },
+  {
+    "id": "r21-spec-33",
+    "input": "Owner: John Kamau Tel 0712345678 Honda Fit",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Honda Fit"]
+  },
+  {
+    "id": "r21-spec-34",
+    "input": "Proprietor: John Kamau PIN A123456789Z Gatundu North",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Gatundu North"]
+  },
+  {
+    "id": "r21-spec-35",
+    "input": "Shareholder: John Kamau ID 12345678 Britam Holdings",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Britam Holdings"]
+  },
+  {
+    "id": "r21-spec-36",
+    "input": "Shareholder: John Kamau ID 12345678 Equity Group",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Equity Group"]
+  },
+  {
+    "id": "r21-spec-37",
+    "input": "Borrower: John Kamau ID 12345678 Family Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Family Bank"]
+  },
+  {
+    "id": "r21-spec-38",
+    "input": "Borrower: John Kamau ID 12345678 Co-operative Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Co-operative Bank"]
+  },
+  {
+    "id": "r21-spec-39",
+    "input": "Employee: John Kamau ID 12345678 Nation Media Group",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nation Media Group"]
+  },
+  {
+    "id": "r21-spec-40",
+    "input": "Borrower: John Kamau ID 12345678 Kenya Women Microfinance",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Women Microfinance"]
+  },
+  {
+    "id": "r21-spec-41",
+    "input": "Employee: John Kamau ID 12345678 Kenya Pipeline\nGross Pay: KES 120,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Pipeline"]
+  },
+  {
+    "id": "r21-spec-42",
+    "input": "Owner: John Kamau ID 12345678 Mazda Demio KCB 123A",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mazda Demio"]
+  },
+  {
+    "id": "r21-spec-43",
+    "input": "Proprietor: John Kamau ID 12345678 Kitengela Kajiado",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kitengela Kajiado"]
+  },
+  {
+    "id": "r21-spec-44",
+    "input": "Employee: John Kamau ID 12345678 Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-45",
+    "input": "Borrower: John Kamau ID 12345678 Stanbic Westlands",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Stanbic Westlands"]
+  },
+  {
+    "id": "r21-spec-46",
+    "input": "Proprietors: John Kamau ID 12345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-47",
+    "input": "Proprietors: John Kamau ID 12345678 Wanjiru",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-48",
+    "input": "Borrowers: John Kamau 0712345678 Juma Hamisi",
+    "mustHide": ["John", "Kamau", "Juma", "Hamisi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-49",
+    "input": "Proprietors: John Kamau PIN A123456789Z Fatuma Said",
+    "mustHide": ["John", "Kamau", "Fatuma", "Said"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-50",
+    "input": "Proprietors: John Kamau ID 12345678 Mary Wanjiru ID 23456789\nTenure: Freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-51",
+    "input": "Directors: John Kamau ID 12345678 Peter Otieno ID 23456789 Grace Njeri ID 34567890",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Njeri"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-52",
+    "input": "Shareholders: John Kamau ID 12345678 Achieng Odhiambo",
+    "mustHide": ["John", "Kamau", "Achieng", "Odhiambo"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-53",
+    "input": "Proprietors: John Kamau ID 12345678 Kipchoge Keino",
+    "mustHide": ["John", "Kamau", "Kipchoge", "Keino"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-54",
+    "input": "Owners: John Kamau 0712345678 Halima Abdi 0723456789",
+    "mustHide": ["John", "Kamau", "Halima", "Abdi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-55",
+    "input": "Proprietors: John Kamau ID 12345678 Wanjiku Njoroge",
+    "mustHide": ["John", "Kamau", "Wanjiku", "Njoroge"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-56",
+    "input": "Borrowers: John Kamau P.O. Box 123 Nakuru Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-57",
+    "input": "Proprietors: John Kamau ID 12345678 Cherono",
+    "mustHide": ["John", "Kamau", "Cherono"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-58",
+    "input": "Members: John Kamau Member No. 3310 Mary Wanjiru Member No. 3311",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-59",
+    "input": "Proprietors: John Kamau ID 12345678 Mohamed Ali",
+    "mustHide": ["John", "Kamau", "Mohamed", "Ali"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-60",
+    "input": "Proprietors: John Kamau ID 12345678 Nyambura Wairimu",
+    "mustHide": ["John", "Kamau", "Nyambura", "Wairimu"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-61",
+    "input": "Proprietors: John Kamau ID 12345678 Brian Mutua",
+    "mustHide": ["John", "Kamau", "Brian", "Mutua"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-62",
+    "input": "Proprietors: John Kamau john.kamau@gmail.com Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-63",
+    "input": "Proprietors: John Kamau ID 12345678 Mercy Chebet",
+    "mustHide": ["John", "Kamau", "Mercy", "Chebet"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-64",
+    "input": "Proprietors: John Kamau ID 12345678 Joy Akinyi",
+    "mustHide": ["John", "Kamau", "Joy", "Akinyi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-65",
+    "input": "Proprietors: John Kamau ID 12345678 Faith Muthoni",
+    "mustHide": ["John", "Kamau", "Faith", "Muthoni"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-66",
+    "input": "Proprietors: John Kamau ID 12345678 Juma",
+    "mustHide": ["John", "Kamau", "Juma"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-67",
+    "input": "Proprietors: John Kamau ID 12345678 Otieno Ochieng",
+    "mustHide": ["John", "Kamau", "Otieno", "Ochieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-68",
+    "input": "Borrowers: John Kamau, ID 12345678, Mary Wanjiru, ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-69",
+    "input": "Proprietors: John Kamau ID 12345678 Rose Mwangi",
+    "mustHide": ["John", "Kamau", "Rose", "Mwangi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-70",
+    "input": "Proprietors: John Kamau ID 12345678 Sunday Okello",
+    "mustHide": ["John", "Kamau", "Sunday", "Okello"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-71",
+    "input": "Proprietors: John Kamau ID 12345678 Charity Wambui",
+    "mustHide": ["John", "Kamau", "Charity", "Wambui"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-72",
+    "input": "Proprietors: John Kamau ID 12345678 Grace Wanjiru",
+    "mustHide": ["John", "Kamau", "Grace", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-73",
+    "input": "Proprietors: John Kamau ID 12345678 Patience Kerubo",
+    "mustHide": ["John", "Kamau", "Patience", "Kerubo"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-74",
+    "input": "Proprietors: John Kamau ID 12345678 Mercy Nduta 0723456789",
+    "mustHide": ["John", "Kamau", "Mercy", "Nduta"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-75",
+    "input": "Proprietors: John Kamau ID 12345678 Abdullahi Hassan",
+    "mustHide": ["John", "Kamau", "Abdullahi", "Hassan"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-76",
+    "input": "Proprietors: John Kamau ID 12345678 Kamau Njoroge",
+    "mustHide": ["John", "Kamau", "Njoroge"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-77",
+    "input": "Proprietors: John Kamau ID 12345678 Mary Wanjiru Kamau ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-78",
+    "input": "Joint Owners: John Kamau 0712345678 Juma Hamisi 0723456789\nMake: Toyota",
+    "mustHide": ["John", "Kamau", "Juma", "Hamisi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-79",
+    "input": "Proprietors: John Kamau ID 12345678 Esther Moraa ID 23456789\nCounty: Kisii",
+    "mustHide": ["John", "Kamau", "Esther", "Moraa"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-80",
+    "input": "Borrowers: John Kamau PIN A123456789Z Fatuma Said PIN A987654321B\nBank: Equity Bank",
+    "mustHide": ["John", "Kamau", "Fatuma", "Said"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-81",
+    "input": "Proprietors: John Kamau ID 12345678 Wambui",
+    "mustHide": ["John", "Kamau", "Wambui"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-82",
+    "input": "Proprietors: John Kamau ID 12345678 Sharon Chepkoech",
+    "mustHide": ["John", "Kamau", "Sharon", "Chepkoech"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-83",
+    "input": "Proprietors: John Kamau ID 12345678 Dennis Kiprono",
+    "mustHide": ["John", "Kamau", "Dennis", "Kiprono"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-84",
+    "input": "Proprietors: John Kamau ID 12345678 Precious Achieng",
+    "mustHide": ["John", "Kamau", "Precious", "Achieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-85",
+    "input": "Applicant: Stima Sacco Society Ltd\nMember: John Kamau\nSacco: Stima Sacco",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r21-spec-86",
+    "input": "Borrower: Stima Sacco Society Ltd\nSacco: Stima Sacco",
+    "mustHide": [],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r21-spec-87",
+    "input": "Applicant: Twiga Foods Limited\nEmployer: Twiga Foods Limited",
+    "mustHide": [],
+    "mustKeep": ["Employer: Twiga Foods Limited"]
+  },
+  {
+    "id": "r21-spec-88",
+    "input": "Applicants: John Kamau and Mwangaza Traders\nBank: Mwangaza Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mwangaza Bank"]
+  },
+  {
+    "id": "r21-spec-89",
+    "input": "Beneficiary: Kenya Commercial Bank Limited\nBank: Kenya Commercial Bank",
+    "mustHide": [],
+    "mustKeep": ["Bank: Kenya Commercial Bank"]
+  },
+  {
+    "id": "r21-spec-90",
+    "input": "Shareholder: Britam Holdings Limited\nCompany: Britam Holdings",
+    "mustHide": [],
+    "mustKeep": ["Company: Britam Holdings"]
+  },
+  {
+    "id": "r21-spec-91",
+    "input": "Proprietor: John Kamau ID 12345678\nEstate: Kakuzi Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Estate"]
+  },
+  {
+    "id": "r21-spec-92",
+    "input": "Employee: John Kamau ID 12345678\nEmployer: Kenya Pipeline",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Kenya Pipeline"]
+  },
+  {
+    "id": "r21-spec-93",
+    "input": "Proprietor: John Kamau ID 12345678\nKileleshwa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kileleshwa"]
+  },
+  {
+    "id": "r21-spec-94",
+    "input": "Employee: John Kamau\tID 12345678\tEmployer: Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-95",
+    "input": "Borrower: John Kamau ID 12345678 Bank: Stanbic",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: Stanbic"]
+  },
+  {
+    "id": "r21-spec-96",
+    "input": "Owner: John Kamau ID 12345678\nMake: Mazda\nModel: Demio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Model: Demio"]
+  },
+  {
+    "id": "r21-spec-97",
+    "input": "Employee Name: John Kamau   Staff No: 4521   Employer: Bamburi Cement",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bamburi Cement"]
+  },
+  {
+    "id": "r21-spec-98",
+    "input": "Proprietor: John Kamau ID 12345678, Runda Estate, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Runda Estate"]
+  },
+  {
+    "id": "r21-spec-99",
+    "input": "Member: John Kamau Member No. 3310\nNext of Kin: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-100",
+    "input": "Nominee(s): Mary Wanjiru 50%",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-101",
+    "input": "Next of Kin: Peter Otieno (Brother) Tel 0723456789",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-102",
+    "input": "Guarantors: John Kamau ID 12345678 Mary Wanjiru ID 23456789\nLoan Amount: KES 500,000",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["KES 500,000"]
+  },
+  {
+    "id": "r21-spec-103",
+    "input": "Owners: John Kamau ID 12345678 Wanjiru Kamau ID 23456789\nMake: Toyota Model: Sienta",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": ["Sienta"]
+  },
+  {
+    "id": "r21-spec-104",
+    "input": "Proprietor: John Kamau ID 12345678, Runda Estate, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r21-spec-105",
+    "input": "Proprietor: John Kamau ID 12345678 Kileleshwa\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r21-spec-106",
+    "input": "Proprietor: John Kamau ID 12345678, Kileleshwa Road, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r21-spec-107",
+    "input": "Owner: John Kamau ID 12345678 Kitui\nCounty: Kitui",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Kitui"]
+  },
+  {
+    "id": "r21-spec-108",
+    "input": "Employee: John Kamau ID 12345678 Twiga Foods\nEmployer: Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-109",
+    "input": "Borrower: John Kamau ID 12345678 NCBA\nBank: NCBA Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: NCBA Bank"]
   }
 ]
