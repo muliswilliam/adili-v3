@@ -81,7 +81,7 @@ export const messages = {
   refused: {
     title: 'You cannot approve this',
     'reviewer-of-record': 'You cannot approve this: you reviewed this case.',
-    proposer: 'You cannot approve this: you proposed it.',
+    proposer: 'You proposed this.',
     role: 'Only a supervisor can approve this.',
     after:
       'Your name is among the people this decision must be kept from, so another supervisor must approve it.',

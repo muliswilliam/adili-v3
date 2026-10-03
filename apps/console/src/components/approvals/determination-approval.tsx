@@ -31,14 +31,13 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useId, useState } from 'react';
 
+import { RETURN_REASON_MAX_LENGTH } from '../../determination/view';
 import type { InboxItem } from '../../server/approvals.server';
 import type { Assignee } from '../../server/review/types';
 import { DialogFailure, DialogHeading, type FailureText } from '../determination/dialog-parts';
 import { messages as t } from './messages';
 
 export type DeterminationApprovalItem = Extract<InboxItem, { kind: 'determination' }>;
-
-const RETURN_MAX_LENGTH = 2000;
 
 /** What approving a determination does, in text before the approver decides (S1). */
 export function determinationConsequences(item: DeterminationApprovalItem): ApprovalConsequence[] {
@@ -217,7 +216,7 @@ export function ApproveDeterminationDialog({
 /** What is wrong with a return reason, or null. */
 export function returnReasonError(reason: string): string | null {
   if (!reason.trim()) return t.returnDialog.required;
-  if (reason.length > RETURN_MAX_LENGTH) return t.returnDialog.tooLong;
+  if (reason.length > RETURN_REASON_MAX_LENGTH) return t.returnDialog.tooLong;
   return null;
 }
 
@@ -297,13 +296,13 @@ export function ReturnDeterminationDialog({
                   )}
                   <span
                     className={
-                      reason.length > RETURN_MAX_LENGTH
+                      reason.length > RETURN_REASON_MAX_LENGTH
                         ? 'text-[12.5px] text-destructive'
                         : 'text-[12.5px] text-muted-foreground'
                     }
                   >
                     {reason.length.toLocaleString('en-KE')} /{' '}
-                    {RETURN_MAX_LENGTH.toLocaleString('en-KE')}
+                    {RETURN_REASON_MAX_LENGTH.toLocaleString('en-KE')}
                   </span>
                 </div>
               </div>

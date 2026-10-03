@@ -58,7 +58,7 @@ import {
   proposeCaseDetermination,
   withdrawCaseDetermination,
 } from '../../server/determinations';
-import type { DeterminationRefusal } from '../../server/determinations.server';
+import { type DeterminationRefusal, REFUSAL_STATUS } from '../../server/determinations.server';
 import type { CaseView } from '../../server/review-case.server';
 import type { Determination, DeterminationInput } from '../../server/review/types';
 import { downloadFrom } from '../download';
@@ -109,12 +109,10 @@ function proposeFailure(
 }
 
 function refusalText(refusal: DeterminationRefusal): FailureText {
-  const status = refusal.kind.startsWith('not-the') ? 403 : 409;
-  const words =
-    refusal.kind in t.refusals
-      ? t.refusals[refusal.kind as keyof typeof t.refusals]
-      : { title: t.toasts.failed };
-  return { ...words, problem: `${String(status)} ${refusal.kind}` };
+  return {
+    ...t.refusals[refusal.kind],
+    problem: `${String(REFUSAL_STATUS[refusal.kind])} ${refusal.kind}`,
+  };
 }
 
 export function DeterminationPage({
@@ -423,6 +421,7 @@ function Banner({
         )}
       >
         <p>{current.returnReason}</p>
+        {state.heldBy ? <p>{t.banner.onlyHolderRevises(state.heldBy.name)}</p> : null}
         {state.revise ? (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={onRevise}>

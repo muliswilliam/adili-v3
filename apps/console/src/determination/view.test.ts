@@ -85,10 +85,10 @@ describe('determinationState', () => {
     });
     expect(
       determinationState(openCase, [current], { subject: 'faith', supervisor: false }),
-    ).toEqual({ kind: 'returned', current, revise: true });
+    ).toEqual({ kind: 'returned', current, revise: true, heldBy: null });
     expect(
       determinationState(openCase, [current], { subject: 'samuel', supervisor: true }),
-    ).toEqual({ kind: 'returned', current, revise: false });
+    ).toEqual({ kind: 'returned', current, revise: false, heldBy: FAITH });
   });
 
   it('shows the approved determination, whoever looks', () => {

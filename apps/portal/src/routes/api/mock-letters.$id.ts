@@ -5,7 +5,8 @@ import { env } from '../../server/env.server';
 /**
  * Stands in for the documents service's presigned letter download while REVIEW_MOCK is on: the
  * review mock's `letterDownloadUrl` and decision letter links point here. Serves a one-page
- * placeholder PDF naming the clarification or the decision. Development and tests only; everywhere else it is a 404.
+ * placeholder PDF naming the clarification or the decision. Development and tests only;
+ * everywhere else it is a 404.
  */
 async function letter(id: string): Promise<Response> {
   const { mockClarification, mockDecisionLetter } = await import('../../server/review/mock.server');

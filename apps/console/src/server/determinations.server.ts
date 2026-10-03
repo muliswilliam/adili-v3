@@ -1,6 +1,7 @@
+import type { DocumentsClient } from './documents/client';
 import type { ReviewClient } from './review/client.server';
 import type { Determination, DeterminationInput, LetterDownload } from './review/types';
-import { callService, type ServiceError } from './service-call';
+import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
  * The review service's determination endpoints (spec 08, S1 and S2): propose on a case, approve,
@@ -31,18 +32,19 @@ export type DeterminationResult<T> =
   | { ok: false; refusal: DeterminationRefusal }
   | { ok: false; refusal: null; error: ServiceError };
 
-const CODES = new Set<DeterminationRefusal['kind']>([
-  'determination-open',
-  'clarification-open',
-  'not-the-assignee',
-  'separation-of-duties',
-  'supervisor-required',
-  'not-the-proposer',
-  'not-proposed',
-]);
+/** Each refusal's HTTP status, as review.yaml answers it. */
+export const REFUSAL_STATUS: Record<DeterminationRefusal['kind'], 403 | 409> = {
+  'determination-open': 409,
+  'clarification-open': 409,
+  'not-the-assignee': 403,
+  'separation-of-duties': 403,
+  'supervisor-required': 403,
+  'not-the-proposer': 403,
+  'not-proposed': 409,
+};
 
 function isRefusalKind(value: unknown): value is DeterminationRefusal['kind'] {
-  return typeof value === 'string' && CODES.has(value as DeterminationRefusal['kind']);
+  return typeof value === 'string' && value in REFUSAL_STATUS;
 }
 
 /** The refusal a 403 or 409 problem names, or null for any other answer. */
@@ -143,4 +145,29 @@ export function determinationLetter(
       params: { path: { determinationId } },
     }),
   );
+}
+
+/**
+ * A short-lived link to an approved determination's decision letter: review names the letter
+ * (issuing it on the first request for a bulk closure), then the documents service hands out
+ * the link as the signed-in officer and audits it. Review's 409 `not-approved` comes back as a
+ * problem.
+ */
+export async function decisionLetterLink(
+  review: ReviewClient,
+  documents: DocumentsClient,
+  determinationId: string,
+): Promise<ServiceResult<{ downloadUrl: string }>> {
+  const letter = await determinationLetter(review, determinationId);
+  if (!letter.ok) {
+    return letter.refusal === null
+      ? { ok: false, error: letter.error }
+      : { ok: false, error: { kind: 'unavailable', detail: null } };
+  }
+  const link = await callService(() =>
+    documents.GET('/v1/documents/{documentId}/download', {
+      params: { path: { documentId: letter.data.documentId } },
+    }),
+  );
+  return link.ok ? { ok: true, data: { downloadUrl: link.data.downloadUrl } } : link;
 }

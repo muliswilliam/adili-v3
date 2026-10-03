@@ -1,16 +1,20 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import {
+  NOTE_MAX_LENGTH,
+  REASONS_MAX_LENGTH,
+  RETURN_REASON_MAX_LENGTH,
+} from '../determination/view';
 import { asReviewer, withReviewer } from './as-viewer.server';
 import {
   approveDetermination,
-  determinationLetter,
+  decisionLetterLink,
   type DeterminationResult,
   proposeDetermination,
   returnDetermination,
   withdrawDetermination,
 } from './determinations.server';
-import { callService } from './service-call';
 import type { ServiceResult } from './service-call';
 import type { Determination } from './review/types';
 import { letterDocumentsClient } from './documents/letter-client.server';
@@ -32,8 +36,8 @@ const signedOut = <T>(): DeterminationResult<T> => ({
 /** review.yaml `DeterminationInput`, as the proposal dialog sends it. */
 export const determinationInput = z.object({
   outcome: z.enum(['compliant', 'non-compliant', 'further-action']),
-  reasons: z.string().trim().min(1).max(4000),
-  furtherActionNote: z.string().trim().max(2000).nullable(),
+  reasons: z.string().trim().min(1).max(REASONS_MAX_LENGTH),
+  furtherActionNote: z.string().trim().max(NOTE_MAX_LENGTH).nullable(),
 });
 
 export const proposeCaseDetermination = createServerFn({ method: 'POST' })
@@ -68,7 +72,12 @@ export const approveCaseDetermination = createServerFn({ method: 'POST' })
   );
 
 export const returnCaseDetermination = createServerFn({ method: 'POST' })
-  .validator(z.object({ determinationId: id, reason: z.string().trim().min(1).max(2000) }))
+  .validator(
+    z.object({
+      determinationId: id,
+      reason: z.string().trim().min(1).max(RETURN_REASON_MAX_LENGTH),
+    }),
+  )
   .handler(({ data }): Promise<DeterminationResult<Determination>> =>
     withReviewer(
       (client) => returnDetermination(client, data.determinationId, data.reason),
@@ -93,19 +102,7 @@ export const withdrawCaseDetermination = createServerFn({ method: 'POST' })
 export const getDecisionLetterLink = createServerFn({ method: 'GET' })
   .validator(z.object({ determinationId: id }))
   .handler(({ data }): Promise<ServiceResult<{ downloadUrl: string }>> =>
-    asReviewer(async (client, { accessToken }) => {
-      const letter = await determinationLetter(client, data.determinationId);
-      if (!letter.ok) {
-        return letter.refusal === null
-          ? { ok: false, error: letter.error }
-          : { ok: false, error: { kind: 'unavailable', detail: null } };
-      }
-      const documents = letterDocumentsClient(accessToken);
-      const link = await callService(() =>
-        documents.GET('/v1/documents/{documentId}/download', {
-          params: { path: { documentId: letter.data.documentId } },
-        }),
-      );
-      return link.ok ? { ok: true, data: { downloadUrl: link.data.downloadUrl } } : link;
-    }),
+    asReviewer((client, { accessToken }) =>
+      decisionLetterLink(client, letterDocumentsClient(accessToken), data.determinationId),
+    ),
   );

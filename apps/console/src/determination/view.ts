@@ -37,7 +37,14 @@ export type DeterminationState =
       /** A supervisor other than the proposer, who decides it in the inbox. */
       openInApprovals: boolean;
     }
-  | { kind: 'returned'; current: Determination; /** The viewer holds the case. */ revise: boolean }
+  | {
+      kind: 'returned';
+      current: Determination;
+      /** The viewer holds the case. */
+      revise: boolean;
+      /** Who may revise it, when not the viewer. */
+      heldBy: Assignee | null;
+    }
   | { kind: 'approved'; current: Determination };
 
 type CaseFacts = Pick<CaseListItem, 'status' | 'assignee'> & {
@@ -63,7 +70,13 @@ export function determinationState(
   }
   if (current.status === 'approved') return { kind: 'approved', current };
   if (current.status === 'returned') {
-    return { kind: 'returned', current, revise: proposeAccess(item, viewer) === 'allowed' };
+    const access = proposeAccess(item, viewer);
+    return {
+      kind: 'returned',
+      current,
+      revise: access === 'allowed',
+      heldBy: typeof access === 'object' ? access.heldBy : null,
+    };
   }
   const proposedByViewer = current.proposer?.subject === viewer.subject;
   return {
@@ -129,6 +142,8 @@ export function determinationHistory(determinations: readonly Determination[]): 
 
 export const REASONS_MAX_LENGTH = 4000;
 export const NOTE_MAX_LENGTH = 2000;
+/** review.yaml `ReasonInput`: a supervisor's reason for returning a proposal. */
+export const RETURN_REASON_MAX_LENGTH = 2000;
 
 /** The proposal dialog's fields. */
 export interface ProposalForm {

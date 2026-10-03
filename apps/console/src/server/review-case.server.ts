@@ -45,10 +45,6 @@ export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document'> & {
   document: JsonObject | null;
 };
 
-function viewOf(detail: CaseDetail): CaseViewDetail {
-  return detail as CaseViewDetail;
-}
-
 export interface CaseView {
   detail: CaseViewDetail;
   /**
@@ -73,7 +69,7 @@ function caseDetailOf(body: unknown): CaseViewDetail | null {
   const rest = Object.fromEntries(
     Object.entries(body).filter(([field]) => !PROBLEM_FIELDS.has(field)),
   );
-  return { ...viewOf(rest as unknown as CaseDetail), document: null };
+  return { ...(rest as unknown as CaseViewDetail), document: null };
 }
 
 /**
@@ -98,7 +94,10 @@ export async function loadCaseView(
     return { ok: true, data: { detail: unavailable.detail, documentUnavailable: true, viewer } };
   }
   if (!result.ok) return result;
-  return { ok: true, data: { detail: viewOf(result.data), documentUnavailable: false, viewer } };
+  return {
+    ok: true,
+    data: { detail: result.data as CaseViewDetail, documentUnavailable: false, viewer },
+  };
 }
 
 /** `POST .../claim`: the case becomes the caller's (409 `case-already-assigned` if taken). */

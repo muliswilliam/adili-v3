@@ -11,6 +11,7 @@ import {
   FieldHint,
   Icon,
   Label,
+  OUTCOME_BADGE_MESSAGES,
   RadioCard,
   RadioGroup,
   Spinner,
@@ -30,11 +31,11 @@ import type { DeterminationInput } from '../../server/review/types';
 import { DialogFailure, DialogHeading, type FailureText } from './dialog-parts';
 import { messages as t } from './messages';
 
-const OUTCOMES = [
-  { value: 'compliant', label: 'Compliant' },
-  { value: 'non-compliant', label: 'Non-compliant' },
-  { value: 'further-action', label: 'Further action' },
-] as const;
+/** The outcomes a reviewer proposes (`compliant-no-issues` is the system's), in the badge's words. */
+const OUTCOMES = (['compliant', 'non-compliant', 'further-action'] as const).map((value) => ({
+  value,
+  label: OUTCOME_BADGE_MESSAGES[value],
+}));
 
 /** "33 / 4,000" under a field, red past the limit. */
 function Counter({ id, length, max }: { id: string; length: number; max: number }) {

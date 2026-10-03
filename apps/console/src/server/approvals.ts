@@ -1,7 +1,8 @@
 import { createServerFn } from '@tanstack/react-start';
+import { APPROVAL_KINDS } from '@adili/ui';
 import { z } from 'zod';
 
-import { INBOX_KINDS } from '../approvals/kinds';
+import { type InboxKind, isInboxKind } from '../approvals/kinds';
 import {
   type ApprovalsPage,
   loadApprovals,
@@ -15,8 +16,7 @@ import type { ServiceResult } from './service-call';
 
 /** Server functions for the supervisors' approvals inbox (spec 08, S14). */
 
-const [firstKind, ...otherKinds] = INBOX_KINDS;
-const inboxKind = z.enum([firstKind ?? 'determination', ...otherKinds]);
+const inboxKind = z.custom<InboxKind>((value) => typeof value === 'string' && isInboxKind(value));
 
 export type ApprovalsLoad = ServiceResult<ApprovalsPage> & { now: string };
 
@@ -41,7 +41,7 @@ export const getApprovals = createServerFn({ method: 'GET' })
 export const reassignToSupervisor = createServerFn({ method: 'POST' })
   .validator(
     z.object({
-      kind: z.enum(['determination', 'action', 'referral']),
+      kind: z.enum(APPROVAL_KINDS),
       subjectId: z.uuid(),
       toSupervisor: z.string().min(1).max(200),
     }),

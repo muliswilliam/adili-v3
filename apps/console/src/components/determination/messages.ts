@@ -1,5 +1,7 @@
 import { formatDate } from '@adili/ui';
 
+import type { DeterminationRefusal } from '../../server/determinations.server';
+
 /** Copy of the case's Determination page and its dialogs (spec 08 FE-2). */
 export const messages = {
   crumb: 'Determination',
@@ -39,6 +41,7 @@ export const messages = {
     openInApprovals: 'Open in Approvals',
     returned: (name: string, date: string) => `Returned by ${name} on ${formatDate(date)}`,
     revise: 'Revise',
+    onlyHolderRevises: (name: string) => `Only ${name}, the assigned reviewer, can revise it.`,
     determined: (outcome: string) => `Determined: ${outcome}`,
     approvedBy: (name: string, date: string) =>
       `Approved by ${name} on ${formatDate(date)}. Letter issued and declarant notified.`,
@@ -108,7 +111,14 @@ export const messages = {
       title: 'This proposal was decided already',
       detail: 'The page has been refreshed.',
     },
-  },
+    'separation-of-duties': {
+      title: 'You cannot decide this',
+      detail: 'You proposed it or held the case, so another supervisor must decide it.',
+    },
+    'supervisor-required': {
+      title: 'Only a supervisor can decide this',
+    },
+  } satisfies Record<DeterminationRefusal['kind'], { title: string; detail?: string }>,
   notFound: {
     title: 'Case not found',
     body: 'The link may be wrong, or the case belongs to another Commission.',
