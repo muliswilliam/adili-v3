@@ -8,7 +8,6 @@ import {
   SALARY_STOPPAGE,
   WARNING,
 } from '@adili/events/contracts';
-import { EACC_ROLES } from '@adili/roles';
 import { z } from 'zod';
 
 import type { ReviewRecord } from '../review/review-client.js';
@@ -37,12 +36,6 @@ export interface PulledPayload {
    * package the declarant is never told of; its template refuses a subject person).
    */
   owner: 'declarant' | 'declarant-if-onboarded' | 'excluded-declarant';
-  /**
-   * EACC roles who may download a document of the type issued by any Commission, with a token of
-   * the EACC tenant (spec 09: the referral packages Commissions send EACC). None: nobody at EACC.
-   * The database admits the EACC tenant to these types only (issued_documents_eacc_read).
-   */
-  eaccReaders?: readonly string[];
 }
 
 /**
@@ -53,14 +46,14 @@ function pulledFrom(
   record: ReviewRecord,
   idField: string,
   description: string,
-  who: Pick<PulledPayload, 'owner' | 'eaccReaders'>,
+  owner: PulledPayload['owner'],
 ): PulledPayload {
   return {
     record,
     idField,
     source: z.strictObject({ [idField]: z.uuid() }).meta({ description }),
     subjectRef: (id) => `${record}:${id}`,
-    ...who,
+    owner,
   };
 }
 
@@ -68,25 +61,25 @@ const clarificationLetter = pulledFrom(
   'clarification',
   'clarificationId',
   "A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint",
-  { owner: 'declarant' },
+  'declarant',
 );
 const decisionLetter = pulledFrom(
   'determination',
   'determinationId',
   "A decision-letter's payload: the approved determination whose letter this is; the fields are pulled from the review service (internalGetDeterminationLetterPayload)",
-  { owner: 'declarant' },
+  'declarant',
 );
 const actionLetter = pulledFrom(
   'action',
   'actionId',
   'The payload of a step letter (notice-to-comply, warning, salary-stoppage, disciplinary-referral): the approved administrative action whose letter this is; the fields are pulled from the review service (internalGetActionLetterPayload)',
-  { owner: 'declarant-if-onboarded' },
+  'declarant-if-onboarded',
 );
 const referralPackage = pulledFrom(
   'referral',
   'referralId',
   "A referral-package's payload: the approved referral whose evidence package this is; the cover sheet, manifest and evidence are pulled from the review service (internalGetReferralPackagePayload)",
-  { owner: 'excluded-declarant', eaccReaders: EACC_ROLES },
+  'excluded-declarant',
 );
 
 export const clarificationLetterSource = clarificationLetter.source;
@@ -103,16 +96,6 @@ const PULLED: Partial<Record<DocumentType, PulledPayload>> = {
   [DISCIPLINARY_REFERRAL]: actionLetter,
   [REFERRAL_PACKAGE]: referralPackage,
 };
-
-/**
- * The document types an EACC account holding `roles` may download from any Commission: those
- * whose `eaccReaders` include one of its roles.
- */
-export function eaccReadableTypes(roles: readonly string[]): DocumentType[] {
-  return (Object.keys(PULLED) as DocumentType[]).filter((type) =>
-    PULLED[type]?.eaccReaders?.some((role) => roles.includes(role)),
-  );
-}
 
 /** How a document of `type` gets its fields, or undefined when the request carries them. */
 export function pulledPayloadOf(type: DocumentType): PulledPayload | undefined {

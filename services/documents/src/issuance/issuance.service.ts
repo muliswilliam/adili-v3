@@ -36,7 +36,8 @@ import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner, type SignedRecord } from './record-signer.js';
 import { PdfRenderer } from './renderer.js';
-import { eaccReadableTypes, type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
+import { eaccReadableTypes } from './eacc-readable.js';
+import { type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
 import type { DocumentDownload, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
 import { footerDocument, type Watermark, watermarked } from './templates/page.js';
@@ -624,8 +625,8 @@ export class IssuanceService {
    * Commissions), an access officer of the issuing Commission named among its additional
    * downloaders (read in their own tenant's context): one who is no longer an access officer
    * there downloads it no more, or an EACC analyst or supervisor and the document is of a type
-   * EACC reads from every Commission (a referral package, pulled-payloads.ts `eaccReaders`; read
-   * in EACC's context, which the database admits to those types only) and not about them (an
+   * EACC opens from every Commission (a Form M, a receipt or a referral package, eacc-readable.ts;
+   * read in EACC's context, which the database admits to those types only) and not about them (an
    * EACC officer referred by EACC). Anyone else gets the same 404.
    */
   private async owned(

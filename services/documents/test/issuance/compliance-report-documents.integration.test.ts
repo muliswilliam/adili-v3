@@ -29,8 +29,8 @@ import { footerQrCodes, pageTexts } from '../support/pdf.js';
  * Restricted Form M and EACC's signed acknowledgement of receipt, and EACC's approved national
  * consolidated report, with the payload in the request exactly as its activities build it;
  * documents renders them through compose Gotenberg, signs them with OpenBao and stores them in
- * SeaweedFS. EACC's analysts and supervisors download the Confidential referral packages
- * Commissions send them, and no other document.
+ * SeaweedFS. EACC's analysts and supervisors open the Commissions' Form M and receipts (S9) and
+ * the Confidential referral packages Commissions send them (S12), and no other document.
  */
 
 /** The reporting service's account (client credentials). */
@@ -743,7 +743,7 @@ describe('S11 the national consolidated report', () => {
   });
 });
 
-describe('S12 EACC downloads the referral packages Commissions send, and nothing else', () => {
+describe("S9, S12 EACC opens the Commissions' Form M and receipts and the referral packages they send, and nothing else", () => {
   const EACC_ANALYST: Caller = { sub: 'eacc-analyst-1', tenant: 'eacc', roles: ['eacc-analyst'] };
   const EACC_SUPERVISOR: Caller = {
     sub: 'eacc-supervisor-1',
@@ -752,6 +752,7 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
   };
   let referralPackage: IssuedDocument;
   let formM: IssuedDocument;
+  let receipt: IssuedDocument;
   let ncr: IssuedDocument;
 
   const download = (id: string, caller: Caller) => api.get(`/v1/documents/${id}/download`, caller);
@@ -784,38 +785,47 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
 
   beforeAll(async () => {
     referralPackage = await issuedPackage();
-    ({ document: formM } = await issued(reportRequest(randomUUID(), 'form-m', submittedFormM())));
+    const reportId = randomUUID();
+    ({ document: formM } = await issued(reportRequest(reportId, 'form-m', submittedFormM())));
+    ({ document: receipt } = await issued(
+      reportRequest(reportId, 'compliance-report-receipt', receiptPayload()),
+    ));
     ({ document: ncr } = await issued(ncrRequest(randomUUID())));
   });
+
+  /** The Commission's documents EACC opens: its Form M and receipt (S9), its package (S12). */
+  const readable = () => [referralPackage, formM, receipt];
 
   it.each([
     ['an EACC analyst', EACC_ANALYST],
     ['an EACC supervisor', EACC_SUPERVISOR],
   ])(
-    "hands %s a link to a Commission's package, audited as a download under the Commission",
+    "hands %s a Commission's Form M, receipt and package, each download audited under the Commission",
     async (_name, caller) => {
-      const response = await download(referralPackage.id, caller);
-      expect(response.statusCode, response.body).toBe(200);
-      const body = response.json<DocumentDownload>();
-      expect(
-        contractErrors(okResponse('/v1/documents/{documentId}/download', 'get'), body),
-      ).toEqual([]);
-      expect(body.sha256).toBe(referralPackage.sha256);
+      for (const document of readable()) {
+        const response = await download(document.id, caller);
+        expect(response.statusCode, `${document.type}: ${response.body}`).toBe(200);
+        const body = response.json<DocumentDownload>();
+        expect(
+          contractErrors(okResponse('/v1/documents/{documentId}/download', 'get'), body),
+        ).toEqual([]);
+        expect(body.sha256).toBe(document.sha256);
 
-      const downloads = (await eventsAbout(referralPackage.id)).filter(
-        (event) =>
-          event.type === 'document.downloaded.v1' &&
-          (event.data as { downloadedBy?: string }).downloadedBy === caller.sub,
-      );
-      expect(downloads).toHaveLength(1);
-      expect(downloads[0]).toMatchObject({
-        tenant: 'psc',
-        data: { documentType: 'referral-package', issuerTenant: 'psc' },
-      });
+        const downloads = (await eventsAbout(document.id)).filter(
+          (event) =>
+            event.type === 'document.downloaded.v1' &&
+            (event.data as { downloadedBy?: string }).downloadedBy === caller.sub,
+        );
+        expect(downloads, document.type).toHaveLength(1);
+        expect(downloads[0]).toMatchObject({
+          tenant: 'psc',
+          data: { documentType: document.type, issuerTenant: 'psc' },
+        });
 
-      const metadata = await api.get(`/v1/documents/${referralPackage.id}`, caller);
-      expect(metadata.statusCode).toBe(200);
-      expect(metadata.json<IssuedDocument>().id).toBe(referralPackage.id);
+        const metadata = await api.get(`/v1/documents/${document.id}`, caller);
+        expect(metadata.statusCode, document.type).toBe(200);
+        expect(metadata.json<IssuedDocument>().id).toBe(document.id);
+      }
     },
   );
 
@@ -828,20 +838,27 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
       // An EACC role holds only with a token of EACC's tenant.
       { sub: 'eacc-analyst-2', tenant: 'psc', roles: ['eacc-analyst'] },
     ];
-    for (const caller of others) {
-      expect((await download(referralPackage.id, caller)).statusCode, caller.sub).toBe(404);
-      expect((await api.get(`/v1/documents/${referralPackage.id}`, caller)).statusCode).toBe(404);
+    for (const document of readable()) {
+      for (const caller of others) {
+        const who = `${caller.sub} on ${document.type}`;
+        expect((await download(document.id, caller)).statusCode, who).toBe(404);
+        expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode, who).toBe(404);
+      }
     }
   });
 
-  it('still hands an EACC officer the documents about them as a declarant (ADR-006: EACC is their Commission)', async () => {
-    const personId = randomUUID();
+  /** A decision letter a Commission (`tenant`, `issuer`) issues to its declarant `personId`. */
+  async function issuedDecisionLetter(
+    tenant: string,
+    issuer: { name: string; code: string },
+    personId: string,
+  ): Promise<IssuedDocument> {
     const determinationId = randomUUID();
-    api.review.given('determination', 'eacc', determinationId, {
+    api.review.given('determination', tenant, determinationId, {
       declarantName: 'Brian Otieno',
-      commission: { name: EACC_ISSUER.name, issuerCode: EACC_ISSUER.code },
-      declarationReference: format(DCB, { issuer: 'EACC', period: 2027, sequence: 7 }),
-      determinationReference: format(CMP, { issuer: 'EACC', period: 2027, sequence: 1 }),
+      commission: { name: issuer.name, issuerCode: issuer.code },
+      declarationReference: format(DCB, { issuer: issuer.code, period: 2027, sequence: 7 }),
+      determinationReference: format(CMP, { issuer: issuer.code, period: 2027, sequence: 1 }),
       outcome: 'compliant',
       outcomeLabel: 'Compliant',
       reasons: 'All items reconcile.',
@@ -849,7 +866,7 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
       portalUrl: 'http://localhost:3010/decisions/0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10',
       declarantPersonId: personId,
     });
-    const issuedLetter = await api.post(
+    const response = await api.post(
       '/internal/v1/documents/issue',
       {
         type: 'decision-letter',
@@ -859,10 +876,15 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
         payload: { determinationId },
       },
       REVIEW,
-      { idempotencyKey: null, headers: { 'x-acting-tenant': 'eacc' } },
+      { idempotencyKey: null, headers: { 'x-acting-tenant': tenant } },
     );
-    expect(issuedLetter.statusCode, issuedLetter.body).toBe(201);
-    const letter = issuedLetter.json<IssuedDocument>();
+    expect(response.statusCode, response.body).toBe(201);
+    return response.json<IssuedDocument>();
+  }
+
+  it('still hands an EACC officer the documents about them as a declarant (ADR-006: EACC is their Commission)', async () => {
+    const personId = randomUUID();
+    const letter = await issuedDecisionLetter('eacc', EACC_ISSUER, personId);
 
     const analyst: Caller = { ...EACC_ANALYST, personId };
     expect((await download(letter.id, analyst)).statusCode).toBe(200);
@@ -912,8 +934,13 @@ describe('S12 EACC downloads the referral packages Commissions send, and nothing
     expect(asPsc.statusCode).toBe(200);
   });
 
-  it("answers 404 to EACC for any other document: a Commission's Form M, even EACC's own report", async () => {
-    for (const document of [formM, ncr]) {
+  it("answers 404 to EACC for any other document: a Commission's letter, even EACC's own report", async () => {
+    const letter = await issuedDecisionLetter(
+      'psc',
+      { name: 'Public Service Commission', code: 'PSC' },
+      randomUUID(),
+    );
+    for (const document of [letter, ncr]) {
       expect((await download(document.id, EACC_ANALYST)).statusCode).toBe(404);
       expect((await download(document.id, EACC_SUPERVISOR)).statusCode).toBe(404);
     }

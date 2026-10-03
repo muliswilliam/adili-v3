@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * Metadata of an issued document (owner)
-         * @description The person the document is about, staff of the issuing Commission named among the document's additional downloaders, or for a referral package an EACC analyst or supervisor (a token of the EACC tenant) other than the officer it refers; anyone else gets 404.
+         * @description The person the document is about, staff of the issuing Commission named among the document's additional downloaders, or for a Commission's Form M, its receipt or a referral package it sent EACC an EACC analyst or supervisor (a token of the EACC tenant) other than the officer a package refers; anyone else gets 404.
          */
         get: operations["getDocument"];
         put?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned download of an issued PDF (owner)
-         * @description The document's subject person (the `person_id` of their token), an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role), or for a referral package any Commission sent EACC an EACC analyst or supervisor (a token of the EACC tenant; no other document is theirs to download, spec 09) other than the officer it refers; anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
+         * @description The document's subject person (the `person_id` of their token), an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role), or for any Commission's Form M, its receipt or a referral package it sent EACC an EACC analyst or supervisor (a token of the EACC tenant; no other document is theirs to download, spec 09) other than the officer a package refers; anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.
          */
         get: operations["getDocumentDownload"];
         put?: never;
