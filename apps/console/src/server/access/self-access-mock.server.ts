@@ -22,6 +22,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import { addDays, startOfNairobiDay } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import type { paths as DocumentsPaths } from '../documents/api.gen';
@@ -35,8 +36,6 @@ type Version = Schemas['DeclarantVersion'];
 
 const PSC = { slug: 'psc', name: 'Public Service Commission' };
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Nairobi is UTC+3 all year. */
-const NAIROBI_OFFSET_MS = 3 * 60 * 60 * 1000;
 const DEADLINE_DAYS = 14;
 /** How long the mock's workflow takes to issue a recorded application's copy. */
 const ISSUE_AFTER_MS = 3000;
@@ -365,16 +364,19 @@ const SEEDS: Seed[] = [
   },
 ];
 
+/** Minutes later in the morning per day back a seed was received, so no two share a time. */
+const STAGGER_MINUTES_PER_DAY = 7;
+
 /**
- * Seeded mornings, so the screens read like an office day whenever the mock starts: 09:30 in
- * Nairobi `daysAgo` Kenyan calendar days ago, as the screens count days. Today's is never later
- * than now, nor before today's Kenyan midnight.
+ * Seeded mornings, so the screens read like an office day whenever the mock starts: `daysAgo`
+ * Kenyan calendar days ago, as the screens count days, at 09:30 in Nairobi plus
+ * `STAGGER_MINUTES_PER_DAY` for each of those days. Today's is never later than now, nor
+ * before today's Kenyan midnight.
  */
 function morningOf(now: number, daysAgo: number): number {
-  const midnight =
-    Math.floor((now + NAIROBI_OFFSET_MS) / DAY_MS) * DAY_MS - NAIROBI_OFFSET_MS - daysAgo * DAY_MS;
-  const morning = midnight + (9 * 60 + 30 + daysAgo * 7) * 60_000;
-  return Math.min(morning, Math.max(midnight, now - 60_000));
+  const dayStart = Date.parse(addDays(startOfNairobiDay(new Date(now).toISOString()), -daysAgo));
+  const morning = dayStart + (9 * 60 + 30 + daysAgo * STAGGER_MINUTES_PER_DAY) * 60_000;
+  return Math.min(morning, Math.max(dayStart, now - 60_000));
 }
 
 function build(seed: Seed, now: number): Stored {

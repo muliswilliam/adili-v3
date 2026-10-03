@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { addDays, daysBetween, plural } from './calendar-days';
+import { addDays, daysBetween, plural, startOfNairobiDay } from './calendar-days';
 
 describe('daysBetween', () => {
   it('counts calendar days in Kenyan time, not 24-hour spans', () => {
@@ -9,6 +9,19 @@ describe('daysBetween', () => {
     expect(daysBetween('2026-09-01T06:00:00Z', '2026-09-01T18:00:00Z')).toBe(0);
     expect(daysBetween('2026-09-01T06:00:00Z', '2026-10-01T06:00:00Z')).toBe(30);
     expect(daysBetween('2026-10-01T06:00:00Z', '2026-09-28T06:00:00Z')).toBe(-3);
+  });
+});
+
+describe('startOfNairobiDay', () => {
+  it('is midnight in Nairobi on the Kenyan calendar day of the instant', () => {
+    expect(startOfNairobiDay('2026-09-01T06:00:00Z')).toBe('2026-08-31T21:00:00.000Z');
+    expect(startOfNairobiDay('2026-08-31T21:00:00Z')).toBe('2026-08-31T21:00:00.000Z');
+    expect(startOfNairobiDay('2026-09-01T20:59:59.999Z')).toBe('2026-08-31T21:00:00.000Z');
+  });
+
+  it('is the next Kenyan day from 00:00 to 03:00 in Nairobi, while UTC is a day behind', () => {
+    // 01:00 on 2 September in Nairobi is 22:00 on 1 September in UTC.
+    expect(startOfNairobiDay('2026-09-01T22:00:00Z')).toBe('2026-09-01T21:00:00.000Z');
   });
 });
 

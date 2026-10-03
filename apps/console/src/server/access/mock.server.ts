@@ -49,7 +49,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { addDays, isScopeWithin } from '@adili/ui';
+import { addDays, isScopeWithin, startOfNairobiDay } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
@@ -308,14 +308,14 @@ function nairobiDay(at: string): string {
   return new Date(Date.parse(at) + 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-/** The instant a Nairobi calendar day starts. */
-function startOfNairobiDay(day: string): string {
+/** The instant the Nairobi calendar day `day` (YYYY-MM-DD) starts. */
+function midnightOn(day: string): string {
   return new Date(`${day}T00:00:00+03:00`).toISOString();
 }
 
 /** A written notice served on `day`: notified from its start, window to the end of day + 7. */
 function writtenWindow(day: string): { notifiedAt: string; windowEndsAt: string } {
-  const notifiedAt = startOfNairobiDay(day);
+  const notifiedAt = midnightOn(day);
   return { notifiedAt, windowEndsAt: iso(Date.parse(notifiedAt), WINDOW_DAYS + 1) };
 }
 
@@ -323,9 +323,7 @@ const OFFICER_NAME = 'Lucy Wambui';
 
 /** 09:10 in Nairobi on the seeding day, or the day before when that is still ahead. */
 function morningOf(now: number): number {
-  const today = Date.parse(
-    `${new Date(now + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)}T06:10:00Z`,
-  );
+  const today = Date.parse(startOfNairobiDay(new Date(now).toISOString())) + (9 * 60 + 10) * 60_000;
   return today <= now ? today : today - 24 * 60 * 60 * 1000;
 }
 
@@ -1003,9 +1001,8 @@ const SEEDS: Seed[] = [
 
 /** Ten minutes before the end of the Kenyan day of `now`, or five minutes on when that passed. */
 function endOfToday(now: number): number {
-  const nairobi = 3 * 60 * 60 * 1000;
-  const midnight = Date.parse(`${new Date(now + nairobi).toISOString().slice(0, 10)}T00:00:00Z`);
-  const end = midnight - nairobi + 24 * 60 * 60 * 1000 - 10 * 60 * 1000;
+  const tomorrow = Date.parse(addDays(startOfNairobiDay(new Date(now).toISOString()), 1));
+  const end = tomorrow - 10 * 60 * 1000;
   return end > now ? end : now + 5 * 60 * 1000;
 }
 
