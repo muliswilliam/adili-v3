@@ -220,12 +220,56 @@ describe('NarrativeEditor', () => {
       <Editor initial={{ ...VALUE, findings: [{ id: 'f1', text: 'Twenty-one characters' }] }} />,
     );
 
-    expect(screen.getByText('58 characters')).toBeTruthy();
+    // As stored: the two paragraphs joined by a blank line.
+    expect(screen.getByText('60 characters')).toBeTruthy();
     const over = screen.getByText('21 characters, 20 at most');
     expect(over.className).toContain('text-destructive');
     expect(
       screen.getByRole('textbox', { name: 'Findings, paragraph 1' }).getAttribute('aria-invalid'),
     ).toBe('true');
+  });
+
+  it('keeps what else a paragraph carries, and makes new ones with the caller’s shape', () => {
+    interface Cited {
+      id: string;
+      text: string;
+      aiDraft?: boolean;
+      aggregateRefs: string[];
+    }
+    const spy = vi.fn();
+    function CitedEditor() {
+      const [value, setValue] = useState<NarrativeValue<Cited>>({
+        overview: [{ id: 'c1', text: 'Cited.', aiDraft: true, aggregateRefs: ['national.rate'] }],
+      });
+      return (
+        <NarrativeEditor<Cited>
+          sections={[{ id: 'overview', label: 'Overview' }]}
+          value={value}
+          onChange={(next) => {
+            spy(next);
+            setValue(next);
+          }}
+          onSave={() => Promise.resolve()}
+          createParagraph={(id) => ({ id, text: '', aggregateRefs: [] })}
+          paragraphMeta={(paragraph) => <span>{paragraph.aggregateRefs.join(', ') || 'none'}</span>}
+        />
+      );
+    }
+    render(<CitedEditor />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Overview, paragraph 1' }), {
+      target: { value: 'Cited, edited.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add paragraph to overview' }));
+
+    expect(screen.getByText('national.rate')).toBeTruthy();
+    expect(screen.getByText('none')).toBeTruthy();
+    expect((spy.mock.lastCall?.[0] as NarrativeValue<Cited>).overview?.[0]).toEqual({
+      id: 'c1',
+      text: 'Cited, edited.',
+      aiDraft: false,
+      aggregateRefs: ['national.rate'],
+    });
   });
 
   it('shows what a caller puts under each paragraph, e.g. its AI label and citations', () => {

@@ -51,4 +51,12 @@ describe('SaveIndicator', () => {
 
     expect(screen.getByRole('status').textContent).toBe('Saved at 10:42');
   });
+
+  it('says it autosaves before anything is edited, without an icon', () => {
+    render(<SaveIndicator status="idle" />);
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe('Autosaves');
+    expect(status.querySelector('svg')).toBeNull();
+  });
 });

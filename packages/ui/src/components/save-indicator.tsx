@@ -12,11 +12,13 @@ import { Spinner } from './spinner';
 
 /**
  * The four states in the spec. `retrying`: a save failed and will be tried again. `conflict`:
- * edited elsewhere, reload to continue.
+ * edited elsewhere, reload to continue. `idle`: nothing edited yet, for an editor that says it
+ * autosaves before the first change (the same live region then reads every later state).
  */
-export type SaveStatus = 'saved' | 'saving' | 'retrying' | 'conflict';
+export type SaveStatus = 'idle' | 'saved' | 'saving' | 'retrying' | 'conflict';
 
 const DEFAULT_MESSAGES: Record<SaveStatus, string> = {
+  idle: 'Autosaves',
   saved: 'Saved',
   saving: 'Saving…',
   retrying: 'Could not save, retrying',

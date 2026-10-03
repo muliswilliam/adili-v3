@@ -11,23 +11,41 @@ import { SaveIndicator } from './save-indicator';
 import { Textarea } from './textarea';
 
 /**
- * One paragraph of a narrative section, as the reporting contract's `NarrativeParagraph` keeps
- * them. `aiDraft` is true for an AI-drafted paragraph until it is edited.
+ * What the editor needs of a paragraph. The reporting contract's `NarrativeParagraph` has these
+ * and more (`aggregateRefs`, `candidateIds`); pass it as is and the editor keeps the rest.
+ * `aiDraft` is true for an AI-drafted paragraph until it is edited.
  */
-export interface NarrativeParagraph {
+export interface NarrativeEditorParagraph {
   id: string;
   text: string;
   aiDraft?: boolean;
 }
 
 /** Paragraphs per section id, in order. A missing section has none. */
-export type NarrativeValue = Record<string, NarrativeParagraph[]>;
+export type NarrativeValue<P extends NarrativeEditorParagraph = NarrativeEditorParagraph> = Record<
+  string,
+  P[]
+>;
+
+/** How the contract stores a section: its paragraphs' text, separated by a blank line. */
+export const NARRATIVE_PARAGRAPH_SEPARATOR = '\n\n';
+
+/**
+ * A section's text as the contract stores it (non-empty paragraphs joined by a blank line), the
+ * text its `maxLength` applies to.
+ */
+export function narrativeSectionText(paragraphs: readonly NarrativeEditorParagraph[]): string {
+  return paragraphs
+    .map((paragraph) => paragraph.text.trim())
+    .filter(Boolean)
+    .join(NARRATIVE_PARAGRAPH_SEPARATOR);
+}
 
 export interface NarrativeSection {
   id: string;
   /** "Overview": names the section and its fields. */
   label: string;
-  /** The most characters the section may hold, as the contract limits it. */
+  /** The most characters the section's stored text may hold, as the contract limits it. */
   maxLength?: number;
 }
 
@@ -71,37 +89,39 @@ export const NARRATIVE_EDITOR_MESSAGES: NarrativeEditorMessages = {
   notWritten: 'Not written yet.',
 };
 
-export type NarrativeEditorProps = Omit<ComponentProps<'section'>, 'children' | 'onChange'> & {
-  sections: NarrativeSection[];
-  value: NarrativeValue;
-  /** Every edit, with the whole narrative. Required unless read-only. */
-  onChange?: (value: NarrativeValue) => void;
-  /**
-   * Saves the whole narrative once typing pauses or the editor loses focus. Resolve when saved;
-   * reject to have it retried with backoff. Required unless read-only.
-   */
-  onSave?: (value: NarrativeValue) => Promise<void>;
-  /** How long typing must pause before a save. 1.5 s by default. */
-  saveDelayMs?: number;
-  /** Shows the text without fields, e.g. to the supervisor or once approved. */
-  readOnly?: boolean;
-  /** Said in the header when read-only, e.g. "Written by the analyst" or "Frozen at approval". */
-  readOnlyNote?: ReactNode;
-  /** The card's heading. "Narrative" by default. */
-  title?: ReactNode;
-  /** In the header after the save status, e.g. a draft menu. */
-  actions?: ReactNode;
-  /** Above the sections, e.g. an alert that drafting failed. */
-  notice?: ReactNode;
-  /** Under a paragraph, e.g. its AI label and figure citations. */
-  paragraphMeta?: (paragraph: NarrativeParagraph, section: NarrativeSection) => ReactNode;
-  /** Ids for new paragraphs. `crypto.randomUUID` by default. */
-  newParagraphId?: () => string;
-  messages?: Partial<NarrativeEditorMessages>;
-};
-
-const sectionLength = (paragraphs: NarrativeParagraph[]) =>
-  paragraphs.reduce((sum, paragraph) => sum + paragraph.text.length, 0);
+export type NarrativeEditorProps<P extends NarrativeEditorParagraph = NarrativeEditorParagraph> =
+  Omit<ComponentProps<'section'>, 'children' | 'onChange'> & {
+    sections: NarrativeSection[];
+    value: NarrativeValue<P>;
+    /** Every edit, with the whole narrative. Required unless read-only. */
+    onChange?: (value: NarrativeValue<P>) => void;
+    /**
+     * Saves the whole narrative once typing pauses or the editor loses focus. Resolve when saved;
+     * reject to have it retried with backoff. Required unless read-only.
+     */
+    onSave?: (value: NarrativeValue<P>) => Promise<void>;
+    /** How long typing must pause before a save. 1.5 s by default. */
+    saveDelayMs?: number;
+    /** Shows the text without fields, e.g. to the supervisor or once approved. */
+    readOnly?: boolean;
+    /** Said in the header when read-only, e.g. "Written by the analyst" or "Frozen at approval". */
+    readOnlyNote?: ReactNode;
+    /** The card's heading. "Narrative" by default. */
+    title?: ReactNode;
+    /** In the header after the save status, e.g. a draft menu. */
+    actions?: ReactNode;
+    /** Above the sections, e.g. an alert that drafting failed. */
+    notice?: ReactNode;
+    /** Under a paragraph, e.g. its AI label and figure citations. */
+    paragraphMeta?: (paragraph: P, section: NarrativeSection) => ReactNode;
+    /**
+     * A new, empty paragraph for a section, under the id given (the field's key while it is
+     * typed in). Required when paragraphs carry more than the editor needs, e.g. the contract's
+     * `aggregateRefs: []`; `{ id, text: '' }` by default.
+     */
+    createParagraph?: (id: string, section: NarrativeSection) => P;
+    messages?: Partial<NarrativeEditorMessages>;
+  };
 
 /**
  * A report's narrative as a card of sections (Overview, Findings, Recommendations), each a list of
@@ -110,7 +130,7 @@ const sectionLength = (paragraphs: NarrativeParagraph[]) =>
  * paragraph is ringed in violet until edited, when it stops being an AI draft; its label comes
  * from `paragraphMeta`. Read-only, it shows the text and a note instead.
  */
-export function NarrativeEditor({
+export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEditorParagraph>({
   sections,
   value,
   onChange,
@@ -122,11 +142,11 @@ export function NarrativeEditor({
   actions,
   notice,
   paragraphMeta,
-  newParagraphId = () => crypto.randomUUID(),
+  createParagraph = (id) => ({ id, text: '' }) as P,
   messages,
   className,
   ...props
-}: NarrativeEditorProps) {
+}: NarrativeEditorProps<P>) {
   const copy = { ...NARRATIVE_EDITOR_MESSAGES, ...messages };
   const headingId = useId();
   const root = useRef<HTMLElement>(null);
@@ -147,7 +167,7 @@ export function NarrativeEditor({
   });
 
   // An added, empty paragraph changes nothing worth saving; writing in it does.
-  const update = (section: string, paragraphs: NarrativeParagraph[], save = true) => {
+  const update = (section: string, paragraphs: P[], save = true) => {
     const next = { ...value, [section]: paragraphs };
     onChange?.(next);
     if (save) autosave.change(next);
@@ -179,13 +199,14 @@ export function NarrativeEditor({
         {notice}
         {sections.map((section) => {
           const paragraphs = value[section.id] ?? [];
-          const length = sectionLength(paragraphs);
+          const length = narrativeSectionText(paragraphs).length;
           const tooLong = section.maxLength !== undefined && length > section.maxLength;
           const labelId = `${headingId}-${section.id}`;
-          const shown: NarrativeParagraph[] =
+          const countId = `${labelId}-count`;
+          const shown: P[] =
             readOnly || paragraphs.length > 0
               ? paragraphs
-              : [{ id: startId(section.id), text: '' }];
+              : [createParagraph(startId(section.id), section)];
           const written = paragraphs.filter((paragraph) => paragraph.text.trim() !== '');
 
           return (
@@ -201,6 +222,7 @@ export function NarrativeEditor({
                 </h4>
                 {readOnly ? null : (
                   <span
+                    id={countId}
                     className={cn(
                       'ml-auto text-xs text-muted-foreground tabular-nums',
                       tooLong && 'font-medium text-destructive',
@@ -248,6 +270,7 @@ export function NarrativeEditor({
                           data-ai-draft={paragraph.aiDraft ? 'true' : undefined}
                           aria-label={copy.paragraph(section.label, index + 1)}
                           aria-invalid={tooLong || undefined}
+                          aria-describedby={tooLong ? countId : undefined}
                           placeholder={
                             index === 0 ? copy.firstPlaceholder(section.label) : copy.placeholder
                           }
@@ -257,7 +280,7 @@ export function NarrativeEditor({
                             paragraph.aiDraft && 'shadow-control-ai hover:shadow-control-ai',
                           )}
                           onChange={(event) => {
-                            const edited: NarrativeParagraph = {
+                            const edited: P = {
                               ...paragraph,
                               text: event.target.value,
                               ...(paragraph.aiDraft ? { aiDraft: false } : {}),
@@ -301,7 +324,7 @@ export function NarrativeEditor({
                       size="sm"
                       aria-label={copy.addParagraphTo(section.label)}
                       onClick={() => {
-                        const added = { id: newParagraphId(), text: '' };
+                        const added = createParagraph(crypto.randomUUID(), section);
                         focusNext.current = added.id;
                         update(section.id, [...paragraphs, added], false);
                       }}
@@ -336,20 +359,15 @@ function AutosaveText({
   savedAt: Date | null;
   copy: NarrativeEditorMessages;
 }) {
-  if (status === 'idle') {
-    return (
-      <span role="status" className="text-[13px] text-muted-foreground">
-        {copy.autosaves}
-      </span>
-    );
-  }
+  // One live region from the start, so the first "Saving…" is read out.
   return (
     <SaveIndicator
       status={status}
       messages={{
+        idle: copy.autosaves,
         saving: copy.saving,
         retrying: copy.retrying,
-        saved: savedAt ? copy.saved(formatTime(savedAt.getTime())) : copy.saved(''),
+        saved: savedAt ? copy.saved(formatTime(savedAt.getTime())) : copy.saving,
       }}
     />
   );
