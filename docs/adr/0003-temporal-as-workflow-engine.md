@@ -1,6 +1,6 @@
 # ADR-003: Temporal as the workflow engine
 
-- **Status:** Accepted; amended 2026-10-02: starting workflows with their transaction, recovering lost signals and final refusals (decision 7, spec 10); refined 2026-10-03: the administrative action ladder and the 2-cycle referral belong to the review service, not to `FilingObligationWorkflow` (decision 8, spec 08)
+- **Status:** Accepted; amended 2026-10-02: starting workflows with their transaction, recovering lost signals and final refusals (decision 7, spec 10); amended 2026-10-03: the administrative action ladder and the 2-cycle referral belong to the review service, not to `FilingObligationWorkflow` (decision 8, spec 08)
 - **Date:** 2026-09-24
 - **Deciders:** Adili V3 DIALs team
 - **Related:** [ADR-001](0001-postgresql-as-sole-structured-data-store.md), [research/dials-scope-and-scale.md](../research/dials-scope-and-scale.md)
@@ -35,11 +35,11 @@ Other forces:
 
 | Workflow | Lifetime | Responsibility |
 |---|---|---|
-| `FilingObligationWorkflow` (declarations) | Per officer per obligation | Reminders (staggered with jitter), due date, grace; announces `overdue` and `filed` (`obligation.status-changed.v1`). No ladder, payroll or referral: see decision 8 |
+| `FilingObligationWorkflow` (declarations) | Per officer per obligation | Reminders (staggered with jitter), due date; announces `overdue` and `filed` (`obligation.status-changed.v1`). No ladder, payroll or referral: see decision 8 |
 | `DeclarationProcessingWorkflow` | Per submission | Acknowledgement → document extraction → integration checks → material-change and risk scoring → assign to reviewer |
 | `ClarificationWorkflow` (review) | Per request | 6-month issuing window, 30-day response timer, reminders; announces no response (`clarification.overdue.v1`) |
 | `EnforcementWorkflow` (review) | Per overdue obligation or unanswered clarification | Administrative action ladder: notice to comply, warning, salary stoppage (`stop_salary` / `resume_salary` to payroll through the integration-gateway), disciplinary referral; each step approved by a named officer (decision 8) |
-| `ReferralSweep` (review, daily per Commission) | Scheduled | Proposes referrals to EACC: two consecutive missed biennial cycles, a clarification unanswered past the ladder (Reg 20(2)) |
+| `ReferralSweep` (review, daily per Commission) | Scheduled | Proposes referrals to EACC: two consecutive missed biennial cycles (Reg 20(2)), a clarification unanswered past the ladder |
 | `AccessRequestWorkflow` | Per Form K | Notify declarant, representation window, decision, notify applicant, time-boxed access grant |
 | `ComplianceReportWorkflow` | Per Commission per period | Build Form M from data, internal approval, submit to EACC by 31 July |
 | `NationalConsolidationWorkflow` | Per period (EACC) | Track Form M receipt from all Commissions, chase late filers, build national report, send non-compliant list to ICMS |
@@ -56,12 +56,12 @@ Other forces:
    - **Signals only save waiting.** A signal sent after commit can be lost (Temporal down for a moment, a failed call that is only logged). Every wait on a signal therefore also wakes on a timer and re-reads the record through an activity, so a lost signal delays a step by at most one interval and never stalls the run.
    - **Bounded retries, refusals final.** Activities retry transient failures (timeouts, 5xx, an unavailable dependency) with a bounded number of attempts. A refusal that no retry can change (a 4xx from a callee, a broken invariant) is raised as non-retryable (`ApplicationFailure.nonRetryable`), so the workflow handles it at once.
 
-8. **The administrative action ladder is owned by the review service.** *Refined 2026-10-03 (spec 08, #191).* The ladder drafts and approves review's records (administrative actions, their `ADM` letters, the approvals inbox), so it runs where they live:
-   - `EnforcementWorkflow(subjectKind, subjectId)` runs on the review worker, with the subject as workflow id, so a repeated event starts nothing. Review's event consumers start it on `obligation.status-changed.v1` to `overdue` (subject: the filing obligation) and on `clarification.overdue.v1` (subject: the clarification). They signal compliance on `filed`, `clarification.responded.v1` and `clarification.resolved.v1`, and end it without compliance on an obligation cancelled or a clarification withdrawn.
-   - Each step is drafted by the system and waits for a named officer (reviewer or supervisor for notice and warning, supervisor only for salary stoppage and disciplinary referral; the separation-of-duties rule of ADR-004 applies). Windows come from the Commission's policy in the directory (14, 14 and 30 days when it names none).
+8. **The administrative action ladder is owned by the review service.** *Amended 2026-10-03 (spec 08, #191).* The ladder drafts and approves review's records (administrative actions, their `ADM` letters, the approvals inbox), so it runs where they live:
+   - `EnforcementWorkflow(subjectKind, subjectId)` (`enforcement` in `services/review/src/enforcement/workflows.ts`) runs on the review worker, with the subject as workflow id, so a repeated event starts nothing. Review's event consumers start it on `obligation.status-changed.v1` to `overdue` (subject: the filing obligation) and on `clarification.overdue.v1` (subject: the clarification). They signal compliance on `filed`, `clarification.responded.v1` and `clarification.resolved.v1`, and end it without compliance on an obligation cancelled or a clarification withdrawn.
+   - Each step is drafted by the system and waits for a named officer (reviewer or supervisor for notice and warning, supervisor only for salary stoppage and disciplinary referral; the separation-of-duties rule of ADR-004 applies). The windows are 14, 14 and 30 days; they move to the Commission's policy once the directory's policy carries them (it does not yet).
    - Salary is never left stopped: compliance, or the ladder ending any other way, sends `resume_salary` (the stoppage's `ADM` reference plus `-R`).
    - Declarations keeps only the obligation's reminders and status, and announces `overdue` and `filed`. It sends no payroll instruction and proposes no referral.
-   - Two-cycle referrals (Reg 20(2)) are proposed by review's daily `ReferralSweep`, from declarations' internal person obligation history, and approved by a supervisor like any referral.
+   - Two-cycle referrals (Reg 20(2)) are proposed by review's daily `ReferralSweep` (`referralSweep`, one run per Commission, in `services/review/src/referrals/workflows.ts`), from declarations' internal person obligation history, and approved by a supervisor like any referral.
 
 ## Alternatives considered
 

@@ -8,7 +8,7 @@ The ladder's move from `FilingObligationWorkflow` to review's `EnforcementWorkfl
 
 | Contract | Source | Drafts left | Drift check |
 |---|---|---|---|
-| `internal/review.yaml` | exported from `services/review` (`pnpm --filter @adili/review contracts`, since #190) | none (review has no draft file) | `pnpm contracts:drift` |
+| `internal/review.yaml` | exported from `services/review` (`pnpm --filter @adili/review contracts`, since #175) | none (review has no draft file) | `pnpm contracts:drift` |
 | `internal/integration-gateway.yaml` | exported | none (`drafts/integration-gateway.yaml` deleted by #482) | same |
 | `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: specs 05b and 11 only | same |
 | `internal/documents.yaml` | exported | none | same |
@@ -79,4 +79,4 @@ Built as the spec lists them, plus (ids and outcomes only):
 - `referral.icms-registered.v1` (review consumes it from reporting, #237).
 - `payroll.instruction.submitted.v1` and `payroll.instruction.unacknowledged.v1` from the gateway (#482), next to review's `payroll.instruction.sent.v1` and `acknowledged.v1`.
 
-Review's event types and payloads live in the review service (`src/*/events.ts`), not in `@adili/events/contracts` as access's do. Reporting parses the ones Form M counts (`action.*`, `determination.approved.v1`, `referral.sent.v1`) with its own Zod schemas in `services/reporting/src/projections/events.ts`.
+Review's event types and payloads live in the review service (`src/*/events.ts`), as #444 built them, not in `@adili/events/contracts` as access's do; no ticket moves them. Reporting parses the ones Form M counts (`action.*`, `determination.approved.v1`, `referral.sent.v1`) with its own Zod schemas in `services/reporting/src/projections/events.ts`.
