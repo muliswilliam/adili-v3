@@ -592,10 +592,13 @@ describe('consent and who may check (S9)', () => {
     const reads = await suggestionReads();
     expect(before).toBeGreaterThan(0);
     expect(reads).toHaveLength(before + 1);
-    expect(reads.at(-1)?.data).toMatchObject({
-      action: 'declaration.suggestions.read',
-      resource: { type: 'declaration', params: { declarationId: draft.id } },
-    });
+    // Every one of them, the read just made included, is of this draft (the outbox is unordered).
+    for (const read of reads) {
+      expect(read.data).toMatchObject({
+        action: 'declaration.suggestions.read',
+        resource: { type: 'declaration', params: { declarationId: draft.id } },
+      });
+    }
   });
 });
 
