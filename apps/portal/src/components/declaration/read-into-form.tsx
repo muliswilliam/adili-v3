@@ -144,8 +144,6 @@ export function ReadIntoForm({
       const state = readingState(result.set);
       if (state.status === 'reading') setStep({ name: 'reading', setId: result.set.id });
       else settle(state);
-    } else if (result.status === 'not-enabled') {
-      settle({ status: 'not-enabled' });
     } else {
       const reason =
         result.status === 'refused'

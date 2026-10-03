@@ -461,8 +461,6 @@ export interface ExtractAttachmentInput {
 
 export type ExtractResult =
   | { status: 'started'; set: LoadedSuggestionSet }
-  /** 409 `not-enabled`: the Commission has no AI policy for documents. */
-  | { status: 'not-enabled' }
   /** Any other 409 (e.g. the attachment is not clean) or 400. */
   | { status: 'refused'; code: string | null }
   | NotFound
@@ -492,7 +490,7 @@ export function extractAttachment(
     if (data) return { status: 'started', set: loadedSet(data) };
     if (response.status === 409 || response.status === 400) {
       const code = problemCode(error);
-      return code === 'not-enabled' ? { status: 'not-enabled' } : { status: 'refused', code };
+      return { status: 'refused', code };
     }
     return response.status === 404 ? notFound : unavailable;
   });

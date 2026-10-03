@@ -404,8 +404,8 @@ describe('Read into the form (S6, S11)', () => {
     expect(await within(sheet()).findByText(/\(the service is not available now\)/)).toBeTruthy();
   });
 
-  it('learns that reading is off from a 409 not-enabled and remembers it for the draft', async () => {
-    extractMock.mockResolvedValue({ status: 'not-enabled' });
+  it('learns that reading is off from a not-enabled answer and remembers it for the draft', async () => {
+    extractMock.mockResolvedValue({ status: 'started', set: set({ status: 'not-enabled' }) });
     renderSheet();
     expect(screen.getByText('reading on')).toBeTruthy();
     read();
