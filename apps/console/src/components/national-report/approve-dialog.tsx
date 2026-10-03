@@ -69,7 +69,7 @@ export function ApproveDialog({
     setBusy(false);
     if (result.ok) {
       onOpenChange(false);
-      toast({ title: m.approvedToast(result.data.reference ?? '') });
+      toast({ title: m.approvedToast(result.data.reference) });
       await router.invalidate();
       return;
     }

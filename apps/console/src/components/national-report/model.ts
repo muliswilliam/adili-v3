@@ -50,9 +50,12 @@ export function dueDateOf(fy: number): string {
   return `${String(fy + 1)}-07-31`;
 }
 
+/** reporting.yaml `FinancialYear`: a start year reports exist for. */
+export const financialYearSchema = z.number().int().min(FIRST_REPORT_YEAR).max(2100);
+
 /** The page's address: the year shown and the page of the per-Commission table. */
 export const ncrSearchSchema = z.object({
-  fy: z.number().int().min(FIRST_REPORT_YEAR).max(2100).optional().catch(undefined),
+  fy: financialYearSchema.optional().catch(undefined),
   page: z.number().int().min(1).optional().catch(undefined),
 });
 

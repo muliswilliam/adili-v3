@@ -1,6 +1,14 @@
-import type { IntakeStatus } from '@adili/ui';
+import type { Assert, MatchesNarrativeSections } from '@adili/ui';
 
+import type { NationalAggregates } from './aggregates';
 import type { components } from './api.gen';
+
+export type {
+  AccessAggregate,
+  CommissionAggregate,
+  NationalAggregates,
+  SectionAggregate,
+} from './aggregates';
 
 type Schemas = components['schemas'];
 
@@ -10,66 +18,15 @@ export type NarrativeParagraph = Schemas['NarrativeParagraph'];
 export type NarrativeSectionId = NarrativeParagraph['section'];
 export type Intake = Schemas['Intake'];
 
+/** The kit's national report sections and limits are the contract's (`Narrative`). */
+export type NarrativeMatchesContract = Assert<MatchesNarrativeSections<Narrative>>;
+
 /** The narrative's sections in the order the report has them. */
 export const NARRATIVE_SECTION_IDS = [
   'overview',
   'findings',
   'recommendations',
 ] as const satisfies readonly NarrativeSectionId[];
-
-/** A Form M section's counts in the national report, with its declared rate (null: none expected). */
-export interface SectionAggregate {
-  expected: number;
-  declared: number;
-  notDeclared: number;
-  rate: number | null;
-}
-
-export interface AccessAggregate {
-  received: number;
-  granted: number;
-  declined: number;
-}
-
-/** A Commission's row: its report's status and, once it reported, its numbers. */
-export interface CommissionAggregate {
-  name: string;
-  status: IntakeStatus;
-  reportId: string | null;
-  reference: string | null;
-  submittedAt: string | null;
-  initial: SectionAggregate | null;
-  biennial: (SectionAggregate & { noCycleInPeriod: boolean }) | null;
-  final: SectionAggregate | null;
-  clarifications: number | null;
-  accessRequests: AccessAggregate | null;
-}
-
-/**
- * The national report's `aggregates` as the reporting service builds them
- * (`services/reporting/src/national-reports/aggregates.ts`): reporting.yaml leaves the object
- * open, so the console reads it with `nationalAggregatesSchema` (`../national-report.server`).
- */
-export interface NationalAggregates {
-  fy: number;
-  reporting: {
-    commissions: number;
-    reported: number;
-    onTime: number;
-    late: number;
-    notReported: number;
-    rate: number | null;
-  };
-  national: {
-    initial: SectionAggregate;
-    biennial: SectionAggregate;
-    final: SectionAggregate;
-    all: SectionAggregate;
-    clarifications: number;
-    accessRequests: AccessAggregate;
-  };
-  byCommission: Record<string, CommissionAggregate>;
-}
 
 /** reporting.yaml `NationalReport`, with its aggregates read. */
 export type NationalReport = Omit<Schemas['NationalReport'], 'aggregates'> & {

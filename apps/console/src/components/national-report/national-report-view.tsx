@@ -209,9 +209,8 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
     } else if (result.error.kind === 'unauthenticated') {
       onUnauthenticated();
     } else if (result.error.kind === 'problem' && result.error.problem.status === 409) {
-      setBuildError(
-        result.error.problem.code === 'no-submitted-reports' ? m.noSubmittedReports : m.buildFailed,
-      );
+      // Approved meanwhile (`ncr-approved`): the reloaded page shows it, nothing failed.
+      if (result.error.problem.code === 'no-submitted-reports') setBuildError(m.noSubmittedReports);
       await router.invalidate();
     } else {
       setBuildError(m.buildFailed);
@@ -226,7 +225,9 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
     </Alert>
   ) : null;
 
-  if (building) {
+  // A first build has nothing to show yet; a rebuild keeps the report (and the narrative being
+  // typed, whose waiting save would otherwise race the build) on the page.
+  if (building && !data.report) {
     return (
       <Card className="p-0 sm:p-0">
         <div role="status" className="flex flex-col items-center px-5 py-12 text-center">
@@ -281,6 +282,7 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
         report={data.report}
         newReports={newReportsSince({ reported: data.reported, report: data.report })}
         isAnalyst={isAnalyst}
+        rebuilding={building}
         onRebuild={() => {
           void runBuild();
         }}
@@ -293,19 +295,27 @@ function Built({
   report,
   newReports,
   isAnalyst,
+  rebuilding,
   onRebuild,
   ...props
 }: NationalReportViewProps & {
   report: NationalReport;
   newReports: number;
   isAnalyst: boolean;
+  rebuilding: boolean;
   onRebuild: () => void;
 }) {
   const approved = report.status === 'approved';
   const context: NcrExtensionContext = { report, canEdit: !approved && isAnalyst };
   return (
     <div className="flex flex-col gap-4">
-      <StatusBar {...props} report={report} isAnalyst={isAnalyst} onRebuild={onRebuild} />
+      <StatusBar
+        {...props}
+        report={report}
+        isAnalyst={isAnalyst}
+        rebuilding={rebuilding}
+        onRebuild={onRebuild}
+      />
       {newReports > 0 ? (
         <Alert
           variant="warning"
@@ -318,9 +328,12 @@ function Built({
               <b className="font-semibold">{m.newReports(newReports)}</b> {m.newReportsText}
             </span>
             {isAnalyst ? (
-              <Button variant="secondary" size="sm" className="ml-auto" onClick={onRebuild}>
-                {m.rebuild}
-              </Button>
+              <RebuildButton
+                size="sm"
+                className="ml-auto"
+                rebuilding={rebuilding}
+                onRebuild={onRebuild}
+              />
             ) : null}
           </AlertDescription>
         </Alert>
@@ -351,9 +364,36 @@ const NCR_PARTS: readonly ReferencePart[] = [
   { label: 'Check', meaning: 'Catches typing mistakes' },
 ];
 
+function RebuildButton({
+  rebuilding,
+  onRebuild,
+  size,
+  className,
+}: {
+  rebuilding: boolean;
+  onRebuild: () => void;
+  size?: 'sm';
+  className?: string;
+}) {
+  return (
+    <Button
+      variant="secondary"
+      size={size}
+      className={className}
+      disabled={rebuilding}
+      aria-busy={rebuilding || undefined}
+      onClick={onRebuild}
+    >
+      {rebuilding ? <Spinner className="size-4" /> : size ? null : <Icon icon={RefreshIcon} />}
+      {rebuilding ? m.rebuilding : m.rebuild}
+    </Button>
+  );
+}
+
 function StatusBar({
   report,
   isAnalyst,
+  rebuilding,
   onRebuild,
   viewer,
   fy,
@@ -363,6 +403,7 @@ function StatusBar({
 }: NationalReportViewProps & {
   report: NationalReport;
   isAnalyst: boolean;
+  rebuilding: boolean;
   onRebuild: () => void;
 }) {
   const [approving, setApproving] = useState(false);
@@ -404,12 +445,7 @@ function StatusBar({
           </>
         ) : (
           <>
-            {isAnalyst ? (
-              <Button variant="secondary" onClick={onRebuild}>
-                <Icon icon={RefreshIcon} />
-                {m.rebuild}
-              </Button>
-            ) : null}
+            {isAnalyst ? <RebuildButton rebuilding={rebuilding} onRebuild={onRebuild} /> : null}
             {approval === 'can-approve' ? null : (
               <span className="text-[13.5px] text-muted-foreground">
                 {approval === 'author' ? m.authorCannotApprove : m.onlySupervisorApproves}
@@ -432,7 +468,7 @@ function StatusBar({
           open
           onOpenChange={setApproving}
           fy={fy}
-          author={report.author?.name ?? ''}
+          author={report.author?.name ?? m.unknownOfficer}
           approver={viewer.name}
           approve={approve}
           onUnauthenticated={onUnauthenticated}
@@ -454,8 +490,19 @@ function PdfButton({
 }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
-  usePollWhile(report.documentId === null, PDF_POLL_MS, PDF_POLLS);
+  const poll = usePollWhile(report.documentId === null, PDF_POLL_MS, PDF_POLLS);
   const documentId = report.documentId;
+  if (!documentId && poll.exhausted) {
+    return (
+      <span className="flex items-center gap-2.5">
+        <span className="text-[13.5px] text-muted-foreground">{m.pdfSlow}</span>
+        <Button variant="secondary" onClick={poll.restart}>
+          <Icon icon={RefreshIcon} />
+          {m.checkAgain}
+        </Button>
+      </span>
+    );
+  }
   if (!documentId) {
     return (
       <Button disabled aria-busy="true">
@@ -549,5 +596,7 @@ function NarrativeCard({
 }
 
 function sectionId(id: string): NarrativeParagraph['section'] {
-  return NARRATIVE_SECTION_IDS.find((each) => each === id) ?? 'overview';
+  const found = NARRATIVE_SECTION_IDS.find((each) => each === id);
+  if (!found) throw new Error(`Unknown narrative section ${id}`);
+  return found;
 }

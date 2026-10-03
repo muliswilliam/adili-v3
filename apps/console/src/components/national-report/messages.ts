@@ -35,11 +35,14 @@ export const en = {
   author: (name: string) => `Author ${name}`,
   approvedBy: (name: string, at: string) => `Approved by ${name}, ${at}`,
   rebuild: 'Rebuild',
+  rebuilding: 'Rebuilding…',
   approve: 'Approve',
   authorCannotApprove: 'The author cannot approve',
   onlySupervisorApproves: 'Only an EACC supervisor can approve',
   downloadPdf: 'Download PDF',
   preparingPdf: 'Preparing PDF…',
+  pdfSlow: 'The PDF is taking longer than usual.',
+  checkAgain: 'Check again',
   pdfFailed: 'The PDF could not be downloaded. Try again.',
 
   newReports: (count: number) =>
@@ -93,7 +96,9 @@ export const en = {
     'You built or wrote part of this report, so another EACC supervisor must approve it.',
   approveForbidden: 'Only an EACC supervisor who did not write the report can approve it.',
   approveFailed: 'The report could not be approved just now. Nothing was approved. Try again.',
-  approvedToast: (reference: string) => `Approved as ${reference}.`,
+  approvedToast: (reference: string | null) =>
+    reference ? `Approved as ${reference}.` : 'Approved.',
+  unknownOfficer: 'Not recorded',
 } as const;
 
 function commissions(count: number): string {

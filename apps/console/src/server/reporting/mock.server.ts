@@ -29,6 +29,7 @@
 import createClient from 'openapi-fetch';
 
 import type { paths as documentsPaths } from '../documents/api.gen';
+import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
 import {
@@ -43,7 +44,7 @@ import {
   type SectionAggregate,
 } from './types';
 
-export type ReportingMockSeed = 'not-built' | 'draft' | 'stale' | 'approved';
+export type ReportingMockSeed = Env['REPORTING_MOCK_NCR'];
 
 const EACC_ANALYST = 'eacc-analyst';
 const EACC_SUPERVISOR = 'eacc-supervisor';
@@ -311,8 +312,9 @@ function ensureSeeded(): Store {
 }
 
 function seedFromEnv(): ReportingMockSeed {
-  const seed = process.env.REPORTING_MOCK_NCR;
-  return seed === 'draft' || seed === 'stale' || seed === 'approved' ? seed : 'not-built';
+  return envSchema.shape.REPORTING_MOCK_NCR.catch('not-built').parse(
+    process.env.REPORTING_MOCK_NCR,
+  );
 }
 
 /** NCR references as the numbering package allocates them (ISO 7064 MOD 37-36 check). */

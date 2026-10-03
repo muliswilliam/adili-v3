@@ -262,6 +262,57 @@ describe('S11 S15 national report: the draft', () => {
     expect(build).toHaveBeenCalledWith(2025);
   });
 
+  it('rebuilds in place, keeping what the analyst is typing', async () => {
+    const page = await pageOf('stale');
+    let finish: (result: NationalReportResult<NationalReport>) => void = () => undefined;
+    const build = vi.fn(
+      () =>
+        new Promise<NationalReportResult<NationalReport>>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderView({ result: page, build });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' }), {
+      target: { value: 'Chase the two.' },
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Rebuild' })[0] ?? document.body);
+
+    expect(screen.getAllByRole('button', { name: 'Rebuilding…' })[0]).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' })).toHaveProperty(
+      'value',
+      'Chase the two.',
+    );
+    await act(async () => {
+      finish({ ok: true, data: reportOf(page) });
+      await Promise.resolve();
+    });
+    expect(await screen.findByText('Built from 11 reports. Narrative kept.')).toBeDefined();
+  });
+
+  it('says nothing failed when a rebuild finds the report approved meanwhile (409)', async () => {
+    const build = vi.fn(() =>
+      Promise.resolve<NationalReportResult<NationalReport>>({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Conflict', status: 409, code: 'ncr-approved' },
+        },
+      }),
+    );
+    renderView({ result: await pageOf('draft'), build });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rebuild' }));
+
+    await waitFor(() => {
+      expect(invalidate).toHaveBeenCalled();
+    });
+    expect(screen.queryByText('The report could not be built. Try again.')).toBeNull();
+  });
+
   it("autosaves the analyst's narrative, each section as text", async () => {
     const page = await pageOf('draft');
     const saveNarrative = vi.fn(() => Promise.resolve({ ok: true as const, data: reportOf(page) }));
@@ -391,6 +442,28 @@ describe('S11 S15 national report: approval', () => {
       expect(downloadFrom).toHaveBeenCalledWith('https://files.test/ncr.pdf');
     });
     expect(pdfLink).toHaveBeenCalledWith(reportOf(page).documentId);
+  });
+
+  it('offers to check again once the PDF has been waited on for a while', async () => {
+    vi.useFakeTimers();
+    try {
+      const page = await pageOf('approved');
+      const report = reportOf(page);
+      renderView({
+        result: { ok: true, data: { ...page.data, report: { ...report, documentId: null } } },
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(31_000);
+      });
+
+      expect(screen.getByText('The PDF is taking longer than usual.')).toBeDefined();
+      invalidate.mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
+      expect(invalidate).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('says the PDF is being prepared until it is issued', async () => {

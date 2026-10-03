@@ -1,13 +1,7 @@
-import { z } from 'zod';
-
 import type { DocumentsClient } from './documents/client';
+import { nationalAggregatesSchema } from './reporting/aggregates';
 import type { ReportingClient } from './reporting/client.server';
-import type {
-  Narrative,
-  NationalAggregates,
-  NationalReport,
-  ReportingProblem,
-} from './reporting/types';
+import type { Narrative, NationalReport, ReportingProblem } from './reporting/types';
 import { callService, type ServiceResult } from './service-call';
 
 /**
@@ -27,50 +21,6 @@ export interface NationalReportPage {
   reported: number;
   notReported: number;
 }
-
-const section = z.object({
-  expected: z.number(),
-  declared: z.number(),
-  notDeclared: z.number(),
-  rate: z.number().nullable(),
-});
-const access = z.object({ received: z.number(), granted: z.number(), declined: z.number() });
-
-/** reporting.yaml leaves `aggregates` open; the service builds this shape. */
-const nationalAggregatesSchema: z.ZodType<NationalAggregates> = z.object({
-  fy: z.number(),
-  reporting: z.object({
-    commissions: z.number(),
-    reported: z.number(),
-    onTime: z.number(),
-    late: z.number(),
-    notReported: z.number(),
-    rate: z.number().nullable(),
-  }),
-  national: z.object({
-    initial: section,
-    biennial: section,
-    final: section,
-    all: section,
-    clarifications: z.number(),
-    accessRequests: access,
-  }),
-  byCommission: z.record(
-    z.string(),
-    z.object({
-      name: z.string(),
-      status: z.enum(['not-reported', 'submitted-on-time', 'submitted-late']),
-      reportId: z.string().nullable(),
-      reference: z.string().nullable(),
-      submittedAt: z.string().nullable(),
-      initial: section.nullable(),
-      biennial: section.extend({ noCycleInPeriod: z.boolean() }).nullable(),
-      final: section.nullable(),
-      clarifications: z.number().nullable(),
-      accessRequests: access.nullable(),
-    }),
-  ),
-});
 
 type RawReport = Omit<NationalReport, 'aggregates'> & { aggregates: Record<string, unknown> };
 
