@@ -139,7 +139,9 @@ describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
     expect(within(notice).getByText('Notice to comply')).toBeTruthy();
     expect(within(notice).getByText('Initial declaration')).toBeTruthy();
     expect(within(notice).getByText('File 20260318')).toBeTruthy();
-    expect(within(notice).getByText('No earlier steps. This is the first step of the ladder.')).toBeTruthy();
+    expect(
+      within(notice).getByText('No earlier steps. This is the first step of the ladder.'),
+    ).toBeTruthy();
     expect(
       within(notice)
         .getByRole('link', { name: /Open ladder/ })
