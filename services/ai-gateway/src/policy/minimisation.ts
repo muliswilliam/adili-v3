@@ -180,13 +180,14 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
     pattern: new RegExp(`${EDGE_BEFORE}K(?!ES|SH)[A-Z]{2}\\s?\\d{3}[A-Z]?${EDGE_AFTER}`, 'gu'),
   },
   // Land parcel numbers: a registration section, its blocks, then the number (KSM/123,
-  // KISUMU/MUNICIPALITY BLOCK 7/412). A match starts only at a run of capitals' first word: one
-  // started at a later word reaches no end the first did not, and restarting at each word of a
-  // long run is quadratic (F102).
+  // KISUMU/MUNICIPALITY BLOCK 7/412). A match does not start at a word of capitals right after
+  // one that could start a match itself: that match reaches every end the later one would, and
+  // restarting at each word of a long run is quadratic (F102). After a word that cannot start one
+  // ("eCITIZEN", "2021/LR"), the next word may (F106).
   {
     cls: 'PARCEL',
     pattern:
-      /(?<![\p{L}\p{N}/])(?<!\p{Lu}{2}[ .])\p{Lu}{2,}(?:[ .]\p{Lu}+)*(?:\/[\p{Lu}\p{N}]+(?:[ .][\p{Lu}\p{N}]+)*)*\/\d+(?![\p{L}\p{N}/])/gu,
+      /(?<![\p{L}\p{N}/])(?<!(?<![\p{L}\p{N}/])\p{Lu}{2,}[ .])\p{Lu}{2,}(?:[ .]\p{Lu}+)*(?:\/[\p{Lu}\p{N}]+(?:[ .][\p{Lu}\p{N}]+)*)*\/\d+(?![\p{L}\p{N}/])/gu,
   },
   // Kenyan passport numbers: one or two letters and seven digits.
   { cls: 'PASSPORT', pattern: new RegExp(`${EDGE_BEFORE}[A-Z]{1,2}\\d{7}${EDGE_AFTER}`, 'gu') },
