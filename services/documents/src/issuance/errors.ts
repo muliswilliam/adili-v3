@@ -37,7 +37,7 @@ const OUTCOME = {
  */
 export function dependencyProblem(
   error: IssuanceDependencyUnavailable,
-  during: keyof typeof OUTCOME = 'issue',
+  during: keyof typeof OUTCOME,
 ): ProblemException {
   return new ProblemException({
     type: `${error.dependency}-unavailable`,

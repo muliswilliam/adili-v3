@@ -212,7 +212,7 @@ export class InternalDocumentsController {
   @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
   @ApiProblemResponse(
     409,
-    'Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)',
+    'Problem type `document-not-valid` (superseded, revoked or expired already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)',
   )
   @ApiProblemResponse(502, 'Problem type `signer-unavailable`: nothing changed; retry')
   supersede(

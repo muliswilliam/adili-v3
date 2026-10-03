@@ -580,7 +580,7 @@ describe('S10 superseding', () => {
   });
 });
 
-describe('spec 07a revoking a document issued in error', () => {
+describe('07a S15 revoking a letter withdrawn as issued in error', () => {
   it('marks it revoked with the reason, re-signs its record and emits document.revoked.v1', async () => {
     const document = await issued();
 

@@ -342,7 +342,7 @@ export class IssuanceService {
           { err: errorType(error), cause: error.message, dependency: error.dependency },
           'Issuing a document failed',
         );
-        throw dependencyProblem(error);
+        throw dependencyProblem(error, 'issue');
       }
       throw error;
     }
@@ -383,6 +383,7 @@ export class IssuanceService {
         );
         throw dependencyProblem(
           new IssuanceDependencyUnavailable('review', error.message, { cause: error }),
+          'issue',
         );
       }
       throw error;
@@ -467,8 +468,8 @@ export class IssuanceService {
   /**
    * Revokes a valid document with the reason (a clarification letter withdrawn as issued in
    * error), re-signs its record and emits `document.revoked.v1`, so the verify page shows it
-   * revoked. 404 when the document is not the tenant's; 409 when it is not valid (revoked or
-   * superseded already); 502 when the signer fails (nothing changes). Signed with no lock held,
+   * revoked. 404 when the document is not the tenant's; 409 when it is not valid (revoked,
+   * superseded or expired already); 502 when the signer fails (nothing changes). Signed with no lock held,
    * as a supersede is.
    */
   async revoke(request: RevokeRequest): Promise<IssuedDocument> {
@@ -517,9 +518,9 @@ export class IssuanceService {
   }
 
   /**
-   * Runs a status change until it lands: `attempt` reads and checks the records, signs the new
+   * Runs a status change until it lands: each attempt reads and checks the records, signs the new
    * record with no lock held, then writes it only if the records did not change meanwhile, else
-   * answers null and is tried again (checked again, so the change that won may refuse it). A
+   * answers null and is made again (checked again, so the change that won may refuse it). A
    * signer failure is 502.
    */
   private async changeStatus(
@@ -527,11 +528,11 @@ export class IssuanceService {
     attempt: () => Promise<IssuedDocument | null>,
   ): Promise<IssuedDocument> {
     try {
-      for (let tries = 1; ; tries++) {
+      for (let attempts = 1; ; attempts++) {
         const changed = await attempt();
         if (changed) return changed;
-        if (tries === MAX_STATUS_CHANGE_ATTEMPTS) {
-          throw new Error(`Document ${documentId} kept changing while its status was changed`);
+        if (attempts === MAX_STATUS_CHANGE_ATTEMPTS) {
+          throw new Error(`Document ${documentId} kept changing during its status change`);
         }
       }
     } catch (error) {

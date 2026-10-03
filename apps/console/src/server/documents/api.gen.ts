@@ -1666,7 +1666,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type) */
+            /** @description Problem type `document-not-valid` (superseded, revoked or expired already) or `superseding-document-invalid` (the newer document is not a valid document of the same type) */
             409: {
                 headers: {
                     [name: string]: unknown;

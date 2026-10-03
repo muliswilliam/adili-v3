@@ -590,7 +590,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)
+          description: Problem type `document-not-valid` (superseded, revoked or expired already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)
           content:
             application/problem+json:
               schema:
