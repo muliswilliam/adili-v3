@@ -67,17 +67,17 @@ function refuseRepeatedParameters(document: OpenAPIObject): void {
     for (const [method, operation] of Object.entries(item)) {
       if (!HTTP_METHODS.has(method) || !isOperation(operation)) continue;
       const parameters = (operation.parameters ?? []) as { name?: string; in?: string }[];
-      const seen = new Map<string, string[]>();
+      const seen = new Map<string, { location: string; names: string[] }>();
       for (const { name, in: location } of parameters) {
         if (name === undefined || location === undefined) continue;
-        const key = `${location} ${location === 'header' ? name.toLowerCase() : name}`;
-        seen.set(key, [...(seen.get(key) ?? []), name]);
+        const key = `${location}:${location === 'header' ? name.toLowerCase() : name}`;
+        const entry = seen.get(key) ?? { location, names: [] };
+        entry.names.push(name);
+        seen.set(key, entry);
       }
-      for (const [key, names] of seen) {
+      for (const { location, names } of seen.values()) {
         if (names.length > 1) {
-          repeated.push(
-            `${method.toUpperCase()} ${path}: ${key.split(' ')[0]} ${names.join(', ')}`,
-          );
+          repeated.push(`${method.toUpperCase()} ${path}: ${location} ${names.join(', ')}`);
         }
       }
     }
