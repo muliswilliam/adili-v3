@@ -179,7 +179,7 @@ describe('S15 national report: before it is built', () => {
 
     expect(build).toHaveBeenCalledWith(2025);
     expect(screen.getByText('Building from 11 submitted reports…')).toBeDefined();
-    expect(screen.getByText('Your narrative is kept.')).toBeDefined();
+    expect(screen.queryByText('Your narrative is kept.')).toBeNull();
     await act(async () => {
       finish({ ok: true, data: reportOf(built) });
       await Promise.resolve();
@@ -630,6 +630,42 @@ describe('seams for spec 09b', () => {
     expect(screen.getByRole('textbox', { name: 'Findings, paragraph 1' })).toHaveProperty(
       'value',
       'Typed, not saved yet.',
+    );
+  });
+
+  it('keeps text the service refused when a newer version arrives, so it is not lost', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const saveNarrative = vi.fn(() =>
+      Promise.resolve<NationalReportResult<NationalReport>>({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Bad Request', status: 400 },
+        },
+      }),
+    );
+    const view = renderView({ result: page, saveNarrative });
+    const field = screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' });
+    fireEvent.change(field, { target: { value: 'Refused text.' } });
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(saveNarrative).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Could not save')).toBeDefined();
+    });
+
+    view.rerender({
+      result: {
+        ok: true,
+        data: { ...page.data, report: { ...report, version: report.version + 5 } },
+      },
+    });
+
+    expect(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' })).toHaveProperty(
+      'value',
+      'Refused text.',
     );
   });
 

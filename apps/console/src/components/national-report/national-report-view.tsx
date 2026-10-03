@@ -55,11 +55,11 @@ import { dueDateOf } from '../form-m/financial-year';
 import { usePollWhile } from '../use-poll-while';
 import { CommissionsTable, NationalTotals } from './aggregate-tables';
 import { type ApproveReport, ApproveDialog } from './approve-dialog';
+import { messages as intakeMessages } from '../eacc-intake/messages';
 import { messages as m } from './messages';
 import {
   approvalOf,
   editorValueOf,
-  fyLabel,
   type NarrativeEditorValue,
   narrativeTextOf,
   type NcrViewer,
@@ -82,6 +82,10 @@ export interface NcrExtensionContext {
    * Changes the narrative being edited and saves it, e.g. #331's "Cite in findings" with
    * `appendParagraph(value, 'findings', { text, aggregateRefs, candidateIds })`. Ignored unless
    * `canEdit`.
+   *
+   * Today a saved paragraph keeps only its text: `PATCH .../narrative` takes each section as text,
+   * so a new paragraph's `aggregateRefs` and `candidateIds` are dropped by the service (#500). Pass
+   * them anyway; they show until the next reload and survive once the contract carries them.
    */
   editNarrative: (edit: (value: NarrativeEditorValue) => NarrativeEditorValue) => void;
   /**
@@ -98,7 +102,7 @@ export interface NcrExtensionContext {
  * - `narrativeActions`: the Draft narrative menu (#341) in the narrative's header.
  * - `narrativeNotice`: above the sections, e.g. #341's drafting errors.
  * - `paragraphMeta`: under each paragraph after the "AI draft" label the page always shows on an
- *   AI-drafted paragraph, e.g. #341's figure citation chips.
+ *   AI-drafted paragraph, e.g. #341's figure citation chips (do not render another AI label).
  */
 export interface NcrExtensions {
   patterns?: (context: NcrExtensionContext) => ReactNode;
@@ -239,7 +243,6 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
         <div role="status" className="flex flex-col items-center px-5 py-12 text-center">
           <Spinner className="mb-3.5 size-7" />
           <h3 className="text-[15px] font-semibold">{m.building(data.reported)}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{m.buildingText}</p>
         </div>
       </Card>
     );
@@ -253,7 +256,7 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
           {data.reported === 0 ? (
             <EmptyState
               icon={<Icon icon={InboxIcon} />}
-              title={m.noReportsTitle(fyLabel(fy))}
+              title={m.noReportsTitle(intakeMessages.fyLabel(fy))}
               description={m.noReportsText(formatDate(dueDateOf(fy)))}
             />
           ) : (
@@ -552,7 +555,8 @@ interface NarrativeDraft {
  * The narrative being edited, kept above the editor so a rebuild leaves it be. It is saved through
  * one `useAutosave`. When the report changes on the server (another version than the editor took,
  * not one of its own saves: a rebuild, an approval, another analyst's edit) the editor takes the
- * server's narrative, unless edits are still waiting to be saved, which then win.
+ * server's narrative, unless edits are not saved yet (waiting, retrying or refused), which then
+ * win.
  */
 function useNarrativeDraft({
   report,
@@ -591,7 +595,9 @@ function useNarrativeDraft({
   });
   if (report.id !== basis.id || report.version !== basis.version) {
     setBasis({ id: report.id, version: report.version });
-    const waiting = autosave.status === 'saving' || autosave.status === 'retrying';
+    // Edits not saved yet win: waiting, being retried, or refused (still on screen, unsaved).
+    const waiting =
+      autosave.status === 'saving' || autosave.status === 'retrying' || autosave.status === 'error';
     if (report.id !== basis.id || (!own.has(report.version) && !waiting)) {
       setValue(editorValueOf(report.narrativeParagraphs));
     }
