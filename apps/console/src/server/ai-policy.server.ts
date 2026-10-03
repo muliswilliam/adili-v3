@@ -12,7 +12,7 @@ import type {
   TenantUsage,
   UsageList,
 } from './ai-gateway/types';
-import { isReviewerTask } from './ai-gateway/tasks';
+import { decidesForReviewers, isReviewerTask } from './ai-gateway/tasks';
 import { callDirectory, type DirectoryClient } from './directory/client';
 import { callService, type ServiceResult } from './service-call';
 
@@ -95,7 +95,7 @@ export function gateOf(
       providerClass: cell.providerClass,
       // A rule for some tasks only (the demo's document reading, spec 05b) decides for those
       // tasks alone: for the Commission's AI assistance the default still applies.
-      allowed: rule?.tasks === null ? rule.allowed : cell.allowed,
+      allowed: rule && decidesForReviewers(rule) ? rule.allowed : cell.allowed,
       rule,
     };
   });

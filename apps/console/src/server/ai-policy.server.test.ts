@@ -252,6 +252,33 @@ describe('S16 saveGatePolicy', () => {
     expect(mockTenantAiStatus('tsc').enabled).toBe(false);
   });
 
+  it('refuses a task the gateway does not run, like the gateway', async () => {
+    const result = await saveGatePolicy(
+      admin(),
+      'psc',
+      [
+        {
+          dataClass: 'restricted',
+          providerClass: 'external',
+          allowed: true,
+          tasks: ['read-palms' as never],
+        },
+      ],
+      'EACC/AI/2026/032',
+    );
+    expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+  });
+
+  it('refuses to widen a rule for some tasks only that a change does not name tasks for', async () => {
+    const result = await saveGatePolicy(
+      admin(),
+      'psc',
+      [{ dataClass: 'highly-confidential', providerClass: 'external', allowed: true }],
+      'EACC/AI/2026/033',
+    );
+    expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+  });
+
   it('stores none of the changes when one is invalid', async () => {
     const result = await saveGatePolicy(
       admin(),
