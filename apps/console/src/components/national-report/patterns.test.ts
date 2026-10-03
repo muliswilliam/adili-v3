@@ -257,6 +257,19 @@ describe('figures cited by aggregate key', () => {
     expect(figureFormatter(withAll, [])('national.clarificationRatio')?.value).toBe('9.7');
   });
 
+  it('finds no clarification figure for a Commission whose report did not count them', () => {
+    const psc = reported('Public Service Commission', 'submitted-on-time', [1000, 900], 0);
+    const uncounted = {
+      ...AGGREGATES,
+      byCommission: { ...AGGREGATES.byCommission, psc: { ...psc, clarifications: null } },
+    };
+    const formatUncounted = figureFormatter(uncounted, []);
+
+    expect(formatUncounted('commission.psc.clarifications')).toBeNull();
+    expect(formatUncounted('commission.psc.clarificationRatio')).toBeNull();
+    expect(formatUncounted('commission.psc.filed')?.value).toBe('900');
+  });
+
   it("resolves a prior year's figures from the candidates citing them", () => {
     expect(format('fy2025.commission.cpsbnairobicity.nonFilerRate')).toEqual({
       label: 'Nairobi City County Public Service Board non-filer rate 2024/2025',

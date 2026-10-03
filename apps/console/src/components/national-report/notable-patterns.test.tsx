@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { loadNationalReportPage } from '../../server/national-report.server';
+import {
+  loadNationalReportPage,
+  saveNationalReportNarrative,
+} from '../../server/national-report.server';
 import { loadPatternCandidates } from '../../server/pattern-candidates.server';
 import {
   type CandidatesMockSeed,
@@ -72,8 +75,10 @@ async function renderPage({
   const result = { ok: true as const, data: { ...loaded.data, report } };
   const onPageChange = vi.fn();
   const onUnauthenticated = vi.fn();
-  const saveNarrative = vi.fn<Props['saveNarrative']>(() =>
-    Promise.resolve({ ok: true, data: report } as never),
+  // Saved by the reporting mock, which answers as the service does: a new version, paragraphs
+  // mapped from the text (citations dropped, #500).
+  const saveNarrative = vi.fn<Props['saveNarrative']>((fy, narrative) =>
+    saveNationalReportNarrative(client([...viewer.roles]), fy, narrative),
   );
 
   function Page() {
@@ -392,6 +397,36 @@ describe('Cite in findings', () => {
     expect(saveNarrative.mock.lastCall?.[1].findings).toContain(
       'Teachers Service Commission: 3 years reported late running',
     );
+  });
+
+  it('stays cited after the save answers, and a second press adds nothing', async () => {
+    const { saveNarrative } = await renderPage();
+
+    const card = await within(panel()).findByRole('article', {
+      name: 'Repeatedly late: Teachers Service Commission',
+    });
+    fireEvent.click(
+      within(card).getByRole('button', {
+        name: 'Cite in findings: Repeatedly late, Teachers Service Commission',
+      }),
+    );
+    const findings = screen.getByRole('group', { name: 'Findings' });
+    fireEvent.blur(within(findings).getByRole('textbox', { name: 'Findings, paragraph 3' }));
+    await waitFor(() => {
+      expect(saveNarrative).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      // The service's answer: a new version whose paragraphs no longer carry the citation.
+      expect(await saveNarrative.mock.results[0]?.value).toMatchObject({ ok: true });
+    });
+
+    expect(card.getAttribute('data-cited')).toBe('true');
+    fireEvent.click(
+      within(card).getByRole('button', {
+        name: 'Cited in findings: Repeatedly late, Teachers Service Commission',
+      }),
+    );
+    expect(within(findings).getAllByRole('textbox')).toHaveLength(3);
   });
 
   it('is not offered once the report is approved', async () => {
