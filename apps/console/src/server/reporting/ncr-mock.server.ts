@@ -271,7 +271,7 @@ export function resetNcrMock(
       paragraph('findings', 0, DRAFT_FINDINGS[0] ?? ''),
       paragraph('findings', 1, DRAFT_FINDINGS[1] ?? '', {
         aiDraft: true,
-        aggregateRefs: ['commission.cpsbnairobicity.rate.biennial'],
+        aggregateRefs: ['commission.cpsbnairobicity.biennialFilingRate'],
       }),
     ],
     author: BRIAN,
