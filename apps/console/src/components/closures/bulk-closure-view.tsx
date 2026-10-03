@@ -42,7 +42,7 @@ import { useState } from 'react';
 
 import { CLOSURE_TYPES, type ClosureSearch } from '../../closures/search';
 import type { BulkApprovalResult, ClosureSummary } from '../../server/closures';
-import { problemStatus, type ServiceResult } from '../../server/service-call';
+import { problemStatus, type ServiceError, type ServiceResult } from '../../server/service-call';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { en as m } from './messages';
@@ -61,6 +61,8 @@ export interface BulkClosureViewProps {
   approve: (idempotencyKey: string) => Promise<ServiceResult<BulkApprovalResult>>;
   /** Read the counts for the filters again, while a run is under way. */
   readSummary: () => Promise<ServiceResult<ClosureSummary>>;
+  /** Now, for whether the clarification window has closed (`useToday`). */
+  today: number;
 }
 
 /**
@@ -106,7 +108,12 @@ export function BulkClosureView(props: BulkClosureViewProps) {
     <Page>
       <PageHead title={m.title} />
       <div className="grid gap-4">
-        <Filters {...props} locked={phase === 'running'} />
+        <Filters
+          search={props.search}
+          onSearchChange={props.onSearchChange}
+          cycles={props.cycles}
+          locked={phase === 'running'}
+        />
         {summary && !summary.ok ? (
           <LoadError title={m.errorTitle} detail={m.errorDetail} retryLabel={m.tryAgain} />
         ) : (
@@ -137,7 +144,11 @@ export function BulkClosureView(props: BulkClosureViewProps) {
                   onStop={backToBatch}
                   onReset={backToBatch}
                   messages={{
-                    pendingDescription: m.pendingDescription,
+                    pendingDescription:
+                      counts.windowClosedAt !== null &&
+                      Date.parse(counts.windowClosedAt) <= props.today
+                        ? () => m.pendingSweep
+                        : m.pendingDescription,
                   }}
                 />
               )}
@@ -163,21 +174,11 @@ export function BulkClosureView(props: BulkClosureViewProps) {
 }
 
 function phaseOf(bulk: BulkApproval, swept: boolean): BatchPhase {
-  switch (bulk.run.status) {
-    case 'running':
-      return 'running';
-    case 'stopped':
-      return 'stopped';
-    case 'done':
-      return 'done';
-    case 'idle':
-      return swept ? 'ready' : 'pending';
-  }
+  if (bulk.run.status === 'idle') return swept ? 'ready' : 'pending';
+  return bulk.run.status;
 }
 
-function stoppedReason(
-  error: NonNullable<Extract<BulkApproval['run'], { error: unknown }>['error']>,
-) {
+function stoppedReason(error: ServiceError): string {
   if (error.kind === 'problem') return error.problem.detail ?? `${error.problem.title}.`;
   return m.stoppedUnavailable;
 }
@@ -187,7 +188,7 @@ function Filters({
   onSearchChange,
   cycles,
   locked,
-}: BulkClosureViewProps & { locked: boolean }) {
+}: Pick<BulkClosureViewProps, 'search' | 'onSearchChange' | 'cycles'> & { locked: boolean }) {
   return (
     <Card className="@container p-5 sm:p-5">
       <fieldset disabled={locked} className="min-w-0">
@@ -366,7 +367,11 @@ function ConfirmDialog({
             heading={m.consequences}
             headingLevel={3}
             items={[
-              { icon: HashtagIcon, title: m.allocated(n), detail: m.allocatedDetail },
+              {
+                icon: HashtagIcon,
+                title: m.allocated(n),
+                detail: m.allocatedDetail(formatNumber(CHUNK_SIZE)),
+              },
               { icon: CheckmarkCircle02Icon, title: m.determined },
               { icon: Notification01Icon, title: m.notified, detail: m.notifiedDetail },
               { icon: File02Icon, title: m.letters, detail: m.lettersDetail },

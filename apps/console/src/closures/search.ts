@@ -1,14 +1,18 @@
 import { z } from 'zod';
 
-import type { ClosureFilter } from '../server/closures';
+import type { ClosureFilter, DeclarationType } from '../server/closures';
 
 /** The bulk closure screen's filters in the URL: a cycle (the current year by default) and type. */
 export interface ClosureSearch {
   cycle: number;
-  type?: 'initial' | 'biennial' | 'final';
+  type?: DeclarationType;
 }
 
-export const CLOSURE_TYPES = ['initial', 'biennial', 'final'] as const;
+export const CLOSURE_TYPES = [
+  'initial',
+  'biennial',
+  'final',
+] as const satisfies readonly DeclarationType[];
 
 /** Parses `?cycle=&type=`, dropping what does not parse; `now` picks the default cycle. */
 export function closureSearchSchema(now: () => number) {

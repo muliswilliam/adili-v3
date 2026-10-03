@@ -1,18 +1,20 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { CLOSURE_TYPES } from '../closures/search';
 import { asReviewer } from './as-viewer.server';
 import {
   approveClosures,
   type BulkApprovalResult,
   type ClosureFilter,
   type ClosureSummary,
+  type DeclarationType,
   loadClosureSummary,
 } from './closures.server';
 import { SLUG_PATTERN } from './directory/contract';
 import type { ServiceResult } from './service-call';
 
-export type { BulkApprovalResult, ClosureFilter, ClosureSummary };
+export type { BulkApprovalResult, ClosureFilter, ClosureSummary, DeclarationType };
 
 /**
  * Server functions for the bulk closure screen (spec 08 FE-4), called as the signed-in
@@ -22,7 +24,7 @@ export type { BulkApprovalResult, ClosureFilter, ClosureSummary };
 
 export const closureFilterSchema = z.object({
   cycleYear: z.number().int().min(2000).max(2100),
-  type: z.enum(['initial', 'biennial', 'final']).optional(),
+  type: z.enum(CLOSURE_TYPES).optional(),
   reportingEntityId: z.uuid().optional(),
 });
 

@@ -43,8 +43,11 @@ export interface BulkApproval {
  * One bulk approval at a time (spec 08 FE-4, S4). The approval is one request that the review
  * service works through in chunks of 100, each its own transaction, so while it is under way the
  * counts are read every second: the closures approved since it started are its progress, and the
- * chunks follow from them. A failed request leaves the run stopped at the chunk it reached, with
- * the key kept for Resume.
+ * chunks follow from them. When no answer comes in time (the console gives up after two minutes)
+ * but chunks kept landing, the service is still at work: the request is sent again with the same
+ * key, which carries on under it (the review service shares a key's work between requests). Any
+ * other failure, or no answer and no chunk since the last request, leaves the run stopped at the
+ * chunk it reached, with the key kept for Resume.
  */
 export function useBulkApproval({
   approve,
@@ -55,6 +58,11 @@ export function useBulkApproval({
 }): BulkApproval {
   const [run, setRun] = useState<BulkRun>({ status: 'idle' });
   const generation = useRef(0);
+  // The latest reader, so a caller passing a new function each render does not restart the poll.
+  const reader = useRef(readSummary);
+  useEffect(() => {
+    reader.current = readSummary;
+  }, [readSummary]);
 
   const running = run.status === 'running' ? run : null;
   const runningKey = running?.key ?? null;
@@ -64,7 +72,7 @@ export function useBulkApproval({
     if (runningKey === null) return undefined;
     let cancelled = false;
     const timer = setInterval(() => {
-      void readSummary().then((read) => {
+      void reader.current().then((read) => {
         if (cancelled || !read.ok) return;
         const approved = Math.min(total, Math.max(0, read.data.approved - baseline));
         setRun((current) =>
@@ -78,7 +86,7 @@ export function useBulkApproval({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [runningKey, baseline, total, readSummary]);
+  }, [runningKey, baseline, total]);
 
   function send(key: string, from: { total: number; baseline: number; approved: number }) {
     const mine = ++generation.current;
@@ -97,11 +105,15 @@ export function useBulkApproval({
         return;
       }
       // What stayed approved: the counts as they are now.
-      const read = await readSummary();
+      const read = await reader.current();
       if (generation.current !== mine) return;
+      const counted = read.ok ? Math.min(from.total, read.data.approved - from.baseline) : 0;
+      if (noAnswer(outcome.error) && counted > from.approved) {
+        send(key, { ...from, approved: counted });
+        return;
+      }
       setRun((current) => {
         const sofar = current.status === 'idle' ? from.approved : current.approved;
-        const counted = read.ok ? read.data.approved - from.baseline : 0;
         const approved = Math.min(from.total, Math.max(sofar, counted));
         return { status: 'stopped', key, ...from, approved, result: null, error: outcome.error };
       });
@@ -134,6 +146,11 @@ export function useBulkApproval({
       setRun({ status: 'idle' });
     },
   };
+}
+
+/** The service gave no answer (a timeout or a dropped connection), rather than refusing. */
+function noAnswer(error: ServiceError): boolean {
+  return error.kind === 'unavailable' && error.problemType === undefined;
 }
 
 function progressOf(run: Exclude<BulkRun, { status: 'idle' }>): BatchProgress {

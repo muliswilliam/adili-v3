@@ -1,4 +1,6 @@
-import { formatNumber } from '@adili/ui';
+import { formatNumber, OUTCOME_BADGE_MESSAGES } from '@adili/ui';
+
+const NO_ISSUES = OUTCOME_BADGE_MESSAGES['compliant-no-issues'];
 
 /**
  * Copy of the bulk closure screen (spec 08 FE-4). English; the Swahili slots come with the i18n
@@ -21,7 +23,7 @@ export const en = {
 
   countsLabel: 'Closures for these filters',
   eligible: 'Eligible proposals',
-  eligibleDescription: 'Compliant: no issues identified',
+  eligibleDescription: NO_ISSUES,
   sampled: 'Sampled for review',
   sampleRate: (rate: number) => `${formatPercent(rate)} sample`,
   reviewQueue: 'Review queue',
@@ -32,6 +34,8 @@ export const en = {
     date === undefined
       ? 'Bulk proposals appear after the clarification window closes.'
       : `Bulk proposals appear after the clarification window closes on ${date}.`,
+  /** The window has closed; the sweep proposes on its next daily run. */
+  pendingSweep: 'Bulk proposals appear after the next daily sweep.',
 
   confirmTitle: (count: string) => `Approve ${count} closures?`,
   confirmFilters: (cycle: number, type: string) =>
@@ -40,8 +44,8 @@ export const en = {
     'Each closure receives a CMP number in your name. Sampled cases are excluded and appear in the review queue.',
   consequences: 'When you approve',
   allocated: (count: string) => `${count} CMP numbers are allocated in order`,
-  allocatedDetail: 'No gaps, in chunks of 100',
-  determined: 'Each case is determined as Compliant: no issues identified',
+  allocatedDetail: (size: string) => `No gaps, in chunks of ${size}`,
+  determined: `Each case is determined as ${NO_ISSUES}`,
   notified: 'Each declarant is notified',
   notifiedDetail: 'By email, SMS and in the portal',
   letters: 'Decision letters are prepared on demand',

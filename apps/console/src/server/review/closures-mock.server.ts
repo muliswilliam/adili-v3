@@ -11,7 +11,7 @@
  * - The year before (`pending`): no sweep yet, its window closes in 90 days.
  * - Two years before (`closed`): every proposal approved (980), nothing left.
  *
- * As review.yaml has it: supervisors only (403 `supervisor-required` for anyone else, read from
+ * One store for every Commission (the console reads the caller's own). As review.yaml has it: supervisors only (403 `supervisor-required` for anyone else, read from
  * the token's realm roles); approval needs an Idempotency-Key and runs in chunks of 100, each
  * allocating its CMP numbers in sequence, `chunkDelayMs` apart so a summary read meanwhile sees
  * the chunks land. With `failAtChunk` (REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK) the first attempt of
@@ -70,9 +70,11 @@ interface Cycle {
 
 const proposals: Proposal[] = [];
 const cycles = new Map<number, Cycle>();
-/** Chunks approved per bulk approval, and the keys that already failed once. */
+/** Chunks approved per bulk approval (approver and key). */
 const approvals = new Map<string, number>();
+/** Bulk approvals whose first attempt already failed (`failAtChunk`). */
 const failedOnce = new Set<string>();
+/** The last CMP sequence number per Commission and year. */
 const sequences = new Map<string, number>();
 let options: Required<ClosuresMockOptions> = { chunkDelayMs: 0, failAtChunk: 0 };
 
@@ -211,17 +213,17 @@ async function approve(
       (each) =>
         matches(filter)(each) && each.status === 'proposed' && !each.heldBy.includes(caller),
     );
-  let attempt = 0;
+  let chunksThisRequest = 0;
   for (;;) {
     const chunk = waiting().slice(0, MOCK_CLOSURE_CHUNK);
     if (chunk.length === 0) break;
-    attempt += 1;
+    chunksThisRequest += 1;
     const done = approvals.get(approval) ?? 0;
     if (options.failAtChunk > 0 && !failedOnce.has(approval) && done + 1 >= options.failAtChunk) {
       failedOnce.add(approval);
       return problem(503, 'The numbering service did not respond');
     }
-    if (attempt > 1) await pause(options.chunkDelayMs);
+    if (chunksThisRequest > 1) await pause(options.chunkDelayMs);
     const at = new Date().toISOString();
     for (const each of chunk) {
       each.status = 'approved';

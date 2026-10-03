@@ -15,7 +15,9 @@ import { getViewer } from '../../server/viewer';
 /**
  * Bulk closure (spec 08 FE-4): the Commission's supervisors approve the system's "no issues
  * identified" proposals of a cycle in batches. Its own route, outside the Approvals inbox's
- * layout (#199), in the Approvals workspace; reviewers are told it is for supervisors.
+ * layout (#199), in the Approvals workspace. Reviewers reach the page too, so that the review
+ * service's 403 tells them it is for supervisors with the way back to their queue; anyone else
+ * is told they have no access.
  */
 export const Route = createFileRoute('/approvals_/bulk-closure')({
   validateSearch: closureSearchSchema(() => Date.now()),
@@ -24,7 +26,8 @@ export const Route = createFileRoute('/approvals_/bulk-closure')({
     if (!viewer) throw signInRedirect(location.href);
     const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
     const slug = viewer.directory.ok ? viewer.directory.principal.tenant : null;
-    return { viewer, roles, slug, workspace: workspaceFor(roles, 'approvals') ?? null };
+    const workspace = workspaceFor(roles, 'approvals') ?? workspaceFor(roles, 'review') ?? null;
+    return { viewer, roles, slug, workspace };
   },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps, location }): Promise<ServiceResult<ClosureSummary> | null> => {
@@ -59,6 +62,8 @@ function BulkClosure({ summary }: { summary: ServiceResult<ClosureSummary> | nul
   const navigate = useNavigate({ from: '/approvals/bulk-closure' });
   const filter = closureFilter(search);
   const today = useToday();
+  const asSupervisor = <T,>(call: (tenant: string) => Promise<ServiceResult<T>>) =>
+    slug ? call(slug) : Promise.resolve(SERVICE_UNAVAILABLE);
   return (
     <WorkspaceLayout
       viewer={viewer}
@@ -75,15 +80,14 @@ function BulkClosure({ summary }: { summary: ServiceResult<ClosureSummary> | nul
         }}
         cycles={cycleOptions(today, search.cycle)}
         approve={(idempotencyKey) =>
-          slug
-            ? approveBulkClosures({ data: { slug, filter, idempotencyKey } })
-            : Promise.resolve(SERVICE_UNAVAILABLE)
+          asSupervisor((tenant) =>
+            approveBulkClosures({ data: { slug: tenant, filter, idempotencyKey } }),
+          )
         }
         readSummary={() =>
-          slug
-            ? getClosureSummary({ data: { slug, filter } })
-            : Promise.resolve(SERVICE_UNAVAILABLE)
+          asSupervisor((tenant) => getClosureSummary({ data: { slug: tenant, filter } }))
         }
+        today={today}
       />
     </WorkspaceLayout>
   );

@@ -1,4 +1,4 @@
-import type { components } from './review/api.gen';
+import type { components, paths } from './review/api.gen';
 import type { ReviewClient } from './review/client.server';
 import { callService, type ServiceResult } from './service-call';
 
@@ -12,13 +12,10 @@ import { callService, type ServiceResult } from './service-call';
 type Schemas = components['schemas'];
 export type ClosureSummary = Schemas['ClosureSummary'];
 export type BulkApprovalResult = Schemas['BulkApprovalResult'];
+export type DeclarationType = Schemas['DeclarationType'];
 
 /** Which system proposals: a cycle, and optionally a declaration type and reporting entity. */
-export interface ClosureFilter {
-  cycleYear: number;
-  type?: 'initial' | 'biennial' | 'final';
-  reportingEntityId?: string;
-}
+export type ClosureFilter = paths['/v1/commissions/{slug}/closures']['get']['parameters']['query'];
 
 /** `GET .../closures`: proposals waiting, sampled and approved for the filters, and the sweep. */
 export function loadClosureSummary(

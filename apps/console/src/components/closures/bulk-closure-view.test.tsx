@@ -38,6 +38,15 @@ const DONE: BulkApprovalResult = {
   chunks: 13,
 };
 
+/** The review service answered 503: it stopped, so the run stops. */
+const ANSWERED_503 = {
+  ok: false as const,
+  error: { kind: 'unavailable' as const, detail: null, problemType: 'about:blank' },
+};
+
+/** No answer in time (the console's timeout): the service may still be approving chunks. */
+const NO_ANSWER = { ok: false as const, error: { kind: 'unavailable' as const, detail: null } };
+
 /** A promise the test settles. */
 function deferred<T>() {
   let resolve: (value: T) => void = () => undefined;
@@ -53,16 +62,25 @@ function renderView(props: Partial<BulkClosureViewProps> = {}) {
     approve: vi.fn<BulkClosureViewProps['approve']>(),
     readSummary: vi.fn<BulkClosureViewProps['readSummary']>(() => Promise.resolve(ok(SUMMARY))),
   };
-  render(
+  const view = (readSummary: BulkClosureViewProps['readSummary']) => (
     <BulkClosureView
       summary={ok(SUMMARY)}
       search={{ cycle: 2026 }}
       cycles={[2026, 2025, 2024]}
+      today={Date.parse('2026-10-02T09:00:00Z')}
       {...handlers}
+      readSummary={readSummary}
       {...props}
-    />,
+    />
   );
-  return handlers;
+  const { rerender } = render(view(handlers.readSummary));
+  return {
+    ...handlers,
+    /** Renders again with a new `readSummary` function, as each render of the route passes. */
+    rerenderWithNewReader: () => {
+      rerender(view((...args) => handlers.readSummary(...args)));
+    },
+  };
 }
 
 const tile = (label: string) => screen.getByText(label).closest('.rounded-2xl');
@@ -176,7 +194,7 @@ describe('BulkClosureView', () => {
 
   it('stops with what stayed approved, and resumes under the same key', async () => {
     const { approve, readSummary } = renderView();
-    approve.mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
+    approve.mockResolvedValueOnce(ANSWERED_503);
     readSummary.mockResolvedValue(
       ok({ ...SUMMARY, eligibleProposed: 940, approved: SUMMARY.approved + 300 }),
     );
@@ -200,6 +218,51 @@ describe('BulkClosureView', () => {
     ).toBeTruthy();
   });
 
+  it('carries on under the same key when no answer came but chunks kept landing', async () => {
+    const { approve, readSummary } = renderView();
+    approve.mockResolvedValueOnce(NO_ANSWER).mockResolvedValueOnce(ok(DONE));
+    readSummary.mockResolvedValue(
+      ok({ ...SUMMARY, eligibleProposed: 640, approved: SUMMARY.approved + 600 }),
+    );
+
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(approve).toHaveBeenCalledTimes(2);
+    const [first, second] = approve.mock.calls;
+    expect(second?.[0]).toBe(first?.[0]);
+    expect(screen.queryByText(/Approval stopped/)).toBeNull();
+    expect(
+      screen.getByText(
+        'Approved 1,240 closures (CMP-TSC-2026-0000313-K to CMP-TSC-2026-0001552-P)',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('stops when no answer came and no chunk landed', async () => {
+    const { approve } = renderView();
+    approve.mockResolvedValue(NO_ANSWER);
+
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(approve).toHaveBeenCalledOnce();
+    expect(screen.getByText('Approval stopped at chunk 1 of 13')).toBeTruthy();
+  });
+
+  it('keeps polling the counts while the screen re-renders', async () => {
+    const run = deferred<ServiceResult<BulkApprovalResult>>();
+    const { approve, readSummary, rerenderWithNewReader } = renderView();
+    approve.mockReturnValue(run.promise);
+    readSummary.mockResolvedValue(
+      ok({ ...SUMMARY, eligibleProposed: 940, approved: SUMMARY.approved + 300 }),
+    );
+    approveAll();
+    for (let i = 0; i < 5; i++) {
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      rerenderWithNewReader();
+    }
+    expect(screen.getByText('3 of 13 chunks approved')).toBeTruthy();
+  });
+
   it('starts a new key for the next batch', async () => {
     const { approve } = renderView();
     approve.mockResolvedValue(ok(DONE));
@@ -215,13 +278,29 @@ describe('BulkClosureView', () => {
 
   it('stops here, reading the counts again', async () => {
     const { approve } = renderView();
-    approve.mockResolvedValue({ ok: false, error: { kind: 'unavailable', detail: null } });
+    approve.mockResolvedValue(ANSWERED_503);
 
     approveAll();
     await act(() => vi.advanceTimersByTimeAsync(0));
     fireEvent.click(screen.getByRole('button', { name: 'Stop here' }));
     expect(invalidate).toHaveBeenCalled();
     expect(screen.getByText('1,240 closures ready')).toBeTruthy();
+  });
+
+  it('waits for the daily sweep once the window has closed but the sweep has not run', () => {
+    renderView({
+      summary: ok({
+        ...SUMMARY,
+        eligibleProposed: 0,
+        sampled: 0,
+        approved: 0,
+        windowClosedAt: '2026-09-01T21:00:00.000Z',
+        lastSweptAt: null,
+      }),
+      today: Date.parse('2026-10-02T09:00:00Z'),
+    });
+
+    expect(screen.getByText('Bulk proposals appear after the next daily sweep.')).toBeTruthy();
   });
 
   it('has no proposals before the sweep: when the clarification window closes', () => {
