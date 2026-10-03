@@ -90,7 +90,6 @@ export const en = {
   noPatternsText: (fy: string) => `Nothing crossed the thresholds for FY ${fy}.`,
   patternsPagination: 'Notable patterns pages',
   patternsRows: (count: number) => `${formatNumber(count)} patterns`,
-  citedToast: 'Cited in findings. Write the paragraph.',
 
   narrativeTitle: 'Narrative',
   writtenByAnalyst: 'Written by the analyst',

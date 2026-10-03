@@ -96,13 +96,13 @@ describe('a pattern card from its candidate', () => {
     });
   });
 
-  it('says a halved rate is a fraction of what it was', () => {
+  it('says how many times lower a rate that fell is', () => {
     expect(
       candidateCard(
         candidate({ values: { from: 0.2, to: 0.08, change: -0.12, factor: 0.4 } }),
         AGGREGATES,
       ).comparison,
-    ).toBe('from 20% in 2024/2025, 0.4 times');
+    ).toBe('from 20% in 2024/2025, 2.5 times lower');
   });
 
   it('calls the nation National', () => {
@@ -238,6 +238,16 @@ describe('figures cited by aggregate key', () => {
     });
   });
 
+  it("reads the nation's totals from the service's own All sections", () => {
+    const withAll = {
+      ...AGGREGATES,
+      national: { ...AGGREGATES.national, all: counts(3100, 2790) },
+    };
+
+    expect(figureFormatter(withAll, [])('national.filed')?.value).toBe('2,790');
+    expect(figureFormatter(withAll, [])('national.clarificationRatio')?.value).toBe('9.7');
+  });
+
   it("resolves a prior year's figures from the candidates citing them", () => {
     expect(format('fy2025.commission.cpsbnairobicity.nonFilerRate')).toEqual({
       label: 'Nairobi City County Public Service Board non-filer rate 2024/2025',
@@ -262,6 +272,8 @@ describe('figures cited by aggregate key', () => {
     expect(figureTarget('fy2025.commission.psc.reportedLate')).toEqual({ commission: 'psc' });
     expect(figureTarget('national.biennialFilingRate')).toEqual({ national: 'biennial' });
     expect(figureTarget('national.nonFilerRate')).toEqual({ national: 'all' });
+    expect(figureTarget('national.commissionsLate')).toBeNull();
+    expect(figureTarget('national.clarificationRatio')).toBeNull();
     expect(figureTarget('nonsense')).toBeNull();
   });
 });
@@ -278,12 +290,8 @@ describe('cited candidates', () => {
   });
 
   it('are those any paragraph of the narrative cites', () => {
-    expect(
-      citedCandidateIds({
-        overview: [paragraph([])],
-        findings: [paragraph(['a']), paragraph(['b', 'c'])],
-        recommendations: [],
-      }),
-    ).toEqual(new Set(['a', 'b', 'c']));
+    expect(citedCandidateIds([paragraph([]), paragraph(['a']), paragraph(['b', 'c'])])).toEqual(
+      new Set(['a', 'b', 'c']),
+    );
   });
 });

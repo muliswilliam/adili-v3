@@ -109,12 +109,20 @@ interface Sections {
   initial: SectionAggregate;
   biennial: SectionAggregate;
   final: SectionAggregate;
+  /** The three together: the service's `national.all`, summed for a Commission's row. */
+  all: SectionAggregate;
 }
 
-function sectionFigures({ initial, biennial, final }: Sections) {
-  const expected = initial.expected + biennial.expected + final.expected;
-  const filed = initial.declared + biennial.declared + final.declared;
-  const nonFilers = initial.notDeclared + biennial.notDeclared + final.notDeclared;
+/** The three sections together, as the service sums a Commission's row. */
+function sumOf(...sections: SectionAggregate[]): SectionAggregate {
+  const expected = sections.reduce((total, each) => total + each.expected, 0);
+  const declared = sections.reduce((total, each) => total + each.declared, 0);
+  const notDeclared = sections.reduce((total, each) => total + each.notDeclared, 0);
+  return { expected, declared, notDeclared, rate: rateOf(declared, expected) };
+}
+
+function sectionFigures({ initial, biennial, final, all }: Sections) {
+  const { expected, declared: filed, notDeclared: nonFilers } = all;
   return {
     expected,
     filed,
@@ -167,7 +175,12 @@ export function commissionFigures(
     const none = Object.fromEntries(COMMISSION_FIGURES.map((name) => [name, null]));
     return { ...(none as Record<CommissionFigure, null>), reported: 0 };
   }
-  const sections = sectionFigures({ initial, biennial, final });
+  const sections = sectionFigures({
+    initial,
+    biennial,
+    final,
+    all: sumOf(initial, biennial, final),
+  });
   const clarifications = row.clarifications ?? 0;
   return {
     reported: 1,

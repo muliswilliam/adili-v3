@@ -5,7 +5,11 @@ import {
   type PatternCardProps,
 } from '@adili/ui';
 
-import type { NationalAggregates, PatternCandidate } from '../../server/reporting/types';
+import type {
+  NarrativeParagraph,
+  NationalAggregates,
+  PatternCandidate,
+} from '../../server/reporting/types';
 import {
   aggregateKeyOf,
   type AggregateKey,
@@ -14,7 +18,7 @@ import {
   type NationalFigure,
   parseAggregateKey,
 } from './figures';
-import { fyLabel, type NarrativeEditorValue } from './model';
+import { fyLabel } from './model';
 
 /**
  * The Notable patterns panel's reading of the reporting service's pattern candidates (spec 09b
@@ -35,7 +39,9 @@ const PER_THOUSAND = new Intl.NumberFormat('en-KE', {
 /** Clarifications per declaration filed (`0.0426`) per 1,000 declarations: `42.6`. */
 const perThousand = (ratio: number) => PER_THOUSAND.format(ratio * 1000);
 
-const factorOf = (factor: number) => `${factor.toFixed(1)} times`;
+/** "2.3 times", or for a rate that fell, "2.5 times lower" (a factor of 0.4). */
+const factorOf = (factor: number) =>
+  factor >= 1 ? `${factor.toFixed(1)} times` : `${(1 / factor).toFixed(1)} times lower`;
 
 function numberIn(values: PatternCandidate['values'], name: string): number | null {
   const value = values[name];
@@ -244,17 +250,22 @@ export function figureTarget(aggregateKey: string): FigureTarget | null {
   if (!key) return null;
   if (key.scope === 'commission') return { commission: key.slug };
   const section = /^(initial|biennial|final)/.exec(key.name)?.[1];
-  return {
-    national:
-      section === 'initial' || section === 'biennial' || section === 'final' ? section : 'all',
-  };
+  if (section === 'initial' || section === 'biennial' || section === 'final') {
+    return { national: section };
+  }
+  // The national totals' All sections row: the three sections' counts and rates together.
+  const allSections: readonly string[] = [
+    'expected',
+    'filed',
+    'nonFilers',
+    'filingRate',
+    'nonFilerRate',
+  ];
+  // Commissions reporting and clarifications have no row of their own on the page.
+  return allSections.includes(key.name) ? { national: 'all' } : null;
 }
 
-/** The candidates the narrative being written cites, by id. */
-export function citedCandidateIds(narrative: NarrativeEditorValue): Set<string> {
-  return new Set(
-    Object.values(narrative).flatMap((paragraphs) =>
-      paragraphs.flatMap((paragraph) => paragraph.candidateIds),
-    ),
-  );
+/** The candidates the narrative's paragraphs cite, by id. */
+export function citedCandidateIds(paragraphs: readonly NarrativeParagraph[]): Set<string> {
+  return new Set(paragraphs.flatMap((paragraph) => paragraph.candidateIds));
 }

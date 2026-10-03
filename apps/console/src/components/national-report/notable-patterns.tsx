@@ -22,12 +22,13 @@ import type {
   PatternCandidate,
 } from '../../server/reporting/types';
 import { CursorPager } from '../cursor-pager';
+// Scrolls to an element and marks it a moment (`data-target-highlight`); not only for declarations.
 import { highlightInDeclaration as highlight } from '../review/copilot/source-refs';
 import { COMMISSIONS_PER_PAGE, commissionRows } from './aggregate-tables';
 import { messages as m } from './messages';
 import { fyLabel } from './model';
 import type { NcrExtensionContext, NcrExtensions } from './national-report-view';
-import { candidateCard, figureFormatter, figureTarget } from './patterns';
+import { candidateCard, citedCandidateIds, figureFormatter, figureTarget } from './patterns';
 
 const NO_CANDIDATES: PatternCandidate[] = [];
 
@@ -174,15 +175,16 @@ function ParagraphMeta({
     <>
       {paragraph.aiDraft ? <AiLabel size="sm" text={m.aiDraft} /> : null}
       {paragraph.aggregateRefs.map((key) => (
-        <FigureChip key={key} aggregateKey={key} format={format} onShow={onShow} />
+        <FigureChip
+          key={key}
+          aggregateKey={key}
+          format={format}
+          // A figure with no row on the page (Commissions reporting) is plain text.
+          onShow={figureTarget(key) ? onShow : undefined}
+        />
       ))}
     </>
   );
-}
-
-/** The candidates the report's narrative cites, by id. */
-function citedIn(report: NationalReport): Set<string> {
-  return new Set(report.narrativeParagraphs.flatMap((paragraph) => paragraph.candidateIds));
 }
 
 /**
@@ -208,7 +210,7 @@ export function NotablePatterns({
   const current = Math.min(page, pages);
   const from = (current - 1) * PATTERNS_PER_PAGE;
   const shown = candidates.slice(from, from + PATTERNS_PER_PAGE);
-  const cited = citedIn(report);
+  const cited = citedCandidateIds(report.narrativeParagraphs);
 
   return (
     <Card
