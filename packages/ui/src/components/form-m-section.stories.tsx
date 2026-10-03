@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 
-import type { AutosaveStatus } from '../lib/use-autosave';
+import { useAutosave } from '../lib/use-autosave';
 import { Button } from './button';
 import { type FormMDeclarationSection, type FormMNonFiler, FormMSection } from './form-m-section';
 
@@ -65,20 +65,21 @@ export const ReadOnly: Story = {};
 
 function EditableSection() {
   const [rows, setRows] = useState(NON_FILERS);
-  const [status, setStatus] = useState<AutosaveStatus>('idle');
+  const autosave = useAutosave<FormMNonFiler[]>(
+    () => new Promise((resolve) => setTimeout(resolve, 600)),
+  );
   return (
     <FormMSection
       section="initial"
       data={{ ...INITIAL, nonFilers: rows }}
-      saveStatus={status}
+      autosave={autosave}
       remarkEditedBy={(row) => (row.obligationId === 'o-1' ? 'Samuel Njoroge' : null)}
       onRemarkChange={(row, remarks) => {
-        setRows((current) =>
-          current.map((each) =>
-            each.obligationId === row.obligationId ? { ...each, remarks } : each,
-          ),
+        const next = rows.map((each) =>
+          each.obligationId === row.obligationId ? { ...each, remarks } : each,
         );
-        setStatus('saved');
+        setRows(next);
+        autosave.change(next);
       }}
     />
   );
@@ -87,7 +88,10 @@ function EditableSection() {
 export const EditableRemarks: Story = { render: () => <EditableSection /> };
 
 export const Saving: Story = {
-  args: { onRemarkChange: () => undefined, saveStatus: 'saving' },
+  args: {
+    onRemarkChange: () => undefined,
+    autosave: { status: 'saving', savedAt: null, failure: null, flush: () => undefined },
+  },
 };
 
 export const LongListPaged: Story = {

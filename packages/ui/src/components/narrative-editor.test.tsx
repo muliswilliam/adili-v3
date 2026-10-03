@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AutosaveFailure, useAutosave } from '../lib/use-autosave';
 import {
   NarrativeEditor,
   type NarrativeEditorProps,
@@ -31,19 +32,21 @@ function Editor({
   ...props
 }: Partial<NarrativeEditorProps> & {
   initial?: NarrativeValue;
+  onSave?: (value: NarrativeValue) => Promise<void>;
   spy?: (value: NarrativeValue) => void;
 }) {
   const [value, setValue] = useState(initial);
+  const autosave = useAutosave(onSave, { delayMs: 1_000 });
   return (
     <NarrativeEditor
       sections={SECTIONS}
       value={value}
-      onChange={(next) => {
+      autosave={autosave}
+      onChange={(next, change) => {
         spy?.(next);
         setValue(next);
+        if (change.textChanged) autosave.change(next);
       }}
-      onSave={onSave}
-      saveDelayMs={1_000}
       {...props}
     />
   );
@@ -138,6 +141,77 @@ describe('NarrativeEditor', () => {
     await settle();
 
     expect(screen.getByRole('status').textContent).toBe('Could not save, retrying');
+  });
+
+  it('says a refused save in its own words, and stops retrying', async () => {
+    const onSave = vi.fn(() => Promise.reject(new AutosaveFailure('error', 'ncr-approved')));
+    render(<Editor onSave={onSave} messages={{ error: 'Approved: no longer editable' }} />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Overview, paragraph 1' }), {
+      target: { value: 'Changed.' },
+    });
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    await settle();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+
+    expect(screen.getByRole('status').textContent).toBe('Approved: no longer editable');
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('splits a paragraph at a blank line, as the contract stores paragraphs', () => {
+    const spy = vi.fn();
+    render(<Editor spy={spy} />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' }), {
+      target: { value: 'Follow up.\n\nPublish the names.\n \nAgree a plan.' },
+    });
+
+    const recommendations = (spy.mock.lastCall?.[0] as NarrativeValue).recommendations;
+    expect(recommendations?.map((p) => p.text)).toEqual([
+      'Follow up.',
+      'Publish the names.',
+      'Agree a plan.',
+    ]);
+    expect(recommendations?.[0]?.id).toBe('p3');
+    expect(new Set(recommendations?.map((p) => p.id)).size).toBe(3);
+    expect(document.activeElement).toBe(
+      screen.getByRole('textbox', { name: 'Recommendations, paragraph 3' }),
+    );
+  });
+
+  it('starts a new paragraph when Enter is pressed twice', () => {
+    render(<Editor />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' }), {
+      target: { value: 'Follow up.\n\n' },
+    });
+
+    const added = screen.getByRole('textbox', { name: 'Recommendations, paragraph 2' });
+    expect(added).toHaveProperty('value', '');
+    expect(document.activeElement).toBe(added);
+  });
+
+  it('gives an empty section’s first paragraph a UUID', () => {
+    const spy = vi.fn();
+    render(<Editor spy={spy} />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Findings, paragraph 1' }), {
+      target: { value: 'One finding.' },
+    });
+
+    expect((spy.mock.lastCall?.[0] as NarrativeValue).findings?.[0]?.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+  });
+
+  it('shows nothing about saving without an autosave', () => {
+    render(<NarrativeEditor sections={SECTIONS} value={VALUE} onChange={() => undefined} />);
+
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('writing in an empty section creates its first paragraph', () => {
@@ -249,13 +323,16 @@ describe('NarrativeEditor', () => {
             spy(next);
             setValue(next);
           }}
-          onSave={() => Promise.resolve()}
           createParagraph={(id) => ({ id, text: '', aggregateRefs: [] })}
           paragraphMeta={(paragraph) => <span>{paragraph.aggregateRefs.join(', ') || 'none'}</span>}
         />
       );
     }
     render(<CitedEditor />);
+    // A paragraph type with more than the editor needs has to say how to make one.
+    // @ts-expect-error createParagraph is required for Cited
+    const withoutCreate = <NarrativeEditor<Cited> sections={[]} value={{}} />;
+    expect(withoutCreate).toBeTruthy();
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Overview, paragraph 1' }), {
       target: { value: 'Cited, edited.' },

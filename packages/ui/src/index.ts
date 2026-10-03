@@ -333,13 +333,15 @@ export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export {
   NARRATIVE_EDITOR_MESSAGES,
   NARRATIVE_PARAGRAPH_SEPARATOR,
+  type NarrativeChange,
   NarrativeEditor,
   type NarrativeEditorMessages,
   type NarrativeEditorParagraph,
   type NarrativeEditorProps,
   type NarrativeSection,
-  type NarrativeValue,
+  narrativeSections,
   narrativeSectionText,
+  type NarrativeValue,
 } from './components/narrative-editor';
 export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
@@ -631,7 +633,9 @@ export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-k
 export { useToday } from './lib/use-today';
 export {
   type Autosave,
+  AutosaveFailure,
   type AutosaveOptions,
+  type AutosaveState,
   type AutosaveStatus,
   useAutosave,
 } from './lib/use-autosave';

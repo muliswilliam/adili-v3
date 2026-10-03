@@ -2,6 +2,7 @@ import type { FormMV1 } from '@adili/forms';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { AutosaveState } from '../lib/use-autosave';
 import { FormMSection } from './form-m-section';
 
 type Section = FormMV1['partII']['initial'];
@@ -121,31 +122,59 @@ describe('FormMSection', () => {
     expect(screen.getAllByText(/Edited by/)).toHaveLength(1);
   });
 
-  it('says whether the remarks are saved', () => {
+  it('says how the remarks autosave stands, and saves a remark when its field is left', () => {
+    const flush = vi.fn();
+    const state = (status: AutosaveState['status']): AutosaveState => ({
+      status,
+      savedAt: null,
+      failure: null,
+      flush,
+    });
     const { rerender } = render(
-      <FormMSection section="initial" data={INITIAL} onRemarkChange={() => undefined} />,
+      <FormMSection
+        section="initial"
+        data={INITIAL}
+        onRemarkChange={() => undefined}
+        autosave={state('idle')}
+      />,
     );
     expect(screen.queryByRole('status')).toBeNull();
 
-    rerender(
-      <FormMSection
-        section="initial"
-        data={INITIAL}
-        onRemarkChange={() => undefined}
-        saveStatus="saving"
-      />,
-    );
-    expect(screen.getByRole('status').textContent).toBe('Saving…');
+    for (const [status, text] of [
+      ['saving', 'Saving…'],
+      ['saved', 'Remarks saved'],
+      ['retrying', 'Could not save, retrying'],
+      ['error', 'Could not save the remarks'],
+      ['conflict', 'Edited elsewhere: reload to continue'],
+    ] as const) {
+      rerender(
+        <FormMSection
+          section="initial"
+          data={INITIAL}
+          onRemarkChange={() => undefined}
+          autosave={state(status)}
+        />,
+      );
+      expect(screen.getByRole('status').textContent).toBe(text);
+    }
 
-    rerender(
+    fireEvent.blur(
+      screen.getByRole('textbox', { name: 'Remarks for Jane Wanjiru (PSC/2025/0412)' }),
+    );
+    expect(flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes both rate thresholds', () => {
+    const { container } = render(
       <FormMSection
         section="initial"
         data={INITIAL}
-        onRemarkChange={() => undefined}
-        saveStatus="saved"
+        rateThreshold={0.9}
+        rateCriticalBelow={0.85}
       />,
     );
-    expect(screen.getByRole('status').textContent).toBe('Remarks saved');
+
+    expect(container.querySelector<HTMLElement>('[data-tone]')?.dataset.tone).toBe('critical');
   });
 
   it('numbers a later page’s rows on from the earlier pages, under the caller’s pager', () => {

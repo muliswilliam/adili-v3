@@ -1,10 +1,10 @@
 import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons';
-import { type ComponentProps, type ReactNode, useEffect, useId, useRef } from 'react';
+import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
 import { formatTime } from '../lib/format-date';
 import { formatNumber } from '../lib/format-number';
-import { type AutosaveStatus, useAutosave } from '../lib/use-autosave';
+import type { AutosaveState } from '../lib/use-autosave';
 import { Button } from './button';
 import { Icon } from './icon';
 import { SaveIndicator } from './save-indicator';
@@ -29,6 +29,16 @@ export type NarrativeValue<P extends NarrativeEditorParagraph = NarrativeEditorP
 
 /** How the contract stores a section: its paragraphs' text, separated by a blank line. */
 export const NARRATIVE_PARAGRAPH_SEPARATOR = '\n\n';
+
+/** Every section's stored text, the body `PATCH .../narrative` takes. */
+export function narrativeSections(value: NarrativeValue): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(value).map(([section, paragraphs]) => [
+      section,
+      narrativeSectionText(paragraphs),
+    ]),
+  );
+}
 
 /**
  * A section's text as the contract stores it (non-empty paragraphs joined by a blank line), the
@@ -55,6 +65,9 @@ export interface NarrativeEditorMessages {
   /** The time of the last save in Kenyan time → "Saved 10:42". */
   saved: (time: string) => string;
   retrying: string;
+  /** The save was refused for good, e.g. "Approved: no longer editable". */
+  error: string;
+  conflict: string;
   /** Names a paragraph's field: "Overview, paragraph 2". */
   paragraph: (section: string, position: number) => string;
   /** The placeholder of a section's first paragraph: "Write the overview…". */
@@ -77,6 +90,8 @@ export const NARRATIVE_EDITOR_MESSAGES: NarrativeEditorMessages = {
   saving: 'Saving…',
   saved: (time) => `Saved ${time}`,
   retrying: 'Could not save, retrying',
+  error: 'Could not save',
+  conflict: 'Edited elsewhere: reload to continue',
   paragraph: (section, position) => `${section}, paragraph ${String(position)}`,
   firstPlaceholder: (section) => `Write the ${section.toLowerCase()}…`,
   placeholder: 'Write a paragraph…',
@@ -89,44 +104,59 @@ export const NARRATIVE_EDITOR_MESSAGES: NarrativeEditorMessages = {
   notWritten: 'Not written yet.',
 };
 
+export interface NarrativeChange {
+  /**
+   * Whether the text as stored (`narrativeSections`) changed. False for adding or removing an
+   * empty paragraph, which a caller need not save.
+   */
+  textChanged: boolean;
+}
+
+/**
+ * `createParagraph` makes the paragraph a section starts with and the ones "Add paragraph" adds.
+ * It may be left out only when paragraphs are plain `{ id, text, aiDraft? }`; a richer type
+ * (the contract's, with `aggregateRefs: []`) has to say how to make one.
+ */
+type CreateParagraphProp<P extends NarrativeEditorParagraph> = NarrativeEditorParagraph extends P
+  ? { createParagraph?: (id: string, section: NarrativeSection) => P }
+  : { createParagraph: (id: string, section: NarrativeSection) => P };
+
 export type NarrativeEditorProps<P extends NarrativeEditorParagraph = NarrativeEditorParagraph> =
-  Omit<ComponentProps<'section'>, 'children' | 'onChange'> & {
-    sections: NarrativeSection[];
-    value: NarrativeValue<P>;
-    /** Every edit, with the whole narrative. Required unless read-only. */
-    onChange?: (value: NarrativeValue<P>) => void;
-    /**
-     * Saves the whole narrative once typing pauses or the editor loses focus. Resolve when saved;
-     * reject to have it retried with backoff. Required unless read-only.
-     */
-    onSave?: (value: NarrativeValue<P>) => Promise<void>;
-    /** How long typing must pause before a save. 1.5 s by default. */
-    saveDelayMs?: number;
-    /** Shows the text without fields, e.g. to the supervisor or once approved. */
-    readOnly?: boolean;
-    /** Said in the header when read-only, e.g. "Written by the analyst" or "Frozen at approval". */
-    readOnlyNote?: ReactNode;
-    /** The card's heading. "Narrative" by default. */
-    title?: ReactNode;
-    /** In the header after the save status, e.g. a draft menu. */
-    actions?: ReactNode;
-    /** Above the sections, e.g. an alert that drafting failed. */
-    notice?: ReactNode;
-    /** Under a paragraph, e.g. its AI label and figure citations. */
-    paragraphMeta?: (paragraph: P, section: NarrativeSection) => ReactNode;
-    /**
-     * A new, empty paragraph for a section, under the id given (the field's key while it is
-     * typed in). Required when paragraphs carry more than the editor needs, e.g. the contract's
-     * `aggregateRefs: []`; `{ id, text: '' }` by default.
-     */
-    createParagraph?: (id: string, section: NarrativeSection) => P;
-    messages?: Partial<NarrativeEditorMessages>;
-  };
+  Omit<ComponentProps<'section'>, 'children' | 'onChange'> &
+    CreateParagraphProp<P> & {
+      sections: NarrativeSection[];
+      value: NarrativeValue<P>;
+      /**
+       * Every edit, with the whole narrative. Required unless read-only. Save it through the
+       * `useAutosave` passed as `autosave`, e.g. `autosave.change(narrativeSections(next))`
+       * when `change.textChanged`.
+       */
+      onChange?: (value: NarrativeValue<P>, change: NarrativeChange) => void;
+      /**
+       * The `useAutosave` saving this narrative: the header shows its status and the fields flush
+       * it when they lose focus. Without it nothing about saving is shown.
+       */
+      autosave?: AutosaveState;
+      /** Shows the text without fields, e.g. to the supervisor or once approved. */
+      readOnly?: boolean;
+      /** Said in the header when read-only, e.g. "Written by the analyst" or "Frozen at approval". */
+      readOnlyNote?: ReactNode;
+      /** The card's heading. "Narrative" by default. */
+      title?: ReactNode;
+      /** In the header after the save status, e.g. a draft menu. */
+      actions?: ReactNode;
+      /** Above the sections, e.g. an alert that drafting failed. */
+      notice?: ReactNode;
+      /** Under a paragraph, e.g. its AI label and figure citations. */
+      paragraphMeta?: (paragraph: P, section: NarrativeSection) => ReactNode;
+      messages?: Partial<NarrativeEditorMessages>;
+    };
 
 /**
  * A report's narrative as a card of sections (Overview, Findings, Recommendations), each a list of
- * paragraphs the author writes, adds and removes. It autosaves the whole narrative through
- * `onSave` and says so in the header ("Autosaves", "Saving…", "Saved 10:42"). An AI-drafted
+ * paragraphs the author writes, adds and removes. A blank line typed or pasted into a paragraph
+ * splits it, as the contract stores paragraphs separated by blank lines. The header says how the
+ * `autosave` stands ("Autosaves", "Saving…", "Saved 10:42"). An AI-drafted
  * paragraph is ringed in violet until edited, when it stops being an AI draft; its label comes
  * from `paragraphMeta`. Read-only, it shows the text and a note instead.
  */
@@ -134,15 +164,14 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   sections,
   value,
   onChange,
-  onSave,
-  saveDelayMs,
+  autosave,
   readOnly = false,
   readOnlyNote,
   title = 'Narrative',
   actions,
   notice,
   paragraphMeta,
-  createParagraph = (id) => ({ id, text: '' }) as P,
+  createParagraph,
   messages,
   className,
   ...props
@@ -150,11 +179,24 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   const copy = { ...NARRATIVE_EDITOR_MESSAGES, ...messages };
   const headingId = useId();
   const root = useRef<HTMLElement>(null);
-  const autosave = useAutosave(onSave ?? noSave, { delayMs: saveDelayMs });
+  // `CreateParagraphProp` allows leaving it out only when P is the plain paragraph.
+  const makeParagraph =
+    createParagraph ?? ((id: string) => ({ id, text: '' }) as NarrativeEditorParagraph as P);
 
   // An empty section shows one field; typing in it creates the paragraph under this id, so the
   // field keeps its focus. Only an empty section shows it, so it never clashes with a paragraph.
-  const startId = (section: string) => `${headingId}-${section}-start`;
+  const [startIds, setStartIds] = useState<Record<string, string>>(() =>
+    Object.fromEntries(sections.map((section) => [section.id, crypto.randomUUID()])),
+  );
+  // Sections added later get theirs on the next render (state adjusted while rendering).
+  const missing = sections.filter((section) => !(section.id in startIds));
+  if (missing.length > 0) {
+    setStartIds((current) => ({
+      ...current,
+      ...Object.fromEntries(missing.map((section) => [section.id, crypto.randomUUID()])),
+    }));
+  }
+  const startId = (section: string) => startIds[section] ?? `${headingId}-${section}`;
 
   const focusNext = useRef<string | null>(null);
   useEffect(() => {
@@ -166,11 +208,11 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
       ?.focus();
   });
 
-  // An added, empty paragraph changes nothing worth saving; writing in it does.
-  const update = (section: string, paragraphs: P[], save = true) => {
+  const update = (section: string, paragraphs: P[]) => {
     const next = { ...value, [section]: paragraphs };
-    onChange?.(next);
-    if (save) autosave.change(next);
+    const textChanged =
+      narrativeSectionText(value[section] ?? []) !== narrativeSectionText(paragraphs);
+    onChange?.(next, { textChanged });
   };
 
   return (
@@ -189,9 +231,9 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
             readOnlyNote ? (
               <span className="text-[13px] text-muted-foreground">{readOnlyNote}</span>
             ) : null
-          ) : (
-            <AutosaveText status={autosave.status} savedAt={autosave.savedAt} copy={copy} />
-          )}
+          ) : autosave ? (
+            <AutosaveText autosave={autosave} copy={copy} />
+          ) : null}
           {actions}
         </div>
       </div>
@@ -206,7 +248,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
           const shown: P[] =
             readOnly || paragraphs.length > 0
               ? paragraphs
-              : [createParagraph(startId(section.id), section)];
+              : [makeParagraph(startId(section.id), section)];
           const written = paragraphs.filter((paragraph) => paragraph.text.trim() !== '');
 
           return (
@@ -280,21 +322,29 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                             paragraph.aiDraft && 'shadow-control-ai hover:shadow-control-ai',
                           )}
                           onChange={(event) => {
+                            // A blank line ends the paragraph: what follows becomes the next
+                            // ones, as the contract would split it on save anyway.
+                            const [first = '', ...more] = event.target.value.split(BLANK_LINE);
                             const edited: P = {
                               ...paragraph,
-                              text: event.target.value,
+                              text: first,
                               ...(paragraph.aiDraft ? { aiDraft: false } : {}),
                             };
+                            const split = more.map((text) => ({
+                              ...makeParagraph(crypto.randomUUID(), section),
+                              text,
+                            }));
+                            const last = split.at(-1);
+                            if (last) focusNext.current = last.id;
+                            const current = paragraphs.length === 0 ? [paragraph] : paragraphs;
                             update(
                               section.id,
-                              paragraphs.length === 0
-                                ? [edited]
-                                : paragraphs.map((each) =>
-                                    each.id === paragraph.id ? edited : each,
-                                  ),
+                              current.flatMap((each) =>
+                                each.id === paragraph.id ? [edited, ...split] : [each],
+                              ),
                             );
                           }}
-                          onBlur={autosave.flush}
+                          onBlur={autosave?.flush}
                         />
                         {removable ? (
                           <Button
@@ -324,9 +374,9 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                       size="sm"
                       aria-label={copy.addParagraphTo(section.label)}
                       onClick={() => {
-                        const added = createParagraph(crypto.randomUUID(), section);
+                        const added = makeParagraph(crypto.randomUUID(), section);
                         focusNext.current = added.id;
-                        update(section.id, [...paragraphs, added], false);
+                        update(section.id, [...paragraphs, added]);
                       }}
                     >
                       <Icon icon={Add01Icon} />
@@ -343,7 +393,8 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   );
 }
 
-const noSave = () => Promise.resolve();
+/** A blank line, possibly holding spaces, as the contract separates paragraphs. */
+const BLANK_LINE = /\n[ \t]*\n\s*/;
 
 function Meta({ children }: { children: ReactNode }) {
   if (children === null || children === undefined || children === false) return null;
@@ -351,12 +402,10 @@ function Meta({ children }: { children: ReactNode }) {
 }
 
 function AutosaveText({
-  status,
-  savedAt,
+  autosave: { status, savedAt },
   copy,
 }: {
-  status: AutosaveStatus;
-  savedAt: Date | null;
+  autosave: AutosaveState;
   copy: NarrativeEditorMessages;
 }) {
   // One live region from the start, so the first "Saving…" is read out.
@@ -367,6 +416,8 @@ function AutosaveText({
         idle: copy.autosaves,
         saving: copy.saving,
         retrying: copy.retrying,
+        error: copy.error,
+        conflict: copy.conflict,
         saved: savedAt ? copy.saved(formatTime(savedAt.getTime())) : copy.saving,
       }}
     />

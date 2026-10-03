@@ -11,7 +11,7 @@ import { type ComponentProps, type ReactNode, useId } from 'react';
 import { cn } from '../lib/cn';
 import { formatDate } from '../lib/format-date';
 import { formatNumber } from '../lib/format-number';
-import type { AutosaveStatus } from '../lib/use-autosave';
+import type { AutosaveState } from '../lib/use-autosave';
 import { Alert, AlertDescription } from './alert';
 import { Badge } from './badge';
 import { Icon } from './icon';
@@ -112,6 +112,8 @@ export interface FormMSectionMessages {
   saving: string;
   saved: string;
   retrying: string;
+  error: string;
+  conflict: string;
 }
 
 export const FORM_M_SECTION_MESSAGES: FormMSectionMessages = {
@@ -139,6 +141,8 @@ export const FORM_M_SECTION_MESSAGES: FormMSectionMessages = {
   saving: 'Saving…',
   saved: 'Remarks saved',
   retrying: 'Could not save, retrying',
+  error: 'Could not save the remarks',
+  conflict: 'Edited elsewhere: reload to continue',
 };
 
 /** A remark's limit in `form-m.v1` (`NonFilerRow.remarks`). */
@@ -167,10 +171,15 @@ export type FormMSectionProps = Omit<ComponentProps<'section'>, 'children'> & {
   onRemarkChange?: (row: FormMNonFiler, remarks: string) => void;
   /** Who edited a row's remark over the compiled one, if anyone. */
   remarkEditedBy?: (row: FormMNonFiler) => string | null;
-  /** Whether the remarks are saved, said in the header. Nothing is said without it. */
-  saveStatus?: AutosaveStatus;
+  /**
+   * The `useAutosave` saving the remarks: the header says how it stands once something changed,
+   * and a remark field flushes it when it loses focus. Nothing is said without it.
+   */
+  autosave?: AutosaveState;
   /** Below which the rate is amber, as a share. 0.8 by default. */
   rateThreshold?: number;
+  /** Below which the rate is red, as a share. 0.6 by default. */
+  rateCriticalBelow?: number;
   messages?: Partial<FormMSectionMessages>;
 };
 
@@ -190,8 +199,9 @@ export function FormMSection({
   pagination,
   onRemarkChange,
   remarkEditedBy,
-  saveStatus,
+  autosave,
   rateThreshold,
+  rateCriticalBelow,
   messages,
   className,
   ...props
@@ -226,10 +236,16 @@ export function FormMSection({
           {words.title}
           <InfoTip label={copy.about(words.number)} content={words.provision} className="ml-1" />
         </h3>
-        {editable && saveStatus && saveStatus !== 'idle' ? (
+        {editable && autosave && autosave.status !== 'idle' ? (
           <SaveIndicator
-            status={saveStatus}
-            messages={{ saving: copy.saving, saved: copy.saved, retrying: copy.retrying }}
+            status={autosave.status}
+            messages={{
+              saving: copy.saving,
+              saved: copy.saved,
+              retrying: copy.retrying,
+              error: copy.error,
+              conflict: copy.conflict,
+            }}
             className="ml-auto flex-none pt-1 text-[12.5px]"
           />
         ) : null}
@@ -267,6 +283,7 @@ export function FormMSection({
               expected={data.expected}
               showCounts={false}
               threshold={rateThreshold}
+              criticalBelow={rateCriticalBelow}
             />
           </div>
           {total > 0 ? (
@@ -329,6 +346,7 @@ export function FormMSection({
                                 onChange={(event) => {
                                   onRemarkChange(row, event.target.value);
                                 }}
+                                onBlur={autosave?.flush}
                               />
                               {editedBy ? (
                                 <div className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-muted-foreground">

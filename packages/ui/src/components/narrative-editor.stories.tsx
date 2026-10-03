@@ -4,7 +4,13 @@ import { useState } from 'react';
 import { AiLabel } from './ai-label';
 import { Alert, AlertDescription } from './alert';
 import { Button } from './button';
-import { NarrativeEditor, type NarrativeSection, type NarrativeValue } from './narrative-editor';
+import { AutosaveFailure, useAutosave } from '../lib/use-autosave';
+import {
+  NarrativeEditor,
+  narrativeSections,
+  type NarrativeSection,
+  type NarrativeValue,
+} from './narrative-editor';
 
 const SECTIONS: NarrativeSection[] = [
   { id: 'overview', label: 'Overview', maxLength: 20_000 },
@@ -33,21 +39,28 @@ const DRAFT: NarrativeValue = {
   recommendations: [],
 };
 
-function Editable(props: { initial?: NarrativeValue; fail?: boolean }) {
+function Editable(props: { initial?: NarrativeValue; fail?: boolean; refuse?: boolean }) {
   const [value, setValue] = useState(props.initial ?? DRAFT);
+  const autosave = useAutosave<Record<string, string>>(
+    () =>
+      new Promise((resolve, reject) => {
+        setTimeout(() => {
+          if (props.refuse) reject(new AutosaveFailure('error', 'ncr-approved'));
+          else if (props.fail) reject(new Error('offline'));
+          else resolve();
+        }, 600);
+      }),
+  );
   return (
     <NarrativeEditor
       sections={SECTIONS}
       value={value}
-      onChange={setValue}
-      onSave={() =>
-        new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (props.fail) reject(new Error('offline'));
-            else resolve();
-          }, 600);
-        })
-      }
+      autosave={autosave}
+      onChange={(next, change) => {
+        setValue(next);
+        if (change.textChanged) autosave.change(narrativeSections(next));
+      }}
+      messages={{ error: 'This report was approved meanwhile: the narrative is frozen' }}
       paragraphMeta={(paragraph) =>
         paragraph.aiDraft ? (
           <AiLabel text="AI draft" size="sm" />
@@ -88,10 +101,11 @@ export const Empty: Story = {
 
 export const SaveFails: Story = { render: () => <Editable fail /> };
 
+export const SaveRefused: Story = { render: () => <Editable refuse /> };
+
 export const WithNotice: Story = {
   args: {
     onChange: () => undefined,
-    onSave: () => Promise.resolve(),
     notice: (
       <Alert variant="destructive">
         <AlertDescription>
