@@ -13,7 +13,7 @@ import {
 } from '../../../components/paging';
 import { messages as t } from '../../../components/referral-intake/messages';
 import { ReferralIntakeView } from '../../../components/referral-intake/referral-intake-view';
-import { ICMS_STATUSES } from '../../../components/referral-intake/statuses';
+import { ICMS_STATUSES } from '../../../server/reporting/types';
 import { signInRedirect } from '../../../components/sign-in-redirect';
 import { getReferralIntake } from '../../../server/referral-intake';
 import type { ReferralIntakePage } from '../../../server/reporting/types';
@@ -62,6 +62,7 @@ function IntakeLoaded() {
 
 function IntakeRoutePage({ result }: { result: ServiceResult<ReferralIntakePage> | null }) {
   const search = Route.useSearch();
+  const { workspace } = Route.useRouteContext();
   const navigate = useNavigate({ from: '/eacc/referrals/' });
   const state = useLocation({ select: (location) => location.state.referralIntakePaging });
   const paging = pagingFor(search.cursor, state);
@@ -78,6 +79,7 @@ function IntakeRoutePage({ result }: { result: ServiceResult<ReferralIntakePage>
         result={result}
         filter={search.icmsStatus ?? 'all'}
         firstPage={!search.cursor}
+        canPush={workspace ? !workspace.readOnly : false}
         onFilterChange={(filter) => {
           void navigate({ search: { icmsStatus: filter === 'all' ? undefined : filter } });
         }}

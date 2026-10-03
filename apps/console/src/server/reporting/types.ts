@@ -28,9 +28,17 @@ export interface ReportingProblem {
   code?: Schemas['ProblemDetails']['code'];
 }
 
+/** EACC's referrals intake (spec 09 S12). */
 export type ReferralIntakeItem = Schemas['ReferralIntakeItem'];
 export type ReferralIntakePage = Schemas['ReferralIntakePage'];
+export type ReferralGrounds = Schemas['ReferralGrounds'];
 export type IcmsStatus = Schemas['IcmsStatus'];
 export type IcmsPushError = Schemas['IcmsPushError'];
-export type IntakeReferralGrounds = Schemas['ReferralGrounds'];
-export type ReportingOfficer = Schemas['Officer'];
+
+/** reporting.yaml `IcmsStatus`, in the order the intake filters them. */
+export const ICMS_STATUSES = [
+  'not-pushed',
+  'pushed',
+  'registered',
+  'push-failed',
+] as const satisfies readonly IcmsStatus[];

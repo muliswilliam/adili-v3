@@ -29,12 +29,11 @@ import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
 import { usePollWhile } from '../use-poll-while';
 import { ConfidentialBadge } from '../referrals/badges';
-import { IcmsStatusBadge } from './badges';
-import { PushButton, pushable } from './push-button';
+import { IcmsStatusBadge, PushButton, pushAction } from './icms-status';
 import { messages as t } from './messages';
 import { PushDialog } from './push-dialog';
 import { ReferralIntakeDrawer } from './referral-intake-drawer';
-import { ICMS_STATUSES } from './statuses';
+import { ICMS_STATUSES } from '../../server/reporting/types';
 
 export const INTAKE_FILTERS = ['all', ...ICMS_STATUSES] as const;
 export type IntakeFilter = (typeof INTAKE_FILTERS)[number];
@@ -52,6 +51,8 @@ export interface ReferralIntakeViewProps {
   firstPage: boolean;
   /** Previous and Next, under the rows. */
   pager?: ReactNode;
+  /** Whether the viewer pushes referrals to ICMS (EACC analysts); others read the intake. */
+  canPush: boolean;
   /** A fresh Idempotency-Key per push confirmation; tests may fix it. */
   newKey?: () => string;
 }
@@ -70,6 +71,7 @@ export function ReferralIntakeView({
   onFilterChange,
   firstPage,
   pager,
+  canPush,
   newKey = () => crypto.randomUUID(),
 }: ReferralIntakeViewProps) {
   const router = useRouter();
@@ -262,7 +264,7 @@ export function ReferralIntakeView({
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
-                        {pushable(referral) ? (
+                        {canPush && pushAction(referral) ? (
                           <PushButton referral={referral} size="sm" onPush={askPush} />
                         ) : (
                           <Button
@@ -292,7 +294,7 @@ export function ReferralIntakeView({
         onClose={() => {
           setOpenedId(null);
         }}
-        onPush={askPush}
+        onPush={canPush ? askPush : null}
         onDownload={(referral) => void download(referral)}
         downloading={opened !== null && downloading === opened.referralId}
       />

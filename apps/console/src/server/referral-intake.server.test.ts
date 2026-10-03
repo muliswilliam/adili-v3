@@ -6,7 +6,11 @@ import createClient from 'openapi-fetch';
 import type { paths as DocumentsPaths } from './documents/api.gen';
 import { unsignedMockToken } from './mock-http';
 import { intakePackageLink, listReferralIntake, pushToIcms } from './referral-intake.server';
-import { mockReportingClient } from './reporting/mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock,
+  setReportingMockLatency,
+} from './reporting/mock.server';
 import {
   MOCK_INTAKE_IDS as R,
   MOCK_INTAKE_SIZE,
@@ -16,9 +20,11 @@ import {
 
 const NOW_MS = Date.parse('2026-10-03T09:00:00Z');
 
-const analyst = () => mockReportingClient('Brian Otieno', [EACC_ANALYST]);
+const analyst = () => mockReportingClient([EACC_ANALYST], { name: 'Brian Otieno' });
 
 beforeEach(() => {
+  resetReportingMock('2026-10-03');
+  setReportingMockLatency(0);
   resetReferralIntakeMock(NOW_MS);
 });
 
@@ -60,14 +66,11 @@ describe('listReferralIntake (S12)', () => {
 
   it('opens to EACC supervisors too, and refuses a Commission supervisor (403)', async () => {
     const eaccSupervisor = await listReferralIntake(
-      mockReportingClient('Esther Chebet', [EACC_SUPERVISOR]),
+      mockReportingClient([EACC_SUPERVISOR], { name: 'Esther Chebet' }),
       {},
     );
     expect(eaccSupervisor.ok).toBe(true);
-    const commission = await listReferralIntake(
-      mockReportingClient('Samuel Njoroge', [SUPERVISOR]),
-      {},
-    );
+    const commission = await listReferralIntake(mockReportingClient([SUPERVISOR]), {});
     expect(commission).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 403 } },
@@ -128,11 +131,7 @@ describe('pushToIcms (S12)', () => {
       pushFailed: null,
       error: { kind: 'problem', problem: { status: 404 } },
     });
-    const commission = await pushToIcms(
-      mockReportingClient('Samuel Njoroge', [SUPERVISOR]),
-      R.notPushed,
-      KEY,
-    );
+    const commission = await pushToIcms(mockReportingClient([SUPERVISOR]), R.notPushed, KEY);
     expect(commission).toMatchObject({
       ok: false,
       pushFailed: null,

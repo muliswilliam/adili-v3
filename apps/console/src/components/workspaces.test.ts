@@ -297,11 +297,18 @@ describe('S16 AI policy workspace', () => {
 });
 
 describe('S12 referrals received (EACC intake)', () => {
-  it.each(['eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
-    expect(workspaceFor([role], 'referrals-intake')).toMatchObject({
+  it('opens for EACC analysts, who push to ICMS', () => {
+    expect(workspaceFor(['eacc-analyst'], 'referrals-intake')).toMatchObject({
       title: 'Referrals received',
       href: '/eacc/referrals',
       readOnly: false,
+    });
+  });
+
+  it('opens read-only for EACC supervisors (spec 09 FE access table)', () => {
+    expect(workspaceFor(['eacc-supervisor'], 'referrals-intake')).toMatchObject({
+      href: '/eacc/referrals',
+      readOnly: true,
     });
   });
 

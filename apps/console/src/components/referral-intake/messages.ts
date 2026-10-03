@@ -1,10 +1,13 @@
 import { formatDate, formatDateTime, plural } from '@adili/ui';
 
-import type {
-  IcmsPushError,
-  IcmsStatus,
-  IntakeReferralGrounds,
-} from '../../server/reporting/types';
+import type { IcmsPushError, IcmsStatus, ReferralGrounds } from '../../server/reporting/types';
+
+const STATUS = {
+  'not-pushed': 'Not pushed',
+  pushed: 'Pushed',
+  registered: 'Registered',
+  'push-failed': 'Failed',
+} as const satisfies Record<IcmsStatus, string>;
 
 /** Copy of EACC's Referrals received view, its detail drawer and push dialog (spec 09 FE-5). */
 export const messages = {
@@ -18,20 +21,15 @@ export const messages = {
     'unexplained-assets': 'Unexplained assets',
     'two-missed-cycles': 'Two missed biennial cycles',
     'unanswered-clarification': 'Unanswered clarification',
-  } satisfies Record<IntakeReferralGrounds, string>,
+  } satisfies Record<ReferralGrounds, string>,
   /** The Regulations each ground rests on. */
   legalBasis: {
     'undeclared-assets': 'Regs r.20(1)(c)',
     'unexplained-assets': 'Regs r.20(1)(c)',
     'two-missed-cycles': 'Regs r.20(2)',
     'unanswered-clarification': 'Regs r.20(2)',
-  } satisfies Record<IntakeReferralGrounds, string>,
-  status: {
-    'not-pushed': 'Not pushed',
-    pushed: 'Pushed',
-    registered: 'Registered',
-    'push-failed': 'Failed',
-  } satisfies Record<IcmsStatus, string>,
+  } satisfies Record<ReferralGrounds, string>,
+  status: STATUS,
   waitingForCase: 'Waiting for case number',
   /** Why the last push failed, as the row and the drawer say it. */
   pushErrors: {
@@ -46,13 +44,7 @@ export const messages = {
   } satisfies Record<IcmsPushError, string>,
   list: {
     filtersLabel: 'ICMS status',
-    filters: {
-      all: 'All',
-      'not-pushed': 'Not pushed',
-      pushed: 'Pushed',
-      registered: 'Registered',
-      'push-failed': 'Failed',
-    } satisfies Record<IcmsStatus | 'all', string>,
+    filters: { all: 'All', ...STATUS },
     caption: 'Referrals received from Commissions',
     reference: 'Reference',
     commission: 'Commission',
@@ -101,7 +93,6 @@ export const messages = {
     received: 'Received from the Commission',
     pushedBy: (name: string) => `Pushed to ICMS by ${name}`,
     pushFailed: 'Push failed',
-    registered: (caseNumber: string) => `Registered in ICMS as ${caseNumber}`,
     at: (at: string) => formatDateTime(at),
     close: 'Close',
   },

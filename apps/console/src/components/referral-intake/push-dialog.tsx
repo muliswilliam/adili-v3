@@ -14,9 +14,9 @@ import { useState } from 'react';
 
 import type { ReferralIntakeItem } from '../../server/reporting/types';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
-import { Fact } from './fact';
+import { Fact } from '../referrals/fact';
 import { messages as t } from './messages';
-import { pushAction } from './push-button';
+import { pushAction } from './icms-status';
 
 /**
  * Push a referral to ICMS (spec 09 FE-5): what ICMS receives, then the push, which waits for the
@@ -36,6 +36,7 @@ export function PushDialog({
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<FailureText | null>(null);
   const retry = referral?.icmsStatus === 'push-failed';
+  const action = referral ? pushAction(referral) : null;
   return (
     <Dialog
       open={referral !== null}
@@ -71,7 +72,7 @@ export function PushDialog({
                   >
                     {t.pushDialog.receives}
                   </h3>
-                  <dl className="grid gap-x-4 gap-y-3 min-[480px]:grid-cols-2">
+                  <dl className="grid gap-x-4 gap-y-3 text-[15px] min-[480px]:grid-cols-2">
                     <Fact term={t.pushDialog.referral}>
                       <ReferenceChip reference={referral.reference} size="sm" />
                     </Fact>
@@ -102,8 +103,8 @@ export function PushDialog({
                 });
               }}
             >
-              <Icon icon={pushAction(referral).icon} />
-              {pushAction(referral).label}
+              <Icon icon={action?.icon ?? SentIcon} />
+              {action?.label ?? t.pushDialog.confirm}
             </Button>
           </DialogFooter>
         </DialogContent>

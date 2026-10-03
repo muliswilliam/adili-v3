@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { ICMS_STATUSES } from '../components/referral-intake/statuses';
+import { ICMS_STATUSES } from './reporting/types';
 import { withViewerClient } from './as-viewer.server';
 import { intakePackageDocumentsClient } from './documents/intake-package-client.server';
 import {

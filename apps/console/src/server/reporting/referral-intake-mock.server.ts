@@ -23,14 +23,14 @@
  */
 import { EACC_ROLES } from '@adili/roles';
 
-import { ICMS_STATUSES } from '../../components/referral-intake/statuses';
+import { ICMS_STATUSES } from './types';
 import { json, mockCallerOf, problem } from '../mock-http';
 import type {
   IcmsPushError,
   IcmsStatus,
-  IntakeReferralGrounds,
+  ReferralGrounds,
   ReferralIntakeItem,
-  ReportingOfficer,
+  Officer,
 } from './types';
 
 export const MOCK_INTAKE_IDS = {
@@ -61,10 +61,10 @@ const COMMISSIONS: Record<string, string> = {
   cpsb022: 'Kiambu County Public Service Board',
 };
 
-const BRIAN: ReportingOfficer = { subject: 'mock-eacc-analyst-brian', name: 'Brian Otieno' };
-const ESTHER: ReportingOfficer = { subject: 'mock-eacc-analyst-esther', name: 'Esther Chebet' };
+const BRIAN: Officer = { subject: 'mock-eacc-analyst-brian', name: 'Brian Otieno' };
+const ESTHER: Officer = { subject: 'mock-eacc-analyst-esther', name: 'Esther Chebet' };
 
-const GROUNDS: IntakeReferralGrounds[] = [
+const GROUNDS: ReferralGrounds[] = [
   'undeclared-assets',
   'unexplained-assets',
   'two-missed-cycles',
@@ -101,7 +101,7 @@ function seedItem(
     icmsCaseNumber?: string;
     icmsRegisteredAt?: string;
     pushedAt?: string;
-    pushedBy?: ReportingOfficer;
+    pushedBy?: Officer;
     error?: IcmsPushError;
   },
 ): ReferralIntakeItem {
@@ -258,7 +258,7 @@ function list(url: URL): Response {
   });
 }
 
-function push(referralId: string, key: string | null, caller: ReportingOfficer): Response {
+function push(referralId: string, key: string | null, caller: Officer): Response {
   if (!key || !/^[0-9a-f-]{36}$/i.test(key)) return problem(400, 'Idempotency-Key is required');
   const replayKey = `${referralId} ${key}`;
   const replay = replays.get(replayKey);

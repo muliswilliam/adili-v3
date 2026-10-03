@@ -5,7 +5,7 @@ export function Fact({ term, children }: { term: string; children: ReactNode }) 
   return (
     <div>
       <dt className="text-[13px] text-muted-foreground">{term}</dt>
-      <dd className="mt-0.5 text-[15px] font-medium">{children}</dd>
+      <dd className="mt-0.5 font-medium">{children}</dd>
     </div>
   );
 }

@@ -31,10 +31,9 @@ import {
 } from '@hugeicons/core-free-icons';
 import type { ReferralIntakeItem } from '../../server/reporting/types';
 import { ConfidentialBadge } from '../referrals/badges';
-import { IcmsStatusBadge } from './badges';
-import { Fact } from './fact';
+import { Fact } from '../referrals/fact';
 import { messages as t } from './messages';
-import { PushButton, pushable } from './push-button';
+import { IcmsStatusBadge, PushButton } from './icms-status';
 
 interface HistoryEntry {
   key: string;
@@ -50,7 +49,7 @@ function intakeHistory(referral: ReferralIntakeItem): HistoryEntry[] {
   if (referral.icmsStatus === 'registered' && referral.icmsCaseNumber) {
     entries.push({
       key: 'registered',
-      title: t.detail.registered(referral.icmsCaseNumber),
+      title: t.toasts.registered(referral.icmsCaseNumber),
       detail: referral.icmsRegisteredAt ? t.detail.at(referral.icmsRegisteredAt) : '',
       icon: Tick02Icon,
       tone: 'success',
@@ -100,7 +99,8 @@ export function ReferralIntakeDrawer({
   /** The referral opened; null when closed. */
   referral: ReferralIntakeItem | null;
   onClose: () => void;
-  onPush: (referral: ReferralIntakeItem) => void;
+  /** Null for a viewer who does not push (EACC supervisors). */
+  onPush: ((referral: ReferralIntakeItem) => void) | null;
   onDownload: (referral: ReferralIntakeItem) => void;
   downloading: boolean;
 }) {
@@ -123,7 +123,7 @@ export function ReferralIntakeDrawer({
             </div>
           </DrawerHeader>
           <DrawerBody className="gap-5">
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 text-[15px]">
               <Fact term={t.detail.grounds}>{t.grounds[referral.grounds]}</Fact>
               <Fact term={t.detail.legalBasis}>{t.legalBasis[referral.grounds]}</Fact>
               <Fact term={t.detail.cycle}>{String(referral.cycleYear)}</Fact>
@@ -188,9 +188,7 @@ export function ReferralIntakeDrawer({
             <DrawerClose asChild>
               <Button variant="secondary">{t.detail.close}</Button>
             </DrawerClose>
-            {pushable(referral) ? (
-              <PushButton referral={referral} variant="default" onPush={onPush} />
-            ) : null}
+            {onPush ? <PushButton referral={referral} variant="default" onPush={onPush} /> : null}
           </DrawerFooter>
         </DrawerContent>
       ) : null}

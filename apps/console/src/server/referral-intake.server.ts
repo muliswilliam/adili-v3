@@ -6,12 +6,7 @@ import type {
   ReferralIntakeItem,
   ReferralIntakePage,
 } from './reporting/types';
-import {
-  callService,
-  SERVICE_UNAVAILABLE,
-  type ServiceError,
-  type ServiceResult,
-} from './service-call';
+import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
  * The reporting service's EACC referrals intake (spec 09 S12): the referrals Commissions sent,
@@ -54,22 +49,26 @@ export type PushResult =
   | { ok: false; pushFailed: IcmsPushError }
   | { ok: false; pushFailed: null; error: ServiceError };
 
-const PUSH_ERRORS: ReadonlySet<string> = new Set<IcmsPushError>([
-  'review-unavailable',
-  'payload-not-found',
-  'payload-refused',
-  'icms-unavailable',
-  'icms-rejected',
-  'icms-failed',
-  'icms-registration-timeout',
-]);
+/** Every `IcmsPushError`, checked against the generated union both ways. */
+const PUSH_ERRORS = {
+  'review-unavailable': true,
+  'payload-not-found': true,
+  'payload-refused': true,
+  'icms-unavailable': true,
+  'icms-rejected': true,
+  'icms-failed': true,
+  'icms-registration-timeout': true,
+} as const satisfies Record<IcmsPushError, true>;
 
-function pushFailedError(body: unknown): IcmsPushError | null {
-  if (typeof body !== 'object' || body === null) return null;
+function isPushError(value: unknown): value is IcmsPushError {
+  return typeof value === 'string' && Object.hasOwn(PUSH_ERRORS, value);
+}
+
+/** Why reporting left the referral push-failed, from a 502 `icms-push-failed`; else null. */
+function pushFailedError(response: Response, body: unknown): IcmsPushError | null {
+  if (response.status !== 502 || typeof body !== 'object' || body === null) return null;
   const { code, error } = body as { code?: unknown; error?: unknown };
-  return code === 'icms-push-failed' && typeof error === 'string' && PUSH_ERRORS.has(error)
-    ? (error as IcmsPushError)
-    : null;
+  return code === 'icms-push-failed' && isPushError(error) ? error : null;
 }
 
 /**
@@ -82,19 +81,16 @@ export async function pushToIcms(
   referralId: string,
   idempotencyKey: string,
 ): Promise<PushResult> {
-  let outcome;
-  try {
-    outcome = await client.POST('/v1/eacc/referrals/{referralId}/push', {
+  // `callService` folds a 5xx into `unavailable` without its body, so the coded 502 is read on the way.
+  const seen: { pushFailed: IcmsPushError | null } = { pushFailed: null };
+  const result = await callService(async () => {
+    const outcome = await client.POST('/v1/eacc/referrals/{referralId}/push', {
       params: { path: { referralId }, header: { 'Idempotency-Key': idempotencyKey } },
     });
-  } catch {
-    return { ok: false, pushFailed: null, error: SERVICE_UNAVAILABLE.error };
-  }
-  // `callService` folds a 5xx into `unavailable` without its body, so the coded 502 is read first.
-  const pushFailed = outcome.response.status === 502 ? pushFailedError(outcome.error) : null;
-  if (pushFailed) return { ok: false, pushFailed };
-  const answered = outcome;
-  const result = await callService(() => Promise.resolve(answered));
+    seen.pushFailed = pushFailedError(outcome.response, outcome.error);
+    return outcome;
+  });
+  if (seen.pushFailed) return { ok: false, pushFailed: seen.pushFailed };
   return result.ok ? result : { ok: false, pushFailed: null, error: result.error };
 }
 

@@ -6,7 +6,11 @@ import { useEffect, useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listReferralIntake } from '../../server/referral-intake.server';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
 import { resetReferralIntakeMock } from '../../server/reporting/referral-intake-mock.server';
 import type { ReferralIntakePage } from '../../server/reporting/types';
 import type { ServiceResult } from '../../server/service-call';
@@ -30,7 +34,7 @@ vi.mock('../download', () => ({
 }));
 
 const signedIn = { roles: [EACC_ANALYST] as string[] };
-const client = () => mockReportingClient('Brian Otieno', signedIn.roles);
+const client = () => mockReportingClient(signedIn.roles, { name: 'Brian Otieno' });
 
 vi.mock('../../server/referral-intake', async () => {
   const server = await import('../../server/referral-intake.server');
@@ -53,9 +57,11 @@ vi.mock('../../server/referral-intake', async () => {
 function Harness({
   filter,
   onFilterChange,
+  canPush = true,
 }: {
   filter: IntakeFilter;
   onFilterChange?: (filter: IntakeFilter) => void;
+  canPush?: boolean;
 }) {
   const [result, setResult] = useState<ServiceResult<ReferralIntakePage> | null>(null);
   useEffect(() => {
@@ -75,6 +81,7 @@ function Harness({
       result={result}
       filter={filter}
       firstPage
+      canPush={canPush}
       onFilterChange={onFilterChange ?? (() => undefined)}
     />
   );
@@ -101,6 +108,8 @@ function row(reference: string) {
 }
 
 beforeEach(() => {
+  resetReportingMock('2026-10-03');
+  setReportingMockLatency(0);
   resetReferralIntakeMock(NOW_MS);
   invalidate.mockClear();
   download.mockClear();
@@ -135,7 +144,13 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
 
   it('shows the loading state while the page loads', () => {
     wrap(
-      <ReferralIntakeView result={null} filter="all" firstPage onFilterChange={() => undefined} />,
+      <ReferralIntakeView
+        result={null}
+        filter="all"
+        firstPage
+        canPush
+        onFilterChange={() => undefined}
+      />,
     );
     expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
   });
@@ -146,6 +161,7 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
         result={{ ok: true, data: { items: [], nextCursor: null } }}
         filter="all"
         firstPage
+        canPush
         onFilterChange={() => undefined}
       />,
     );
@@ -160,6 +176,7 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
         result={{ ok: true, data: { items: [], nextCursor: null } }}
         filter="pushed"
         firstPage
+        canPush
         onFilterChange={change}
       />,
     );
@@ -174,6 +191,7 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
         result={{ ok: false, error: { kind: 'unavailable', detail: null } }}
         filter="all"
         firstPage
+        canPush
         onFilterChange={() => undefined}
       />,
     );
@@ -287,5 +305,17 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
       ),
     ).toBeTruthy();
     expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('shows EACC supervisors the intake without Push to ICMS (spec 09 FE access table)', async () => {
+    wrap(<Harness filter="all" canPush={false} />);
+    await screen.findByRole('table');
+    expect(screen.queryByRole('button', { name: /^(Push to ICMS|Retry)$/ })).toBeNull();
+    fireEvent.click(
+      row('RFL-NPSC-2026-0000012-4').getByRole('button', { name: 'RFL-NPSC-2026-0000012-4' }),
+    );
+    const drawer = await screen.findByRole('dialog', { name: 'RFL-NPSC-2026-0000012-4' });
+    expect(within(drawer).queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(within(drawer).getByRole('button', { name: 'Download' })).toBeTruthy();
   });
 });
