@@ -8,13 +8,11 @@ import { formatNumber } from '../format';
 export const en = {
   title: 'National report',
   workspaceTitle: 'Compliance reports',
-  yearLabel: 'Financial year',
-  yearOption: (fy: string, due: string) => `FY ${fy} (due ${due})`,
 
   loadErrorTitle: 'The national report could not be loaded',
   loadErrorDetail: 'Check your connection and try again.',
   tryAgain: 'Try again',
-  noAccess: 'Only EACC analysts and supervisors work on the national report.',
+  noAccess: 'Only EACC analysts and supervisors work on the national consolidated report.',
   backToOverview: 'Back to overview',
 
   noReportsTitle: (fy: string) => `No reports for FY ${fy} yet`,

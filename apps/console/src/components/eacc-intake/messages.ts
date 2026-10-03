@@ -6,6 +6,9 @@ import type { IntakeOutlier, IntakeStatus } from '../../server/reporting/types';
 export const en = {
   title: 'Compliance reports',
   intakeCrumb: 'Intake',
+  tabsLabel: 'Compliance reports sections',
+  intakeTab: 'Intake',
+  ncrTab: 'National report',
   forbidden: 'This page is for EACC analysts and supervisors.',
   financialYear: 'Financial year',
   fyLabel: (fy: number) => `FY ${String(fy)}/${String(fy + 1)}`,
