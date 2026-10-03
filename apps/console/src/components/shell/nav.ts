@@ -3,6 +3,7 @@ import {
   Building03Icon,
   Calendar03Icon,
   ChartColumnIcon,
+  InboxIcon,
   CheckListIcon,
   Key01Icon,
   PlugSocketIcon,
@@ -65,6 +66,11 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       },
       { workspace: 'ai-policy', icon: SparklesIcon },
     ],
+  },
+  {
+    label: 'EACC',
+    // The national report and, with #230, the intake all sit under /eacc/reports.
+    items: [{ workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' }],
   },
   {
     label: 'Law enforcement',
