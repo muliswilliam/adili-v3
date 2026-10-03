@@ -327,6 +327,38 @@ describe('Ask Adili panel (S12)', () => {
     expect(within(swahili).queryByText(QUESTION)).toBeNull();
   });
 
+  it('keeps a note half-typed under an earlier answer while the next one arrives', async () => {
+    const first = controlledStream();
+    fetchMock.mockResolvedValueOnce(first.response);
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask(QUESTION);
+    act(() => {
+      first.send('final', { question, answer });
+      first.close();
+    });
+    await answerBubble(panel);
+    fireEvent.click(within(panel).getByRole('button', { name: 'Not helpful' }));
+    const note = await within(panel).findByRole('textbox', { name: /Note/ });
+    fireEvent.change(note, { target: { value: 'It missed the logbook' } });
+
+    const second = controlledStream();
+    fetchMock.mockResolvedValueOnce(second.response);
+    ask('And a motorbike?');
+    act(() => {
+      second.send('final', {
+        question: msg({ role: 'user', text: 'And a motorbike?' }),
+        answer: msg({ text: 'Yes, the same way.', label: LABEL }),
+      });
+      second.close();
+    });
+    await within(panel).findByText('Yes, the same way.', { selector: 'p' });
+    expect(within(panel).getByRole<HTMLTextAreaElement>('textbox', { name: /Note/ }).value).toBe(
+      'It missed the logbook',
+    );
+  });
+
   it('opens the section and the field the answer links to, naming the item', async () => {
     sectionMock.mockResolvedValue({
       status: 'ok',

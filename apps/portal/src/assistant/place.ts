@@ -45,11 +45,6 @@ function fieldName(pointer: string, language: AskLanguage): string | null {
   return last ? (FIELD_NAMES[last]?.[language] ?? null) : null;
 }
 
-/**
- * The button an answer's section link becomes, or null when the link names a section the draft
- * does not have (a spouse since removed). A statement link opens the person's tab: "Open Assets
- * → value" for the officer, "Open Mary's income" for a spouse.
- */
 /** The statement item a pointer is inside (`/assets/1/value` is assets item 1), or null. */
 export function linkedItem(
   link: SectionLink,
@@ -62,6 +57,11 @@ export function linkedItem(
     : null;
 }
 
+/**
+ * The button an answer's section link becomes, or null when the link names a section the draft
+ * does not have (a spouse since removed). A statement link opens the person's tab: "Open Assets
+ * → value" for the officer, "Open Mary's income" for a spouse.
+ */
 export function linkPlace(
   link: SectionLink,
   sections: readonly DeclarationSection[],
@@ -85,11 +85,8 @@ export function linkPlace(
     const officer = parsed.personKey === 'officer';
     if (category) {
       // The item's type names it best ("Open Vehicle → value"); the screens name types in English.
-      const categoryName = itemName && language === 'en' ? itemName : copy.sectionNames[category];
-      place =
-        officer || !firstName
-          ? categoryName
-          : copy.personCategory(firstName, itemName && language === 'en' ? itemName : categoryName);
+      const what = itemName && language === 'en' ? itemName : copy.sectionNames[category];
+      place = officer || !firstName ? what : copy.personCategory(firstName, what);
     } else {
       place = officer || !firstName ? copy.sectionNames.statement : copy.personStatement(firstName);
     }

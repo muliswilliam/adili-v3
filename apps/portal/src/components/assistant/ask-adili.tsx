@@ -46,7 +46,7 @@ import { stepLink } from '../declaration/steps';
 export { AskAdiliBarButton, AskAdiliLauncher, useAskAdiliTab } from './context';
 import { AskAdiliContext } from './context';
 import { HelpSearch } from './help-search';
-import { type PendingTurn, useConversation } from './use-conversation';
+import { type PendingTurn, turnKey, useConversation } from './use-conversation';
 
 /**
  * Ask Adili (spec 11 FE-2, #335): the panel a declarant asks the Act, the Regulations and help
@@ -191,7 +191,7 @@ function Panel({
   const {
     conversation,
     pending,
-    finished,
+    keyOf,
     unavailable,
     ask,
     stop,
@@ -200,6 +200,23 @@ function Panel({
     clearPending,
     reload,
   } = useConversation({ declarationId, language, active: true });
+
+  // Answers linking to the same section read it once while the panel is open.
+  const sectionReads = useRef(new Map<string, Promise<SectionContents | null>>());
+  const readSection = useCallback(
+    (sectionKey: string) => {
+      if (!declarationId) return Promise.resolve(null);
+      let read = sectionReads.current.get(sectionKey);
+      if (!read) {
+        read = getDeclarationSection({ data: { declarationId, sectionKey } })
+          .then((result) => (result.status === 'ok' ? result.section.contents : null))
+          .catch(() => null);
+        sectionReads.current.set(sectionKey, read);
+      }
+      return read;
+    },
+    [declarationId],
+  );
 
   const busy = pending?.status === 'thinking' || pending?.status === 'streaming';
   const ready = conversation.status === 'ready';
@@ -388,24 +405,18 @@ function Panel({
                 />
               </>
             ) : null}
-            {/* One list, so a finished turn's bubbles keep their keys from pending to stored. */}
+            {/* One list, so a turn's bubbles keep their keys from pending to stored. */}
             {[
-              ...messages.map((message) => {
-                // The turn that just ended keeps its pending bubbles' keys, so the answer's live
-                // region reads its last sentences (or the decline) instead of mounting silent.
-                const live =
-                  finished?.questionId === message.id || finished?.answerId === message.id
-                    ? finished.turn
-                    : null;
-                return message.role === 'user' ? (
+              ...messages.map((message) =>
+                message.role === 'user' ? (
                   <UserMessage
-                    key={live === null ? message.id : `turn-${String(live)}-question`}
+                    key={keyOf(message)}
                     text={message.text}
                     messages={{ userName: copy.message.userName }}
                   />
                 ) : (
                   <Answer
-                    key={live === null ? message.id : `turn-${String(live)}-answer`}
+                    key={keyOf(message)}
                     answer={{ kind: 'stored', message }}
                     conversationId={conversation.id}
                     declarationId={declarationId}
@@ -413,20 +424,21 @@ function Panel({
                     copy={copy}
                     sections={sections}
                     language={language}
+                    readSection={readSection}
                     onOpenPlace={openPlace}
                     onRated={setRating}
                   />
-                );
-              }),
+                ),
+              ),
               ...(pending
                 ? [
                     <UserMessage
-                      key={`turn-${String(pending.turn)}-question`}
+                      key={turnKey(pending.turn, 'question')}
                       text={pending.question}
                       messages={{ userName: copy.message.userName }}
                     />,
                     <Answer
-                      key={`turn-${String(pending.turn)}-answer`}
+                      key={turnKey(pending.turn, 'answer')}
                       answer={{ kind: 'pending', turn: pending, onRetry: retry }}
                       conversationId={conversation.id}
                       declarationId={declarationId}
@@ -434,6 +446,7 @@ function Panel({
                       copy={copy}
                       sections={sections}
                       language={language}
+                      readSection={readSection}
                       onOpenPlace={openPlace}
                       onRated={setRating}
                     />,
@@ -470,6 +483,14 @@ function keepFocusInside(container: HTMLElement, event: KeyboardEvent) {
   }
 }
 
+type SectionContents = Extract<
+  Awaited<ReturnType<typeof getDeclarationSection>>,
+  { status: 'ok' }
+>['section']['contents'];
+
+/** A draft section's contents, read once per panel; null when it cannot be read. */
+type ReadSection = (sectionKey: string) => Promise<SectionContents | null>;
+
 type AnswerSource =
   | { kind: 'stored'; message: Message }
   | { kind: 'pending'; turn: PendingTurn; onRetry: () => void };
@@ -491,6 +512,7 @@ function Answer({
   copy,
   sections,
   language,
+  readSection,
   onOpenPlace,
   onRated,
 }: {
@@ -501,6 +523,7 @@ function Answer({
   copy: AskCopy;
   sections: readonly DeclarationSection[];
   language: AskLanguage;
+  readSection: ReadSection;
   onOpenPlace: (step: string, field: string | null) => void;
   onRated: (messageId: string, rating: Message['rating']) => void;
 }) {
@@ -509,7 +532,7 @@ function Answer({
     message?.rating ? { rating: message.rating, reason: null, note: null } : null,
   );
   const link = declarationId && message?.sectionLink ? message.sectionLink : null;
-  const itemName = useLinkedItemName(declarationId, link);
+  const itemName = useLinkedItemName(link, readSection);
   const place = link ? linkPlace(link, sections, language, itemName) : null;
 
   if (answer.kind === 'pending') {
@@ -593,8 +616,8 @@ function Answer({
  * so the button names it; undefined while it loads, or when the link is not to an item.
  */
 function useLinkedItemName(
-  declarationId: string | null,
   link: Message['sectionLink'],
+  readSection: ReadSection,
 ): string | undefined {
   const item = link ? linkedItem(link) : null;
   const sectionKey = link?.sectionKey;
@@ -602,25 +625,22 @@ function useLinkedItemName(
   const [named, setNamed] = useState<{ key: string; name: string } | null>(null);
 
   useEffect(() => {
-    if (!declarationId || !key || !item || !sectionKey) return;
+    if (!key || !item || !sectionKey) return;
     let current = true;
-    getDeclarationSection({ data: { declarationId, sectionKey } })
-      .then((result) => {
-        if (!current || result.status !== 'ok') return;
-        const items = result.section.contents[item.category];
-        const type = Array.isArray(items)
-          ? (items[item.index] as { type?: unknown } | undefined)?.type
-          : undefined;
-        const name = typeof type === 'string' ? TYPE_LABELS[item.category][type] : undefined;
-        if (name) setNamed({ key, name });
-      })
-      .catch(() => undefined);
+    void readSection(sectionKey).then((contents) => {
+      const items = contents?.[item.category];
+      const type = Array.isArray(items)
+        ? (items[item.index] as { type?: unknown } | undefined)?.type
+        : undefined;
+      const name = typeof type === 'string' ? TYPE_LABELS[item.category][type] : undefined;
+      if (current && name) setNamed({ key, name });
+    });
     return () => {
       current = false;
     };
-    // `item` is derived from `key`.
+    // `item` and `sectionKey` are what `key` is made of.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [declarationId, key]);
+  }, [key, readSection]);
 
   return named?.key === key ? named.name : undefined;
 }

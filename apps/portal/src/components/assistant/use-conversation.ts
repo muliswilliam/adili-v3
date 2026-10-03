@@ -17,12 +17,9 @@ export interface PendingTurn {
   retryAfterSeconds?: number;
 }
 
-/** The stored question and answer that ended a turn, to render in its pending bubbles' place. */
-export interface FinishedTurn {
-  turn: number;
-  questionId: string;
-  answerId: string;
-}
+/** The key a turn's bubbles render under, pending and stored alike: `turn-<n>-question`. */
+export const turnKey = (turn: number, role: 'question' | 'answer') =>
+  `turn-${String(turn)}-${role}`;
 
 export type ConversationState =
   | { status: 'closed' }
@@ -76,7 +73,9 @@ export function useConversation({
     key: string;
     question: string;
   } | null>(null);
-  const [finished, setFinished] = useState<FinishedTurn | null>(null);
+  // Every turn asked here keeps its pending bubbles' keys once stored, so an answer is one
+  // element from its first dots on and is never remounted by a later turn.
+  const [turnKeys, setTurnKeys] = useState<ReadonlyMap<string, string>>(new Map());
   const turns = useRef(0);
   const pending = pendingFor.key === openKey ? pendingFor.turn : null;
   const unavailable =
@@ -187,7 +186,14 @@ export function useConversation({
                 ? { ...state, messages: [...state.messages, frame.question, frame.answer] }
                 : state,
             );
-            setFinished({ turn, questionId: frame.question.id, answerId: frame.answer.id });
+            setTurnKeys(
+              (keys) =>
+                new Map([
+                  ...keys,
+                  [frame.question.id, turnKey(turn, 'question')],
+                  [frame.answer.id, turnKey(turn, 'answer')],
+                ]),
+            );
             setPending(null);
           } else if (frame.code === 'assistant-unavailable') {
             setUnavailable();
@@ -237,7 +243,11 @@ export function useConversation({
   return {
     conversation,
     pending,
-    finished,
+    /** The key a stored message renders under: its turn's, or its id from history. */
+    keyOf: useCallback(
+      (message: AssistantMessage) => turnKeys.get(message.id) ?? message.id,
+      [turnKeys],
+    ),
     unavailable,
     ask,
     stop,
