@@ -198,10 +198,29 @@ const QUESTION_FIELDS = new Set(['question', 'history']);
 /** Fields holding a document's text layer, where labelled names are found (spec 05b). */
 const DOCUMENT_TEXT_FIELDS = new Set(['textLayer']);
 
-/** Up to five capitalised words (WANJIRU, Akinyi, O'Brien, Ndung’u): a name as a page writes it. */
+/** Up to five capitalised words (WANJIRU, Akinyi, Ndung’u): a name as a page writes it. */
 const NAME = String.raw`\p{Lu}[\p{L}'’.-]*(?:[ \t]+\p{Lu}[\p{L}'’.-]*){0,4}`;
 /** Names joined by commas, `and`, `&` or (Swahili) `na`: joint proprietors, co-owners. */
 const NAMES = String.raw`(${NAME}(?:[ \t]*(?:,|&|and|na)[ \t]*${NAME})*)`;
+/** Labels a person's name follows on a page, as patterns. */
+const NAME_LABELS = [
+  String.raw`(?:full\s+)?names?`,
+  String.raw`(?:registered\s+)?proprietors?`,
+  String.raw`(?:registered\s+)?owners?(?:'s\s+name)?`,
+  'lessees?',
+  String.raw`employee(?:\s+name)?`,
+  String.raw`account\s+(?:name|holder)`,
+  String.raw`customer(?:\s+name)?`,
+  'borrower',
+  String.raw`(?:registered\s+)?holder`,
+  'shareholder',
+  String.raw`member(?:\s+name)?`,
+  String.raw`jina(?:\s+kamili)?`,
+  'majina',
+  'mmiliki',
+  'wamiliki',
+  'mwanachama',
+];
 /**
  * What introduces a person's name on a title deed, logbook, payslip, letter or certificate, in
  * English or Swahili: a label and an optional colon (the name may be on the next line), a
@@ -209,8 +228,7 @@ const NAMES = String.raw`(${NAME}(?:[ \t]*(?:,|&|and|na)[ \t]*${NAME})*)`;
  */
 const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
   new RegExp(
-    String.raw`(?<![\p{L}\p{N}])(?i:(?:full\s+)?names?|(?:registered\s+)?proprietors?|(?:registered\s+)?owners?(?:'s\s+name)?|lessees?|employee(?:\s+name)?|account\s+(?:name|holder)|customer(?:\s+name)?|borrower|(?:registered\s+)?holder|shareholder|member(?:\s+name)?|jina(?:\s+kamili)?|majina|mmiliki|wamiliki)[ \t]*[:\-]?[ \t]*\n?[ \t]*` +
-      NAMES,
+    String.raw`(?<![\p{L}\p{N}])(?i:${NAME_LABELS.join('|')})[ \t]*[:\-]?[ \t]*\n?[ \t]*` + NAMES,
     'gu',
   ),
   new RegExp(

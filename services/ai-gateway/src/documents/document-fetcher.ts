@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 
 import type { DocumentRef } from '../tasks/task.js';
-import { DocumentError } from './read-document.js';
+import { DocumentError } from './document-error.js';
 
 export const DOCUMENT_FETCHER_OPTIONS = Symbol('DOCUMENT_FETCHER_OPTIONS');
 

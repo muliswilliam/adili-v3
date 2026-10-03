@@ -7,7 +7,8 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { asPlatform, asTenant, type GatewayDatabase } from '../db/context.js';
 import { DocumentFetcher } from '../documents/document-fetcher.js';
-import { DocumentError, readDocument, type ReadDocument } from '../documents/read-document.js';
+import { DocumentError } from '../documents/document-error.js';
+import { readDocument, type ReadDocument } from '../documents/read-document.js';
 import { type Job, jobs } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
@@ -293,7 +294,7 @@ export class JobExecutor {
     if (result.status === 'refused') return { status: 'failed', reason: 'refused' };
     // A cut-off structured output is absent: nothing valid to keep.
     if (result.status === 'truncated') return { status: 'failed', reason: 'validation' };
-    const schema = outputSchemaOf(task, task.input.parse(job.input));
+    const schema = outputSchemaOf(task, job.input);
     const parsed = schema.safeParse(result.output);
     if (!parsed.success) {
       // Issue paths and codes only: messages can quote the output.

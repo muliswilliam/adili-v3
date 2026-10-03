@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { DocumentError, readDocument } from '../../src/documents/read-document.js';
+import { DocumentError } from '../../src/documents/document-error.js';
+import { readDocument } from '../../src/documents/read-document.js';
 import { JPEG_BYTES, pageCount, testPdf, TINY_PNG } from '../support/documents.js';
 
 const TITLE_PAGE = [

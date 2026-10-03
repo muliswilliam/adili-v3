@@ -4,6 +4,15 @@ import type { VisualPages } from '../documents/read-document.js';
 import type { ContentPart, Effort, StructuredRequest } from '../providers/port.js';
 import { outputJsonSchemaOf, outputLimit, type TaskDefinition } from './task.js';
 
+/** What a request is built from besides the prompt, the minimised input and the model. */
+export interface RequestExtras {
+  params?: CallParams;
+  /** The task input as the task validated it, which decides the output schema and limit. */
+  taskInput?: unknown;
+  /** A document's pages the model sees as images. */
+  visual?: VisualPages | null;
+}
+
 /** Call parameters a route may set; anything unset falls back to the task's own. */
 export interface CallParams {
   maxOutputTokens?: number;
@@ -34,11 +43,7 @@ export function buildProviderRequest(
   input: unknown,
   /** Decided by the routing table. */
   model: string,
-  params: CallParams = {},
-  /** The task input as the task validated it, which decides the output schema and limit. */
-  taskInput: unknown = input,
-  /** A document's pages the model sees as images. */
-  visual: VisualPages | null = null,
+  { params = {}, taskInput = input, visual = null }: RequestExtras = {},
 ): StructuredRequest {
   const text = `<untrusted-input>\n${escapeMarkup(canonicalJson(input))}\n</untrusted-input>`;
   return {

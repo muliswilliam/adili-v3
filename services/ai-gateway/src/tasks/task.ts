@@ -51,9 +51,7 @@ export const DOCUMENT_TASKS = ['extract-document'] as const satisfies readonly T
  * only these routes.
  */
 export const REVIEWER_TASKS = COMMISSION_TASKS.filter(
-  (task) =>
-    !(DECLARANT_TASKS as readonly TaskName[]).includes(task) &&
-    !(DOCUMENT_TASKS as readonly TaskName[]).includes(task),
+  (task) => !([...DECLARANT_TASKS, ...DOCUMENT_TASKS] as readonly TaskName[]).includes(task),
 );
 
 /** Contract `AiLabel`: present on every job output. */

@@ -27,9 +27,9 @@ const SEEDED_BY = { subject: 'system:demo-seed', name: 'Demo seed' };
 
 /**
  * Records the demo tenants' rules (external on synthetic data, or `change`) through the gate, so
- * they are audited and announced like a platform admin's change. Idempotent: a tenant with a rule for the pair already
- * (seeded, or changed since by a platform admin) is left as it is, so it is safe to run on every
- * `pnpm db:seed`. Returns the tenants it changed.
+ * they are audited and announced like a platform admin's change. Idempotent: a tenant with a rule
+ * for the pair already (seeded, or changed since by a platform admin) is left as it is, so it is
+ * safe to run on every `pnpm db:seed`. Returns the tenants it changed.
  */
 export async function seedDemoGatePolicies(
   gate: GatePolicies,

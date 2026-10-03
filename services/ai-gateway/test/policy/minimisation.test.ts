@@ -332,6 +332,7 @@ describe('minimise a text layer', () => {
     ['NAME\nJOSEPH MWANGI KARIUKI', 'JOSEPH MWANGI KARIUKI'],
     ['Proprietors: JOSEPH MWANGI and ESTHER WAIRIMU', 'JOSEPH MWANGI ESTHER WAIRIMU'],
     ['Wamiliki: Juma Hassan na Amina Said', 'Juma Hassan Amina Said'],
+    ['Mwanachama: Rehema Achieng Otieno', 'Rehema Achieng Otieno'],
   ])('finds the name in %j', (line, name) => {
     const { input } = minimise({ textLayer: line });
 

@@ -32,15 +32,11 @@ export function preparePrompt(
   const sent = task.modelInput ? task.modelInput(input as never, document) : input;
   const minimised = minimise(sent);
   return {
-    request: buildProviderRequest(
-      task,
-      promptVersion,
-      minimised.input,
-      model,
+    request: buildProviderRequest(task, promptVersion, minimised.input, model, {
       params,
-      input,
-      document?.visual ?? null,
-    ),
+      taskInput: input,
+      visual: document?.visual ?? null,
+    }),
     restore: minimised.restore,
     counts: minimised.counts,
   };

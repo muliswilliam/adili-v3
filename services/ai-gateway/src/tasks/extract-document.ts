@@ -88,8 +88,11 @@ const input = z.object({
 export type ExtractInput = z.infer<typeof input>;
 export type ExtractOutput = z.infer<typeof output>;
 
-/** A bank account number: ten to sixteen digits, or groups of four (declaration.v1: none). */
-const ACCOUNT_NUMBER = /(?<!\d)(?:\d[ -]?){9,15}\d(?!\d)/u;
+/**
+ * A bank account number (declaration.v1 holds none), as minimisation finds one: ten to sixteen
+ * digits in a run, or three or four groups of four. A chassis or title number's digits are not.
+ */
+const ACCOUNT_NUMBER = /(?<![\d-])(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\d-])/u;
 
 /** A reading fails when it names a field twice or holds an account number anywhere. */
 function validate(_input: ExtractInput, { fields }: ExtractOutput): OutputViolation[] {

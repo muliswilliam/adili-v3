@@ -20,10 +20,10 @@ try {
       ? `ai-gateway: external providers allowed on synthetic data for ${changed.join(', ')}`
       : 'ai-gateway: demo gate policies already recorded',
   );
-  const reading = await seedDemoGatePolicies(gate, DEMO_TENANTS, DEMO_DOCUMENT_GATE_CHANGE);
-  if (reading.length > 0) {
+  const documentsOpened = await seedDemoGatePolicies(gate, DEMO_TENANTS, DEMO_DOCUMENT_GATE_CHANGE);
+  if (documentsOpened.length > 0) {
     console.log(
-      `ai-gateway: synthetic documents may be read into the form for ${reading.join(', ')}`,
+      `ai-gateway: synthetic documents may be read into the form for ${documentsOpened.join(', ')}`,
     );
   }
 } finally {

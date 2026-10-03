@@ -171,5 +171,11 @@ describe('extract-document output', () => {
     expect(validate([field('description', 'Savings account 0102938475610 at KCB')])).toEqual([
       { kind: 'account-number', field: 0 },
     ]);
+    expect(validate([field('details.accountType', 'Savings, 0150-2938-4756')])).toEqual([
+      { kind: 'account-number', field: 0 },
+    ]);
+    // A chassis, title or phone-like run of separated digits is not an account number.
+    expect(validate([field('description', 'Toyota Fielder, chassis NZE161-7012345')])).toEqual([]);
+    expect(validate([field('details.parcelNumber', 'LR No. 209/12345/678')])).toEqual([]);
   });
 });

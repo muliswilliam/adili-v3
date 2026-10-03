@@ -3,6 +3,7 @@ import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api.js';
 
 import type { Attachment } from '../providers/port.js';
+import { DocumentError } from './document-error.js';
 
 /**
  * Reading a document for the model (spec 05b, `extract-document`). A page with a text layer is
@@ -58,28 +59,6 @@ export interface ReadDocument {
   visual: VisualPages | null;
 }
 
-export type DocumentErrorKind =
-  /** Not fetched: the link expired or the store did not answer. */
-  | 'unavailable'
-  /** Not what the request says: another size, type or SHA-256. */
-  | 'mismatch'
-  /** Damaged, or not a PDF or image. */
-  | 'unreadable'
-  /** More pages or bytes than a reading takes. */
-  | 'too-large';
-
-/** A document the gateway cannot read; the job fails, and the message names no content. */
-export class DocumentError extends Error {
-  override readonly name = 'DocumentError';
-  constructor(
-    readonly kind: DocumentErrorKind,
-    message: string,
-    options?: { cause?: unknown },
-  ) {
-    super(message, options);
-  }
-}
-
 /** The content type the file's first bytes say it is, of those the gateway reads. */
 export function sniffContentType(bytes: Uint8Array): DocumentContentType | undefined {
   const starts = (...prefix: number[]) => prefix.every((byte, index) => bytes[index] === byte);
@@ -117,7 +96,26 @@ export async function readDocument(
   return readPdf(bytes);
 }
 
+/**
+ * A PDF read page by page. pdf.js and pdf-lib are lenient with damaged files, but what they still
+ * throw on (a page they cannot parse, an encrypted file to copy pages from) is an unreadable
+ * document too, not a failure of the job's attempt.
+ */
 async function readPdf(bytes: Uint8Array): Promise<ReadDocument> {
+  try {
+    return await readPages(bytes);
+  } catch (error) {
+    if (error instanceof DocumentError) throw error;
+    throw new DocumentError('unreadable', 'The PDF cannot be read', { cause: error });
+  }
+}
+
+/**
+ * The pages read from their image go to the provider as a PDF, the whole file when every page is
+ * a scan: no bigger than the fetcher's limit (`AI_DOCUMENT_MAX_BYTES`, 20 MB), which keeps it
+ * under the provider's request limit once base64-encoded.
+ */
+async function readPages(bytes: Uint8Array): Promise<ReadDocument> {
   const pages = await textLayers(bytes);
   const scanned = pages.filter((page) => page.textLayer === null).map((page) => page.page);
   if (scanned.length === 0) return { pageCount: pages.length, pages, visual: null };

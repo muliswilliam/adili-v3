@@ -6,7 +6,10 @@ import { extractSuite } from './extract-document.js';
 import { narrateSuite } from './narrate-compliance-report.js';
 import { summarizeSuite } from './summarize-declaration.js';
 
-/** Every task's evaluation set (spec 07c S9, 09b S10, 11 S11, 05b S10). A new task's suite is added here. */
+/**
+ * Every task's evaluation set (spec 07c S9, 09b S10, 11 S11, 05b S10). A new task's suite is added
+ * here.
+ */
 export const SUITES: readonly EvalSuite<unknown>[] = [
   summarizeSuite,
   explainSuite,
