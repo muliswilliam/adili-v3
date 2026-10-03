@@ -21,11 +21,7 @@ export function SalaryBanner({ standing }: { standing: SalaryStanding }) {
       <Alert variant="success" role="status">
         <Icon icon={Tick02Icon} />
         <AlertTitle>
-          {standing.kind === 'reinstated'
-            ? S.reinstated(standing.at)
-            : standing.complied
-              ? S.reinstating.complied
-              : S.reinstating.ended}
+          {standing.kind === 'reinstated' ? S.reinstated(standing.at) : S.reinstating}
         </AlertTitle>
       </Alert>
     );
@@ -54,7 +50,7 @@ export function SalaryCard({ notice }: { notice: DeclarantNotice }) {
   if (notice.step !== 'salary-stoppage' || notice.salaryStoppedAt === null) return null;
   const reinstatement = notice.salaryReinstatedAt
     ? S.card.confirmed(notice.salaryReinstatedAt)
-    : notice.status === 'complied' || notice.status === 'cancelled'
+    : notice.status === 'complied'
       ? S.card.beingSent
       : S.card.whenYouComply;
   return (

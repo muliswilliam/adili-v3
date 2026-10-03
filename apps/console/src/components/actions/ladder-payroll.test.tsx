@@ -112,6 +112,9 @@ describe('payroll acknowledgements on the ladder (S6, S7, S15)', () => {
     expect(within(card).getByText('Stoppage window ends')).toBeTruthy();
     const stopped = formatDate(new Date(NOW_MS - 33 * DAY).toISOString());
     expect(within(stoppageStep()).getByText(`Payroll acknowledged ${stopped}`)).toBeTruthy();
+    // Passed by the referral: done, its line still says the salary is stopped (F29).
+    expect(stoppageStep().dataset.status).toBe('done');
+    expect(within(stoppageStep()).getByText(`Salary stopped ${stopped}`)).toBeTruthy();
   });
 
   it('shows the reinstatement acknowledged when the declarant complied', async () => {
@@ -206,6 +209,18 @@ describe('a salary still stopped when the ladder ended without compliance (F23)'
     expect(within(stoppageStep()).getByText(/^Payroll acknowledged /)).toBeTruthy();
     const card = screen.getByRole('region', { name: /Salary stoppage/ });
     expect(within(card).getByText('Salary stopped')).toBeTruthy();
+  });
+});
+
+describe('an issued step under an ended ladder (F30)', () => {
+  it('reads done, not in progress', async () => {
+    await show(L.warningIssued, { status: 'ended', closingCause: 'obligation-cancelled' });
+    const warning = within(
+      screen.getByRole('list', { name: 'Administrative action ladder' }),
+    ).getAllByRole('listitem')[1];
+    if (!warning) throw new Error('no warning step');
+    expect(warning.dataset.status).toBe('done');
+    expect(within(warning).queryByText(/In progress/)).toBeNull();
   });
 });
 

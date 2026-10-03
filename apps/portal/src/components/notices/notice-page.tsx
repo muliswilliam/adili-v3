@@ -114,7 +114,7 @@ export function NoticePage(props: NoticePageProps) {
       </div>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="grid min-w-0 content-start gap-4">
-          <Banner notice={notice} now={props.now} />
+          <Banner notice={notice} all={all} now={props.now} />
           <Card className="p-0 sm:p-0">
             <h2 className="border-b px-5 py-4 text-base font-semibold">{COPY.whatHappened}</h2>
             <p className="px-5 py-4">{COPY.happened(notice.subject)}</p>
@@ -142,8 +142,16 @@ export function NoticePage(props: NoticePageProps) {
   );
 }
 
-function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
-  const salary = salaryStandingOf(notice);
+function Banner({
+  notice,
+  all,
+  now,
+}: {
+  notice: DeclarantNotice;
+  all: readonly DeclarantNotice[];
+  now: string;
+}) {
+  const salary = salaryStandingOf(notice, all);
   if (salary) return <SalaryBanner standing={salary} />;
   if (isClosed(notice)) {
     return (

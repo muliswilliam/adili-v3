@@ -8,30 +8,48 @@ import { isClosed } from './view';
  * - `stopped`: payroll stopped the salary and the ladder is open.
  * - `disciplinary`: the Commission asked the reporting entity to start disciplinary proceedings; the
  *   salary stays stopped.
- * - `reinstating`: the ladder closed, the reinstatement on its way to payroll. `complied`: the
- *   declarant complied; otherwise the ladder ended without it (the obligation cancelled or the
- *   clarification withdrawn: the notice is `cancelled`).
+ * - `reinstating`: the declarant complied (the stoppage notice reads `complied`); the
+ *   reinstatement is on its way to payroll. A ladder that ended without compliance leaves its
+ *   issued notices `issued`, and `DeclarantNotice` carries no ladder status, so that case reads
+ *   `stopped` until payroll confirms the reinstatement (#518).
  * - `reinstated`: payroll confirmed the reinstatement (`at`). The notice no longer says why the
  *   ladder closed, so neither does the copy.
  */
 export type SalaryStanding =
   | { kind: 'stopped'; notice: DeclarantNotice }
   | { kind: 'disciplinary'; notice: DeclarantNotice }
-  | { kind: 'reinstating'; notice: DeclarantNotice; complied: boolean }
+  | { kind: 'reinstating'; notice: DeclarantNotice }
   | { kind: 'reinstated'; notice: DeclarantNotice; at: string };
 
-/** The salary's standing a notice tells, or null for a notice to comply or a warning. */
-export function salaryStandingOf(notice: DeclarantNotice): SalaryStanding | null {
+/** Whether payroll confirmed reinstating the salary stopped on `notice`'s ladder. */
+function reinstatedOnLadder(notice: DeclarantNotice, all: readonly DeclarantNotice[]): boolean {
+  return all.some(
+    (each) =>
+      each.ladderId === notice.ladderId &&
+      each.step === 'salary-stoppage' &&
+      each.salaryReinstatedAt !== null,
+  );
+}
+
+/**
+ * The salary's standing a notice tells, or null for a notice to comply or a warning. `all` is
+ * every notice of the declarant: a disciplinary referral stays `issued` when its ladder ends,
+ * so it stops telling of a stopped salary once payroll confirmed that ladder's reinstatement.
+ */
+export function salaryStandingOf(
+  notice: DeclarantNotice,
+  all: readonly DeclarantNotice[],
+): SalaryStanding | null {
   if (notice.step === 'disciplinary-referral') {
-    return isClosed(notice) ? null : { kind: 'disciplinary', notice };
+    return isClosed(notice) || reinstatedOnLadder(notice, all)
+      ? null
+      : { kind: 'disciplinary', notice };
   }
   if (notice.step !== 'salary-stoppage' || notice.salaryStoppedAt === null) return null;
   if (notice.salaryReinstatedAt !== null) {
     return { kind: 'reinstated', notice, at: notice.salaryReinstatedAt };
   }
-  return isClosed(notice)
-    ? { kind: 'reinstating', notice, complied: notice.status === 'complied' }
-    : { kind: 'stopped', notice };
+  return isClosed(notice) ? { kind: 'reinstating', notice } : { kind: 'stopped', notice };
 }
 
 /**
@@ -42,7 +60,7 @@ export function salaryStandingOf(notice: DeclarantNotice): SalaryStanding | null
 export function salaryOnTop(all: readonly DeclarantNotice[]): SalaryStanding | null {
   const standings = [...all]
     .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt))
-    .map(salaryStandingOf)
+    .map((notice) => salaryStandingOf(notice, all))
     .filter((each): each is SalaryStanding => each !== null && each.kind !== 'reinstated');
   return (
     standings.find((each) => each.kind === 'disciplinary') ??

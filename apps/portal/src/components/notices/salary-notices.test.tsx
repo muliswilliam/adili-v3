@@ -100,25 +100,6 @@ describe('a salary stoppage notice (S17, US 20)', () => {
     expect(screen.getAllByText('Salary stopped')).toHaveLength(1);
   });
 
-  it('does not say the declarant complied when the ladder ended without it', async () => {
-    const all = (await notices('reinstating')).map((each) =>
-      each.actionId === IDS.stoppage ? { ...each, status: 'cancelled' as const } : each,
-    );
-    const notice = all.find((each) => each.actionId === IDS.stoppage);
-    if (!notice) throw new Error('no stoppage');
-    render(
-      <ToastProvider>
-        <NoticePage notice={notice} all={all} now={NOW} />
-      </ToastProvider>,
-    );
-    expect(
-      screen.getByText(
-        'This notice has closed. Your salary reinstatement is being sent to payroll. We will SMS you when payroll confirms it.',
-      ),
-    ).toBeTruthy();
-    expect(screen.queryByText(/You have complied/)).toBeNull();
-  });
-
   it('says when payroll confirmed the reinstatement (S7)', async () => {
     await page('reinstated', IDS.stoppage);
     const confirmed = formatDate(new Date(NOW_MS - DAY).toISOString());
@@ -138,6 +119,38 @@ describe('a disciplinary referral notice (S10)', () => {
       ),
     ).toBeTruthy();
     expect(screen.queryByText(/Act by/)).toBeNull();
+  });
+});
+
+describe('a disciplinary referral once the salary is reinstated (F27)', () => {
+  it('no longer says the salary remains stopped', async () => {
+    const reinstatedAt = new Date(NOW_MS - DAY).toISOString();
+    // The ladder ended: the referral stays issued, payroll confirmed the reinstatement.
+    const all = (await notices('disciplinary')).map((each) =>
+      each.actionId === IDS.stoppage
+        ? { ...each, status: 'reinstated' as const, salaryReinstatedAt: reinstatedAt }
+        : each,
+    );
+    const referral = all.find((each) => each.actionId === IDS.disciplinary);
+    if (!referral) throw new Error('no referral');
+    render(
+      <ToastProvider>
+        <NoticePage notice={referral} all={all} now={NOW} />
+      </ToastProvider>,
+    );
+    expect(screen.queryByText(/Your salary remains stopped/)).toBeNull();
+    cleanup();
+    render(
+      <NoticesView
+        result={{ status: 'ok', notices: all }}
+        now={NOW}
+        page={1}
+        onPage={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText(/Your salary remains stopped/)).toBeNull();
+    expect(screen.queryByText(/has asked for disciplinary proceedings/)).toBeNull();
   });
 });
 

@@ -13,12 +13,8 @@ export const SALARY_COPY = {
     `${commission} has asked for disciplinary proceedings to start.`,
   disciplinaryBody: (subject: Subject) =>
     `Your salary remains stopped. You can still comply: ${complyBy(subject)}.`,
-  reinstating: {
-    complied:
-      'You have complied. Your salary reinstatement is being sent to payroll. We will SMS you when payroll confirms it.',
-    ended:
-      'This notice has closed. Your salary reinstatement is being sent to payroll. We will SMS you when payroll confirms it.',
-  },
+  reinstating:
+    'You have complied. Your salary reinstatement is being sent to payroll. We will SMS you when payroll confirms it.',
   reinstated: (date: string) =>
     `Payroll confirmed your salary reinstatement on ${formatDate(date)}.`,
   card: {

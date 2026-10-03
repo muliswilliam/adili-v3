@@ -1,11 +1,5 @@
 import { Badge, formatDateTime, Icon } from '@adili/ui';
-import {
-  Alert02Icon,
-  BanIcon,
-  BanknoteIcon,
-  Clock01Icon,
-  Tick02Icon,
-} from '@hugeicons/core-free-icons';
+import { Alert02Icon, BanknoteIcon, Clock01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import type { AdministrativeAction } from '../../server/actions.server';
@@ -48,16 +42,6 @@ export function payrollLine(action: AdministrativeAction): string | undefined {
     return c.payroll.failed;
   }
   return approvedNotIssued(action) || action.payrollStop !== null ? c.stepper.waiting : undefined;
-}
-
-/** "Salary stopped", in red, for a stoppage in force (the prototype's step badge). */
-export function SalaryStoppedBadge() {
-  return (
-    <Badge variant="destructive">
-      <Icon icon={BanIcon} />
-      {c.salaryStopped}
-    </Badge>
-  );
 }
 
 const BADGE = {

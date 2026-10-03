@@ -46,14 +46,9 @@ import type { FailureText } from '../dialog-parts';
 import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { closingCauseLabel, en as m, ladderStatusLabel, stepLabel } from './messages';
-import { ActionStatusBadge } from './status-badge';
-import { reinstatedAtOf, salaryStopped } from '../../actions/payroll';
-import {
-  PayrollInstruction,
-  payrollInstructionsOf,
-  payrollLine,
-  SalaryStoppedBadge,
-} from './payroll-instruction';
+import { StepBadge } from './status-badge';
+import { acknowledgedAt, reinstatedAtOf, salaryStopped } from '../../actions/payroll';
+import { PayrollInstruction, payrollInstructionsOf, payrollLine } from './payroll-instruction';
 import { stepsBefore } from './prior-steps';
 import { ApproveStepDialog, DeclineStepDialog, RestartLadderDialog } from './step-dialogs';
 import { stoppageCopy as stoppage } from './stoppage-messages';
@@ -249,6 +244,11 @@ function stepperStep({ step, status, action }: LadderStepView): LadderStepperSte
   if (approvedNotIssued(action) && action.approvedAt) {
     return { ...base, detail: m.stepDetail.approved(formatDate(action.approvedAt)) };
   }
+  // A stoppage the disciplinary referral passed: done, its salary still stopped.
+  const stoppedAt = acknowledgedAt(action.payrollStop);
+  if (status === 'done' && salaryStopped(action) && stoppedAt) {
+    return { ...base, detail: stoppage.stepper.salaryStopped(stoppedAt) };
+  }
   const running = status === 'current' || status === 'stopped';
   const responded = action.response
     ? { response: m.stepDetail.respondedOn(formatDate(action.response.submittedAt)) }
@@ -328,11 +328,7 @@ function StepCard({
         <h2 id={headingId} className="text-[16px] font-semibold">
           {stepLabel(action.step)}
         </h2>
-        {salaryStopped(action) ? (
-          <SalaryStoppedBadge />
-        ) : (
-          <ActionStatusBadge status={action.status} />
-        )}
+        <StepBadge action={action} />
         <span className="ml-auto">
           {action.reference ? (
             <span className="rounded-md bg-muted px-2 py-1 font-mono text-[12.5px] font-semibold">
