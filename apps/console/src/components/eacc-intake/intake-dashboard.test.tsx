@@ -144,7 +144,7 @@ describe('the EACC intake dashboard (S9, S10, S15)', () => {
     );
     const drawer = within(screen.getByRole('dialog', { name: 'Judicial Service Commission' }));
     expect(drawer.getByText('Chase history, FY 2025/2026')).toBeTruthy();
-    expect(drawer.getByText('10 reminders sent')).toBeTruthy();
+    expect(drawer.getByText('Reminders sent').nextElementSibling?.textContent).toBe('10');
     expect(drawer.getByText('3 Oct 2026, 06:00')).toBeTruthy();
     expect(drawer.getByText('10 Oct 2026')).toBeTruthy();
     expect(drawer.getByText('31 Jul 2026')).toBeTruthy();

@@ -384,14 +384,18 @@ function nonFilers(commission: Fixture, fy: number, section: SectionKey, count: 
       LAST_NAMES[(n * 5 + commission.slug.length) % LAST_NAMES.length],
     ].join(' ');
     const [actionTaken, complied, remarks] = ACTIONS[n % ACTIONS.length] ?? NO_ACTION;
-    const joined = section === 'biennial' ? 2008 + (n % 15) : fy + (n % 2);
-    const month = String(1 + ((n * 7) % 12)).padStart(2, '0');
-    const day = String(1 + ((n * 11) % 27)).padStart(2, '0');
+    // Appointed (or exited) within the year for sections 1 and 3; years before for those in
+    // service.
+    const date =
+      section === 'biennial'
+        ? `${String(2008 + (n % 15))}-${String(1 + ((n * 7) % 12)).padStart(2, '0')}-${String(1 + ((n * 11) % 27)).padStart(2, '0')}`
+        : plusDays(`${String(fy)}-07-01`, (n * 37) % 365);
+    const joined = date.slice(0, 4);
     rows.push({
       name,
       designation: DESIGNATIONS[n % DESIGNATIONS.length] ?? 'Officer',
-      identifier: `${commission.issuerCode}/${String(joined)}/${String(1000 + n * 37).padStart(5, '0')}`,
-      date: `${String(joined)}-${month}-${day}`,
+      identifier: `${commission.issuerCode}/${joined}/${String(1000 + n * 37).padStart(5, '0')}`,
+      date,
       actionTaken,
       complied,
       remarks,

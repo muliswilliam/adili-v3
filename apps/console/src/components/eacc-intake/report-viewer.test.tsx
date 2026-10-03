@@ -107,9 +107,8 @@ describe('the report viewer (S9, S15)', () => {
     expect(rates.getByText('75%')).toBeTruthy();
     const outliers = within(screen.getByRole('region', { name: 'Outliers' }));
     expect(outliers.getByText('Low final rate')).toBeTruthy();
-    expect(
-      within(screen.getByRole('region', { name: 'Chasing' })).getByText('Not chased.'),
-    ).toBeTruthy();
+    // Filed on time: never chased.
+    expect(screen.queryByRole('region', { name: 'Chasing' })).toBeNull();
   });
 
   it('marks a late report filed through its own system, with the days late and its chases', async () => {

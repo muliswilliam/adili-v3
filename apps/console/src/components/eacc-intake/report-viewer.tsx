@@ -16,7 +16,6 @@ import {
   AlertCircleIcon,
   ApiIcon,
   Download04Icon,
-  Flag02Icon,
   Globe02Icon,
   InboxIcon,
   SquareLock02Icon,
@@ -39,6 +38,7 @@ import { LoadError } from '../load-error';
 import { Page } from '../page';
 import { daysLate } from './intake-view';
 import { messages as m } from './messages';
+import { INTAKE_SECTIONS, OutlierChips } from './outlier-chips';
 
 export interface ReportViewerProps {
   /** The report; null while it loads. */
@@ -48,8 +48,6 @@ export interface ReportViewerProps {
   /** Downloads a filed document (the PDF or the receipt); resolves false when it failed. */
   onDownload: (documentId: string) => Promise<boolean>;
 }
-
-const SECTIONS = ['initial', 'biennial', 'final'] as const;
 
 /**
  * EACC's report viewer (spec 09 FE-3, S9): a Commission's Form M as filed, read-only, with its
@@ -66,7 +64,7 @@ export function ReportViewer({ result, backLink, onDownload }: ReportViewerProps
       ) : result.ok ? (
         <Report view={result.data} onDownload={onDownload} />
       ) : problemStatus(result) === 404 ? (
-        <Card className="mx-auto w-full max-w-[720px] p-0 sm:p-0">
+        <Card className="p-0 sm:p-0">
           <EmptyState
             icon={<Icon icon={InboxIcon} />}
             title={m.reportNotFoundTitle}
@@ -115,7 +113,7 @@ function Report({
           <PartIIICard partIII={document.partIII} />
         </div>
         <aside className="flex flex-col gap-4 min-[1100px]:sticky min-[1100px]:top-20">
-          <Rates document={document} />
+          <Rates view={view} />
           <Outliers view={view} />
           <Chasing view={view} />
         </aside>
@@ -167,7 +165,6 @@ function ReportHead({
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button
             disabled={!report.formMDocumentId || busy !== null}
-            title={report.formMDocumentId ? undefined : m.notIssued}
             onClick={() => void download(report.formMDocumentId)}
           >
             <Icon icon={Download04Icon} />
@@ -177,7 +174,6 @@ function ReportHead({
             variant="secondary"
             aria-label={m.downloadReceipt}
             disabled={!report.receiptDocumentId || busy !== null}
-            title={report.receiptDocumentId ? undefined : m.notIssued}
             onClick={() => void download(report.receiptDocumentId)}
           >
             <Icon icon={Download04Icon} />
@@ -228,8 +224,8 @@ function Facts({ report }: { report: SubmittedReport }) {
           <Fact term={m.period}>
             {m.periodLine(m.fyLabel(report.fy), formatDate(report.dueDate))}
           </Fact>
-          <Fact term={m.compiledBy}>{report.reviewedBy?.name ?? compiledBy.name ?? m.none}</Fact>
-          <Fact term={m.confirmedBy}>{report.confirmedBy?.name ?? confirmedBy.name ?? m.none}</Fact>
+          <Fact term={m.compiledBy}>{compiledBy.name ?? report.reviewedBy?.name ?? m.none}</Fact>
+          <Fact term={m.confirmedBy}>{confirmedBy.name ?? report.confirmedBy?.name ?? m.none}</Fact>
         </dl>
       </section>
     </Card>
@@ -251,12 +247,17 @@ function SideCard({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Rates({ document }: { document: SubmittedReport['document'] }) {
+/**
+ * Declared over expected per section: the intake's rates, as the table shows them; the report's
+ * own counts when the intake could not be read.
+ */
+function Rates({ view }: { view: ReportView }) {
   return (
     <SideCard title={m.rates}>
       <dl className="grid gap-3.5">
-        {SECTIONS.map((section) => {
-          const { declared, expected } = document.partII[section];
+        {INTAKE_SECTIONS.map((section) => {
+          const { declared, expected } =
+            view.intake?.rates[section] ?? view.report.document.partII[section];
           return (
             <div key={section}>
               <dt className="mb-1 text-[13.5px] font-medium">{m.rateOf[section]}</dt>
@@ -280,30 +281,20 @@ function Outliers({ view }: { view: ReportView }) {
       ) : outliers.length === 0 ? (
         <p className="text-[13.5px] text-muted-foreground">{m.noOutliers}</p>
       ) : (
-        <ul className="flex flex-wrap gap-1">
-          {outliers.map((outlier) => (
-            <li key={outlier}>
-              <Badge variant="warning" className="pl-[7px]">
-                <Icon icon={Flag02Icon} />
-                {m.outlier[outlier]}
-              </Badge>
-            </li>
-          ))}
-        </ul>
+        <OutlierChips outliers={outliers} />
       )}
     </SideCard>
   );
 }
 
+/** EACC's chases before the report came in; nothing when there were none. */
 function Chasing({ view }: { view: ReportView }) {
   const chases = view.intake?.chases;
-  if (!chases) return null;
+  if (!chases?.lastAt || chases.count === 0) return null;
   return (
     <SideCard title={m.chasing}>
       <p className="text-[13.5px] text-muted-foreground">
-        {chases.count > 0 && chases.lastAt
-          ? m.chased(chases.count, formatDate(chases.lastAt))
-          : m.notChased}
+        {m.chased(chases.count, formatDate(chases.lastAt))}
       </p>
     </SideCard>
   );

@@ -52,7 +52,6 @@ export const en = {
     'section-missing': 'Section missing',
   } satisfies Record<IntakeOutlier, string>,
   none: '-',
-  submittedOn: (date: string) => date,
   chased: (count: number, last: string) =>
     `Chased ${String(count)} ${count === 1 ? 'time' : 'times'}, last ${last}`,
   openReport: 'Open report',
@@ -70,11 +69,8 @@ export const en = {
   nextPage: 'Next page',
   chaseTitle: (fy: string) => `Chase history, ${fy}`,
   chaseHow: 'Weekly email and SMS to the reporting officer and commission administrator.',
-  chaseCount: (count: number) =>
-    count === 0
-      ? 'Not chased yet'
-      : `${String(count)} ${count === 1 ? 'reminder' : 'reminders'} sent`,
-  chaseReminders: 'Reminders',
+  chaseCount: (count: number) => (count === 0 ? 'None yet' : String(count)),
+  chaseReminders: 'Reminders sent',
   chaseLast: 'Last reminder',
   chaseNext: 'Next reminder',
   formMDue: 'Form M due',
@@ -83,13 +79,11 @@ export const en = {
   loadingReport: 'Loading the report',
   reportDetails: 'Report details',
   allReports: 'All reports',
-  reportTitle: (name: string) => name,
   submittedVia: { federated: 'Submitted via API', hosted: 'Hosted on Adili' },
   restricted: 'Restricted',
   downloadFormM: 'Download Form M (PDF)',
   receipt: 'Receipt',
   downloadReceipt: 'Download the acknowledgement receipt',
-  notIssued: 'Not issued yet',
   downloadFailed: 'We could not download the file. Try again.',
   reference: 'Reference number',
   submitted: 'Submitted',
@@ -109,7 +103,6 @@ export const en = {
   noOutliers: 'No outliers for this report.',
   outliersUnavailable: 'Outliers could not be loaded.',
   chasing: 'Chasing',
-  notChased: 'Not chased.',
   reportNotFoundTitle: 'Report not found',
   reportNotFoundText:
     'This report does not exist, is not submitted yet, or you do not have access to it.',

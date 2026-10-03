@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { asReportingViewer, withViewerClient } from './as-viewer.server';
+import { asReportingViewer, type Unauthenticated, withViewerClient } from './as-viewer.server';
 import {
   type EaccResult,
   type FileLink,
@@ -12,7 +12,7 @@ import {
 } from './eacc-intake.server';
 import { defaultFinancialYear } from '../components/eacc-intake/intake-view';
 import { financialYear, today } from './form-m';
-import { reportDocumentsClient } from './reporting/documents-client.server';
+import { reportDocumentsClient } from './documents/report-client.server';
 import type { Intake } from './reporting/types';
 import type { ServiceResult } from './service-call';
 
@@ -21,11 +21,14 @@ import type { ServiceResult } from './service-call';
  * as the signed-in EACC analyst or supervisor. Tokens stay on the server.
  */
 
-/** The intake page: today in Nairobi (the mock's day under REPORTING_MOCK_TODAY), the year on show and its intake. */
+/**
+ * The intake page: today in Nairobi (the mock's day under REPORTING_MOCK_TODAY), the year on
+ * show and its intake.
+ */
 export interface IntakePage {
   today: string;
   fy: number;
-  intake: EaccResult<Intake> | { ok: false; error: { kind: 'unauthenticated' } };
+  intake: EaccResult<Intake> | Unauthenticated;
 }
 
 /** The year `fy`, or the one the intake opens on (the last that ended). */
@@ -39,11 +42,8 @@ export const getEaccIntake = createServerFn({ method: 'GET' })
 
 export const getSubmittedReport = createServerFn({ method: 'GET' })
   .validator(z.object({ reportId: z.uuid() }))
-  .handler(
-    ({
-      data,
-    }): Promise<EaccResult<ReportView> | { ok: false; error: { kind: 'unauthenticated' } }> =>
-      asReportingViewer((client) => loadSubmittedReport(client, data.reportId)),
+  .handler(({ data }): Promise<EaccResult<ReportView> | Unauthenticated> =>
+    asReportingViewer((client) => loadSubmittedReport(client, data.reportId)),
   );
 
 /** A short-lived link to a filed report's Form M PDF or receipt. */

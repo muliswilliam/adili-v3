@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   Card,
   Drawer,
@@ -61,6 +60,7 @@ import {
   nextChaseOn,
 } from './intake-view';
 import { messages as m } from './messages';
+import { INTAKE_SECTIONS, OutlierChips } from './outlier-chips';
 
 /** Commissions to a page, as in the prototype. */
 export const INTAKE_PAGE_SIZE = 10;
@@ -85,8 +85,6 @@ const STATUS_CHIPS: readonly IntakeStatus[] = [
   'submitted-late',
   'not-reported',
 ];
-
-const SECTIONS = ['initial', 'biennial', 'final'] as const;
 
 /** `search` without empty values, so the URL carries only what is set. */
 function compact(search: IntakeSearch): IntakeSearch {
@@ -214,13 +212,20 @@ function YearSelect({
 function Tiles({ intake, today }: { intake: Intake; today: string }) {
   const { onTime, late, notReported, nationalDeclaredRate } = intake.totals;
   const nextChase = notReported > 0 ? nextChaseOn(intake, today) : null;
+  // A row with the next chase under one value: every tile spans it, so all are as tall.
+  const span = nextChase ? 'row-span-3' : undefined;
   return (
     <section
       aria-label={m.tiles}
       className="grid grid-cols-1 gap-3 min-[560px]:grid-cols-2 min-[1000px]:grid-cols-4"
     >
-      <StatTile label={m.onTime} value={onTime} marker={<Icon icon={Tick02Icon} />} />
-      <StatTile label={m.late} value={late} marker={<Icon icon={Clock01Icon} />} />
+      <StatTile
+        label={m.onTime}
+        value={onTime}
+        marker={<Icon icon={Tick02Icon} />}
+        className={span}
+      />
+      <StatTile label={m.late} value={late} marker={<Icon icon={Clock01Icon} />} className={span} />
       <StatTile
         label={m.notReported}
         value={notReported}
@@ -232,6 +237,7 @@ function Tiles({ intake, today }: { intake: Intake; today: string }) {
         value={nationalDeclaredRate ?? 0}
         format={nationalDeclaredRate === null ? () => m.noRate : sharePercent}
         marker={<Icon icon={DashboardSpeed01Icon} />}
+        className={span}
       />
     </section>
   );
@@ -249,7 +255,7 @@ function IntakeTable({
   const rows = filterIntake(intake.commissions, search);
   const counts = intakeCounts(intake.commissions);
   const page = clientPage(rows, search.page, INTAKE_PAGE_SIZE);
-  const filtered = (patch: IntakeSearch) => {
+  const applyFilters = (patch: IntakeSearch) => {
     onSearchChange({ ...search, ...patch, page: undefined });
   };
   const goTo = (target: number) => {
@@ -266,14 +272,14 @@ function IntakeTable({
           maxLength={100}
           applied={search.q ?? ''}
           onSearch={(q) => {
-            filtered({ q });
+            applyFilters({ q });
           }}
         />
         <div role="group" aria-label={m.filters} className="flex flex-wrap items-center gap-1.5">
           <FilterChip
             pressed={!search.status}
             onPressedChange={() => {
-              filtered({ status: undefined });
+              applyFilters({ status: undefined });
             }}
             count={counts.all}
             countLabel={m.commissionsCount}
@@ -285,7 +291,7 @@ function IntakeTable({
               key={status}
               pressed={search.status === status}
               onPressedChange={(pressed) => {
-                filtered({ status: pressed ? status : undefined });
+                applyFilters({ status: pressed ? status : undefined });
               }}
               count={counts[status]}
               countLabel={m.commissionsCount}
@@ -299,7 +305,7 @@ function IntakeTable({
           icon={Flag02Icon}
           pressed={search.outliers === true}
           onPressedChange={(pressed) => {
-            filtered({ outliers: pressed || undefined });
+            applyFilters({ outliers: pressed || undefined });
           }}
           count={counts.outliers}
           countLabel={m.commissionsCount}
@@ -406,22 +412,6 @@ function ChaseLine({ chases }: { chases: IntakeRow['chases'] }) {
   );
 }
 
-function OutlierChips({ outliers }: { outliers: IntakeRow['outliers'] }) {
-  if (outliers.length === 0) return <span className="text-muted-foreground">{m.none}</span>;
-  return (
-    <ul className="flex flex-wrap gap-1">
-      {outliers.map((outlier) => (
-        <li key={outlier}>
-          <Badge variant="warning" className="pl-[7px]">
-            <Icon icon={Flag02Icon} />
-            {m.outlier[outlier]}
-          </Badge>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function IntakeLine({
   row,
   reportLink,
@@ -453,7 +443,7 @@ function IntakeLine({
         ) : null}
         <ChaseLine chases={row.chases} />
       </TableCell>
-      {SECTIONS.map((section) => {
+      {INTAKE_SECTIONS.map((section) => {
         const rate = row.rates[section];
         return (
           <TableCell key={section} className="py-3.5 align-middle">
@@ -470,7 +460,11 @@ function IntakeLine({
         );
       })}
       <TableCell className="py-3.5 align-middle">
-        <OutlierChips outliers={row.outliers} />
+        {row.outliers.length > 0 ? (
+          <OutlierChips outliers={row.outliers} />
+        ) : (
+          <span className="text-muted-foreground">{m.none}</span>
+        )}
       </TableCell>
       <TableCell className="py-3.5 text-right align-middle">
         {reported && row.reportId ? (

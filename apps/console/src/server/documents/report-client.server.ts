@@ -1,5 +1,5 @@
-import { createDocumentsClient, type DocumentsClient } from '../documents/client';
 import { env } from '../env.server';
+import { createDocumentsClient, type DocumentsClient } from './client';
 
 /**
  * The documents client of EACC's report viewer, as the signed-in analyst or supervisor: the
@@ -15,7 +15,7 @@ export function reportDocumentsClient(accessToken: string): DocumentsClient {
     mock:
       import.meta.env.DEV && config.REPORTING_MOCK
         ? async (request) =>
-            (await import('./eacc-mock.server')).mockReportingDocumentsFetch(request)
+            (await import('../reporting/eacc-mock.server')).mockReportingDocumentsFetch(request)
         : null,
   });
 }

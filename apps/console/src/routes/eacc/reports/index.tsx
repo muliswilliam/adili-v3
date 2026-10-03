@@ -34,7 +34,13 @@ export const Route = createFileRoute('/eacc/reports/')({
     }
     return result;
   },
-  staticData: { crumb: m.intakeCrumb },
+  staticData: {
+    // Without the workspace the layout leaves its crumb out: this page stands for it.
+    crumb: ({ context }) =>
+      typeof context === 'object' && context !== null && 'workspace' in context && context.workspace
+        ? m.intakeCrumb
+        : m.crumb,
+  },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: IntakeLoading,
   component: IntakeLoaded,
