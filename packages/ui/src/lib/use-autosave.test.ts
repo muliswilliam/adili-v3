@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useAutosave } from './use-autosave';
+import { AutosaveFailure, useAutosave } from './use-autosave';
 
 function deferred() {
   let resolve!: () => void;
@@ -126,6 +126,91 @@ describe('useAutosave', () => {
     expect(save).toHaveBeenCalledTimes(3);
     expect(save).toHaveBeenLastCalledWith('xy');
     expect(result.current.status).toBe('saved');
+  });
+
+  it('stops on a refusal the same value would meet again, and saves the next edit', async () => {
+    const refusal = new AutosaveFailure('error', 'ncr-approved');
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockRejectedValueOnce(refusal)
+      .mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAutosave(save, { delayMs: 100 }));
+
+    act(() => {
+      result.current.change('x');
+      vi.advanceTimersByTime(100);
+    });
+    await settle();
+    expect(result.current.status).toBe('error');
+    expect(result.current.failure).toBe(refusal);
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      result.current.change('xy');
+      vi.advanceTimersByTime(100);
+    });
+    await settle();
+    expect(save).toHaveBeenLastCalledWith('xy');
+    expect(result.current.status).toBe('saved');
+    expect(result.current.failure).toBeNull();
+  });
+
+  it('stops saving after a conflict until reset', async () => {
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockRejectedValueOnce(new AutosaveFailure('conflict'))
+      .mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAutosave(save, { delayMs: 100 }));
+
+    act(() => {
+      result.current.change('mine');
+      vi.advanceTimersByTime(100);
+    });
+    await settle();
+    expect(result.current.status).toBe('conflict');
+
+    act(() => {
+      result.current.change('more');
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(result.current.status).toBe('conflict');
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.status).toBe('idle');
+    act(() => {
+      result.current.change('after reload');
+      vi.advanceTimersByTime(100);
+    });
+    await settle();
+    expect(save).toHaveBeenLastCalledWith('after reload');
+  });
+
+  it('tries once more when the save in flight at unmount fails', async () => {
+    const first = deferred();
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const { result, unmount } = renderHook(() => useAutosave(save, { delayMs: 10 }));
+
+    act(() => {
+      result.current.change('only');
+      vi.advanceTimersByTime(10);
+    });
+    unmount();
+    first.reject(new Error('offline'));
+    await settle();
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith('only');
   });
 
   it('saves at once on flush, e.g. when the editor loses focus', async () => {
