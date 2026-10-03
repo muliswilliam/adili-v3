@@ -39,6 +39,14 @@ export const envSchema = bffEnvSchema.extend({
    * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
   REVIEW_MOCK: z.stringbool().default(false),
+  /**
+   * With REVIEW_MOCK, how far the mock's clarification ladder has gone with the declarant's
+   * salary (spec 08, #208): `none` stops at the warning; `stopped`, `disciplinary`,
+   * `reinstating` and `reinstated` show the salary stoppage notices.
+   */
+  REVIEW_MOCK_SALARY: z
+    .enum(['none', 'stopped', 'disciplinary', 'reinstating', 'reinstated'])
+    .default('none'),
   ACCESS_API_URL: z.url(),
   /**
    * Serve the applicant's access requests (Form K, My requests, withdraw) and the Commissions

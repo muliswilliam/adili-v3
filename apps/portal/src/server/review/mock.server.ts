@@ -31,7 +31,13 @@ import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
-import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
+import { envSchema } from '../env.server';
+import {
+  type MockSalary,
+  noticeInStore,
+  noticesRoute,
+  resetNoticesMock,
+} from './notices-mock.server';
 import type { DeclarantClarification, DeclarantDecision } from './types';
 
 const RESPONSE_DAYS = 30;
@@ -187,9 +193,10 @@ export function resetReviewMock(
   {
     letterIssueMs = MOCK_LETTER_ISSUE_MS,
     noNotices = false,
-  }: { letterIssueMs?: number; noNotices?: boolean } = {},
+    salary = 'none',
+  }: { letterIssueMs?: number; noNotices?: boolean; salary?: MockSalary } = {},
 ) {
-  resetNoticesMock(now, { empty: noNotices });
+  resetNoticesMock(now, { empty: noNotices, salary });
   issueDelayMs = letterIssueMs;
   decisions.clear();
   failNextLetter = false;
@@ -344,7 +351,11 @@ export function mockNotice(actionId: string) {
 }
 
 function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock();
+  if (clarifications.size === 0) {
+    resetReviewMock(Date.now(), {
+      salary: envSchema.shape.REVIEW_MOCK_SALARY.parse(process.env.REVIEW_MOCK_SALARY),
+    });
+  }
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {

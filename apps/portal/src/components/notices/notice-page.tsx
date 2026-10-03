@@ -47,6 +47,7 @@ import {
   RESPONSE_MAX_FILES,
 } from '../../clarification/response-form';
 import { COPY, STEP_TITLES } from '../../notices/copy';
+import { salaryStandingOf } from '../../notices/salary';
 import { canRespond, isClosed, ladderNotices, ladderOf, windowOf } from '../../notices/view';
 import {
   completeAttachmentUpload,
@@ -63,6 +64,7 @@ import {
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../declaration/attachments';
 import { loginHref } from '../sign-in';
 import { ComplyLink, LadderStrip, NoticeStatusBadge } from './notices-view';
+import { SalaryBanner, SalaryCard } from './salary-parts';
 
 /**
  * A notice to comply or a warning as the declarant sees it (spec 08 FE-7, S9, S17): by when to
@@ -124,6 +126,7 @@ export function NoticePage(props: NoticePageProps) {
             <h2 className="border-b px-5 py-4 text-base font-semibold">{COPY.whatHappened}</h2>
             <p className="px-5 py-4">{COPY.happened[notice.whatToDo]}</p>
           </Card>
+          <SalaryCard notice={notice} />
           {canRespond(notice) ? (
             <RespondForm
               notice={notice}
@@ -147,6 +150,8 @@ export function NoticePage(props: NoticePageProps) {
 }
 
 function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
+  const salary = salaryStandingOf(notice);
+  if (salary) return <SalaryBanner standing={salary} />;
   if (notice.salaryReinstatedAt) {
     return (
       <Alert variant="success" role="status">

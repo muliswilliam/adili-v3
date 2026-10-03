@@ -38,9 +38,11 @@ import {
   urgentNotice,
   windowOf,
 } from '../../notices/view';
+import { salaryOnTop } from '../../notices/salary';
 import type { MyNoticesResult } from '../../server/notices.server';
 import type { ActionStatus, DeclarantNotice } from '../../server/review/types';
 import { Pager } from '../my-declarations/pager';
+import { SalaryBanner } from './salary-parts';
 
 /**
  * The declarant's Notices (spec 08 FE-7, S17): the notice to act on soonest on top with the way
@@ -348,6 +350,7 @@ function Notices({
   page: number;
   onPage: (page: number) => void;
 }) {
+  const salary = salaryOnTop(notices);
   const urgent = urgentNotice(notices, now);
   const listRef = useRef<HTMLDivElement>(null);
   const pages = Math.max(1, Math.ceil(notices.length / NOTICES_PAGE_SIZE));
@@ -358,7 +361,9 @@ function Notices({
   const stripFor = urgent ?? (allComplied ? (notices[0] ?? null) : null);
   return (
     <div className="mt-6 grid gap-4">
-      {urgent?.actBy ? (
+      {salary ? (
+        <SalaryBanner standing={salary} />
+      ) : urgent?.actBy ? (
         <Alert
           variant={urgent.step === 'notice-to-comply' ? 'warning' : 'destructive'}
           role="status"
