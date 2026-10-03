@@ -91,12 +91,13 @@ describe('LadderStepper', () => {
             status: 'stopped',
             payroll: 'Payroll acknowledged 20 Aug 2026',
           },
-          STEPS[3] as LadderStepperStep,
+          ...STEPS.slice(3),
         ]}
       />,
     );
 
-    const stoppage = items().getAllByRole('listitem')[2] as HTMLElement;
+    const [, , stoppage] = items().getAllByRole('listitem');
+    if (!stoppage) throw new Error('no stoppage step');
     expect(within(stoppage).getByText('Payroll acknowledged 20 Aug 2026')).toBeTruthy();
     expect(items().getAllByRole('listitem')[0]?.querySelector('[data-payroll]')).toBeNull();
   });

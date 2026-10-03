@@ -60,9 +60,11 @@ describe('NoticePage (S17)', () => {
     expect(screen.getAllByText('ADM-TSC-2026-0000412-U').length).toBeGreaterThan(0);
     const banner = screen.getByText(/^Act by 7 Oct 2026 \(/).closest('[role="status"]');
     expect(banner?.textContent).toBe(
-      'Act by 7 Oct 2026 (9 days left). File your declaration. If you do not, TSC may issue a warning.File declaration',
+      'Act by 7 Oct 2026 (9 days left). File your biennial declaration 2026. If you do not, TSC may issue a warning.File declaration',
     );
-    expect(screen.getByText('You did not file a declaration that was due.')).toBeTruthy();
+    expect(
+      screen.getByText('You did not file your biennial declaration 2026 by its due date.'),
+    ).toBeTruthy();
     expect(screen.getByText('9 days left')).toBeTruthy();
     expect(screen.getByText('Act by 7 Oct 2026 · day 5 of 14')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Download PDF/ }).getAttribute('href')).toBe(
@@ -70,11 +72,18 @@ describe('NoticePage (S17)', () => {
     );
   });
 
-  it('a warning names the next consequence', () => {
+  it('a warning names its clarification, when it was due, and the next consequence', () => {
     renderPage(IDS.warning);
     expect(
+      screen.getByText(
+        'You did not respond to clarification CLR-TSC-2026-0000519-L by 9 Sep 2026, when your response was due.',
+      ),
+    ).toBeTruthy();
+    expect(
       screen.getByText(/^Act by 10 Oct 2026 \(/).closest('[role="status"]')?.textContent,
-    ).toContain('Respond to your clarification. If you do not, TSC may stop your salary.');
+    ).toContain(
+      'Respond to clarification CLR-TSC-2026-0000519-L. If you do not, TSC may stop your salary.',
+    );
   });
 
   it('sends one response after confirming (S9)', async () => {
@@ -98,7 +107,7 @@ describe('NoticePage (S17)', () => {
     const dialog = screen.getByRole('dialog', { name: 'Submit your response?' });
     expect(
       within(dialog).getByText(
-        'This does not stop the notice to comply. To comply, file your declaration.',
+        'This does not stop the notice to comply. To comply, file your biennial declaration 2026.',
       ),
     ).toBeTruthy();
     await act(async () => {
@@ -109,8 +118,7 @@ describe('NoticePage (S17)', () => {
       data: {
         actionId: IDS.noticeOpen,
         idempotencyKey: expect.any(String) as string,
-        text: 'I was in hospital.',
-        attachments: [],
+        response: { text: 'I was in hospital.', attachments: [] },
       },
     });
     expect(screen.queryByLabelText('Your response')).toBeNull();

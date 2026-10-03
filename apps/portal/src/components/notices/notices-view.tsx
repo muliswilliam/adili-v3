@@ -29,7 +29,14 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 
-import { COPY, STATUS_LABELS, STEP_SHORT, STEP_TITLES, STRIP_STATES } from '../../notices/copy';
+import {
+  COPY,
+  SALARY_STOPPED,
+  STATUS_LABELS,
+  STEP_SHORT,
+  STEP_TITLES,
+  STRIP_STATES,
+} from '../../notices/copy';
 import {
   followedBy,
   isClosed,
@@ -90,7 +97,7 @@ export function NoticeStatusBadge({ notice }: { notice: DeclarantNotice }) {
   return (
     <Badge variant={variant}>
       <Icon icon={pastNotice ? AlertCircleIcon : STATUS_ICONS[notice.status]} />
-      {stopped ? COPY.salaryStoppedBadge : STATUS_LABELS[notice.status]}
+      {stopped ? SALARY_STOPPED.en : STATUS_LABELS[notice.status].en}
     </Badge>
   );
 }
@@ -149,7 +156,9 @@ function NoticeRow({
           />
         </IconTile>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[15.5px] leading-[1.35] font-semibold">{STEP_TITLES[notice.step]}</h3>
+          <h3 className="text-[15.5px] leading-[1.35] font-semibold">
+            {STEP_TITLES[notice.step].en}
+          </h3>
           <p className="mt-[3px] text-[13.5px] leading-[1.45] text-muted-foreground">
             <span className="font-mono text-[0.94em] tracking-[0.01em] break-all">
               {notice.reference}
@@ -230,10 +239,10 @@ export function LadderStrip({
               state === 'current' ? 'font-semibold' : 'text-muted-foreground',
             )}
           >
-            {STEP_SHORT[step]}
+            {STEP_SHORT[step].en}
           </span>
           <span className={cn('text-muted-foreground', compact ? 'text-[12px]' : 'text-[12.5px]')}>
-            {STRIP_STATES[state]}
+            {STRIP_STATES[state].en}
           </span>
         </li>
       ))}
@@ -371,7 +380,7 @@ function Notices({
           <Icon icon={urgent.step === 'notice-to-comply' ? Notification01Icon : AlertCircleIcon} />
           <AlertTitle className="font-normal">
             <span className="font-semibold">{`${COPY.actBy(formatDate(urgent.actBy))}.`}</span>{' '}
-            <span>{COPY.todo[urgent.whatToDo]}</span>
+            <span>{COPY.todo(urgent.subject)}</span>
           </AlertTitle>
           <AlertDescription className="mt-2.5">
             <ComplyLink notice={urgent} />

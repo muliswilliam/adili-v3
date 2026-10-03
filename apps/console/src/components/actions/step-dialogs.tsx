@@ -102,7 +102,11 @@ export function consequencesOf(
   const days = LADDER_WINDOW_DAYS[step];
   return [
     { icon: HashtagIcon, title: m.consequences.reference },
-    { icon: File01Icon, title: m.consequences.letter(step), detail: m.consequences.letterDetail },
+    {
+      icon: File01Icon,
+      title: m.consequences.letter(step),
+      detail: m.consequences.letterDetail,
+    },
     ...(days === null
       ? []
       : [
@@ -266,7 +270,7 @@ export function DeclineStepDialog({
         <DialogBody className="grid gap-4">
           <Alert variant="warning" role="note">
             <Icon icon={InformationCircleIcon} />
-            <AlertDescription>{stoppage.declineWarning[step] ?? m.declineWarning}</AlertDescription>
+            <AlertDescription>{m.declineWarning(step)}</AlertDescription>
           </Alert>
           <div className="grid gap-1.5">
             <Label htmlFor={fieldId}>{m.note}</Label>

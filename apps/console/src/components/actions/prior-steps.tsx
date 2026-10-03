@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from 'react';
 
 import type { ActionStep, AdministrativeAction, Ladder } from '../../server/actions.server';
-import { STEP_LABELS } from './messages';
+import { stepLabel } from './messages';
 import { PayrollInstruction, payrollInstructionsOf } from './payroll-instruction';
 import { stoppageCopy as c } from './stoppage-messages';
 
@@ -96,7 +96,7 @@ function PriorSteps({ steps }: { steps: readonly AdministrativeAction[] }) {
           <div className="grid min-w-0 gap-1.5">
             <div className="grid gap-0.5">
               <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
-                <span className="font-medium text-foreground">{STEP_LABELS[step.step]}</span>
+                <span className="font-medium text-foreground">{stepLabel(step.step)}</span>
                 {step.reference ? (
                   <span className="font-mono text-[12.5px] text-muted-foreground">
                     {step.reference}

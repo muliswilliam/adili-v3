@@ -2,21 +2,14 @@ import { daysBetween } from '@adili/ui';
 
 import type { ActionStep, DeclarantNotice } from '../server/review/types';
 
-/**
- * The declarant's notices as the Notices pages read them (spec 08 FE-7). Pure.
- *
- * review.yaml `DeclarantNotice` carries no ladder id, so the steps of one ladder are told apart
- * by their Commission, what they ask (file the declaration, respond to the clarification) and
- * whether the ladder has closed: a closed notice (complied, cancelled, salary reinstated) belongs
- * with the other closed ones, an open one with the open ones.
- */
+/** The declarant's notices as the Notices pages read them (spec 08 FE-7), by ladder. Pure. */
 
-export const NOTICE_STEPS: readonly ActionStep[] = [
+export const NOTICE_STEPS = [
   'notice-to-comply',
   'warning',
   'salary-stoppage',
   'disciplinary-referral',
-];
+] as const satisfies readonly ActionStep[];
 
 const CLOSED: ReadonlySet<DeclarantNotice['status']> = new Set([
   'complied',
@@ -29,17 +22,12 @@ export function isClosed(notice: DeclarantNotice): boolean {
   return CLOSED.has(notice.status);
 }
 
-const stepIndex = (step: ActionStep) => NOTICE_STEPS.indexOf(step);
+const stepIndex = (step: ActionStep) => (NOTICE_STEPS as readonly ActionStep[]).indexOf(step);
 
 /** The notices of the same ladder as `notice`, earliest step first. */
 export function ladderNotices(notice: DeclarantNotice, all: readonly DeclarantNotice[]) {
   return all
-    .filter(
-      (each) =>
-        each.commission.slug === notice.commission.slug &&
-        each.whatToDo === notice.whatToDo &&
-        isClosed(each) === isClosed(notice),
-    )
+    .filter((each) => each.ladderId === notice.ladderId)
     .sort((a, b) => stepIndex(a.step) - stepIndex(b.step) || a.issuedAt.localeCompare(b.issuedAt));
 }
 
@@ -105,7 +93,7 @@ export interface NoticeWindow {
 /** Where the window to act stands, or null for a step that sets no deadline. */
 export function windowOf(notice: DeclarantNotice, now: string): NoticeWindow | null {
   if (!notice.actBy) return null;
-  const of = daysBetween(notice.issuedAt, notice.actBy);
+  const of = notice.windowDays ?? daysBetween(notice.issuedAt, notice.actBy);
   const day = Math.min(of, Math.max(0, daysBetween(notice.issuedAt, now)));
   return { daysLeft: daysBetween(now, notice.actBy), day, of };
 }

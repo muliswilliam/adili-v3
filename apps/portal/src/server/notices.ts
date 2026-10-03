@@ -6,6 +6,7 @@ import {
   loadMyNotices,
   type MyNoticesResult,
   type NoticeRespondResult,
+  type NoticeResponse,
   respondToNotice,
 } from './notices.server';
 import type { Unauthenticated } from './results';
@@ -33,12 +34,14 @@ export const respondToMyNotice = createServerFn({ method: 'POST' })
       actionId: z.uuid(),
       /** One per form, reused on retry. */
       idempotencyKey: z.uuid(),
-      text: z.string().trim().min(1).max(4000),
-      attachments: z.array(z.uuid()).max(10),
+      response: z.object({
+        text: z.string().trim().min(1).max(4000),
+        attachments: z.array(z.uuid()).max(10),
+      }) satisfies z.ZodType<NoticeResponse>,
     }),
   )
   .handler(({ data }): Promise<NoticeRespondResult | Unauthenticated> =>
     asDeclarant((client) =>
-      respondToNotice(client, data.actionId, data.text, data.attachments, data.idempotencyKey),
+      respondToNotice(client, data.actionId, data.response, data.idempotencyKey),
     ),
   );

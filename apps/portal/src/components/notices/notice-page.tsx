@@ -49,18 +49,9 @@ import {
 import { COPY, STEP_TITLES } from '../../notices/copy';
 import { salaryStandingOf } from '../../notices/salary';
 import { canRespond, isClosed, ladderNotices, ladderOf, windowOf } from '../../notices/view';
-import {
-  completeAttachmentUpload,
-  createAttachmentUpload,
-  getAttachmentUpload,
-} from '../../server/documents/uploads';
 import { respondToMyNotice } from '../../server/notices';
 import type { DeclarantNotice } from '../../server/review/types';
-import {
-  putToPresignedUrl,
-  uploadAttachment,
-  type UploadSteps,
-} from '../declaration/attachment-upload';
+import { useResponseUploads } from '../response-uploads';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../declaration/attachments';
 import { loginHref } from '../sign-in';
 import { ComplyLink, LadderStrip, NoticeStatusBadge } from './notices-view';
@@ -105,7 +96,7 @@ export function NoticePage(props: NoticePageProps) {
           tabIndex={-1}
           className="text-2xl font-semibold tracking-tight outline-none"
         >
-          {STEP_TITLES[notice.step]}
+          {STEP_TITLES[notice.step].en}
         </h1>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted-foreground">
           <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-[13px] font-semibold text-foreground">
@@ -124,7 +115,7 @@ export function NoticePage(props: NoticePageProps) {
           <Banner notice={notice} now={props.now} />
           <Card className="p-0 sm:p-0">
             <h2 className="border-b px-5 py-4 text-base font-semibold">{COPY.whatHappened}</h2>
-            <p className="px-5 py-4">{COPY.happened[notice.whatToDo]}</p>
+            <p className="px-5 py-4">{COPY.happened(notice.subject)}</p>
           </Card>
           <SalaryCard notice={notice} />
           {canRespond(notice) ? (
@@ -152,14 +143,6 @@ export function NoticePage(props: NoticePageProps) {
 function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
   const salary = salaryStandingOf(notice);
   if (salary) return <SalaryBanner standing={salary} />;
-  if (notice.salaryReinstatedAt) {
-    return (
-      <Alert variant="success" role="status">
-        <Icon icon={Tick02Icon} />
-        <AlertTitle>{COPY.salaryReinstated(formatDate(notice.salaryReinstatedAt))}</AlertTitle>
-      </Alert>
-    );
-  }
   if (isClosed(notice)) {
     return (
       <Alert variant="success" role="status">
@@ -170,24 +153,13 @@ function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
       </Alert>
     );
   }
-  if (notice.salaryStoppedAt) {
-    return (
-      <Alert variant="destructive" role="status">
-        <Icon icon={AlertCircleIcon} />
-        <AlertTitle>{COPY.salaryStopped}</AlertTitle>
-        <AlertDescription className="mt-2.5">
-          <ComplyLink notice={notice} />
-        </AlertDescription>
-      </Alert>
-    );
-  }
   if (notice.status === 'responded') {
     return (
       <Alert variant="info" role="status">
         <Icon icon={SentIcon} />
         <AlertTitle className="font-normal">
           <span className="font-semibold">{COPY.respondedBanner}</span>
-          {COPY.respondedBody(notice.whatToDo)}
+          {COPY.respondedBody(notice.subject)}
         </AlertTitle>
         <AlertDescription className="mt-2.5">
           <ComplyLink notice={notice} />
@@ -206,7 +178,7 @@ function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
             {COPY.actByBanner(formatDate(notice.actBy), Math.max(0, window.daysLeft))}
           </span>
         ) : null}{' '}
-        {COPY.todo[notice.whatToDo]} {COPY.consequence(notice.step, shortName(notice))}
+        {COPY.todo(notice.subject)} {COPY.consequence(notice.step, shortName(notice))}
       </AlertTitle>
       <AlertDescription className="mt-2.5">
         <ComplyLink notice={notice} />
@@ -215,55 +187,17 @@ function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
   );
 }
 
-function wait(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
 /** The notice's one response: a text and documents uploaded as `action-response`. */
 function useNoticeResponse() {
   const [form, dispatch] = useReducer(responseFormReducer, 1, newResponseForm);
-  const [files] = useState(() => new Map<string, File>());
-
-  function start(rowId: string, file: File) {
-    const steps: UploadSteps = {
-      reserve: (picked) =>
-        createAttachmentUpload({ data: { ...picked, purpose: 'action-response' } }),
-      put: putToPresignedUrl,
-      complete: (uploadId) => completeAttachmentUpload({ data: { uploadId } }),
-      check: (uploadId) => getAttachmentUpload({ data: { uploadId } }),
-      // Tied to the notice when the response is sent; nothing to link before.
-      link: () => Promise.resolve({ status: 'linked', size: file.size }),
-      wait,
-    };
-    void uploadAttachment(rowId, file, steps, (event) => {
-      if (event.type === 'linked') files.delete(rowId);
-      dispatch(event);
-    });
-  }
-
+  const uploads = useResponseUploads('action-response', dispatch);
   return {
     form,
     dispatch,
     attach: (file: File, rejection: 'type' | 'size' | null) => {
-      const rowId = crypto.randomUUID();
-      dispatch({
-        type: 'picked',
-        id: rowId,
-        itemId: pointKey(0),
-        name: file.name,
-        size: file.size,
-        rejection,
-      });
-      if (rejection) return;
-      files.set(rowId, file);
-      start(rowId, file);
+      uploads.attach(pointKey(0), file, rejection);
     },
-    retry: (rowId: string) => {
-      const file = files.get(rowId);
-      if (!file) return;
-      dispatch({ type: 'retry', id: rowId });
-      start(rowId, file);
-    },
+    retry: uploads.retry,
   };
 }
 
@@ -320,8 +254,10 @@ function RespondForm({
         data: {
           actionId: notice.actionId,
           idempotencyKey,
-          text: text.trim(),
-          attachments: form.files.flatMap((file) => (file.uploadId ? [file.uploadId] : [])),
+          response: {
+            text: text.trim(),
+            attachments: form.files.flatMap((file) => (file.uploadId ? [file.uploadId] : [])),
+          },
         },
       });
     } catch {
@@ -355,7 +291,7 @@ function RespondForm({
     }
   }
 
-  const [lead, strong, tail] = COPY.respondInfo(shortName(notice), notice.whatToDo);
+  const [lead, strong, tail] = COPY.respondInfo(shortName(notice), notice.subject);
   return (
     <Card className="p-0 sm:p-0">
       <h2 className="border-b px-5 py-4 text-base font-semibold">
@@ -449,7 +385,7 @@ function RespondForm({
             <Alert variant="warning" role="note">
               <Icon icon={InformationCircleIcon} />
               <AlertDescription>
-                {COPY.confirmWarning(notice.step, notice.whatToDo)}
+                {COPY.confirmWarning(notice.step, notice.subject)}
               </AlertDescription>
             </Alert>
           </DialogBody>

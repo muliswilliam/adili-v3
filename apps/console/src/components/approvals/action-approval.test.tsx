@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { SUPERVISOR } from '@adili/roles';
+import { REVIEWER, SUPERVISOR } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -48,7 +48,9 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ invalidate }),
 }));
 
-const client = () => mockReviewClient(ME.subject, ME.name, [SUPERVISOR]);
+/** The viewer's roles when a decision call goes out; a test may take supervisor away. */
+const viewer = { roles: [SUPERVISOR] as string[] };
+const client = () => mockReviewClient(ME.subject, ME.name, viewer.roles);
 
 vi.mock('../../server/actions', async () => {
   const server = await import('../../server/actions.server');
@@ -124,6 +126,7 @@ function card(name: string): HTMLElement {
 }
 
 beforeEach(() => {
+  viewer.roles = [SUPERVISOR];
   resetReviewMock(NOW_MS);
   invalidate.mockClear();
 });
@@ -206,5 +209,25 @@ describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and issue' }));
     const notice = await screen.findByRole('dialog', { name: 'Already decided' });
     expect(within(notice).getByText('409 not-proposed')).toBeTruthy();
+  });
+
+  it('explains a supervisor-required refusal, without Reassign (403)', async () => {
+    await open();
+    // The viewer loses the supervisor role after the inbox loaded.
+    viewer.roles = [REVIEWER];
+    fireEvent.click(
+      within(card('Janet Achieng Odero')).getByRole('button', { name: 'Approve stoppage' }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Approve salary stoppage' });
+    expect(within(dialog).getByText('Payroll receives a stop_salary instruction')).toBeTruthy();
+    await within(dialog).findByRole('list', { name: 'What came before' });
+    fireEvent.click(within(dialog).getByRole('checkbox'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and stop salary' }));
+    const notice = await screen.findByRole('dialog', { name: 'You cannot approve this' });
+    expect(within(notice).getByText('Only a supervisor can approve this step.')).toBeTruthy();
+    expect(within(notice).getByText('403 supervisor-required')).toBeTruthy();
+    expect(
+      within(notice).queryByRole('button', { name: 'Reassign to another supervisor' }),
+    ).toBeNull();
   });
 });

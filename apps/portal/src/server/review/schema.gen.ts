@@ -2095,6 +2095,22 @@ export interface components {
         DeclarantNotice: {
             /** Format: uuid */
             actionId: string;
+            /**
+             * Format: uuid
+             * @description The ladder the step belongs to: the notices of one subject share it
+             */
+            ladderId: string;
+            /** @description What the declarant failed to do, as the letter names it */
+            subject: {
+                /** @enum {string} */
+                kind: "obligation" | "clarification";
+                /** @description The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference */
+                reference: string;
+                /** @description When the clarification's response was due; null for an obligation (its due date is the declarations service's) */
+                dueAt: string | null;
+            };
+            /** @description Days the step gives the declarant to act, from issue to `actBy`; null for a step without a deadline */
+            windowDays: number | null;
             commission: {
                 slug: string;
                 name: string;

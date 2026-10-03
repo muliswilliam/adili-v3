@@ -1,13 +1,13 @@
 import { formatDate } from '@adili/ui';
 
 import type { DeclarantNotice } from '../server/review/types';
+import { COPY } from './copy';
 
 type WhatToDo = DeclarantNotice['whatToDo'];
 
 /** Copy for the declarant's salary stoppage and disciplinary referral (spec 08 FE-7, #208). */
 export const SALARY_COPY = {
-  stopped:
-    'Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.',
+  stopped: COPY.salaryStopped,
   toComply: (whatToDo: WhatToDo) =>
     `To comply: ${whatToDo === 'file-declaration' ? 'file your declaration' : 'respond to your clarification'}.`,
   disciplinary: (commission: string) =>

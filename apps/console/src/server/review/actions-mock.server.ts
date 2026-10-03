@@ -37,6 +37,7 @@
 import { REVIEWER, SUPERVISOR } from '@adili/roles';
 
 import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
+import { stepLabel } from '../../components/actions/messages';
 import { isRecord, json, type MockCaller, problem, readJson } from '../mock-http';
 import type { components } from './api.gen';
 import type { MockApprovalSource } from './approvals-mock.server';
@@ -116,16 +117,9 @@ function actionId(ladder: number, n: number): string {
 
 function letterOf(id: string, reference: string, step: Step): Action['letter'] {
   const documentId = id.replace(/^ac71/, 'd0c1');
-  letters.set(documentId, `${STEP_TITLES[step]} ${reference}`);
+  letters.set(documentId, `${stepLabel(step)} ${reference}`);
   return { documentId, verificationId: `ADL-${reference.slice(-9, -2)}-Q3FD` };
 }
-
-const STEP_TITLES: Record<Step, string> = {
-  'notice-to-comply': 'Notice to comply',
-  warning: 'Warning',
-  'salary-stoppage': 'Salary stoppage',
-  'disciplinary-referral': 'Disciplinary referral',
-};
 
 function blank(id: string, ladderId: string, step: Step, proposedAt: number): Action {
   return {

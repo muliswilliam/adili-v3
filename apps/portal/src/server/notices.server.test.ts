@@ -68,8 +68,7 @@ describe('respondToNotice (S9)', () => {
     const result = await respondToNotice(
       client,
       IDS.noticeOpen,
-      'I was in hospital.',
-      [upload],
+      { text: 'I was in hospital.', attachments: [upload] },
       key,
     );
     if (result.status !== 'responded') throw new Error(result.status);
@@ -81,37 +80,57 @@ describe('respondToNotice (S9)', () => {
     const again = await respondToNotice(
       client,
       IDS.noticeOpen,
-      'I was in hospital.',
-      [upload],
+      { text: 'I was in hospital.', attachments: [upload] },
       key,
     );
     expect(again.status).toBe('responded');
 
-    const second = await respondToNotice(client, IDS.noticeOpen, 'Again', [], crypto.randomUUID());
+    const second = await respondToNotice(
+      client,
+      IDS.noticeOpen,
+      { text: 'Again', attachments: [] },
+      crypto.randomUUID(),
+    );
     expect(second).toEqual({ status: 'conflict', reason: 'already-responded' });
   });
 
   it('refuses a closed notice and an attachment of another purpose', async () => {
     expect(
-      await respondToNotice(client, IDS.complied, 'Too late', [], crypto.randomUUID()),
+      await respondToNotice(
+        client,
+        IDS.complied,
+        { text: 'Too late', attachments: [] },
+        crypto.randomUUID(),
+      ),
     ).toEqual({ status: 'conflict', reason: 'notice-closed' });
     const other = await cleanUpload('clarification-attachment');
     expect(
-      await respondToNotice(client, IDS.warning, 'Here', [other], crypto.randomUUID()),
+      await respondToNotice(
+        client,
+        IDS.warning,
+        { text: 'Here', attachments: [other] },
+        crypto.randomUUID(),
+      ),
     ).toEqual({ status: 'conflict', reason: 'attachment-not-accepted' });
   });
 
   it('is unavailable when the service is down, and not found for another notice', async () => {
     failNextNoticeResponse();
-    expect(await respondToNotice(client, IDS.warning, 'Here', [], crypto.randomUUID())).toEqual({
+    expect(
+      await respondToNotice(
+        client,
+        IDS.warning,
+        { text: 'Here', attachments: [] },
+        crypto.randomUUID(),
+      ),
+    ).toEqual({
       status: 'unavailable',
     });
     expect(
       await respondToNotice(
         client,
         '00000000-0000-4000-8000-000000000000',
-        'Here',
-        [],
+        { text: 'Here', attachments: [] },
         crypto.randomUUID(),
       ),
     ).toEqual({ status: 'not-found' });

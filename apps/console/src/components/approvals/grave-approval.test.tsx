@@ -210,7 +210,9 @@ describe('the disciplinary referral in the inbox (S10)', () => {
     );
     const dialog = await screen.findByRole('dialog', { name: 'Decline disciplinary referral' });
     expect(
-      within(dialog).getByText('The salary stays stopped and the ladder waits for compliance.'),
+      within(dialog).getByText(
+        'Declining keeps the ladder open: it waits for compliance, and a stopped salary stays stopped until then.',
+      ),
     ).toBeTruthy();
     fireEvent.change(within(dialog).getByLabelText('Note'), {
       target: { value: 'TSC has started proceedings already.' },

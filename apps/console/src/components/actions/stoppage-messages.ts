@@ -72,10 +72,4 @@ export const stoppageCopy = {
     'disciplinary-referral':
       'The letter is issued, the declarant notified and the reporting entity told to act.',
   } as Partial<Record<ActionStep, string>>,
-  declineWarning: {
-    'disciplinary-referral': 'The salary stays stopped and the ladder waits for compliance.',
-  } as Partial<Record<ActionStep, string>>,
-  declinedDetail: {
-    'disciplinary-referral': 'The ladder waits for compliance.',
-  } as Partial<Record<ActionStep, string>>,
 } as const;

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 
+import { STEP_TITLES } from '../../notices/copy';
 import { env } from '../../server/env.server';
 
 /**
@@ -8,13 +9,6 @@ import { env } from '../../server/env.server';
  * one-page placeholder PDF naming the clarification, the decision or the notice. Development and
  * tests only; everywhere else it is a 404.
  */
-const STEP_TITLES = {
-  'notice-to-comply': 'Notice to comply',
-  warning: 'Warning',
-  'salary-stoppage': 'Salary stoppage',
-  'disciplinary-referral': 'Disciplinary referral',
-} as const;
-
 async function letter(id: string): Promise<Response> {
   const { mockClarification, mockDecisionLetter, mockNotice } =
     await import('../../server/review/mock.server');
@@ -22,7 +16,7 @@ async function letter(id: string): Promise<Response> {
   const notice = mockNotice(id);
   if (notice) {
     const lines = [
-      `${STEP_TITLES[notice.step]} ${notice.reference}`,
+      `${STEP_TITLES[notice.step].en} ${notice.reference}`,
       notice.commission.name,
       notice.actBy ? `Act by ${notice.actBy.slice(0, 10)}.` : '',
       'Placeholder letter from the development mock.',
