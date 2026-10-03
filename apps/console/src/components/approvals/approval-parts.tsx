@@ -3,6 +3,8 @@ import { ArrowDataTransferHorizontalIcon } from '@hugeicons/core-free-icons';
 
 import type { InboxItem } from '../../server/approvals.server';
 import type { Assignee } from '../../server/review/types';
+import { problemLabel } from '../../server/service-call';
+import type { ApprovalNotice } from './kind';
 import { messages as m } from './messages';
 
 /**
@@ -37,6 +39,16 @@ export function ReassignActions({
       ) : null}
     </>
   );
+}
+
+/** "Already decided": someone decided the approval while the page was open (409 `not-proposed`). */
+export function decidedNotice(): ApprovalNotice {
+  return {
+    title: m.decided.title,
+    failure: { title: m.decided.body, problem: problemLabel(409, 'not-proposed') },
+    after: m.decided.after,
+    offerReassign: false,
+  };
 }
 
 /** Who proposed an approval, by name, or the system. */

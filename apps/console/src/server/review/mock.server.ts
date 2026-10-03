@@ -71,11 +71,10 @@ import {
   determinationApprovals,
   determinationsOf,
   determinationsRoute,
-  MOCK_CALLER,
-  type MockCases,
   mockDecisionLetterTitle,
   resetDeterminationsMock,
 } from './determinations-mock.server';
+import { MOCK_CALLER, type MockCases } from './mock-parts.server';
 import type {
   Assignee,
   CaseDetail,
@@ -867,7 +866,7 @@ function seedDeterminationCases(now: number) {
   }
   // First: the determinations seed their reassignments into it.
   resetApprovalsMock({
-    sources: [determinationApprovals],
+    sources: { determination: determinationApprovals },
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },

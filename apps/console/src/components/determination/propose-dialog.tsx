@@ -9,6 +9,7 @@ import {
   DialogFooter,
   FieldError,
   FieldHint,
+  formatNumber,
   Icon,
   Label,
   OUTCOME_BADGE_MESSAGES,
@@ -48,7 +49,7 @@ function Counter({ id, length, max }: { id: string; length: number; max: number 
           : 'text-right text-[12.5px] text-muted-foreground'
       }
     >
-      {length.toLocaleString('en-KE')} / {max.toLocaleString('en-KE')}
+      {formatNumber(length)} / {formatNumber(max)}
     </span>
   );
 }

@@ -33,7 +33,7 @@ export type DeterminationState =
       current: Determination;
       /** The viewer proposed it. */
       withdraw: boolean;
-      /** A supervisor other than the proposer, who decides it in the inbox. */
+      /** A supervisor other than the proposer, who decides it in the inbox (not a bulk closure). */
       openInApprovals: boolean;
     }
   | {
@@ -78,11 +78,14 @@ export function determinationState(
     };
   }
   const proposedByViewer = current.proposer?.subject === viewer.subject;
+  // The system's no-issues proposals are bulk closures: approved on their own page, not the inbox.
+  const bulkClosure =
+    current.proposerKind === 'system' && current.outcome === 'compliant-no-issues';
   return {
     kind: 'proposed',
     current,
     withdraw: proposedByViewer,
-    openInApprovals: viewer.supervisor && !proposedByViewer,
+    openInApprovals: viewer.supervisor && !proposedByViewer && !bulkClosure,
   };
 }
 
