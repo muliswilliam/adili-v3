@@ -28,6 +28,10 @@ const is = (system: SystemName) => `${system.name} ${system.plural ? 'are' : 'is
 const itIs = (system: SystemName) => (system.plural ? 'they are' : 'it is');
 const its = (system: SystemName) => (system.plural ? 'their' : 'its');
 
+/** Reporting tries an ICMS push a few times, then gives up: what a pause refused is not sent. */
+const ICMS_RETRIES =
+  'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.';
+
 /**
  * Copy of the Integrations page (spec 07b frontend, FE-3; prototype 07b-registry). One English
  * string per key; the Swahili slot stays empty until translations are reviewed by EACC. System
@@ -120,10 +124,8 @@ export const en = {
   payrollResumed:
     'Those refused while it was paused are sent within about 5 minutes: the review service keeps retrying them.',
   icmsInstructions: 'Referrals',
-  icmsRetries:
-    'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
-  icmsResumed:
-    'Nothing refused while it was paused is sent on its own. Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
+  icmsRetries: ICMS_RETRIES,
+  icmsResumed: `Nothing refused while it was paused is sent on its own. ${ICMS_RETRIES}`,
   actionForbidden: 'You do not have access to pause or resume integrations.',
   operatedBy: 'Operated by',
   rateLimit: 'Rate limit',
