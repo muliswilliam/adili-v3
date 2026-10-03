@@ -33,10 +33,15 @@ import {
 import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
-import { mockOpenDataFetch } from './open-data-mock.server';
+import { MOCK_PSC } from './mock-commissions';
+import {
+  mockOpenDataFetch,
+  type OpenDataMockScenario,
+  setOpenDataMockScenario,
+} from './open-data-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
-const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
+const PSC = MOCK_PSC;
 const FIRST_FINANCIAL_YEAR = 2025;
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
@@ -106,13 +111,20 @@ const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 /**
  * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default).
  * `corruptDocument` answers a report whose document is not form-m.v1 (contract drift);
- * `reviewed` has the supervisor mark the year-before's draft reviewed two days ago.
+ * `reviewed` has the supervisor mark the year-before's draft reviewed two days ago. `openData`
+ * is what the Commission open-data preview answers (`open-data-mock.server.ts`);
+ * `REPORTING_MOCK_OPEN_DATA` when not given.
  */
 export function resetReportingMock(
   day: string = nairobiToday(),
-  options: { corruptDocument?: boolean; reviewed?: boolean } = {},
+  options: {
+    corruptDocument?: boolean;
+    reviewed?: boolean;
+    openData?: OpenDataMockScenario;
+  } = {},
 ) {
   today = day;
+  setOpenDataMockScenario(options.openData ?? null);
   corruptDocument = options.corruptDocument ?? false;
   reports.clear();
   const current = financialYearOf(day);

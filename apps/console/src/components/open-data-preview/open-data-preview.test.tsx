@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 import { COMMISSION_ADMIN, REPORTING_OFFICER } from '@adili/roles';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { OpenDataPreviewLoad } from '../../server/open-data-preview';
 import { loadCommissionOpenDataPreview } from '../../server/open-data-preview.server';
 import {
-  mockOpenDataClient,
-  type OpenDataMockScenario,
-  resetOpenDataMock,
-} from '../../server/reporting/open-data-mock.server';
+  mockReportingClient,
+  resetReportingMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
+import type { OpenDataMockScenario } from '../../server/reporting/open-data-mock.server';
 import { noAccessText, OpenDataPreview } from './open-data-preview';
 
 const invalidate = vi.fn();
@@ -17,14 +18,21 @@ vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate }) }))
 
 const PUBLIC_PAGE = 'http://portal.test/open-data';
 
+beforeAll(() => {
+  setReportingMockLatency(0);
+});
+afterAll(() => {
+  setReportingMockLatency(1);
+});
+
 /** The page as the route renders it, for `tenant`'s admin, from the mock through the real loader. */
 async function renderPreview(
   scenario: OpenDataMockScenario,
   { tenant = 'psc', roles = [COMMISSION_ADMIN] }: { tenant?: string; roles?: string[] } = {},
 ) {
-  resetOpenDataMock(scenario);
+  resetReportingMock('2026-10-03', { openData: scenario });
   const load: OpenDataPreviewLoad = {
-    preview: await loadCommissionOpenDataPreview(mockOpenDataClient({ roles, tenant }), tenant),
+    preview: await loadCommissionOpenDataPreview(mockReportingClient(roles, { tenant }), tenant),
     publicPageUrl: PUBLIC_PAGE,
   };
   return render(<OpenDataPreview load={load} />);
@@ -64,6 +72,8 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
     ]);
     expect(cellsOf(at(rows, 0))).toEqual(['2,920', '2,808', '112', '96.2%']);
     expect(cellsOf(at(rows, 3))).toEqual(['50,312', '48,879', '1,433', '97.2%']);
+    // Rates keep one decimal so the column lines up.
+    expect(cellsOf(at(rows, 2))).toEqual(['912', '861', '51', '94.4%']);
   });
 
   it('lists compliance figures, and access requests as not collected yet', async () => {
@@ -107,23 +117,23 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
       'Final',
       'All cycles',
     ]);
-    // Rates keep one decimal so the column lines up.
-    expect(cellsOf(at(rows, 0))).toEqual(['655', '596', '59', '91.0%']);
+    // The final cycle is under 10 officers; the initial one is hidden with it, so the total,
+    // a true sum, gives neither away.
     const marker = at(within(at(rows, 1)).getAllByText('‹10'), 0).parentElement;
     expect(marker?.getAttribute('data-unshown')).toBe('suppressed');
     expect(marker?.textContent).toBe('‹10Not shown to protect privacy');
-    // The total is hidden with it: less the initial cycle it would give the final away.
-    expect(within(at(rows, 2)).getAllByText('‹10')).toHaveLength(4);
-    expect(
-      cellsOf(within(region('Compliance')).getByRole('row', { name: /Referrals/ }))[0],
-    ).toContain('‹10');
+    expect(within(at(rows, 0)).getAllByText('‹10')).toHaveLength(4);
+    expect(cellsOf(at(rows, 2))).toEqual(['663', '602', '61', '90.8%']);
+    expect(cellsOf(within(region('Compliance')).getByRole('row', { name: /Referrals/ }))).toEqual([
+      '3',
+    ]);
     const legend = screen.getByRole('note');
-    expect(legend.textContent).toContain('18 hidden');
+    expect(legend.textContent).toContain('8 hidden');
     expect(legend.textContent).toContain('Protects privacy');
   });
 
   it('marks the figures of a Commission that has not reported', async () => {
-    await renderPreview('published', { tenant: 'jsc' });
+    await renderPreview('published', { tenant: 'nlc' });
     const rows = within(region('Declarations')).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(4);
     expect(within(at(rows, 3)).getAllByText('Not reported')).toHaveLength(4);

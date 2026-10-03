@@ -41,7 +41,8 @@ export function OpenDataPreview({ load }: { load: OpenDataPreviewLoad | null }) 
   const { preview } = load;
   if (!preview.ok) {
     const { error } = preview;
-    // The page asks only for the viewer's own Commission: 404 is "no release built yet".
+    // The page asks only for the viewer's own Commission, as its commission-admin (others are
+    // turned away before): 404 there is "no release built yet", 403 a role it no longer holds.
     if (error.kind === 'problem' && error.problem.status === 404) return <NoOpenData />;
     if (error.kind === 'problem' && error.problem.status === 403) {
       return <NoAccess text={m.forStaff} />;

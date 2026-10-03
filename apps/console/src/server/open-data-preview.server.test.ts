@@ -6,15 +6,30 @@ import {
   SUPERVISOR,
 } from '@adili/roles';
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { json } from './mock-http';
 import { loadCommissionOpenDataPreview } from './open-data-preview.server';
 import type { paths } from './reporting/api.gen';
 import type { ReportingClient } from './reporting/client.server';
-import { mockOpenDataClient, resetOpenDataMock } from './reporting/open-data-mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock,
+  setReportingMockLatency,
+} from './reporting/mock.server';
+import type { OpenDataMockScenario } from './reporting/open-data-mock.server';
 
-const pscAdmin = () => mockOpenDataClient({ roles: [COMMISSION_ADMIN], tenant: 'psc' });
+const pscAdmin = () => mockReportingClient([COMMISSION_ADMIN]);
+const reset = (openData: OpenDataMockScenario = 'published') => {
+  resetReportingMock('2026-10-03', { openData });
+};
+
+beforeAll(() => {
+  setReportingMockLatency(0);
+});
+afterAll(() => {
+  setReportingMockLatency(1);
+});
 
 async function preview(client: ReportingClient, slug = 'psc') {
   const result = await loadCommissionOpenDataPreview(client, slug);
@@ -23,11 +38,8 @@ async function preview(client: ReportingClient, slug = 'psc') {
 }
 
 describe("a Commission's open-data preview (spec 09b S6)", () => {
-  beforeEach(() => {
-    resetOpenDataMock('published');
-  });
-
   it('gives the latest published release and only the Commission its own rows', async () => {
+    reset();
     const data = await preview(pscAdmin());
     expect(data.release).toMatchObject({ fy: 2025, kind: 'annual', version: 1 });
     expect(data.release.status).toBe('published');
@@ -43,19 +55,38 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
   });
 
   it('gives a preview built since the last publication, its suppressed rows marked', async () => {
-    resetOpenDataMock('preview');
+    reset('preview');
     const data = await preview(pscAdmin());
     expect(data.release).toMatchObject({ fy: 2026, kind: 'snapshot', status: 'preview' });
     expect(data.release.publishedAt).toBeNull();
-    expect(data.compliance).toMatchObject({ suppressed: true, determinationsCompliant: null });
+    // Its final cycle is under 10 officers, so its initial one is hidden with it; the total stays.
     expect(data.filing.filter((row) => row.suppressed).map((row) => row.cycle)).toEqual([
+      'initial',
       'final',
-      'all',
     ]);
+    expect(data.filing.find((row) => row.cycle === 'all')).toMatchObject({
+      expected: 663,
+      filed: 602,
+      suppressed: false,
+    });
+    expect(data.compliance).toMatchObject({ suppressed: false, determinationsCompliant: 254 });
+  });
+
+  it('hides with a small cycle what would give it away, as the service does', async () => {
+    reset();
+    // TSC's final cycle is under 10 officers: its initial one goes with it (its row), and JSC's
+    // final and initial ones (the final column, then JSC's row); PSC's stay shown.
+    const hidden = async (tenant: string) =>
+      (await preview(mockReportingClient([COMMISSION_ADMIN], { tenant }), tenant)).filing
+        .filter((row) => row.suppressed)
+        .map((row) => row.cycle);
+    expect(await hidden('tsc')).toEqual(['initial', 'final']);
+    expect(await hidden('jsc')).toEqual(['initial', 'final']);
+    expect(await hidden('psc')).toEqual([]);
   });
 
   it('answers 404 while no release has been built', async () => {
-    resetOpenDataMock('none');
+    reset('none');
     const result = await loadCommissionOpenDataPreview(pscAdmin(), 'psc');
     expect(result).toMatchObject({
       ok: false,
@@ -64,20 +95,21 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
   });
 
   it("answers 403 to the Commission's other Form M roles and 404 to anyone else", async () => {
+    reset();
     for (const role of [REPORTING_OFFICER, SUPERVISOR]) {
-      const officer = mockOpenDataClient({ roles: [role], tenant: 'psc' });
+      const officer = mockReportingClient([role]);
       expect(await loadCommissionOpenDataPreview(officer, 'psc')).toMatchObject({
         ok: false,
         error: { kind: 'problem', problem: { status: 403 } },
       });
     }
-    const reviewer = mockOpenDataClient({ roles: [REVIEWER], tenant: 'psc' });
+    const reviewer = mockReportingClient([REVIEWER]);
     expect(await loadCommissionOpenDataPreview(reviewer, 'psc')).toMatchObject({
       ok: false,
       error: { kind: 'problem', problem: { status: 404 } },
     });
-    const otherAdmin = mockOpenDataClient({ roles: [COMMISSION_ADMIN], tenant: 'tsc' });
-    const analyst = mockOpenDataClient({ roles: [EACC_ANALYST], tenant: 'eacc' });
+    const otherAdmin = mockReportingClient([COMMISSION_ADMIN], { tenant: 'tsc' });
+    const analyst = mockReportingClient([EACC_ANALYST], { tenant: 'eacc' });
     for (const client of [otherAdmin, analyst]) {
       expect(await loadCommissionOpenDataPreview(client, 'psc')).toMatchObject({
         ok: false,
@@ -87,7 +119,7 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
   });
 
   it('reads as unavailable when object storage is down', async () => {
-    resetOpenDataMock('unavailable');
+    reset('unavailable');
     expect(await loadCommissionOpenDataPreview(pscAdmin(), 'psc')).toMatchObject({
       ok: false,
       error: { kind: 'unavailable' },
