@@ -16,6 +16,12 @@
  * receives one (spec 11), so amounts there are tokens too. Over-matching is safe, since every token
  * is restored; it only hides a word from the model.
  *
+ * A document's text layer (`DOCUMENT_TEXT_FIELDS`, spec 05b) has no fields to say what is a name:
+ * the parties its labels introduce ("Proprietor:", "Guarantor:", "Dear Mr.", "Jina:") are each a
+ * person, collected word by word as a name field's would be, or, when the name ends in a company
+ * word, one organisation; labelled addresses and member numbers are collected too. All of them are
+ * replaced wherever they recur.
+ *
  * A token in the output that the input never had (the model invented or garbled one) cannot be
  * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
  * rather than storing a placeholder as if it were the record.
@@ -40,6 +46,8 @@ export const IDENTIFIER_CLASSES = [
   'ACCOUNT',
   /** A membership, payroll or staff number a document labels (UW-00781). */
   'MEMBER_NUMBER',
+  /** A company or society a document names as a party ("Borrower: Tumaini Produce Limited"). */
+  'ORGANISATION',
 ] as const;
 export type IdentifierClass = (typeof IDENTIFIER_CLASSES)[number];
 
@@ -222,7 +230,7 @@ const NAME_LABELS = [
   String.raw`employee(?:\s+name)?`,
   String.raw`account\s+(?:name|holder)`,
   String.raw`customer(?:\s+name)?`,
-  'borrower',
+  'borrowers?',
   String.raw`(?:registered\s+)?holder`,
   'shareholder',
   String.raw`member(?:\s+name)?`,
@@ -236,7 +244,7 @@ const NAME_LABELS = [
   'signator(?:y|ies)',
   String.raw`witness(?:es|ed\s+by)?`,
   'lessors?',
-  'charge(?:e|or)s?',
+  'charg(?:ee|or)s?',
   'guarantors?',
   'transfer(?:ee|or)s?',
   'vendors?',
@@ -276,7 +284,7 @@ const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
  * an ID or account number by its shape already.
  */
 const DOCUMENT_NUMBER_PATTERN = new RegExp(
-  String.raw`(?<![\p{L}\p{N}])(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)\s+(?:no\.?|number)|nambari\s+ya\s+(?:uanachama|mwanachama|mshahara))[ \t]*[:\-]?[ \t]*((?=[A-Za-z0-9/-]*[A-Za-z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9][A-Za-z0-9/-]{2,})`,
+  String.raw`(?<![\p{L}\p{N}])(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)\s+(?:no\.?|number)|nambari\s+ya\s+(?:uanachama|mwanachama|mshahara))[ \t]*[:\-]?[ \t]*(?!\d+(?:st|nd|rd|th)(?![\p{L}\p{N}]))((?=[A-Za-z0-9/-]*[A-Za-z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9][A-Za-z0-9/-]{2,})`,
   'gu',
 );
 
@@ -386,11 +394,7 @@ function collect(
       collectName(value, known);
     } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
       for (const pattern of DOCUMENT_NAME_PATTERNS) {
-        for (const match of value.matchAll(pattern)) {
-          const span = match[1] ?? '';
-          // A company or society after a party label (a borrower, a holder) is no one's name.
-          if (!isOrganisation(span)) collectName(span, known, true);
-        }
+        for (const match of value.matchAll(pattern)) collectParties(match[1] ?? '', known);
       }
       for (const match of value.matchAll(DOCUMENT_NUMBER_PATTERN)) {
         const number = match[1] ?? '';
@@ -433,14 +437,51 @@ const NOT_NAMES = new Set([
   ...['branch', 'manager', 'officer', 'secretary'],
 ]);
 
-/** Words that make a span a company or society, not a person: "Tumaini Fresh Produce Limited". */
+/** Words a company or society's name ends in: "Tumaini Fresh Produce Limited", "Upendo Group". */
 const ORGANISATION_WORDS = new Set([
   ...['limited', 'ltd', 'ltd.', 'plc', 'company', 'co.', 'bank', 'sacco', 'society'],
   ...['holdings', 'enterprises', 'cooperative', 'trust', 'group', 'chama'],
 ]);
+/** Offices a name runs into ("Kevin Odera Sacco Secretary"), in English or Swahili. */
+const ROLE_WORDS = new Set([
+  ...['secretary', 'treasurer', 'chairperson', 'chairman', 'chairwoman', 'chair', 'manager'],
+  ...['officer', 'director', 'accountant', 'clerk', 'registrar', 'advocate', 'trustee'],
+  ...['katibu', 'mwenyekiti', 'mhazini', 'mweka'],
+]);
+/** Words that qualify an office rather than name anyone ("Branch Manager", "Senior Officer"). */
+const ROLE_QUALIFIERS = new Set(['branch', 'senior', 'deputy', 'assistant', 'chief', 'general']);
+/** What joins the parties a label names: commas, `&`, `and`, Swahili `na`. */
+const PARTY_JOINERS = /\s*(?:,|&|(?<![\p{L}])(?:and|na)(?![\p{L}]))\s*/u;
 
-function isOrganisation(span: string): boolean {
-  return span.split(/[\s,&]+/u).some((word) => ORGANISATION_WORDS.has(word.toLowerCase()));
+/**
+ * The parties a label names, each a person or an organisation. A party's office (and what
+ * qualifies it: "Sacco Secretary", "Branch Manager") is dropped; a party whose name ends in a
+ * company word is one organisation, tokenised whole, so a sole trader's "Wanjiku Njoki Trading
+ * Company" is not sent either; any other party is a person, word by word. When in doubt, a word
+ * is a name: privacy beats readability.
+ */
+function collectParties(span: string, known: Map<string, IdentifierClass>): void {
+  for (const party of span.split(PARTY_JOINERS)) {
+    let words = party.split(/\s+/u).filter(Boolean);
+    const role = words.findIndex((word) => ROLE_WORDS.has(word.toLowerCase()));
+    if (role >= 0) {
+      words = words.slice(0, role);
+      while (
+        words.length > 0 &&
+        (ORGANISATION_WORDS.has(words.at(-1)?.toLowerCase() ?? '') ||
+          ROLE_QUALIFIERS.has(words.at(-1)?.toLowerCase() ?? ''))
+      ) {
+        words.pop();
+      }
+    }
+    if (words.length === 0) continue;
+    if (ORGANISATION_WORDS.has(words.at(-1)?.toLowerCase() ?? '')) {
+      const organisation = words.join(' ');
+      if (!known.has(organisation)) known.set(organisation, 'ORGANISATION');
+    } else {
+      collectName(words.join(' '), known, true);
+    }
+  }
 }
 
 /**
