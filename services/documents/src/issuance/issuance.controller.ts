@@ -244,7 +244,7 @@ export class InternalDocumentsController {
   @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
   @ApiProblemResponse(
     409,
-    'Problem type `document-not-valid`: revoked, superseded or expired already. A caller revoking a document it issued once may treat it as done',
+    'Problem type `document-revoked` (revoked already: a caller may treat its revoke as done) or `document-not-valid` (superseded or expired: not revoked)',
   )
   @ApiProblemResponse(502, 'Problem type `signer-unavailable`: nothing changed; retry')
   revoke(

@@ -1751,7 +1751,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `document-not-valid`: revoked, superseded or expired already. A caller revoking a document it issued once may treat it as done */
+            /** @description Problem type `document-revoked` (revoked already: a caller may treat its revoke as done) or `document-not-valid` (superseded or expired: not revoked) */
             409: {
                 headers: {
                     [name: string]: unknown;

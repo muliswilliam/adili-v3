@@ -468,14 +468,14 @@ export class IssuanceService {
   /**
    * Revokes a valid document with the reason (a clarification letter withdrawn as issued in
    * error), re-signs its record and emits `document.revoked.v1`, so the verify page shows it
-   * revoked. 404 when the document is not the tenant's; 409 when it is not valid (revoked,
-   * superseded or expired already); 502 when the signer fails (nothing changes). Signed with no lock held,
-   * as a supersede is.
+   * revoked. 404 when the document is not the tenant's; 409 `document-revoked` when it is
+   * revoked already (what was asked is done), `document-not-valid` when superseded or expired;
+   * 502 when the signer fails (nothing changes). Signed with no lock held, as a supersede is.
    */
   async revoke(request: RevokeRequest): Promise<IssuedDocument> {
     const context = { tenant: request.tenant, subject: request.actor };
     return this.changeStatus(request.documentId, async () => {
-      const current = mustBeValid(
+      const current = revocable(
         notFoundIfInvisible(
           await withTenant(this.db, context, (tx) => findRecord(tx, request.documentId)),
         ),
@@ -518,20 +518,20 @@ export class IssuanceService {
   }
 
   /**
-   * Runs a status change until it lands: each attempt reads and checks the records, signs the new
+   * Runs a status change until it lands: `tryOnce` reads and checks the records, signs the new
    * record with no lock held, then writes it only if the records did not change meanwhile, else
    * answers null and is made again (checked again, so the change that won may refuse it). A
    * signer failure is 502.
    */
   private async changeStatus(
     documentId: string,
-    attempt: () => Promise<IssuedDocument | null>,
+    tryOnce: () => Promise<IssuedDocument | null>,
   ): Promise<IssuedDocument> {
     try {
-      for (let attempts = 1; ; attempts++) {
-        const changed = await attempt();
+      for (let attempt = 1; ; attempt++) {
+        const changed = await tryOnce();
         if (changed) return changed;
-        if (attempts === MAX_STATUS_CHANGE_ATTEMPTS) {
+        if (attempt === MAX_STATUS_CHANGE_ATTEMPTS) {
           throw new Error(`Document ${documentId} kept changing during its status change`);
         }
       }
@@ -844,6 +844,22 @@ function mustBeValid(current: DocumentWithRecord): DocumentWithRecord {
     });
   }
   return current;
+}
+
+/**
+ * The document, when it may be revoked: 409 `document-revoked` when it is revoked already (a
+ * caller may treat that as done), `document-not-valid` when superseded or expired.
+ */
+function revocable(current: DocumentWithRecord): DocumentWithRecord {
+  if (current.record.status === 'revoked') {
+    throw new ProblemException({
+      type: 'document-revoked',
+      title: 'Document is revoked already',
+      status: HttpStatus.CONFLICT,
+      detail: `The document was revoked as ${current.record.statusReasonCategory ?? 'unknown'}.`,
+    });
+  }
+  return mustBeValid(current);
 }
 
 /** Whether a record, locked now, is as it was read: a status change re-signs it. */

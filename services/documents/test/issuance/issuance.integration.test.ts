@@ -632,7 +632,7 @@ describe('07a S15 revoking a letter withdrawn as issued in error', () => {
     const again = await revoke(document.id, 'withdrawn');
 
     expect(again.statusCode).toBe(409);
-    expect(again.json<Problem>().type).toBe('document-not-valid');
+    expect(again.json<Problem>().type).toBe('document-revoked');
     expect((await documentRow(document.id)).record).toEqual(revoked.record);
     expect(await eventsAbout(document.id)).toHaveLength(2);
   });
@@ -686,6 +686,7 @@ describe('07a S15 revoking a letter withdrawn as issued in error', () => {
 
     expect((await meanwhile)?.statusCode).toBe(200);
     expect(response.statusCode).toBe(409);
+    expect(response.json<Problem>().type).toBe('document-revoked');
     expect((await documentRow(document.id)).record.statusReasonCategory).toBe('withdrawn');
     expect(await eventsAbout(document.id)).toHaveLength(2);
   });

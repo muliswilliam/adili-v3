@@ -667,7 +667,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: 'Problem type `document-not-valid`: revoked, superseded or expired already. A caller revoking a document it issued once may treat it as done'
+          description: 'Problem type `document-revoked` (revoked already: a caller may treat its revoke as done) or `document-not-valid` (superseded or expired: not revoked)'
           content:
             application/problem+json:
               schema:

@@ -17,7 +17,7 @@ export interface DocumentDownload {
   sha256: string;
 }
 
-/** Why a document is revoked (documents.yaml `RevocationReason`). */
+/** Why review revokes a document: the subset of documents.yaml `RevocationReason` it sends. */
 export type RevocationReason = 'issued-in-error';
 
 /**
