@@ -14,8 +14,8 @@ import type { SectionContents } from '../drafts/sections.js';
  * - `vehicle`, `land`, `shareholding`: an asset in the person's statement
  * - `income-hint`: a `salary-emoluments` income in the person's statement, with no amount (KRA's
  *   figure is a hint for the declarant to check, never a value)
- * - `directorship`: a directorship among the officer's registrable interests (paragraph 9)
- * - `bio-tax` for a spouse: the spouse's KRA PIN in Household. The officer's has no field in
+ * - `directorship`: a directorship among the declarant's registrable interests (paragraph 9)
+ * - `bio-tax` for a spouse: the spouse's KRA PIN in Household. The declarant's has no field in
  *   declaration.v1, so it cannot be accepted.
  *
  * A new item carries the suggestion as its `source`. Applied to an existing item, a suggestion
@@ -103,7 +103,7 @@ const NIL_FLAG = { assets: 'assetsNil', income: 'incomeNil' } as const;
 
 /**
  * Where the suggestion lands and how, or a 400 when it has no place in declaration.v1 (the
- * officer's KRA PIN, an item type the service does not know).
+ * declarant's own KRA PIN, an item type the service does not know).
  */
 export function placementOf(
   suggestion: SuggestionToAccept,
@@ -209,7 +209,7 @@ export function placementOf(
       path: 'suggestion',
       message:
         suggestion.itemType === 'bio-tax'
-          ? "The officer's KRA PIN has no field in the declaration; it is shown, not added"
+          ? "The declarant's KRA PIN has no field in the declaration; it is shown, not added"
           : `A ${suggestion.itemType} suggestion cannot be added to the declaration`,
     },
   ]);

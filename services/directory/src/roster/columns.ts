@@ -65,7 +65,7 @@ export const ROSTER_COLUMNS = [
     required: false,
     format: 'Up to 100 characters',
     example: 'Eldoret',
-    note: "Where the officer works: office, building or town. Pre-filled in the officer's declaration, where they can change it.",
+    note: 'Where the public officer works: office, building or town. Pre-filled in their declaration, where they can change it.',
     textCell: false,
   },
   {
@@ -83,7 +83,7 @@ export const ROSTER_COLUMNS = [
     required: false,
     format: 'single, married, separated, divorced or widowed (any case)',
     example: 'married',
-    note: "Pre-filled in the officer's declaration, where they can change it.",
+    note: "Pre-filled in the public officer's declaration, where they can change it.",
     textCell: false,
   },
   {

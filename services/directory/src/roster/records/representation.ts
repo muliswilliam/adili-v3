@@ -112,7 +112,7 @@ export const internalRosterRecordSchema = z.object({
   workStation: z
     .string()
     .nullable()
-    .meta({ description: 'Where the officer works; null when the roster gives none' }),
+    .meta({ description: 'Where the public officer works; null when the roster gives none' }),
   maritalStatus: z
     .enum(MARITAL_STATUSES)
     .nullable()

@@ -17,7 +17,7 @@ export type HouseholdPerson = { listed: false } | { listed: true; nationalId: st
 
 /**
  * The household person `personKey` names (`spouse:<id>`, `child:<id>`), from the household
- * section as saved (possibly partial). Not listed for the officer or any other key.
+ * section as saved (possibly partial). Not listed for the declarant or any other key.
  */
 export function householdPerson(contents: SectionContents, personKey: string): HouseholdPerson {
   const match = HOUSEHOLD_PERSON.exec(personKey);

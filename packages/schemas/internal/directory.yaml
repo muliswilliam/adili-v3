@@ -5588,7 +5588,7 @@ components:
             - $ref: '#/components/schemas/ReportingEntityRef'
             - type: 'null'
         workStation:
-          description: Where the officer works; null when the roster gives none
+          description: Where the public officer works; null when the roster gives none
           type:
             - string
             - 'null'

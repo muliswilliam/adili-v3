@@ -573,6 +573,28 @@ describe('consent and who may check (S9)', () => {
       ['kra', ['bio-tax']],
     ]);
   });
+
+  it('audits each read of the suggestions, which hold registry records (ADR-008)', async () => {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    await requestLookups(draft.id, { personKey: 'officer', systems: ['kra'], consent: CONSENT });
+    await settled(draft.id);
+    const suggestionReads = async () =>
+      (await eventsOf('audit.read.v1')).filter(
+        (event) => event.data.action === 'declaration.suggestions.read',
+      );
+    const before = (await suggestionReads()).length;
+
+    expect((await list(draft.id)).statusCode).toBe(200);
+
+    const reads = await suggestionReads();
+    expect(before).toBeGreaterThan(0);
+    expect(reads).toHaveLength(before + 1);
+    expect(reads.at(-1)?.data).toMatchObject({
+      action: 'declaration.suggestions.read',
+      resource: { type: 'declaration', params: { declarationId: draft.id } },
+    });
+  });
 });
 
 describe('suggestions go with the draft (S7)', () => {

@@ -1867,7 +1867,7 @@ export interface components {
             designation: string | null;
             jobGroup: string | null;
             reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
-            /** @description Where the officer works; null when the roster gives none */
+            /** @description Where the public officer works; null when the roster gives none */
             workStation: string | null;
             /** @description As `declaration.v1` names it; null when the roster gives none */
             maritalStatus: ("single" | "married" | "separated" | "divorced" | "widowed") | null;

@@ -20,7 +20,7 @@ export const suggestionSchema = z.object({
   sectionKey: sectionKeySchema,
   itemType: z.string().meta({
     description:
-      'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the officer, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the officer or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)',
+      'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)',
   }),
   fields: z.record(z.string(), z.unknown()).meta({
     description:

@@ -117,7 +117,7 @@ export const rosterRecords = pgTable(
     designation: text(),
     jobGroup: text(),
     reportingEntityId: uuid().references(() => reportingEntities.id),
-    /** Where the officer works, as the roster gives it (spec 05b: pre-fills the bio). */
+    /** Where the public officer works, as the roster gives it (spec 05b: pre-fills the bio). */
     workStation: text(),
     /** The HR and payroll systems' code for the employer; review's supplier check takes it. */
     employerCode: text(),

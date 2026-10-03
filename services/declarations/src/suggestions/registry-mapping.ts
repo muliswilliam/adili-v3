@@ -32,7 +32,7 @@ import type {
  * - `land` (ArdhiSasa): parcelNumber, size, location, county (a declaration.v1 county code)
  * - `shareholding` (BRS, a holding of shares; the spec's `investment`, which declaration.v1 does
  *   not have): companyName, registrationNumber, role, shares
- * - `directorship` (BRS, the officer's directorship; a paragraph 9 registrable interest):
+ * - `directorship` (BRS, the declarant's directorship; a paragraph 9 registrable interest):
  *   companyName, role. Whether it is remunerated stays the declarant's to say.
  * - `bio-tax` (KRA): kraPin, complianceStatus
  * - `income-hint` (KRA): incomeType only; the declared income travels in `sourceRef` as a hint
@@ -206,7 +206,7 @@ function mapParcel(parcel: ArdhisasaParcel, personKey: PersonKey): MappedSuggest
 
 /**
  * BRS: a record of the person in a company. Shares held → a `shareholding` asset in the person's
- * statement. A director's role → for the officer, a `directorship` registrable interest
+ * statement. A director's role → for the declarant, a `directorship` registrable interest
  * (paragraph 9); declaration.v1 records no directorships for a spouse or child. A record can
  * yield both; one with neither shares nor a director's role (or no company) yields none.
  */
@@ -261,7 +261,7 @@ function isDirectorRole(role: string) {
 }
 
 /**
- * KRA: each PIN → `bio-tax` (PIN and compliance) in the bio for the officer or the household for
+ * KRA: each PIN → `bio-tax` (PIN and compliance) in the bio for the declarant or the household for
  * a spouse; children's PINs have no place in declaration.v1 and are not suggested. Where KRA
  * returns declared income, an `income-hint` for the person's statement carries it in
  * `sourceRef` (a hint to check the salary item, never a value).
