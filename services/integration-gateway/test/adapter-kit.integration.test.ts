@@ -565,6 +565,8 @@ describe('adapter kit', () => {
     it.each([
       ['missing', {}],
       ['unknown', { 'x-legal-basis': 'curiosity' }],
+      // Onboarding's basis is the IPRS route's own, never a caller's to name.
+      ['adr-014-onboarding', { 'x-legal-basis': 'adr-014-onboarding' }],
     ])('answers 400 when the legal basis is %s', async (_, headers) => {
       const response = await echo(headers);
 

@@ -631,8 +631,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -691,8 +691,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -751,8 +751,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -811,8 +811,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
@@ -873,8 +873,8 @@ export interface operations {
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
                 "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's) */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "adr-014-onboarding" | "declarant-request";
+                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
                 /** @description Review case the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
                 /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */

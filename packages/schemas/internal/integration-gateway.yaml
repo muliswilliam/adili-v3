@@ -89,14 +89,13 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's)
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
               - declarant-request
         - name: X-Case-Ref
           in: header
@@ -162,14 +161,13 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's)
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
               - declarant-request
         - name: X-Case-Ref
           in: header
@@ -235,14 +233,13 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's)
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
               - declarant-request
         - name: X-Case-Ref
           in: header
@@ -308,14 +305,13 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's)
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
               - declarant-request
         - name: X-Case-Ref
           in: header
@@ -393,14 +389,13 @@ paths:
             pattern: ^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's)
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
               - declarant-request
         - name: X-Case-Ref
           in: header

@@ -43,7 +43,8 @@ export type UnavailableReason = (typeof UNAVAILABLE_REASONS)[number];
 
 /**
  * Why a registry may be consulted (ADR-008: every lookup records its legal basis). Callers name
- * it in `X-Legal-Basis`.
+ * it in `X-Legal-Basis` (`HEADER_LEGAL_BASES`), except onboarding's, which the IPRS route records
+ * itself.
  */
 export const LEGAL_BASES = [
   /** Regs r.20(1)(b): compare the declaration with other sources (review cross-checks). */
@@ -59,20 +60,6 @@ export const LEGAL_BASES = [
   'declarant-request',
 ] as const;
 export type LegalBasis = (typeof LEGAL_BASES)[number];
-
-/**
- * The services that may name each legal basis (their OAuth client, `azp`): a basis is the work of
- * one service, so no holder of the `registry` scope can borrow another's. Review cross-checks and
- * verifies declarations; the declarations service looks up on the declarant's own request (spec
- * 05b story 17: no lookup beyond the legal basis); the directory confirms identities at
- * onboarding.
- */
-export const LEGAL_BASIS_CALLERS = {
-  'regs-r20-1-b': ['review'],
-  'act-s35-5': ['review'],
-  'adr-014-onboarding': ['directory'],
-  'declarant-request': ['declarations'],
-} as const satisfies Record<LegalBasis, readonly string[]>;
 
 /**
  * One row per registry lookup, whether answered from the cache or the registry. The subject is
