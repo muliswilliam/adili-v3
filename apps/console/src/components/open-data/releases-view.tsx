@@ -79,9 +79,12 @@ type BuildState =
 export function ReleasesView(props: ReleasesViewProps) {
   const { result, links } = props;
   const [build, setBuild] = useState<BuildState>({ kind: 'idle' });
-  // The key of a build that may have been recorded (no answer, or still running): every build
-  // started until it is settled reuses it, so the service replays it instead of building again.
-  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  // The key of a build that may have been recorded (no answer, or still running), with the year
+  // it was for: every build of that year started until it is settled reuses it, so the service
+  // replays it instead of building again. Another year (the page stays mounted across 1 July)
+  // gets a new key: the same key with another body would be refused (422).
+  const [pending, setPending] = useState<{ key: string; fy: number } | null>(null);
+  const keyFor = (fy: number) => (pending?.fy === fy ? pending.key : crypto.randomUUID());
   if (problemStatus(result) === 403) {
     return (
       <Page narrow>
@@ -92,13 +95,14 @@ export function ReleasesView(props: ReleasesViewProps) {
   }
   const building = build.kind === 'building';
   const startBuild = () => {
-    setBuild({ kind: 'confirming', key: pendingKey ?? crypto.randomUUID() });
+    setBuild({ kind: 'confirming', key: keyFor(props.fy) });
   };
   const runBuild = async (key: string) => {
+    const { fy } = props;
     setBuild({ kind: 'building', key });
-    const built = await props.build(props.fy, key);
+    const built = await props.build(fy, key);
     if (built.ok) {
-      setPendingKey(null);
+      setPending(null);
       setBuild({ kind: 'idle' });
       props.onBuilt(built.data);
       return;
@@ -111,7 +115,7 @@ export function ReleasesView(props: ReleasesViewProps) {
     // have been recorded, and one still running (`idempotency-key-in-use`) will be: the retry, or
     // the next Build snapshot, keeps its key and so replays it.
     const retryKey = mayBeRecorded(built) ? key : crypto.randomUUID();
-    setPendingKey(mayBeRecorded(built) ? key : null);
+    setPending(mayBeRecorded(built) ? { key, fy } : null);
     setBuild({ kind: 'failed', key: retryKey, message: buildFailure(built) });
   };
   return (
@@ -140,7 +144,7 @@ export function ReleasesView(props: ReleasesViewProps) {
         <BuildStopped
           message={build.message}
           busy={false}
-          onRetry={() => void runBuild(build.key)}
+          onRetry={() => void runBuild(pending ? keyFor(props.fy) : build.key)}
           onDismiss={() => {
             setBuild({ kind: 'idle' });
           }}

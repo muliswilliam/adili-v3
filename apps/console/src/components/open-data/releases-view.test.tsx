@@ -65,14 +65,21 @@ function renderView(props: Partial<Props> & Pick<Props, 'result'>) {
     onUnauthenticated: vi.fn(),
     ...props,
   };
-  render(
+  const tree = (current: Props) => (
     <TooltipProvider>
       <ToastProvider>
-        <ReleasesView {...all} />
+        <ReleasesView {...current} />
       </ToastProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   );
-  return all;
+  const rendered = render(tree(all));
+  return {
+    ...all,
+    /** Renders the same view again with `changes`, as the router does on new loader data. */
+    rerender: (changes: Partial<Props>) => {
+      rendered.rerender(tree({ ...all, ...changes }));
+    },
+  };
 }
 
 beforeEach(() => {
@@ -271,5 +278,31 @@ describe('#350 build snapshot', () => {
     expect(keys).toHaveLength(3);
     expect(keys[1]).toBe(keys[0]);
     expect(keys[2]).not.toBe(keys[1]);
+  });
+
+  it('gives a build of another year a new key, even with one of the year before pending', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    const view = renderView({ result: await releasesOf('history'), build, fy: 2025 });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    // 1 July comes while the page is open: the same view now builds FY 2026/2027.
+    view.rerender({ fy: 2026 });
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalledWith(expect.objectContaining({ fy: 2026 }));
+    });
+    const [[fyBefore, keyBefore], [fyAfter, keyAfter]] = build.mock.calls as [
+      [number, string],
+      [number, string],
+    ];
+    expect([fyBefore, fyAfter]).toEqual([2025, 2026]);
+    expect(keyAfter).not.toBe(keyBefore);
   });
 });
