@@ -32,7 +32,7 @@ import { useId, useState } from 'react';
 
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 
-import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
+import { LADDER_WINDOW_DAYS } from '../../actions/ladder';
 import type { ActionStep } from '../../server/actions.server';
 import { en as m } from './messages';
 
@@ -70,14 +70,12 @@ export function consequencesOf(
   now: string,
 ): ApprovalConsequence[] {
   const days = LADDER_WINDOW_DAYS[step];
-  const grave = isGraveStep(step);
   return [
     { icon: HashtagIcon, title: m.consequences.reference },
     {
-      icon: grave ? BanIcon : File01Icon,
+      icon: File01Icon,
       title: m.consequences.letter(step),
       detail: m.consequences.letterDetail,
-      grave,
     },
     ...(days === null
       ? []
@@ -88,6 +86,26 @@ export function consequencesOf(
             detail: m.consequences.actByDetail(days),
           },
         ]),
+    ...(step === 'salary-stoppage'
+      ? [
+          {
+            icon: BanIcon,
+            title: m.consequences.salaryStopped,
+            detail: m.consequences.salaryStoppedDetail,
+            grave: true,
+          },
+        ]
+      : []),
+    ...(step === 'disciplinary-referral'
+      ? [
+          {
+            icon: BanIcon,
+            title: m.consequences.disciplinary,
+            detail: m.consequences.disciplinaryDetail,
+            grave: true,
+          },
+        ]
+      : []),
     {
       icon: Notification01Icon,
       title: m.consequences.notified(declarantName),
@@ -186,7 +204,7 @@ export function DeclineStepDialog({
         <DialogBody className="grid gap-4">
           <Alert variant="warning" role="note">
             <Icon icon={InformationCircleIcon} />
-            <AlertDescription>{m.declineWarning}</AlertDescription>
+            <AlertDescription>{m.declineWarning(step)}</AlertDescription>
           </Alert>
           <div className="grid gap-1.5">
             <Label htmlFor={fieldId}>{m.note}</Label>

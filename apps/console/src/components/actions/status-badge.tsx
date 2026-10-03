@@ -9,7 +9,7 @@ import {
 } from '@hugeicons/core-free-icons';
 
 import type { ActionStatus } from '../../server/actions.server';
-import { STATUS_LABELS } from './messages';
+import { statusLabel } from './messages';
 
 const LOOK: Record<
   ActionStatus,
@@ -32,7 +32,7 @@ export function ActionStatusBadge({ status }: { status: ActionStatus }) {
   return (
     <Badge variant={variant}>
       <Icon icon={icon} />
-      {STATUS_LABELS[status]}
+      {statusLabel(status)}
     </Badge>
   );
 }

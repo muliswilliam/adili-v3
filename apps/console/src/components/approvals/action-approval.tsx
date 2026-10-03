@@ -1,4 +1,4 @@
-import { ApprovalCard, Badge, Button, Icon } from '@adili/ui';
+import { ApprovalCard, Badge, Button, Icon, useIdempotencyKey } from '@adili/ui';
 import {
   AlertCircleIcon,
   BanIcon,
@@ -10,14 +10,14 @@ import {
   UserWarning01Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { isGraveStep, subjectOf } from '../../actions/ladder';
-import { decisionRefusal } from '../../actions/refusal';
+import { decisionRefusal, REFUSAL_PROBLEM } from '../../actions/refusal';
 import type { ActionStep, AdministrativeAction } from '../../server/actions.server';
 import { approveLadderStep, declineLadderStep } from '../../server/actions';
 import type { ServiceResult } from '../../server/service-call';
-import { STEP_LABELS } from '../actions/messages';
+import { en as a, stepLabel } from '../actions/messages';
 import { ApproveStepDialog, consequencesOf, DeclineStepDialog } from '../actions/step-dialogs';
 import type { FailureText } from '../dialog-parts';
 import { messages as t } from './action-messages';
@@ -72,14 +72,14 @@ export function ActionApproval({
   now,
   onReassign,
   onSettled,
-  newKey,
 }: KindApprovalProps<ActionApprovalItem>) {
   const { summary } = item;
   const subject = subjectOf(summary);
   const [dialog, setDialog] = useState<'approve' | 'decline' | null>(null);
   // One key per decision, reused on retry after a failure, so a retry cannot act twice.
-  const approvalKey = useRef<string | null>(null);
-  const declineKey = useRef<{ note: string; key: string } | null>(null);
+  // As the Actions view: one key per decision body, kept across retries, dropped once answered.
+  const approvalKey = useIdempotencyKey();
+  const declineKey = useIdempotencyKey();
   const nowIso = new Date(now).toISOString();
 
   async function settle(
@@ -103,20 +103,22 @@ export function ActionApproval({
   }
 
   async function approve(): Promise<FailureText | null> {
-    approvalKey.current ??= newKey();
     const result = await approveLadderStep({
-      data: { actionId: item.subjectId, idempotencyKey: approvalKey.current },
+      data: { actionId: item.subjectId, idempotencyKey: approvalKey.keyFor(item.subjectId) },
     });
-    if (result.ok || noticeOf(result.error)) approvalKey.current = null;
+    if (result.ok || noticeOf(result.error)) approvalKey.reset();
     return settle(result, (data) => t.toasts.approved(data.step, data.reference));
   }
 
   async function decline(note: string): Promise<FailureText | null> {
-    if (declineKey.current?.note !== note) declineKey.current = { note, key: newKey() };
     const result = await declineLadderStep({
-      data: { actionId: item.subjectId, note, idempotencyKey: declineKey.current.key },
+      data: {
+        actionId: item.subjectId,
+        note,
+        idempotencyKey: declineKey.keyFor({ id: item.subjectId, note }),
+      },
     });
-    if (result.ok || noticeOf(result.error)) declineKey.current = null;
+    if (result.ok || noticeOf(result.error)) declineKey.reset();
     return settle(result, (data) => t.toasts.declined(data.step));
   }
 
@@ -129,7 +131,7 @@ export function ActionApproval({
         title={summary.declarantName}
         badge={
           <Badge variant={isGraveStep(summary.step) ? 'destructive' : 'warning'}>
-            {STEP_LABELS[summary.step]}
+            {stepLabel(summary.step)}
           </Badge>
         }
         details={[
@@ -209,37 +211,24 @@ export function ActionApproval({
 /** What a refusal of approve or decline means for the supervisor (403, 409); null otherwise. */
 export function noticeOf(error: Parameters<typeof decisionRefusal>[0]): ApprovalNotice | null {
   const refusal = decisionRefusal(error);
-  if (refusal === 'proposer' || refusal === 'reviewer-of-record') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused[refusal], problem: '403 separation-of-duties' },
-      after: t.refused.separationAfter,
-      offerReassign: true,
-    };
-  }
-  if (refusal === 'role') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused.role, problem: '403 supervisor-required' },
-      after: t.refused.roleAfter,
-      offerReassign: false,
-    };
-  }
+  if (refusal === null || refusal === 'not-declined') return null;
+  const failure = { title: a.refusals[refusal], problem: REFUSAL_PROBLEM[refusal] };
   if (refusal === 'not-proposed') {
-    return {
-      title: t.decided.title,
-      failure: { title: t.decided.body, problem: '409 not-proposed' },
-      after: t.decided.after,
-      offerReassign: false,
-    };
+    return { title: t.decided.title, failure, after: t.decided.after, offerReassign: false };
   }
-  return null;
+  return {
+    title: t.refused.title,
+    failure,
+    after: refusal === 'role' ? t.refused.roleAfter : t.refused.separationAfter,
+    // Another supervisor can take a separation-of-duties refusal.
+    offerReassign: refusal !== 'role',
+  };
 }
 
 /** The actions tab (spec 08 FE-3): drafted ladder steps. */
 export const actionKind: InboxKindView<'action'> = {
   label: t.tab,
   icon: Legal01Icon,
-  subject: (item) => `${STEP_LABELS[item.summary.step]} · ${item.summary.declarantName}`,
+  subject: (item) => `${stepLabel(item.summary.step)} · ${item.summary.declarantName}`,
   Approval: ActionApproval,
 };

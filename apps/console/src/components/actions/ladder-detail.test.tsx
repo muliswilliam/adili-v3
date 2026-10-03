@@ -14,6 +14,7 @@ import {
 import { MOCK_LADDER_IDS as L } from '../../server/review/actions-mock.server';
 import { mockReviewClient, resetReviewMock } from '../../server/review/mock.server';
 import { type LadderDecisions, LadderDetailView } from './ladder-detail';
+import { consequencesOf, DeclineStepDialog } from './step-dialogs';
 
 const NOW_MS = Date.parse('2026-09-28T09:00:00Z');
 const NOW = new Date(NOW_MS).toISOString();
@@ -204,5 +205,50 @@ describe('LadderDetailView', () => {
       'skipped',
       'skipped',
     ]);
+  });
+
+  it('says so when the ladder was restarted by someone else first (409 ladder-not-declined)', async () => {
+    const { decisions, onChanged } = await show(L.declined, { supervisor: true });
+    await restartLadder(clientFor(true), L.declined, crypto.randomUUID());
+    fireEvent.click(screen.getByRole('button', { name: 'Restart ladder' }));
+    const dialog = screen.getByRole('dialog', { name: 'Restart this ladder?' });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Restart ladder' }));
+      await Promise.resolve();
+    });
+    expect(decisions.restart).toHaveBeenCalledOnce();
+    expect(
+      within(dialog).getByText('This ladder is no longer declined. It has been reloaded.'),
+    ).toBeTruthy();
+    expect(within(dialog).getByText('409 ladder-not-declined')).toBeTruthy();
+    expect(onChanged).toHaveBeenCalledOnce();
+  });
+});
+
+describe('step dialogs: what follows depends on the step', () => {
+  it('a salary stoppage states the stop-salary instruction (S6)', () => {
+    const titles = consequencesOf('salary-stoppage', 'Janet Achieng Odero', NOW).map(
+      (each) => each.title,
+    );
+    expect(titles).toContain("The declarant's salary is stopped");
+    expect(titles).toContain('The declarant must act by 28 Oct 2026');
+  });
+
+  it('declining a disciplinary referral keeps the ladder open (S10)', () => {
+    render(
+      <DeclineStepDialog
+        open
+        onOpenChange={vi.fn()}
+        step="disciplinary-referral"
+        declarantName="Janet Achieng Odero"
+        onSubmit={vi.fn(() => Promise.resolve(null))}
+      />,
+    );
+    expect(
+      screen.getByText(
+        'Declining keeps the ladder open: it waits for compliance, and a stopped salary stays stopped until then.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Declining ends this ladder/)).toBeNull();
   });
 });

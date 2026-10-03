@@ -37,13 +37,13 @@ import {
   pendingStep,
   subjectOf,
 } from '../../actions/ladder';
-import { type DecisionRefusal, decisionRefusal } from '../../actions/refusal';
+import { type DecisionLock, decisionRefusal, isLock, REFUSAL_PROBLEM } from '../../actions/refusal';
 import type { AdministrativeAction, Ladder } from '../../server/actions.server';
 import type { ServiceError, ServiceResult } from '../../server/service-call';
 import type { FailureText } from '../dialog-parts';
 import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
-import { CLOSING_CAUSES, en as m, LADDER_STATUS_LABELS, STEP_LABELS } from './messages';
+import { closingCauseLabel, en as m, ladderStatusLabel, stepLabel } from './messages';
 import { ActionStatusBadge } from './status-badge';
 import { ApproveStepDialog, DeclineStepDialog, RestartLadderDialog } from './step-dialogs';
 
@@ -72,16 +72,18 @@ export interface LadderDetailProps {
   onChanged: () => void;
 }
 
-type Refusal = Extract<DecisionRefusal, 'proposer' | 'reviewer-of-record' | 'role'>;
-
 /** The words for a failed decision, or a refusal to show on the step instead of its buttons. */
-function failureOf(error: ServiceError): { refusal: Refusal } | { text: string; reload: boolean } {
+function failureOf(
+  error: ServiceError,
+): { refusal: DecisionLock } | { text: string; problem?: string; reload: boolean } {
   const refusal = decisionRefusal(error);
-  if (refusal === 'proposer' || refusal === 'reviewer-of-record' || refusal === 'role') {
-    return { refusal };
+  if (isLock(refusal)) return { refusal };
+  if (refusal === 'not-proposed') {
+    return { text: m.failed.notProposed, problem: REFUSAL_PROBLEM[refusal], reload: true };
   }
-  if (refusal === 'not-proposed') return { text: m.failed.notProposed, reload: true };
-  if (refusal === 'not-declined') return { text: m.failed.notDeclined, reload: true };
+  if (refusal === 'not-declined') {
+    return { text: m.failed.notDeclined, problem: REFUSAL_PROBLEM[refusal], reload: true };
+  }
   if (error.kind === 'unauthenticated') return { text: m.failed.signedOut, reload: false };
   if (error.kind === 'unavailable') return { text: m.failed.unavailable, reload: false };
   return { text: m.failed.other, reload: false };
@@ -141,10 +143,10 @@ export function LadderDetailView({
             <AlertTitle>
               {m.compliedTitle(
                 formatDate(ladder.endedAt),
-                CLOSING_CAUSES[
+                closingCauseLabel(
                   ladder.closingCause ??
-                    (ladder.subjectKind === 'obligation' ? 'filed' : 'clarification-resolved')
-                ],
+                    (ladder.subjectKind === 'obligation' ? 'filed' : 'clarification-resolved'),
+                ),
               )}
             </AlertTitle>
             <AlertDescription>{m.compliedBody}</AlertDescription>
@@ -156,7 +158,9 @@ export function LadderDetailView({
             <AlertTitle>
               {m.endedTitle(
                 formatDate(ladder.endedAt),
-                ladder.closingCause ? CLOSING_CAUSES[ladder.closingCause] : m.ended.toLowerCase(),
+                ladder.closingCause
+                  ? closingCauseLabel(ladder.closingCause)
+                  : m.ended.toLowerCase(),
               )}
             </AlertTitle>
             <AlertDescription>{m.endedBody}</AlertDescription>
@@ -202,14 +206,14 @@ function LadderStatusBadge({ status }: { status: Ladder['status'] }) {
     <Badge variant={variant}>
       {status === 'declined' ? <Icon icon={Cancel01Icon} /> : null}
       {status === 'complied' ? <Icon icon={Tick02Icon} /> : null}
-      {LADDER_STATUS_LABELS[status]}
+      {ladderStatusLabel(status)}
     </Badge>
   );
 }
 
 /** The stepper's line for a step: its date, the window, the response. */
 function stepperStep({ step, status, action }: LadderStepView): LadderStepperStep {
-  const base: LadderStepperStep = { id: step, label: STEP_LABELS[step], status };
+  const base: LadderStepperStep = { id: step, label: stepLabel(step), status };
   if (!action) return base;
   const running = status === 'current' || status === 'stopped';
   const responded = action.response
@@ -288,7 +292,7 @@ function StepCard({
           {number}
         </span>
         <h2 id={headingId} className="text-[16px] font-semibold">
-          {STEP_LABELS[action.step]}
+          {stepLabel(action.step)}
         </h2>
         <ActionStatusBadge status={action.status} />
         <span className="ml-auto">
@@ -398,7 +402,7 @@ function StepCard({
   );
 }
 
-function LockNote({ refusal }: { refusal: Refusal }) {
+function LockNote({ refusal }: { refusal: DecisionLock }) {
   return (
     <div className="border-t px-5 py-3">
       <Alert
@@ -407,7 +411,7 @@ function LockNote({ refusal }: { refusal: Refusal }) {
         className="px-3 py-2.5 [&>svg]:top-[13px] [&>svg]:left-3 [&>svg]:size-4 [&>svg~*]:pl-[26px]"
       >
         <Icon icon={LockIcon} />
-        <AlertTitle>{m.cannot[refusal]}</AlertTitle>
+        <AlertTitle>{m.refusals[refusal]}</AlertTitle>
       </Alert>
     </div>
   );
@@ -433,7 +437,7 @@ function Decision({
   const approveKey = useIdempotencyKey();
   const declineKey = useIdempotencyKey();
   const [open, setOpen] = useState<'approve' | 'decline' | null>(null);
-  const [refusal, setRefusal] = useState<Refusal | null>(
+  const [refusal, setRefusal] = useState<DecisionLock | null>(
     canDecideAs(action.step, supervisor) ? null : 'role',
   );
   if (refusal) return <LockNote refusal={refusal} />;
@@ -455,7 +459,7 @@ function Decision({
       return null;
     }
     if (failure.reload) onChanged();
-    return { title: failure.text };
+    return { title: failure.text, ...(failure.problem ? { problem: failure.problem } : {}) };
   };
 
   return (
@@ -508,7 +512,10 @@ function Decision({
           settle(
             await decisions.decline(action.id, note, declineKey.keyFor({ id: action.id, note })),
             (declined) => {
-              toast({ title: m.declined(declined.step), description: m.declinedDetail });
+              toast({
+                title: m.declined(declined.step),
+                description: m.declinedDetail(declined.step),
+              });
             },
           )
         }
@@ -633,7 +640,7 @@ function NextStep({ ladder, steps }: { ladder: Ladder; steps: LadderStepView[] }
         {index + 2}
       </span>
       <div>
-        <div className="font-medium">{STEP_LABELS[next.step]}</div>
+        <div className="font-medium">{stepLabel(next.step)}</div>
         <div className="text-sm text-muted-foreground">
           {m.nextStepDetail(formatDate(running.action.windowEndsAt))}
         </div>
@@ -713,9 +720,14 @@ function DeclinedBanner({
                   return null;
                 }
                 const failure = failureOf(result.error);
-                if ('refusal' in failure) return { title: m.cannot[failure.refusal] };
+                if ('refusal' in failure) {
+                  return { title: m.restartRefused, problem: REFUSAL_PROBLEM[failure.refusal] };
+                }
                 if (failure.reload) onChanged();
-                return { title: failure.text };
+                return {
+                  title: failure.text,
+                  ...(failure.problem ? { problem: failure.problem } : {}),
+                };
               }}
             />
           </>

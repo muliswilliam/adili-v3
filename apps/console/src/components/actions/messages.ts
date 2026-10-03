@@ -3,45 +3,66 @@ import type { DecisionRefusal } from '../../actions/refusal';
 import type { ActionStatus, ActionStep, Ladder } from '../../server/actions.server';
 
 /**
- * Copy for the Actions screens (spec 08 FE-5): the list of ladders and a ladder's steps. English
- * only; step and status labels come from the one table here (spec 08 i18n).
+ * Copy for the Actions screens and the approvals inbox's actions tab (spec 08 FE-5, FE-3). Step,
+ * status and closing-cause labels come from the one table here (spec 08 i18n), each with an
+ * English label and a Swahili slot, empty until translated; screens read English. `sw` holds
+ * the page copy's Swahili, key by key, likewise empty.
  */
+
+interface Label {
+  en: string;
+  /** Empty until translated. */
+  sw: string;
+}
+
+const label = (text: string): Label => ({ en: text, sw: '' });
 
 const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1 ? one : many}`;
 
-export const STEP_LABELS: Record<ActionStep, string> = {
-  'notice-to-comply': 'Notice to comply',
-  warning: 'Warning',
-  'salary-stoppage': 'Salary stoppage',
-  'disciplinary-referral': 'Disciplinary referral',
+const STEP_LABELS: Record<ActionStep, Label> = {
+  'notice-to-comply': label('Notice to comply'),
+  warning: label('Warning'),
+  'salary-stoppage': label('Salary stoppage'),
+  'disciplinary-referral': label('Disciplinary referral'),
 };
 
-export const STATUS_LABELS: Record<ActionStatus, string> = {
-  proposed: 'Awaiting approval',
-  approved: 'Approved, issuing',
-  'approved-pending-payroll': 'Approved, waiting for payroll',
-  declined: 'Declined',
-  issued: 'Issued',
-  responded: 'Responded',
-  complied: 'Complied',
-  reinstated: 'Salary reinstated',
-  cancelled: 'Not needed',
+const STATUS_LABELS: Record<ActionStatus, Label> = {
+  proposed: label('Awaiting approval'),
+  approved: label('Approved, issuing'),
+  'approved-pending-payroll': label('Approved, waiting for payroll'),
+  declined: label('Declined'),
+  issued: label('Issued'),
+  responded: label('Responded'),
+  complied: label('Complied'),
+  reinstated: label('Salary reinstated'),
+  cancelled: label('Not needed'),
 };
 
-export const LADDER_STATUS_LABELS: Record<Ladder['status'], string> = {
-  active: 'Active',
-  complied: 'Complied',
-  declined: 'Declined',
-  ended: 'Ended',
+const LADDER_STATUS_LABELS: Record<Ladder['status'], Label> = {
+  active: label('Active'),
+  complied: label('Complied'),
+  declined: label('Declined'),
+  ended: label('Ended'),
 };
 
-export const CLOSING_CAUSES: Record<NonNullable<Ladder['closingCause']>, string> = {
-  filed: 'declaration filed',
-  'clarification-responded': 'clarification answered',
-  'clarification-resolved': 'clarification resolved',
-  'obligation-cancelled': 'filing obligation cancelled',
-  'clarification-withdrawn': 'clarification withdrawn',
+const CLOSING_CAUSES: Record<NonNullable<Ladder['closingCause']>, Label> = {
+  filed: label('declaration filed'),
+  'clarification-responded': label('clarification answered'),
+  'clarification-resolved': label('clarification resolved'),
+  'obligation-cancelled': label('filing obligation cancelled'),
+  'clarification-withdrawn': label('clarification withdrawn'),
 };
+
+/** A step's name: "Notice to comply". */
+export const stepLabel = (step: ActionStep): string => STEP_LABELS[step].en;
+/** An action's status in words. */
+export const statusLabel = (status: ActionStatus): string => STATUS_LABELS[status].en;
+/** A ladder's status in words. */
+export const ladderStatusLabel = (status: Ladder['status']): string =>
+  LADDER_STATUS_LABELS[status].en;
+/** What closed a ladder, mid-sentence: "declaration filed". */
+export const closingCauseLabel = (cause: NonNullable<Ladder['closingCause']>): string =>
+  CLOSING_CAUSES[cause].en;
 
 export const en = {
   title: 'Actions',
@@ -117,7 +138,7 @@ export const en = {
   },
   approverReviewStaff: 'A reviewer or supervisor',
   approverSupervisor: 'A supervisor',
-  letterTitle: (step: ActionStep) => `${STEP_LABELS[step]} letter`,
+  letterTitle: (step: ActionStep) => `${stepLabel(step)} letter`,
   restricted: 'Restricted',
   viewLetter: 'View',
   downloadLetter: 'PDF',
@@ -131,11 +152,16 @@ export const en = {
   nextStepDetail: (date: string) => `Drafted ${date} if still not complied.`,
   approve: 'Approve',
   decline: 'Decline',
-  cannot: {
+  /** Why the service refused a decision, one line per refusal (the Actions view and the inbox). */
+  refusals: {
     proposer: 'You cannot approve this: you proposed it.',
     'reviewer-of-record': 'You cannot approve this: you reviewed this case.',
     role: 'Only a supervisor can approve this step.',
-  } satisfies Record<Exclude<DecisionRefusal, 'not-proposed' | 'not-declined'>, string>,
+    'not-proposed': 'Someone decided this step while the page was open.',
+    'not-declined': 'This ladder is no longer declined.',
+  } satisfies Record<DecisionRefusal, string>,
+  /** A reviewer's restart, refused 403 `supervisor-required`. */
+  restartRefused: 'Only a supervisor can restart a ladder.',
   subject: {
     obligation: 'Filing obligation',
     clarification: 'Clarification',
@@ -144,7 +170,7 @@ export const en = {
   },
   // Ladder banners
   declinedTitle: (step: ActionStep, name: string, date: string) =>
-    `Ladder ended: ${STEP_LABELS[step].toLowerCase()} declined by ${name} on ${date}`,
+    `Ladder ended: ${stepLabel(step).toLowerCase()} declined by ${name} on ${date}`,
   declinedBody: 'Nothing more is drafted unless a supervisor restarts it.',
   restart: 'Restart ladder',
   compliedTitle: (date: string, cause: string) => `Complied on ${date}: ${cause}.`,
@@ -152,36 +178,47 @@ export const en = {
   endedTitle: (date: string, cause: string) => `Ladder ended on ${date}: ${cause}.`,
   endedBody: 'The ladder closed without compliance being needed.',
   // Approve dialog
-  approveTitle: (step: ActionStep) => `Approve ${STEP_LABELS[step].toLowerCase()}`,
+  approveTitle: (step: ActionStep) => `Approve ${stepLabel(step).toLowerCase()}`,
   consequences: {
     reference: 'An ADM number is allocated in your name',
-    letter: (step: ActionStep) => `The ${STEP_LABELS[step].toLowerCase()} letter is issued`,
+    letter: (step: ActionStep) => `The ${stepLabel(step).toLowerCase()} letter is issued`,
     letterDetail: 'Restricted, with what is overdue, what to do and a response option',
     actBy: (date: string) => `The declarant must act by ${date}`,
     actByDetail: (days: number) => `${plural(days, 'day', 'days')} from today`,
     notified: (name: string) => `${name} is notified`,
     notifiedDetail: 'By email, SMS and in the portal',
+    salaryStopped: "The declarant's salary is stopped",
+    salaryStoppedDetail:
+      "A stop-salary instruction goes to payroll for the declarant's reporting entity; it is reinstated automatically when they comply",
+    disciplinary: 'The reporting entity is told to start disciplinary proceedings',
+    disciplinaryDetail:
+      'Recorded as an event for the employer; the ladder then waits for compliance',
   },
   approveAndIssue: 'Approve and issue',
   approved: (step: ActionStep, reference: string | null) =>
-    reference ? `${STEP_LABELS[step]} approved: ${reference}` : `${STEP_LABELS[step]} approved`,
+    reference ? `${stepLabel(step)} approved: ${reference}` : `${stepLabel(step)} approved`,
   approvedDetail: 'The letter is issued and the declarant notified.',
   // Decline dialog
-  declineTitle: (step: ActionStep) => `Decline ${STEP_LABELS[step].toLowerCase()}`,
-  declineWarning: 'Declining ends this ladder. A supervisor can restart it.',
+  declineTitle: (step: ActionStep) => `Decline ${stepLabel(step).toLowerCase()}`,
+  /** A declined disciplinary referral leaves the ladder open (spec 08 S10); any other step ends it. */
+  declineWarning: (step: ActionStep) =>
+    step === 'disciplinary-referral'
+      ? 'Declining keeps the ladder open: it waits for compliance, and a stopped salary stays stopped until then.'
+      : 'Declining ends this ladder. A supervisor can restart it.',
   note: 'Note',
   notePlaceholder: 'Say why.',
   noteCounter: (n: number) => `${n.toLocaleString('en-KE')} / 2,000`,
   noteMissing: 'Say why you are declining.',
   noteTooLong: 'Keep the note to 2,000 characters.',
-  declined: (step: ActionStep) => `${STEP_LABELS[step]} declined`,
-  declinedDetail: 'The ladder has ended.',
+  declined: (step: ActionStep) => `${stepLabel(step)} declined`,
+  declinedDetail: (step: ActionStep) =>
+    step === 'disciplinary-referral' ? 'The ladder waits for compliance.' : 'The ladder has ended.',
   // Restart dialog
   restartTitle: 'Restart this ladder?',
   restartBody: (step: ActionStep) =>
-    `The ${STEP_LABELS[step].toLowerCase()} is drafted again and waits for approval. Steps already issued stand.`,
+    `The ${stepLabel(step).toLowerCase()} is drafted again and waits for approval. Steps already issued stand.`,
   restarted: 'Ladder restarted',
-  restartedDetail: (step: ActionStep) => `The ${STEP_LABELS[step].toLowerCase()} is drafted again.`,
+  restartedDetail: (step: ActionStep) => `The ${stepLabel(step).toLowerCase()} is drafted again.`,
   cancel: 'Cancel',
   // Failures
   failed: {
@@ -192,3 +229,6 @@ export const en = {
     other: 'This could not be done. Reload the page and try again.',
   },
 } as const;
+
+/** Swahili for `en`, key by key; empty until translated. */
+export const sw: Partial<Record<keyof typeof en, string>> = {};
