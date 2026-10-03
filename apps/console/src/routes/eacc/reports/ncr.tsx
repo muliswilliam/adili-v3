@@ -1,11 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
+import { ComplianceReportsTabs } from '../../../components/eacc-intake/reports-tabs';
 import { messages as m } from '../../../components/national-report/messages';
-import {
-  defaultReportYear,
-  ncrSearchSchema,
-  reportYears,
-} from '../../../components/national-report/model';
+import { ncrSearchSchema } from '../../../components/national-report/model';
 import { NationalReportView } from '../../../components/national-report/national-report-view';
 import {
   type PatternCandidatesLoad,
@@ -18,25 +15,23 @@ import {
   getNationalReportPage,
   getNationalReportPdf,
   getPatternCandidatesFn,
+  type NationalReportScreen,
   saveNationalReportNarrativeFn,
 } from '../../../server/national-report';
-import type {
-  NationalReportPage,
-  NationalReportResult,
-} from '../../../server/national-report.server';
-import { BackToOverview } from './route';
 
 /** EACC's national consolidated report for a financial year (spec 09 FE-4, #233). */
 export const Route = createFileRoute('/eacc/reports/ncr')({
   validateSearch: ncrSearchSchema,
   // The table's page is applied in the browser; only another year reloads.
-  loaderDeps: ({ search }) => ({ fy: search.fy ?? defaultReportYear(new Date()) }),
-  loader: async ({ deps, context, location }) => {
+  loaderDeps: ({ search }) => ({ fy: search.fy }),
+  loader: async ({ deps, context, location }): Promise<NationalReportScreen | null> => {
     // The layout shows why there is no workspace; do not fetch the report.
     if (!context.workspace) return null;
-    const result = await getNationalReportPage({ data: { fy: deps.fy } });
-    if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    return result;
+    const screen = await getNationalReportPage({ data: { fy: deps.fy } });
+    if (!screen.page.ok && screen.page.error.kind === 'unauthenticated') {
+      throw signInRedirect(location.href);
+    }
+    return screen;
   },
   staticData: { crumb: m.title },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
@@ -47,21 +42,21 @@ export const Route = createFileRoute('/eacc/reports/ncr')({
 const loadCandidates: PatternCandidatesLoad = (fy) => getPatternCandidatesFn({ data: { fy } });
 
 function NcrLoading() {
-  return <NcrPage result={null} />;
+  return <NcrPage screen={null} />;
 }
 
 function NcrLoaded() {
-  const result = Route.useLoaderData();
-  if (!result) return null;
-  return <NcrPage result={result} />;
+  const screen = Route.useLoaderData();
+  // The layout shows why there is no workspace.
+  if (!screen) return null;
+  return <NcrPage screen={screen} />;
 }
 
-function NcrPage({ result }: { result: NationalReportResult<NationalReportPage> | null }) {
+function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
   const search = Route.useSearch();
   const { viewer, roles, subject } = Route.useRouteContext();
   const navigate = useNavigate({ from: '/eacc/reports/ncr' });
-  const now = new Date();
-  const fy = search.fy ?? defaultReportYear(now);
+  const fy = screen?.fy ?? search.fy;
   const page = search.page ?? 1;
   const onPageChange = (next: number) => {
     void navigate({
@@ -69,8 +64,9 @@ function NcrPage({ result }: { result: NationalReportResult<NationalReportPage> 
       resetScroll: false,
     });
   };
+  const result = screen ? screen.page : null;
   const extensions = useNcrPatterns({
-    fy,
+    fy: fy ?? 0,
     report: result?.ok ? result.data.report : null,
     load: loadCandidates,
     page,
@@ -79,23 +75,27 @@ function NcrPage({ result }: { result: NationalReportResult<NationalReportPage> 
   });
   return (
     <NationalReportView
-      fy={fy}
-      years={reportYears(now)}
-      onYearChange={(fy) => {
-        void navigate({ search: { fy } });
+      fy={fy ?? 0}
+      today={screen?.today ?? null}
+      tabs={<ComplianceReportsTabs current="ncr" fy={fy} />}
+      onYearChange={(next) => {
+        void navigate({ search: { fy: next } });
       }}
       page={page}
       onPageChange={onPageChange}
       result={result}
       viewer={{ subject: subject ?? '', name: viewer.user.name, roles }}
-      build={(fy) => buildNationalReportFn({ data: { fy } })}
-      saveNarrative={(fy, narrative) => saveNationalReportNarrativeFn({ data: { fy, narrative } })}
-      approve={(fy, idempotencyKey) => approveNationalReportFn({ data: { fy, idempotencyKey } })}
+      build={(year) => buildNationalReportFn({ data: { fy: year } })}
+      saveNarrative={(year, narrative) =>
+        saveNationalReportNarrativeFn({ data: { fy: year, narrative } })
+      }
+      approve={(year, idempotencyKey) =>
+        approveNationalReportFn({ data: { fy: year, idempotencyKey } })
+      }
       pdfLink={(documentId) => getNationalReportPdf({ data: { documentId } })}
       onUnauthenticated={() => {
         goToSignIn();
       }}
-      forbiddenAction={<BackToOverview />}
       extensions={extensions}
     />
   );

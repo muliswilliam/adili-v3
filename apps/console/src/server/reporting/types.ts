@@ -21,7 +21,6 @@ export type Officer = Schemas['Officer'];
 export type Narrative = Schemas['Narrative'];
 export type NarrativeParagraph = Schemas['NarrativeParagraph'];
 export type NarrativeSectionId = NarrativeParagraph['section'];
-export type Intake = Schemas['Intake'];
 
 /** The kit's national report sections and limits are the contract's (`Narrative`). */
 export type NarrativeMatchesContract = Assert<MatchesNarrativeSections<Narrative>>;
@@ -55,6 +54,22 @@ export interface ReportingProblem {
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
 }
+
+/** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */
+export type Intake = Schemas['Intake'];
+/** One Commission on the intake. */
+export type IntakeRow = Intake['commissions'][number];
+export type IntakeStatus = Schemas['IntakeStatus'];
+export type IntakeOutlier = IntakeRow['outliers'][number];
+export type ReportSource = Schemas['ReportSource'];
+
+/**
+ * reporting.yaml `SubmittedComplianceReport` (the report viewer), with its document typed as the
+ * frozen form-m.v1 it is.
+ */
+export type SubmittedReport = Omit<Schemas['SubmittedComplianceReport'], 'document'> & {
+  document: FormMV1;
+};
 
 /** reporting.yaml `PatternCandidate`: a notable pattern the service computed for the year. */
 export type PatternCandidate = Schemas['PatternCandidate'];

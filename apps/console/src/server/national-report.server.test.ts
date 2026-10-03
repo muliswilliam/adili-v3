@@ -7,11 +7,22 @@ import {
   nationalReportPdf,
   saveNationalReportNarrative,
 } from './national-report.server';
-import { mockReportingClient as sharedMockClient } from './reporting/mock.server';
+import { setEaccIntakeMockLatency } from './reporting/eacc-mock.server';
 import {
-  mockNcrDocumentsClient,
-  resetNcrMock as resetReportingMock,
-} from './reporting/ncr-mock.server';
+  resetReportingMock as resetFormMMock,
+  setReportingMockLatency,
+  mockReportingClient as sharedMockClient,
+} from './reporting/mock.server';
+import { mockNcrDocumentsClient, resetNcrMock } from './reporting/ncr-mock.server';
+
+/** The day the mocks take as today: FY 2025/2026's reports are in, FY 2026/2027's not due. */
+const TODAY = '2026-10-03';
+
+/** Seeds the national report mock at `seed` over the shared intake fixture on `TODAY`. */
+function resetReportingMock(seed: Parameters<typeof resetNcrMock>[0], options = {}) {
+  resetFormMMock(TODAY);
+  resetNcrMock(seed, options);
+}
 
 /** A reporting mock client as an EACC officer named `name`, whose subject follows the name. */
 function mockReportingClient(name: string, roles: readonly string[]) {
@@ -31,6 +42,8 @@ const supervisor = (name = 'Nafula Wekesa') => mockReportingClient(name, SUPERVI
 const EMPTY = { overview: '', findings: '', recommendations: '' };
 
 beforeEach(() => {
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
   resetReportingMock('not-built');
 });
 
@@ -40,14 +53,14 @@ describe('S11 loadNationalReportPage', () => {
 
     expect(page).toEqual({
       ok: true,
-      data: { fy: 2025, report: null, reported: 11, notReported: 3 },
+      data: { fy: 2025, report: null, reported: 11, notReported: 4 },
     });
   });
 
   it('reads the current year, which nobody has reported for yet', async () => {
     const page = await loadNationalReportPage(analyst(), 2026);
 
-    expect(page).toMatchObject({ ok: true, data: { report: null, reported: 0, notReported: 14 } });
+    expect(page).toMatchObject({ ok: true, data: { report: null, reported: 0, notReported: 15 } });
   });
 
   it('answers 403 to anyone outside EACC', async () => {
@@ -72,7 +85,7 @@ describe('S11 loadNationalReportPage', () => {
       status: 'submitted-late',
       initial: { expected: 9412, declared: 8960 },
     });
-    expect(report.aggregates.byCommission.cpsbkwale).toMatchObject({
+    expect(report.aggregates.byCommission.jsc).toMatchObject({
       status: 'not-reported',
       initial: null,
     });
@@ -86,7 +99,7 @@ describe('S11 loadNationalReportPage', () => {
 
     expect(page).toMatchObject({
       ok: true,
-      data: { reported: 12, report: { reportsIncluded: 11 } },
+      data: { reported: 11, report: { reportsIncluded: 10 } },
     });
   });
 });
@@ -101,7 +114,7 @@ describe('S11 buildNationalReport', () => {
         status: 'draft',
         reportsIncluded: 11,
         author: { name: 'Baraka Mutua' },
-        aggregates: { national: { initial: { expected: 21_239, declared: 20_402 } } },
+        aggregates: { national: { initial: { expected: 20_442, declared: 19_607 } } },
       },
     });
   });
@@ -113,7 +126,7 @@ describe('S11 buildNationalReport', () => {
 
     expect(rebuilt).toMatchObject({
       ok: true,
-      data: { reportsIncluded: 12, author: { name: 'Brian Otieno' } },
+      data: { reportsIncluded: 11, author: { name: 'Brian Otieno' } },
     });
     if (rebuilt.ok) expect(rebuilt.data.narrative.overview).toMatch(/^This report consolidates/);
   });

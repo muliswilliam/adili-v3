@@ -2,33 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import type { NarrativeParagraph } from '../../server/reporting/types';
 import {
+  appendParagraph,
   approvalOf,
-  defaultReportYear,
   editorValueOf,
   narrativeTextOf,
   ncrSearchSchema,
   newReportsSince,
-  reportYears,
 } from './model';
 
-const at = (iso: string) => new Date(iso);
-
-describe('report years', () => {
-  it('offers every financial year from 2025/2026 to the current one, latest first', () => {
-    expect(reportYears(at('2027-10-03T09:00:00Z'))).toEqual([2027, 2026, 2025]);
-  });
-
-  it('turns to the new financial year at midnight on 1 July in Nairobi', () => {
-    expect(reportYears(at('2026-06-30T20:59:00Z'))).toEqual([2025]);
-    expect(reportYears(at('2026-06-30T21:00:00Z'))).toEqual([2026, 2025]);
-  });
-
-  it('opens on the year whose reports are in: the one before the current year', () => {
-    expect(defaultReportYear(at('2026-10-03T09:00:00Z'))).toBe(2025);
-    expect(defaultReportYear(at('2026-03-01T09:00:00Z'))).toBe(2025);
-  });
-
-  it('reads the year and page from the address, dropping what is not a year reports exist for', () => {
+describe('page address', () => {
+  it('reads the year and page, dropping what is not a year reports exist for', () => {
     expect(ncrSearchSchema.parse({ fy: 2025, page: 2 })).toEqual({ fy: 2025, page: 2 });
     expect(ncrSearchSchema.parse({ fy: 2019, page: 0 })).toEqual({});
   });
@@ -68,6 +51,28 @@ describe('narrative', () => {
         findings: [para('findings', 0, 'A'), para('findings', 1, ''), para('findings', 2, 'B')],
       }),
     ).toEqual({ overview: 'Overview.', findings: 'A\n\nB', recommendations: '' });
+  });
+});
+
+describe('appendParagraph', () => {
+  it('adds a paragraph at the end of a section, dropping its empty fields', () => {
+    const value = appendParagraph(
+      { findings: [para('findings', 0, 'A'), para('findings', 1, ' ')] },
+      'findings',
+      { text: 'Cited.', aggregateRefs: ['national.rate.all'] },
+    );
+
+    expect(
+      value.findings?.map(({ text, position, aiDraft, aggregateRefs }) => ({
+        text,
+        position,
+        aiDraft,
+        aggregateRefs,
+      })),
+    ).toEqual([
+      { text: 'A', position: 0, aiDraft: false, aggregateRefs: [] },
+      { text: 'Cited.', position: 1, aiDraft: false, aggregateRefs: ['national.rate.all'] },
+    ]);
   });
 });
 

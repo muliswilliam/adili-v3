@@ -9,12 +9,18 @@ import {
   type NationalReportResult,
   loadNationalReportPage,
 } from '../../server/national-report.server';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock as resetFormMMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
 import {
   type NcrMockSeed as ReportingMockSeed,
   resetNcrMock as resetReportingMock,
 } from '../../server/reporting/ncr-mock.server';
 import type { NationalReport } from '../../server/reporting/types';
+import { appendParagraph } from './model';
 import { NationalReportView } from './national-report-view';
 
 const invalidate = vi.fn();
@@ -36,6 +42,9 @@ const SUPERVISOR = {
 
 /** The page as the reporting mock answers it for `seed`. */
 async function pageOf(seed: ReportingMockSeed, fy = 2025) {
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
+  resetFormMMock('2026-10-03');
   resetReportingMock(seed, { pdfDelayMs: 0 });
   const result = await loadNationalReportPage(
     mockReportingClient(['eacc-analyst'], { name: 'Baraka Mutua', tenant: 'eacc' }),
@@ -55,7 +64,8 @@ type Props = ComponentProps<typeof NationalReportView>;
 function renderView(props: Partial<Props> & Pick<Props, 'result'>) {
   const all: Props = {
     fy: 2025,
-    years: [2026, 2025],
+    today: '2026-10-03',
+    tabs: <nav aria-label="Compliance reports sections" />,
     page: 1,
     viewer: ANALYST,
     onYearChange: vi.fn(),
@@ -67,14 +77,19 @@ function renderView(props: Partial<Props> & Pick<Props, 'result'>) {
     onUnauthenticated: vi.fn(),
     ...props,
   };
-  render(
+  const view = (next: Props) => (
     <TooltipProvider>
       <ToastProvider>
-        <NationalReportView {...all} />
+        <NationalReportView {...next} />
       </ToastProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   );
-  return all;
+  const { rerender } = render(view(all));
+  return Object.assign(all, {
+    rerender: (changes: Partial<Props>) => {
+      rerender(view({ ...all, ...changes }));
+    },
+  });
 }
 
 beforeAll(() => {
@@ -93,7 +108,8 @@ describe('S15 national report: loading and failures', () => {
   it('shows the page busy while the report loads', () => {
     renderView({ result: null });
 
-    expect(screen.getByRole('heading', { level: 1, name: 'National report' })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: 'Compliance reports' })).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'Compliance reports sections' })).toBeDefined();
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
@@ -109,7 +125,9 @@ describe('S15 national report: loading and failures', () => {
     });
 
     expect(
-      screen.getByText('Only EACC analysts and supervisors work on the national report.'),
+      screen.getByText(
+        'Only EACC analysts and supervisors work on the national consolidated report.',
+      ),
     ).toBeDefined();
   });
 
@@ -128,7 +146,7 @@ describe('S15 national report: loading and failures', () => {
       'FY 2025/2026 (due 31 Jul 2026)',
     );
     fireEvent.keyDown(screen.getByRole('combobox', { name: 'Financial year' }), { key: 'Enter' });
-    fireEvent.click(await screen.findByRole('option', { name: 'FY 2026/2027 (due 31 Jul 2027)' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'FY 2026/2027 (current)' }));
     expect(props.onYearChange).toHaveBeenCalledWith(2026);
   });
 });
@@ -155,7 +173,7 @@ describe('S15 national report: before it is built', () => {
 
     expect(screen.getByText('National report not built yet')).toBeDefined();
     expect(
-      screen.getByText('11 Commissions reported, 3 have not. You can rebuild later.'),
+      screen.getByText('11 Commissions reported, 4 have not. You can rebuild later.'),
     ).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Build from 11 submitted reports' }));
 
@@ -211,10 +229,10 @@ describe('S11 S15 national report: the draft', () => {
     expect(screen.getByText('Draft')).toBeDefined();
     const totals = screen.getByRole('table', { name: 'National totals per Form M section' });
     const initial = within(totals).getByRole('row', { name: /1\. Initial declarations/ });
-    expect(initial.textContent).toContain('21,239');
-    expect(initial.textContent).toContain('20,402');
-    expect(initial.textContent).toContain('837');
-    expect(initial.textContent).toContain('96.1%');
+    expect(initial.textContent).toContain('20,442');
+    expect(initial.textContent).toContain('19,607');
+    expect(initial.textContent).toContain('835');
+    expect(initial.textContent).toContain('95.9%');
     expect(within(totals).getByRole('row', { name: /All sections/ })).toBeDefined();
   });
 
@@ -224,8 +242,8 @@ describe('S11 S15 national report: the draft', () => {
     const table = screen.getByRole('table', { name: 'Declared rates per Commission' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(10);
-    expect(rows[0]?.textContent).toMatch(/^Judicial Service Commission/);
-    expect(screen.getByText('1-10 of 14')).toBeDefined();
+    expect(rows[0]?.textContent).toMatch(/^Bungoma County Public Service Board/);
+    expect(screen.getByText('1-10 of 15')).toBeDefined();
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(props.onPageChange).toHaveBeenCalledWith(2);
   });
@@ -237,16 +255,16 @@ describe('S11 S15 national report: the draft', () => {
     const tsc = within(table).getByRole('row', { name: /Teachers Service Commission/ });
     expect(within(tsc).getByText('Reported late')).toBeDefined();
     expect(tsc.textContent).toContain('95.2%');
-    expect(screen.getByText('11-14 of 14')).toBeDefined();
+    expect(screen.getByText('11-15 of 15')).toBeDefined();
   });
 
   it('shows a Commission that has not reported without figures', async () => {
     renderView({ result: await pageOf('draft') });
 
     const table = screen.getByRole('table', { name: 'Declared rates per Commission' });
-    const kwale = within(table).getByRole('row', { name: /Kwale County Public Service Board/ });
-    expect(within(kwale).getByText('Not reported')).toBeDefined();
-    expect(within(kwale).getAllByText('No report')).toHaveLength(3);
+    const kisii = within(table).getByRole('row', { name: /Kisii County Public Service Board/ });
+    expect(within(kisii).getByText('Not reported')).toBeDefined();
+    expect(within(kisii).getAllByText('No report')).toHaveLength(3);
   });
 
   it('lets the analyst rebuild, and says a rebuild keeps the narrative', async () => {
@@ -290,7 +308,7 @@ describe('S11 S15 national report: the draft', () => {
       finish({ ok: true, data: reportOf(page) });
       await Promise.resolve();
     });
-    expect(await screen.findByText('Built from 11 reports. Narrative kept.')).toBeDefined();
+    expect(await screen.findByText('Built from 10 reports. Narrative kept.')).toBeDefined();
   });
 
   it('says nothing failed when a rebuild finds the report approved meanwhile (409)', async () => {
@@ -445,10 +463,10 @@ describe('S11 S15 national report: approval', () => {
   });
 
   it('offers to check again once the PDF has been waited on for a while', async () => {
+    const page = await pageOf('approved');
+    const report = reportOf(page);
     vi.useFakeTimers();
     try {
-      const page = await pageOf('approved');
-      const report = reportOf(page);
       renderView({
         result: { ok: true, data: { ...page.data, report: { ...report, documentId: null } } },
       });
@@ -493,5 +511,137 @@ describe('seams for spec 09b', () => {
       patterns.compareDocumentPosition(narrative) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(within(narrative).getByRole('button', { name: 'Draft narrative' })).toBeDefined();
+  });
+  it('lets a panel insert into the narrative being edited, saved like typing (#331 Cite in findings)', async () => {
+    const page = await pageOf('draft');
+    const saveNarrative = vi.fn(() => Promise.resolve({ ok: true as const, data: reportOf(page) }));
+    renderView({
+      result: page,
+      saveNarrative,
+      extensions: {
+        patterns: ({ canEdit, editNarrative }) => (
+          <button
+            type="button"
+            disabled={!canEdit}
+            onClick={() => {
+              editNarrative((value) =>
+                appendParagraph(value, 'findings', {
+                  text: 'Nairobi City reports a biennial rate of 62%.',
+                  aggregateRefs: ['commission.cpsb047.rate.biennial'],
+                  candidateIds: ['threshold-breach:cpsb047'],
+                }),
+              );
+            }}
+          >
+            Cite in findings
+          </button>
+        ),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cite in findings' }));
+
+    expect(screen.getByRole('textbox', { name: 'Findings, paragraph 3' })).toHaveProperty(
+      'value',
+      'Nairobi City reports a biennial rate of 62%.',
+    );
+    await waitFor(
+      () => {
+        expect(saveNarrative).toHaveBeenCalled();
+      },
+      { timeout: 3000 },
+    );
+    const [, narrative] = saveNarrative.mock.calls[0] as unknown as [
+      number,
+      Record<string, string>,
+    ];
+    expect(narrative.findings?.split('\n\n').at(-1)).toBe(
+      'Nairobi City reports a biennial rate of 62%.',
+    );
+  });
+
+  it('takes the report a panel got back as the narrative being edited (#341 drafts)', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const drafted: NationalReport = {
+      ...report,
+      version: report.version + 1,
+      narrativeParagraphs: [
+        ...report.narrativeParagraphs,
+        {
+          id: '0199d000-0000-7000-8000-000000000001',
+          section: 'recommendations',
+          position: 0,
+          text: 'Chase the boards that did not report.',
+          aiDraft: true,
+          aggregateRefs: [],
+          candidateIds: [],
+        },
+      ],
+    };
+    renderView({
+      result: page,
+      extensions: {
+        narrativeActions: ({ adoptReport }) => (
+          <button
+            type="button"
+            onClick={() => {
+              adoptReport(drafted);
+            }}
+          >
+            Draft narrative
+          </button>
+        ),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Draft narrative' }));
+
+    const field = screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' });
+    expect(field).toHaveProperty('value', 'Chase the boards that did not report.');
+    expect(field.getAttribute('data-ai-draft')).toBe('true');
+  });
+
+  it('resets the narrative when the report changes on the server, keeping edits not saved yet', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const view = renderView({ result: page });
+    const changed: NationalReport = {
+      ...report,
+      version: report.version + 2,
+      narrativeParagraphs: report.narrativeParagraphs.filter((each) => each.section !== 'findings'),
+    };
+
+    view.rerender({ result: { ok: true, data: { ...page.data, report: changed } } });
+
+    expect(screen.getByRole('textbox', { name: 'Findings, paragraph 1' })).toHaveProperty(
+      'value',
+      '',
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Findings, paragraph 1' }), {
+      target: { value: 'Typed, not saved yet.' },
+    });
+    view.rerender({
+      result: {
+        ok: true,
+        data: { ...page.data, report: { ...changed, version: changed.version + 1 } },
+      },
+    });
+    expect(screen.getByRole('textbox', { name: 'Findings, paragraph 1' })).toHaveProperty(
+      'value',
+      'Typed, not saved yet.',
+    );
+  });
+
+  it('keeps the AI-draft label when a panel adds its own paragraph line', async () => {
+    renderView({
+      result: await pageOf('draft'),
+      extensions: {
+        paragraphMeta: (paragraph) => (paragraph.aiDraft ? <span>1 figure cited</span> : null),
+      },
+    });
+
+    expect(screen.getAllByRole('img', { name: /^AI draft\./ })).toHaveLength(1);
+    expect(screen.getByText('1 figure cited')).toBeDefined();
   });
 });
