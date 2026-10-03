@@ -43,11 +43,6 @@ export const envSchema = bffEnvSchema.extend({
    */
   ASSISTANT_MOCK: z.stringbool().default(false),
   /**
-   * Show the rating control under Ask Adili answers. The declarations service builds the rating
-   * endpoint with #339; until then it is on only with ASSISTANT_MOCK, which answers it.
-   */
-  ASSISTANT_FEEDBACK: z.stringbool().default(false),
-  /**
    * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
    * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
    */

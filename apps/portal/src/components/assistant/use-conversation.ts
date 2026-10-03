@@ -30,8 +30,6 @@ export type ConversationState =
       status: 'ready';
       id: string;
       messages: AssistantMessage[];
-      /** Answers can be rated here (ASSISTANT_FEEDBACK). */
-      feedback: boolean;
     };
 
 export interface AskContext {
@@ -101,7 +99,6 @@ export function useConversation({
                   status: 'ready',
                   id: result.conversation.id,
                   messages: result.conversation.messages,
-                  feedback: result.feedback,
                 }
               : { status: 'failed' },
         });

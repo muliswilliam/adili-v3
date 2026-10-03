@@ -17,6 +17,7 @@ import { COPY } from '../../clarification/copy';
 import { isUuid } from '../../declaration/section-key';
 import { settleLoad } from '../../components/declaration/route-helpers';
 import { SignOutButton } from '../../components/sign-out-button';
+import { HelpLink } from '../../components/help/parts';
 import { getMyClarification } from '../../server/clarifications';
 
 /** A clarification from the declarant's Commission, and their response to it (spec 07a FE-5). */
@@ -45,7 +46,14 @@ export const Route = createFileRoute('/clarifications/$id')({
 function Page({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
-      <SiteHeader actions={<SignOutButton />} />
+      <SiteHeader
+        actions={
+          <>
+            <HelpLink />
+            <SignOutButton />
+          </>
+        }
+      />
       {children}
       <SiteFooter />
     </ToastProvider>

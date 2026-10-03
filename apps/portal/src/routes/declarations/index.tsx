@@ -7,6 +7,7 @@ import { DISCARD_AMENDMENT_COPY } from '../../components/declaration/discard-ame
 import { settleLoad } from '../../components/declaration/route-helpers';
 import { MyDeclarationsView } from '../../components/my-declarations/my-declarations-view';
 import { SignOutButton } from '../../components/sign-out-button';
+import { HelpLink } from '../../components/help/parts';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZES } from '../../declaration/my-declarations';
 import { getMyDeclarationsPage } from '../../server/my-declarations';
 
@@ -55,7 +56,14 @@ function MyDeclarationsRoute() {
     <ToastProvider>
       {discarded ? <DiscardedToast version={discarded} /> : null}
       <TooltipProvider>
-        <SiteHeader actions={<SignOutButton />} />
+        <SiteHeader
+          actions={
+            <>
+              <HelpLink />
+              <SignOutButton />
+            </>
+          }
+        />
         <main className="mx-auto w-full max-w-[880px] flex-1 px-4 pt-6 pb-12 sm:px-7 sm:pt-9 sm:pb-16">
           <MyDeclarationsView
             result={result}

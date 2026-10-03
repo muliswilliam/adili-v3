@@ -14,6 +14,10 @@ export interface CorpusPassage {
   tags: readonly string[];
   title: readonly [en: string, sw: string | null];
   text: readonly [en: string, sw: string | null];
+  /** When the wording took effect; the Act's and Regulations' commencement unless set. */
+  effectiveFrom?: string;
+  /** The Commission whose article it is (slug); the law and platform articles have none. */
+  commission?: string;
 }
 
 export const CORPUS: readonly CorpusPassage[] = [
@@ -21,7 +25,15 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'act-31-1',
     source: 'act',
     citation: 'Act s.31(1)',
-    tags: ['household', 'statement', 'income', 'assets', 'liabilities'],
+    tags: [
+      'household',
+      'statement',
+      'spouse',
+      'dependent-child',
+      'income',
+      'assets',
+      'liabilities',
+    ],
     title: ['Who you declare for', 'Unatangaza kwa ajili ya nani'],
     text: [
       'Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities and the income, assets and liabilities of his or her spouse and dependent children under the age of eighteen years.',
@@ -32,7 +44,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'act-31-4',
     source: 'act',
     citation: 'Act s.31(4)',
-    tags: ['other', 'income', 'assets', 'liabilities'],
+    tags: ['other', 'material-change', 'income', 'assets', 'liabilities'],
     title: ['Material change', 'Mabadiliko makubwa'],
     text: [
       '"Material change" means: (a) at least twenty-five percent increase or decrease in the value of an income, asset or liability; (b) the disposal or acquisition of an asset or liability; (c) changes in marital status; (d) appointment to or changes in directorships; (e) changes in membership in companies or partnerships and other legal entities; or (f) changes in membership in social associations, societies, clubs, foundations or trusts.',
@@ -43,7 +55,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'act-34',
     source: 'act',
     citation: 'Act s.34',
-    tags: ['summary'],
+    tags: ['summary', 'declaration', 'due-date', 'initial', 'biennial', 'final'],
     title: ['When to declare', 'Wakati wa kutangaza'],
     text: [
       '(1) A public officer shall, within thirty days of appointment, submit an initial declaration for the period of one year prior to appointment. (2) Every public officer shall, once every two years, submit a declaration as at the first day of November of the declaration year, within the month of December next following. (3) A public officer shall, within thirty days after ceasing to be a public officer, submit a final declaration.',
@@ -54,7 +66,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'fs-5',
     source: 'act',
     citation: 'First Schedule, para 5',
-    tags: ['bio'],
+    tags: ['bio', 'employment'],
     title: ['Employment information', 'Maelezo ya ajira'],
     text: [
       'Employment information: (a) designation; (b) name of employer; (c) nature of employment (permanent, temporary, contract, etc.).',
@@ -76,7 +88,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'regs-21',
     source: 'regs',
     citation: 'Regs r.21',
-    tags: ['other'],
+    tags: ['other', 'material-change'],
     title: ['Declaring a material change', 'Kutangaza mabadiliko makubwa'],
     text: [
       'A material change shall, for purposes of section 31(4) of the Act, be specified by the declarant in paragraph 9 of the declaration form set out in the First Schedule to the Act.',
@@ -98,7 +110,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'help-joint',
     source: 'help',
     citation: 'Help: Joint assets',
-    tags: ['statement', 'assets'],
+    tags: ['statement', 'assets', 'joint'],
     title: ['Joint assets', 'Mali ya pamoja'],
     text: [
       'If you own an asset with someone else, declare it once in your statement at its whole value. Switch on "Jointly held" and enter your share, for example 50%.',
@@ -120,7 +132,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'help-children',
     source: 'help',
     citation: 'Help: Dependent children',
-    tags: ['household'],
+    tags: ['household', 'dependent-child'],
     title: ['Dependent children', 'Watoto wanaokutegemea'],
     text: [
       'Include children who are under 18 on the statement date. A child who turned 18 before that date is not included and needs no statement.',
@@ -131,7 +143,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'help-spouse',
     source: 'help',
     citation: "Help: Your spouse's income",
-    tags: ['household', 'statement', 'income'],
+    tags: ['household', 'statement', 'spouse', 'income'],
     title: ["Your spouse's income", 'Mapato ya mwenzi wako'],
     text: [
       "Declare your spouse's salary and other income in their own financial statement, as an approximate amount for the income period.",
@@ -142,7 +154,7 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'help-loans',
     source: 'help',
     citation: 'Help: Loans',
-    tags: ['statement', 'liabilities'],
+    tags: ['statement', 'liabilities', 'loan', 'mortgage'],
     title: ['Loans and other debts', 'Mikopo na madeni mengine'],
     text: [
       'Declare what was owed on the statement date: the balance on your loan statement, not the amount you first borrowed. Include SACCO loans, mortgages, hire purchase and money owed to people.',
@@ -153,11 +165,57 @@ export const CORPUS: readonly CorpusPassage[] = [
     id: 'help-amend',
     source: 'help',
     citation: 'Help: Amending',
-    tags: ['summary'],
+    tags: ['summary', 'filing'],
     title: ['Amending a declaration', 'Kurekebisha tamko'],
     text: [
       'After you submit, you can amend your declaration until the due date. Each amendment files a new version, and earlier versions are kept.',
       'Baada ya kuwasilisha, unaweza kurekebisha tamko lako hadi tarehe ya mwisho. Kila marekebisho yanawasilisha toleo jipya, na matoleo ya awali yanahifadhiwa.',
+    ],
+  },
+  {
+    id: 'act-35-2',
+    source: 'act',
+    citation: 'Act s.35(2)',
+    tags: ['clarification', 'filing'],
+    title: ['Clarification', null],
+    text: [
+      'The responsible Commission may, within six months of receipt of a declaration, request, in writing, for clarification from the public officer who submitted the declaration. The public officer shall, within thirty days of receipt of the request, provide the clarification.',
+      null,
+    ],
+  },
+  {
+    id: 'help-file',
+    source: 'help',
+    citation: 'Help: File numbers at TSC',
+    tags: ['bio', 'employment', 'responsible-commission'],
+    title: ['File numbers at TSC', 'Nambari za faili TSC'],
+    text: [
+      'Your personnel file number is the TSC number on your payslip, without the "TSC/" prefix. If it is missing or wrong, contact your county TSC office.',
+      'Nambari yako ya faili ni nambari ya TSC iliyo kwenye hati yako ya mshahara, bila "TSC/" mwanzoni. Ikikosekana au ikiwa na kosa, wasiliana na ofisi ya TSC ya kaunti yako.',
+    ],
+    effectiveFrom: '2026-07-01',
+    commission: 'tsc',
+  },
+  {
+    id: 'help-nil',
+    source: 'help',
+    citation: 'Help: Nothing to declare',
+    tags: ['statement', 'income', 'assets', 'liabilities', 'filing'],
+    title: ['Nothing to declare', 'Hakuna cha kutangaza'],
+    text: [
+      'Every part of every statement needs at least one item or a tick in "Nothing to declare". Tick it only when the person had none of that kind on the statement date, for example a child with no income.',
+      'Kila sehemu ya kila taarifa inahitaji angalau kipengele kimoja au alama kwenye "Hakuna cha kutangaza". Weka alama tu pale mtu hakuwa na kitu cha aina hiyo tarehe ya taarifa, kwa mfano mtoto asiye na mapato.',
+    ],
+  },
+  {
+    id: 'help-slip',
+    source: 'help',
+    citation: 'Help: Acknowledgement slip',
+    tags: ['summary', 'filing'],
+    title: ['Your acknowledgement slip', 'Risiti yako'],
+    text: [
+      'After you submit, you get a reference number and a signed slip with a verification code. Anyone can check the slip is genuine on the verification page; it shows no amounts.',
+      'Baada ya kuwasilisha, unapata nambari ya kumbukumbu na risiti iliyotiwa sahihi yenye nambari ya uthibitisho. Mtu yeyote anaweza kukagua risiti kwenye ukurasa wa uthibitisho; haionyeshi kiasi chochote.',
     ],
   },
 ];

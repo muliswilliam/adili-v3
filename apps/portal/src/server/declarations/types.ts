@@ -56,3 +56,6 @@ export type AssistantAnswer = Schemas['AssistantAnswer'];
 export type AssistantLanguage = Schemas['HelpLanguage'];
 export type AssistantItemType = NonNullable<Schemas['AskAssistantRequest']['itemType']>;
 export type HelpPassage = Schemas['HelpPassage'];
+export type HelpPassageDetail = Schemas['HelpPassageDetail'];
+export type CompletenessHints = Schemas['CompletenessHints'];
+export type CompletenessHint = Schemas['CompletenessHint'];

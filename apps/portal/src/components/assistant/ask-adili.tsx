@@ -261,6 +261,11 @@ function Panel({
     });
   }
 
+  /** "Read in help": the passage's help page, in the panel's language. */
+  function readPassage(passageId: string) {
+    void navigate({ to: '/help/$passageId', params: { passageId }, search: { lang: language } });
+  }
+
   function switchLanguage(next: AskLanguage) {
     if (next === language) return;
     onLanguage(next);
@@ -416,12 +421,12 @@ function Panel({
                     answer={{ kind: 'stored', message }}
                     conversationId={conversation.id}
                     declarationId={declarationId}
-                    feedback={conversation.feedback}
                     copy={copy}
                     sections={sections}
                     language={language}
                     readSection={readSection}
                     onOpenPlace={openPlace}
+                    onReadPassage={readPassage}
                     onRated={setRating}
                   />
                 ),
@@ -438,12 +443,12 @@ function Panel({
                       answer={{ kind: 'pending', turn: pending, onRetry: retry }}
                       conversationId={conversation.id}
                       declarationId={declarationId}
-                      feedback={conversation.feedback}
                       copy={copy}
                       sections={sections}
                       language={language}
                       readSection={readSection}
                       onOpenPlace={openPlace}
+                      onReadPassage={readPassage}
                       onRated={setRating}
                     />,
                   ]
@@ -499,23 +504,23 @@ function Answer({
   answer,
   conversationId,
   declarationId,
-  feedback: canRate,
   copy,
   sections,
   language,
   readSection,
   onOpenPlace,
+  onReadPassage,
   onRated,
 }: {
   answer: AnswerSource;
   conversationId: string;
   declarationId: string | null;
-  feedback: boolean;
   copy: AskCopy;
   sections: readonly DeclarationSection[];
   language: AskLanguage;
   readSection: ReadSection;
   onOpenPlace: (step: string, field: string | null) => void;
+  onReadPassage: (passageId: string) => void;
   onRated: (messageId: string, rating: Message['rating']) => void;
 }) {
   const message = answer.kind === 'stored' ? answer.message : null;
@@ -559,6 +564,9 @@ function Answer({
       status={stored.declined ? 'declined' : 'answered'}
       text={stored.text}
       citations={stored.citations}
+      onReadPassage={(citation) => {
+        onReadPassage(citation.id);
+      }}
       officer={
         officer
           ? {
@@ -571,32 +579,28 @@ function Answer({
       // Without a contact on record the decline ends with the sentence, not a colon.
       messages={officer ? copy.message : { ...copy.message, declined: copy.declinedNoContact }}
       actions={
-        place || canRate ? (
-          <>
-            {place ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  onOpenPlace(place.step, place.field);
-                }}
-              >
-                <Icon icon={ArrowRight02Icon} />
-                {place.label}
-              </Button>
-            ) : null}
-            {canRate ? (
-              <FeedbackControl
-                value={feedback}
-                onRate={rate}
-                noteMaxLength={ASSISTANT_NOTE_MAX_LENGTH}
-                messages={copy.feedback}
-                className="w-full items-stretch [&>[role=group]]:self-start"
-              />
-            ) : null}
-          </>
-        ) : undefined
+        <>
+          {place ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                onOpenPlace(place.step, place.field);
+              }}
+            >
+              <Icon icon={ArrowRight02Icon} />
+              {place.label}
+            </Button>
+          ) : null}
+          <FeedbackControl
+            value={feedback}
+            onRate={rate}
+            noteMaxLength={ASSISTANT_NOTE_MAX_LENGTH}
+            messages={copy.feedback}
+            className="w-full items-stretch [&>[role=group]]:self-start"
+          />
+        </>
       }
     />
   );
