@@ -162,6 +162,20 @@
       "when": 1791024322041,
       "tag": "0023_assistant_conversations_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791027383896,
+      "tag": "0024_assistant_hints_feedback_themes",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791027384390,
+      "tag": "0025_assistant_hints_feedback_themes_rls",
+      "breakpoints": true
     }
   ]
 }

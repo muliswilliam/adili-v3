@@ -31,3 +31,29 @@ export function assistantMessageAnswered(
     data,
   };
 }
+
+export const ASSISTANT_FEEDBACK_RECORDED = 'assistant.feedback.recorded.v1';
+
+export interface AssistantFeedbackRecordedData extends Record<string, unknown> {
+  conversationId: string;
+  /** The answer rated. */
+  messageId: string;
+  tenant: string;
+  rating: 'helpful' | 'not-helpful';
+  /** The ai-gateway job the answer came from; null for a decline made without one. */
+  jobId: string | null;
+  /** Whether the gateway recorded the rating against its job. */
+  forwarded: boolean;
+}
+
+/** A declarant rated an answer (spec 11 S8): never the reason or the note. */
+export function assistantFeedbackRecorded(
+  data: AssistantFeedbackRecordedData,
+): NewEvent<AssistantFeedbackRecordedData> {
+  return {
+    type: ASSISTANT_FEEDBACK_RECORDED,
+    subject: data.conversationId,
+    tenant: data.tenant,
+    data,
+  };
+}

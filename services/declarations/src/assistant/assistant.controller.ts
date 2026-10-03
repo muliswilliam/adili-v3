@@ -1,4 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Logger, Param, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  Post,
+  Put,
+  Res,
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiOkResponse,
@@ -18,7 +28,7 @@ import type { FastifyReply } from 'fastify';
 
 import { ASSISTANT_RATE_LIMIT } from '../config.js';
 import { AssistantService, unavailableFrame } from './assistant.service.js';
-import type { AssistantConversation } from './representation.js';
+import type { AssistantConversation, AssistantMessage } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
 
@@ -120,5 +130,31 @@ export class AssistantController {
       clearInterval(ping);
       raw.end();
     }
+  }
+
+  @Put(':conversationId/messages/:messageId/feedback')
+  @ApiParam({ name: 'conversationId', schema: { type: 'string', format: 'uuid' } })
+  @ApiParam({ name: 'messageId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'rateAssistantMessage',
+    summary: 'Rate an answer, with why and a note',
+    description:
+      "Declarants, on an answer in their own conversation. Forwarded to the ai-gateway job the answer came from (rating, reason and note), then kept on the answer, the reason and note encrypted; a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.",
+  })
+  @ApiBody({ required: true, schema: schemaRef('RateAssistantMessageRequest') })
+  @ApiOkResponse({ description: 'The answer, rated', schema: schemaRef('AssistantMessage') })
+  @ApiProblemResponse(400, 'Request failed validation')
+  @ApiProblemResponse(404, NOT_VISIBLE)
+  @ApiProblemResponse(
+    503,
+    'Problem type `assistant-unavailable`: the ai-gateway cannot take the rating now; nothing was kept',
+  )
+  rate(
+    @CurrentPrincipal() principal: Principal,
+    @Param('conversationId') conversationId: string,
+    @Param('messageId') messageId: string,
+    @Body() body: unknown,
+  ): Promise<AssistantMessage> {
+    return this.assistant.rate(principal, conversationId, messageId, body);
   }
 }

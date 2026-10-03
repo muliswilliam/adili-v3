@@ -52,41 +52,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
-  /v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback:
-    parameters:
-      - $ref: '#/components/parameters/ConversationId'
-      - name: messageId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    put:
-      tags: [assistant]
-      operationId: rateAssistantMessage
-      summary: Rate an answer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [rating, reason]
-              properties:
-                rating:
-                  type: string
-                  enum: [helpful, not-helpful]
-                reason:
-                  type: [string, 'null']
-                  enum: [inaccurate, missed-something, unclear, too-long, other, null]
-                note:
-                  type: [string, 'null']
-                  maxLength: 500
-      responses:
-        '200':
-          description: Recorded
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/me/assistant/suggested-questions:
     get:
       tags: [assistant]
@@ -113,95 +78,10 @@ paths:
                 maxItems: 8
                 items:
                   type: string
-  /v1/declarations/{declarationId}/hints:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-    get:
-      tags: [assistant]
-      operationId: getCompletenessHints
-      summary: Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present)
-      parameters:
-        - name: language
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [en, sw]
-      responses:
-        '200':
-          description: Hints
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required: [ruleId, fieldPath, text, hint]
-                  properties:
-                    ruleId:
-                      type: string
-                    fieldPath:
-                      type: string
-                    text:
-                      type: string
-                      description: Deterministic residual text
-                    hint:
-                      type: [string, 'null']
-                      description: AI-assisted hint when available
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/help/themes:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags: [help]
-      operationId: getQuestionThemes
-      summary: Anonymised question theme counts and unanswered counts per month (commission-admin, reporting-officer)
-      parameters:
-        - name: month
-          in: query
-          schema:
-            type: string
-            pattern: '^[0-9]{4}-[0-9]{2}$'
-      responses:
-        '200':
-          description: Counts
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required: [month, theme, count, unanswered]
-                  properties:
-                    month:
-                      type: string
-                    theme:
-                      type: string
-                    count:
-                      type: integer
-                    unanswered:
-                      type: integer
-        '404':
-          $ref: '#/components/responses/NotFound'
 components:
   parameters:
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]{1,19}$'
     DeclarationId:
       name: declarationId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    ConversationId:
-      name: conversationId
       in: path
       required: true
       schema:

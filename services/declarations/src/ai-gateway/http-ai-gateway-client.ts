@@ -1,6 +1,12 @@
-import { type ServiceTokenClient, ServiceTokenError } from '@adili/api-kit';
+import {
+  createServiceClient,
+  type ServiceClient,
+  type ServiceTokenClient,
+  ServiceTokenError,
+} from '@adili/api-kit';
 import { z } from 'zod';
 
+import type { paths } from './ai-gateway-api.gen.js';
 import {
   AiGatewayClient,
   AiGatewayUnavailable,
@@ -10,6 +16,10 @@ import {
   type AnswerJob,
   type AnswerOutput,
   type AnswerRequest,
+  type FeedbackInput,
+  HINTS_WAIT_SECONDS,
+  type HintsJob,
+  type HintsRequest,
 } from './ai-gateway-client.js';
 
 /** The scope the declarations service's token needs for the gateway's internal API. */
@@ -26,6 +36,9 @@ export const STREAM_DEADLINE_MS = 55_000;
 
 /** A gap between frames this long, with the gateway's ping every 15 s, means the stream is dead. */
 export const STREAM_IDLE_MS = 35_000;
+
+/** A hints call: its wait plus the default budget for the hop (ADR-013 §2). */
+export const HINTS_TIMEOUT_MS = HINTS_WAIT_SECONDS * 1000 + 2_000;
 
 export interface HttpAiGatewayClientOptions {
   gatewayUrl: string;
@@ -66,6 +79,22 @@ const finalSchema = z.object({
   job: z.object({ id: z.uuid(), status: z.literal('succeeded'), output: outputSchema }),
 });
 
+/** A hints job: its output only once it succeeded. */
+const hintsJobSchema = z
+  .object({
+    id: z.uuid(),
+    status: z.enum(['queued', 'running', 'succeeded', 'failed', 'blocked']),
+    output: outputSchema.nullable(),
+  })
+  .transform((job): HintsJob => ({
+    id: job.id,
+    status: job.status,
+    output: job.status === 'succeeded' ? job.output : null,
+  }));
+
+/** A recorded rating: the service keeps nothing of the answer but that it was recorded. */
+const recorded = z.object({ jobId: z.uuid() }).transform(() => true);
+
 const REASONS = [
   'policy',
   'budget',
@@ -84,12 +113,17 @@ const frameSchemas = {
 };
 
 /**
- * The ai-gateway's answer stream (`POST /internal/v1/tasks/answer-declarant-question/stream`,
- * ai-gateway.yaml) with the service's own token (`ai:internal`, one retry after a 401) and the
- * Commission in `X-Acting-Tenant` (ADR-013 §8.8). Not api-kit's service client: that one reads a
- * JSON body, and this one reads server-sent events as they arrive. The gateway must accept the
- * stream within `STREAM_OPEN_TIMEOUT_MS`; any other status than 200, no token or no answer is
+ * The ai-gateway's internal API (ai-gateway.yaml) with the service's own token (`ai:internal`,
+ * one retry after a 401) and the Commission in `X-Acting-Tenant` (ADR-013 §8.8).
+ *
+ * The answer stream (`POST /internal/v1/tasks/answer-declarant-question/stream`) is read here,
+ * not through api-kit's service client: that one reads a JSON body, and this one reads
+ * server-sent events as they arrive. The gateway must accept the stream within
+ * `STREAM_OPEN_TIMEOUT_MS`; any other status than 200, no token or no answer is
  * `AiGatewayUnavailable`. Frames that break the contract end the stream with an `error` frame.
+ *
+ * Hints jobs and feedback go through the client generated from the contract; anything but the
+ * answers expected (a hints call is bounded by `HINTS_TIMEOUT_MS`) is `AiGatewayUnavailable`.
  */
 export class HttpAiGatewayClient extends AiGatewayClient {
   private readonly fetch: typeof fetch;
@@ -97,6 +131,8 @@ export class HttpAiGatewayClient extends AiGatewayClient {
   private readonly openMs: number;
   private readonly deadlineMs: number;
   private readonly idleMs: number;
+  private readonly gateway: ServiceClient<paths>;
+  private readonly waiting: ServiceClient<paths>;
 
   constructor(private readonly options: HttpAiGatewayClientOptions) {
     super();
@@ -105,6 +141,49 @@ export class HttpAiGatewayClient extends AiGatewayClient {
     this.openMs = options.timeouts?.openMs ?? STREAM_OPEN_TIMEOUT_MS;
     this.deadlineMs = options.timeouts?.deadlineMs ?? STREAM_DEADLINE_MS;
     this.idleMs = options.timeouts?.idleMs ?? STREAM_IDLE_MS;
+    const client = (timeoutMs?: number) =>
+      createServiceClient<paths>({
+        baseUrl: options.gatewayUrl,
+        service: 'ai-gateway',
+        tokens: options.tokens,
+        unavailable: (message, cause) => new AiGatewayUnavailable(message, cause),
+        timeoutMs,
+        fetch: options.fetch,
+      });
+    this.gateway = client();
+    this.waiting = client(HINTS_TIMEOUT_MS);
+  }
+
+  runHints(request: HintsRequest, idempotencyKey: string): Promise<HintsJob> {
+    const { tenant, subjectRef, promptVersion, input } = request;
+    return this.waiting.call(
+      (api) =>
+        api.POST('/internal/v1/tasks/{task}', {
+          params: {
+            path: { task: 'answer-declarant-question' },
+            header: { 'Idempotency-Key': idempotencyKey, 'X-Acting-Tenant': tenant },
+          },
+          body: {
+            dataClass: 'synthetic',
+            subjectRef,
+            promptVersion,
+            waitSeconds: HINTS_WAIT_SECONDS,
+            input,
+          },
+        }),
+      { status: [200, 202], schema: hintsJobSchema },
+    );
+  }
+
+  recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean> {
+    return this.gateway.call(
+      (api) =>
+        api.PUT('/internal/v1/jobs/{jobId}/feedback', {
+          params: { path: { jobId }, header: { 'X-Acting-Tenant': tenant } },
+          body: feedback,
+        }),
+      { status: 200, schema: recorded, otherwise: { 404: () => false } },
+    );
   }
 
   async streamAnswer(

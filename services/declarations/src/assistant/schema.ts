@@ -4,8 +4,10 @@ import {
   boolean,
   check,
   index,
+  integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -14,6 +16,7 @@ import {
 
 import type { AiLabel } from '../ai-gateway/ai-gateway-client.js';
 import { bytea, declarations } from '../declaration/schema.js';
+import { QUESTION_THEMES } from './themes.js';
 
 /**
  * Ask Adili's conversations (spec 11): the declarant's own, one per draft or one without a draft
@@ -104,6 +107,14 @@ export const assistantMessages = pgTable(
     label: jsonb().$type<AiLabel>(),
     /** The declarant's rating of an answer (#339); null until rated. */
     rating: text({ enum: ['helpful', 'not-helpful'] }),
+    /**
+     * Why, and the declarant's note, encrypted like the text (`FeedbackPlaintext`, its own AAD
+     * record id); null until rated.
+     */
+    feedbackCiphertext: bytea(),
+    feedbackEnvelope: jsonb().$type<FieldEnvelope>(),
+    /** A question's theme (`themes.ts`), as counted; null for an answer. */
+    theme: text({ enum: QUESTION_THEMES }),
     at: timestamp({ withTimezone: true }).notNull(),
   },
   (table) => [
@@ -113,7 +124,63 @@ export const assistantMessages = pgTable(
       'assistant_messages_rating_check',
       sql`${table.rating} is null or ${table.rating} in ('helpful', 'not-helpful')`,
     ),
+    check(
+      'assistant_messages_feedback_check',
+      sql`(${table.feedbackCiphertext} is null) = (${table.feedbackEnvelope} is null)`,
+    ),
   ],
 );
 
-export const assistantSchema = { assistantConversations, assistantMessages };
+/**
+ * Summary hints already written (spec 11 S5), by what they were written for: the hash of the
+ * hints request (the declaration type, the household as counts and the residuals, every person
+ * key replaced by its place), the language and the prompt version. One hint per residual, in
+ * order, and the label they came with. No personal data and no tenant's: rule ids and field
+ * paths in, plain-language guidance out, so every Commission's declarants share them; no RLS
+ * (migration 0025).
+ */
+export const assistantHintCache = pgTable(
+  'assistant_hint_cache',
+  {
+    residualHash: text().notNull(),
+    language: text({ enum: ASSISTANT_LANGUAGE_VALUES }).notNull(),
+    promptVersion: integer().notNull(),
+    hints: jsonb().$type<string[]>().notNull(),
+    label: jsonb().$type<AiLabel>().notNull(),
+    at: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.residualHash, table.language, table.promptVersion] })],
+);
+
+/**
+ * Anonymised question counts per Commission, month (Nairobi, `YYYY-MM`) and theme (spec 11 S8),
+ * counted as each answer is stored: how many questions, and how many of them the corpus could
+ * not answer. No text, no person, no conversation: they outlive the conversations they count.
+ * Row-level security (migration 0025): the Commission reads its own; a declarant counts only at
+ * the Commissions they have filing obligations with.
+ */
+export const assistantThemeCounts = pgTable(
+  'assistant_theme_counts',
+  {
+    tenant: text().notNull(),
+    month: text().notNull(),
+    theme: text({ enum: QUESTION_THEMES }).notNull(),
+    count: integer().notNull().default(0),
+    unanswered: integer().notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.tenant, table.month, table.theme] }),
+    check('assistant_theme_counts_month_check', sql`${table.month} ~ '^[0-9]{4}-[0-9]{2}$'`),
+    check(
+      'assistant_theme_counts_unanswered_check',
+      sql`${table.unanswered} >= 0 and ${table.unanswered} <= ${table.count}`,
+    ),
+  ],
+);
+
+export const assistantSchema = {
+  assistantConversations,
+  assistantMessages,
+  assistantHintCache,
+  assistantThemeCounts,
+};
