@@ -335,25 +335,18 @@ export class ComplianceReportActivities {
     const commission = await this.directory.getCommission(tenant);
     const request = {
       templateVersion: REPORT_TEMPLATE_VERSION,
-      disclosureLevel: 'restricted',
       issuerTenant: tenant,
       subjectRef: `compliance-report:${report.id}`,
       subjectPersonId: null,
     } as const;
-    const publicPayload = (type: 'form-m' | 'compliance-report-receipt') => ({
-      reference: submitted.reference,
-      type,
-      issuer: commission.issuerCode,
-      issuedAt: submitted.submittedAt.toISOString(),
-    });
 
     let formMDocumentId = report.formMDocumentId;
     if (formMDocumentId === null) {
       const issued = await this.documents.issue({
         ...request,
         type: 'form-m',
-        payload: document,
-        publicPayload: publicPayload('form-m'),
+        // As filed: submitting set `meta.reference`, which `FormMV1` leaves optional.
+        payload: { ...document, meta: { ...document.meta, reference: submitted.reference } },
         idempotencyKey: uuidv5(`${report.id}:form-m`, DOCUMENT_KEY_NAMESPACE),
       });
       formMDocumentId = issued.id;
@@ -375,7 +368,6 @@ export class ComplianceReportActivities {
           late: submitted.late,
           source: report.source,
         },
-        publicPayload: publicPayload('compliance-report-receipt'),
         idempotencyKey: uuidv5(`${report.id}:receipt`, DOCUMENT_KEY_NAMESPACE),
       });
       receiptDocumentId = issued.id;

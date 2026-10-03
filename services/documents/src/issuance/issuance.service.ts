@@ -12,7 +12,6 @@ import { errorType, notFoundIfInvisible, ProblemException } from '@adili/api-kit
 import { type Database, InjectDatabase, withPerson, withTenant } from '@adili/data-access';
 import { EventPublisher, type NewEvent } from '@adili/events';
 import {
-  CLARIFICATION_LETTER,
   DOCUMENT_DOWNLOADED,
   DOCUMENT_ISSUED,
   DOCUMENT_SUPERSEDED,
@@ -23,25 +22,23 @@ import {
   type DocumentType,
   newVerificationId,
 } from '@adili/events/contracts';
-import { ACCESS_OFFICER } from '@adili/roles';
-import { and, arrayContains, eq } from 'drizzle-orm';
+import { ACCESS_OFFICER, EACC_TENANT } from '@adili/roles';
+import { and, arrayContains, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { z } from 'zod';
 
 import { Clock } from '../clock.js';
 import { config, SYSTEM_SUBJECT } from '../config.js';
 import type { DocumentsSchema } from '../db/schema.js';
-import { ClarificationNotFound, ReviewClient, ReviewUnavailable } from '../review/review-client.js';
+import { ReviewClient, ReviewRecordNotFound, ReviewUnavailable } from '../review/review-client.js';
 import { S3, S3_PUBLIC } from '../storage/storage.module.js';
 import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner, type SignedRecord } from './record-signer.js';
 import { PdfRenderer } from './renderer.js';
-import {
-  clarificationLetterSource,
-  type DocumentDownload,
-  type IssuedDocument,
-} from './representation.js';
+import { eaccReadableTypes, ownTenantReadableTypes } from './readers.js';
+import { type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
+import type { DocumentDownload, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
 import { footerDocument, type Watermark, watermarked } from './templates/page.js';
 import { templateOf } from './templates/registry.js';
@@ -49,6 +46,12 @@ import type { DocumentTemplate } from './templates/template.js';
 
 /** Injection token of the verify app's origin (`VERIFY_BASE_URL`). */
 export const VERIFY_BASE_URL = Symbol('VERIFY_BASE_URL');
+
+/**
+ * Injection token: refuse a printed link that is not https (`NODE_ENV=production`; the portal
+ * runs on plain http in development and test).
+ */
+export const HTTPS_LINKS_ONLY = Symbol('HTTPS_LINKS_ONLY');
 
 /** Lifespan of the presigned GET handed to the owner, or to a service for its staff. */
 const DOWNLOAD_URL_TTL_SECONDS = 5 * 60;
@@ -75,14 +78,22 @@ interface DocumentWithRecord {
   record: RecordRow;
 }
 /**
- * Who the review service says the letter is for, beside the fields the template renders: the
- * issue request's `subjectPersonId` must be this person.
+ * The person the source names beside the fields the template renders (`PulledPayload.owner`):
+ * for `declarant` and `declarant-if-onboarded` the issue request's `subjectPersonId` must be this
+ * person; for `excluded-declarant` it is the person the document is never issued to (recorded as
+ * `excludedPersonId`, refused to an EACC reader whose token names them; staff tokens do not yet,
+ * #486), and the request names no subject person.
  */
-const letterSubject = z.looseObject({ declarantPersonId: z.uuid() });
+const pulledOwner = {
+  declarant: z.looseObject({ declarantPersonId: z.uuid() }),
+  'declarant-if-onboarded': z.looseObject({ declarantPersonId: z.uuid().nullable() }),
+  'excluded-declarant': z.looseObject({ declarantPersonId: z.uuid() }),
+} as const;
 
-/** The subject of the letter of a clarification: one letter per clarification. */
-function clarificationSubjectRef(clarificationId: string): string {
-  return `clarification:${clarificationId}`;
+/** A pulled type's request: how its fields are pulled, and the record they are pulled for. */
+interface PullFrom {
+  pulled: PulledPayload;
+  id: string;
 }
 
 /** Tries at a supersede whose records keep changing between signing and writing. */
@@ -106,7 +117,7 @@ export interface IssueRequest {
   downloadWindowDays?: number;
   /** Subjects of the issuing Commission's staff who may download it too. */
   additionalDownloaders?: string[];
-  /** The fields the template renders, or for a clarification letter its `clarificationId`. */
+  /** The fields the template renders, or for a pulled type the record's id (pulled-payloads.ts). */
   payload: unknown;
 }
 
@@ -117,8 +128,13 @@ export interface Downloader {
   subject: string;
   /** The token's tenant: staff may download what their Commission named them on. */
   tenant: string | null;
-  /** The token's roles: an additional downloader must still be an access officer. */
+  /**
+   * The token's roles: an additional downloader must still be an access officer; a Form M's,
+   * receipt's, NCR's or referral package's readers hold their role (readers.ts).
+   */
   roles: readonly string[];
+  /** The token's client scopes: a federated Commission's system reads its own Form M (readers.ts). */
+  scopes: readonly string[];
 }
 
 export interface IssueOutcome {
@@ -155,14 +171,15 @@ export class IssuanceService {
     private readonly clock: Clock,
     private readonly review: ReviewClient,
     @Inject(VERIFY_BASE_URL) private readonly verifyBaseUrl: string,
+    @Inject(HTTPS_LINKS_ONLY) private readonly httpsLinksOnly: boolean,
   ) {}
 
   /**
    * Issues a document, or returns the one of the same type already issued for the subject (for a
-   * clarification letter, before its fields are pulled). Throws 400 for an unknown template, a
-   * payload the template refuses, a request without what the template requires (a watermark, a
-   * download window, a subject person) or a clarification the review service does not hold; 502
-   * when the renderer, the signer, storage or the review service fails.
+   * pulled type, before its fields are pulled). Throws 400 for an unknown template, a payload the
+   * template refuses, a request without what the template requires (a watermark, a download
+   * window, a subject person) or a record the source does not hold; 502 when the renderer, the
+   * signer, storage or the source fails.
    */
   async issue(request: IssueRequest): Promise<IssueOutcome> {
     const template = templateOf(request.type, request.templateVersion);
@@ -174,12 +191,11 @@ export class IssuanceService {
         },
       ]);
     }
-    // A clarification letter names its clarification; the fields it renders are pulled below.
-    const letter =
-      request.type === CLARIFICATION_LETTER
-        ? clarificationLetterSource.safeParse(request.payload)
-        : null;
-    const source = letter ?? template.payload.safeParse(request.payload);
+    // A pulled type names its record; the fields it renders are pulled below.
+    const pulled = pulledPayloadOf(template.type);
+    const source = pulled
+      ? pulled.source.safeParse(request.payload)
+      : template.payload.safeParse(request.payload);
     const missing = missingRequirements(template, request);
     if (!source.success || missing.length > 0) {
       throw validationProblem([
@@ -190,22 +206,12 @@ export class IssuanceService {
         })),
       ]);
     }
-    const clarificationId = letter?.data?.clarificationId ?? null;
-    if (
-      clarificationId !== null &&
-      request.subjectRef !== clarificationSubjectRef(clarificationId)
-    ) {
-      throw validationProblem([
-        {
-          path: 'subjectRef',
-          message: `A clarification letter's subject is ${clarificationSubjectRef(clarificationId)}`,
-        },
-      ]);
-    }
+    const from = pulled ? pullFrom(pulled, request, source.data as Record<string, string>) : null;
     const existing = await this.findBySubject(request.tenant, request.type, request.subjectRef);
     if (existing) return { document: existing, created: false };
 
-    const fields = await this.fieldsOf(request, clarificationId);
+    const fields = await this.fieldsOf(request, from);
+    const { excludedPersonId } = fields;
     const parsed = template.payload.safeParse(fields.payload);
     if (!parsed.success) {
       throw validationProblem([
@@ -218,6 +224,20 @@ export class IssuanceService {
       ]);
     }
     const payload = parsed.data;
+    if (this.httpsLinksOnly) {
+      const insecure = Object.entries(template.links?.(payload) ?? {}).filter(
+        ([, link]) => new URL(link).protocol !== 'https:',
+      );
+      if (insecure.length > 0) {
+        throw validationProblem(
+          insecure.map(([field]) =>
+            fields.pulled
+              ? { path: 'payload', message: `The pulled ${field} must be an https URL` }
+              : { path: `payload.${field}`, message: 'Must be an https URL' },
+          ),
+        );
+      }
+    }
     const documentId = uuidv7();
     const verificationId = newVerificationId();
     const issuedAt = this.clock.now();
@@ -281,6 +301,7 @@ export class IssuanceService {
               disclosureLevel: template.disclosureLevel,
               subjectRef: request.subjectRef,
               subjectPersonId: request.subjectPersonId,
+              excludedPersonId,
               reference: template.reference(payload),
               subjectVersion: template.subjectVersion(payload),
               verificationId,
@@ -343,33 +364,35 @@ export class IssuanceService {
   }
 
   /**
-   * The fields the template renders: the request's own, or those the review service holds for
-   * the letter's record (pulled for the same tenant). A record the review service does not hold
+   * The fields the template renders: the request's own, or those the source holds for the
+   * record (pulled for the same tenant), with the person the record names who must never
+   * download the document (a referral package's declarant). A record the source does not hold
    * is a refused request (400), and so is a request naming another person than the record's
-   * declarant as the one who may download the letter; a review service that fails is a 502, so
-   * the caller retries.
+   * declarant as the one who may download the document; a source that fails is a 502, so the
+   * caller retries.
    */
   private async fieldsOf(
     request: IssueRequest,
-    clarificationId: string | null,
-  ): Promise<{ payload: unknown; pulled: boolean }> {
-    if (clarificationId === null) return { payload: request.payload, pulled: false };
-    let pulled: unknown;
+    from: PullFrom | null,
+  ): Promise<{ payload: unknown; pulled: boolean; excludedPersonId: string | null }> {
+    if (from === null) return { payload: request.payload, pulled: false, excludedPersonId: null };
+    const { pulled, id } = from;
+    let fields: unknown;
     try {
-      pulled = await this.review.clarificationLetterPayload(request.tenant, clarificationId);
+      fields = await this.review.payload(pulled.record, request.tenant, id);
     } catch (error) {
-      if (error instanceof ClarificationNotFound) {
+      if (error instanceof ReviewRecordNotFound) {
         throw validationProblem([
           {
-            path: 'payload.clarificationId',
-            message: 'The review service holds no issued clarification with this id for the tenant',
+            path: `payload.${pulled.idField}`,
+            message: `The review service holds no ${pulled.record} with a document to issue with this id for the tenant`,
           },
         ]);
       }
       if (error instanceof ReviewUnavailable) {
         this.logger.error(
           { err: errorType(error), cause: error.message, dependency: 'review' },
-          'Pulling a letter payload failed',
+          'Pulling a document payload failed',
         );
         throw dependencyProblem(
           new IssuanceDependencyUnavailable('review', error.message, { cause: error }),
@@ -377,22 +400,26 @@ export class IssuanceService {
       }
       throw error;
     }
-    const subject = letterSubject.safeParse(pulled);
+    const subject = pulledOwner[pulled.owner].safeParse(fields);
     if (!subject.success) {
       throw validationProblem([
         { path: 'payload', message: 'The pulled payload names no declarant person id' },
       ]);
     }
     const { declarantPersonId, ...payload } = subject.data;
+    // The template refuses a subject person (checked before the pull).
+    if (pulled.owner === 'excluded-declarant') {
+      return { payload, pulled: true, excludedPersonId: declarantPersonId };
+    }
     if (request.subjectPersonId !== declarantPersonId) {
       throw validationProblem([
         {
           path: 'subjectPersonId',
-          message: "Must be the clarification's declarant, who alone may download the letter",
+          message: `Must be the ${pulled.record}'s declarant, who alone may download the document`,
         },
       ]);
     }
-    return { payload, pulled: true };
+    return { payload, pulled: true, excludedPersonId: null };
   }
 
   /**
@@ -411,8 +438,8 @@ export class IssuanceService {
     try {
       for (let attempt = 1; ; attempt++) {
         const read = await withTenant(this.db, context, async (tx) => ({
-          current: await findRecord(tx, request.documentId),
-          newer: await findRecord(tx, request.supersededBy),
+          current: await findRecord(tx, request.tenant, request.documentId),
+          newer: await findRecord(tx, request.tenant, request.supersededBy),
         }));
         const { current, newer } = supersedable(notFoundIfInvisible(read.current), read.newer);
         const statusChangedAt = this.clock.now();
@@ -424,8 +451,8 @@ export class IssuanceService {
         });
 
         const superseded = await withTenant(this.db, context, async (tx) => {
-          const locked = await this.lockedRecord(tx, current.document.id);
-          const lockedNewer = await this.lockedRecord(tx, newer.document.id);
+          const locked = await lockedRecord(tx, request.tenant, current.document.id);
+          const lockedNewer = await lockedRecord(tx, request.tenant, newer.document.id);
           if (!unchanged(locked, current) || !unchanged(lockedNewer, newer)) return null;
           const [updated] = await tx
             .update(verificationRecords)
@@ -470,8 +497,7 @@ export class IssuanceService {
    */
   async announce(tenant: string, actor: string, documentId: string): Promise<void> {
     await withTenant(this.db, { tenant, subject: actor }, async (tx) => {
-      const [row] = await withRecord(tx).where(eq(issuedDocuments.id, documentId));
-      const found = notFoundIfInvisible(row);
+      const found = notFoundIfInvisible(await findRecord(tx, tenant, documentId));
       await this.events.record(tx, {
         type: DOCUMENT_ISSUED,
         subject: found.document.id,
@@ -514,8 +540,8 @@ export class IssuanceService {
   }
 
   /**
-   * A five-minute presigned GET of the signed PDF, for the subject person and the issuing
-   * Commission's staff named as additional downloaders only (404 for anyone else), and only
+   * A five-minute presigned GET of the signed PDF, for those who may read the document (`owned`:
+   * its subject person, its type's readers, the access officers it names; 404 for anyone else), and only
    * within the document's download window (410 `download-window-closed` after it). Each link
    * handed out is to be recorded as `downloaded`, `document.downloaded.v1` under the issuer, which
    * the route records with the read's audit event, in one insert.
@@ -558,6 +584,19 @@ export class IssuanceService {
   }
 
   /**
+   * A document the tenant issued, as the service acting for it reads it: its metadata and the
+   * SHA-256 of its signed PDF (the review service listing a letter in a referral package's
+   * manifest). 404 for another tenant's document.
+   */
+  async getForTenant(tenant: string, actor: string, id: string): Promise<IssuedDocument> {
+    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) =>
+      findRecord(tx, tenant, id),
+    );
+    const { document, record } = notFoundIfInvisible(found);
+    return this.toIssuedDocument(document, record);
+  }
+
+  /**
    * A five-minute presigned GET of the signed PDF of a document the tenant issued, for the
    * service acting for it (the review service, for its staff: a reviewer opening a letter of a
    * case). 404 for another tenant's document.
@@ -567,7 +606,9 @@ export class IssuanceService {
     actor: string,
     id: string,
   ): Promise<{ download: DocumentDownload; document: DocumentRow }> {
-    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) => findRecord(tx, id));
+    const found = await withTenant(this.db, { tenant, subject: actor }, (tx) =>
+      findRecord(tx, tenant, id),
+    );
     const { document } = notFoundIfInvisible(found);
     return { download: await this.presigned(document, this.clock.now()), document };
   }
@@ -589,20 +630,62 @@ export class IssuanceService {
 
   /**
    * The document when the caller is its subject person (read under the person policy across
-   * Commissions) or, failing that, an access officer of the issuing Commission named among its
+   * Commissions); one of its own tenant's readers of its type (a Commission's supervisor,
+   * commission-admin, reporting officer or federated system its Form M and receipt, EACC's analysts
+   * and supervisors its NCR, readers.ts; read in their own tenant's context); an EACC analyst or
+   * supervisor and the document is of a type EACC opens from every Commission (a Form M, a receipt
+   * or a referral package; read in EACC's context, which the database admits to those types only)
+   * and not about them (an EACC officer referred by EACC) when their token names them, which staff
+   * tokens do not yet (#486); or an access officer of the issuing Commission named among its
    * additional downloaders (read in their own tenant's context): one who is no longer an access
-   * officer there downloads it no more. Anyone else gets the same 404.
+   * officer there downloads it no more. Each is tried in turn; anyone else gets the same 404.
    */
   private async owned(
-    { personId, subject, tenant, roles }: Downloader,
+    caller: Downloader,
     id: string,
   ): Promise<{ document: DocumentRow; record: RecordRow }> {
+    const { personId, subject, tenant, roles } = caller;
     const [asSubjectPerson] = personId
       ? await withPerson(this.db, { personId, subject }, (tx) =>
           withRecord(tx).where(eq(issuedDocuments.id, id)),
         )
       : [];
     if (asSubjectPerson) return asSubjectPerson;
+    const ownTypes = ownTenantReadableTypes(caller);
+    const [asOwnReader] =
+      tenant && ownTypes.length > 0
+        ? await withTenant(this.db, { tenant, subject }, (tx) =>
+            withRecord(tx).where(
+              and(
+                eq(issuedDocuments.id, id),
+                eq(issuedDocuments.tenant, tenant),
+                inArray(issuedDocuments.type, ownTypes),
+              ),
+            ),
+          )
+        : [];
+    if (asOwnReader) return asOwnReader;
+    // An EACC officer's own documents are theirs as its subject person (above); as EACC, the
+    // types EACC reads from every Commission only.
+    const eaccTypes = eaccReadableTypes(caller);
+    const [asEacc] =
+      eaccTypes.length > 0
+        ? await withTenant(this.db, { tenant: EACC_TENANT, subject }, (tx) =>
+            withRecord(tx).where(
+              and(
+                eq(issuedDocuments.id, id),
+                inArray(issuedDocuments.type, eaccTypes),
+                personId === null
+                  ? undefined
+                  : or(
+                      isNull(issuedDocuments.excludedPersonId),
+                      ne(issuedDocuments.excludedPersonId, personId),
+                    ),
+              ),
+            ),
+          )
+        : [];
+    if (asEacc) return asEacc;
     const [asDownloader] =
       tenant && roles.includes(ACCESS_OFFICER)
         ? await withTenant(this.db, { tenant, subject }, (tx) =>
@@ -625,18 +708,14 @@ export class IssuanceService {
   ): Promise<IssuedDocument | undefined> {
     const [found] = await withTenant(this.db, { tenant, subject: SYSTEM_SUBJECT }, (tx) =>
       withRecord(tx).where(
-        and(eq(issuedDocuments.type, type), eq(issuedDocuments.subjectRef, subjectRef)),
+        and(
+          eq(issuedDocuments.tenant, tenant),
+          eq(issuedDocuments.type, type),
+          eq(issuedDocuments.subjectRef, subjectRef),
+        ),
       ),
     );
     return found ? this.toIssuedDocument(found.document, found.record) : undefined;
-  }
-
-  /** A document with its record, the record locked for the rest of the transaction. */
-  private async lockedRecord(tx: Tx, id: string): Promise<DocumentWithRecord | undefined> {
-    const [found] = await withRecord(tx)
-      .where(eq(issuedDocuments.id, id))
-      .for('update', { of: verificationRecords });
-    return found;
   }
 
   private async store(key: string, pdf: Buffer): Promise<void> {
@@ -716,7 +795,15 @@ function missingRequirements(
   const missing: { path: string; message: string }[] = [];
   const required = (path: string) =>
     missing.push({ path, message: `Required for ${template.type} documents` });
-  if (requires.subjectPerson && request.subjectPersonId === null) required('subjectPersonId');
+  if (requires.subjectPerson === true && request.subjectPersonId === null) {
+    required('subjectPersonId');
+  }
+  if (requires.subjectPerson === 'refused' && request.subjectPersonId !== null) {
+    missing.push({
+      path: 'subjectPersonId',
+      message: `Must be null: no person downloads a ${template.type} as its subject`,
+    });
+  }
   if (requires.watermark && !request.watermark) required('watermark');
   if (requires.downloadWindow && request.downloadWindowDays === undefined) {
     required('downloadWindowDays');
@@ -732,9 +819,31 @@ function withRecord(tx: Tx) {
     .innerJoin(verificationRecords, eq(verificationRecords.documentId, issuedDocuments.id));
 }
 
-/** A document with its verification record, unlocked; undefined when not visible. */
-async function findRecord(tx: Tx, id: string): Promise<DocumentWithRecord | undefined> {
-  const [found] = await withRecord(tx).where(eq(issuedDocuments.id, id));
+/**
+ * A document the tenant issued with its verification record, unlocked; undefined when it is not
+ * the tenant's. Filtered on the tenant as well as by RLS, which also admits EACC to every
+ * Commission's referral packages (issued_documents_eacc_read) for its own downloads only.
+ */
+async function findRecord(
+  tx: Tx,
+  tenant: string,
+  id: string,
+): Promise<DocumentWithRecord | undefined> {
+  const [found] = await withRecord(tx).where(
+    and(eq(issuedDocuments.id, id), eq(issuedDocuments.tenant, tenant)),
+  );
+  return found;
+}
+
+/** `findRecord`, the record locked for the rest of the transaction. */
+async function lockedRecord(
+  tx: Tx,
+  tenant: string,
+  id: string,
+): Promise<DocumentWithRecord | undefined> {
+  const [found] = await withRecord(tx)
+    .where(and(eq(issuedDocuments.id, id), eq(issuedDocuments.tenant, tenant)))
+    .for('update', { of: verificationRecords });
   return found;
 }
 
@@ -766,6 +875,26 @@ function unchanged(locked: DocumentWithRecord | undefined, read: DocumentWithRec
     locked?.record.status === read.record.status &&
     locked.record.recordSignature === read.record.recordSignature
   );
+}
+
+/**
+ * The record a pulled type's request names, which must be the request's subject: one document
+ * per record. Throws 400 for another subject, before anything is pulled.
+ */
+function pullFrom(
+  pulled: PulledPayload,
+  request: IssueRequest,
+  source: Record<string, string>,
+): PullFrom {
+  const id = source[pulled.idField];
+  if (id === undefined) throw new Error(`the ${pulled.idField} source parsed without its id`);
+  const subjectRef = pulled.subjectRef(id);
+  if (request.subjectRef !== subjectRef) {
+    throw validationProblem([
+      { path: 'subjectRef', message: `A ${request.type}'s subject is ${subjectRef}` },
+    ]);
+  }
+  return { pulled, id };
 }
 
 /** The signed form of a stored record whose superseding document is not needed (valid). */

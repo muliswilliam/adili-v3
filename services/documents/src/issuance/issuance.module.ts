@@ -4,7 +4,7 @@ import { Clock, SystemClock } from '../clock.js';
 import { config } from '../config.js';
 import { ReviewModule } from '../review/review.module.js';
 import { DocumentsController, InternalDocumentsController } from './issuance.controller.js';
-import { IssuanceService, VERIFY_BASE_URL } from './issuance.service.js';
+import { HTTPS_LINKS_ONLY, IssuanceService, VERIFY_BASE_URL } from './issuance.service.js';
 import { OpenBao } from './openbao.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner } from './record-signer.js';
@@ -34,6 +34,7 @@ import { GotenbergRenderer, PdfRenderer } from './renderer.js';
       useFactory: (bao: OpenBao) => new RecordSigner(bao),
     },
     { provide: VERIFY_BASE_URL, useValue: config.VERIFY_BASE_URL },
+    { provide: HTTPS_LINKS_ONLY, useValue: config.NODE_ENV === 'production' },
   ],
   exports: [IssuanceService],
 })

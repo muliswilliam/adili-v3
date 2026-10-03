@@ -1,19 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EACC_TENANT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
-import { EACC_TENANT } from '../access.js';
 import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DocumentsClient } from '../documents/documents-client.js';
 import { fyLabel } from '../financial-year.js';
 import { eaccContext } from '../system-context.js';
-import {
-  type NationalReportApprovalInput,
-  type NationalReportDocument,
-  NCR_ISSUER,
-} from './contract.js';
+import { type NationalReportApprovalInput, type NationalReportDocument } from './contract.js';
 import { narrativeOf } from './narrative.js';
 import { paragraphOf } from './representation.js';
 import { nationalReportAggregates, nationalReportParagraphs, nationalReports } from './schema.js';
@@ -69,7 +65,13 @@ export class NationalReportActivities {
       return { report, aggregates, paragraphs };
     });
     const { report, aggregates } = found;
-    if (report?.status !== 'approved' || !report.reference || !report.approvedAt || !aggregates) {
+    if (
+      report?.status !== 'approved' ||
+      !report.reference ||
+      !report.approvedAt ||
+      !report.approverName ||
+      !aggregates
+    ) {
       throw new NationalReportNotApproved(nationalReportId);
     }
     if (report.documentId) return { documentId: report.documentId };
@@ -77,7 +79,6 @@ export class NationalReportActivities {
     const issued = await this.documents.issue({
       type: 'ncr',
       templateVersion: NCR_TEMPLATE_VERSION,
-      disclosureLevel: 'restricted',
       issuerTenant: EACC_TENANT,
       subjectRef: `national-report:${report.id}`,
       subjectPersonId: null,
@@ -91,12 +92,6 @@ export class NationalReportActivities {
         author: report.authorName,
         approver: report.approverName,
         approvedAt: report.approvedAt.toISOString(),
-      },
-      publicPayload: {
-        reference: report.reference,
-        type: 'ncr',
-        issuer: NCR_ISSUER,
-        issuedAt: report.approvedAt.toISOString(),
       },
       idempotencyKey: uuidv5(`${report.id}:ncr`, DOCUMENT_KEY_NAMESPACE),
     });

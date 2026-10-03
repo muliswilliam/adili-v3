@@ -1,4 +1,5 @@
 import { isFreshStepUp, notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { EACC_ROLES, EACC_SUPERVISOR, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
 
 import { forbidden } from './problems.js';
 
@@ -10,15 +11,10 @@ export const COMMISSION_ADMIN = 'commission-admin';
 export const REPORTING_OFFICER = 'reporting-officer';
 
 /**
- * The Commission roles that see its Form M workspace (spec 09 authorisation): the supervisor
- * compiles and reviews, the commission-admin and the reporting officer read. Everyone else,
- * EACC included, gets 404 on a Commission's drafts.
- */
-export const FORM_M_ROLES = [SUPERVISOR, COMMISSION_ADMIN, REPORTING_OFFICER] as const;
-
-/**
  * The RLS tenant of Form M work on Commission `slug`: the caller's own Commission when it is
- * `slug` and they hold a Form M role there. Anyone else gets 404, as if nothing existed.
+ * `slug` and they hold a Form M role there (`FORM_M_ROLES`: the supervisor compiles and reviews,
+ * the commission-admin and the reporting officer read). Anyone else, EACC included, gets 404, as
+ * if nothing existed.
  */
 export function formMTenant(principal: Principal, slug: string): string {
   const own = principal.tenant;
@@ -69,16 +65,11 @@ export function federatedTenant(principal: Principal): string {
   throw forbidden('The token is not issued for a Commission.');
 }
 
-/** The tenant of EACC's accounts, and the RLS context its intake reads every Commission's in. */
-export const EACC_TENANT = 'eacc';
-
-export const EACC_ANALYST = 'eacc-analyst';
-export const EACC_SUPERVISOR = 'eacc-supervisor';
-
-/** EACC's roles (spec 09 authorisation): the intake, chase status, and every submitted report. */
-export const EACC_ROLES = [EACC_ANALYST, EACC_SUPERVISOR] as const;
-
-/** An EACC account: an EACC role, acting for EACC. */
+/**
+ * An EACC account: an EACC role (`EACC_ROLES`, spec 09 authorisation: the intake, chase status and
+ * every submitted report), acting for EACC (`EACC_TENANT`, the RLS context its intake reads every
+ * Commission's in).
+ */
 export function isEacc(principal: Principal): boolean {
   return (
     principal.tenant === EACC_TENANT &&

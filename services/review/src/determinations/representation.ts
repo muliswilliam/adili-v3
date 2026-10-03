@@ -58,6 +58,10 @@ export type LetterDownloadView = z.infer<typeof letterDownloadSchema>;
 
 /** review.yaml `DeterminationLetterPayload`: the fields `decision-letter.v1` renders. */
 export const determinationLetterPayloadSchema = z.object({
+  declarantPersonId: z.uuid().meta({
+    description:
+      'Who may download the letter: the documents service checks the issue request against it. Not printed',
+  }),
   declarantName: z.string(),
   commission: z.object({ name: z.string(), issuerCode: z.string() }),
   declarationReference: z.string(),

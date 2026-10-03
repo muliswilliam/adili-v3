@@ -1,4 +1,5 @@
-import type { z } from 'zod';
+import { InvalidReferenceError, parse } from '@adili/numbering/references';
+import { z } from 'zod';
 
 /**
  * What every template is made of: the channels and locales, `define`, and the parts emails are
@@ -36,6 +37,13 @@ export interface Template<TChannel extends Channel, TParams extends z.ZodType> {
 export const define = <TChannel extends Channel, TParams extends z.ZodType>(
   template: Template<TChannel, TParams>,
 ) => template;
+
+/**
+ * A `portalUrl` param: the portal page a message links to. https, or http in development and test,
+ * where the portal runs on plain http: `renderTemplate` refuses an http one with
+ * `httpsLinksOnly` (`NODE_ENV=production`).
+ */
+export const portalUrlSchema = z.url({ protocol: /^https?$/ }).max(200);
 
 /** One paragraph of an email, as plain text and as HTML. */
 export interface Paragraph {
@@ -90,3 +98,23 @@ export function escapeHtml(value: string): string {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 }
+
+/**
+ * A reference number (ADR-011) of one of `schemes` with a valid check character; `expected`
+ * names them in the error, e.g. `a CLR clarification reference`.
+ */
+export const referenceOf = (schemes: Parameters<typeof parse>[1], expected: string) =>
+  z.string().superRefine((reference, ctx) => {
+    try {
+      parse(reference, schemes);
+    } catch (error) {
+      if (!(error instanceof InvalidReferenceError)) throw error;
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          error.reason === 'bad-check-character'
+            ? 'has a wrong check character'
+            : `must be ${expected}`,
+      });
+    }
+  });

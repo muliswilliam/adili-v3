@@ -91,7 +91,12 @@ function clarification(
   declarantPersonId: string | null = DECLARANT_PERSON,
 ): string {
   const id = randomUUID();
-  api.review.given(tenant, id, declarantPersonId ? { ...payload, declarantPersonId } : payload);
+  api.review.given(
+    'clarification',
+    tenant,
+    id,
+    declarantPersonId ? { ...payload, declarantPersonId } : payload,
+  );
   return id;
 }
 
@@ -161,8 +166,8 @@ describe('S17 issuing a clarification letter', () => {
   });
 
   it('pulls the letter fields from the review service for the issuing Commission', () => {
-    expect(api.review.pulls.filter((pull) => pull.clarificationId === clarificationId)).toEqual([
-      { tenant: 'tsc', clarificationId },
+    expect(api.review.pulls.filter((pull) => pull.id === clarificationId)).toEqual([
+      { record: 'clarification', tenant: 'tsc', id: clarificationId },
     ]);
   });
 
@@ -195,12 +200,14 @@ describe('S17 issuing a clarification letter', () => {
     );
   });
 
-  it('prints the verification code, issuer and CLR reference in the footer of every page, with the QR code', async () => {
+  it('prints the verification code, issuer, CLR reference and RESTRICTED in the footer of every page, with the QR code', async () => {
     expect(texts.length).toBeGreaterThan(0);
     texts.forEach((text, index) => {
       expect(text).toContain(document.verificationId);
       expect(text).toContain('Issued by Teachers Service Commission through Adili Online');
       expect(text).toContain(`Ref ${CLR_REFERENCE}`);
+      // The mark is letter-spaced, so the PDF's text spaces its letters.
+      expect(text).toContain('R E S T R I C T E D');
       expect(text).toContain(`Page ${index + 1} of ${texts.length}`);
       // A letter is not versioned.
       expect(text).not.toMatch(/Version \d/);

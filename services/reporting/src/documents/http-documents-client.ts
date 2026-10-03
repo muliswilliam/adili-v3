@@ -28,14 +28,6 @@ export interface HttpDocumentsClientOptions {
   fetch?: typeof fetch;
 }
 
-/**
- * The issue request as documents' contract declares it. It declares only the acknowledgement slip
- * so far; the Form M, receipt and NCR types and their payloads join it with their templates
- * (#218), until then the body is sent as reporting builds it.
- */
-type IssueDocumentBody =
-  paths['/internal/v1/documents/issue']['post']['requestBody']['content']['application/json'];
-
 const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
 
 /**
@@ -60,14 +52,14 @@ export class HttpDocumentsClient extends DocumentsClient {
   }
 
   async issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
-    const { idempotencyKey, ...body } = request;
+    const { idempotencyKey, issuerTenant, ...body } = request;
     const issued = await this.documents.call(
       (api) =>
         api.POST('/internal/v1/documents/issue', {
           params: {
-            header: { 'X-Acting-Tenant': request.issuerTenant, 'Idempotency-Key': idempotencyKey },
+            header: { 'X-Acting-Tenant': issuerTenant, 'Idempotency-Key': idempotencyKey },
           },
-          body: body as unknown as IssueDocumentBody,
+          body,
         }),
       {
         status: [200, 201],

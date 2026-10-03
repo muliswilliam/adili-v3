@@ -296,6 +296,7 @@ describe('determinations: propose, approve, return, withdraw', () => {
       ),
     ).toEqual([]);
     expect(letter?.pulled.body).toEqual({
+      declarantPersonId: version.personId,
       declarantName: 'James Otieno',
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       declarationReference: 'DCB-PSC-2027-0000042-7',

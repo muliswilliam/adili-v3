@@ -29,6 +29,9 @@ export const EACC_ANALYST = 'eacc-analyst';
 /** EACC supervisor: national oversight. */
 export const EACC_SUPERVISOR = 'eacc-supervisor';
 
+/** The tenant key of every EACC account (the `tenant` claim): national oversight, no Commission. */
+export const EACC_TENANT = 'eacc';
+
 /** Investigates the audit trail across the platform. */
 export const AUDITOR = 'auditor';
 
@@ -63,6 +66,13 @@ export const COMMISSION_STAFF_ROLES = [
 
 /** The Commission's staff who work on its roster: its reporting officer and commission admin. */
 export const COMMISSION_ROSTER_ROLES = [REPORTING_OFFICER, COMMISSION_ADMIN] as const;
+
+/**
+ * The Commission's staff who see its Form M (spec 09 authorisation): the supervisor compiles and
+ * reviews, the commission-admin confirms and submits, the reporting officer reads; all three read
+ * the submitted report, its PDF and the receipt.
+ */
+export const FORM_M_ROLES = [SUPERVISOR, COMMISSION_ADMIN, REPORTING_OFFICER] as const;
 
 /** EACC's oversight roles: counts for any Commission, never its declarants (spec 04). */
 export const EACC_ROLES = [EACC_ANALYST, EACC_SUPERVISOR] as const;
@@ -118,6 +128,13 @@ export const DECLARATIONS_DISCLOSURES_SCOPE = 'declarations:disclosures';
  * law-enforcement request's provenance against them (spec 10).
  */
 export const DIRECTORY_LAW_ENFORCEMENT_SCOPE = 'directory:law-enforcement';
+
+/**
+ * A federated Commission's own system (client credentials, `tenant` = the Commission): files its
+ * Form M through the reporting service's API and reads its own submitted report, its PDF and the
+ * receipt (spec 09).
+ */
+export const REPORTS_SUBMIT_SCOPE = 'reports:submit';
 
 /** The documents service's internal API (roster upload downloads, acting for a tenant). */
 export const DOCUMENTS_INTERNAL_SCOPE = 'documents:internal';

@@ -143,6 +143,9 @@ export const documentTypeNames: Record<string, string> = {
   'certified-copy': 'Certified copy',
   'compliance-certificate': 'Compliance certificate',
   'clarification-letter': 'Clarification letter',
+  'form-m': 'Form M compliance report',
+  'compliance-report-receipt': 'Acknowledgement of receipt (Form M)',
+  ncr: 'National consolidated report',
 };
 
 /** A document type's name; an unknown type reads as its words, e.g. `form-m-report` → "Form m report". */

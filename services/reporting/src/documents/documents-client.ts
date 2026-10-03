@@ -1,4 +1,6 @@
-import type { FormMV1 } from '@adili/forms';
+import type { components } from './documents-api.gen.js';
+
+type Schemas = components['schemas'];
 
 /**
  * The documents the reporting service issues (documents.yaml `DocumentType`): a submitted report's
@@ -15,16 +17,15 @@ export type ReportDocumentType = 'form-m' | 'compliance-report-receipt' | 'ncr';
 export interface IssueDocumentRequest {
   type: ReportDocumentType;
   templateVersion: number;
-  disclosureLevel: 'restricted';
+  /** The issuing tenant, sent as X-Acting-Tenant: the Commission, or EACC for the NCR. */
   issuerTenant: string;
   /** The owning record: `compliance-report:<uuid>` or `national-report:<uuid>`. */
   subjectRef: string;
   /** No person owns a Commission's report or the national report. */
   subjectPersonId: null;
   /** The fields the template renders: the `form-m.v1` document, the receipt's or the NCR's. */
-  payload: FormMV1 | Record<string, unknown>;
-  /** Shown on the verify page: reference, type, issuer and issue time. */
-  publicPayload: { reference: string; type: ReportDocumentType; issuer: string; issuedAt: string };
+  payload:
+    Schemas['FormMPayload'] | Schemas['ComplianceReportReceiptPayload'] | Schemas['NcrPayload'];
   /** The same key for the same document, so a retried request issues it once. */
   idempotencyKey: string;
 }

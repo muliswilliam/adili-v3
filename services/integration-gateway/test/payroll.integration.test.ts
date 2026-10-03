@@ -60,6 +60,10 @@ describe('payroll instructions', () => {
       'x-legal-basis': 'am-sanctions',
       'x-case-ref': 'case-0042',
     };
+    // The first fetch in a process pays undici's lazy start-up, which on a busy CI runner can
+    // outlast the 300ms timeout. Pay it here, without a timeout, so the first test's call
+    // does not time out.
+    await (await fetch(`${payroll.baseUrl}/warm-up`)).body?.cancel();
     return async () => {
       await t.close();
       await payroll.close();

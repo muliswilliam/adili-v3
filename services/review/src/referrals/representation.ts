@@ -132,6 +132,10 @@ export type ReferralIcmsPayload = z.infer<typeof referralIcmsPayloadSchema>;
  * then the evidence it lists. Letters are the documents service's own documents, named by id.
  */
 export const referralPackagePayloadSchema = z.object({
+  declarantPersonId: z.uuid().meta({
+    description:
+      'The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed',
+  }),
   reference: z.string(),
   grounds: referralGroundsSchema,
   groundsLabel: z.string(),

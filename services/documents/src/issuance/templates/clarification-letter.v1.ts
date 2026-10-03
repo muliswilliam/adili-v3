@@ -1,28 +1,25 @@
-import { CLR, parse } from '@adili/numbering/references';
+import { CLR } from '@adili/numbering/references';
 import { CLARIFICATION_LETTER } from '@adili/events/contracts';
 import { z } from 'zod';
 
 import {
-  esc,
-  formatDate,
-  htmlDocument,
-  INK,
-  LETTERHEAD_STYLES,
-  letterhead,
-  LINE,
-  MUTED,
-  SOFT,
-  signatureNote,
-} from './page.js';
-import { declarationSchemeOf, isDeclarationReference, isReferenceOf } from './references.js';
+  LETTER_STYLES,
+  letterClose,
+  letterMeta,
+  portalLink,
+  portalUrlSchema,
+  restrictedVerifyNote,
+  subjectLine,
+} from './letter.js';
+import { esc, formatDate, htmlDocument, INK, letterhead, LINE } from './page.js';
+import {
+  declarationSchemeOf,
+  isDeclarationReference,
+  letterCommissionSchema,
+  numberedBy,
+  referenceOf,
+} from './references.js';
 import type { DocumentTemplate } from './template.js';
-
-/** A valid `CLR` reference number (ADR-011), e.g. `CLR-PSC-2028-0000451-3`. */
-function isClarificationReference(reference: string): boolean {
-  return isReferenceOf(reference, [CLR]);
-}
-
-const ISSUER_CODE = /^[A-Z0-9]{2,20}$/;
 
 /**
  * What the review service's clarification letter payload endpoint returns
@@ -33,17 +30,11 @@ const ISSUER_CODE = /^[A-Z0-9]{2,20}$/;
 export const clarificationLetterPayload = z
   .object({
     declarantName: z.string().trim().min(1).max(200),
-    commission: z.object({
-      name: z.string().trim().min(1).max(200),
-      /** The Commission's issuer code, as in the reference numbers (`PSC`). */
-      issuerCode: z.string().regex(ISSUER_CODE),
-    }),
+    commission: letterCommissionSchema,
     declarationReference: z.string().refine(isDeclarationReference, {
       message: 'Must be a declaration reference number with a valid check character',
     }),
-    clarificationReference: z.string().refine(isClarificationReference, {
-      message: 'Must be a CLR reference number with a valid check character',
-    }),
+    clarificationReference: referenceOf(CLR),
     items: z
       .array(
         z.object({
@@ -59,13 +50,10 @@ export const clarificationLetterPayload = z
     issuedAt: z.iso.datetime({ offset: true }),
     dueAt: z.iso.datetime({ offset: true }),
     /** The portal page where the declarant answers this clarification. */
-    portalUrl: z.url({ protocol: /^https?$/ }),
+    portalUrl: portalUrlSchema,
   })
   .refine(
-    // Only for a valid reference number: an invalid one is reported on its own.
-    (payload) =>
-      !isClarificationReference(payload.clarificationReference) ||
-      parse(payload.clarificationReference, [CLR]).issuer === payload.commission.issuerCode,
+    (payload) => numberedBy(payload.clarificationReference, CLR, payload.commission.issuerCode),
     {
       message: "The CLR reference number is not the Commission's",
       path: ['clarificationReference'],
@@ -78,17 +66,8 @@ export const clarificationLetterPayload = z
 
 export type ClarificationLetterPayload = z.infer<typeof clarificationLetterPayload>;
 
-const STYLES = `${LETTERHEAD_STYLES}
-body{font-size:9.6pt;line-height:1.5}
-p{margin:0 0 3mm}
-a{color:inherit}
-.meta{display:flex;justify-content:space-between;align-items:flex-start;gap:8mm;margin:6mm 0}
-.meta address{font-style:normal;line-height:1.5}
-.refs{display:grid;grid-template-columns:auto auto;gap:0.8mm 4mm;margin:0;font-size:9pt}
-.refs dt{color:${MUTED}}
-.refs dd{margin:0;font-weight:500}
-.subj{font-weight:700;text-transform:uppercase;letter-spacing:0.02em;text-decoration:underline;text-underline-offset:1.2mm;text-decoration-thickness:0.3mm;margin:0 0 4mm;font-size:9.8pt;line-height:1.45}
-h2{font-size:9.8pt;font-weight:700;margin:0 0 2mm}
+const STYLES = `${LETTER_STYLES}
+h2{margin:0 0 2mm}
 .close{break-inside:avoid;padding-top:1mm}
 .items{list-style:none;padding:0;margin:2mm 0 0}
 .items li{display:flex;gap:2.5mm;padding:3mm 4mm 3mm 3mm;margin-bottom:2.5mm;border:0.25mm solid ${LINE};border-radius:1.6mm;break-inside:avoid}
@@ -97,14 +76,10 @@ h2{font-size:9.8pt;font-weight:700;margin:0 0 2mm}
 .items .it{font-weight:600;overflow-wrap:anywhere}
 .items .req{display:inline-block;margin:1mm 0 1.5mm;padding:0.4mm 2mm;border-radius:1mm;background:#fdf0e9;color:#8a3a10;font-size:8pt;font-weight:600}
 .items p{margin:0;white-space:pre-line;overflow-wrap:anywhere}
-.banner{display:flex;gap:3mm;align-items:center;padding:3mm 4mm;border-radius:1.6mm;margin:2mm 0 5mm;background:#fdf4e2;color:#6e4000;font-weight:600;break-inside:avoid}
-.banner svg{flex:none}
+.banner{margin:2mm 0 5mm;background:#fdf4e2;color:#6e4000}
 .banner .s{display:block;font-weight:400;font-size:8.6pt}
 .steps{margin:0 0 4mm;padding-left:5mm}
-.steps li{margin-bottom:1.2mm;padding-left:1mm}
-.fine{font-size:8.2pt;color:${SOFT}}
-.sign{display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;margin-top:7mm;break-inside:avoid}
-.sign .nm{font-weight:700;margin-top:2mm}`;
+.steps li{margin-bottom:1.2mm;padding-left:1mm}`;
 
 const CALENDAR = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>`;
 
@@ -124,6 +99,10 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
   disclosureLevel: 'restricted',
   title: 'Clarification letter',
   payload: clarificationLetterPayload,
+
+  links(payload) {
+    return { portalUrl: payload.portalUrl };
+  },
 
   reference(payload) {
     return payload.clarificationReference;
@@ -149,6 +128,7 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
       issuerName: payload.commission.name,
       reference: payload.clarificationReference,
       version: null,
+      mark: 'RESTRICTED',
     };
   },
 
@@ -161,7 +141,6 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
       (Date.parse(payload.dueAt) - Date.parse(payload.issuedAt)) / 86_400_000,
     );
     const reference = esc(payload.clarificationReference);
-    const portal = new URL(payload.portalUrl);
     const items = payload.items
       .map(
         (item, index) =>
@@ -169,12 +148,12 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
       )
       .join('');
     const body = `${letterhead({ name: payload.commission.name, code: payload.commission.issuerCode })}
-<div class="meta"><address><b>${esc(payload.declarantName)}</b></address><dl class="refs">
-<dt>Ref</dt><dd class="mono nw">${reference}</dd>
-<dt>Date</dt><dd class="nw">${esc(formatDate(payload.issuedAt))}</dd>
-<dt>Declaration</dt><dd class="mono nw">${esc(payload.declarationReference)}</dd>
-</dl></div>
-<div class="subj" role="heading" aria-level="1">Request for clarification: ${declaration} ${esc(payload.declarationReference)}</div>
+${letterMeta(`<b>${esc(payload.declarantName)}</b>`, [
+  ['Ref', `<span class="mono nw">${reference}</span>`],
+  ['Date', `<span class="nw">${esc(formatDate(payload.issuedAt))}</span>`],
+  ['Declaration', `<span class="mono nw">${esc(payload.declarationReference)}</span>`],
+])}
+${subjectLine(`Request for clarification: ${declaration} ${payload.declarationReference}`)}
 <p>Dear ${esc(payload.declarantName)},</p>
 <p>Under section 35(2) of the Conflict of Interest Act, 2025, the Commission has reviewed your ${declaration} ${esc(payload.declarationReference)}. Please clarify ${itemsBelow(payload.items.length)}.</p>
 <ol class="items">${items}</ol>
@@ -182,14 +161,14 @@ export const clarificationLetterV1: DocumentTemplate<ClarificationLetterPayload>
 <section class="close">
 <h2>How to respond</h2>
 <ol class="steps">
-<li>Sign in to Adili Online at <a href="${esc(payload.portalUrl)}"><b>${esc(portal.host)}</b></a>.</li>
+<li>Sign in to Adili Online at ${portalLink(payload.portalUrl)}.</li>
 <li>Open Clarifications and select <b class="nw">${reference}</b>.</li>
 <li>Answer each item. Attach supporting documents if you have them (PDF, JPEG, PNG or HEIC, up to 20&nbsp;MB each).</li>
 <li>Submit your response. You can respond once, so answer every item.</li>
 </ol>
 <p>A response after ${due} is still accepted and is recorded as late.</p>
-<p class="fine">Check that this letter is genuine: scan the QR code at the foot of any page, or enter <span class="mono nw">${esc(verificationId)}</span> on the Adili Online verify page. The check shows only the reference, type, Commission and date.</p>
-<div class="sign"><div><div>Yours faithfully,</div><div class="nm">${esc(payload.commission.name)}</div></div>${signatureNote(signerName, issuedAt)}</div>
+${restrictedVerifyNote(verificationId)}
+${letterClose(payload.commission.name, signerName, issuedAt)}
 </section>`;
     return htmlDocument(
       `Request for clarification ${payload.clarificationReference}`,
