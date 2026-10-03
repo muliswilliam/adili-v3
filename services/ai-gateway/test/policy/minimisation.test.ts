@@ -1140,6 +1140,101 @@ describe('minimise a text layer: names out, fields readable', () => {
   });
 });
 
+/**
+ * Probes as the reviewer runs them (#314 review round 17): every `mustHide` word is absent from
+ * what is sent, as a whole word, and every `mustKeep` string is present.
+ */
+const PROBES: readonly Probe[] = [
+  {
+    id: 'F87 one-word shareholders with a share',
+    input: 'Shareholders:\n1. John Kamau\n(a) Achieng 40%\n(b) Otieno 60%',
+    mustHide: ['John', 'Kamau', 'Achieng', 'Otieno'],
+    mustKeep: ['40%', '60%'],
+  },
+  {
+    id: 'F87 one-word lead before a number',
+    input: 'Shareholders:\n1. John Kamau\n(a) Achieng 500',
+    mustHide: ['John', 'Kamau', 'Achieng'],
+    mustKeep: ['500'],
+  },
+  {
+    id: 'F87 one-word lead before a currency',
+    input: 'Shareholders:\n1. John Kamau\n(a) Achieng KES 500',
+    mustHide: ['John', 'Kamau', 'Achieng'],
+    mustKeep: ['KES 500'],
+  },
+  {
+    id: 'F87 one-word lead before an amount',
+    input: 'Shareholders:\n1. John Kamau\n(d) Moraa KES 500,000',
+    mustHide: ['John', 'Kamau', 'Moraa'],
+    mustKeep: ['KES 500,000'],
+  },
+  {
+    id: 'F87 roman one-word lead before shares',
+    input: 'Shareholders:\n1. John Kamau\ni. Achieng 500 shares',
+    mustHide: ['John', 'Kamau', 'Achieng'],
+    mustKeep: ['500 shares'],
+  },
+  {
+    id: 'F87 one-word lead before Year',
+    input: 'Shareholders:\n1. John Kamau\n(a) Otieno Year 2015',
+    mustHide: ['John', 'Kamau', 'Otieno'],
+    mustKeep: ['Year 2015'],
+  },
+  {
+    id: 'F87 one-word lead before Box',
+    input: 'Shareholders:\n1. John Kamau\n(a) Achieng Box 12',
+    mustHide: ['John', 'Kamau', 'Achieng'],
+    mustKeep: ['Box 12'],
+  },
+  {
+    id: 'F87 one-word lead before Date',
+    input: 'Shareholders:\n1. John Kamau\n(a) Achieng Date 2020',
+    mustHide: ['John', 'Kamau', 'Achieng'],
+    mustKeep: ['Date 2020'],
+  },
+  {
+    id: 'F87 joined one-word lead',
+    input: 'Shareholders:\n1. John Kamau\n(a) Achieng-Otieno 40%',
+    mustHide: ['John', 'Kamau', 'Achieng', 'Otieno'],
+    mustKeep: ['40%'],
+  },
+  {
+    id: 'F88 a labelled name ends at Box',
+    input: 'Owner: John Kamau Box 123 Nakuru\nCounty: Nakuru',
+    mustHide: ['John', 'Kamau'],
+    mustKeep: ['Box 123 Nakuru', 'County: Nakuru'],
+  },
+  {
+    id: 'F88 a labelled name ends at Box, commas',
+    input: 'Owner: John Kamau, Box 123, Nakuru\nCounty: Nakuru',
+    mustHide: ['John', 'Kamau'],
+    mustKeep: ['Box 123, Nakuru', 'County: Nakuru'],
+  },
+  {
+    id: 'F88 a name Box does not spread',
+    input: 'Proprietor: Peter Box\nPack the files in a box.\nPostal: Box 99',
+    mustHide: ['Peter'],
+    mustKeep: ['in a box.', 'Postal: Box 99'],
+  },
+];
+
+interface Probe {
+  id: string;
+  input: string;
+  mustHide: readonly string[];
+  mustKeep: readonly string[];
+}
+
+describe('minimise a text layer: reviewer probes', () => {
+  it.each(PROBES)('$id', ({ input, mustHide, mustKeep }) => {
+    const sent = minimise({ textLayer: input }).input.textLayer;
+
+    for (const word of mustHide) expect(sent).not.toMatch(wholeWord(word));
+    for (const text of mustKeep) expect(sent).toContain(text);
+  });
+});
+
 describe('minimise a text layer: what is no name', () => {
   it('reads 1,000 pages quickly (F49)', () => {
     const pages = Array.from({ length: 1_000 }, (_, page) => ({
