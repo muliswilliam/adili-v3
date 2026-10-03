@@ -533,7 +533,7 @@ describe('CaseView: version compare (S10, S19)', () => {
     expect(compareSwitch().getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('heading', { level: 2, name: 'Version comparison' })).toBeTruthy();
     expect(screen.getByText('8 matched')).toBeTruthy();
-    expect(screen.getByText('1 changed 25%+')).toBeTruthy();
+    expect(screen.getByText('2 changed 25%+')).toBeTruthy();
     expect(screen.getByText('3 in one version only')).toBeTruthy();
 
     const officer = screen.getByRole('table', {

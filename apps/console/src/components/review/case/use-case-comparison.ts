@@ -22,6 +22,7 @@ export function useCaseComparison(caseId: string, currentVersion: number) {
     const request = ++latest.current;
     const result = await getCaseComparison({ data: { caseId } }).catch(() => null);
     if (request !== latest.current) return;
+    setRetrying(false);
     if (!result?.ok) {
       // Turning Compare off and on again tries again too.
       loadedFor.current = null;
@@ -39,14 +40,16 @@ export function useCaseComparison(caseId: string, currentVersion: number) {
     if (!on || loadedFor.current === key) return;
     loadedFor.current = key;
     setState({ status: 'loading' });
+    // A Try again still out is for what showed before; this read takes over.
+    setRetrying(false);
     void read();
   }, [on, key, read]);
 
   const retry = useCallback(async () => {
     setRetrying(true);
     loadedFor.current = key;
+    // Clears `retrying` when it lands, unless a newer read has taken over.
     await read();
-    setRetrying(false);
   }, [key, read]);
 
   return { on, setOn, state: state ?? { status: 'loading' }, retry, retrying } as const;

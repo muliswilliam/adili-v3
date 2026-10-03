@@ -62,4 +62,37 @@ describe('useCaseComparison', () => {
     });
     expect(getCaseComparison).toHaveBeenCalledTimes(2);
   });
+
+  it('stops showing Try again as running once a newer read takes over', async () => {
+    const retried = deferred();
+    const newer = deferred();
+    vi.mocked(getCaseComparison)
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockReturnValueOnce(retried.promise)
+      .mockReturnValueOnce(newer.promise);
+    const { result, rerender } = renderHook(({ version }) => useCaseComparison(CASE, version), {
+      initialProps: { version: 2 },
+    });
+    await act(async () => {
+      result.current.setOn(true);
+      await Promise.resolve();
+    });
+    expect(result.current.state.status).toBe('failed');
+    act(() => {
+      void result.current.retry();
+    });
+    expect(result.current.retrying).toBe(true);
+    rerender({ version: 3 });
+    expect(result.current.retrying).toBe(false);
+    await act(async () => {
+      newer.answer({ ok: true, data: comparison(2, 3) });
+      await newer.promise;
+    });
+    await act(async () => {
+      retried.answer({ ok: true, data: comparison(1, 2) });
+      await retried.promise;
+    });
+    expect(result.current.retrying).toBe(false);
+    expect(result.current.state).toMatchObject({ status: 'ready', view: { currentVersion: 3 } });
+  });
 });

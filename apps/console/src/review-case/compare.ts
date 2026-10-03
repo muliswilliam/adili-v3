@@ -1,10 +1,4 @@
-import {
-  DIFF_HIGHLIGHT_PERCENT,
-  type DiffGroup,
-  diffKind,
-  diffPercent,
-  type DiffRow,
-} from '@adili/ui';
+import { type DiffGroup, diffHighlighted, diffKind, type DiffRow } from '@adili/ui';
 
 import type { VersionComparison } from '../server/review/types';
 import { CATEGORIES, type Relation, relationOf } from './declaration';
@@ -48,7 +42,7 @@ export interface ComparisonView {
   statements: ComparedStatement[];
   counts: {
     matched: number;
-    /** Matched items whose value changed by `DIFF_HIGHLIGHT_PERCENT` or more. */
+    /** Matched items the rules flag: changed by `DIFF_HIGHLIGHT_PERCENT` or more, or up from nothing. */
     changedBig: number;
     oneVersionOnly: number;
   };
@@ -63,10 +57,13 @@ const TYPE_LABELS: Record<Category, Record<string, string>> = {
 const typeLabel = (category: Category, type: string) => TYPE_LABELS[category][type] ?? type;
 
 /**
- * A row the table shades: a matched change of `DIFF_HIGHLIGHT_PERCENT` or more, by the same
- * percentage the table shows (from the amounts, unrounded, as the rules flag it).
+ * A matched change the rules flag as `value-change-25`: by the exact percentage the table shows
+ * and shades (`diffHighlighted`), or up from nothing, which the rules count as more than any
+ * percentage (the table shows n/a there, unshaded).
  */
-const isBig = (row: DiffRow) => Math.abs(diffPercent(row) ?? 0) >= DIFF_HIGHLIGHT_PERCENT;
+const isBig = (row: DiffRow) =>
+  diffKind(row) === 'matched' &&
+  (diffHighlighted(row) || (row.previousCents === 0 && row.currentCents !== 0));
 
 function matchedRow(
   personKey: string,
@@ -135,9 +132,8 @@ function statementOf(statement: ComparedStatementInput): ComparedStatement {
 
 export function comparisonView(comparison: VersionComparison): ComparisonView {
   const statements = comparison.statements.map(statementOf);
-  const matchedRows = statements
-    .flatMap((statement) => statement.groups.flatMap((group) => group.rows))
-    .filter((row) => diffKind(row) === 'matched');
+  const rows = statements.flatMap((statement) => statement.groups.flatMap((group) => group.rows));
+  const matchedRows = rows.filter((row) => diffKind(row) === 'matched');
   return {
     previousVersion: comparison.previousVersion,
     currentVersion: comparison.currentVersion,
@@ -146,10 +142,7 @@ export function comparisonView(comparison: VersionComparison): ComparisonView {
     counts: {
       matched: matchedRows.length,
       changedBig: matchedRows.filter(isBig).length,
-      oneVersionOnly: comparison.statements.reduce(
-        (total, statement) => total + statement.onlyPrevious.length + statement.onlyCurrent.length,
-        0,
-      ),
+      oneVersionOnly: rows.length - matchedRows.length,
     },
   };
 }

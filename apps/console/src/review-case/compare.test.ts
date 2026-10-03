@@ -182,7 +182,7 @@ describe('comparisonView (S10, S19)', () => {
   });
 
   it('counts matched items, changes of 25% or more, and items in one version only', () => {
-    expect(view.counts).toEqual({ matched: 5, changedBig: 1, oneVersionOnly: 2 });
+    expect(view.counts).toEqual({ matched: 5, changedBig: 2, oneVersionOnly: 2 });
   });
 
   it('marks a statement with nothing in either version as empty', () => {
@@ -209,8 +209,11 @@ describe('comparisonView at the 25% threshold', () => {
               previousCents,
               currentCents,
               deltaCents: currentCents - previousCents,
-              // The service rounds 24.6% up to 25.
-              deltaPercent: Math.round(((currentCents - previousCents) / previousCents) * 100),
+              // The service rounds 24.6% up to 25; none from nothing.
+              deltaPercent:
+                previousCents === 0
+                  ? null
+                  : Math.round(((currentCents - previousCents) / previousCents) * 100),
               flaggedByDeclarant: false,
             },
           ],
@@ -234,6 +237,13 @@ describe('comparisonView at the 25% threshold', () => {
     const view = at(100_000_000, 124_600_000);
     expect(view.counts.changedBig).toBe(0);
     expect(view.statements[0]?.groups[0]?.rows[0]?.note).toBeUndefined();
+    expect(shaded(view)).toBe(false);
+  });
+
+  it('counts and notes a change up from nothing, as the rules flag it, with no shaded percentage', () => {
+    const view = at(0, 12_000_000);
+    expect(view.counts.changedBig).toBe(1);
+    expect(view.statements[0]?.groups[0]?.rows[0]?.note).toBe('Not marked');
     expect(shaded(view)).toBe(false);
   });
 
