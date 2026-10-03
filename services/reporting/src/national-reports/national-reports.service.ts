@@ -3,10 +3,11 @@ import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, NCR } from '@adili/numbering';
+import { EACC_TENANT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { EACC_TENANT, requireEacc, requireEaccSupervisor } from '../access.js';
+import { requireEacc, requireEaccSupervisor } from '../access.js';
 import { Clock } from '../clock.js';
 import type { ReportingTransaction } from '../compliance-reports/reports.js';
 import { reportReceipts } from '../compliance-reports/schema.js';

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
+import { EACC_TENANT } from '@adili/roles';
 import { eq } from 'drizzle-orm';
 import { v5 as uuidv5 } from 'uuid';
 
-import { EACC_TENANT } from '../access.js';
 import { ReportWorkflows } from '../compliance-reports/report-workflows.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DocumentsClient } from '../documents/documents-client.js';

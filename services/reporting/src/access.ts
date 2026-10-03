@@ -1,5 +1,5 @@
 import { isFreshStepUp, notFoundIfInvisible, type Principal } from '@adili/api-kit';
-import { FORM_M_ROLES } from '@adili/roles';
+import { EACC_ROLES, EACC_SUPERVISOR, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
 
 import { forbidden } from './problems.js';
 
@@ -65,16 +65,11 @@ export function federatedTenant(principal: Principal): string {
   throw forbidden('The token is not issued for a Commission.');
 }
 
-/** The tenant of EACC's accounts, and the RLS context its intake reads every Commission's in. */
-export const EACC_TENANT = 'eacc';
-
-export const EACC_ANALYST = 'eacc-analyst';
-export const EACC_SUPERVISOR = 'eacc-supervisor';
-
-/** EACC's roles (spec 09 authorisation): the intake, chase status, and every submitted report. */
-export const EACC_ROLES = [EACC_ANALYST, EACC_SUPERVISOR] as const;
-
-/** An EACC account: an EACC role, acting for EACC. */
+/**
+ * An EACC account: an EACC role (`EACC_ROLES`, spec 09 authorisation: the intake, chase status and
+ * every submitted report), acting for EACC (`EACC_TENANT`, the RLS context its intake reads every
+ * Commission's in).
+ */
 export function isEacc(principal: Principal): boolean {
   return (
     principal.tenant === EACC_TENANT &&
