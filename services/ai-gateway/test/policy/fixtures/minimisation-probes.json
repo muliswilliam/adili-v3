@@ -1481,8 +1481,8 @@
   {
     "id": "r18-std-15",
     "input": "Shareholders:\n1. John Kamau\n(a) Achieng Shares 500\n(b) Otieno Account 0123",
-    "mustHide": ["John", "Kamau"],
-    "mustKeep": ["(a) Achieng Shares 500", "(b) Otieno Account 0123"]
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["Shares 500", "0123"]
   },
   {
     "id": "r18-std-16",
