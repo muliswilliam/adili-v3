@@ -3,7 +3,8 @@
  * `pushReferralToIcms`), behind `mock.server.ts`. As the service has it
  * (`services/reporting/src/referrals`):
  *
- * - EACC analysts and supervisors only (403 for anyone else).
+ * - EACC analysts and supervisors read the intake (403 for anyone else); only analysts push, as
+ *   the spec 09 FE access table has it (the service lets supervisors push too, #545).
  * - The intake, the latest sent first, of one ICMS status or all, cursor paging (50 by default).
  * - Push (Idempotency-Key required, 400 without; a key replays its first answer; 404 for a
  *   referral not in the intake): a registered referral is answered as it is and never sent
@@ -21,7 +22,7 @@
  * Also answers the documents service's download of the referrals' evidence packages
  * (`mockIntakePackageFetch`), with links to `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
  */
-import { EACC_ROLES } from '@adili/roles';
+import { EACC_ANALYST, EACC_ROLES } from '@adili/roles';
 
 import { ICMS_STATUSES } from './types';
 import { json, mockCallerOf, problem } from '../mock-http';
@@ -307,6 +308,9 @@ export function referralIntakeFetch(request: Request): Response | null {
   }
   if (pushMatch?.[1]) {
     if (request.method !== 'POST') return problem(405, 'Method not allowed');
+    if (!caller.roles.includes(EACC_ANALYST)) {
+      return problem(403, 'Only EACC analysts push referrals to ICMS');
+    }
     return push(pushMatch[1], request.headers.get('idempotency-key'), {
       subject: caller.subject,
       name: caller.name ?? caller.subject,

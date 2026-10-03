@@ -110,7 +110,6 @@ export const messages = {
     sendingDetail: 'Waiting for the case number.',
     cancel: 'Cancel',
     confirm: 'Push to ICMS',
-    retry: 'Retry',
   },
   toasts: {
     registered: (caseNumber: string) => `Registered in ICMS as ${caseNumber}`,
@@ -126,7 +125,7 @@ export const messages = {
   },
   /** A push refused for good, in the dialog: trying again will not help. */
   pushRefused: {
-    403: 'Only EACC analysts and supervisors can push referrals to ICMS.',
+    403: 'Only EACC analysts can push referrals to ICMS.',
     404: 'This referral is no longer in the intake.',
     other: 'Reporting refused the push. Reload the page and try again.',
   },

@@ -300,9 +300,7 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Push to ICMS' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Push to ICMS' }));
     expect(
-      await within(dialog).findByText(
-        'Only EACC analysts and supervisors can push referrals to ICMS.',
-      ),
+      await within(dialog).findByText('Only EACC analysts can push referrals to ICMS.'),
     ).toBeTruthy();
     expect(invalidate).not.toHaveBeenCalled();
   });

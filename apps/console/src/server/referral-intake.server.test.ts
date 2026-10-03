@@ -163,3 +163,18 @@ describe('intakePackageLink (S12)', () => {
     });
   });
 });
+
+describe('pushToIcms as an EACC supervisor (spec 09 FE access table)', () => {
+  it('is refused: only analysts push (403)', async () => {
+    const result = await pushToIcms(
+      mockReportingClient([EACC_SUPERVISOR], { name: 'Esther Chebet' }),
+      R.notPushed,
+      KEY,
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      pushFailed: null,
+      error: { kind: 'problem', problem: { status: 403 } },
+    });
+  });
+});

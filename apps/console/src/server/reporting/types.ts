@@ -35,10 +35,13 @@ export type ReferralGrounds = Schemas['ReferralGrounds'];
 export type IcmsStatus = Schemas['IcmsStatus'];
 export type IcmsPushError = Schemas['IcmsPushError'];
 
+/** Every `IcmsStatus`, checked against the generated union both ways, in the intake's filter order. */
+const ICMS_STATUS_SET = {
+  'not-pushed': true,
+  pushed: true,
+  registered: true,
+  'push-failed': true,
+} as const satisfies Record<IcmsStatus, true>;
+
 /** reporting.yaml `IcmsStatus`, in the order the intake filters them. */
-export const ICMS_STATUSES = [
-  'not-pushed',
-  'pushed',
-  'registered',
-  'push-failed',
-] as const satisfies readonly IcmsStatus[];
+export const ICMS_STATUSES = Object.keys(ICMS_STATUS_SET) as [IcmsStatus, ...IcmsStatus[]];
