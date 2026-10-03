@@ -204,11 +204,11 @@ A narrative paragraph written by AI that the EACC analyst drafting the NCR has n
 _Avoid_: suggestion, AI text
 
 **Open-data release**:
-A versioned public dataset of a financial year's aggregates (six tables, JSON and CSV, each with its SHA-256) built from the NCR or the live projections. It is a preview until an EACC supervisor publishes it (an annual release is published on NCR approval); a published release can be withdrawn with a reason, and a corrected one is the next version.
+A versioned public dataset of a financial year's aggregates (six tables, JSON and CSV, each with its SHA-256) built from the NCR or the live projections. It is a preview until an EACC supervisor publishes it, except the year's first annual release, which is published on NCR approval. A published release can be withdrawn with a reason; a corrected one is the next version, built as a preview and published deliberately.
 _Avoid_: export, dump, open data (alone, for a release)
 
 **Suppression**:
-Hiding an open-data figure that counts fewer officers than the threshold (10), so that no small group of officers can be identified. The figure is published as `null` with a marker and shown as "‹10"; totals stay true sums.
+Hiding an open-data figure that counts fewer officers than the threshold (10), so that no small group of officers can be identified. The figure is published as `null` with a marker and shown as "‹10". A published total is never recomputed from the visible cells, and a total can itself be suppressed.
 _Avoid_: redaction, masking
 
 **Complementary suppression**:
