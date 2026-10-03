@@ -390,5 +390,10 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     const dialog = await screen.findByRole('dialog', { name: 'Approve determination' });
     expect(within(dialog).getByText(/^Proposed by the system on /)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Return' }));
+    const returning = await screen.findByRole('dialog', { name: 'Return to the reviewer' });
+    expect(within(returning).getByText(/· proposed by the system$/)).toBeTruthy();
+    expect(within(returning).getByText('Shown on the case.')).toBeTruthy();
   });
 });

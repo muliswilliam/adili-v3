@@ -52,7 +52,7 @@ import {
   type HistoryEntry,
 } from '../../determination/view';
 import { reportingEntityOf } from '../../review-case/declaration';
-import { DECLARATION_TYPES } from '../../review-case/labels';
+import { DECLARATION_TYPES, SYSTEM_PROPOSER } from '../../review-case/labels';
 import {
   getDecisionLetterLink,
   proposeCaseDetermination,
@@ -387,7 +387,10 @@ function Banner({
       <BannerFrame
         variant="info"
         icon={Clock01Icon}
-        title={t.banner.proposed(current.proposer?.name ?? t.systemInSentence, current.proposedAt)}
+        title={t.banner.proposed(
+          current.proposer?.name ?? SYSTEM_PROPOSER.inSentence,
+          current.proposedAt,
+        )}
       >
         {state.withdraw || state.openInApprovals ? (
           <div className="flex flex-wrap gap-2">
@@ -586,7 +589,7 @@ function DeterminationCard({
             )}
           </Fact>
           <Fact term={t.card.proposed}>
-            {current.proposer?.name ?? t.system}
+            {current.proposer?.name ?? SYSTEM_PROPOSER.alone}
             <span className="text-muted-foreground"> · {formatDate(current.proposedAt)}</span>
           </Fact>
           <Fact term={t.card.approver}>
@@ -616,8 +619,9 @@ function DeterminationCard({
           icon={<Icon icon={JusticeScale01Icon} />}
           title={t.card.emptyTitle}
           description={
-            state.kind === 'none' && state.propose === 'allowed'
-              ? t.card.emptyBodyYours
+            state.kind === 'none' &&
+            (state.propose === 'allowed' || state.propose === 'clarification-open')
+              ? t.card.emptyBodyAssignee
               : t.card.emptyBody
           }
         />

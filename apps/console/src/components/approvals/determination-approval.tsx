@@ -322,7 +322,6 @@ export function ReturnDeterminationDialog({
   const [failure, setFailure] = useState<FailureText | null>(null);
   const [busy, setBusy] = useState(false);
   const id = useId();
-  const proposer = item ? proposerName(item) : m.system;
   return (
     <Dialog
       open={item !== null}
@@ -340,7 +339,7 @@ export function ReturnDeterminationDialog({
           <DialogHeading
             icon={ArrowTurnBackwardIcon}
             title={t.returnDialog.title}
-            description={t.returnDialog.subject(item.summary.caseReference, proposer)}
+            description={t.returnDialog.subject(item.summary.caseReference, proposerName(item))}
           />
           <form
             noValidate
@@ -379,7 +378,9 @@ export function ReturnDeterminationDialog({
                   {error ? (
                     <FieldError id={`${id}-reason-help`}>{error}</FieldError>
                   ) : (
-                    <FieldHint id={`${id}-reason-help`}>{t.returnDialog.hint(proposer)}</FieldHint>
+                    <FieldHint id={`${id}-reason-help`}>
+                      {t.returnDialog.hint(item.proposer?.name ?? null)}
+                    </FieldHint>
                   )}
                   <span
                     className={
