@@ -276,3 +276,95 @@ describe('minimise (spec 07c S3)', () => {
     );
   });
 });
+
+/**
+ * A document's text layer (spec 05b S10): no field says what is a name there, so names are found
+ * by what labels them on the page, then replaced wherever they recur.
+ */
+describe('minimise a text layer', () => {
+  const TITLE_DEED = [
+    'TITLE DEED',
+    'Title Number: NAKURU/NJORO/1187',
+    'Approximate Area: 0.405 Ha',
+    'Proprietor: WANJIRU AKINYI KAMAU, ID No. 28765432, of P.O. Box 1022-20100, Nakuru',
+    'Registered on 12 March 2019 in the name of Wanjiru Akinyi Kamau.',
+  ].join('\n');
+
+  it('replaces labelled names, IDs, parcels and addresses, wherever they recur', () => {
+    const { input } = minimise({ textLayer: TITLE_DEED });
+
+    for (const identifier of [
+      'WANJIRU',
+      'Wanjiru',
+      'AKINYI',
+      'Kamau',
+      '28765432',
+      'NAKURU/NJORO/1187',
+      'P.O. Box 1022-20100',
+    ]) {
+      expect(input.textLayer).not.toContain(identifier);
+    }
+    expect(input.textLayer).toContain('Approximate Area: 0.405 Ha');
+    expect(input.textLayer).toContain('Registered on 12 March 2019 in the name of');
+  });
+
+  it('restores what the model copies from the tokens', () => {
+    const minimised = minimise({ textLayer: TITLE_DEED });
+    const owner = /Proprietor: (\[\[PERSON_\d+\]\] \[\[PERSON_\d+\]\] \[\[PERSON_\d+\]\])/u.exec(
+      minimised.input.textLayer,
+    )?.[1];
+    const parcel = /Title Number: (\[\[PARCEL_\d+\]\])/u.exec(minimised.input.textLayer)?.[1];
+
+    expect(minimised.restore({ coOwner: owner, parcelNumber: parcel })).toEqual({
+      coOwner: 'WANJIRU AKINYI KAMAU',
+      parcelNumber: 'NAKURU/NJORO/1187',
+    });
+  });
+
+  it.each([
+    ['Employee Name: Brian Otieno Ouma', 'Brian Otieno Ouma'],
+    ['Registered Owner: GRACE NJERI MUTUA', 'GRACE NJERI MUTUA'],
+    ['Account name: Peter Kiprono', 'Peter Kiprono'],
+    ['Dear Mr. Kiprono,', 'Kiprono'],
+    ['Received from Dr Achieng Odhiambo', 'Achieng Odhiambo'],
+    ['Jina: Halima Mohamed Ali', 'Halima Mohamed Ali'],
+    ['This is to certify that ESTHER WAIRIMU NDUNG’U is the registered holder', 'ESTHER WAIRIMU'],
+    ['NAME\nJOSEPH MWANGI KARIUKI', 'JOSEPH MWANGI KARIUKI'],
+    ['Proprietors: JOSEPH MWANGI and ESTHER WAIRIMU', 'JOSEPH MWANGI ESTHER WAIRIMU'],
+    ['Wamiliki: Juma Hassan na Amina Said', 'Juma Hassan Amina Said'],
+  ])('finds the name in %j', (line, name) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of name.split(' ').filter(Boolean)) {
+      expect(input.textLayer).not.toContain(word);
+    }
+  });
+
+  it('keeps the words that join two names readable', () => {
+    const { input } = minimise({
+      textLayer: 'Proprietors: JOSEPH MWANGI and ESTHER WAIRIMU\nLand and buildings',
+    });
+
+    expect(input.textLayer).toMatch(/^Proprietors: \[\[PERSON_\d\]\] \[\[PERSON_\d\]\] and /u);
+    expect(input.textLayer).toContain('Land and buildings');
+  });
+
+  it('leaves labelled names in other text alone: only a document is read this way', () => {
+    expect(minimise({ note: 'Name: Brian Otieno' }).input.note).toBe('Name: Brian Otieno');
+  });
+
+  it('leaves the labels and values a reading needs', () => {
+    const payslip = [
+      'Employer: Ministry of Health',
+      'Designation: Senior Nursing Officer',
+      'Basic Salary 98,400.00',
+      'Gross Pay 142,650.00',
+      'Make: TOYOTA',
+      'Model: FIELDER',
+      'Member No. UW-00781',
+      'Owner PIN shown overleaf',
+    ].join('\n');
+
+    expect(minimise({ textLayer: payslip }).input.textLayer).toBe(payslip);
+  });
+});

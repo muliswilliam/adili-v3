@@ -195,6 +195,31 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
  */
 const QUESTION_FIELDS = new Set(['question', 'history']);
 
+/** Fields holding a document's text layer, where labelled names are found (spec 05b). */
+const DOCUMENT_TEXT_FIELDS = new Set(['textLayer']);
+
+/** Up to five capitalised words (WANJIRU, Akinyi, O'Brien, Ndung’u): a name as a page writes it. */
+const NAME = String.raw`\p{Lu}[\p{L}'’.-]*(?:[ \t]+\p{Lu}[\p{L}'’.-]*){0,4}`;
+/** Names joined by commas, `and`, `&` or (Swahili) `na`: joint proprietors, co-owners. */
+const NAMES = String.raw`(${NAME}(?:[ \t]*(?:,|&|and|na)[ \t]*${NAME})*)`;
+/**
+ * What introduces a person's name on a title deed, logbook, payslip, letter or certificate, in
+ * English or Swahili: a label and an optional colon (the name may be on the next line), a
+ * courtesy title, or "certify that". The labels match in any case; the names only capitalised.
+ */
+const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
+  new RegExp(
+    String.raw`(?<![\p{L}\p{N}])(?i:(?:full\s+)?names?|(?:registered\s+)?proprietors?|(?:registered\s+)?owners?(?:'s\s+name)?|lessees?|employee(?:\s+name)?|account\s+(?:name|holder)|customer(?:\s+name)?|borrower|(?:registered\s+)?holder|shareholder|member(?:\s+name)?|jina(?:\s+kamili)?|majina|mmiliki|wamiliki)[ \t]*[:\-]?[ \t]*\n?[ \t]*` +
+      NAMES,
+    'gu',
+  ),
+  new RegExp(
+    String.raw`(?<![\p{L}\p{N}])(?:Mr|Mrs|Ms|Miss|Dr|Prof|Hon|Bw|Bi)\.?[ \t]+` + NAMES,
+    'gu',
+  ),
+  new RegExp(String.raw`(?i:certify\s+that)[ \t]+` + NAMES, 'gu'),
+];
+
 const CURRENCY = String.raw`(?:KES|KShs?|Kshs?|Shs?|USD|US\$|\$|EUR|€|GBP|£)\.?`;
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
 const SCALE = String.raw`(?:million|billion|thousand|mn|bn|m|k)`;
@@ -289,9 +314,10 @@ function collect(
   if (typeof value === 'string') {
     const cls = key === undefined ? undefined : fieldClass(key);
     if (cls === 'PERSON') {
-      // Each part of a name on its own, so it is found in free text in any order or form.
-      for (const word of value.split(/[\s,]+/u)) {
-        if (word.length >= 2 && !known.has(word)) known.set(word, 'PERSON');
+      collectName(value, known);
+    } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
+      for (const pattern of DOCUMENT_NAME_PATTERNS) {
+        for (const match of value.matchAll(pattern)) collectName(match[1] ?? '', known, true);
       }
     } else if (cls !== undefined && value.trim().length >= 2) {
       known.set(value.trim(), cls);
@@ -314,6 +340,21 @@ function collect(
         collect(child, childKey, known);
       }
     }
+  }
+}
+
+/** Capitalised words a label may run into that are not names ("Owner PIN", "Member No."). */
+const NOT_NAMES = new Set(['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of']);
+
+/**
+ * Each part of a name on its own, so it is found in free text in any order or form. Of names a
+ * page lists (`capitalised`), only the capitalised words that are not label words: `and` or `na`
+ * joins them, "PIN" or "No." follows a label.
+ */
+function collectName(name: string, known: Map<string, IdentifierClass>, capitalised = false): void {
+  for (const word of name.split(/[\s,&]+/u)) {
+    if (capitalised && (!/^\p{Lu}/u.test(word) || NOT_NAMES.has(word.toLowerCase()))) continue;
+    if (word.length >= 2 && !known.has(word)) known.set(word, 'PERSON');
   }
 }
 
