@@ -222,6 +222,30 @@ describe('#353 S6 publish', () => {
     expect(publish.mock.calls[1]?.[1]).toBe(publish.mock.calls[0]?.[1]);
   });
 
+  it('keeps the key while the first publish with it still runs (`idempotency-key-in-use`)', async () => {
+    const id = await preview2026();
+    const { publish } = await renderRelease(id);
+    publish.mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'idempotency-key-in-use', title: 'Request in progress', status: 409 },
+        },
+      }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+    expect((await within(screen.getByRole('dialog')).findByRole('alert')).textContent).toBe(
+      'Your earlier request is still being processed. Try again in a moment.',
+    );
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+
+    expect(await screen.findByText('Published. It is public now.')).toBeTruthy();
+    expect(publish.mock.calls[1]?.[1]).toBe(publish.mock.calls[0]?.[1]);
+  });
+
   it('a refusal ends the key: the next opening sends a new one', async () => {
     const id = await preview2026();
     const { publish } = await renderRelease(id, { as: analyst, isSupervisor: true });
@@ -282,6 +306,7 @@ describe('#353 S7 withdraw', () => {
     const dialog = screen.getByRole('dialog', { name: 'Withdraw FY 2025/2026 snapshot v2?' });
     expect(dialog.textContent).toContain('It stays online, marked withdrawn with your reason.');
     expect(dialog.textContent).toContain('Its files can still be downloaded.');
+    expect(dialog.textContent).toContain('Its manifest is revoked: its verify page says so.');
     expect(within(dialog).getByText('Shown publicly. 0/1000')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
 

@@ -30,6 +30,8 @@
  */
 import { createHash } from 'node:crypto';
 
+import { EACC_SUPERVISOR } from '@adili/roles';
+
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem } from '../mock-http';
 import { isEacc } from './eacc-mock.server';
@@ -51,7 +53,6 @@ import type {
 
 export type ReleasesMockSeed = Env['REPORTING_MOCK_RELEASES'];
 
-const SUPERVISOR = 'eacc-supervisor';
 /** The verification code's alphabet: no 0, 1, I or O. */
 const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PATH = '/v1/eacc/open-data/releases';
@@ -212,7 +213,7 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
       subject: caller.subject ?? 'unknown',
       name: caller.name ?? caller.subject ?? 'unknown',
     };
-    if (!caller.roles.includes(SUPERVISOR)) {
+    if (!caller.roles.includes(EACC_SUPERVISOR)) {
       return json(403, {
         type: 'about:blank',
         title: 'Forbidden',

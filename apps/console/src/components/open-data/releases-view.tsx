@@ -46,8 +46,8 @@ import { problemStatus } from '../../server/service-call';
 import { CursorPager } from '../cursor-pager';
 import { NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
-import { messages as m, mismatchLabel } from './messages';
-import { isProblem, mayBeRecorded, type ReleasesFailure } from './problems';
+import { messages as m } from './messages';
+import { buildFailure, mayBeRecorded } from './problems';
 import { KindTag, releaseName } from './release-parts';
 
 /** Releases per page, as the prototype pages them. */
@@ -180,25 +180,6 @@ export function ReleasesView(props: ReleasesViewProps) {
       />
     </Page>
   );
-}
-
-function buildFailure(result: ReleasesFailure): string {
-  const { error } = result;
-  if (error.kind === 'problem') {
-    const { code, mismatches } = error.problem;
-    if (code === 'reconciliation-failed') {
-      return m.reconciliationFailed((mismatches ?? []).map(mismatchLabel).join(', '));
-    }
-    if (code === 'fy-not-started') return m.fyNotStarted;
-    if (isProblem(error.problem, 'idempotency-key-in-use')) return m.buildStillRunning;
-  }
-  if (error.kind === 'unavailable' && error.problemType === 'storage-unavailable') {
-    return m.storageUnavailable;
-  }
-  if (error.kind === 'unavailable' && error.problemType === 'directory-unavailable') {
-    return m.directoryUnavailable;
-  }
-  return m.buildFailed;
 }
 
 function BackToOverview() {

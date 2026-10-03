@@ -177,6 +177,7 @@ export const en = {
   publishDocumentsUnavailable:
     'The documents service could not be reached. Nothing was published. Try again.',
   publishStorageUnavailable: 'File storage could not be reached. Nothing was published. Try again.',
+  publishRefused: 'The release could not be published. Nothing was published.',
   publishFailed: 'We could not confirm the publication. Try again: it will not be published twice.',
 
   withdraw: 'Withdraw',
@@ -184,11 +185,13 @@ export const en = {
   withdrawConsequences: [
     'It stays online, marked withdrawn with your reason.',
     'Its files can still be downloaded.',
+    'Its manifest is revoked: its verify page says so.',
     'To correct it, build and publish a new version.',
   ],
   reason: 'Reason',
   reasonPlaceholder: 'What was wrong, and what the next version will change',
-  reasonHint: (length: number) => `Shown publicly. ${formatNumber(length)}/1000`,
+  reasonHint: (length: number, max: number) =>
+    `Shown publicly. ${formatNumber(length)}/${String(max)}`,
   reasonRequired: 'Enter a reason. It is shown publicly with the release.',
   reasonInvalid: 'Enter a reason of up to 1,000 characters.',
   withdrawing: 'Withdrawing…',
@@ -198,6 +201,7 @@ export const en = {
   revocationRefused: 'The documents service refused to revoke the manifest. Nothing was withdrawn.',
   withdrawDocumentsUnavailable:
     'The documents service could not be reached. Nothing was withdrawn. Try again.',
+  withdrawRefused: 'The release could not be withdrawn. Nothing was withdrawn.',
   withdrawFailed: 'We could not confirm the withdrawal. Try again: it will not be withdrawn twice.',
 
   releaseGone: 'This release no longer exists.',

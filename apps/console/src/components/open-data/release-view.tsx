@@ -373,11 +373,8 @@ function versionEvents(each: OpenDataRelease, shown: OpenDataReleaseView | null)
     lines.push(m.eventWithdrawn(formatDateTime(each.withdrawnAt), each.withdrawnBy?.name ?? null));
   }
   if (each.publishedAt) {
-    lines.push(
-      shown && publishedOnApproval(shown)
-        ? m.publishedOnApproval(formatDateTime(each.publishedAt))
-        : m.publishedOn(formatDateTime(each.publishedAt), each.publishedBy?.name ?? null),
-    );
+    // By the publisher; for an annual release published on NCR approval, the approver.
+    lines.push(m.publishedOn(formatDateTime(each.publishedAt), each.publishedBy?.name ?? null));
   }
   lines.push(m.eventBuilt(formatDateTime(each.builtAt), shown?.builtBy?.name ?? null));
   return lines;

@@ -33,12 +33,11 @@ import { type ReactNode, useId, useState } from 'react';
 
 import type { OpenDataReleaseView, ReleasesResult } from '../../server/open-data-releases.server';
 import type { OpenDataRelease } from '../../server/reporting/types';
-import { messages as m, mismatchLabel } from './messages';
-import { isProblem, mayBeRecorded, type ReleasesFailure } from './problems';
+import { messages as m } from './messages';
+import { buildFailure, isProblem, mayBeRecorded, type ReleasesFailure } from './problems';
 import { releaseName } from './release-parts';
 
 type Result = ReleasesResult<OpenDataRelease>;
-type Failure = ReleasesFailure;
 
 export interface ReleaseActionsProps {
   view: OpenDataReleaseView;
@@ -140,7 +139,7 @@ type Ending =
   | { kind: 'reload'; message: string }
   | { kind: 'unauthenticated' };
 
-function common(failure: Failure): Ending | null {
+function sharedEnding(failure: ReleasesFailure): Ending | null {
   const { error } = failure;
   if (error.kind === 'unauthenticated') return { kind: 'unauthenticated' };
   if (error.kind !== 'problem') return null;
@@ -155,8 +154,8 @@ function common(failure: Failure): Ending | null {
   return null;
 }
 
-function publishEnding(failure: Failure, release: OpenDataRelease): Ending {
-  const known = common(failure);
+function publishEnding(failure: ReleasesFailure, release: OpenDataRelease): Ending {
+  const known = sharedEnding(failure);
   if (known) return known;
   const { error } = failure;
   if (error.kind === 'problem') {
@@ -166,6 +165,8 @@ function publishEnding(failure: Failure, release: OpenDataRelease): Ending {
     if (code === 'annual-release-published') {
       return { kind: 'error', message: m.annualReleasePublished(release.fy) };
     }
+    // Any other refusal is definite: nothing was published, and a retry would be refused again.
+    return { kind: 'error', message: m.publishRefused };
   }
   if (error.kind === 'unavailable') {
     if (error.problemType === 'manifest-refused') {
@@ -181,8 +182,8 @@ function publishEnding(failure: Failure, release: OpenDataRelease): Ending {
   return { kind: 'error', message: m.publishFailed };
 }
 
-function withdrawEnding(failure: Failure): Ending {
-  const known = common(failure);
+function withdrawEnding(failure: ReleasesFailure): Ending {
+  const known = sharedEnding(failure);
   if (known) return known;
   const { error } = failure;
   if (error.kind === 'problem') {
@@ -192,6 +193,7 @@ function withdrawEnding(failure: Failure): Ending {
     if (code === 'release-not-published') {
       return { kind: 'reload', message: m.notPublishedAnymore };
     }
+    return { kind: 'error', message: m.withdrawRefused };
   }
   if (error.kind === 'unavailable') {
     if (error.problemType === 'manifest-revocation-refused') {
@@ -224,7 +226,7 @@ function useAction({
   const run = async (
     call: (key: string) => Promise<Result>,
     done: string,
-    ending: (failure: Failure) => Ending,
+    ending: (failure: ReleasesFailure) => Ending,
   ) => {
     setBusy(true);
     setError(null);
@@ -311,7 +313,8 @@ function PublishDialog({
 
 type IconSvg = IconProps['icon'];
 
-const REASON_MAX = 1000;
+/** `withdrawOpenDataRelease`'s longest reason. */
+export const REASON_MAX = 1000;
 
 function WithdrawDialog({
   view,
@@ -357,7 +360,8 @@ function WithdrawDialog({
         items={[
           [ViewIcon, m.withdrawConsequences[0]],
           [Download04Icon, m.withdrawConsequences[1]],
-          [RefreshIcon, m.withdrawConsequences[2]],
+          [SecurityCheckIcon, m.withdrawConsequences[2]],
+          [RefreshIcon, m.withdrawConsequences[3]],
         ]}
       />
       <div className="grid gap-1.5">
@@ -378,7 +382,7 @@ function WithdrawDialog({
         {reasonError ? (
           <FieldError id={`${fieldId}-help`}>{reasonError}</FieldError>
         ) : (
-          <FieldHint id={`${fieldId}-help`}>{m.reasonHint(reason.length)}</FieldHint>
+          <FieldHint id={`${fieldId}-help`}>{m.reasonHint(reason.length, REASON_MAX)}</FieldHint>
         )}
       </div>
     </ActionDialog>
@@ -493,7 +497,7 @@ function RebuildButton({ view, rebuild, onRebuilt, onUnauthenticated }: ReleaseA
     if (!mayBeRecorded(result)) key.settle();
     toast({
       title: m.rebuildStopped(next),
-      description: rebuildFailure(result),
+      description: buildFailure(result, m.rebuildFailed),
       urgency: 'assertive',
     });
   };
@@ -510,26 +514,4 @@ function RebuildButton({ view, rebuild, onRebuilt, onUnauthenticated }: ReleaseA
       {m.rebuild(next)}
     </Button>
   );
-}
-
-function rebuildFailure(failure: Failure): string {
-  const { error } = failure;
-  if (error.kind === 'problem') {
-    const { code, mismatches } = error.problem;
-    if (code === 'reconciliation-failed') {
-      return m.reconciliationFailed((mismatches ?? []).map(mismatchLabel).join(', '));
-    }
-    if (code === 'fy-not-started') return m.fyNotStarted;
-    if (code === 'ncr-not-built') return m.ncrNotBuilt;
-    if (code === 'ncr-not-approved') return m.ncrNotApproved;
-    if (code === 'annual-release-published') return m.annualStillPublished;
-    if (isProblem(error.problem, 'idempotency-key-in-use')) return m.stillProcessing;
-  }
-  if (error.kind === 'unavailable' && error.problemType === 'storage-unavailable') {
-    return m.storageUnavailable;
-  }
-  if (error.kind === 'unavailable' && error.problemType === 'directory-unavailable') {
-    return m.directoryUnavailable;
-  }
-  return m.rebuildFailed;
 }
