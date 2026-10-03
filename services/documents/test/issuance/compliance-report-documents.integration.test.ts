@@ -557,6 +557,17 @@ describe('S6 the acknowledgement of receipt', () => {
     );
   });
 
+  it('takes a report received at 23:30 on 31 July, Nairobi time, as on time', async () => {
+    const response = await issue(
+      reportRequest(
+        randomUUID(),
+        'compliance-report-receipt',
+        receiptPayload({ submittedAt: '2028-07-31T20:30:00.000Z', late: false }),
+      ),
+    );
+    expect(response.statusCode, response.body).toBe(201);
+  });
+
   it('says how late a late report was received, and from where a federated one came', async () => {
     const { texts: late } = await issued(
       reportRequest(
@@ -587,6 +598,13 @@ describe('S6 the acknowledgement of receipt', () => {
       'payload.submittedAt',
     ],
     ['a malformed financial year', { financialYear: '2027/2029' }, 'payload.financialYear'],
+    ['a due date other than 31 July after the year', { dueDate: '2028-06-30' }, 'payload.dueDate'],
+    [
+      'on time for a report received after the due date (Nairobi time)',
+      { submittedAt: '2028-07-31T21:30:00.000Z', late: false },
+      'payload.late',
+    ],
+    ['late for a report received by the due date', { late: true }, 'payload.late'],
   ])('refuses %s with 400', async (_name, overrides, path) => {
     const response = await issue(
       reportRequest(randomUUID(), 'compliance-report-receipt', receiptPayload(overrides)),

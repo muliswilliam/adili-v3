@@ -23,6 +23,12 @@ import type { DocumentTemplate } from './template.js';
 
 const DAY_MS = 86_400_000;
 
+/** A cross-field check runs once each of `fields` is valid, so a bad field is reported once. */
+function validFields(...fields: string[]) {
+  return (payload: { issues: readonly { path?: readonly PropertyKey[] }[] }) =>
+    payload.issues.every((issue) => !fields.includes(String(issue.path?.[0])));
+}
+
 /**
  * What the reporting service sends for the signed acknowledgement of receipt of a submitted
  * compliance report: its reference, the SHA-256 of the `form-m.v1` document as received (canonical
@@ -54,6 +60,18 @@ export const complianceReportReceiptPayload = z
   .refine((payload) => numberedBy(payload.reference, RPT, payload.issuerCode), {
     message: "The RPT reference number is not the Commission's",
     path: ['reference'],
+  })
+  .refine((payload) => payload.dueDate === `${payload.financialYear.slice(5)}-07-31`, {
+    message: 'Must be 31 July after the financial year (Regs r.25(2))',
+    path: ['dueDate'],
+    when: validFields('financialYear', 'dueDate'),
+  })
+  // Late when received after the due date in Nairobi, as the reporting service decides it: a
+  // signed receipt never says "On time" for a late report, or the reverse.
+  .refine((payload) => payload.late === kenyanDate(payload.submittedAt) > payload.dueDate, {
+    message: 'Must say whether the report was received after the due date (Nairobi time)',
+    path: ['late'],
+    when: validFields('submittedAt', 'dueDate', 'late'),
   })
   .meta({
     description:
