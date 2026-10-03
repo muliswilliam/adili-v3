@@ -6,7 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildOpenDataSnapshot, loadOpenDataRelease } from '../../server/open-data-releases.server';
 import type { PublicLinks } from '../../server/open-data-releases';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock as resetFormMMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
 import { resetNcrMock } from '../../server/reporting/ncr-mock.server';
 import { resetReleasesMock } from '../../server/reporting/releases-mock.server';
 import { ReleaseView } from './release-view';
@@ -52,6 +57,10 @@ function renderView(
 const tablePanel = () => screen.getByRole('tabpanel');
 
 beforeEach(() => {
+  // FY 2025/2026's reports are in, FY 2026/2027's not due.
+  resetFormMMock('2026-10-03');
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
   resetNcrMock('not-built');
   resetReleasesMock('history');
 });
@@ -74,7 +83,7 @@ describe('#350 snapshot preview', () => {
 
     expect(
       screen.getByText(
-        'Totals match the Form M projections at build: 9,624 of 10,800 declarations.',
+        'Totals match the Form M projections at build: 9,760 of 10,947 declarations.',
       ),
     ).toBeTruthy();
   });
@@ -111,20 +120,22 @@ describe('#350 snapshot preview', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Final' }));
 
     const panel = tablePanel();
-    const mandera = within(panel).getByRole('row', { name: /Mandera/ });
-    expect(within(mandera).getAllByText('Not shown to protect privacy').length).toBeGreaterThan(0);
-    expect(within(mandera).getAllByText('‹10').length).toBeGreaterThan(0);
+    const kisii = within(panel).getByRole('row', { name: /Kisii/ });
+    expect(within(kisii).getAllByText('Not shown to protect privacy').length).toBeGreaterThan(0);
+    expect(within(kisii).getAllByText('‹10').length).toBeGreaterThan(0);
     const legend = within(panel).getByRole('note');
     expect(legend.textContent).toContain('fewer than 10 officers');
     expect(legend.textContent).toMatch(/\d+ hidden/);
   });
 
-  it('pages the Commissions and sorts them by a column', async () => {
+  it('lists every Commission by name, sortable by any column', async () => {
     renderView(await preview2026());
 
     const panel = tablePanel();
     const firstRow = () => within(panel).getAllByRole('row')[1]?.textContent ?? '';
-    expect(within(panel).getAllByRole('row')).toHaveLength(15);
+    // A header row and the 15 Commissions, one page of them.
+    expect(within(panel).getAllByRole('row')).toHaveLength(16);
+    expect(firstRow()).toContain('Bungoma County Public Service Board');
     fireEvent.click(within(panel).getByRole('button', { name: 'Expected, sort' }));
     fireEvent.click(within(panel).getByRole('button', { name: 'Expected, sort' }));
     expect(firstRow()).toContain('Teachers Service Commission');
@@ -162,9 +173,9 @@ describe('#350 snapshot preview', () => {
 
     const panel = tablePanel();
     const row = within(panel).getByRole('row', { name: /Declarations made/ });
-    expect(row.textContent).toContain('9,624');
+    expect(row.textContent).toContain('9,760');
     expect(within(panel).getByRole('row', { name: /Declaration rate/ }).textContent).toContain(
-      '89.1%',
+      '89.2%',
     );
   });
 
@@ -173,7 +184,7 @@ describe('#350 snapshot preview', () => {
 
     const files = screen.getByRole('region', { name: 'Files' });
     expect(files.textContent).toContain('filing-by-commission');
-    expect(files.textContent).toContain('56 rows');
+    expect(files.textContent).toContain('60 rows');
   });
 });
 

@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { financialYearSchema } from '../components/national-report/model';
 import { withViewerClient } from './as-viewer.server';
 import { env } from './env.server';
+import { financialYear } from './form-m';
 import {
   buildOpenDataSnapshot,
   listOpenDataReleases,
@@ -53,21 +53,18 @@ export const getOpenDataReleasesPage = createServerFn({ method: 'GET' }).handler
 );
 
 export const buildOpenDataSnapshotFn = createServerFn({ method: 'POST' })
-  .validator(z.object({ fy: financialYearSchema, idempotencyKey: z.uuid() }))
-  .handler(
-    ({ data }): Promise<ReleasesResult<OpenDataRelease>> =>
-      withViewerClient(reportingClient, (client) =>
-        buildOpenDataSnapshot(client, data.fy, data.idempotencyKey),
-      ),
+  .validator(z.object({ fy: financialYear, idempotencyKey: z.uuid() }))
+  .handler(({ data }): Promise<ReleasesResult<OpenDataRelease>> =>
+    withViewerClient(reportingClient, (client) =>
+      buildOpenDataSnapshot(client, data.fy, data.idempotencyKey),
+    ),
   );
 
 export const getOpenDataReleasePage = createServerFn({ method: 'GET' })
   .validator(z.object({ releaseId: z.string().min(1).max(64) }))
-  .handler(
-    async ({ data }): Promise<ReleasePage> => ({
-      release: await withViewerClient(reportingClient, (client) =>
-        loadOpenDataRelease(client, data.releaseId),
-      ),
-      links: publicLinks(),
-    }),
-  );
+  .handler(async ({ data }): Promise<ReleasePage> => ({
+    release: await withViewerClient(reportingClient, (client) =>
+      loadOpenDataRelease(client, data.releaseId),
+    ),
+    links: publicLinks(),
+  }));

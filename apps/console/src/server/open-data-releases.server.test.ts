@@ -5,7 +5,13 @@ import {
   listOpenDataReleases,
   loadOpenDataRelease,
 } from './open-data-releases.server';
-import { mockReportingClient, mockReportingFetch } from './reporting/mock.server';
+import {
+  mockReportingClient,
+  mockReportingFetch,
+  resetReportingMock as resetFormMMock,
+  setReportingMockLatency,
+} from './reporting/mock.server';
+import { setEaccIntakeMockLatency } from './reporting/eacc-mock.server';
 import { resetNcrMock } from './reporting/ncr-mock.server';
 import { resetReleasesMock } from './reporting/releases-mock.server';
 
@@ -19,6 +25,10 @@ const eacc = (roles: readonly string[], name = 'Brian Otieno') =>
 const analyst = () => eacc(['eacc-analyst']);
 
 beforeEach(() => {
+  // FY 2025/2026's reports are in, FY 2026/2027's not due.
+  resetFormMMock('2026-10-03');
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
   resetNcrMock('not-built');
   resetReleasesMock('history');
 });
@@ -35,7 +45,7 @@ describe('S6 listOpenDataReleases', () => {
     ]);
     expect(result.data[1]).toMatchObject({
       withdrawnBy: { name: 'Esther Chebet' },
-      withdrawnReason: expect.stringContaining('Kwale') as unknown,
+      withdrawnReason: expect.stringContaining('Kirinyaga') as unknown,
     });
   });
 
@@ -169,17 +179,15 @@ describe('S6 loadOpenDataRelease', () => {
 
   it('S4 suppresses a cycle over fewer than 10 officers, and another so it cannot be worked out', async () => {
     const { tables } = await preview2026();
-    const mandera = tables['filing-by-commission'].rows.filter(
-      (row) => row.commission === 'cpsbmandera',
-    );
+    const kisii = tables['filing-by-commission'].rows.filter((row) => row.commission === 'cpsb045');
 
     // Final: 3 officers. Its row total would reveal it, so the next smallest figure goes too.
-    expect(mandera.find((row) => row.cycle === 'final')).toMatchObject({
+    expect(kisii.find((row) => row.cycle === 'final')).toMatchObject({
       suppressed: true,
       filed: null,
       expected: null,
     });
-    expect(mandera.filter((row) => row.suppressed).length).toBeGreaterThanOrEqual(2);
+    expect(kisii.filter((row) => row.suppressed).length).toBeGreaterThanOrEqual(2);
     expect(tables['filing-by-commission'].suppression).toMatchObject({ threshold: 10 });
     expect(tables['filing-by-commission'].suppression.cellsSuppressed).toBeGreaterThan(0);
   });
@@ -197,8 +205,8 @@ describe('S6 loadOpenDataRelease', () => {
       tables['national-totals'].rows.find((row) => row.measure === measure)?.value;
 
     // Every Commission's live initial and final counts (no biennial cycle yet).
-    expect(value('expected')).toBe(10_800);
-    expect(value('filed')).toBe(9_624);
+    expect(value('expected')).toBe(10_947);
+    expect(value('filed')).toBe(9_760);
   });
 
   it('answers 404 for a release that does not exist', async () => {

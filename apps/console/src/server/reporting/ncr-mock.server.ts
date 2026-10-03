@@ -591,8 +591,8 @@ export function mockNcrSourceOf(fy: number): NcrMockSource | null {
       approvedAt: report.approvedAt,
     };
   }
-  const receipts = data.receipts.get(fy);
-  if (!receipts || receipts.size === 0) return null;
+  const receipts = receiptsOf(fy);
+  if (receipts.length === 0) return null;
   return {
     aggregates: buildAggregates(fy, receipts),
     built: false,
@@ -602,7 +602,7 @@ export function mockNcrSourceOf(fy: number): NcrMockSource | null {
   };
 }
 
-/** The mock's Commissions (slug and name), as the national report counts them. */
-export function mockNcrCommissions(): readonly { slug: string; name: string }[] {
-  return COMMISSIONS.map(({ slug, name }) => ({ slug, name }));
+/** The mock's Commissions of the year (slug and name), as the national report counts them. */
+export function mockNcrCommissions(fy: number): readonly { slug: string; name: string }[] {
+  return mockEaccIntake(fy).commissions.map(({ commission }) => commission);
 }

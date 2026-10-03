@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
-import { financialYearAt } from '../../../components/national-report/model';
+import { financialYearOf, nairobiToday } from '../../../components/form-m/financial-year';
 import { messages as m } from '../../../components/open-data/messages';
 import { ReleasesView } from '../../../components/open-data/releases-view';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
@@ -38,7 +38,7 @@ function ReleasesPageView({ page }: { page: ReleasesPage | null }) {
     <ReleasesView
       result={page?.releases ?? null}
       links={page?.links ?? { publicPage: null, verifyBase: null }}
-      fy={financialYearAt(new Date())}
+      fy={financialYearOf(nairobiToday())}
       build={(fy, idempotencyKey) => buildOpenDataSnapshotFn({ data: { fy, idempotencyKey } })}
       onBuilt={(release) => {
         void navigate({ to: '/eacc/open-data/$releaseId', params: { releaseId: release.id } });

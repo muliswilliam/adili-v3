@@ -81,7 +81,7 @@ export function resetReleasesMock(
   store = { seed, releases: [], builds: new Map(), buildMs };
   if (seed === 'none') return;
   const midYear = midYearAggregates();
-  const firstMidYear = midYearAggregates({ kwaleCountedTwice: true });
+  const firstMidYear = midYearAggregates({ kirinyagaCountedTwice: true });
   if (!midYear || !firstMidYear) return;
   const source: Source = { kind: 'live-projections', nationalReportReference: null };
   store.releases.push(
@@ -98,7 +98,7 @@ export function resetReleasesMock(
         withdrawnAt: '2026-02-19T09:30:00Z',
         withdrawnBy: ESTHER,
         withdrawnReason:
-          "The Kwale County Public Service Board's final declarations were counted twice. Version 2 corrects them.",
+          "The Kirinyaga County Public Service Board's final declarations were counted twice. Version 2 corrects them.",
         manifestDocumentId: '0199c100-0000-7000-8000-000000000001',
         manifestVerificationId: 'ADL-7KQD-3TWM-6HXC-2RPA-9VNF-4E',
       },
@@ -393,32 +393,39 @@ const section = (expected: number, declared: number): SectionAggregate => ({
 
 /**
  * FY 2025/2026 as it stood in February 2026: every Commission's counts so far, none reported.
- * The boards that had not reported for the year by the NCR's build count from their own
- * rosters. `kwaleCountedTwice` is version 1's fault: the Kwale board's final declarations twice.
+ * `kirinyagaCountedTwice` is version 1's fault: the Kirinyaga board's final declarations counted
+ * twice.
  */
-function midYearAggregates({ kwaleCountedTwice = false } = {}): NationalAggregates | null {
+function midYearAggregates({ kirinyagaCountedTwice = false } = {}): NationalAggregates | null {
   const year = mockNcrSourceOf(FIRST_YEAR)?.aggregates;
   if (!year) return null;
   const midYear = (counts: SectionAggregate | null) =>
     counts ? section(counts.expected, Math.round(counts.declared * 0.61)) : null;
+  // The Commissions that had not reported by the NCR's build count from their own rosters.
   const unreported: Record<string, LiveCounts> = {
-    cpsbkwale: {
-      initial: section(254, 151),
-      biennial: section(2822, 1702),
-      final: section(66, kwaleCountedTwice ? 64 : 32),
-      clarifications: 2,
-    },
-    cpsbmandera: {
-      initial: section(118, 64),
-      biennial: section(1610, 902),
+    cpsb045: {
+      initial: section(402, 233),
+      biennial: section(5530, 3152),
       final: section(7, 4),
       clarifications: 1,
     },
-    cpsbturkana: {
-      initial: section(96, 55),
-      biennial: section(1388, 840),
+    cpsb042: {
+      initial: section(512, 301),
+      biennial: section(6400, 3720),
       final: section(9, 6),
-      clarifications: 0,
+      clarifications: 2,
+    },
+    jsc: {
+      initial: section(310, 181),
+      biennial: section(5800, 3410),
+      final: section(90, 52),
+      clarifications: 3,
+    },
+    psc: {
+      initial: section(214, 126),
+      biennial: section(2890, 1702),
+      final: section(96, 55),
+      clarifications: 2,
     },
   };
   return aggregatesOf(
@@ -428,7 +435,12 @@ function midYearAggregates({ kwaleCountedTwice = false } = {}): NationalAggregat
         const own = unreported[slug];
         const initial = midYear(row.initial);
         const biennial = midYear(row.biennial);
-        const final = midYear(row.final);
+        const counted = midYear(row.final);
+        // Version 1 counted the Kirinyaga board's final declarations twice.
+        const final =
+          kirinyagaCountedTwice && slug === 'cpsb020' && counted
+            ? section(counted.expected, Math.min(counted.expected, counted.declared * 2))
+            : counted;
         return [
           slug,
           own ?? {
@@ -454,15 +466,16 @@ const LIVE_2026: Record<string, [initial: [number, number], final: [number, numb
   parlsc: [[33, 30], [12, 12], 1],
   npsc: [[2015, 1822], [790, 701], 31],
   jsc: [[388, 361], [70, 66], 4],
-  cpsbnairobicity: [[604, 498], [136, 102], 22],
-  cpsbmombasa: [[205, 188], [16, 15], 3],
-  cpsbnakuru: [[170, 158], [44, 41], 2],
-  cpsbkiambu: [[151, 140], [49, 33], 4],
-  cpsbmachakos: [[128, 117], [7, 6], 1],
-  cpsbuasingishu: [[133, 125], [40, 38], 2],
-  cpsbkwale: [[84, 79], [4, 4], 1],
-  cpsbmandera: [[61, 49], [3, 2], 0],
-  cpsbturkana: [[8, 7], [22, 19], 0],
+  cpsb047: [[604, 498], [136, 102], 22],
+  cpsb001: [[205, 188], [16, 15], 3],
+  cpsb032: [[170, 158], [44, 41], 2],
+  cpsb022: [[151, 140], [49, 33], 4],
+  cpsb039: [[128, 117], [7, 6], 1],
+  cpsb027: [[133, 125], [40, 38], 2],
+  cpsb020: [[84, 79], [4, 4], 1],
+  cpsb045: [[61, 49], [3, 2], 0],
+  cpsb042: [[8, 7], [22, 19], 0],
+  cpsb012: [[118, 109], [29, 27], 2],
 };
 
 function liveAggregates(fy: number): NationalAggregates {
@@ -494,7 +507,7 @@ function aggregatesOf(fy: number, counts: Record<string, LiveCounts>): NationalA
   const byCommission: Record<string, CommissionAggregate> = {};
   const totals = { initial: section(0, 0), biennial: section(0, 0), final: section(0, 0) };
   let clarifications = 0;
-  for (const { slug, name } of mockNcrCommissions()) {
+  for (const { slug, name } of mockNcrCommissions(fy)) {
     const row = counts[slug];
     if (!row) continue;
     for (const key of ['initial', 'biennial', 'final'] as const) {
@@ -517,7 +530,7 @@ function aggregatesOf(fy: number, counts: Record<string, LiveCounts>): NationalA
       accessRequests: null,
     };
   }
-  const commissions = mockNcrCommissions().length;
+  const commissions = mockNcrCommissions(fy).length;
   return {
     fy,
     reporting: { commissions, reported: 0, onTime: 0, late: 0, notReported: commissions, rate: 0 },

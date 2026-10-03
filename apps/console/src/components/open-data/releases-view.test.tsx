@@ -8,7 +8,12 @@ import {
   buildOpenDataSnapshot,
   listOpenDataReleases,
 } from '../../server/open-data-releases.server';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock as resetFormMMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
 import { resetNcrMock } from '../../server/reporting/ncr-mock.server';
 import {
   type ReleasesMockSeed,
@@ -71,6 +76,10 @@ function renderView(props: Partial<Props> & Pick<Props, 'result'>) {
 }
 
 beforeEach(() => {
+  // FY 2025/2026's reports are in, FY 2026/2027's not due.
+  resetFormMMock('2026-10-03');
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
   resetNcrMock('not-built');
 });
 
