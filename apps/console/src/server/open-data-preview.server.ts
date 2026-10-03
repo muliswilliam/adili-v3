@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from './open-data-figures';
 import type { components } from './reporting/api.gen';
 import type { ReportingClient } from './reporting/client.server';
 import { callService, SERVICE_UNAVAILABLE, type ServiceResult } from './service-call';
@@ -31,23 +32,6 @@ const filingRow = z.object({
   filingRate: z.number().min(0).max(1).nullable(),
   suppressed: z.boolean(),
 });
-
-/** `compliance-by-commission`'s figures, in the order the page lists them. */
-export const COMPLIANCE_FIGURES = [
-  'determinationsCompliant',
-  'determinationsNonCompliant',
-  'determinationsFurtherAction',
-  'clarificationsIssued',
-  'clarificationsResolved',
-  'actionsNoticeToComply',
-  'actionsWarning',
-  'actionsSalaryStoppage',
-  'actionsDisciplinaryReferral',
-  'referrals',
-] as const;
-
-/** `access-requests`' figures. */
-export const ACCESS_REQUEST_FIGURES = ['received', 'granted', 'declined'] as const;
 
 const counts = <Figure extends string>(figures: readonly Figure[]) =>
   Object.fromEntries(figures.map((figure) => [figure, count])) as Record<Figure, typeof count>;

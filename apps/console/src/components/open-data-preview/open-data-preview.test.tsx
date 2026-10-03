@@ -107,6 +107,8 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
       'Final',
       'All cycles',
     ]);
+    // Rates keep one decimal so the column lines up.
+    expect(cellsOf(at(rows, 0))).toEqual(['655', '596', '59', '91.0%']);
     const marker = at(within(at(rows, 1)).getAllByText('‹10'), 0).parentElement;
     expect(marker?.getAttribute('data-unshown')).toBe('suppressed');
     expect(marker?.textContent).toBe('‹10Not shown to protect privacy');

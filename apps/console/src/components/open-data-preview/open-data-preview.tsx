@@ -5,7 +5,6 @@ import {
   EmptyState,
   formatDate,
   formatNumber,
-  formatPercent,
   Icon,
   ReleaseStatusBadge,
   Skeleton,
@@ -24,12 +23,11 @@ import { type ReactNode, useId } from 'react';
 
 import { LoadError, NoAccess } from '../load-error';
 import type { OpenDataPreviewLoad } from '../../server/open-data-preview';
-import {
-  ACCESS_REQUEST_FIGURES,
-  type CommissionOpenDataPreview,
-  COMPLIANCE_FIGURES,
-  type FilingRow,
-  type OpenDataRelease,
+import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from '../../server/open-data-figures';
+import type {
+  CommissionOpenDataPreview,
+  FilingRow,
+  OpenDataRelease,
 } from '../../server/open-data-preview.server';
 import { messages as m } from './messages';
 
@@ -310,9 +308,18 @@ function Figure({
   return <SuppressionMarker kind={marker} className="align-middle" />;
 }
 
-/** A release's filing rate (filed / expected, to four decimals) as a percentage, `96.2%`. */
+const RATE_FORMAT = new Intl.NumberFormat('en-KE', {
+  style: 'percent',
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/**
+ * A release's filing rate (filed / expected, to four decimals) as a percentage with one decimal,
+ * `96.2%`, `91.0%`, so the column lines up.
+ */
 function formatRate(rate: number): string {
-  return formatPercent(rate * 100);
+  return RATE_FORMAT.format(rate);
 }
 
 /** The legend explains the kinds of marker on show, in this order. */

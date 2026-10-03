@@ -3,7 +3,7 @@ import createClient from 'openapi-fetch';
 
 import { type Env, env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
-import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from '../open-data-preview.server';
+import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from '../open-data-figures';
 import type { components, paths } from './api.gen';
 
 type OpenDataRelease = components['schemas']['OpenDataRelease'];
