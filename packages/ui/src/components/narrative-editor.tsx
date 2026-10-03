@@ -197,6 +197,11 @@ export type NarrativeEditorProps<P extends NarrativeEditorParagraph = NarrativeE
        * edited until it returns null again.
        */
       sectionBody?: (section: NarrativeSection) => ReactNode;
+      /**
+       * The paragraphs are shown in their fields but cannot be changed, added or removed, e.g.
+       * while AI drafts the narrative and its answer is about to replace it.
+       */
+      busy?: boolean;
       messages?: Partial<NarrativeEditorMessages>;
     };
 
@@ -220,6 +225,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   notice,
   paragraphMeta,
   sectionBody,
+  busy = false,
   createParagraph,
   messages,
   className,
@@ -365,6 +371,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                             index === 0 ? copy.firstPlaceholder(section.label) : copy.placeholder
                           }
                           value={paragraph.text}
+                          readOnly={busy}
                           className={cn(
                             'min-h-[72px] pr-11 text-[14.5px] leading-[1.6]',
                             paragraph.aiDraft && 'shadow-control-ai hover:shadow-control-ai',
@@ -405,6 +412,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                             type="button"
                             variant="ghost"
                             size="icon"
+                            disabled={busy}
                             aria-label={copy.removeParagraph(section.label, index + 1)}
                             className="absolute top-1.5 right-1.5 size-[30px] text-muted-foreground opacity-70 group-hover:opacity-100 focus-visible:opacity-100 [&_svg]:size-[15px]"
                             onClick={() => {
@@ -426,6 +434,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                       type="button"
                       variant="ghost"
                       size="sm"
+                      disabled={busy}
                       aria-label={copy.addParagraphTo(section.label)}
                       onClick={() => {
                         const added = makeParagraph(crypto.randomUUID(), section);

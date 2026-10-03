@@ -492,6 +492,19 @@ describe('NarrativeEditor', () => {
     expect(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' })).toBeTruthy();
   });
 
+  it('keeps the paragraphs from changing while busy, e.g. while AI drafts the narrative', () => {
+    render(<Editor busy />);
+
+    const field = screen.getByRole('textbox', { name: 'Overview, paragraph 1' });
+    expect(field.hasAttribute('readonly')).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Add paragraph to overview' }).hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Remove overview paragraph 1' }).hasAttribute('disabled'),
+    ).toBe(true);
+  });
+
   it('takes actions for the header, e.g. a draft menu', () => {
     render(<Editor actions={<button type="button">Draft narrative</button>} />);
 
