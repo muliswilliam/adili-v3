@@ -26,7 +26,7 @@ Operations added (not in the draft):
 
 Operations changed:
 
-- Every write accepts `Idempotency-Key` (ADR-013 §7.5). `approveDetermination`, `approveBulkClosures`, `approveAction`, `approveReferral` and `respondToNotice` require it, as the draft did; propose, return, withdraw, decline, restart and reassign accept it.
+- Every spec 08 write accepts `Idempotency-Key` (ADR-013 §7.5). `approveDetermination`, `approveBulkClosures`, `approveAction`, `approveReferral` and `respondToNotice` require it, as the draft did; propose, return, withdraw, decline, restart and reassign accept it.
 - `approveBulkClosures` documented `Idempotency-Key` twice (also as `idempotency-key`), so a generated client had to send both. Fixed in #213: it is documented once, and `exportContract` now refuses a parameter documented twice.
 - Every operation documents its problems. The codes a client branches on:
   - 403 `separation-of-duties` (the caller proposed it or held the case) and `supervisor-required` on approve, return and decline; `not-the-assignee` on propose; `not-the-proposer` on withdraw.
