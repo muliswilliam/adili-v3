@@ -604,6 +604,8 @@ describe('minimise a text layer in linear time', () => {
     ['a long list', `Directors:\n${'1. John Kamau\n'.repeat(7_000)}`],
     ['Kamau: repeated', `Borrower: ${'Kamau: '.repeat(14_000)}`],
     ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
+    // A long run of capitals, which a parcel's section may start (F102).
+    ['100,000 capitals', 'KRA '.repeat(25_000)],
   ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
     minimise({ textLayer: text });
@@ -1270,6 +1272,13 @@ describe('minimise free text in linear time', () => {
     const { input } = minimise({ note: `${run} mail jane.doe@example.co.ke` });
     expect(performance.now() - started).toBeLessThan(100);
     expect(input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
+  });
+
+  it('reads a long run of capitals quickly, and still finds a parcel (F102)', () => {
+    const started = performance.now();
+    const { input } = minimise({ note: `${'KRA '.repeat(25_000)}plot NAKURU/NJORO/1234` });
+    expect(performance.now() - started).toBeLessThan(500);
+    expect(input.note).toMatch(/plot \[\[PARCEL_\d\]\]$/u);
   });
 
   it('finds an email whose domain an OCR pass broke ("jane@.example.co.ke")', () => {
