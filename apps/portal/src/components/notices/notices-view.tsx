@@ -48,7 +48,7 @@ import {
   urgentNotice,
   windowOf,
 } from '../../notices/view';
-import { salaryOnTop } from '../../notices/salary';
+import { noticeClosed, salaryOnTop } from '../../notices/salary';
 import type { MyNoticesResult } from '../../server/notices.server';
 import type { ActionStatus, DeclarantNotice } from '../../server/review/types';
 import { Pager } from '../my-declarations/pager';
@@ -88,12 +88,30 @@ const STATUS_ICONS: Record<ActionStatus, IconProps['icon']> = {
 };
 
 /** A warning (and the later steps) reads red; a notice to comply amber. */
-function toneOf(notice: DeclarantNotice): 'warning' | 'destructive' | 'success' {
-  if (isClosed(notice)) return 'success';
+function toneOf(
+  notice: DeclarantNotice,
+  all: readonly DeclarantNotice[],
+): 'warning' | 'destructive' | 'success' {
+  if (noticeClosed(notice, all)) return 'success';
   return notice.step === 'notice-to-comply' ? 'warning' : 'destructive';
 }
 
-export function NoticeStatusBadge({ notice }: { notice: DeclarantNotice }) {
+export function NoticeStatusBadge({
+  notice,
+  all,
+}: {
+  notice: DeclarantNotice;
+  all: readonly DeclarantNotice[];
+}) {
+  // A referral its ladder's reinstatement closed asks nothing more: neutral, "Closed" (#208).
+  if (!isClosed(notice) && noticeClosed(notice, all)) {
+    return (
+      <Badge variant="default">
+        <Icon icon={Tick02Icon} />
+        {STATUS_LABELS.cancelled.en}
+      </Badge>
+    );
+  }
   // Stopped until the declarant complies; once they have, the reinstatement is on its way.
   const stopped =
     notice.salaryStoppedAt !== null && notice.salaryReinstatedAt === null && !isClosed(notice);
@@ -152,10 +170,10 @@ function NoticeRow({
           'flex items-start gap-3.5 px-5 py-[18px] transition-colors hover:bg-muted/40 sm:px-6',
         )}
       >
-        <IconTile tone={toneOf(notice)} size="lg">
+        <IconTile tone={toneOf(notice, all)} size="lg">
           <Icon
             icon={
-              isClosed(notice) || notice.step === 'notice-to-comply'
+              noticeClosed(notice, all) || notice.step === 'notice-to-comply'
                 ? Notification01Icon
                 : notice.step === 'salary-stoppage'
                   ? BanknoteIcon
@@ -177,12 +195,12 @@ function NoticeRow({
             <span className="whitespace-nowrap">{COPY.issuedOn(formatDate(notice.issuedAt))}</span>
           </p>
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-            <NoticeStatusBadge notice={notice} />
+            <NoticeStatusBadge notice={notice} all={all} />
             {next ? (
               <span className="text-[13.5px] text-muted-foreground">
                 {COPY.followedBy(next.step)}
               </span>
-            ) : isClosed(notice) ? null : (
+            ) : noticeClosed(notice, all) ? null : (
               <ActBy notice={notice} now={now} />
             )}
           </div>

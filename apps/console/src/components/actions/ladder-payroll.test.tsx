@@ -111,8 +111,8 @@ describe('payroll acknowledgements on the ladder (S6, S7, S15)', () => {
     expect(within(card).getByText('Salary stopped')).toBeTruthy();
     expect(within(card).getByText('Stoppage window ends')).toBeTruthy();
     const stopped = formatDate(new Date(NOW_MS - 33 * DAY).toISOString());
-    expect(within(stoppageStep()).getByText(`Payroll acknowledged ${stopped}`)).toBeTruthy();
-    // Passed by the referral: done, its line still says the salary is stopped (F29).
+    // Passed by the referral: done, its line says the salary is stopped, once (F29, F33).
+    expect(within(stoppageStep()).queryByText(`Payroll acknowledged ${stopped}`)).toBeNull();
     expect(stoppageStep().dataset.status).toBe('done');
     expect(within(stoppageStep()).getByText(`Salary stopped ${stopped}`)).toBeTruthy();
   });
@@ -221,6 +221,15 @@ describe('an issued step under an ended ladder (F30)', () => {
     if (!warning) throw new Error('no warning step');
     expect(warning.dataset.status).toBe('done');
     expect(within(warning).queryByText(/In progress/)).toBeNull();
+    // Its card agrees with the stepper (F35).
+    const card = screen.getByRole('region', { name: /^2 Warning|Warning/ });
+    expect(within(card).getByText('Ended')).toBeTruthy();
+    // "Issued" stays only as the date's label, not as the step's badge.
+    expect(
+      within(card)
+        .getAllByText('Issued')
+        .every((each) => each.tagName === 'DT'),
+    ).toBe(true);
   });
 });
 

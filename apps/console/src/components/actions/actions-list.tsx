@@ -151,7 +151,7 @@ function CurrentStep({ ladder }: { ladder: Ladder }) {
   return (
     <div className="grid justify-items-start gap-1">
       <span className="font-medium">{stepLabel(action.step)}</span>
-      <StepBadge action={action} />
+      <StepBadge action={action} ladderStatus={ladder.status} />
     </div>
   );
 }

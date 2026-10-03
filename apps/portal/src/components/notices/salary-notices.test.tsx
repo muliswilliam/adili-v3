@@ -139,6 +139,14 @@ describe('a disciplinary referral once the salary is reinstated (F27)', () => {
       </ToastProvider>,
     );
     expect(screen.queryByText(/Your salary remains stopped/)).toBeNull();
+    // Its clarification is gone: closed, nothing to do, a neutral badge (F32).
+    expect(screen.getByText('This notice is closed. You do not need to act on it.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Respond now|File declaration/ })).toBeNull();
+    expect(screen.queryByText(/^Respond to clarification/)).toBeNull();
+    const header = screen.getByRole('heading', { level: 1 }).parentElement;
+    if (!header) throw new Error('no header');
+    expect(within(header).getByText('Closed')).toBeTruthy();
+    expect(within(header).queryByText('Issued')).toBeNull();
     cleanup();
     render(
       <NoticesView
@@ -151,6 +159,12 @@ describe('a disciplinary referral once the salary is reinstated (F27)', () => {
     );
     expect(screen.queryByText(/Your salary remains stopped/)).toBeNull();
     expect(screen.queryByText(/has asked for disciplinary proceedings/)).toBeNull();
+    const row = screen
+      .getAllByRole('listitem')
+      .find((each) => within(each).queryByText('ADM-TSC-2026-0000402-B') !== null);
+    if (!row) throw new Error('no referral row');
+    expect(within(row).getByText('Closed')).toBeTruthy();
+    expect(within(row).queryByText('Issued')).toBeNull();
   });
 });
 

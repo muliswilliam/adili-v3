@@ -1,5 +1,5 @@
 import type { DeclarantNotice } from '../server/review/types';
-import { isClosed } from './view';
+import { isClosed, ladderNotices } from './view';
 
 /**
  * Where the declarant's salary stands, from a salary stoppage or disciplinary referral notice
@@ -23,11 +23,21 @@ export type SalaryStanding =
 
 /** Whether payroll confirmed reinstating the salary stopped on `notice`'s ladder. */
 function reinstatedOnLadder(notice: DeclarantNotice, all: readonly DeclarantNotice[]): boolean {
-  return all.some(
-    (each) =>
-      each.ladderId === notice.ladderId &&
-      each.step === 'salary-stoppage' &&
-      each.salaryReinstatedAt !== null,
+  return ladderNotices(notice, all).some(
+    (each) => each.step === 'salary-stoppage' && each.salaryReinstatedAt !== null,
+  );
+}
+
+/**
+ * Whether `notice` no longer asks anything of the declarant: closed by its own status, or a
+ * disciplinary referral whose ladder's stopped salary was reinstated. Review lists only issued
+ * notices (`ISSUED_ACTION_STATUSES`: issued, responded, complied, reinstated) and leaves a
+ * referral `issued` when its ladder ends without compliance, so the referral is closed by its
+ * ladder's reinstatement: its obligation or clarification is gone.
+ */
+export function noticeClosed(notice: DeclarantNotice, all: readonly DeclarantNotice[]): boolean {
+  return (
+    isClosed(notice) || (notice.step === 'disciplinary-referral' && reinstatedOnLadder(notice, all))
   );
 }
 
@@ -41,9 +51,7 @@ export function salaryStandingOf(
   all: readonly DeclarantNotice[],
 ): SalaryStanding | null {
   if (notice.step === 'disciplinary-referral') {
-    return isClosed(notice) || reinstatedOnLadder(notice, all)
-      ? null
-      : { kind: 'disciplinary', notice };
+    return noticeClosed(notice, all) ? null : { kind: 'disciplinary', notice };
   }
   if (notice.step !== 'salary-stoppage' || notice.salaryStoppedAt === null) return null;
   if (notice.salaryReinstatedAt !== null) {

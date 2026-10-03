@@ -247,7 +247,13 @@ function stepperStep({ step, status, action }: LadderStepView): LadderStepperSte
   // A stoppage the disciplinary referral passed: done, its salary still stopped.
   const stoppedAt = acknowledgedAt(action.payrollStop);
   if (status === 'done' && salaryStopped(action) && stoppedAt) {
-    return { ...base, detail: stoppage.stepper.salaryStopped(stoppedAt) };
+    // The detail says it all: no payroll line repeating the same date.
+    return {
+      id: step,
+      label: stepLabel(step),
+      status,
+      detail: stoppage.stepper.salaryStopped(stoppedAt),
+    };
   }
   const running = status === 'current' || status === 'stopped';
   const responded = action.response
@@ -328,7 +334,7 @@ function StepCard({
         <h2 id={headingId} className="text-[16px] font-semibold">
           {stepLabel(action.step)}
         </h2>
-        <StepBadge action={action} />
+        <StepBadge action={action} ladderStatus={ladder.status} />
         <span className="ml-auto">
           {action.reference ? (
             <span className="rounded-md bg-muted px-2 py-1 font-mono text-[12.5px] font-semibold">

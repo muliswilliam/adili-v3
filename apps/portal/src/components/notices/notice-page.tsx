@@ -48,7 +48,7 @@ import {
   RESPONSE_MAX_FILES,
 } from '../../clarification/response-form';
 import { COPY, STEP_TITLES } from '../../notices/copy';
-import { salaryStandingOf } from '../../notices/salary';
+import { noticeClosed, salaryStandingOf } from '../../notices/salary';
 import { canRespond, isClosed, ladderNotices, ladderOf, windowOf } from '../../notices/view';
 import { respondToMyNotice } from '../../server/notices';
 import type { DeclarantNotice } from '../../server/review/types';
@@ -104,7 +104,7 @@ export function NoticePage(props: NoticePageProps) {
           <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-[13px] font-semibold text-foreground">
             {notice.reference}
           </span>
-          <NoticeStatusBadge notice={notice} />
+          <NoticeStatusBadge notice={notice} all={all} />
           <span className="inline-flex items-center gap-1.5">
             <Icon icon={Calendar03Icon} className="size-4" />
             {COPY.issuedOn(formatDate(notice.issuedAt))}
@@ -153,7 +153,7 @@ function Banner({
 }) {
   const salary = salaryStandingOf(notice, all);
   if (salary) return <SalaryBanner standing={salary} />;
-  if (isClosed(notice)) {
+  if (noticeClosed(notice, all)) {
     return (
       <Alert variant="success" role="status">
         <Icon icon={Tick02Icon} />
