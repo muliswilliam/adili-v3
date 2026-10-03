@@ -15,14 +15,13 @@ export const en = {
   noAccess: 'Only EACC analysts and supervisors work on the national consolidated report.',
   backToOverview: 'Back to overview',
 
-  noReportsTitle: (fy: string) => `No reports for FY ${fy} yet`,
+  noReportsTitle: (fy: string) => `No reports for ${fy} yet`,
   noReportsText: (due: string) => `Form M reports are due ${due}.`,
   notBuiltTitle: 'National report not built yet',
   notBuiltText: (reported: number, notReported: number) =>
     `${commissions(reported)} reported${notReported > 0 ? `, ${formatNumber(notReported)} have not` : ''}. You can rebuild later.`,
   build: (reported: number) => `Build from ${formatNumber(reported)} submitted reports`,
   building: (reported: number) => `Building from ${formatNumber(reported)} submitted reports…`,
-  buildingText: 'Your narrative is kept.',
   built: (reports: number) => `Built from ${formatNumber(reports)} reports. Narrative kept.`,
   buildFailed: 'The report could not be built. Try again.',
   noSubmittedReports: 'No Commission has submitted its report for the year yet.',
@@ -84,7 +83,7 @@ export const en = {
 
   approveTitle: 'Approve the national report?',
   approveText: (fy: string) =>
-    `Approve the national consolidated report for FY ${fy}? It receives its NCR reference and the Restricted PDF is issued under your name. It can no longer be edited or rebuilt.`,
+    `Approve the national consolidated report for ${fy}? It receives its NCR reference and the Restricted PDF is issued under your name. It can no longer be edited or rebuilt.`,
   approveAuthor: 'Author',
   approveApprover: 'Approver',
   approving: 'Approving…',

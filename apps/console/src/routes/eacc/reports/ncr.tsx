@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { z } from 'zod';
 
 import { ComplianceReportsTabs } from '../../../components/eacc-intake/reports-tabs';
 import { messages as m } from '../../../components/national-report/messages';
-import { ncrSearchSchema } from '../../../components/national-report/model';
 import { NationalReportView } from '../../../components/national-report/national-report-view';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
 import {
@@ -13,6 +13,13 @@ import {
   type NationalReportScreen,
   saveNationalReportNarrativeFn,
 } from '../../../server/national-report';
+import { financialYear } from '../../../server/form-m';
+
+/** `?fy=` the year on show (else the last that ended); `page` the per-Commission table's page. */
+const ncrSearchSchema = z.object({
+  fy: financialYear.optional().catch(undefined),
+  page: z.int().min(1).optional().catch(undefined),
+});
 
 /** EACC's national consolidated report for a financial year (spec 09 FE-4, #233). */
 export const Route = createFileRoute('/eacc/reports/ncr')({
