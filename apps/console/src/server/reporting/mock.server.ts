@@ -27,6 +27,7 @@ import createClient from 'openapi-fetch';
 import {
   dueDateOf,
   finalCompileOf,
+  FIRST_FINANCIAL_YEAR,
   financialYearOf,
   nairobiToday,
   previewFromOf,
@@ -34,11 +35,9 @@ import {
 import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
-import { isNcrPath, mockNcrFetch } from './ncr-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
-const FIRST_FINANCIAL_YEAR = 2025;
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
 
@@ -204,8 +203,14 @@ export function mockReportingClient(
 const notFound = () => problem(404, 'Not found');
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
-  // EACC's national consolidated report and intake totals (#233).
-  if (isNcrPath(new URL(input.url).pathname)) return mockNcrFetch(input);
+  // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
+    return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
+  }
+  // EACC's national consolidated report (ncr-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/national-reports/')) {
+    return (await import('./ncr-mock.server')).mockNcrFetch(input);
+  }
   ensureSeeded();
   await delay(250);
   const url = new URL(input.url);
@@ -305,6 +310,38 @@ function advance(stored: Stored) {
   // A year compiled before it ends is a preview of today's data.
   stored.document =
     today < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
+}
+
+/**
+ * The Public Service Commission's report for `fy` as the store holds it now (null before its
+ * first compile), for the EACC intake mock: EACC sees it once it is submitted.
+ */
+export function mockStoredReport(fy: number): ComplianceReport | null {
+  ensureSeeded();
+  const stored = reports.get(fy);
+  if (!stored) return null;
+  advance(stored);
+  return view(stored);
+}
+
+/**
+ * Submits the year's report on `day` as the commission-admin's confirmation does (tests and
+ * the EACC demo): reference allocated, Part III filled, late after 31 July.
+ */
+export function submitMockReport(fy: number, day: string) {
+  ensureSeeded();
+  reports.set(fy, {
+    fy,
+    status: 'submitted',
+    compiledAt: sixAm(finalCompileOf(fy)),
+    compileStartedAt: null,
+    submittedAt: `${day}T08:20:00.000Z`,
+    late: day > dueDateOf(fy),
+    reference: `RPT-PSC-${String(fy + 1)}-0000001-K`,
+    reviewedBy: SUPERVISOR_OFFICER,
+    confirmedBy: ADMIN_OFFICER,
+    document: confirmed(fullDocument(fy), plusDays(day, -1), day),
+  });
 }
 
 function countsOf(document: FormMV1): ReportCounts {

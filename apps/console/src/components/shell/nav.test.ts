@@ -15,10 +15,10 @@ describe('navFor', () => {
     }
   });
 
-  it('marks Compliance reports on every page under /eacc/reports (spec 09)', () => {
-    const groups = navFor(['eacc-analyst']);
-    expect(groups[1]?.items[0]?.to).toBe('/eacc/reports');
-    expect(activeNavHref(groups, '/eacc/reports/ncr')).toBe('/eacc/reports');
+  it('shows EACC staff the compliance reports intake under EACC (spec 09)', () => {
+    expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/ncr')).toBe('/eacc/reports');
   });
 
   it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {

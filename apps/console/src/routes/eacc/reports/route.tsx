@@ -1,63 +1,59 @@
-import { Button } from '@adili/ui';
-import { createFileRoute, Link, Outlet } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useMatches } from '@tanstack/react-router';
 
-import { LoadError, NoAccess, NoStaffRoles } from '../../../components/load-error';
-import { messages as m } from '../../../components/national-report/messages';
-import { Page, PageHead } from '../../../components/page';
-import { ConsoleShell } from '../../../components/shell/console-shell';
+import { messages as m } from '../../../components/eacc-intake/messages';
 import { signInRedirect } from '../../../components/sign-in-redirect';
-import { workspaceFor, workspacesFor } from '../../../components/workspaces';
+import { WorkspaceLayout } from '../../../components/workspace-layout';
+import { workspaceFor } from '../../../components/workspaces';
 import { getViewer } from '../../../server/viewer';
 
+/** Whether a match's route context opens the Compliance reports workspace. */
+function opensWorkspace(context: unknown): boolean {
+  return typeof context === 'object' && context !== null && 'workspace' in context
+    ? Boolean(context.workspace)
+    : false;
+}
+
 /**
- * EACC's compliance reports workspace (spec 09): EACC analysts and supervisors. The national
- * consolidated report lives at `ncr`; the intake of Commissions' Form M reports (#230) joins it.
+ * EACC's compliance reports (spec 09 FE-3): the intake of every Commission's Form M per financial
+ * year and the report viewer, for EACC analysts and supervisors. Anyone else is told the intake
+ * is not theirs, as the reporting service answers them 403, and finds no report (404).
  */
 export const Route = createFileRoute('/eacc/reports')({
   beforeLoad: async ({ location }) => {
     const viewer = await getViewer();
     if (!viewer) throw signInRedirect(location.href);
     const principal = viewer.directory.ok ? viewer.directory.principal : null;
+    const roles = principal?.roles ?? [];
     return {
       viewer,
-      roles: principal?.roles ?? [],
+      roles,
+      // Who the viewer is, for the national report's author check (#233).
       subject: principal?.subject ?? null,
-      workspace: workspaceFor(principal?.roles ?? [], 'compliance') ?? null,
+      workspace: workspaceFor(roles, 'compliance') ?? null,
     };
   },
-  staticData: { crumb: m.workspaceTitle },
+  staticData: {
+    // Staff without the workspace get no trail back to a page they cannot open.
+    crumb: ({ context, isLeaf }) => (isLeaf || opensWorkspace(context) ? m.title : null),
+  },
   component: ComplianceReportsLayout,
 });
 
 function ComplianceReportsLayout() {
   const { viewer, roles, workspace } = Route.useRouteContext();
+  // A report anyone else opens reads as not found, as the service answers (the prototype's
+  // Commission roles), not as a page they may not open.
+  const onReport = useMatches().some((match) => match.routeId === '/eacc/reports/$reportId');
   return (
-    <ConsoleShell userName={viewer.user.name} roles={roles}>
-      {!viewer.directory.ok ? (
-        <Page narrow>
-          <PageHead title={m.workspaceTitle} />
-          <LoadError title={m.loadErrorTitle} detail={m.loadErrorDetail} retryLabel={m.tryAgain} />
-        </Page>
-      ) : workspace ? (
-        <Outlet />
-      ) : (
-        <Page narrow>
-          <PageHead title={m.workspaceTitle} />
-          {workspacesFor(roles).length > 0 ? (
-            <NoAccess text={m.noAccess} action={<BackToOverview />} />
-          ) : (
-            <NoStaffRoles />
-          )}
-        </Page>
-      )}
-    </ConsoleShell>
-  );
-}
-
-export function BackToOverview() {
-  return (
-    <Button asChild variant="secondary" size="sm">
-      <Link to="/">{m.backToOverview}</Link>
-    </Button>
+    <WorkspaceLayout
+      viewer={viewer}
+      roles={roles}
+      workspace={workspace}
+      title={m.title}
+      forbidden={m.forbidden}
+      open={onReport}
+    >
+      <Outlet />
+    </WorkspaceLayout>
   );
 }
