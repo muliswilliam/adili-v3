@@ -1,72 +1,73 @@
 import { type ComponentProps, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
+import { focusRing } from '../lib/focus';
+import { joinIds } from '../lib/use-field-ids';
+import { Tooltip } from './tooltip';
 
-export type SwitchProps = Omit<ComponentProps<'input'>, 'type' | 'role' | 'onChange'> & {
+export type SwitchProps = Omit<ComponentProps<'button'>, 'onClick' | 'children' | 'role'> & {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-  /** What the switch turns on, e.g. "Published"; its accessible name whatever the state. */
-  label: string;
-  /** Shown beside the track; the label by default. Use it to say the state, e.g. "Not published". */
-  text?: ReactNode;
-  /** A line under the text, e.g. who can see the article; describes the switch. */
-  hint?: ReactNode;
+  /** Shown beside the track; names the switch. */
+  label: ReactNode;
+  /**
+   * Why the switch cannot be used now. It stays focusable (`aria-disabled`, not `disabled`) so
+   * keyboard and screen reader users reach it and hear the reason as its description; a tooltip
+   * shows it too. Clicks do nothing and it reads as off. An empty reason does not block.
+   */
+  blockedReason?: string;
 };
 
 /**
- * An on/off setting that takes effect with the form (the kit's `.switch`): a native checkbox
- * with `role="switch"`, a 40x24px track that fills success when on, the text and an optional
- * hint beside it. Named by `label` so the name stays put while the text says the state.
+ * An on/off control that acts at once (the kit's `.switch`), e.g. "Compare with version 1": a
+ * button with `role="switch"`, so keyboard and screen readers get its state. For a choice
+ * submitted with a form, use a Checkbox.
  */
 export function Switch({
   checked,
   onCheckedChange,
   label,
-  text,
-  hint,
-  id,
-  disabled,
+  blockedReason,
   className,
+  'aria-describedby': ownDescribedBy,
   ...props
 }: SwitchProps) {
-  const generatedId = useId();
-  const inputId = id ?? generatedId;
-  const hintId = hint ? `${inputId}-hint` : undefined;
-  return (
-    <label
-      htmlFor={inputId}
+  const reasonId = useId();
+  const blocked = blockedReason !== undefined && blockedReason !== '';
+  const control = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked && !blocked}
+      aria-describedby={joinIds(ownDescribedBy, blocked ? reasonId : undefined)}
+      onClick={() => {
+        if (!blocked) onCheckedChange(!checked);
+      }}
       className={cn(
-        'flex items-start gap-3',
-        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+        focusRing,
+        'group inline-flex cursor-pointer items-center gap-[9px] rounded-md px-0.5 py-1 text-sm font-medium text-foreground select-none disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
         className,
       )}
+      {...props}
+      // After the caller's props, so a blocked switch stays blocked.
+      {...(blocked ? { 'aria-disabled': true } : {})}
     >
-      <input
-        {...props}
-        id={inputId}
-        type="checkbox"
-        role="switch"
-        checked={checked}
-        disabled={disabled}
-        aria-label={label}
-        aria-describedby={hintId}
-        className="peer sr-only"
-        onChange={(event) => {
-          onCheckedChange(event.target.checked);
-        }}
-      />
       <span
         aria-hidden="true"
-        className="relative mt-px h-6 w-10 flex-none rounded-full bg-input transition-colors peer-checked:bg-success peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring peer-focus-visible:outline-solid after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:rounded-full after:bg-card after:shadow-control after:transition-transform peer-checked:after:translate-x-4 motion-reduce:transition-none motion-reduce:after:transition-none"
-      />
-      <span>
-        <span className="text-[14.5px] font-medium">{text ?? label}</span>
-        {hint ? (
-          <span id={hintId} className="mt-0.5 block text-[13px] text-muted-foreground">
-            {hint}
-          </span>
-        ) : null}
+        className="relative h-[22px] w-9 flex-none rounded-full bg-input transition-colors group-aria-checked:bg-primary"
+      >
+        <span className="absolute top-[3px] left-[3px] size-4 rounded-full bg-card shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-[left] group-aria-checked:left-[17px]" />
       </span>
-    </label>
+      {label}
+    </button>
+  );
+  if (!blocked) return control;
+  return (
+    <>
+      <Tooltip content={blockedReason}>{control}</Tooltip>
+      <span id={reasonId} className="sr-only">
+        {blockedReason}
+      </span>
+    </>
   );
 }

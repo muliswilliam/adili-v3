@@ -651,20 +651,24 @@ function PublishSwitch({
   scope: HelpScope;
   onChange: (published: boolean) => void;
 }) {
+  const hintId = useId();
   return (
-    <Switch
-      checked={published}
-      onCheckedChange={onChange}
-      label={m.published}
-      text={published ? m.published : m.notPublished}
-      hint={
-        published
+    <div className="grid gap-1">
+      <Switch
+        checked={published}
+        onCheckedChange={onChange}
+        label={m.published}
+        aria-describedby={hintId}
+        className="justify-self-start"
+      />
+      <p id={hintId} className="text-[13px] text-muted-foreground">
+        {published
           ? scope.kind === 'platform'
             ? m.publishedHintPlatform
             : m.publishedHintCommission
-          : m.notPublishedHint
-      }
-    />
+          : m.notPublishedHint}
+      </p>
+    </div>
   );
 }
 

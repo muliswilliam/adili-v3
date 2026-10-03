@@ -104,7 +104,9 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     );
     expect(screen.getByText('Optional. Without it, Kiswahili users see the English.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bio data', pressed: true })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: 'Published' })).toHaveProperty('checked', true);
+    expect(screen.getByRole('switch', { name: 'Published' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
   });
 
   it('previews paragraphs, lists and bold as declarants read them', () => {
@@ -119,7 +121,9 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     const { save } = renderEditor({ article: null });
     expect(screen.getByRole('heading', { level: 1, name: 'New article' })).toBeTruthy();
     expect(screen.getByText('Not saved')).toBeTruthy();
-    expect(screen.getByRole('switch', { name: 'Published' })).toHaveProperty('checked', false);
+    expect(screen.getByRole('switch', { name: 'Published' }).getAttribute('aria-checked')).toBe(
+      'false',
+    );
     fireEvent.change(screen.getByRole('textbox', { name: /Until/ }), {
       target: { value: '01/01/2026' },
     });
