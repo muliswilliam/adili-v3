@@ -23,9 +23,8 @@ export const stoppageCopy = {
     receivedAt: 'Received at',
     waitingNote: {
       stop_salary:
-        'Payroll has not acknowledged it yet; review retries until it does. The salary is not stopped and no letter is issued until then.',
-      resume_salary:
-        'Payroll has not acknowledged it yet; review retries until it does. The salary stays stopped until then.',
+        'Waiting for payroll to acknowledge it. The salary is not stopped and no letter is issued until then.',
+      resume_salary: 'Waiting for payroll to acknowledge it. The salary stays stopped until then.',
     },
   },
   stepper: {

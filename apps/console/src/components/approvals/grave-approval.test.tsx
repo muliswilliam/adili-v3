@@ -199,7 +199,7 @@ describe('the disciplinary referral in the inbox (S10)', () => {
     expect(within(stoppage).getByText('Acknowledged')).toBeTruthy();
     expect(within(stoppage).getByText('PAY-ACK-2026-0091822')).toBeTruthy();
     expect(within(dialog).queryByRole('checkbox')).toBeNull();
-    expect(within(dialog).queryByText('Stephen Kiprotich Kosgei is notified')).toBeNull();
+    expect(within(dialog).queryByText(/is notified/)).toBeNull();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and issue' }));
     expect(await screen.findByText(/^Disciplinary referral approved\. ADM-TSC-2026-/)).toBeTruthy();
   });

@@ -180,7 +180,12 @@ export function LadderDetailView({
                   : m.ended.toLowerCase(),
               )}
             </AlertTitle>
-            <AlertDescription>{m.endedBody}</AlertDescription>
+            <AlertDescription>
+              {m.endedBody}
+              {reinstatedAt ? (
+                <span className="block">{stoppage.reinstatementAcknowledged(reinstatedAt)}</span>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
 

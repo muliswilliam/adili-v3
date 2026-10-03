@@ -48,12 +48,12 @@ async function ladder(id: string): Promise<Ladder> {
   return result.data;
 }
 
-async function show(id: string) {
+async function show(id: string, change: Partial<Ladder> = {}) {
   const made = decisions();
   render(
     <ToastProvider>
       <LadderDetailView
-        ladder={await ladder(id)}
+        ladder={{ ...(await ladder(id)), ...change }}
         now={NOW}
         supervisor
         decisions={made}
@@ -126,6 +126,14 @@ describe('payroll acknowledgements on the ladder (S6, S7, S15)', () => {
     expect(
       within(stoppageStep()).getByText(`Reinstatement acknowledged ${reinstated}`),
     ).toBeTruthy();
+  });
+});
+
+describe('a ladder that ended without compliance (S7)', () => {
+  it('still says the reinstatement was acknowledged', async () => {
+    await show(L.reinstated, { status: 'ended', closingCause: 'obligation-cancelled' });
+    const reinstated = formatDate(new Date(NOW_MS - 5 * DAY).toISOString());
+    expect(screen.getByText(`Salary reinstatement acknowledged ${reinstated}.`)).toBeTruthy();
   });
 });
 
