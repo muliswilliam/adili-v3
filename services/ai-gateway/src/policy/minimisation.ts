@@ -16,6 +16,12 @@
  * receives one (spec 11), so amounts there are tokens too. Over-matching is safe, since every token
  * is restored; it only hides a word from the model.
  *
+ * A document's text layer (`DOCUMENT_TEXT_FIELDS`, spec 05b) has no fields to say what is a name:
+ * the parties its labels introduce ("Proprietor:", "Guarantor:", "Dear Mr.", "Jina:") are each a
+ * person, collected word by word as a name field's would be, or, when the name ends in a company
+ * word, one organisation; labelled addresses and member numbers are collected too. All of them are
+ * replaced wherever they recur.
+ *
  * A token in the output that the input never had (the model invented or garbled one) cannot be
  * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
  * rather than storing a placeholder as if it were the record.
