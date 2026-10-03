@@ -1,7 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { ReleaseStatusBadge } from './release-status-badge';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+import { parse } from 'yaml';
+
+import { RELEASE_STATUSES, ReleaseStatusBadge } from './release-status-badge';
 
 describe('ReleaseStatusBadge', () => {
   it('says a release is a preview, in blue', () => {
@@ -36,5 +41,22 @@ describe('ReleaseStatusBadge', () => {
     render(<ReleaseStatusBadge status="published" messages={{ published: 'Imechapishwa' }} />);
 
     expect(screen.getByText('Imechapishwa')).toBeTruthy();
+  });
+
+  it('has a word for every status of the contract’s OpenDataRelease, and only those', () => {
+    const contract = parse(
+      readFileSync(
+        createRequire(import.meta.url).resolve('@adili/schemas/internal/reporting.yaml'),
+        'utf8',
+      ),
+    ) as {
+      components: {
+        schemas: { OpenDataRelease: { properties: { status: { enum: string[] } } } };
+      };
+    };
+
+    expect([...RELEASE_STATUSES]).toEqual(
+      contract.components.schemas.OpenDataRelease.properties.status.enum,
+    );
   });
 });
