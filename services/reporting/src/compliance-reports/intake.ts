@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import type { Conforms } from '../conforms.js';
 import type { CommissionFacts } from '../directory/directory-client.js';
+import { countSchema as count } from './representation.js';
 import type { ReportCounts } from './schema.js';
 
 /**
@@ -89,8 +90,8 @@ export const intakeStatusSchema = z.enum(INTAKE_STATUSES).meta({
 });
 
 const sectionRateSchema = z.object({
-  expected: z.number().int().min(0),
-  declared: z.number().int().min(0),
+  expected: count,
+  declared: count,
   rate: z
     .number()
     .nullable()
@@ -112,7 +113,7 @@ const intakeItemSchema = z.object({
     .meta({ description: 'Per section from the report as filed; empty when not reported' }),
   outliers: z.array(z.enum(OUTLIERS)),
   chases: z
-    .object({ count: z.number().int().min(0), lastAt: z.iso.datetime().nullable() })
+    .object({ count, lastAt: z.iso.datetime().nullable() })
     .meta({ description: "EACC's weekly chases from 1 August while not reported" }),
   formMDocumentId: z
     .uuid()
@@ -128,9 +129,9 @@ export const intakeSchema = z.object({
   fy: z.number().int(),
   totals: z
     .object({
-      onTime: z.number().int().min(0),
-      late: z.number().int().min(0),
-      notReported: z.number().int().min(0),
+      onTime: count,
+      late: count,
+      notReported: count,
       nationalDeclaredRate: z.number().nullable(),
     })
     .meta({ description: 'The whole year, whatever the filters' }),

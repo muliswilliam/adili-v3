@@ -9,20 +9,28 @@ import type { ReportRow } from './reports.js';
 import { REPORT_STATUSES, type ReportCounts, type ReportSource } from './schema.js';
 
 /** reporting.yaml `ReportStatus`: a period without a report is `not-started`. */
-export type ReportStatusView = 'not-started' | 'compiling' | 'draft' | 'reviewed' | 'submitted';
-
 export const reportStatusSchema = z.enum(['not-started', ...REPORT_STATUSES]);
-true satisfies Conforms<ReportStatusView, typeof reportStatusSchema>;
+export type ReportStatusView = z.infer<typeof reportStatusSchema>;
 
 export const reportSourceSchema = z.enum(['hosted', 'federated']).meta({
   description: 'Compiled and confirmed on the platform, or submitted by a federated Commission',
 });
 true satisfies Conforms<ReportSource, typeof reportSourceSchema>;
 
+/** A count in the contract: a non-negative integer. */
+export const countSchema = z.number().int().min(0);
+
+/** Form M section 5's headline counts, in a report and in the NCR's aggregates. */
+export const accessRequestCountsSchema = z.object({
+  received: countSchema,
+  granted: countSchema,
+  declined: countSchema,
+});
+
 const sectionCountsSchema = z.object({
-  expected: z.number().int().min(0),
-  declared: z.number().int().min(0),
-  notDeclared: z.number().int().min(0),
+  expected: countSchema,
+  declared: countSchema,
+  notDeclared: countSchema,
 });
 
 export const reportCountsSchema = z
@@ -30,12 +38,8 @@ export const reportCountsSchema = z
     initial: sectionCountsSchema,
     biennial: sectionCountsSchema.extend({ noCycleInPeriod: z.boolean() }),
     final: sectionCountsSchema,
-    clarifications: z.number().int().min(0),
-    accessRequests: z.object({
-      received: z.number().int().min(0),
-      granted: z.number().int().min(0),
-      declined: z.number().int().min(0),
-    }),
+    clarifications: countSchema,
+    accessRequests: accessRequestCountsSchema,
   })
   .meta({ description: 'Headline counts per Form M section, for lists and the intake' });
 true satisfies Conforms<ReportCounts, typeof reportCountsSchema>;

@@ -5,6 +5,7 @@ import { and, count, eq, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { requireEacc } from '../access.js';
+import { countSchema as tally } from '../compliance-reports/representation.js';
 import type { Conforms } from '../conforms.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { AI_FEEDBACK_REASONS } from '../projections/events.js';
@@ -37,8 +38,6 @@ export interface AiUsageReport {
   /** Commissions with an AI-assisted case or a rating in the year, in slug order. */
   commissions: AiUsageCommission[];
 }
-
-const tally = z.number().int().min(0);
 
 export const aiTaskRatingsSchema = z.object({
   task: z.string().meta({

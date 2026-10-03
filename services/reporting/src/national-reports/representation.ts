@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 import { intakeStatusSchema } from '../compliance-reports/intake.js';
+import {
+  accessRequestCountsSchema,
+  countSchema as count,
+} from '../compliance-reports/representation.js';
 import type { Conforms } from '../conforms.js';
 import { type Officer, officerSchema, storedOfficer } from '../officer.js';
 import type { NationalAggregates } from './aggregates.js';
@@ -11,11 +15,12 @@ import {
   type Paragraph,
   paragraphSchema,
 } from './narrative.js';
-import type {
-  nationalReportAggregates,
-  nationalReportParagraphs,
-  nationalReports,
-  NationalReportStatus,
+import {
+  NATIONAL_REPORT_STATUSES,
+  type nationalReportAggregates,
+  type nationalReportParagraphs,
+  type nationalReports,
+  type NationalReportStatus,
 } from './schema.js';
 
 export type NationalReportRow = typeof nationalReports.$inferSelect;
@@ -40,7 +45,6 @@ export interface NationalReportView {
   documentId: string | null;
 }
 
-const count = z.number().int().min(0);
 const rate = z.number().nullable();
 const sectionAggregateSchema = z.object({
   expected: count,
@@ -48,7 +52,6 @@ const sectionAggregateSchema = z.object({
   notDeclared: count,
   rate: rate.meta({ description: 'declared / expected; null when none expected' }),
 });
-const accessAggregateSchema = z.object({ received: count, granted: count, declined: count });
 
 export const nationalAggregatesSchema = z
   .object({
@@ -67,7 +70,7 @@ export const nationalAggregatesSchema = z
       final: sectionAggregateSchema,
       all: sectionAggregateSchema.meta({ description: 'The three sections together' }),
       clarifications: count,
-      accessRequests: accessAggregateSchema,
+      accessRequests: accessRequestCountsSchema,
     }),
     byCommission: z
       .record(
@@ -82,7 +85,7 @@ export const nationalAggregatesSchema = z
           biennial: sectionAggregateSchema.extend({ noCycleInPeriod: z.boolean() }).nullable(),
           final: sectionAggregateSchema.nullable(),
           clarifications: count.nullable(),
-          accessRequests: accessAggregateSchema.nullable(),
+          accessRequests: accessRequestCountsSchema.nullable(),
         }),
       )
       .meta({ description: 'Per Commission slug; its numbers are null until it reports' }),
@@ -96,7 +99,7 @@ export const nationalReportSchema = z.object({
   version: z.number().int().min(1).meta({
     description: "The report's revision; goes up with every build, narrative save and the approval",
   }),
-  status: z.enum(['draft', 'approved']),
+  status: z.enum(NATIONAL_REPORT_STATUSES),
   builtAt: z.iso.datetime().nullable(),
   reportsIncluded: count,
   aggregates: z
