@@ -38,7 +38,7 @@ Operations changed:
   - The body is the named `AcceptSuggestionRequest`, the answer `SuggestionAcceptance`, with the new draft version also in the `ETag` header.
   - A stale `If-Match` is 409 `draft-version-mismatch` (the draft had 412), while section saves keep 412. A missing one is 428 `if-match-required`. 409 also for `not-new` (the draft's "not `new`"), `declaration-not-draft` and `section-archived`.
   - No `Idempotency-Key` (ADR-013 §8.13): the replay store keeps no `ETag`, and accept is safe to retry under the suggestion's row lock.
-  - Registry suggestions never set a value field; a document's reading does write its amounts, at their declaration.v1 paths within the item, since the declarant reviews each one (#315). `AcceptSuggestionRequest.fields` says so: a document's fields come by path, values included, typed as read (an amount may come as text), and a field it did not read is 400.
+  - Registry suggestions never set a value field; a document's reading does write its amounts, at their declaration.v1 paths within the item, since the declarant reviews each one (#315). `AcceptSuggestionRequest.fields` says so: a document's fields come by path, values included, typed as read (an amount may come as text, such as "1,180,000"), and a field it did not read is refused. The 400 lists "a field it did not read, or a value the field cannot take".
   - Where each type lands is documented: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household`. The declarant's own `bio-tax` has no field yet: 400 (#474).
   - `ItemSource.verificationResultId` is named only when the item ends up holding what the registry gave.
 - `acceptSuggestion` and `dismissSuggestion` are audited reads of the suggestion (`declaration.suggestion.read`).
@@ -57,7 +57,7 @@ Schemas changed:
 
 - `SuggestionSet`: `attachmentId`, `documentKind` and `reason` added (#315), null for registry sets. `reason` says why a document set `failed`, in the declarant's vocabulary: `document-unavailable`, `document-unreadable`, `not-read`, `unavailable` (the gateway's `budget`, `provider`, `timeout` and the like all read as `unavailable`). Statuses are as drafted, each documented.
 - `Suggestion`:
-  - `itemType` gains `directorship` (BRS: a paragraph 9 registrable interest, in `other`) and `income-hint` (KRA: a hint to check the salary item, never a value), and BRS shareholdings are `shareholding`, not the spec's `investment`, which `declaration.v1` does not have (#306).
+  - `itemType` is still a free string, as drafted; only its description changed. It now names `directorship` (BRS: a paragraph 9 registrable interest, in `other`) and `income-hint` (KRA: a hint to check the salary item, never a value), and BRS shareholdings as `shareholding`, not the spec's `investment`, which `declaration.v1` does not have (#306).
   - `fields` are documented per item type (`vehicle` registration, make, model, year; `land` parcelNumber, size, location, county; and so on). A document's reading names them by declaration.v1 path within the item (`details.registration`, `outstanding.kesCents`) instead (#315).
   - `sourceRef` is documented: a registry's identifiers and facts that do not become fields; for a document `documentKind`, `fields: [{name, confidence, page}]`, `warnings` and `attachmentId`.
   - `confidence` is a document reading's least sure field's; `matchItemId` is, for a document, the item it is attached to.
@@ -85,9 +85,9 @@ Schemas changed:
 
 ## Integration-gateway (`internal/integration-gateway.yaml`)
 
-- No new endpoints, as drafted. `X-Legal-Basis` on the KRA, NTSA, BRS and ArdhiSasa lookups is an enum (the draft described it as free text) of `regs-r20-1-b`, `act-s35-5` and `declarant-request` (#469).
+- No new endpoints, as drafted. `X-Legal-Basis` on the KRA, NTSA, BRS and ArdhiSasa lookups, and on review's `checkCompanySuppliesEmployer` (07b, which shares the lookup headers), is an enum (the draft described it as free text) of `regs-r20-1-b`, `act-s35-5` and `declarant-request` (#469).
 - Each basis is taken only from the client whose work it is: `declarant-request` from declarations, the other two from review; 403 otherwise (ADR-013 §8.12). `adr-014-onboarding` is no longer accepted in the header (400): the IPRS route records it itself.
-- `X-Case-Ref` and `X-Subject-Person` are documented for both callers: the review case and its declarant, or the declaration and the declarant who asked, whoever of the household is looked up (#321).
+- `X-Case-Ref` and `X-Subject-Person` are documented for both callers on the same routes, `checkCompanySuppliesEmployer` included: the review case and its declarant, or the declaration and the declarant who asked, whoever of the household is looked up (#321).
 - NTSA's vehicle result has no engine capacity, so the `vehicle` suggestion has none (#475).
 
 ## Directory (`internal/directory.yaml`)
