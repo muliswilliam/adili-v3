@@ -128,6 +128,36 @@ describe('minimise (spec 07c S3)', () => {
     expect(minimise({ note: text }).input.note).toBe(text);
   });
 
+  it("replaces amounts in a declarant's question and history, and nowhere else (spec 11)", () => {
+    const minimised = minimise({
+      question: 'Is KES 3 million right for my car, or KSh 2,500,000? I earn 120k bob a month.',
+      history: [
+        { role: 'user', text: 'Je, shilingi milioni 3 ni sawa? Au Sh. 250,000?' },
+        { role: 'assistant', text: 'A loan of 1,200,000 shillings is a liability.' },
+      ],
+      passages: [{ id: 'p-1', text: 'A gift above KES 20,000 is declared.' }],
+      note: 'Paid KES 1500000.',
+    });
+
+    expect(minimised.input).toEqual({
+      question: 'Is [[AMOUNT_4]] right for my car, or [[AMOUNT_5]]? I earn [[AMOUNT_6]] a month.',
+      history: [
+        { role: 'user', text: 'Je, [[AMOUNT_1]] ni sawa? Au [[AMOUNT_2]]?' },
+        { role: 'assistant', text: 'A loan of [[AMOUNT_3]] is a liability.' },
+      ],
+      passages: [{ id: 'p-1', text: 'A gift above KES 20,000 is declared.' }],
+      note: 'Paid KES 1500000.',
+    });
+    expect(minimised.counts).toEqual({ AMOUNT: 6 });
+    expect(minimised.restore('You wrote [[AMOUNT_4]].')).toBe('You wrote KES 3 million.');
+  });
+
+  it("leaves years, counts, dates and section numbers of a declarant's question readable", () => {
+    const question =
+      'Is my 2015 car declared? I have 2 children, the statement date is 1 November 2025, and s.31(4) says 30 days.';
+    expect(minimise({ question }).input.question).toBe(question);
+  });
+
   it('finds a known name in any case, under the same token (review M1)', () => {
     const minimised = minimise({
       surname: 'Wanjiru',

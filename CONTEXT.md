@@ -162,3 +162,29 @@ _Avoid_: insight, pattern (alone)
 **AI draft**:
 A narrative paragraph written by AI that the EACC analyst drafting the NCR has not yet edited. Editing it makes it EACC's own text.
 _Avoid_: suggestion, AI text
+
+### Assistance
+
+**Ask Adili**:
+The declarant's filing helper: answers questions on the law and the form from the legal corpus, in English or Kiswahili, and writes hints for what is still missing. It knows where the declarant is, never what they wrote.
+_Avoid_: chatbot, assistant (alone), AI helper
+
+**Legal corpus**:
+The Act, the Regulations, the Administrative Mechanisms and help articles, as citable passages with effective dates. Ask Adili answers only from it.
+_Avoid_: knowledge base, documents
+
+**Passage**:
+One citable unit of the legal corpus, such as `Act s.31` or `Regs r.21`, with its id, citation and text.
+_Avoid_: chunk, snippet, source
+
+**Completeness residual**:
+What the completeness check still reports on a draft: the section, the rule and the field path, never the value.
+_Avoid_: error, missing field, gap
+
+**Hint**:
+A one-line plain-language rephrasing of a completeness residual on the summary page, linked to its field. It sits above the deterministic text, which stays.
+_Avoid_: tip, suggestion
+
+**Decline**:
+Ask Adili's answer when the passages do not support one: no answer, and the declarant is pointed to their reporting officer. An answer that cites what it was not given is replaced by a decline.
+_Avoid_: refusal (that is the model's), fallback

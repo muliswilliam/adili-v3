@@ -2,22 +2,28 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { callerOf, type Principal, ProblemException } from '@adili/api-kit';
 import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { asTenant, type GatewayDatabase, type GatewayTransaction } from '../db/context.js';
-import { CACHE_KEY, type Job, jobs } from '../db/schema.js';
+import { CACHE_KEY, type Job, jobs, servesCache } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
 import { findTask } from '../tasks/registry.js';
+import type { TaskDefinition } from '../tasks/task.js';
 import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
-import { CACHEABLE_STATUSES, isTerminal } from './job-states.js';
+import { isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
-import { Routing } from './routing.js';
-import { taskRequestSchema } from './task-request.js';
+import { type Route, Routing } from './routing.js';
+import {
+  requireEndpoint,
+  type TaskCaller,
+  type TaskRequest,
+  taskRequestSchema,
+} from './task-request.js';
 
 export interface RunTaskResult {
   job: JobView;
@@ -25,8 +31,70 @@ export interface RunTaskResult {
   replayed: boolean;
 }
 
+/** What a task request names: the job of its key, an equal request's cached job, or a new one. */
+export interface FoundJob {
+  kind: 'previous' | 'cached' | 'created';
+  job: Job;
+}
+
 /** Two concurrent requests can race for the same key or cache entry; the loser reads the winner. */
 const MAX_CREATE_ATTEMPTS = 3;
+
+/** The prompt version a request runs: the one it pins, else the task's current one. */
+function promptVersionFor(task: TaskDefinition, pinned: number | null): number {
+  const promptVersion = pinned ?? task.currentPromptVersion;
+  if (!task.promptVersions.includes(promptVersion)) {
+    throw new ProblemException({
+      type: 'prompt-version-unknown',
+      title: 'Unknown prompt version',
+      status: HttpStatus.BAD_REQUEST,
+      detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
+    });
+  }
+  return promptVersion;
+}
+
+/**
+ * A request's job identity: the cache key columns, and the hash of what the caller asked for
+ * (the wait is not part of it, so a retry may wait differently).
+ */
+function jobKey(
+  task: TaskDefinition,
+  request: Pick<TaskRequest, 'dataClass' | 'subjectRef' | 'promptVersion' | 'input'>,
+  route: Pick<Route, 'provider' | 'model'>,
+  { tenant, principal }: Pick<TaskCaller, 'tenant' | 'principal'>,
+): { fields: Pick<Job, (typeof CACHE_KEY)[number]>; requestHash: string } {
+  return {
+    fields: {
+      tenant,
+      caller: callerOf(principal),
+      subjectRef: request.subjectRef,
+      dataClass: request.dataClass,
+      task: task.name,
+      promptVersion: promptVersionFor(task, request.promptVersion),
+      provider: route.provider,
+      model: route.model,
+      inputHash: hashJson(request.input),
+    },
+    requestHash: hashJson({
+      task: task.name,
+      tenant,
+      dataClass: request.dataClass,
+      subjectRef: request.subjectRef,
+      promptVersion: request.promptVersion,
+      input: request.input,
+    }),
+  };
+}
+
+function keyReused(): ProblemException {
+  return new ProblemException({
+    type: 'idempotency-key-reused',
+    title: 'Idempotency-Key reused',
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+    detail: 'This Idempotency-Key was already used for a different request.',
+  });
+}
 
 /** Creates task jobs (cache and idempotency enforced by the database) and reads them back. */
 @Injectable()
@@ -55,13 +123,7 @@ export class JobsService {
    * retry with that key runs a new job rather than returning the failed one: the retry of a
    * request whose outcome the caller never saw gets a fresh attempt instead of a failure.
    */
-  async run(
-    taskName: string,
-    body: unknown,
-    tenant: string,
-    principal: Principal,
-    idempotencyKey: string,
-  ): Promise<RunTaskResult> {
+  async run(taskName: string, body: unknown, caller: TaskCaller): Promise<RunTaskResult> {
     const task = findTask(taskName);
     if (!task) {
       throw new ProblemException({
@@ -72,36 +134,30 @@ export class JobsService {
       });
     }
     const request = taskRequestSchema(task).parse(body);
-    const promptVersion = request.promptVersion ?? task.currentPromptVersion;
-    if (!task.promptVersions.includes(promptVersion)) {
-      throw new ProblemException({
-        type: 'prompt-version-unknown',
-        title: 'Unknown prompt version',
-        status: HttpStatus.BAD_REQUEST,
-        detail: `Task ${task.name} has prompt versions ${task.promptVersions.join(', ')}.`,
-      });
-    }
-    const route = await this.routing.route(tenant, task.name);
-    const fields: Pick<Job, (typeof CACHE_KEY)[number]> = {
-      tenant,
-      caller: callerOf(principal),
-      subjectRef: request.subjectRef,
-      dataClass: request.dataClass,
-      task: task.name,
-      promptVersion,
-      provider: route.provider,
-      model: route.model,
-      inputHash: hashJson(request.input),
+    requireEndpoint(task, request, 'job');
+    const found = await this.findOrCreate(task, request, caller, 'queued');
+    return {
+      job: await this.startAndWait(found.job, request.waitSeconds),
+      replayed: found.kind === 'previous',
     };
-    // What the caller asked for; the wait is not part of it, so a retry may wait differently.
-    const requestHash = hashJson({
-      task: task.name,
-      tenant,
-      dataClass: request.dataClass,
-      subjectRef: request.subjectRef,
-      promptVersion: request.promptVersion,
-      input: request.input,
-    });
+  }
+
+  /**
+   * The job a task request names: the earlier job of its Idempotency-Key (`previous`; the same
+   * key for another request is 422), else a live or succeeded job of an equal request (`cached`),
+   * else a new one (`created`), in `initialStatus` or, when the classification gate or budget
+   * refuses it, already ended, with its audit record and event. A new job counts against the
+   * tenant's per-minute limit (beyond it: 429, no job).
+   */
+  async findOrCreate(
+    task: TaskDefinition,
+    request: TaskRequest,
+    caller: TaskCaller,
+    initialStatus: 'queued' | 'running',
+  ): Promise<FoundJob> {
+    const { tenant, idempotencyKey } = caller;
+    const route = await this.routing.route(tenant, task.name);
+    const { fields, requestHash } = jobKey(task, request, route, caller);
 
     // The caller's transactions see the acting tenant's jobs only (row-level security).
     const asCaller = <T>(work: (tx: GatewayTransaction) => Promise<T>) =>
@@ -120,15 +176,8 @@ export class JobsService {
           ),
       );
       if (previous) {
-        if (previous.requestHash !== requestHash) {
-          throw new ProblemException({
-            type: 'idempotency-key-reused',
-            title: 'Idempotency-Key reused',
-            status: HttpStatus.UNPROCESSABLE_ENTITY,
-            detail: 'This Idempotency-Key was already used for a different request.',
-          });
-        }
-        return { job: await this.startAndWait(previous, request.waitSeconds), replayed: true };
+        if (previous.requestHash !== requestHash) throw keyReused();
+        return { kind: 'previous', job: previous };
       }
 
       const [cached] = await asCaller((tx) =>
@@ -136,16 +185,10 @@ export class JobsService {
           .select()
           .from(jobs)
           .where(
-            and(
-              ...CACHE_KEY.map((column) => eq(jobs[column], fields[column])),
-              inArray(jobs.status, CACHEABLE_STATUSES),
-              isNull(jobs.outputPurgedAt),
-            ),
+            and(...CACHE_KEY.map((column) => eq(jobs[column], fields[column])), servesCache(jobs)),
           ),
       );
-      if (cached) {
-        return { job: await this.startAndWait(cached, request.waitSeconds), replayed: false };
-      }
+      if (cached) return { kind: 'cached', job: cached };
 
       const limit = await this.budgets.rateLimited(tenant);
       if (limit.limited) {
@@ -166,7 +209,11 @@ export class JobsService {
             requestHash,
             ...(ending
               ? { ...ending, finishedAt: sql`now()` }
-              : { input: request.input, status: 'queued' as const }),
+              : {
+                  input: request.input,
+                  status: initialStatus,
+                  ...(initialStatus === 'running' && { startedAt: sql`now()` }),
+                }),
           })
           // Lost a race on the key or the cache entry: the next attempt reads the winner.
           .onConflictDoNothing()
@@ -176,7 +223,7 @@ export class JobsService {
       });
       if (created) {
         if (isTerminal(created.status)) this.telemetry.jobFinished(created);
-        return { job: await this.startAndWait(created, request.waitSeconds), replayed: false };
+        return { kind: 'created', job: created };
       }
     }
     throw new Error('Could not create or find the job under contention');

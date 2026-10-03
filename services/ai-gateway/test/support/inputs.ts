@@ -1,5 +1,6 @@
 /** Synthetic task inputs and model outputs for tests. No real person appears here. */
 
+import type { AnswerInput } from '../../src/tasks/answer-declarant-question.js';
 import type { NarrateInput, NarrateOutput } from '../../src/tasks/narrate-compliance-report.js';
 
 const ITEM_ID = '0199a8f0-1111-7000-8000-000000000001';
@@ -173,4 +174,56 @@ export const narrateOutput: NarrateOutput = {
       candidateIds: ['rate-change:tsc:nonFilerRate'],
     },
   ],
+};
+
+const SPOUSE_KEY = 'spouse:0199a8f0-3333-7000-8000-000000000003';
+
+/** Ask Adili on the officer's assets: context as field paths and counts, passages from the law. */
+export const answerInput: AnswerInput = {
+  kind: 'answer-declarant-question',
+  mode: 'answer',
+  language: 'en',
+  question: 'Do I declare a matatu I co-own with my brother?',
+  context: {
+    declarationType: 'biennial',
+    statementDate: '2026-11-01',
+    householdCounts: { spouses: 1, children: 2 },
+    sectionKey: 'statement:officer',
+    residuals: [
+      { sectionKey: 'statement:officer', ruleId: 'required', fieldPath: '/assets/1/value' },
+    ],
+  },
+  passages: [
+    {
+      id: 'p-31',
+      citation: 'Act s.31',
+      text: 'Every public officer shall submit to their responsible Commission a declaration of his or her income, assets and liabilities.',
+    },
+    {
+      id: 'p-note-13',
+      citation: 'Act First Schedule, note 13',
+      text: 'Joint assets, properties, personal and business accounts within and outside Kenya should also be declared.',
+    },
+  ],
+  history: [],
+};
+
+/** Summary hints for three residuals, no question. */
+export const hintsInput: AnswerInput = {
+  ...answerInput,
+  mode: 'hints',
+  question: null,
+  context: {
+    ...answerInput.context,
+    sectionKey: null,
+    residuals: [
+      { sectionKey: 'household', ruleId: 'spouse-required', fieldPath: '/spouses' },
+      {
+        sectionKey: `statement:${SPOUSE_KEY}`,
+        ruleId: 'nil-or-items-required',
+        fieldPath: '/income',
+      },
+      { sectionKey: 'statement:officer', ruleId: 'required', fieldPath: '/assets/1/value' },
+    ],
+  },
 };

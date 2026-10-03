@@ -15,6 +15,7 @@ import {
   tenantGateSchema,
 } from './policy/gate-policies.js';
 import { providerClassSchema } from './providers/port.js';
+import { answerDeclarantQuestion } from './tasks/answer-declarant-question.js';
 import { changeInput, flagInput, registryStatusInput, sourceRef } from './tasks/common.js';
 import { draftClarification } from './tasks/draft-clarification.js';
 import { explainFlags } from './tasks/explain-flags.js';
@@ -49,6 +50,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DraftClarificationOutput: draftClarification.jobOutput,
   NarrateComplianceReportInput: narrateComplianceReport.input,
   NarrateComplianceReportOutput: narrateComplianceReport.jobOutput,
+  AnswerDeclarantQuestionInput: answerDeclarantQuestion.input,
+  AnswerDeclarantQuestionOutput: answerDeclarantQuestion.jobOutput,
   FeedbackInput: feedbackInputSchema,
   Feedback: feedbackViewSchema,
   TenantAiStatus: tenantAiStatusSchema,

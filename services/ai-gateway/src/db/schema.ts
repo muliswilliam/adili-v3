@@ -52,6 +52,19 @@ export const CACHE_KEY = [
 ] as const;
 
 /**
+ * Whether a job answers an equal request, in the cache lookups and the cache index alike: live or
+ * succeeded, its output not purged, and not a decline that replaced an output failing its checks
+ * (a streamed answer, ADR-019), since another call may well pass them.
+ */
+export function servesCache(table: {
+  status: AnyColumn;
+  outputPurgedAt: AnyColumn;
+  violations: AnyColumn;
+}): SQL {
+  return sql`${statusIn(table.status, CACHEABLE_STATUSES)} and ${table.outputPurgedAt} is null and ${table.violations} is null`;
+}
+
+/**
  * One row per task job (spec 07c). Holds hashes, counts and the validated output, never the
  * provider request: the input lives here only while the job runs and is cleared when it ends,
  * and the output is purged after the retention window, since the calling service stores what
@@ -113,13 +126,11 @@ export const jobs = pgTable(
       table.caller,
       table.idempotencyKey,
     ),
-    // The result cache: at most one live or succeeded job per key. Failed and blocked jobs drop
-    // out, so a repeat call tries again.
+    // The result cache: at most one live or succeeded job per key. Failed and blocked jobs, and
+    // declines recorded with violations, drop out, so a repeat call tries again.
     uniqueIndex('jobs_cache_idx')
       .on(table[CACHE_KEY[0]], ...CACHE_KEY.slice(1).map((column) => table[column]))
-      .where(
-        sql`${statusIn(table.status, CACHEABLE_STATUSES)} and ${table.outputPurgedAt} is null`,
-      ),
+      .where(servesCache(table)),
     // The janitor's scans: live jobs past the grace period, and outputs past retention.
     index('jobs_live_idx').on(table.id).where(statusIn(table.status, LIVE_STATUSES)),
     index('jobs_output_retention_idx')

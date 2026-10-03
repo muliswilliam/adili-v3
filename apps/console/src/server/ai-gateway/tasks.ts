@@ -6,6 +6,7 @@ export const TASK_NAMES = [
   'explain-flags',
   'draft-clarification',
   'narrate-compliance-report',
+  'answer-declarant-question',
 ] as const satisfies readonly TaskName[];
 
 /** Compile-time check that every contract task is listed above (the reverse of `satisfies`). */
@@ -29,4 +30,15 @@ export const COMMISSION_TASKS = TASK_NAMES.filter(
 /** Whether a Commission calls `task`, so it may have a route of its own for it. */
 export function isCommissionTask(task: TaskName): boolean {
   return !(EACC_TASKS as readonly TaskName[]).includes(task);
+}
+
+/**
+ * Tasks a declarant's own questions call (Ask Adili): they work whatever the Commission's AI
+ * policy, so its AI status leaves them out. Copies the gateway's `DECLARANT_TASKS`.
+ */
+export const DECLARANT_TASKS = ['answer-declarant-question'] as const satisfies readonly TaskName[];
+
+/** Whether `task` is one a Commission's officers call to review, which its AI status reads. */
+export function isReviewerTask(task: TaskName): boolean {
+  return isCommissionTask(task) && !(DECLARANT_TASKS as readonly TaskName[]).includes(task);
 }
