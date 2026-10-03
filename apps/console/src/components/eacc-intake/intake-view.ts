@@ -1,4 +1,4 @@
-import { addDays, daysBetween } from '@adili/ui';
+import { addDays, daysBetween, INTAKE_STATUSES } from '@adili/ui';
 
 import type { Intake, IntakeRow, IntakeStatus } from '../../server/reporting/types';
 import { nairobiDay } from '../access/request-view';
@@ -60,13 +60,13 @@ export type IntakeCounts = Record<'all' | IntakeStatus | 'outliers', number>;
 
 /** How many Commissions each filter chip stands for, over the whole year. */
 export function intakeCounts(rows: readonly IntakeRow[]): IntakeCounts {
-  const count = (keep: (row: IntakeRow) => boolean) => rows.filter(keep).length;
+  const byStatus = Object.fromEntries(
+    INTAKE_STATUSES.map((status) => [status, rows.filter((row) => row.status === status).length]),
+  ) as Record<IntakeStatus, number>;
   return {
     all: rows.length,
-    'submitted-on-time': count((row) => row.status === 'submitted-on-time'),
-    'submitted-late': count((row) => row.status === 'submitted-late'),
-    'not-reported': count((row) => row.status === 'not-reported'),
-    outliers: count((row) => row.outliers.length > 0),
+    ...byStatus,
+    outliers: rows.filter((row) => row.outliers.length > 0).length,
   };
 }
 

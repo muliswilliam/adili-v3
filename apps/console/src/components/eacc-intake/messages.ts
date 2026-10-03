@@ -92,7 +92,6 @@ export const en = {
   periodLine: (fy: string, due: string) => `${fy}, due ${due}`,
   compiledBy: 'Compiled by',
   confirmedBy: 'Confirmed by',
-  partII: 'Part II: Declaration of income, assets and liabilities',
   rates: 'Rates',
   rateOf: {
     initial: 'Initial declarations',

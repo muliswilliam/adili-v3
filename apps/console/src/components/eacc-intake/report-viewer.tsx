@@ -34,6 +34,7 @@ import {
   PartICard,
   PartIIICard,
 } from '../form-m/form-m-document';
+import { messages as formM } from '../form-m/messages';
 import { LoadError } from '../load-error';
 import { Page } from '../page';
 import { daysLate } from './intake-view';
@@ -102,7 +103,7 @@ function Report({
       <div className="mt-4 grid grid-cols-1 items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex min-w-0 flex-col gap-4">
           <PartICard partI={document.partI} />
-          <PartHeading>{m.partII}</PartHeading>
+          <PartHeading>{formM.partII}</PartHeading>
           <DeclarationSections partII={document.partII} />
           <ClarificationsSection clarifications={document.partII.clarifications} />
           <AccessSection

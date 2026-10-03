@@ -98,6 +98,22 @@ describe('the EACC intake (S9)', () => {
     });
   });
 
+  it("takes psc's counts and biennial cycle from its filed document, in any year", async () => {
+    resetReportingMock('2027-10-02');
+    submitMockReport(2026, '2027-07-20');
+    const line = row(await intake(analyst(), 2026), 'psc');
+    const result = await loadSubmittedReport(analyst(), line.reportId ?? '');
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    const { document, counts } = result.data.report;
+    expect(line.rates.biennial).toMatchObject({
+      expected: document.partII.biennial.expected,
+      declared: document.partII.biennial.declared,
+    });
+    expect(counts).toMatchObject({
+      biennial: { noCycleInPeriod: document.partII.biennial.noCycleInPeriod ?? false },
+    });
+  });
+
   it('validates the query before the caller, and takes any year from 2025', async () => {
     const reviewer = mockReportingClient([REVIEWER], { tenant: 'psc' });
     expect(await loadIntake(reviewer, 2024)).toMatchObject({
