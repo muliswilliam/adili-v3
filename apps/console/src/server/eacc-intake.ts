@@ -11,8 +11,9 @@ import {
   reportFileLink,
 } from './eacc-intake.server';
 import { defaultFinancialYear } from '../components/eacc-intake/intake-view';
-import { financialYear, today } from './form-m';
+import { financialYear } from './form-m';
 import { reportDocumentsClient } from './documents/report-client.server';
+import { reportingToday } from './reporting/today.server';
 import type { Intake } from './reporting/types';
 import type { ServiceResult } from './service-call';
 
@@ -35,7 +36,7 @@ export interface IntakePage {
 export const getEaccIntake = createServerFn({ method: 'GET' })
   .validator(z.object({ fy: financialYear.optional() }))
   .handler(async ({ data }): Promise<IntakePage> => {
-    const day = await today();
+    const day = await reportingToday();
     const fy = data.fy ?? defaultFinancialYear(day);
     return { today: day, fy, intake: await asReportingViewer((client) => loadIntake(client, fy)) };
   });
