@@ -768,19 +768,24 @@ paths:
           $ref: '#/components/responses/Forbidden'
     post:
       tags: [open-data]
-      operationId: buildOpenDataSnapshot
-      summary: Build a snapshot release for a financial year as a preview (EACC analyst or supervisor)
+      operationId: buildOpenDataRelease
+      summary: Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)
       description: >-
         eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables
-        from the year's national consolidated report (draft or approved) and the projection facts,
-        suppresses every figure over fewer than 10 officers (with complementary suppression), and
-        reconciles the national totals with the NCR's: a report submitted or changed since the
-        NCR was built fails with 409 `reconciliation-failed` (`mismatches` lists the totals that
-        differ) and builds nothing. The files (JSON and CSV per table, the release JSON) are
+        from the year's national consolidated report and the projection facts, suppresses every
+        figure over fewer than 10 officers (with complementary suppression), and reconciles the
+        national totals with the NCR's: a report submitted or changed since the NCR was built
+        fails with 409 `reconciliation-failed` (`mismatches` lists the totals that differ) and
+        builds nothing. `kind` `snapshot` (the default) builds a mid-year snapshot of the NCR,
+        draft or approved. `kind` `annual` builds a corrected annual release from the approved
+        NCR (409 `ncr-not-approved` before it is approved) while no annual release of the year
+        is published (409 `annual-release-published`: withdraw it first); unlike the one built on
+        approval it is not published by itself, but deliberately through
+        `publishOpenDataRelease`. The files (JSON and CSV per table, the release JSON) are
         written to object storage with their SHA-256, and the release is recorded as `preview`,
-        the next version of the year's snapshots. Emits `open-data.release.built.v1` (release
-        id, year, kind, version; no figures). A retry with the same Idempotency-Key replays the
-        build.
+        the next version of the year's releases of its kind. Emits `open-data.release.built.v1`
+        (release id, year, kind, version; no figures). A retry with the same Idempotency-Key
+        replays the build.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -796,6 +801,11 @@ paths:
                   type: integer
                   minimum: 2025
                   description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
+                kind:
+                  type: string
+                  enum: [annual, snapshot]
+                  default: snapshot
+                  description: A mid-year snapshot, or a corrected annual release once the published one is withdrawn
       responses:
         '202':
           description: Built as a preview
@@ -812,7 +822,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: 'The year has no national consolidated report (`ncr-not-built`), or the release does not reconcile with it (`reconciliation-failed`)'
+          description: 'The year has no national consolidated report (`ncr-not-built`); for an annual release, it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the release does not reconcile with the NCR (`reconciliation-failed`)'
           content:
             application/problem+json:
               schema:
@@ -838,7 +848,9 @@ paths:
         verifiable document (`open-data-manifest`), then marks the release `published` by the
         caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no
         figures). An annual release publishes itself the same way when its NCR is approved,
-        `publishedBy` the approver. The release was reconciled with the NCR when it was built.
+        `publishedBy` the approver. The release was reconciled with the NCR when it was built. A
+        year has one published annual release at a time: an annual preview is published only
+        once the year's published one is withdrawn (409 `annual-release-published`).
       responses:
         '200':
           description: Published
@@ -857,7 +869,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The release is published or withdrawn already (`release-not-preview`)
+          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`)
           content:
             application/problem+json:
               schema:
@@ -882,11 +894,13 @@ paths:
       operationId: withdrawOpenDataRelease
       summary: Withdraw a published release with a public reason (EACC supervisor)
       description: >-
-        eacc-supervisor (tenant `eacc`); anyone else 403. Marks a published release `withdrawn`
-        with the reason (trimmed), by the caller; it stays in the history and its files are still
-        served, with the reason. A corrected release is a new build, the next version of the
-        year's releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year,
-        kind, version; not the reason).
+        eacc-supervisor (tenant `eacc`); anyone else 403. Revokes the release's manifest through
+        documents (reason `withdrawn`), so its verify page shows it revoked, then marks the
+        release `withdrawn` with the reason (trimmed), by the caller; it stays in the history and
+        its files are still served, with the reason. A corrected release is a new build
+        (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's
+        releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind,
+        version; not the reason).
       requestBody:
         required: true
         content:
@@ -920,6 +934,18 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: The release is a preview or withdrawn already (`release-not-published`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused to revoke the manifest (`manifest-revocation-refused`); nothing is withdrawn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents could not be reached (`documents-unavailable`); nothing is withdrawn
           content:
             application/problem+json:
               schema:

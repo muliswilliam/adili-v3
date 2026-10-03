@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { EACC_TENANT } from '@adili/roles';
-import { and, count, eq, gte, inArray, isNotNull, lt, max, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, lt, max, ne, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
@@ -57,6 +57,18 @@ export class NcrNotApproved extends Error {
 }
 
 /**
+ * The year has a published annual release already: one is withdrawn before a corrected one is
+ * published, so the year never shows two.
+ */
+export class AnnualReleasePublished extends Error {
+  override readonly name = 'AnnualReleasePublished';
+
+  constructor(fy: number) {
+    super(`An annual open-data release of ${String(fy)} is published`);
+  }
+}
+
+/**
  * Reconciliation failed (spec 09b S9): the release's national totals differ from the NCR's at
  * these dot paths (`national.initial.declared`), so nothing was built.
  */
@@ -83,9 +95,12 @@ export class ReconciliationFailed extends Error {
  * lock on the year and kind, so a version is never taken twice; a failed build may leave files
  * under an id no release has, which nothing reads.
  *
- * Throws `NcrNotBuilt`, `NcrNotApproved` (annual), `ReconciliationFailed` and
- * `OpenDataStorageUnavailable`; the callers map them (HTTP problems, non-retryable activity
- * failures).
+ * An annual release is built from the approved NCR only, and only while no annual release of the
+ * year is published: a corrected one follows the withdrawal of the one published.
+ *
+ * Throws `NcrNotBuilt`, `NcrNotApproved` (annual), `AnnualReleasePublished` (annual),
+ * `ReconciliationFailed` and `OpenDataStorageUnavailable`; the callers map them (HTTP problems,
+ * non-retryable activity failures).
  */
 @Injectable()
 export class OpenDataReleaseBuilder {
@@ -123,6 +138,10 @@ export class OpenDataReleaseBuilder {
           `The national consolidated report for ${String(fy)} is not approved`,
         );
       }
+      // One build per year and kind at a time: the version is the next one.
+      await lockReleasesOf(tx, fy, kind);
+      // A corrected annual release is built once the published one is withdrawn.
+      await noPublishedAnnualBesides(tx, { id: releaseId, fy, kind });
 
       const receipts = await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy));
       const aggregates = buildAggregates({
@@ -141,10 +160,6 @@ export class OpenDataReleaseBuilder {
       const mismatches = reconcile(built.totals, ncr.aggregates);
       if (mismatches.length > 0) throw new ReconciliationFailed(mismatches);
 
-      // One build per year and kind at a time: the version is the next one.
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${`open-data-release:${String(fy)}:${kind}`}))`,
-      );
       const [latest] = await tx
         .select({ version: max(openDataReleases.version) })
         .from(openDataReleases)
@@ -206,6 +221,45 @@ export class OpenDataReleaseBuilder {
       return view;
     });
   }
+}
+
+/**
+ * Serialises the builds and annual publications of a year's releases of a kind (publishing an
+ * annual release takes the same lock), so a version is never taken twice and two annual releases of a
+ * year are never published.
+ */
+export async function lockReleasesOf(
+  tx: ReportingTransaction,
+  fy: number,
+  kind: ReleaseKind,
+): Promise<void> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`open-data-release:${String(fy)}:${kind}`}))`,
+  );
+}
+
+/**
+ * `AnnualReleasePublished` when the release is annual and another annual release of its year is
+ * published (none for a snapshot: a year's snapshots stand side by side).
+ */
+export async function noPublishedAnnualBesides(
+  tx: ReportingTransaction,
+  release: { id: string; fy: number; kind: ReleaseKind },
+): Promise<void> {
+  if (release.kind !== 'annual') return;
+  const [published] = await tx
+    .select({ id: openDataReleases.id })
+    .from(openDataReleases)
+    .where(
+      and(
+        eq(openDataReleases.fy, release.fy),
+        eq(openDataReleases.kind, 'annual'),
+        eq(openDataReleases.status, 'published'),
+        ne(openDataReleases.id, release.id),
+      ),
+    )
+    .limit(1);
+  if (published) throw new AnnualReleasePublished(release.fy);
 }
 
 /** A release with its files; undefined for none. */

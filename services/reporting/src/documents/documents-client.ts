@@ -47,6 +47,19 @@ export interface IssuedDocument {
   verificationId: string;
 }
 
+/** Why a document is revoked (documents.yaml `RevocationReason`), a category its verify page shows. */
+export type RevocationReason = Schemas['RevocationReason'];
+
+/** A request to revoke an issued document of the issuing tenant (documents.yaml `revokeDocument`). */
+export interface RevokeDocumentRequest {
+  documentId: string;
+  /** The tenant that issued it, sent as X-Acting-Tenant. */
+  issuerTenant: string;
+  reason: RevocationReason;
+  /** The same key for the same revocation, so a retried request revokes it once. */
+  idempotencyKey: string;
+}
+
 /** The documents service is unreachable or answered outside its contract; activities retry. */
 export class DocumentsUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -56,10 +69,17 @@ export class DocumentsUnavailable extends Error {
 }
 
 /**
- * The documents service's `issueDocument`, one synchronous hop per document (ADR-013). A Nest
- * token: the service uses `HttpDocumentsClient`, tests a fake.
+ * The documents service's `issueDocument` and `revokeDocument`, one synchronous hop per document
+ * (ADR-013). A Nest token: the service uses `HttpDocumentsClient`, tests a fake.
  */
 export abstract class DocumentsClient {
   /** Throws `InternalApiRejected` when documents refuses the request. */
   abstract issue(request: IssueDocumentRequest): Promise<IssuedDocument>;
+
+  /**
+   * Revokes the document: its verify page then shows it revoked, with the reason. A document no
+   * longer valid already (revoked) is left as it is. Throws `InternalApiRejected` when documents
+   * refuses the request (e.g. not the tenant's document).
+   */
+  abstract revoke(request: RevokeDocumentRequest): Promise<void>;
 }

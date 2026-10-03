@@ -32,8 +32,11 @@ import { givenReleaseYear } from './release-year.js';
  *   with `open-data.release.built.v1` and `published.v1` carrying ids only.
  * - S6: an analyst's snapshot preview is published by an EACC supervisor only: an analyst and a
  *   Commission get 403. A documents outage publishes nothing.
- * - S7: a supervisor withdraws a published release with a reason: status, who, when and the
- *   reason, `withdrawn.v1`, the files still there; the next build is version 2.
+ * - S7: a supervisor withdraws a published release with a reason: its manifest revoked through
+ *   documents first (a documents outage withdraws nothing), then status, who, when and the
+ *   reason, `withdrawn.v1`, the files still there; the next build is version 2. A withdrawn
+ *   annual release is corrected by an annual build (analyst or supervisor), version 2, a preview
+ *   published deliberately; never while an annual release of the year is published.
  */
 describe('Open-data release publication (S5, S6, S7)', () => {
   let api: ReportingApi;
@@ -130,6 +133,27 @@ describe('Open-data release publication (S5, S6, S7)', () => {
   }
 
   const manifests = () => api.documents.issued.filter((each) => each.type === 'open-data-manifest');
+
+  const build = (caller: Caller, body: unknown) =>
+    api.send('POST', RELEASES, caller, body, { 'idempotency-key': randomUUID() });
+
+  /** The year's NCR approved: its annual release built, certified and published by the workflow. */
+  async function annualPublished(): Promise<OpenDataReleaseView> {
+    const ncr = await ncrBuilt();
+    api.clock.set(PUBLISHED_AT);
+    const approved = await api.send('POST', `${NCR}/approve`, SUPERVISOR, undefined, {
+      'idempotency-key': randomUUID(),
+    });
+    expect(approved.statusCode, approved.body).toBe(200);
+    const releaseId = annualReleaseIdOf(ncr.id);
+    const workflowId = openDataReleaseWorkflowId({ releaseId, fy: RELEASE_FY, kind: 'annual' });
+    started.push(workflowId, nationalReportApprovalWorkflowId(ncr.id));
+    await api.temporal.workflow.getHandle(workflowId).result();
+    const release = (await releases()).find((each) => each.id === releaseId);
+    expect(release?.status).toBe('published');
+    if (!release) throw new Error('no annual release');
+    return release;
+  }
 
   it('S5: approving the NCR publishes the annual release: built and reconciled, manifest issued as Public, by the approver, events without figures', async () => {
     await givenReleaseYear(api);
@@ -341,6 +365,15 @@ describe('Open-data release publication (S5, S6, S7)', () => {
         ),
       ).toBe(table.sha256Json);
     }
+    // Its manifest revoked through documents: the verify page shows it revoked, withdrawn.
+    expect(api.documents.revoked).toEqual([
+      {
+        documentId: withdrawn.manifestDocumentId,
+        issuerTenant: 'eacc',
+        reason: 'withdrawn',
+        idempotencyKey: expect.any(String) as string,
+      },
+    ]);
     const [event] = await api.events(OPEN_DATA_RELEASE_WITHDRAWN);
     expect(event).toMatchObject({
       tenant: 'eacc',
@@ -353,6 +386,7 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     const again = await withdraw(SUPERVISOR, preview.id);
     expect(again.statusCode).toBe(409);
     expect(again.json()).toMatchObject({ code: 'release-not-published' });
+    expect(api.documents.revoked).toHaveLength(1);
     const corrected = await snapshotBuilt();
     expect(corrected).toMatchObject({ kind: 'snapshot', version: 2, status: 'preview' });
     expect((await releases()).map(({ version, status }) => ({ version, status }))).toEqual([
@@ -389,6 +423,173 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     }
     expect((await releases())[0]).toMatchObject({ status: 'published', withdrawnReason: null });
     expect(await api.events(OPEN_DATA_RELEASE_WITHDRAWN)).toEqual([]);
+    expect(api.documents.revoked).toEqual([]);
+  });
+
+  it('S7: 503 while documents is down withdraws nothing and leaves the manifest valid; withdrawing again revokes it once', async () => {
+    await givenReleaseYear(api);
+    await ncrBuilt();
+    const preview = await snapshotBuilt();
+    const release = await published(preview.id);
+
+    api.documents.failCalls(1);
+    const down = await withdraw(SUPERVISOR, release.id);
+    expect(down.statusCode, down.body).toBe(503);
+    expect(down.json()).toMatchObject({ type: 'documents-unavailable' });
+    expect((await releases())[0]).toMatchObject({ status: 'published', withdrawnReason: null });
+    expect(api.documents.revoked).toEqual([]);
+    expect(await api.events(OPEN_DATA_RELEASE_WITHDRAWN)).toEqual([]);
+
+    const response = await withdraw(SUPERVISOR, release.id);
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'withdrawn', withdrawnReason: REASON });
+    expect(api.documents.revocationOf(release.manifestDocumentId ?? '')).toMatchObject({
+      reason: 'withdrawn',
+    });
+    expect(api.documents.revoked).toHaveLength(1);
+    expect(await api.events(OPEN_DATA_RELEASE_WITHDRAWN)).toHaveLength(1);
+  });
+
+  it('S7: 502 when documents refuses to revoke the manifest; nothing is withdrawn', async () => {
+    await givenReleaseYear(api);
+    await ncrBuilt();
+    const preview = await snapshotBuilt();
+    await published(preview.id);
+    // A manifest documents does not know as EACC's: it refuses the revocation.
+    await api.asPlatform((tx) =>
+      tx
+        .update(openDataReleases)
+        .set({ manifestDocumentId: randomUUID() })
+        .where(eq(openDataReleases.id, preview.id)),
+    );
+
+    const response = await withdraw(SUPERVISOR, preview.id);
+    expect(response.statusCode, response.body).toBe(502);
+    expect(response.json()).toMatchObject({ code: 'manifest-revocation-refused' });
+    expect((await releases())[0]).toMatchObject({ status: 'published' });
+    expect(await api.events(OPEN_DATA_RELEASE_WITHDRAWN)).toEqual([]);
+  });
+
+  it('S7: a withdrawn annual release is corrected by an annual build, version 2, a preview published deliberately', async () => {
+    await givenReleaseYear(api);
+    const annual = await annualPublished();
+
+    // While the year's annual release is published, no corrected one is built.
+    for (const caller of [ANALYST, SUPERVISOR]) {
+      const refused = await build(caller, { fy: RELEASE_FY, kind: 'annual' });
+      expect(refused.statusCode, refused.body).toBe(409);
+      expect(refused.json()).toMatchObject({ code: 'annual-release-published' });
+    }
+
+    api.clock.set('2028-09-02T10:00:00.000Z');
+    const withdrawn = await withdraw(SUPERVISOR, annual.id);
+    expect(withdrawn.statusCode, withdrawn.body).toBe(200);
+    expect(api.documents.revocationOf(annual.manifestDocumentId ?? '')).toMatchObject({
+      reason: 'withdrawn',
+    });
+
+    // An analyst builds the corrected annual release: a preview, the next annual version.
+    api.clock.set('2028-09-03T09:00:00.000Z');
+    const response = await build(ANALYST, { fy: RELEASE_FY, kind: 'annual' });
+    expect(response.statusCode, response.body).toBe(202);
+    const corrected = response.json<OpenDataReleaseView>();
+    expect(contractErrors(okResponse(RELEASES, 'post', 202), corrected)).toEqual([]);
+    expect(corrected).toMatchObject({
+      fy: RELEASE_FY,
+      kind: 'annual',
+      version: 2,
+      status: 'preview',
+      builtAt: '2028-09-03T09:00:00.000Z',
+      publishedBy: null,
+      manifestDocumentId: null,
+    });
+    expect(corrected.id).not.toBe(annual.id);
+    const [row] = await api.asPlatform((tx) =>
+      tx.select().from(openDataReleases).where(eq(openDataReleases.id, corrected.id)),
+    );
+    expect(row?.builtBy).toBe(ANALYST.sub);
+    // Not published by itself.
+    expect(manifests()).toHaveLength(1);
+    expect(await api.events(OPEN_DATA_RELEASE_PUBLISHED)).toHaveLength(1);
+    expect(await api.events(OPEN_DATA_RELEASE_BUILT)).toEqual([
+      expect.objectContaining({ data: { ...idsOf(annual) } }),
+      expect.objectContaining({
+        data: { releaseId: corrected.id, fy: RELEASE_FY, kind: 'annual', version: 2 },
+      }),
+    ]);
+
+    // A supervisor publishes it: its own manifest, version 2, by them.
+    const release = await published(corrected.id);
+    expect(release).toMatchObject({
+      kind: 'annual',
+      version: 2,
+      status: 'published',
+      publishedBy: { subject: SUPERVISOR.sub, name: 'Joseph Mwangi' },
+    });
+    expect(release.manifestDocumentId).not.toBe(annual.manifestDocumentId);
+    expect(manifests()[1]).toMatchObject({
+      subjectRef: `open-data-release:${corrected.id}`,
+      payload: { kind: 'annual', version: 2, publishedBy: 'Joseph Mwangi' },
+    });
+    expect(
+      (await releases()).map(({ kind, version, status }) => ({ kind, version, status })),
+    ).toEqual([
+      { kind: 'annual', version: 2, status: 'published' },
+      { kind: 'annual', version: 1, status: 'withdrawn' },
+    ]);
+
+    // Published again: no further corrected build until it is withdrawn.
+    const again = await build(SUPERVISOR, { fy: RELEASE_FY, kind: 'annual' });
+    expect(again.statusCode).toBe(409);
+    expect(again.json()).toMatchObject({ code: 'annual-release-published' });
+  });
+
+  it('S7: an annual preview is not published while another annual release of the year is', async () => {
+    await givenReleaseYear(api);
+    const annual = await annualPublished();
+    expect((await withdraw(SUPERVISOR, annual.id)).statusCode).toBe(200);
+    const second = (
+      await build(ANALYST, { fy: RELEASE_FY, kind: 'annual' })
+    ).json<OpenDataReleaseView>();
+    const third = (
+      await build(ANALYST, { fy: RELEASE_FY, kind: 'annual' })
+    ).json<OpenDataReleaseView>();
+    expect([second.version, third.version]).toEqual([2, 3]);
+    await published(second.id);
+
+    const response = await publish(SUPERVISOR, third.id);
+    expect(response.statusCode, response.body).toBe(409);
+    expect(response.json()).toMatchObject({ code: 'annual-release-published' });
+    expect((await releases()).find((each) => each.id === third.id)).toMatchObject({
+      status: 'preview',
+      manifestDocumentId: null,
+    });
+    expect(manifests().map((each) => each.subjectRef)).toEqual([
+      `open-data-release:${annual.id}`,
+      `open-data-release:${second.id}`,
+    ]);
+  });
+
+  it('S7: an annual release is built from the approved NCR only; a snapshot stays the default', async () => {
+    await givenReleaseYear(api);
+
+    const notBuilt = await build(ANALYST, { fy: RELEASE_FY, kind: 'annual' });
+    expect(notBuilt.statusCode).toBe(409);
+    expect(notBuilt.json()).toMatchObject({ code: 'ncr-not-built' });
+
+    await ncrBuilt();
+    const draft = await build(SUPERVISOR, { fy: RELEASE_FY, kind: 'annual' });
+    expect(draft.statusCode).toBe(409);
+    expect(draft.json()).toMatchObject({ code: 'ncr-not-approved' });
+    expect(await releases()).toEqual([]);
+
+    const snapshot = await build(ANALYST, { fy: RELEASE_FY, kind: 'snapshot' });
+    expect(snapshot.statusCode).toBe(202);
+    expect(snapshot.json()).toMatchObject({ kind: 'snapshot', version: 1 });
+
+    for (const caller of [COMMISSION_ADMIN, SUPERVISOR_OF_PSC]) {
+      expect((await build(caller, { fy: RELEASE_FY, kind: 'annual' })).statusCode).toBe(403);
+    }
   });
 
   it('S5: a release that does not reconcile is not published; the approval stands', async () => {
@@ -433,3 +634,7 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     expect(await api.events(OPEN_DATA_RELEASE_PUBLISHED)).toEqual([]);
   });
 });
+
+function idsOf(release: OpenDataReleaseView) {
+  return { releaseId: release.id, fy: release.fy, kind: release.kind, version: release.version };
+}

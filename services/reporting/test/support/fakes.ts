@@ -26,6 +26,7 @@ import {
   DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type RevokeDocumentRequest,
 } from '../../src/documents/documents-client.js';
 import {
   NotificationsClient,
@@ -267,6 +268,8 @@ export class FakeNotifications extends NotificationsClient {
  */
 export class FakeDocuments extends DocumentsClient {
   readonly issued: IssueDocumentRequest[] = [];
+  /** Revocations that took effect, once per document. */
+  readonly revoked: RevokeDocumentRequest[] = [];
   private readonly byKey = new Map<string, IssuedDocument>();
   private failures = 0;
 
@@ -277,8 +280,14 @@ export class FakeDocuments extends DocumentsClient {
 
   reset(): void {
     this.issued.length = 0;
+    this.revoked.length = 0;
     this.byKey.clear();
     this.failures = 0;
+  }
+
+  /** The document's revocation, or undefined while it is valid. */
+  revocationOf(documentId: string): RevokeDocumentRequest | undefined {
+    return this.revoked.find((each) => each.documentId === documentId);
   }
 
   issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
@@ -292,6 +301,18 @@ export class FakeDocuments extends DocumentsClient {
     this.byKey.set(request.idempotencyKey, issued);
     this.issued.push(structuredClone(request));
     return Promise.resolve(issued);
+  }
+
+  /** Revokes a document this fake issued; one revoked already is left as it is. */
+  revoke(request: RevokeDocumentRequest): Promise<void> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    const known = [...this.byKey.values()].some((each) => each.id === request.documentId);
+    if (!known) return Promise.reject(new InternalApiRejected('documents', 404));
+    if (!this.revocationOf(request.documentId)) this.revoked.push(structuredClone(request));
+    return Promise.resolve();
   }
 }
 

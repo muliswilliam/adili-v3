@@ -12,10 +12,17 @@ import { z } from 'zod';
 import { FIRST_FINANCIAL_YEAR } from '../financial-year.js';
 import { OpenDataService } from './open-data.service.js';
 import type { OpenDataReleaseView } from './representation.js';
+import { RELEASE_KINDS } from './schema.js';
 
-/** reporting.yaml `buildOpenDataSnapshot` body: the financial year (start year). */
-const snapshotBody = z.strictObject({ fy: z.number().int().min(FIRST_FINANCIAL_YEAR) });
-type SnapshotBody = z.infer<typeof snapshotBody>;
+/**
+ * reporting.yaml `buildOpenDataRelease` body: the financial year (start year) and the kind, a
+ * snapshot unless said otherwise.
+ */
+const buildBody = z.strictObject({
+  fy: z.number().int().min(FIRST_FINANCIAL_YEAR),
+  kind: z.enum(RELEASE_KINDS).default('snapshot'),
+});
+type BuildBody = z.infer<typeof buildBody>;
 
 /** reporting.yaml `withdrawOpenDataRelease` body: the public reason. */
 const withdrawBody = z.strictObject({ reason: z.string().trim().min(1).max(1000) });
@@ -30,8 +37,9 @@ const EACC_ONLY = 'Only EACC analysts and supervisors';
 
 /**
  * EACC's open-data releases (spec 09b): the list, previews and withdrawn included, and building a
- * mid-year snapshot as a preview (EACC analysts and supervisors; everyone else 403); publishing a
- * preview and withdrawing a published release (an EACC supervisor; everyone else 403).
+ * mid-year snapshot or a corrected annual release as a preview (EACC analysts and supervisors;
+ * everyone else 403); publishing a preview and withdrawing a published release (an EACC
+ * supervisor; everyone else 403).
  */
 @ApiTags('open-data')
 @Controller('v1/eacc/open-data/releases')
@@ -53,20 +61,23 @@ export class OpenDataController {
   @HttpCode(HttpStatus.ACCEPTED)
   @RequireIdempotencyKey()
   @ApiOperation({
-    operationId: 'buildOpenDataSnapshot',
+    operationId: 'buildOpenDataRelease',
     summary:
-      'Build a snapshot release for a financial year as a preview (EACC analyst or supervisor)',
+      'Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)',
   })
   @ApiOkResponse({ description: 'Built as a preview' })
   @ApiProblemResponse(400, 'Body failed validation, or Idempotency-Key missing')
   @ApiProblemResponse(403, EACC_ONLY)
-  @ApiProblemResponse(409, 'Problem code `ncr-not-built` or `reconciliation-failed`')
+  @ApiProblemResponse(
+    409,
+    'Problem code `ncr-not-built`, `ncr-not-approved`, `annual-release-published` or `reconciliation-failed`',
+  )
   @ApiProblemResponse(503, 'Object storage could not be reached')
-  buildSnapshot(
+  build(
     @CurrentPrincipal() principal: Principal,
-    @Body(new ZodValidationPipe(snapshotBody)) body: SnapshotBody,
+    @Body(new ZodValidationPipe(buildBody)) body: BuildBody,
   ): Promise<OpenDataReleaseView> {
-    return this.openData.buildSnapshot(principal, body.fy);
+    return this.openData.build(principal, body.fy, body.kind);
   }
 
   @Post(':releaseId/publish')
@@ -79,7 +90,7 @@ export class OpenDataController {
   @ApiOkResponse({ description: 'Published' })
   @ApiProblemResponse(403, SUPERVISOR_ONLY)
   @ApiProblemResponse(404, 'No release has the id')
-  @ApiProblemResponse(409, 'Problem code `release-not-preview`')
+  @ApiProblemResponse(409, 'Problem code `release-not-preview` or `annual-release-published`')
   @ApiProblemResponse(502, 'Problem code `manifest-refused`')
   @ApiProblemResponse(503, 'Documents or object storage could not be reached')
   publish(
@@ -101,6 +112,8 @@ export class OpenDataController {
   @ApiProblemResponse(403, SUPERVISOR_ONLY)
   @ApiProblemResponse(404, 'No release has the id')
   @ApiProblemResponse(409, 'Problem code `release-not-published`')
+  @ApiProblemResponse(502, 'Problem code `manifest-revocation-refused`')
+  @ApiProblemResponse(503, 'Documents could not be reached')
   withdraw(
     @CurrentPrincipal() principal: Principal,
     @Param('releaseId', new ZodValidationPipe(z.uuid())) releaseId: string,

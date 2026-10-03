@@ -349,8 +349,15 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     expect(visible).toEqual([]);
   });
 
-  it('400 for a body that is not a financial year', async () => {
-    for (const body of [{}, { fy: 2024 }, { fy: '2027' }, { fy: 2027, kind: 'annual' }]) {
+  it('400 for a body that is not a financial year and a kind', async () => {
+    for (const body of [
+      {},
+      { fy: 2024 },
+      { fy: '2027' },
+      { fy: 2027, kind: 'interim' },
+      { fy: 2027, kind: null },
+      { fy: 2027, by: 'me' },
+    ]) {
       const response = await api.send('POST', RELEASES, ANALYST, body, {
         'idempotency-key': randomUUID(),
       });

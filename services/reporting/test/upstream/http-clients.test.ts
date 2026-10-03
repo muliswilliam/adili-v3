@@ -6,6 +6,7 @@ import { DeclarationsUnavailable } from '../../src/declarations/declarations-cli
 import { HttpDeclarationsClient } from '../../src/declarations/http-declarations-client.js';
 import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
 import { HttpDirectoryClient } from '../../src/directory/http-directory-client.js';
+import { DocumentsUnavailable } from '../../src/documents/documents-client.js';
 import { HttpDocumentsClient } from '../../src/documents/http-documents-client.js';
 import {
   HttpIntegrationGatewayClient,
@@ -500,5 +501,57 @@ describe('HttpDocumentsClient', () => {
     });
 
     await expect(client.issue(request0)).rejects.toBeInstanceOf(InternalApiRejected);
+  });
+
+  const revocation = {
+    documentId: '0199b000-0000-7000-8000-00000000d001',
+    issuerTenant: 'eacc',
+    reason: 'withdrawn',
+    idempotencyKey: '7c1e4b52-0d3a-4f86-9b27-3e5a8d1c6f40',
+  } as const;
+
+  const clientAnswering = (response: () => Response) => {
+    const fetch = vi.fn<Fetch>(() => Promise.resolve(response()));
+    return {
+      fetch,
+      client: new HttpDocumentsClient({ documentsUrl: 'http://documents.test', tokens, fetch }),
+    };
+  };
+
+  it('revokes a document of the tenant with the reason and the idempotency key', async () => {
+    const { fetch, client } = clientAnswering(() =>
+      Response.json({ id: revocation.documentId, verificationId: 'ADL-7Q4K' }),
+    );
+
+    await client.revoke(revocation);
+
+    expect(await request(fetch)).toEqual({
+      url: `http://documents.test/internal/v1/documents/${revocation.documentId}/revoke`,
+      method: 'POST',
+      headers: expect.objectContaining({
+        'x-acting-tenant': 'eacc',
+        'idempotency-key': revocation.idempotencyKey,
+      }) as Record<string, string>,
+      body: { reason: 'withdrawn' },
+    });
+  });
+
+  it('takes a document revoked already as done', async () => {
+    const { client } = clientAnswering(() =>
+      Response.json({ type: 'document-revoked', status: 409 }, { status: 409 }),
+    );
+
+    await expect(client.revoke(revocation)).resolves.toBeUndefined();
+  });
+
+  it('is rejected when documents refuses the revocation, unavailable when it fails', async () => {
+    for (const status of [400, 403, 404, 422]) {
+      const { client } = clientAnswering(() => new Response(null, { status }));
+      await expect(client.revoke(revocation), String(status)).rejects.toBeInstanceOf(
+        InternalApiRejected,
+      );
+    }
+    const { client } = clientAnswering(() => new Response(null, { status: 502 }));
+    await expect(client.revoke(revocation)).rejects.toBeInstanceOf(DocumentsUnavailable);
   });
 });

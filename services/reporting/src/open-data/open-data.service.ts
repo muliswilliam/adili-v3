@@ -11,7 +11,13 @@ import { officerOf } from '../officer.js';
 import { badGateway, conflict, notFound } from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { OpenDataStorageUnavailable } from './open-data-files.js';
-import { NcrNotBuilt, OpenDataReleaseBuilder, ReconciliationFailed } from './release-builder.js';
+import {
+  AnnualReleasePublished,
+  NcrNotApproved,
+  NcrNotBuilt,
+  OpenDataReleaseBuilder,
+  ReconciliationFailed,
+} from './release-builder.js';
 import {
   OpenDataReleasePublisher,
   ReleaseNotFound,
@@ -19,7 +25,7 @@ import {
   ReleaseNotPublished,
 } from './release-publisher.js';
 import { type OpenDataReleaseView, openDataReleaseView } from './representation.js';
-import { openDataFiles, openDataReleases } from './schema.js';
+import { openDataFiles, openDataReleases, type ReleaseKind } from './schema.js';
 
 const EACC_ONLY = 'Only EACC analysts and supervisors work on open-data releases.';
 
@@ -27,9 +33,10 @@ const NOT_FOUND = 'No open-data release has this id.';
 
 /**
  * EACC's open-data releases (spec 09b): every release, previews and withdrawn ones included, and
- * a mid-year snapshot built on demand as a preview (EACC analysts and supervisors; anyone else
- * 403); an EACC supervisor publishes a preview (its manifest issued as a Public verifiable
- * document) and withdraws a published release with a reason (anyone else 403).
+ * a release built on demand as a preview, a mid-year snapshot or a corrected annual release
+ * (EACC analysts and supervisors; anyone else 403); an EACC supervisor publishes a preview (its
+ * manifest issued as a Public verifiable document) and withdraws a published release with a
+ * reason, its manifest revoked (anyone else 403).
  */
 @Injectable()
 export class OpenDataService {
@@ -62,14 +69,18 @@ export class OpenDataService {
   }
 
   /**
-   * Builds a snapshot of the year as a preview. 409 `ncr-not-built` before the year's NCR is
-   * built, `reconciliation-failed` when the reports have changed since it was; 503
+   * Builds a release of the year as a preview: a snapshot of the NCR as it is, or an annual
+   * release of the approved NCR (a corrected one, the next annual version, after the published
+   * one is withdrawn; it is published deliberately). 409 `ncr-not-built` before the year's NCR is
+   * built, `ncr-not-approved` for an annual release before it is approved,
+   * `annual-release-published` for an annual release while one of the year is published,
+   * `reconciliation-failed` when the reports have changed since the NCR was built; 503
    * `storage-unavailable` while object storage cannot be reached.
    */
-  async buildSnapshot(principal: Principal, fy: number): Promise<OpenDataReleaseView> {
+  async build(principal: Principal, fy: number, kind: ReleaseKind): Promise<OpenDataReleaseView> {
     requireEacc(principal, EACC_ONLY);
     try {
-      return await this.builder.build({ fy, kind: 'snapshot', builtBy: principal.subject });
+      return await this.builder.build({ fy, kind, builtBy: principal.subject });
     } catch (error) {
       if (error instanceof NcrNotBuilt) {
         throw conflict(
@@ -77,6 +88,13 @@ export class OpenDataService {
           'Build the national consolidated report for the year before a release of it.',
         );
       }
+      if (error instanceof NcrNotApproved) {
+        throw conflict(
+          'ncr-not-approved',
+          'An annual release is built from the approved national consolidated report: approve it first.',
+        );
+      }
+      if (error instanceof AnnualReleasePublished) throw annualReleasePublished();
       if (error instanceof ReconciliationFailed) {
         throw new ProblemException(
           {
@@ -97,7 +115,9 @@ export class OpenDataService {
   /**
    * An EACC supervisor publishes a preview: its manifest is issued through documents as a Public
    * verifiable document, then it is `published` with `open-data.release.published.v1`. 404 for no
-   * release; 409 `release-not-preview` once published or withdrawn; 503 `documents-unavailable`
+   * release; 409 `release-not-preview` once published or withdrawn, `annual-release-published`
+   * for an annual preview while another annual release of the year is published; 503
+   * `documents-unavailable`
    * while documents cannot be reached and 502 `manifest-refused` when it refuses the manifest
    * (nothing is published either way).
    */
@@ -115,13 +135,9 @@ export class OpenDataService {
           `The release is ${error.status}: only a preview is published.`,
         );
       }
+      if (error instanceof AnnualReleasePublished) throw annualReleasePublished();
       if (error instanceof DocumentsUnavailable) {
-        throw new ProblemException({
-          type: 'documents-unavailable',
-          title: 'Upstream service unavailable',
-          status: HttpStatus.SERVICE_UNAVAILABLE,
-          detail: 'The release manifest could not be issued just now. Try again shortly.',
-        });
+        throw documentsUnavailable('The release manifest could not be issued just now.');
       }
       if (error instanceof InternalApiRejected) {
         throw badGateway('manifest-refused', 'The documents service refused the release manifest.');
@@ -132,9 +148,13 @@ export class OpenDataService {
   }
 
   /**
-   * An EACC supervisor withdraws a published release with a public reason: `withdrawn` with
-   * `open-data.release.withdrawn.v1`; its files are still served. 404 for no release; 409
-   * `release-not-published` for a preview or a release withdrawn already.
+   * An EACC supervisor withdraws a published release with a public reason: its manifest is
+   * revoked through documents (the verify page shows it revoked, reason `withdrawn`), then it is
+   * `withdrawn` with `open-data.release.withdrawn.v1`; its files are still served. 404 for no
+   * release; 409 `release-not-published` for a preview or a release withdrawn already; 503
+   * `documents-unavailable` while documents cannot be reached and 502
+   * `manifest-revocation-refused` when it refuses the revocation (nothing is withdrawn either
+   * way).
    */
   async withdraw(
     principal: Principal,
@@ -152,9 +172,34 @@ export class OpenDataService {
           `The release is ${error.status}: only a published release is withdrawn.`,
         );
       }
+      if (error instanceof DocumentsUnavailable) {
+        throw documentsUnavailable('The release manifest could not be revoked just now.');
+      }
+      if (error instanceof InternalApiRejected) {
+        throw badGateway(
+          'manifest-revocation-refused',
+          'The documents service refused to revoke the release manifest.',
+        );
+      }
       throw error;
     }
   }
+}
+
+function annualReleasePublished(): ProblemException {
+  return conflict(
+    'annual-release-published',
+    'The year has a published annual release: withdraw it before a corrected one.',
+  );
+}
+
+function documentsUnavailable(what: string): ProblemException {
+  return new ProblemException({
+    type: 'documents-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: `${what} Try again shortly.`,
+  });
 }
 
 function storageUnavailable(): ProblemException {

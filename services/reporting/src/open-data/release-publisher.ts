@@ -22,12 +22,12 @@ import {
 } from './events.js';
 import { objectKeyOf, RELEASE_FILE, type ReleaseDocument } from './files.js';
 import { OpenDataFiles } from './open-data-files.js';
-import { releaseView } from './release-builder.js';
+import { lockReleasesOf, noPublishedAnnualBesides, releaseView } from './release-builder.js';
 import type { OpenDataReleaseRow, OpenDataReleaseView } from './representation.js';
 import { openDataFiles, openDataReleases, type ReleaseStatus } from './schema.js';
 import { OPEN_DATA_TABLES, type OpenDataTable } from './tables.js';
 
-/** Namespace of the manifest's idempotency key: one manifest per release. */
+/** Namespace of the manifest's idempotency keys: one manifest per release, revoked once. */
 const MANIFEST_KEY_NAMESPACE = '5e0b8c3a-91d4-4f7e-a2c6-0d8f3b17e4a9';
 
 /** Version of the documents service's `open-data-manifest` template the payload fits. */
@@ -76,9 +76,11 @@ export class ReleaseNcrNotApproved extends Error {
  *   issued once through documents as a Public verifiable document, read back from the files as
  *   written, and kept on the release;
  * - `publish`: a preview with its manifest becomes `published`, by whom and when, with
- *   `open-data.release.published.v1`;
- * - `withdraw`: a published release becomes `withdrawn` with the reason, by whom and when, with
- *   `open-data.release.withdrawn.v1`. Its files stay.
+ *   `open-data.release.published.v1`; an annual one only while no other annual release of the
+ *   year is published;
+ * - `withdraw`: a published release's manifest is revoked through documents (its verify page
+ *   then shows it revoked), then the release becomes `withdrawn` with the reason, by whom and
+ *   when, with `open-data.release.withdrawn.v1`. Its files stay.
  *
  * Events carry the release's id, year, kind and version only.
  */
@@ -95,7 +97,8 @@ export class OpenDataReleasePublisher {
   /**
    * The release's manifest, issued once (a retry, or a second publisher, gets the same document).
    * `publishedBy` is the EACC supervisor publishing it, null when it publishes on its NCR's
-   * approval. `ReleaseNotFound`, `ReleaseNotInPreview`; documents' `DocumentsUnavailable` and
+   * approval. `ReleaseNotFound`, `ReleaseNotInPreview`, `AnnualReleasePublished` (an annual
+   * preview while another annual release of the year is published); documents' `DocumentsUnavailable` and
    * `InternalApiRejected` and storage's errors propagate.
    */
   async issueManifest(releaseId: string, publishedBy: string | null): Promise<ReleaseManifest> {
@@ -111,6 +114,7 @@ export class OpenDataReleasePublisher {
       return { documentId: release.manifestDocumentId, verificationId: release.verificationId };
     }
     if (release.status !== 'preview') throw new ReleaseNotInPreview(releaseId, release.status);
+    await this.asPlatform((tx) => noPublishedAnnualBesides(tx, release));
     if (!releaseSha256) throw new Error(`Open-data release ${releaseId} has no release JSON`);
 
     const document = await this.json<ReleaseDocument>(objectKeyOf(releaseId, RELEASE_FILE, 'json'));
@@ -159,7 +163,7 @@ export class OpenDataReleasePublisher {
   /**
    * Publishes a preview whose manifest is issued, by `by`: the EACC supervisor publishing it, or
    * for none, who approved its NCR (`ReleaseNcrNotApproved` until that approval is committed).
-   * `ReleaseNotFound`, `ReleaseNotInPreview`.
+   * `ReleaseNotFound`, `ReleaseNotInPreview`, `AnnualReleasePublished`.
    */
   async publish(releaseId: string, by?: Officer): Promise<OpenDataReleaseView> {
     return this.asPlatform(async (tx) => {
@@ -167,6 +171,10 @@ export class OpenDataReleasePublisher {
       if (release.status !== 'preview') throw new ReleaseNotInPreview(releaseId, release.status);
       if (!release.manifestDocumentId) {
         throw new Error(`Open-data release ${releaseId} has no manifest to publish with`);
+      }
+      if (release.kind === 'annual') {
+        await lockReleasesOf(tx, release.fy, 'annual');
+        await noPublishedAnnualBesides(tx, release);
       }
       const publisher = by ?? (await approverOf(tx, release));
       await tx
@@ -188,11 +196,27 @@ export class OpenDataReleasePublisher {
     });
   }
 
-  /** Withdraws a published release with `reason`. `ReleaseNotFound`, `ReleaseNotPublished`. */
+  /**
+   * Withdraws a published release with `reason`: revokes its manifest through documents first
+   * (once; a retry finds it revoked), then marks it withdrawn, so a release is never withdrawn
+   * while its manifest still verifies as valid. `ReleaseNotFound`, `ReleaseNotPublished`;
+   * documents' `DocumentsUnavailable` and `InternalApiRejected` propagate, nothing withdrawn.
+   */
   async withdraw(releaseId: string, by: Officer, reason: string): Promise<OpenDataReleaseView> {
+    const release = await this.asPlatform((tx) => found(tx, releaseId));
+    if (release.status !== 'published') throw new ReleaseNotPublished(releaseId, release.status);
+    if (!release.manifestDocumentId) {
+      throw new Error(`Open-data release ${releaseId} is published without a manifest`);
+    }
+    await this.documents.revoke({
+      documentId: release.manifestDocumentId,
+      issuerTenant: EACC_TENANT,
+      reason: 'withdrawn',
+      idempotencyKey: uuidv5(`${releaseId}:open-data-manifest:revoke`, MANIFEST_KEY_NAMESPACE),
+    });
     return this.asPlatform(async (tx) => {
-      const release = await found(tx, releaseId, { lock: true });
-      if (release.status !== 'published') throw new ReleaseNotPublished(releaseId, release.status);
+      const current = await found(tx, releaseId, { lock: true });
+      if (current.status !== 'published') throw new ReleaseNotPublished(releaseId, current.status);
       await tx
         .update(openDataReleases)
         .set({
@@ -207,7 +231,7 @@ export class OpenDataReleasePublisher {
         type: OPEN_DATA_RELEASE_WITHDRAWN,
         subject: releaseId,
         tenant: EACC_TENANT,
-        data: idsOf(release),
+        data: idsOf(current),
       });
       return viewOf(tx, releaseId);
     });

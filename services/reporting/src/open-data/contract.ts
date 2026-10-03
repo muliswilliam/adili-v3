@@ -44,10 +44,12 @@ export interface OpenDataReleaseResult extends ReleaseManifest {
 /**
  * Activity failures that are not retried (their error names, which Temporal takes as the failure
  * type): the NCR is not built, the release does not reconcile with it, the release is gone or no
- * longer a preview (withdrawn), documents refused the manifest.
+ * longer a preview (withdrawn), another annual release of the year is published, documents
+ * refused the manifest.
  */
 export const NON_RETRYABLE_RELEASE_FAILURES = [
   'NcrNotBuilt',
+  'AnnualReleasePublished',
   'ReconciliationFailed',
   'ReleaseNotFound',
   'ReleaseNotInPreview',
