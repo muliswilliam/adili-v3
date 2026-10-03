@@ -16,7 +16,11 @@ async function kraSets(declarationId: string) {
 }
 
 export const Route = createFileRoute('/declarations/$id/bio')({
-  validateSearch: z.object({ errors: z.boolean().optional() }),
+  validateSearch: z.object({
+    errors: z.boolean().optional(),
+    // A field to focus, linked from an Ask Adili answer (a JSON pointer in the section).
+    field: z.string().startsWith('/').max(200).optional(),
+  }),
   loader: async ({ params, location }) => {
     const load = await loadSectionFor(params.id, 'bio', location.href);
     return { load, kra: load.status === 'ok' ? await kraSets(params.id) : [] };
@@ -27,11 +31,16 @@ export const Route = createFileRoute('/declarations/$id/bio')({
 
 function BioRoute() {
   const { load, kra } = Route.useLoaderData();
-  const { errors } = Route.useSearch();
+  const { errors, field } = Route.useSearch();
   if (load.status === 'unavailable') return <SectionUnavailable />;
   return (
     <div className="grid gap-5">
-      <BioSection section={load.section} etag={load.etag} showErrors={errors === true} />
+      <BioSection
+        section={load.section}
+        etag={load.etag}
+        showErrors={errors === true}
+        {...(field ? { focusField: field } : {})}
+      />
       <KraLine sets={kra} />
     </div>
   );

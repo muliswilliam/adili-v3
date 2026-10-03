@@ -21,15 +21,11 @@ import {
   ArrowRight02Icon,
   File01Icon,
   InformationCircleIcon,
-  SparklesIcon,
 } from '@hugeicons/core-free-icons';
 import { useNavigate } from '@tanstack/react-router';
 import {
-  createContext,
   type ReactNode,
-  type RefObject,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -48,6 +44,9 @@ import type {
   DeclarationSection,
 } from '../../server/declarations/types';
 import { stepLink } from '../declaration/steps';
+
+export { AskAdiliBarButton, AskAdiliLauncher, useAskAdiliTab } from './context';
+import { AskAdiliContext } from './context';
 import { HelpSearch } from './help-search';
 import { useConversation } from './use-conversation';
 
@@ -62,38 +61,6 @@ import { useConversation } from './use-conversation';
  * 700px it lies over the page's right edge; on phones it rises as a sheet over a scrim. Esc and
  * the close button close it, and focus goes back to what opened it.
  */
-
-interface AskAdili {
-  isOpen: boolean;
-  open: () => void;
-  close: () => void;
-  copy: AskCopy;
-  /** A statement screen's tab, so "On:" and the suggestions follow it. */
-  setTab: (tab: Category | null) => void;
-  /** The launcher, where focus goes back when what opened the panel is gone. */
-  launcherRef: RefObject<HTMLButtonElement | null>;
-}
-
-const AskAdiliContext = createContext<AskAdili | null>(null);
-
-function useAskAdili(): AskAdili {
-  const context = useContext(AskAdiliContext);
-  if (!context) throw new Error('Ask Adili needs an AskAdiliProvider');
-  return context;
-}
-
-/** Tells Ask Adili which tab of a financial statement is showing. No-op without the panel. */
-export function useAskAdiliTab(tab: Category) {
-  const context = useContext(AskAdiliContext);
-  const setTab = context?.setTab;
-  useEffect(() => {
-    if (!setTab) return;
-    setTab(tab);
-    return () => {
-      setTab(null);
-    };
-  }, [setTab, tab]);
-}
 
 const DOCKED = '(min-width: 1200px)';
 const SIDE = '(min-width: 700px)';
@@ -185,47 +152,6 @@ export function AskAdiliProvider({
         />
       ) : null}
     </AskAdiliContext.Provider>
-  );
-}
-
-/** The round "Ask Adili" button fixed at the bottom right of the page. */
-export function AskAdiliLauncher({ className }: { className?: string }) {
-  const { isOpen, open, copy, launcherRef } = useAskAdili();
-  // Hidden rather than removed while the panel is open, so focus can come back to it.
-  return (
-    <button
-      ref={launcherRef}
-      type="button"
-      onClick={open}
-      hidden={isOpen}
-      aria-expanded={isOpen}
-      className={cn(
-        'fixed right-4 bottom-5 z-30 inline-flex hidden:hidden size-[50px] cursor-pointer items-center justify-center gap-2 rounded-full bg-primary text-[14.5px] font-semibold text-primary-foreground shadow-[0_10px_28px_-8px_rgba(20,20,20,0.45)] outline-offset-2 hover:bg-black focus-visible:outline-2 focus-visible:outline-ring sm:right-7 sm:bottom-7 sm:h-[46px] sm:w-auto sm:pr-[18px] sm:pl-[15px] [&_svg]:size-[17px] [&_svg]:text-ai-subtle',
-        className,
-      )}
-    >
-      <Icon icon={SparklesIcon} />
-      <span className="sr-only sm:not-sr-only">{copy.open}</span>
-    </button>
-  );
-}
-
-/** The workspace phone bar's icon button that opens the panel. */
-export function AskAdiliBarButton({ className }: { className?: string }) {
-  const { open, copy } = useAskAdili();
-  return (
-    <Tooltip content={copy.open}>
-      <Button
-        type="button"
-        variant="secondary"
-        size="icon"
-        onClick={open}
-        className={cn('text-ai', className)}
-      >
-        <Icon icon={SparklesIcon} />
-        <span className="sr-only">{copy.open}</span>
-      </Button>
-    </Tooltip>
   );
 }
 

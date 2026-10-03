@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useEffect, useState } from 'react';
 
 /**
@@ -45,6 +46,34 @@ export function useFocusFirstError(showErrors: boolean, firstId: () => string | 
     // Only when arriving with errors shown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showErrors]);
+}
+
+/**
+ * Arriving with `?field=` (an Ask Adili answer's link, spec 11), focuses the element `find`
+ * returns once the screen has rendered it, in the middle of the screen, then takes the field out
+ * of the address so the same link works again. `find` runs after the render; without an element
+ * the screen's heading is focused, so the declarant still lands on the section.
+ */
+export function useFocusLinkedField(field: string | undefined, find: () => HTMLElement | null) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!field) return;
+    const target = find() ?? document.querySelector<HTMLElement>('main h1');
+    if (target) {
+      if (target.matches('h1')) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      // jsdom has no scrollIntoView.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see above
+      target.scrollIntoView?.({ block: 'center' });
+    }
+    void navigate({
+      to: '.',
+      search: (previous: Record<string, unknown>) => ({ ...previous, field: undefined }),
+      replace: true,
+    } as never);
+    // Only when a link arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [field]);
 }
 
 /** Reads a JSON pointer (`/registrableInterests/dualCitizenship/holds`) in `value`. */
