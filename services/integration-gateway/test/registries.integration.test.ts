@@ -2,7 +2,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox, verificationResults } from '../src/db/schema.js';
-import { SYSTEM_POLICY_CONFIG } from '../src/adapter-kit/adapter-kit.module.js';
+import { SYSTEM_POLICY_CONFIG } from '../src/system-policy-config.js';
 import { config } from '../src/config.js';
 import { KraAdapter } from '../src/registries/kra-adapter.js';
 import { REGISTRY_LOOKUP_PERFORMED } from '../src/verification/lookup-events.js';
@@ -316,10 +316,12 @@ describe('registry lookups', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual(
-        ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'hr-suppliers'].map((system) => ({
-          system,
-          ratePerMinute: system === 'iprs' ? 1_200 : 60_000,
-        })),
+        ['iprs', 'kra', 'ntsa', 'brs', 'ardhisasa', 'hr-suppliers', 'payroll', 'icms'].map(
+          (system) => ({
+            system,
+            ratePerMinute: system === 'iprs' ? 1_200 : 60_000,
+          }),
+        ),
       );
       const other = await t.token({ clientId: 'directory', scope: 'iprs' });
       expect((await read({ authorization: `Bearer ${other}` })).statusCode).toBe(403);

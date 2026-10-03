@@ -1,5 +1,6 @@
 import type { IntegrationSystem, SystemCoverage } from '../../server/integration-gateway/client';
 import { formatRelativeTime } from '../format';
+import { type Instructed, type InstructedSystem, messages as m } from './messages';
 
 /** Who runs a system and what Adili asks it, as the Integrations page describes it. */
 export interface SystemInfo {
@@ -9,13 +10,16 @@ export interface SystemInfo {
   /** Null for a system the page has no description of. */
   owner: string | null;
   use: string | null;
+  /**
+   * Set for a system Adili instructs rather than looks up (payroll, ICMS). Instructions are acts:
+   * never cached, and while the system is paused the gateway answers them "unavailable" (nothing
+   * is queued) instead of marking lookups unavailable.
+   */
+  instructed?: Instructed;
 }
 
-/**
- * The systems the coverage response lists today, as the prototype words them. The page shows
- * whatever coverage returns; a system it does not know here shows its id.
- */
-const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
+/** The systems the coverage response lists today, as the prototype words them. */
+const SYSTEM_INFO: Record<IntegrationSystem, SystemInfo> = {
   iprs: {
     name: 'IPRS',
     owner: 'National Registration Bureau',
@@ -47,16 +51,46 @@ const SYSTEM_INFO: Partial<Record<IntegrationSystem, SystemInfo>> = {
     owner: 'Employers (HR systems)',
     use: "Whether a declarant's company supplies their employer",
   },
+  payroll: {
+    name: 'Payroll (IPPD)',
+    owner: 'State Department for Public Service',
+    use: 'Salary stoppages and reinstatements of officers',
+    instructed: {
+      instructions: m.payrollInstructions,
+      retries: m.payrollRetries,
+      resumed: m.payrollResumed,
+    },
+  },
+  icms: {
+    name: 'EACC ICMS',
+    owner: 'Ethics and Anti-Corruption Commission',
+    use: "Commissions' referrals, registered as EACC cases",
+    instructed: {
+      instructions: m.icmsInstructions,
+      retries: m.icmsRetries,
+      resumed: m.icmsResumed,
+    },
+  },
 };
 
-/** How the page names and describes a system of the coverage response. */
+/**
+ * How the page names and describes a system of the coverage response. The response is not
+ * validated at runtime, so a system this build does not know (a newer gateway) shows its id.
+ */
 export function systemInfo(system: IntegrationSystem): SystemInfo {
-  return SYSTEM_INFO[system] ?? { name: system.toUpperCase(), owner: null, use: null };
+  const known = (SYSTEM_INFO as Partial<Record<string, SystemInfo>>)[system];
+  return known ?? { name: system.toUpperCase(), owner: null, use: null };
 }
+
+/** Whether Adili instructs the system (payroll, ICMS) rather than looks it up. */
+export const isInstructed = (system: SystemInfo): system is SystemInfo & InstructedSystem =>
+  system.instructed !== undefined;
 
 export interface CoverageSummary {
   calls24h: number;
-  /** Across systems, weighted by their calls; 0 without calls. */
+  /** Calls to the systems that cache their answers (instructions never are). */
+  cachedCalls24h: number;
+  /** Across the systems that cache, weighted by their calls; 0 without calls. */
   cacheHitRate: number;
   /** Open breakers of systems that are not paused (a paused system is expected to be quiet). */
   open: SystemCoverage[];
@@ -67,10 +101,13 @@ export interface CoverageSummary {
 /** The tiles and alerts above the coverage list. */
 export function summarise(rows: readonly SystemCoverage[]): CoverageSummary {
   const calls24h = rows.reduce((sum, row) => sum + row.calls24h, 0);
-  const hits = rows.reduce((sum, row) => sum + row.calls24h * row.cacheHitRate, 0);
+  const cached = rows.filter((row) => row.cacheTtlSeconds !== null);
+  const cachedCalls24h = cached.reduce((sum, row) => sum + row.calls24h, 0);
+  const hits = cached.reduce((sum, row) => sum + row.calls24h * row.cacheHitRate, 0);
   return {
     calls24h,
-    cacheHitRate: calls24h > 0 ? hits / calls24h : 0,
+    cachedCalls24h,
+    cacheHitRate: cachedCalls24h > 0 ? hits / cachedCalls24h : 0,
     open: rows.filter((row) => row.breaker === 'open' && !row.paused),
     halfOpen: rows.filter((row) => row.breaker === 'half-open' && !row.paused),
     paused: rows.filter((row) => row.paused),

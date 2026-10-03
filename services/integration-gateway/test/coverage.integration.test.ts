@@ -58,7 +58,7 @@ describe('GET /v1/integrations/coverage', () => {
   type Row = { system: string } & Record<string, unknown>;
   const of = (rows: Row[], system: string) => rows.find((row) => row.system === system);
 
-  it('lists the six systems with counts, hit rate, breaker, last success and config', async () => {
+  it('lists the eight systems with counts, hit rate, breaker, last success and config', async () => {
     const response = await coverage();
 
     expect(response.statusCode).toBe(200);
@@ -70,6 +70,8 @@ describe('GET /v1/integrations/coverage', () => {
       'brs',
       'ardhisasa',
       'hr-suppliers',
+      'payroll',
+      'icms',
     ]);
     expect(of(rows, 'kra')).toEqual({
       system: 'kra',

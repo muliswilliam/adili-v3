@@ -6,9 +6,31 @@ export interface SystemName {
   plural?: boolean;
 }
 
+/**
+ * The copy of a system Adili instructs (payroll, ICMS) rather than looks up: what it sends it, and
+ * who sends again what a pause refused (the gateway queues nothing).
+ */
+export interface Instructed {
+  /** As a sentence starts: "Referrals get...". */
+  instructions: string;
+  /** Who sends again what a pause refuses (pause dialog, paused alert). */
+  retries: string;
+  /** What becomes of what the pause refused, once resumed (resume dialog). */
+  resumed: string;
+}
+
+/** A system Adili instructs, with its copy. */
+export interface InstructedSystem extends SystemName {
+  instructed: Instructed;
+}
+
 const is = (system: SystemName) => `${system.name} ${system.plural ? 'are' : 'is'}`;
 const itIs = (system: SystemName) => (system.plural ? 'they are' : 'it is');
 const its = (system: SystemName) => (system.plural ? 'their' : 'its');
+
+/** Reporting tries an ICMS push a few times, then gives up: what a pause refused is not sent. */
+const ICMS_RETRIES =
+  'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.';
 
 /**
  * Copy of the Integrations page (spec 07b frontend, FE-3; prototype 07b-registry). One English
@@ -43,6 +65,8 @@ export const en = {
   pausedSince: (by: string, time: string) => `Paused by ${by} since ${time}.`,
   pausedDetail: (system: SystemName) =>
     `Lookups are marked unavailable until ${itIs(system)} resumed. Cached answers still serve.`,
+  pausedInstructionsDetail: (system: InstructedSystem) =>
+    `${system.instructed.instructions} get "unavailable" until ${itIs(system)} resumed; nothing is queued. ${system.instructed.retries}`,
   // Coverage
   coverageLabel: 'Integration coverage',
   calls: 'Calls (24 h)',
@@ -68,6 +92,9 @@ export const en = {
   pauseTitle: (system: string) => `Pause ${system}?`,
   pauseText: (system: SystemName) =>
     `Lookups to ${system.name} will be marked unavailable until ${itIs(system)} resumed.`,
+  pauseInstructionsText: (system: InstructedSystem) =>
+    `${system.instructed.instructions} to ${system.name} get "unavailable" until ${itIs(system)} resumed.`,
+  pauseNothingQueued: 'Adili does not queue them to send later.',
   pauseNothingSent: (system: SystemName) =>
     `Nothing is sent to ${system.name} while ${itIs(system)} paused.`,
   pauseCasesFlow: (system: SystemName) =>
@@ -83,16 +110,29 @@ export const en = {
   resumeTitle: (system: string) => `Resume ${system}?`,
   resumeText: (system: SystemName, perMinute: number) =>
     `Lookups to ${system.name} start again, within ${its(system)} rate limit of ${formatNumber(perMinute)} calls a minute.`,
+  resumeInstructionsText: (system: InstructedSystem, perMinute: number) =>
+    `${system.instructed.instructions} are sent to ${system.name} again, within ${its(system)} rate limit of ${formatNumber(perMinute)} calls a minute.`,
   resuming: 'Resuming…',
   resumeFailed: (system: string) => `Could not resume ${system}. Try again.`,
   resumedToast: (system: string) => `${system} resumed`,
   cancel: 'Cancel',
+  // Instructed systems. Review retries every unacknowledged payroll instruction with backoff of at
+  // most 5 minutes and no attempt limit; reporting tries an ICMS push a few times, then gives up.
+  payrollInstructions: 'Salary stoppages and reinstatements',
+  payrollRetries:
+    'The review service keeps retrying them (at most 5 minutes apart) and they are sent once payroll is resumed.',
+  payrollResumed:
+    'Those refused while it was paused are sent within about 5 minutes: the review service keeps retrying them.',
+  icmsInstructions: 'Referrals',
+  icmsRetries: ICMS_RETRIES,
+  icmsResumed: `Nothing refused while it was paused is sent on its own. ${ICMS_RETRIES}`,
   actionForbidden: 'You do not have access to pause or resume integrations.',
   operatedBy: 'Operated by',
   rateLimit: 'Rate limit',
   rateLimitValue: (perMinute: number) => `${formatNumber(perMinute)} calls a minute`,
   cacheLifetime: 'Cache lifetime',
   cacheLifetimeValue: (lifetime: string) => `${lifetime}, hits and misses`,
+  notCached: 'Not cached',
   failedCalls: 'Failed calls (24 h)',
   breakerRule: 'Breaker rule',
   breakerRuleValue: (threshold: number, cooldown: string) =>

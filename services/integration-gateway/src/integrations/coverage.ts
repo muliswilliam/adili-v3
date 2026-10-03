@@ -12,18 +12,27 @@ import {
 } from '../adapter-kit/circuit-breakers.js';
 import { PauseFlags } from '../adapter-kit/pause-flags.js';
 import { SYSTEM_POLICIES, type SystemPolicies } from '../adapter-kit/system-policies.js';
-import { type schema, type System, SYSTEMS, verificationResults } from '../db/schema.js';
+import {
+  type schema,
+  type System,
+  systemCalls,
+  SYSTEMS,
+  verificationResults,
+} from '../db/schema.js';
 import { systemSchema } from '../registries/registry-records.js';
 import { IntegrationSettings } from './integration-settings.js';
 
 export const systemCoverageSchema = z
   .object({
     system: systemSchema,
-    /** Lookups in the last 24 hours, answered or not, cached or not. */
+    /**
+     * Lookups (or, for payroll and ICMS, instructions and referrals sent) in the last 24 hours,
+     * answered or not, cached or not.
+     */
     calls24h: z.int().nonnegative(),
     cacheHitRate: z.number().min(0).max(1).meta({
       description:
-        'Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers',
+        'Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers, and always 0 for a system that is never cached',
     }),
     /** Calls in the last 24 hours the registry failed: timed out or answered with an error. */
     failures24h: z.int().nonnegative(),
@@ -31,7 +40,7 @@ export const systemCoverageSchema = z
       description:
         'The circuit as the answering instance sees it; open past its cool-down reads half-open',
     }),
-    /** When the registry itself last answered (found or not found); null if it never has. */
+    /** When the system itself last answered (found or not found, or acknowledged); null if it never has. */
     lastSuccessAt: z.iso.datetime({ offset: true }).nullable(),
     paused: z.boolean(),
     pausedBy: z.string().nullable().meta({
@@ -42,14 +51,17 @@ export const systemCoverageSchema = z
       .nullable()
       .meta({ description: 'When it was paused; null unless paused' }),
     rateLimitPerMinute: z.int().positive(),
-    cacheTtlSeconds: z.int().positive(),
+    cacheTtlSeconds: z.int().positive().nullable().meta({
+      description:
+        'How long an answer is reused; null for a system that is never cached (payroll instructions, ICMS referrals)',
+    }),
     timeoutMs: z.int().positive(),
     /** Consecutive failures that open the circuit. */
     breakerFailureThreshold: z.int().positive(),
     /** How long an open circuit fails fast before a probe. */
     breakerCooldownSeconds: z.number().positive(),
   })
-  .meta({ description: 'How one registry integration is behaving' });
+  .meta({ description: 'How one integration is behaving' });
 export type SystemCoverage = z.infer<typeof systemCoverageSchema>;
 
 export const coverageSchema = z
@@ -67,7 +79,8 @@ interface Counts extends Record<string, unknown> {
 /**
  * Per-system call volume, cache hit rate, failures, last success, breaker and pause state, for
  * platform administrators (spec 07b S13). Volumes come from verification results (one row per
- * lookup, indexed by system and time); breaker state is this instance's.
+ * lookup) and, for systems that are not looked up (payroll, ICMS), system calls (one row per call),
+ * both indexed by system and time; breaker state is this instance's.
  */
 @Injectable()
 export class Coverage {
@@ -95,16 +108,25 @@ export class Coverage {
   async read(): Promise<SystemCoverage[]> {
     const systems = SYSTEMS.filter((system) => this.covers(system));
     const v = verificationResults;
+    const c = systemCalls;
     const counts = await asPlatform(this.db, (tx) =>
       tx.execute<Counts>(sql`
-      select ${v.system} as system,
+      select system,
         count(*)::int as calls,
-        (count(*) filter (where ${v.cached}))::int as hits,
-        (count(*) filter (where ${v.outcome} <> 'unavailable'))::int as answers,
-        (count(*) filter (where ${v.reason} in ('timeout', 'upstream-error')))::int as failures
-      from ${v}
-      where ${v.checkedAt} > now() - interval '24 hours'
-      group by ${v.system}`),
+        (count(*) filter (where cached))::int as hits,
+        (count(*) filter (where answered))::int as answers,
+        (count(*) filter (where reason in ('timeout', 'upstream-error')))::int as failures
+      from (
+        select ${v.system} as system, ${v.cached} as cached,
+          ${v.outcome} <> 'unavailable' as answered, ${v.reason} as reason
+        from ${v}
+        where ${v.checkedAt} > now() - interval '24 hours'
+        union all
+        select ${c.system}, false, ${c.outcome} = 'answered', ${c.reason}
+        from ${c}
+        where ${c.calledAt} > now() - interval '24 hours'
+      ) as calls
+      group by system`),
     );
     const bySystem = new Map(counts.rows.map((row) => [row.system, row]));
     const pauseRecords = await this.settings.pauseRecords();
@@ -140,18 +162,26 @@ export class Coverage {
     );
   }
 
-  /** The newest answer from the registry itself, walking the (system, checked_at) index back. */
+  /**
+   * The newest answer from the system itself: a lookup it answered (walking the
+   * (system, checked_at) index back), or a call it answered (the (system, called_at) index).
+   */
   private async lastSuccess(system: System): Promise<string | null> {
     const v = verificationResults;
+    const c = systemCalls;
     const rows = await asPlatform(this.db, (tx) =>
-      tx.execute<{ checkedAt: Date | string }>(sql`
-      select ${v.checkedAt} as "checkedAt" from ${v}
-      where ${v.system} = ${system} and ${v.outcome} <> 'unavailable' and not ${v.cached}
-      order by ${v.checkedAt} desc
-      limit 1`),
+      tx.execute<{ at: Date | string | null }>(sql`
+      select greatest(
+        (select ${v.checkedAt} from ${v}
+          where ${v.system} = ${system} and ${v.outcome} <> 'unavailable' and not ${v.cached}
+          order by ${v.checkedAt} desc limit 1),
+        (select ${c.calledAt} from ${c}
+          where ${c.system} = ${system} and ${c.outcome} = 'answered'
+          order by ${c.calledAt} desc limit 1)
+      ) as at`),
     );
-    const checkedAt = rows.rows[0]?.checkedAt;
-    return checkedAt === undefined ? null : new Date(checkedAt).toISOString();
+    const at = rows.rows[0]?.at;
+    return at === undefined || at === null ? null : new Date(at).toISOString();
   }
 }
 
