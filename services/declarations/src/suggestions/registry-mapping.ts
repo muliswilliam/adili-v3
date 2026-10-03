@@ -27,7 +27,8 @@ import type {
  * registry holds about one person becomes the item fields the declarant can add with one tap.
  *
  * Field names per item type are the portal's vocabulary, not declaration.v1 `details`: accepting
- * a suggestion translates them into the item in the service (`acceptance.ts`). The contract's `Suggestion.fields` is free-form; the keys are:
+ * a suggestion translates them into the item in the service (`acceptance.ts`). The contract's
+ * `Suggestion.fields` is free-form; the keys are:
  * - `vehicle` (NTSA): registration, make, model, year
  * - `land` (ArdhiSasa): parcelNumber, size, location, county (a declaration.v1 county code)
  * - `shareholding` (BRS, a holding of shares; the spec's `investment`, which declaration.v1 does
@@ -261,8 +262,8 @@ function isDirectorRole(role: string) {
 }
 
 /**
- * KRA: each PIN → `bio-tax` (PIN and compliance) in the bio for the declarant or the household for
- * a spouse; children's PINs have no place in declaration.v1 and are not suggested. Where KRA
+ * KRA: each PIN → `bio-tax` (PIN and compliance) in the bio for the declarant or the household
+ * for a spouse; children's PINs have no place in declaration.v1 and are not suggested. Where KRA
  * returns declared income, an `income-hint` for the person's statement carries it in
  * `sourceRef` (a hint to check the salary item, never a value).
  */
