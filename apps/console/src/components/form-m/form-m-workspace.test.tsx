@@ -142,6 +142,31 @@ describe('the Form M workspace (S15)', () => {
     );
   });
 
+  it('says from when a preview of the year can be compiled when refused too early', async () => {
+    resetReportingMock('2027-04-10');
+    show(await load('2027-04-10', { fy: 2026 }), {
+      onCompile: () =>
+        Promise.resolve({
+          ok: false,
+          error: {
+            kind: 'problem',
+            problem: {
+              type: 'about:blank',
+              title: 'x',
+              status: 409,
+              code: 'preview-not-available',
+            },
+          },
+        }),
+    });
+    await click(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Compile preview' }));
+    });
+    expect(screen.getByRole('alert').textContent).toContain(
+      'A preview of this year can be compiled from 1 Apr 2027.',
+    );
+  });
+
   it('shows progress while compiling', async () => {
     resetReportingMock('2027-04-10');
     await compileReport(mockReportingClient([SUPERVISOR]), 'psc', 2026);

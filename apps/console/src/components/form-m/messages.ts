@@ -44,10 +44,8 @@ export const en = {
   compilingSlow: 'This is taking longer than usual.',
   checkAgain: 'Check again',
   compileFailed: 'We could not start compiling. Try again.',
-  compileRefused: {
-    'preview-not-available': 'A preview opens on 1 April after the financial year.',
-    'report-submitted': 'This report is submitted and can no longer be compiled.',
-  },
+  previewNotAvailable: (date: string) => `A preview of this year can be compiled from ${date}.`,
+  reportSubmitted: 'This report is submitted and can no longer be compiled.',
   overdueBanner: (days: number) => `${String(days)} ${days === 1 ? 'day' : 'days'} overdue.`,
   overdueBannerDetail: 'Late reports are accepted and marked late.',
   dueSoonBanner: (days: number) =>
@@ -58,9 +56,9 @@ export const en = {
   previewBannerDetail: (date: string) => `The final draft compiles on ${date}.`,
   asAt: (when: string) => `As at ${when}`,
   recompile: 'Recompile',
-  reviewedBy: (name: string) => `Reviewed by ${name}`,
+  reviewedBy: (name: string, date: string | null) =>
+    date ? `Reviewed by ${name} on ${date}` : `Reviewed by ${name}`,
   submittedHeading: 'Submitted to EACC',
-  submittedNote: 'The submitted report and its receipt will show here.',
   partI: 'Part I: Description of the Responsible Commission',
   partINames: {
     commissionName: 'Name of the Responsible Commission',

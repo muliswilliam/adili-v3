@@ -21,7 +21,15 @@ import { FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
 import type { FormMV1 } from '@adili/forms';
 import createClient from 'openapi-fetch';
 
-import { json, mockCallerOf, problem } from '../mock-http';
+import {
+  dueDateOf,
+  finalCompileOf,
+  financialYearOf,
+  nairobiToday,
+  previewFromOf,
+} from '../../components/form-m/financial-year';
+import { env } from '../env.server';
+import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
 import type { ComplianceReport, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
@@ -47,19 +55,6 @@ let today = '';
 let latency = 1;
 let compileMs = COMPILE_MS;
 let corruptDocument = false;
-
-/** The financial year (start year) a `YYYY-MM-DD` date falls in. */
-function financialYearOf(date: string): number {
-  const year = Number(date.slice(0, 4));
-  return Number(date.slice(5, 7)) >= 7 ? year : year - 1;
-}
-
-const dueDateOf = (fy: number) => `${String(fy + 1)}-07-31`;
-const previewFromOf = (fy: number) => `${String(fy + 1)}-04-01`;
-
-function nairobiToday(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
-}
 
 /** `date` plus `days`, as `YYYY-MM-DD`. */
 function plusDays(date: string, days: number): string {
@@ -90,7 +85,7 @@ export function resetReportingMock(
     reports.set(last, {
       fy: last,
       status: 'submitted',
-      compiledAt: sixAm(`${String(current)}-07-01`),
+      compiledAt: sixAm(finalCompileOf(last)),
       compileStartedAt: null,
       submittedAt: `${submittedOn}T11:42:00.000Z`,
       late: true,
@@ -99,7 +94,7 @@ export function resetReportingMock(
     });
     return;
   }
-  const yearStart = `${String(current)}-07-01`;
+  const yearStart = finalCompileOf(last);
   const compiledOn = plusDays(day, -11) < yearStart ? yearStart : plusDays(day, -11);
   reports.set(last, {
     fy: last,
@@ -124,7 +119,7 @@ export function setReportingMockLatency(factor: number, options: { compileMs?: n
 
 function ensureSeeded() {
   // The dev server's first request: seed from REPORTING_MOCK_TODAY. Tests seed explicitly.
-  if (today === '') resetReportingMock(process.env.REPORTING_MOCK_TODAY);
+  if (today === '') resetReportingMock(env().REPORTING_MOCK_TODAY);
 }
 
 const delay = (ms: number) =>
@@ -141,26 +136,12 @@ export function mockReportingClient(
     fetch = mockReportingFetch,
   }: { name?: string; tenant?: string; fetch?: (request: Request) => Promise<Response> } = {},
 ) {
-  const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  const token = `${part({ alg: 'none' })}.${part({ sub: 'mock-officer', name, tenant, realm_access: { roles } })}.`;
+  const token = unsignedMockToken({ subject: 'mock-officer', name, roles, tenant });
   return createClient<paths>({
     baseUrl: 'http://reporting.test',
     headers: { authorization: `Bearer ${token}` },
     fetch,
   });
-}
-
-/** The tenant claim of the caller's token; the Keycloak dev tokens carry it. */
-function tenantOf(request: Request): string | null {
-  const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
-  try {
-    const claims = JSON.parse(
-      Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
-    ) as { tenant?: unknown };
-    return typeof claims.tenant === 'string' ? claims.tenant : null;
-  } catch {
-    return null;
-  }
 }
 
 const notFound = () => problem(404, 'Not found');
@@ -177,7 +158,7 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   const caller = mockCallerOf(input);
   const visible =
     slug === PSC.slug &&
-    tenantOf(input) === PSC.slug &&
+    caller.tenant === PSC.slug &&
     caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
   if (!visible) return notFound();
 
@@ -270,7 +251,7 @@ function advance(stored: Stored) {
   stored.compiledAt = `${today}${time}`;
   // A year compiled before it ends is a preview of today's data.
   stored.document =
-    today < `${String(stored.fy + 1)}-07-01` ? previewDocument(stored.fy) : fullDocument(stored.fy);
+    today < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
 }
 
 function countsOf(document: FormMV1): ReportCounts {

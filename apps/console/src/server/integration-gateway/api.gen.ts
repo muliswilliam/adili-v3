@@ -4,1408 +4,1459 @@
  */
 
 export interface paths {
-    "/internal/v1/iprs/person-lookups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Person as held by IPRS, cached for 24 hours (hits and misses)
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Requires a service token with scope `iprs`.
-         */
-        post: operations["lookupIprsPerson"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/internal/v1/iprs/person-lookups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/kra/taxpayer-lookups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * KRA PINs of a national ID, each with its compliance and declared annual income
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. not-found: KRA has no PIN for the national ID. Requires a service token with scope `registry` acting for the Commission.
-         */
-        post: operations["lookupKraTaxpayer"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Person as held by IPRS, cached for 24 hours (hits and misses)
+     * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Requires a service token with scope `iprs`.
+     */
+    post: operations['lookupIprsPerson'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/kra/taxpayer-lookups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/ntsa/vehicle-lookups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Vehicles registered to a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: NTSA lists no vehicles for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
-         */
-        post: operations["lookupNtsaVehicles"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * KRA PINs of a national ID, each with its compliance and declared annual income
+     * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. not-found: KRA has no PIN for the national ID. Requires a service token with scope `registry` acting for the Commission.
+     */
+    post: operations['lookupKraTaxpayer'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/ntsa/vehicle-lookups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/brs/directorship-lookups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Directorships and shareholdings of a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: BRS lists no companies for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
-         */
-        post: operations["lookupBrsDirectorships"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Vehicles registered to a national ID
+     * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: NTSA lists no vehicles for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
+     */
+    post: operations['lookupNtsaVehicles'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/brs/directorship-lookups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/ardhisasa/parcel-lookups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Land parcels registered to a national ID
-         * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: ArdhiSasa lists no parcels for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
-         */
-        post: operations["lookupArdhisasaParcels"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Directorships and shareholdings of a national ID
+     * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: BRS lists no companies for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
+     */
+    post: operations['lookupBrsDirectorships'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/ardhisasa/parcel-lookups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/brs/companies/{registrationNumber}/supplies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Whether a company is on an employer's supplier list (HR), for the BRS check
-         * @description Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Its own system, hr-suppliers (HR's supplier lists), with its own breaker, rate limit and pause. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.
-         */
-        get: operations["checkCompanySuppliesEmployer"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Land parcels registered to a national ID
+     * @description A read, posted so the national ID travels in the body rather than the URL (URLs end up in access logs, traces and problem details). Safe to repeat. Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. found with an empty list: ArdhiSasa lists no parcels for the national ID (never not-found). Requires a service token with scope `registry` acting for the Commission.
+     */
+    post: operations['lookupArdhisasaParcels'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/brs/companies/{registrationNumber}/supplies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/registry-rate-limits": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Configured calls per minute of every system with an adapter (services)
-         * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it; every call to the registry spends one, so a KRA lookup spends 1 + one per PIN.
-         */
-        get: operations["getRegistryRateLimits"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Whether a company is on an employer's supplier list (HR), for the BRS check
+     * @description Every lookup, answered or not, is recorded with its legal basis and case reference, the answer encrypted under the acting tenant, and emits registry.lookup.performed.v1. Answers (found and not found) are cached for 24 hours. A registry that gives no answer is outcome unavailable with a reason, never an error. Its own system, hr-suppliers (HR's supplier lists), with its own breaker, rate limit and pause. An employer HR does not know has no suppliers: false. Requires a service token with scope `registry` acting for the Commission.
+     */
+    get: operations['checkCompanySuppliesEmployer'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/registry-rate-limits': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/payroll/instructions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
-         * @description Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll (a pending one is asked again; while payroll does not answer, it answers the stored pending acknowledgement (200)); another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging an instruction with nothing stored is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
-         */
-        post: operations["submitPayrollInstruction"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Configured calls per minute of every system with an adapter (services)
+     * @description Service tokens with scope `registry`; no X-Acting-Tenant (configuration, no tenant data). A lookup answered from the cache spends none of it; every call to the registry spends one, so a KRA lookup spends 1 + one per PIN.
+     */
+    get: operations['getRegistryRateLimits'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/payroll/instructions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/payroll/instructions/{instructionReference}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Stored instruction and acknowledgement
-         * @description The instruction as payroll acknowledged it, from the gateway's store (payroll is not called). Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
-         */
-        get: operations["getPayrollInstruction"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
+     * @description Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll (a pending one is asked again; while payroll does not answer, it answers the stored pending acknowledgement (200)); another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging an instruction with nothing stored is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+     */
+    post: operations['submitPayrollInstruction'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/payroll/instructions/{instructionReference}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/icms/referrals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register a referral with ICMS and return the case number (idempotent by referral reference)
-         * @description Registers the referral with ICMS and stores its registration (case number, status, registered at) with the legal basis and case. Idempotent by referral reference: the same referral again answers the stored registration (200) without calling ICMS; one about another declarant or from another Commission under the same reference is 409. Behind ICMS's own circuit breaker, rate limit, timeout and pause; never cached. ICMS not answering is 503 and nothing is recorded as registered: retry. The national ID and name travel in the body; only the national ID is kept, as a keyed hash. Requires a service token with scope `icms`. Referrals act for no tenant: the referring Commission is in the referral (ADR-013 section 8.7).
-         */
-        post: operations["submitIcmsReferral"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Stored instruction and acknowledgement
+     * @description The instruction as payroll acknowledged it, from the gateway's store (payroll is not called). Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+     */
+    get: operations['getPayrollInstruction'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/icms/referrals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/icms/referrals/{referralReference}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Stored ICMS registration for a referral reference
-         * @description The referral as ICMS registered it, from the gateway's store (ICMS is not called). Requires a service token with scope `icms`. Referrals act for no tenant: the referring Commission is in the referral (ADR-013 section 8.7).
-         */
-        get: operations["getIcmsReferral"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Register a referral with ICMS and return the case number (idempotent by referral reference)
+     * @description Registers the referral with ICMS and stores its registration (case number, status, registered at) with the legal basis and case. Idempotent by referral reference: the same referral again answers the stored registration (200) without calling ICMS; one about another declarant or from another Commission under the same reference is 409. Behind ICMS's own circuit breaker, rate limit, timeout and pause; never cached. ICMS not answering is 503 and nothing is recorded as registered: retry. The national ID and name travel in the body; only the national ID is kept, as a keyed hash. Requires a service token with scope `icms`. Referrals act for no tenant: the referring Commission is in the referral (ADR-013 section 8.7).
+     */
+    post: operations['submitIcmsReferral'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/icms/referrals/{referralReference}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/internal/v1/verification-results/{resultId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A stored lookup result, decrypted for the services of its tenant (audited)
-         * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup) and whom the service read for (X-Acting-Subject). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
-         */
-        get: operations["getVerificationResult"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Stored ICMS registration for a referral reference
+     * @description The referral as ICMS registered it, from the gateway's store (ICMS is not called). Requires a service token with scope `icms`. Referrals act for no tenant: the referring Commission is in the referral (ADR-013 section 8.7).
+     */
+    get: operations['getIcmsReferral'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/internal/v1/verification-results/{resultId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/integrations/coverage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Per-system call volume, cache hit rate, breaker state and last success
-         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa, HR supplier lists, payroll, ICMS): lookups (for payroll and ICMS, instructions and referrals sent) and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime (null for payroll and ICMS, never cached), timeout and breaker rule. Platform administrators only.
-         */
-        get: operations["getIntegrationsCoverage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * A stored lookup result, decrypted for the services of its tenant (audited)
+     * @description The normalised records of a found lookup (payload), with its system, outcome, legal basis and case reference. Each read is audited (audit.read.v1) under the tenant, naming the person the lookup was about (X-Subject-Person at lookup) and whom the service read for (X-Acting-Subject). Requires a service token with scope `registry` acting for the tenant the lookup acted for.
+     */
+    get: operations['getVerificationResult'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/integrations/coverage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/integrations/{system}/pause": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Force lookups to unavailable during a known outage (platform-admin)
-         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent; one already stored answers what is stored (200), a pending payroll acknowledgement included. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
-         */
-        post: operations["pauseIntegration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Per-system call volume, cache hit rate, breaker state and last success
+     * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa, HR supplier lists, payroll, ICMS): lookups (for payroll and ICMS, instructions and referrals sent) and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime (null for payroll and ICMS, never cached), timeout and breaker rule. Platform administrators only.
+     */
+    get: operations['getIntegrationsCoverage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/integrations/{system}/pause': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/integrations/{system}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resume lookups (platform-admin)
-         * @description Lookups call the system again, within its rate limit and behind its breaker. Records `integrations.system.resumed.v1`. Resuming a system that is not paused changes nothing. Platform administrators only.
-         */
-        post: operations["resumeIntegration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Force lookups to unavailable during a known outage (platform-admin)
+     * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent; one already stored answers what is stored (200), a pending payroll acknowledgement included. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
+     */
+    post: operations['pauseIntegration'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/integrations/{system}/resume': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    /**
+     * Resume lookups (platform-admin)
+     * @description Lookups call the system again, within its rate limit and behind its breaker. Records `integrations.system.resumed.v1`. Resuming a system that is not paused changes nothing. Platform administrators only.
+     */
+    post: operations['resumeIntegration'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        LookupIprsPerson: {
-            nationalId: string;
-        };
-        /** @description A person as IPRS holds them */
-        IprsPerson: {
-            nationalId: string;
-            firstName: string;
-            middleName: string | null;
-            lastName: string;
-            /** Format: date */
-            dateOfBirth: string;
-            /** @enum {string} */
-            sex: "F" | "M";
-        };
-        /** @enum {string} */
-        System: "iprs" | "kra" | "ntsa" | "brs" | "ardhisasa" | "hr-suppliers" | "payroll" | "icms";
-        /** @enum {string} */
-        LookupOutcome: "found" | "not-found" | "unavailable";
-        /**
-         * @description rate-limited when no slot of the system rate limit freed up within the max queue wait, or the registry refused the call for its own
-         * @enum {string}
-         */
-        UnavailableReason: "timeout" | "breaker-open" | "paused" | "rate-limited" | "upstream-error";
-        /** @description Whom to look up */
-        RegistryLookup: {
-            nationalId: string;
-        };
-        ResultEnvelope: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            reason: components["schemas"]["UnavailableReason"] | null;
-            cached: boolean;
-            /** Format: date-time */
-            checkedAt: string;
-        };
-        /** @description KRA PINs with their compliance. not-found: no PIN for the national ID. taxpayers is empty unless found. */
-        KraResult: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            reason: components["schemas"]["UnavailableReason"] | null;
-            cached: boolean;
-            /** Format: date-time */
-            checkedAt: string;
-            taxpayers: {
-                pin: string;
-                /** Format: date */
-                registeredOn: string;
-                compliance: {
-                    /** @enum {string} */
-                    status: "compliant" | "non-compliant" | "unknown";
-                    certificateNumber: string | null;
-                    validUntil: string | null;
-                    annualIncomeDeclaredCents: number | null;
-                };
-            }[];
-        };
-        /** @description Vehicles registered to the national ID; empty unless found. */
-        NtsaResult: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            reason: components["schemas"]["UnavailableReason"] | null;
-            cached: boolean;
-            /** Format: date-time */
-            checkedAt: string;
-            vehicles: {
-                registrationNumber: string;
-                make: string;
-                model: string;
-                yearOfManufacture: number;
-                /** Format: date */
-                registeredOn: string;
-            }[];
-        };
-        /** @description Directorships and shareholdings of the national ID; empty unless found. */
-        BrsResult: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            reason: components["schemas"]["UnavailableReason"] | null;
-            cached: boolean;
-            /** Format: date-time */
-            checkedAt: string;
-            directorships: {
-                companyRegistrationNumber: string;
-                companyName: string;
-                companyStatus: string;
-                role: string;
-                shares: number | null;
-                /** Format: date */
-                appointedOn: string;
-            }[];
-        };
-        /** @description Land parcels registered to the national ID; empty unless found. */
-        ArdhisasaResult: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            reason: components["schemas"]["UnavailableReason"] | null;
-            cached: boolean;
-            /** Format: date-time */
-            checkedAt: string;
-            parcels: {
-                parcelNumber: string;
-                county: string;
-                areaHectares: number;
-                tenure: string;
-                /** Format: date */
-                registeredOn: string;
-            }[];
-        };
-        /** @description Whether the company is on the employer's supplier list (HR). null when unavailable. */
-        SupplierCheckResult: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            reason: components["schemas"]["UnavailableReason"] | null;
-            cached: boolean;
-            /** Format: date-time */
-            checkedAt: string;
-            supplies: boolean | null;
-        };
-        /** @description A stored lookup result, decrypted for a service of its tenant */
-        StoredResult: {
-            /** Format: uuid */
-            resultId: string;
-            system: components["schemas"]["System"];
-            outcome: components["schemas"]["LookupOutcome"];
-            /** Format: date-time */
-            checkedAt: string;
-            legalBasis: string;
-            caseRef: string | null;
-            /** @description The normalised records the lookup answered (e.g. { vehicles: [...] }); null unless the outcome is found */
-            payload: {
-                [key: string]: unknown;
-            } | null;
-        };
-        /** @description How one integration is behaving */
-        SystemCoverage: {
-            system: components["schemas"]["System"];
-            calls24h: number;
-            /** @description Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers, and always 0 for a system that is never cached */
-            cacheHitRate: number;
-            failures24h: number;
-            /**
-             * @description The circuit as the answering instance sees it; open past its cool-down reads half-open
-             * @enum {string}
-             */
-            breaker: "closed" | "open" | "half-open";
-            lastSuccessAt: string | null;
-            paused: boolean;
-            /** @description Display name of the platform administrator who paused it; null unless paused */
-            pausedBy: string | null;
-            /** @description When it was paused; null unless paused */
-            pausedAt: string | null;
-            rateLimitPerMinute: number;
-            /** @description How long an answer is reused; null for a system that is never cached (payroll instructions, ICMS referrals) */
-            cacheTtlSeconds: number | null;
-            timeoutMs: number;
-            breakerFailureThreshold: number;
-            breakerCooldownSeconds: number;
-        };
-        /** @description Every system with an adapter, in a fixed order */
-        Coverage: components["schemas"]["SystemCoverage"][];
-        /** @description The configured rate limit of every system with an adapter */
-        RegistryRateLimits: {
-            system: components["schemas"]["System"];
-            ratePerMinute: number;
-        }[];
-        /** @enum {string} */
-        PayrollAction: "stop_salary" | "resume_salary";
-        /** @description A stop or resume salary instruction for payroll */
-        PayrollInstructionRequest: {
-            /** @description The ADM reference (stop) or ADM reference with -R suffix (resume) */
-            instructionReference: string;
-            employerCode: string;
-            personalNumber: string;
-            nationalId: string;
-            action: components["schemas"]["PayrollAction"];
-            reason: string;
-            /** Format: date */
-            effectiveDate: string;
-        };
-        /** @description A payroll instruction and its acknowledgement. Payroll accepts an instruction as it receives it, so the gateway currently always answers accepted with a payroll reference; pending and failed are reserved */
-        PayrollInstruction: {
-            instructionReference: string;
-            action: components["schemas"]["PayrollAction"];
-            /**
-             * @description Currently always accepted; pending and failed are reserved
-             * @enum {string}
-             */
-            status: "accepted" | "pending" | "failed";
-            /** @description Payroll's own reference. Currently always present; null is reserved for a pending instruction */
-            payrollReference: string | null;
-            /** @description When payroll received it, by payroll's clock. Currently always present; null is reserved for a pending instruction */
-            receivedAt: string | null;
-            /**
-             * Format: date-time
-             * @description When the gateway sent the instruction payroll acknowledged
-             */
-            sentAt: string;
-        };
-        /** @description A referral to register with ICMS */
-        IcmsReferralRequest: {
-            /** @description The RFL reference */
-            referralReference: string;
-            nationalId: string;
-            fullName: string;
-            /** @description The referring Commission's issuer code, e.g. PSC */
-            referringCommission: string;
-            grounds: string;
-            details: string;
-        };
-        /** @description A referral and its ICMS registration. ICMS registers a referral as it receives it, so the gateway currently always answers registered with a case number; pending and failed are reserved */
-        IcmsReferral: {
-            referralReference: string;
-            /** @description ICMS's case number, e.g. EACC/ICMS/2028/000123. Currently always present; null is reserved for a pending registration */
-            caseNumber: string | null;
-            /**
-             * @description Currently always registered; pending and failed are reserved
-             * @enum {string}
-             */
-            status: "registered" | "pending" | "failed";
-            /** @description When ICMS registered it, by ICMS's clock. Currently always present; null is reserved for a pending registration */
-            registeredAt: string | null;
-            /**
-             * Format: date-time
-             * @description When the gateway sent the referral ICMS answered
-             */
-            sentAt: string;
-        };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            /**
-             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
-             * @enum {string}
-             */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed";
-            detail?: string;
-            instance?: string;
-            /** @description Field-level errors; `path` is the dotted request field */
-            errors?: {
-                path: string;
-                message: string;
-            }[];
-        };
+  schemas: {
+    LookupIprsPerson: {
+      nationalId: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** @description A person as IPRS holds them */
+    IprsPerson: {
+      nationalId: string;
+      firstName: string;
+      middleName: string | null;
+      lastName: string;
+      /** Format: date */
+      dateOfBirth: string;
+      /** @enum {string} */
+      sex: 'F' | 'M';
+    };
+    /** @enum {string} */
+    System: 'iprs' | 'kra' | 'ntsa' | 'brs' | 'ardhisasa' | 'hr-suppliers' | 'payroll' | 'icms';
+    /** @enum {string} */
+    LookupOutcome: 'found' | 'not-found' | 'unavailable';
+    /**
+     * @description rate-limited when no slot of the system rate limit freed up within the max queue wait, or the registry refused the call for its own
+     * @enum {string}
+     */
+    UnavailableReason: 'timeout' | 'breaker-open' | 'paused' | 'rate-limited' | 'upstream-error';
+    /** @description Whom to look up */
+    RegistryLookup: {
+      nationalId: string;
+    };
+    ResultEnvelope: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      reason: components['schemas']['UnavailableReason'] | null;
+      cached: boolean;
+      /** Format: date-time */
+      checkedAt: string;
+    };
+    /** @description KRA PINs with their compliance. not-found: no PIN for the national ID. taxpayers is empty unless found. */
+    KraResult: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      reason: components['schemas']['UnavailableReason'] | null;
+      cached: boolean;
+      /** Format: date-time */
+      checkedAt: string;
+      taxpayers: {
+        pin: string;
+        /** Format: date */
+        registeredOn: string;
+        compliance: {
+          /** @enum {string} */
+          status: 'compliant' | 'non-compliant' | 'unknown';
+          certificateNumber: string | null;
+          validUntil: string | null;
+          annualIncomeDeclaredCents: number | null;
+        };
+      }[];
+    };
+    /** @description Vehicles registered to the national ID; empty unless found. */
+    NtsaResult: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      reason: components['schemas']['UnavailableReason'] | null;
+      cached: boolean;
+      /** Format: date-time */
+      checkedAt: string;
+      vehicles: {
+        registrationNumber: string;
+        make: string;
+        model: string;
+        yearOfManufacture: number;
+        /** Format: date */
+        registeredOn: string;
+      }[];
+    };
+    /** @description Directorships and shareholdings of the national ID; empty unless found. */
+    BrsResult: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      reason: components['schemas']['UnavailableReason'] | null;
+      cached: boolean;
+      /** Format: date-time */
+      checkedAt: string;
+      directorships: {
+        companyRegistrationNumber: string;
+        companyName: string;
+        companyStatus: string;
+        role: string;
+        shares: number | null;
+        /** Format: date */
+        appointedOn: string;
+      }[];
+    };
+    /** @description Land parcels registered to the national ID; empty unless found. */
+    ArdhisasaResult: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      reason: components['schemas']['UnavailableReason'] | null;
+      cached: boolean;
+      /** Format: date-time */
+      checkedAt: string;
+      parcels: {
+        parcelNumber: string;
+        county: string;
+        areaHectares: number;
+        tenure: string;
+        /** Format: date */
+        registeredOn: string;
+      }[];
+    };
+    /** @description Whether the company is on the employer's supplier list (HR). null when unavailable. */
+    SupplierCheckResult: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      reason: components['schemas']['UnavailableReason'] | null;
+      cached: boolean;
+      /** Format: date-time */
+      checkedAt: string;
+      supplies: boolean | null;
+    };
+    /** @description A stored lookup result, decrypted for a service of its tenant */
+    StoredResult: {
+      /** Format: uuid */
+      resultId: string;
+      system: components['schemas']['System'];
+      outcome: components['schemas']['LookupOutcome'];
+      /** Format: date-time */
+      checkedAt: string;
+      legalBasis: string;
+      caseRef: string | null;
+      /** @description The normalised records the lookup answered (e.g. { vehicles: [...] }); null unless the outcome is found */
+      payload: {
+        [key: string]: unknown;
+      } | null;
+    };
+    /** @description How one integration is behaving */
+    SystemCoverage: {
+      system: components['schemas']['System'];
+      calls24h: number;
+      /** @description Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers, and always 0 for a system that is never cached */
+      cacheHitRate: number;
+      failures24h: number;
+      /**
+       * @description The circuit as the answering instance sees it; open past its cool-down reads half-open
+       * @enum {string}
+       */
+      breaker: 'closed' | 'open' | 'half-open';
+      lastSuccessAt: string | null;
+      paused: boolean;
+      /** @description Display name of the platform administrator who paused it; null unless paused */
+      pausedBy: string | null;
+      /** @description When it was paused; null unless paused */
+      pausedAt: string | null;
+      rateLimitPerMinute: number;
+      /** @description How long an answer is reused; null for a system that is never cached (payroll instructions, ICMS referrals) */
+      cacheTtlSeconds: number | null;
+      timeoutMs: number;
+      breakerFailureThreshold: number;
+      breakerCooldownSeconds: number;
+    };
+    /** @description Every system with an adapter, in a fixed order */
+    Coverage: components['schemas']['SystemCoverage'][];
+    /** @description The configured rate limit of every system with an adapter */
+    RegistryRateLimits: {
+      system: components['schemas']['System'];
+      ratePerMinute: number;
+    }[];
+    /** @enum {string} */
+    PayrollAction: 'stop_salary' | 'resume_salary';
+    /** @description A stop or resume salary instruction for payroll */
+    PayrollInstructionRequest: {
+      /** @description The ADM reference (stop) or ADM reference with -R suffix (resume) */
+      instructionReference: string;
+      employerCode: string;
+      personalNumber: string;
+      nationalId: string;
+      action: components['schemas']['PayrollAction'];
+      reason: string;
+      /** Format: date */
+      effectiveDate: string;
+    };
+    /** @description A payroll instruction and its acknowledgement. Payroll accepts an instruction as it receives it, so the gateway currently always answers accepted with a payroll reference; pending and failed are reserved */
+    PayrollInstruction: {
+      instructionReference: string;
+      action: components['schemas']['PayrollAction'];
+      /**
+       * @description Currently always accepted; pending and failed are reserved
+       * @enum {string}
+       */
+      status: 'accepted' | 'pending' | 'failed';
+      /** @description Payroll's own reference. Currently always present; null is reserved for a pending instruction */
+      payrollReference: string | null;
+      /** @description When payroll received it, by payroll's clock. Currently always present; null is reserved for a pending instruction */
+      receivedAt: string | null;
+      /**
+       * Format: date-time
+       * @description When the gateway sent the instruction payroll acknowledged
+       */
+      sentAt: string;
+    };
+    /** @description A referral to register with ICMS */
+    IcmsReferralRequest: {
+      /** @description The RFL reference */
+      referralReference: string;
+      nationalId: string;
+      fullName: string;
+      /** @description The referring Commission's issuer code, e.g. PSC */
+      referringCommission: string;
+      grounds: string;
+      details: string;
+    };
+    /** @description A referral and its ICMS registration. ICMS registers a referral as it receives it, so the gateway currently always answers registered with a case number; pending and failed are reserved */
+    IcmsReferral: {
+      referralReference: string;
+      /** @description ICMS's case number, e.g. EACC/ICMS/2028/000123. Currently always present; null is reserved for a pending registration */
+      caseNumber: string | null;
+      /**
+       * @description Currently always registered; pending and failed are reserved
+       * @enum {string}
+       */
+      status: 'registered' | 'pending' | 'failed';
+      /** @description When ICMS registered it, by ICMS's clock. Currently always present; null is reserved for a pending registration */
+      registeredAt: string | null;
+      /**
+       * Format: date-time
+       * @description When the gateway sent the referral ICMS answered
+       */
+      sentAt: string;
+    };
+    ProblemDetails: {
+      type: string;
+      title: string;
+      status: number;
+      /**
+       * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+       * @enum {string}
+       */
+      code?:
+        | 'database-unavailable'
+        | 'rate-limit-exceeded'
+        | 'no-match'
+        | 'already-onboarded'
+        | 'no-roster'
+        | 'otp-invalid'
+        | 'otp-expired'
+        | 'resend-cooldown'
+        | 'otp-send-failed'
+        | 'wrong-step'
+        | 'session-expired'
+        | 'iprs-unavailable'
+        | 'identity-unavailable'
+        | 'email-in-use'
+        | 'identity-mismatch'
+        | 'step-up-required'
+        | 'incomplete'
+        | 'before-statement-date'
+        | 'amendment-window-closed'
+        | 'not-a-draft'
+        | 'not-submitted'
+        | 'obligation-cancelled'
+        | 'acknowledgement-issued'
+        | 'acknowledgement-in-progress'
+        | 'consent-required'
+        | 'no-id'
+        | 'not-new'
+        | 'no-applicant-record'
+        | 'request-decided'
+        | 'request-closed'
+        | 'officer-resolved'
+        | 'not-under-decision'
+        | 'not-pending-verification'
+        | 'lea-account-inactive'
+        | 'declarant-notified'
+        | 'representations-closed'
+        | 'download-window-closed'
+        | 'scope-exceeds-request'
+        | 'grounds-required'
+        | 'separation-of-duties'
+        | 'report-submitted'
+        | 'report-compiling'
+        | 'preview-not-available'
+        | 'not-reviewed'
+        | 'invalid-remarks'
+        | 'invalid-document'
+        | 'inconsistent-document'
+        | 'tenant-mismatch'
+        | 'ncr-approved'
+        | 'no-submitted-reports'
+        | 'icms-push-failed';
+      detail?: string;
+      instance?: string;
+      /** @description Field-level errors; `path` is the dotted request field */
+      errors?: {
+        path: string;
+        message: string;
+      }[];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    lookupIprsPerson: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["LookupIprsPerson"];
-            };
-        };
-        responses: {
-            /** @description Person found */
-            200: {
-                headers: {
-                    /** @description `hit` when the answer came from the cache, `miss` when IPRS was asked */
-                    "X-Cache"?: "hit" | "miss";
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IprsPerson"];
-                };
-            };
-            /** @description National ID missing or malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires one of the scopes: iprs */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `not-found`: IPRS has no person with this national ID */
-            404: {
-                headers: {
-                    /** @description `hit` when the answer came from the cache, `miss` when IPRS was asked */
-                    "X-Cache"?: "hit" | "miss";
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `upstream-unavailable`: circuit open or timeout */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  lookupIprsPerson: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    lookupKraTaxpayer: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
-                "X-Subject-Person"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistryLookup"];
-            };
-        };
-        responses: {
-            /** @description The lookup result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KraResult"];
-                };
-            };
-            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires a service token with scope registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['LookupIprsPerson'];
+      };
     };
-    lookupNtsaVehicles: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
-                "X-Subject-Person"?: string;
-            };
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Person found */
+      200: {
+        headers: {
+          /** @description `hit` when the answer came from the cache, `miss` when IPRS was asked */
+          'X-Cache'?: 'hit' | 'miss';
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistryLookup"];
-            };
+        content: {
+          'application/json': components['schemas']['IprsPerson'];
         };
-        responses: {
-            /** @description The lookup result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NtsaResult"];
-                };
-            };
-            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires a service token with scope registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+      };
+      /** @description National ID missing or malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires one of the scopes: iprs */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `not-found`: IPRS has no person with this national ID */
+      404: {
+        headers: {
+          /** @description `hit` when the answer came from the cache, `miss` when IPRS was asked */
+          'X-Cache'?: 'hit' | 'miss';
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `upstream-unavailable`: circuit open or timeout */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    lookupBrsDirectorships: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
-                "X-Subject-Person"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistryLookup"];
-            };
-        };
-        responses: {
-            /** @description The lookup result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BrsResult"];
-                };
-            };
-            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires a service token with scope registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  lookupKraTaxpayer: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        'X-Acting-Tenant': string;
+        /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+        'X-Legal-Basis': 'regs-r20-1-b' | 'act-s35-5' | 'declarant-request';
+        /** @description Review case the lookup is for; recorded on the result and the audit event */
+        'X-Case-Ref': string;
+        /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+        'X-Subject-Person'?: string;
+      };
+      path?: never;
+      cookie?: never;
     };
-    lookupArdhisasaParcels: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
-                "X-Subject-Person"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RegistryLookup"];
-            };
-        };
-        responses: {
-            /** @description The lookup result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ArdhisasaResult"];
-                };
-            };
-            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires a service token with scope registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegistryLookup'];
+      };
     };
-    checkCompanySuppliesEmployer: {
-        parameters: {
-            query: {
-                employerCode: string;
-            };
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-                /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
-                "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
-                "X-Subject-Person"?: string;
-            };
-            path: {
-                registrationNumber: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description The lookup result */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The check result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupplierCheckResult"];
-                };
-            };
-            /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires a service token with scope registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['KraResult'];
         };
+      };
+      /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires a service token with scope registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getRegistryRateLimits: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Rate limits per system */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RegistryRateLimits"];
-                };
-            };
-            /** @description Requires one of the scopes: registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  lookupNtsaVehicles: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        'X-Acting-Tenant': string;
+        /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+        'X-Legal-Basis': 'regs-r20-1-b' | 'act-s35-5' | 'declarant-request';
+        /** @description Review case the lookup is for; recorded on the result and the audit event */
+        'X-Case-Ref': string;
+        /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+        'X-Subject-Person'?: string;
+      };
+      path?: never;
+      cookie?: never;
     };
-    submitPayrollInstruction: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Why the system is instructed, recorded with the instruction: am-sanctions */
-                "X-Legal-Basis": "am-sanctions";
-                /** @description Review case the instruction is for; recorded with the instruction */
-                "X-Case-Ref"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PayrollInstructionRequest"];
-            };
-        };
-        responses: {
-            /** @description Already acknowledged (replay) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description Sent now and acknowledged by payroll */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires one of the scopes: payroll */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `instruction-reference-conflict`: another instruction was sent under the reference */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `upstream-unavailable`: payroll did not acknowledge (down, timed out, breaker open or paused); nothing recorded as sent */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegistryLookup'];
+      };
     };
-    getPayrollInstruction: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instructionReference: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description The lookup result */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The instruction */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description Requires one of the scopes: payroll */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description No instruction acknowledged under the reference */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['NtsaResult'];
         };
+      };
+      /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires a service token with scope registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    submitIcmsReferral: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Why the system is instructed, recorded with the instruction: regs-r20-referral */
-                "X-Legal-Basis": "regs-r20-referral";
-                /** @description Review case the instruction is for; recorded with the instruction */
-                "X-Case-Ref"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IcmsReferralRequest"];
-            };
-        };
-        responses: {
-            /** @description Already registered (replay) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IcmsReferral"];
-                };
-            };
-            /** @description Registered now */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IcmsReferral"];
-                };
-            };
-            /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires one of the scopes: icms */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `referral-reference-conflict`: another referral was registered under the reference */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `upstream-unavailable`: ICMS did not answer (down, timed out, breaker open or paused); nothing registered */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  lookupBrsDirectorships: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        'X-Acting-Tenant': string;
+        /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+        'X-Legal-Basis': 'regs-r20-1-b' | 'act-s35-5' | 'declarant-request';
+        /** @description Review case the lookup is for; recorded on the result and the audit event */
+        'X-Case-Ref': string;
+        /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+        'X-Subject-Person'?: string;
+      };
+      path?: never;
+      cookie?: never;
     };
-    getIcmsReferral: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                referralReference: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The registration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IcmsReferral"];
-                };
-            };
-            /** @description Requires one of the scopes: icms */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description No referral registered under the reference */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegistryLookup'];
+      };
     };
-    getVerificationResult: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": string;
-                /** @description The staff subject the service reads for (a reviewer opening the Registry tab), or the service's own system subject for workflow reads; recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
-                "X-Acting-Subject"?: string;
-            };
-            path: {
-                resultId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description The lookup result */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description The stored result */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StoredResult"];
-                };
-            };
-            /** @description X-Acting-Tenant is missing or not a tenant key */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Requires a service token with scope registry */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description No such result, or another tenant's */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `upstream-unavailable`: the key service could not decrypt the payload now */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['BrsResult'];
         };
+      };
+      /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires a service token with scope registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getIntegrationsCoverage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Coverage per system */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Coverage"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  lookupArdhisasaParcels: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        'X-Acting-Tenant': string;
+        /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+        'X-Legal-Basis': 'regs-r20-1-b' | 'act-s35-5' | 'declarant-request';
+        /** @description Review case the lookup is for; recorded on the result and the audit event */
+        'X-Case-Ref': string;
+        /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+        'X-Subject-Person'?: string;
+      };
+      path?: never;
+      cookie?: never;
     };
-    pauseIntegration: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                system: components["schemas"]["System"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Paused */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SystemCoverage"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description No adapter for the system */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['RegistryLookup'];
+      };
     };
-    resumeIntegration: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                system: components["schemas"]["System"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description The lookup result */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Resumed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SystemCoverage"];
-                };
-            };
-            /** @description Requires one of the roles: platform-admin */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description No adapter for the system */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ArdhisasaResult'];
         };
+      };
+      /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires a service token with scope registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
+  };
+  checkCompanySuppliesEmployer: {
+    parameters: {
+      query: {
+        employerCode: string;
+      };
+      header: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        'X-Acting-Tenant': string;
+        /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
+        'X-Legal-Basis': 'regs-r20-1-b' | 'act-s35-5' | 'declarant-request';
+        /** @description Review case the lookup is for; recorded on the result and the audit event */
+        'X-Case-Ref': string;
+        /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+        'X-Subject-Person'?: string;
+      };
+      path: {
+        registrationNumber: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The check result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SupplierCheckResult'];
+        };
+      };
+      /** @description X-Legal-Basis or X-Case-Ref missing, X-Legal-Basis unknown, or X-Case-Ref or X-Subject-Person malformed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires a service token with scope registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `lookup-not-recorded`: the lookup could not be recorded (audit), so no answer is given; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getRegistryRateLimits: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Rate limits per system */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RegistryRateLimits'];
+        };
+      };
+      /** @description Requires one of the scopes: registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  submitPayrollInstruction: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Why the system is instructed, recorded with the instruction: am-sanctions */
+        'X-Legal-Basis': 'am-sanctions';
+        /** @description Review case the instruction is for; recorded with the instruction */
+        'X-Case-Ref'?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PayrollInstructionRequest'];
+      };
+    };
+    responses: {
+      /** @description Already acknowledged (replay) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PayrollInstruction'];
+        };
+      };
+      /** @description Sent now and acknowledged by payroll */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PayrollInstruction'];
+        };
+      };
+      /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires one of the scopes: payroll */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `instruction-reference-conflict`: another instruction was sent under the reference */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `upstream-unavailable`: payroll did not acknowledge (down, timed out, breaker open or paused); nothing recorded as sent */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getPayrollInstruction: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        instructionReference: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The instruction */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PayrollInstruction'];
+        };
+      };
+      /** @description Requires one of the scopes: payroll */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description No instruction acknowledged under the reference */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  submitIcmsReferral: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Why the system is instructed, recorded with the instruction: regs-r20-referral */
+        'X-Legal-Basis': 'regs-r20-referral';
+        /** @description Review case the instruction is for; recorded with the instruction */
+        'X-Case-Ref'?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['IcmsReferralRequest'];
+      };
+    };
+    responses: {
+      /** @description Already registered (replay) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['IcmsReferral'];
+        };
+      };
+      /** @description Registered now */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['IcmsReferral'];
+        };
+      };
+      /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires one of the scopes: icms */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `referral-reference-conflict`: another referral was registered under the reference */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `upstream-unavailable`: ICMS did not answer (down, timed out, breaker open or paused); nothing registered */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getIcmsReferral: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        referralReference: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The registration */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['IcmsReferral'];
+        };
+      };
+      /** @description Requires one of the scopes: icms */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description No referral registered under the reference */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getVerificationResult: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Tenant the calling service acts for; the resource must belong to it */
+        'X-Acting-Tenant': string;
+        /** @description The staff subject the service reads for (a reviewer opening the Registry tab), or the service's own system subject for workflow reads; recorded as the audit event's on-behalf-of, grants nothing (ADR-013 §8.6) */
+        'X-Acting-Subject'?: string;
+      };
+      path: {
+        resultId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The stored result */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StoredResult'];
+        };
+      };
+      /** @description X-Acting-Tenant is missing or not a tenant key */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Requires a service token with scope registry */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description No such result, or another tenant's */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `upstream-unavailable`: the key service could not decrypt the payload now */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getIntegrationsCoverage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Coverage per system */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Coverage'];
+        };
+      };
+      /** @description Requires one of the roles: platform-admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  pauseIntegration: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+        'Idempotency-Key'?: string;
+      };
+      path: {
+        system: components['schemas']['System'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Paused */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SystemCoverage'];
+        };
+      };
+      /** @description Requires one of the roles: platform-admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description No adapter for the system */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  resumeIntegration: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+        'Idempotency-Key'?: string;
+      };
+      path: {
+        system: components['schemas']['System'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Resumed */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SystemCoverage'];
+        };
+      };
+      /** @description Requires one of the roles: platform-admin */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description No adapter for the system */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
 }

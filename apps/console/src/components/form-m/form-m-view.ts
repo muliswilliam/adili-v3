@@ -2,6 +2,7 @@ import type { FormMV1 } from '@adili/forms';
 import { daysBetween, formatDate, formatDateTime, formatLongDate } from '@adili/ui';
 
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
+import { finalCompileOf, previewFromOf } from './financial-year';
 import { messages as m } from './messages';
 
 /**
@@ -13,12 +14,6 @@ import { messages as m } from './messages';
 export function daysToDue(dueDate: string, today: string): number {
   return daysBetween(`${today}T12:00:00Z`, `${dueDate}T12:00:00Z`);
 }
-
-/** The first day a preview of the year can be compiled: 1 April after it starts. */
-export const previewFromOf = (fy: number) => `${String(fy + 1)}-04-01`;
-
-/** The day the scheduled compile makes the final draft: 1 July after the year. */
-export const finalCompileOf = (fy: number) => `${String(fy + 1)}-07-01`;
 
 /** The line under a period's year: its preview window, days left, or when it was submitted. */
 export function periodLine(period: ReportPeriod, today: string): string {

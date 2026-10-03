@@ -3,6 +3,7 @@ import {
   Alert,
   AlertDescription,
   Badge,
+  Card,
   cn,
   FORM_M_DECLARATION_SECTIONS,
   FormMSection,
@@ -64,22 +65,17 @@ function PartCard({
 }) {
   const headingId = `${id}-title`;
   return (
-    <section
-      id={id}
-      aria-labelledby={headingId}
-      className={cn(
-        'scroll-mt-20 overflow-hidden rounded-2xl bg-card text-card-foreground shadow-card',
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-2.5 border-b px-5 py-4">
-        <h3 id={headingId} className="text-[15.5px] font-semibold tracking-[-0.01em]">
-          {title}
-        </h3>
-        {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
-      </div>
-      {children}
-    </section>
+    <Card asChild className={cn('scroll-mt-20 gap-0 overflow-hidden p-0 sm:p-0', className)}>
+      <section id={id} aria-labelledby={headingId}>
+        <div className="flex flex-wrap items-center gap-2.5 border-b px-5 py-4">
+          <h3 id={headingId} className="text-[15.5px] font-semibold tracking-[-0.01em]">
+            {title}
+          </h3>
+          {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+        </div>
+        {children}
+      </section>
+    </Card>
   );
 }
 
@@ -99,28 +95,26 @@ function NumberedSection({
 }) {
   const headingId = `${id}-title`;
   return (
-    <section
-      id={id}
-      aria-labelledby={headingId}
-      className="@container scroll-mt-20 overflow-hidden rounded-2xl bg-card text-card-foreground shadow-card"
-    >
-      <div className="flex items-start gap-3 px-5 pt-[18px] pb-3.5">
-        <span
-          aria-hidden="true"
-          className="grid size-7 flex-none place-items-center rounded-lg bg-muted text-[13.5px] font-semibold"
-        >
-          {number}
-        </span>
-        <h3
-          id={headingId}
-          className="min-w-0 pt-0.5 text-[15.5px] leading-[1.35] font-semibold tracking-[-0.01em]"
-        >
-          {title}
-          <InfoTip label={m.aboutSection(number)} content={tip} className="ml-1" />
-        </h3>
-      </div>
-      {children}
-    </section>
+    <Card asChild className="@container scroll-mt-20 gap-0 overflow-hidden p-0 sm:p-0">
+      <section id={id} aria-labelledby={headingId}>
+        <div className="flex items-start gap-3 px-5 pt-[18px] pb-3.5">
+          <span
+            aria-hidden="true"
+            className="grid size-7 flex-none place-items-center rounded-lg bg-muted text-[13.5px] font-semibold"
+          >
+            {number}
+          </span>
+          <h3
+            id={headingId}
+            className="min-w-0 pt-0.5 text-[15.5px] leading-[1.35] font-semibold tracking-[-0.01em]"
+          >
+            {title}
+            <InfoTip label={m.aboutSection(number)} content={tip} className="ml-1" />
+          </h3>
+        </div>
+        {children}
+      </section>
+    </Card>
   );
 }
 
@@ -548,29 +542,5 @@ export function PartIIICard({ partIII }: { partIII: FormMV1['partIII'] }) {
         </Signatory>
       </div>
     </PartCard>
-  );
-}
-
-/** The whole document, read-only: what a reporting officer and a commission-admin see. */
-export function FormMDocumentView({
-  document,
-  accessDataUnavailable,
-}: {
-  document: FormMV1;
-  accessDataUnavailable: boolean;
-}) {
-  return (
-    <>
-      <PartICard partI={document.partI} />
-      <PartHeading>{m.partII}</PartHeading>
-      <DeclarationSections partII={document.partII} />
-      <ClarificationsSection clarifications={document.partII.clarifications} />
-      <AccessSection
-        accessRequests={document.partII.accessRequests}
-        dataUnavailable={accessDataUnavailable}
-      />
-      <ComplaintsCard complaints={document.partII.complaints} />
-      <PartIIICard partIII={document.partIII} />
-    </>
   );
 }

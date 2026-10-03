@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { nairobiToday } from '../components/form-m/financial-year';
 import { asReportingViewer } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import { env } from './env.server';
@@ -28,7 +29,7 @@ function today(): string {
   if (import.meta.env.DEV && config.REPORTING_MOCK && config.REPORTING_MOCK_TODAY) {
     return config.REPORTING_MOCK_TODAY;
   }
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date());
+  return nairobiToday();
 }
 
 export const getFormMWorkspace = createServerFn({ method: 'GET' })

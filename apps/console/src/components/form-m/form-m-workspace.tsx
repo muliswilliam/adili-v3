@@ -7,6 +7,7 @@ import {
   Card,
   cn,
   EmptyState,
+  focusRing,
   formatDate,
   formatDateTime,
   Icon,
@@ -46,13 +47,13 @@ import {
 import {
   daysToDue,
   dueLine,
-  finalCompileOf,
   isPreview,
   partIMissing,
   periodLine,
   type SignOffStep,
   signOffSteps,
 } from './form-m-view';
+import { finalCompileOf, financialYearOf, previewFromOf, yearEndOf } from './financial-year';
 import { messages as m } from './messages';
 
 /** How often, and how many times, the page reloads while the report compiles (seconds). */
@@ -162,7 +163,7 @@ function Workspace({
     if (outcome.ok) {
       await router.invalidate();
     } else {
-      setRefusal(refusalOf(outcome));
+      setRefusal(refusalOf(outcome, fy));
     }
     setCompiling(false);
   };
@@ -217,12 +218,12 @@ function Workspace({
   );
 }
 
-function refusalOf(outcome: Extract<FormMResult<null>, { ok: false }>): string {
+function refusalOf(outcome: Extract<FormMResult<null>, { ok: false }>, fy: number): string {
   if (outcome.error.kind !== 'problem') return m.compileFailed;
   const { code } = outcome.error.problem;
-  return code === 'preview-not-available' || code === 'report-submitted'
-    ? m.compileRefused[code]
-    : (outcome.error.problem.detail ?? m.compileFailed);
+  if (code === 'preview-not-available') return m.previewNotAvailable(formatDate(previewFromOf(fy)));
+  if (code === 'report-submitted') return m.reportSubmitted;
+  return outcome.error.problem.detail ?? m.compileFailed;
 }
 
 interface StatusBadge {
@@ -271,7 +272,7 @@ function PeriodPicker({
       aria-label={m.periods}
       className="grid gap-2.5 @min-[700px]:grid-cols-[repeat(auto-fill,minmax(320px,1fr))]"
     >
-      {periods.map((period, index) => {
+      {periods.map((period) => {
         const on = period.fy === selected;
         const badge = statusBadge(period, on && selectedPreview);
         return (
@@ -283,14 +284,16 @@ function PeriodPicker({
               onSelect(period.fy);
             }}
             className={cn(
-              'flex flex-col items-start gap-1.5 rounded-xl bg-card px-4 py-[15px] text-left shadow-card transition-shadow hover:shadow-card-hover focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none',
+              focusRing,
+              'flex flex-col items-start gap-1.5 rounded-xl bg-card px-4 py-[15px] text-left shadow-card transition-shadow hover:shadow-card-hover',
               on && 'ring-[1.5px] ring-foreground',
             )}
           >
             <span className="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
               {m.fyLabel(period.fy)}
-              {/* The service lists the current financial year first. */}
-              {index === 0 ? <Badge variant="brand">{m.current}</Badge> : null}
+              {period.fy === financialYearOf(today) ? (
+                <Badge variant="brand">{m.current}</Badge>
+              ) : null}
               <Badge variant={badge.tone}>
                 {badge.icon ? <Icon icon={badge.icon} /> : null}
                 {badge.label}
@@ -459,7 +462,12 @@ function ReportView({
               ) : report.reviewedBy ? (
                 <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-medium text-success">
                   <Icon icon={UserCheck01Icon} className="size-3.5" />
-                  {m.reviewedBy(report.reviewedBy.name)}
+                  {m.reviewedBy(
+                    report.reviewedBy.name,
+                    document.partIII.compiledBy.date
+                      ? formatDate(document.partIII.compiledBy.date)
+                      : null,
+                  )}
                 </p>
               ) : null}
             </div>
@@ -498,7 +506,7 @@ function footerNote(
   preview: boolean,
   roles: readonly string[],
 ): string | null {
-  if (preview) return m.previewFooter(formatDate(`${String(report.fy + 1)}-06-30`));
+  if (preview) return m.previewFooter(formatDate(yearEndOf(report.fy)));
   if (roles.includes(SUPERVISOR) || roles.includes(COMMISSION_ADMIN)) return null;
   return m.readOnly;
 }
@@ -506,7 +514,7 @@ function footerNote(
 const STEP_MARKS = {
   done: 'bg-success-subtle text-success',
   current: 'bg-foreground text-background',
-  upcoming: 'bg-card text-muted-foreground shadow-[inset_0_0_0_1.5px_var(--color-input)]',
+  upcoming: 'bg-card text-muted-foreground ring-[1.5px] ring-input ring-inset',
 } as const;
 
 /** Where the report stands from compile to submission. */
@@ -581,7 +589,10 @@ function SectionsCard({ document }: { document: NonNullable<ComplianceReport['do
           <a
             key={anchor}
             href={`#${anchor}`}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13.5px] text-secondary-foreground hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none"
+            className={cn(
+              focusRing,
+              'flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13.5px] text-secondary-foreground hover:bg-muted hover:text-foreground',
+            )}
           >
             {label}
             {count === null ? null : (
@@ -622,7 +633,7 @@ export function WorkspaceFooter({
 }) {
   const due = dueLine(report.dueDate, today);
   return (
-    <div className="sticky bottom-4 z-10 mt-1 flex flex-wrap items-center gap-3 rounded-[14px] bg-card/95 px-4 py-3 shadow-pop backdrop-blur-md">
+    <div className="sticky bottom-4 z-10 mt-1 flex flex-wrap items-center gap-3 rounded-2xl bg-card/95 px-4 py-3 shadow-pop backdrop-blur-md">
       <span className={cn('flex items-center gap-2 text-sm font-medium', DUE_TONES[due.tone])}>
         <Icon icon={Calendar03Icon} className="size-4" />
         {due.text}
