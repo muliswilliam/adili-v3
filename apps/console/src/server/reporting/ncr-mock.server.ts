@@ -741,3 +741,47 @@ export function mockNcrDocumentsClient(roles: readonly string[]) {
     fetch: mockNcrDocumentsFetch,
   });
 }
+
+/** What the open-data releases part of the mock (#350) builds a release of the year from. */
+export interface NcrMockSource {
+  /** The aggregates as the report was last built, or from the receipts while it is not. */
+  aggregates: NationalAggregates;
+  /** Whether the year's report has been built (draft or approved). */
+  built: boolean;
+  /** Its NCR reference once approved. */
+  reference: string | null;
+  approver: Officer | null;
+  approvedAt: string | null;
+}
+
+/**
+ * The year's national report as the open-data releases part of the mock reads it: the report's
+ * aggregates once built, else the receipts' as they stand; null for a year without receipts.
+ */
+export function mockNcrSourceOf(fy: number): NcrMockSource | null {
+  const data = ensureSeeded();
+  const report = data.reports.get(fy);
+  if (report) {
+    return {
+      aggregates: report.aggregates,
+      built: true,
+      reference: report.reference,
+      approver: report.approver,
+      approvedAt: report.approvedAt,
+    };
+  }
+  const receipts = data.receipts.get(fy);
+  if (!receipts || receipts.size === 0) return null;
+  return {
+    aggregates: buildAggregates(fy, receipts),
+    built: false,
+    reference: null,
+    approver: null,
+    approvedAt: null,
+  };
+}
+
+/** The mock's Commissions (slug and name), as the national report counts them. */
+export function mockNcrCommissions(): readonly { slug: string; name: string }[] {
+  return COMMISSIONS.map(({ slug, name }) => ({ slug, name }));
+}

@@ -32,6 +32,7 @@ import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
 import { isNcrPath, mockNcrFetch } from './ncr-mock.server';
+import { isReleasesPath, mockReleasesFetch } from './releases-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
@@ -201,8 +202,11 @@ export function mockReportingClient(
 const notFound = () => problem(404, 'Not found');
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
+  const { pathname } = new URL(input.url);
+  // EACC's open-data releases (#350).
+  if (isReleasesPath(pathname)) return mockReleasesFetch(input);
   // EACC's national consolidated report and intake totals (#233).
-  if (isNcrPath(new URL(input.url).pathname)) return mockNcrFetch(input);
+  if (isNcrPath(pathname)) return mockNcrFetch(input);
   ensureSeeded();
   await delay(250);
   const url = new URL(input.url);

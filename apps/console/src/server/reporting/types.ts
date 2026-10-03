@@ -55,3 +55,10 @@ export interface ReportingProblem {
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
 }
+
+/** reporting.yaml `OpenDataRelease`: an open-data release as EACC sees it (spec 09b). */
+export type OpenDataRelease = Schemas['OpenDataRelease'];
+export type OpenDataTableName = Schemas['OpenDataTable'];
+/** reporting.yaml `OpenDataReleaseDetail`: a release with its tables as built (#350). */
+export type OpenDataReleaseDetail = Schemas['OpenDataReleaseDetail'];
+export type OpenDataTableFile = Schemas['OpenDataTableFile'];
