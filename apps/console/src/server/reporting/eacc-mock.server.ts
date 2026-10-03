@@ -659,10 +659,6 @@ export async function mockReportingDocumentsFetch(input: Request): Promise<Respo
   await delay(200);
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
   const id = match?.[1];
-  // The national consolidated report's PDF is the NCR mock's (ncr-mock.server.ts).
-  if (id && (await import('./ncr-mock.server')).mockNcrFileTitle(id)) {
-    return (await import('./ncr-mock.server')).mockNcrDocumentsFetch(input);
-  }
   if (input.method !== 'GET' || !id || !mockReportingFileTitle(id)) {
     return problem(404, 'Not found');
   }
