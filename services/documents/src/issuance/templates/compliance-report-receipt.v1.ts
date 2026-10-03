@@ -13,6 +13,7 @@ import {
   htmlDocument,
   kenyanDate,
   letterhead,
+  reportDueDate,
   RULED_TABLE_STYLES,
   signatureNote,
   twoLineHash,
@@ -60,7 +61,7 @@ export const complianceReportReceiptPayload = z
     message: "The RPT reference number is not the Commission's",
     path: ['reference'],
   })
-  .refine((payload) => payload.dueDate === `${payload.financialYear.slice(5)}-07-31`, {
+  .refine((payload) => payload.dueDate === reportDueDate(payload.financialYear), {
     message: 'Must be 31 July after the financial year (Regs r.25(2))',
     path: ['dueDate'],
     when: validFields('financialYear', 'dueDate'),

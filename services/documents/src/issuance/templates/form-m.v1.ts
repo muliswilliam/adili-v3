@@ -14,6 +14,7 @@ import {
   letterhead,
   LINE,
   MUTED,
+  reportDueDate,
   RULED_TABLE_STYLES,
   signatureNote,
   SOFT,
@@ -356,7 +357,7 @@ export const formMV1: DocumentTemplate<FormMPayload> = {
     const body = `${letterhead({ name: commissionName, code: issuerCode })}
 <div class="fm-top"><div class="fm-form">FORM M</div><div class="fm-reg">(r. 25(2)(a))</div></div>
 <div class="fm-title" role="heading" aria-level="1">COMPLIANCE REPORT BY A RESPONSIBLE COMMISSION</div>
-<div class="fm-meta"><span>Ref <b class="mono">${esc(payload.meta.reference)}</b></span><span>Financial year ${esc(fy)}</span><span>Due ${esc(formatDate(`${period.financialYearStart + 1}-07-31`))}</span><span>${esc(filedThrough(payload))}</span></div>
+<div class="fm-meta"><span>Ref <b class="mono">${esc(payload.meta.reference)}</b></span><span>Financial year ${esc(fy)}</span><span>Due ${esc(formatDate(reportDueDate(fy)))}</span><span>${esc(filedThrough(payload))}</span></div>
 ${descriptionPart(payload)}
 ${declarationSections(payload)}
 ${clarificationsSection(payload)}

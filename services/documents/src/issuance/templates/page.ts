@@ -98,6 +98,14 @@ export function financialYearPeriod(financialYear: string): string {
   return `${formatDate(`${start}-07-01`)} to ${formatDate(`${start + 1}-06-30`)}`;
 }
 
+/**
+ * When a Commission's compliance report on a `2027/2028` financial year is due: 31 July after it,
+ * `2028-07-31` (Regs r.25(2)).
+ */
+export function reportDueDate(financialYear: string): string {
+  return `${Number(financialYear.slice(0, 4)) + 1}-07-31`;
+}
+
 /** EACC, which receives the Commissions' compliance reports and issues the national report. */
 export const EACC_ISSUER = { name: 'Ethics and Anti-Corruption Commission', code: 'EACC' };
 

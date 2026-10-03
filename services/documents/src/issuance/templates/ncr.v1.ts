@@ -13,6 +13,7 @@ import {
   letterhead,
   LINE,
   MUTED,
+  reportDueDate,
   signatureNote,
   SOFT,
 } from './page.js';
@@ -208,7 +209,7 @@ function nationalTotals(payload: NcrPayload): string {
     .join('');
   const share = (n: number) =>
     percent(reporting.commissions > 0 ? n / reporting.commissions : null);
-  const due = `${Number(payload.financialYear.slice(5))}-07-31`;
+  const due = reportDueDate(payload.financialYear);
   return `<h2>2. National totals</h2>
 <table class="rt"><caption class="fine" style="text-align:left;caption-side:bottom;padding-top:1mm">Expected and declared officers per Form M section, as filed.</caption><thead><tr><th>Form M section</th><th class="num">Expected</th><th class="num">Declared</th><th class="num">Did not declare</th><th class="num" style="width:34mm">Rate</th></tr></thead>
 <tbody>${body}</tbody>
