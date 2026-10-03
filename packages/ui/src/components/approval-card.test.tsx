@@ -10,6 +10,7 @@ const NOW = Date.parse('2026-10-03T09:00:00.000Z');
 function renderCard(props: Partial<Parameters<typeof ApprovalCard>[0]> = {}) {
   return render(
     <ApprovalCard
+      kind="determination"
       icon={JusticeScale01Icon}
       title="Jane Wanjiru"
       details={['CMP-TSC-2026-0000044-7', 'Teachers Service Commission']}
@@ -25,11 +26,11 @@ function renderCard(props: Partial<Parameters<typeof ApprovalCard>[0]> = {}) {
 }
 
 describe('ApprovalCard', () => {
-  it('is an article named by its title, with the title as a heading', () => {
+  it('is an article named by its kind and title, with the title as a heading', () => {
     renderCard();
 
-    const card = screen.getByRole('article', { name: 'Jane Wanjiru' });
-    expect(within(card).getByRole('heading', { name: 'Jane Wanjiru' })).toBeTruthy();
+    const card = screen.getByRole('article', { name: 'Determination: Jane Wanjiru' });
+    expect(within(card).getByRole('heading', { name: 'Determination: Jane Wanjiru' })).toBeTruthy();
   });
 
   it('can be named for what it asks to approve', () => {
@@ -51,26 +52,35 @@ describe('ApprovalCard', () => {
     renderCard({ badge: <span>Supervisor only</span> });
 
     expect(within(screen.getByRole('heading')).getByText('Supervisor only')).toBeTruthy();
-    expect(screen.getByRole('article', { name: 'Jane Wanjiru' })).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Determination: Jane Wanjiru' })).toBeTruthy();
   });
 
   it('says how long the proposal has waited, amber from 7 days and red past 30', () => {
     const { rerender } = renderCard();
     expect(screen.getByText('Today')).toBeTruthy();
 
-    rerender(
-      <ApprovalCard icon={File01Icon} title="A" proposedAt="2026-10-02T06:00:00.000Z" now={NOW} />,
+    const after = (proposedAt: string) => (
+      <ApprovalCard
+        kind="determination"
+        icon={File01Icon}
+        title="A"
+        proposedAt={proposedAt}
+        now={NOW}
+      />
     );
+    rerender(after('2026-10-02T06:00:00.000Z'));
     expect(screen.getByText('Waiting 1 day').className).toContain('bg-muted');
 
-    rerender(
-      <ApprovalCard icon={File01Icon} title="A" proposedAt="2026-09-26T06:00:00.000Z" now={NOW} />,
-    );
+    rerender(after('2026-09-26T06:00:00.000Z'));
     expect(screen.getByText('Waiting 7 days').className).toContain('text-warning');
 
-    rerender(
-      <ApprovalCard icon={File01Icon} title="A" proposedAt="2026-09-02T06:00:00.000Z" now={NOW} />,
-    );
+    rerender(after('2026-09-27T06:00:00.000Z'));
+    expect(screen.getByText('Waiting 6 days').className).toContain('bg-muted');
+
+    rerender(after('2026-09-03T06:00:00.000Z'));
+    expect(screen.getByText('Waiting 30 days').className).toContain('text-warning');
+
+    rerender(after('2026-09-02T06:00:00.000Z'));
     expect(screen.getByText('Waiting 31 days').className).toContain('text-destructive');
   });
 
@@ -122,17 +132,38 @@ describe('ApprovalCard', () => {
     expect(screen.getByRole('link', { name: 'Open case' })).toBeTruthy();
   });
 
+  it('holds back the decision when the contract says the officer cannot approve, with no reason', () => {
+    renderCard({ canApprove: false });
+
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.getByRole('note').textContent).toBe('You cannot approve this.');
+  });
+
+  it('names the card for each kind of approval', () => {
+    const { rerender } = renderCard();
+    for (const [kind, word] of [
+      ['action', 'Administrative action'],
+      ['referral', 'Referral to EACC'],
+    ] as const) {
+      rerender(<ApprovalCard kind={kind} icon={File01Icon} title="Jane Wanjiru" />);
+      expect(screen.getByRole('article', { name: `${word}: Jane Wanjiru` })).toBeTruthy();
+    }
+  });
+
   it('has words for each reason the contract gives, and takes others', () => {
     const { rerender } = renderCard({ cannotApproveReason: 'reviewer-of-record' });
     expect(screen.getByRole('note').textContent).toBe(
       'You cannot approve this: you reviewed this case.',
     );
 
-    rerender(<ApprovalCard icon={File01Icon} title="A" cannotApproveReason="role" />);
+    rerender(
+      <ApprovalCard kind="determination" icon={File01Icon} title="A" cannotApproveReason="role" />,
+    );
     expect(screen.getByRole('note').textContent).toBe('Only a supervisor can approve this.');
 
     rerender(
       <ApprovalCard
+        kind="determination"
         icon={File01Icon}
         title="A"
         cannotApproveReason="role"
@@ -146,6 +177,17 @@ describe('ApprovalCard', () => {
 });
 
 describe('ApprovalConsequences', () => {
+  it('puts its heading at the level asked, e.g. under a dialog title', () => {
+    render(
+      <ApprovalConsequences
+        headingLevel={3}
+        items={[{ icon: File01Icon, title: 'A letter is issued' }]}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 3, name: 'When you approve' })).toBeTruthy();
+  });
+
   it('takes another heading', () => {
     render(
       <ApprovalConsequences

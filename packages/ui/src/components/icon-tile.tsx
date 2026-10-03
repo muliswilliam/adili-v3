@@ -13,12 +13,14 @@ export const iconTileVariants = cva(
       /**
        * `sm`: 32px with a 17px icon, in the photo panel's list (the kit's `.art-item .ico`) and a
        * declaration's item rows. `xs`: 30px with a 16px icon, in a compact bar or panel header
-       * (the Copilot's). `lg`: 40px with an 18px icon and a 12px radius, in a list of rows.
+       * (the Copilot's). `md`: 38px with an 18px icon, on an approval card. `lg`: 40px with an 18px icon
+       * and a 12px radius, in a list of rows.
        */
       size: {
         default: 'size-[34px] [&_svg]:size-[18px]',
         xs: 'size-[30px] [&_svg]:size-4',
         sm: 'size-8 [&_svg]:size-[17px]',
+        md: 'size-[38px] [&_svg]:size-[18px]',
         lg: 'size-10 rounded-xl [&_svg]:size-[18px]',
       },
     },

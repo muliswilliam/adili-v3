@@ -16,10 +16,19 @@ import { Icon, type IconProps } from './icon';
  * `skipped`: the ladder ended before it (the declarant complied). `awaiting`: drafted and waiting
  * for approval, or approved and waiting for payroll. `current`: issued, its window running.
  * `declined`: the approver declined it. `stopped`: a salary stoppage in force. `done`: issued and
- * passed, or complied with.
+ * passed to a later step. `complied`: the declarant complied while it ran. `reinstated`: a
+ * stopped salary was paid again.
  */
 export type LadderStepStatus =
-  'upcoming' | 'skipped' | 'awaiting' | 'current' | 'declined' | 'stopped' | 'done';
+  | 'upcoming'
+  | 'skipped'
+  | 'awaiting'
+  | 'current'
+  | 'declined'
+  | 'stopped'
+  | 'done'
+  | 'complied'
+  | 'reinstated';
 
 export const LADDER_STEP_STATUSES: readonly LadderStepStatus[] = [
   'upcoming',
@@ -29,6 +38,8 @@ export const LADDER_STEP_STATUSES: readonly LadderStepStatus[] = [
   'declined',
   'stopped',
   'done',
+  'complied',
+  'reinstated',
 ];
 
 export interface LadderStepperStep {
@@ -37,12 +48,14 @@ export interface LadderStepperStep {
   label: ReactNode;
   status: LadderStepStatus;
   /**
-   * The step's line under its name, e.g. "Issued 3 Sep 2026" or "Awaiting approval · drafted 2
-   * Oct 2026". Without it the line is the status word.
+   * The step's line under its name, after the status word screen readers hear, so it should not
+   * repeat it: "Issued 3 Sep 2026", "Drafted 2 Oct 2026". Without it the line is the status word.
    */
   detail?: ReactNode;
-  /** When the step's window to comply closes, printed as "Act by {date}". */
+  /** When the step's window closes, printed as "Act by {date}" or with `windowLabel`. */
   windowEndsAt?: string;
+  /** Words the window line for this step, e.g. "Stoppage window ends {date}". */
+  windowLabel?: (date: string) => string;
   /** The letter the step issued, e.g. its reference or a link to it. */
   letter?: ReactNode;
   /** The declarant's response to the step, e.g. "Responded 9 Aug 2026". */
@@ -67,6 +80,8 @@ export const LADDER_STEPPER_MESSAGES: LadderStepperMessages = {
     declined: 'Declined',
     stopped: 'Salary stopped',
     done: 'Done',
+    complied: 'Complied',
+    reinstated: 'Salary reinstated',
   },
   windowEndsAt: (date) => `Act by ${date}`,
 };
@@ -88,7 +103,20 @@ const MARKER: Record<LadderStepStatus, { className: string; icon?: IconProps['ic
   },
   stopped: { className: 'bg-destructive text-destructive-foreground', icon: BanIcon },
   done: { className: 'bg-success text-primary-foreground', icon: Tick02Icon },
+  complied: { className: 'bg-success text-primary-foreground', icon: Tick02Icon },
+  reinstated: { className: 'bg-success text-primary-foreground', icon: Tick02Icon },
 };
+
+/** Statuses after which the rule to the next step turns green. */
+const PASSED: ReadonlySet<LadderStepStatus> = new Set(['done', 'complied', 'reinstated']);
+
+/** Statuses a ladder can rest on: the default step marked `aria-current` is the last of them. */
+const REACHED: ReadonlySet<LadderStepStatus> = new Set([
+  'awaiting',
+  'current',
+  'declined',
+  'stopped',
+]);
 
 /** Steps not reached are named in the muted weight, so the ladder's progress reads at a glance. */
 const QUIET: ReadonlySet<LadderStepStatus> = new Set(['upcoming', 'skipped']);
@@ -97,6 +125,11 @@ export type LadderStepperProps = Omit<ComponentProps<'ol'>, 'children'> & {
   steps: readonly LadderStepperStep[];
   /** Names the list for screen readers; defaults to "Administrative action ladder". */
   label?: string;
+  /**
+   * Id of the step the ladder is on, marked `aria-current="step"`. Defaults to the last step
+   * awaiting approval, running, declined or stopping a salary; none once the ladder has ended.
+   */
+  currentStepId?: string;
   messages?: Partial<Omit<LadderStepperMessages, 'statuses'>> & {
     statuses?: Partial<LadderStepperMessages['statuses']>;
   };
@@ -108,12 +141,14 @@ export type LadderStepperProps = Omit<ComponentProps<'ol'>, 'children'> & {
  * status word), when its window ends, the letter it issued and the declarant's response. The
  * number turns into a tick, a clock, a cross or a ban sign by status, and screen readers hear
  * "Status: {word}." with each step, so the status is never colour alone. The step the ladder is
- * on carries `aria-current="step"`. Below 700px of container width the steps stack, joined by a
+ * on (`currentStepId`, or the last step awaiting, running, declined or stopped) carries
+ * `aria-current="step"`. Below 700px of container width the steps stack, joined by a
  * vertical rule.
  */
 export function LadderStepper({
   steps,
   label = 'Administrative action ladder',
+  currentStepId,
   messages,
   className,
   style,
@@ -124,6 +159,7 @@ export function LadderStepper({
     ...messages,
     statuses: { ...LADDER_STEPPER_MESSAGES.statuses, ...messages?.statuses },
   };
+  const currentId = currentStepId ?? steps.findLast((step) => REACHED.has(step.status))?.id;
   return (
     <div className="@container">
       <ol
@@ -143,7 +179,7 @@ export function LadderStepper({
             <li
               key={step.id}
               data-status={step.status}
-              aria-current={step.status === 'current' ? 'step' : undefined}
+              aria-current={step.id === currentId ? 'step' : undefined}
               className={cn(
                 'relative grid grid-cols-[28px_minmax(0,1fr)] content-start gap-x-3 pb-3.5',
                 '@min-[700px]:grid-cols-1 @min-[700px]:gap-y-1.5 @min-[700px]:pr-3.5 @min-[700px]:pb-0',
@@ -155,7 +191,7 @@ export function LadderStepper({
                   className={cn(
                     'absolute top-8 bottom-0.5 left-[13px] w-0.5 rounded-full',
                     '@min-[700px]:top-[13px] @min-[700px]:right-2 @min-[700px]:bottom-auto @min-[700px]:left-9 @min-[700px]:h-0.5 @min-[700px]:w-auto',
-                    step.status === 'done' ? 'bg-success/35' : 'bg-border',
+                    PASSED.has(step.status) ? 'bg-success/35' : 'bg-border',
                   )}
                 />
               )}
@@ -198,7 +234,7 @@ export function LadderStepper({
               </span>
               {step.windowEndsAt === undefined ? null : (
                 <span className="text-[12.5px] leading-[1.35] text-muted-foreground">
-                  {copy.windowEndsAt(formatDate(step.windowEndsAt))}
+                  {(step.windowLabel ?? copy.windowEndsAt)(formatDate(step.windowEndsAt))}
                 </span>
               )}
               {step.letter === undefined && step.response === undefined ? null : (

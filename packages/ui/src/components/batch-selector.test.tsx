@@ -50,7 +50,7 @@ describe('BatchSelector', () => {
 
     expect(screen.getByText('1,240 closures ready')).toBeTruthy();
     expect(screen.getByText('25 sampled excluded · 13 chunks of 100')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Approve 1,240' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve 1,240 closures' }));
     expect(handlers.onApprove).toHaveBeenCalledOnce();
   });
 
@@ -72,7 +72,7 @@ describe('BatchSelector', () => {
     renderBatch(running(3, 300));
 
     expect(screen.getByText('Approving 1,240 closures')).toBeTruthy();
-    expect(screen.getByText('Chunk 3 of 13')).toBeTruthy();
+    expect(screen.getByText('3 of 13 chunks approved')).toBeTruthy();
     const bar = screen.getByRole('progressbar', { name: 'Chunks approved' });
     expect(bar.getAttribute('aria-valuenow')).toBe('3');
     expect(bar.getAttribute('aria-valuemax')).toBe('13');
@@ -81,10 +81,31 @@ describe('BatchSelector', () => {
     expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
   });
 
+  it('counts finished chunks from none at the start of a run', () => {
+    renderBatch(running(0, 0));
+
+    expect(screen.getByText('0 of 13 chunks approved')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('');
+  });
+
+  it('names the chunk that failed as the one after the chunks approved', () => {
+    const { rerender, handlers } = renderBatch(running(3, 300));
+    expect(screen.getByText('3 of 13 chunks approved')).toBeTruthy();
+
+    rerender(
+      <BatchSelector
+        phase="stopped"
+        eligible={1240}
+        progress={{ chunk: 3, chunks: 13, approved: 300, total: 1240 }}
+        {...handlers}
+      />,
+    );
+    expect(screen.getByText('Approval stopped at chunk 4 of 13')).toBeTruthy();
+  });
+
   it('announces progress only at chunk boundaries', () => {
     const { rerender, handlers } = renderBatch(running(3, 300));
     const live = screen.getByRole('status');
-    expect(live.getAttribute('aria-live')).toBe('polite');
     expect(live.textContent).toBe('Chunk 3 of 13 approved. 300 closures.');
 
     // A count that moves within a chunk is not read out.

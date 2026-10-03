@@ -18,6 +18,7 @@ const meta = {
   title: 'Determinations/ApprovalCard',
   component: ApprovalCard,
   args: {
+    kind: 'determination',
     icon: JusticeScale01Icon,
     title: 'Jane Wanjiru',
     badge: <OutcomeBadge outcome="compliant" />,
@@ -88,6 +89,7 @@ export const YouProposedIt: Story = {
 
 export const SalaryStoppage: Story = {
   args: {
+    kind: 'action',
     icon: BankIcon,
     tone: 'destructive',
     title: 'Salary stoppage',
@@ -132,6 +134,7 @@ export const SupervisorOnly: Story = {
 
 export const Referral: Story = {
   args: {
+    kind: 'referral',
     icon: Search01Icon,
     tone: 'brand',
     title: 'Samuel Kiprono',

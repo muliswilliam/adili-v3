@@ -22,7 +22,14 @@ export const CANNOT_APPROVE_REASONS: readonly CannotApproveReason[] = [
   'role',
 ];
 
+/** What an approval is for, as the review contract's `ApprovalKind`. */
+export type ApprovalKind = 'determination' | 'action' | 'referral';
+
+export const APPROVAL_KINDS: readonly ApprovalKind[] = ['determination', 'action', 'referral'];
+
 export interface ApprovalCardMessages {
+  /** The kind's word, read before the title and naming the card with it. */
+  kinds: Record<ApprovalKind, string>;
   /** Read before the proposer. Defaults to "Proposed by". */
   proposedBy: string;
   /** Defaults to "Today" / "Waiting 1 day" / "Waiting {n} days". */
@@ -31,11 +38,18 @@ export interface ApprovalCardMessages {
   cannotApprove: Record<CannotApproveReason, string>;
   /** After the `proposer` reason. Defaults to "Someone else must approve it.". */
   proposerNext: string;
+  /** When `canApprove` is false without a reason. Defaults to "You cannot approve this.". */
+  cannotApproveFallback: string;
   /** The heading of the consequences list. Defaults to "When you approve". */
   consequences: string;
 }
 
 export const APPROVAL_CARD_MESSAGES: ApprovalCardMessages = {
+  kinds: {
+    determination: 'Determination',
+    action: 'Administrative action',
+    referral: 'Referral to EACC',
+  },
   proposedBy: 'Proposed by',
   waiting: (days) => (days <= 0 ? 'Today' : `Waiting ${plural(days, 'day')}`),
   cannotApprove: {
@@ -44,6 +58,7 @@ export const APPROVAL_CARD_MESSAGES: ApprovalCardMessages = {
     role: 'Only a supervisor can approve this.',
   },
   proposerNext: 'Someone else must approve it.',
+  cannotApproveFallback: 'You cannot approve this.',
   consequences: 'When you approve',
 };
 
@@ -61,6 +76,8 @@ export type ApprovalConsequencesProps = Omit<ComponentProps<'section'>, 'childre
   items: readonly ApprovalConsequence[];
   /** Defaults to "When you approve". */
   heading?: ReactNode;
+  /** The heading's level: 4 on an `ApprovalCard` (under its h3), 3 in a dialog under its h2. */
+  headingLevel?: 2 | 3 | 4;
 };
 
 /**
@@ -71,15 +88,17 @@ export type ApprovalConsequencesProps = Omit<ComponentProps<'section'>, 'childre
 export function ApprovalConsequences({
   items,
   heading = APPROVAL_CARD_MESSAGES.consequences,
+  headingLevel = 4,
   className,
   ...props
 }: ApprovalConsequencesProps) {
   const headingId = useId();
+  const Heading = `h${String(headingLevel)}` as 'h2' | 'h3' | 'h4';
   return (
     <section aria-labelledby={headingId} className={cn('grid gap-2.5', className)} {...props}>
-      <h4 id={headingId} className="text-[14.5px] font-semibold">
+      <Heading id={headingId} className="text-[14.5px] font-semibold">
         {heading}
-      </h4>
+      </Heading>
       <ul className="grid gap-2.5">
         {items.map((item, index) => (
           <li
@@ -108,11 +127,13 @@ const waitingVariant = (days: number): NonNullable<BadgeProps['variant']> =>
   days > 30 ? 'destructive' : days >= 7 ? 'warning' : 'default';
 
 export type ApprovalCardProps = Omit<ComponentProps<'article'>, 'title' | 'children'> & {
+  /** What it asks to approve; its word is read before the title and names the card with it. */
+  kind: ApprovalKind;
   /** The kind of item: a scale for a determination, a step's icon, a flag for a referral. */
   icon: IconProps['icon'];
   /** `destructive` for a grave step (salary stoppage, disciplinary referral), `brand` for a referral. */
   tone?: 'default' | 'destructive' | 'brand';
-  /** The subject (the declarant) or the step proposed. Names the card unless `aria-label` is set. */
+  /** The subject (the declarant) or the step proposed. Names the card, after the kind's word. */
   title: ReactNode;
   /** Beside the title: an `OutcomeBadge`, "Supervisor only", a referral's grounds. */
   badge?: ReactNode;
@@ -130,9 +151,11 @@ export type ApprovalCardProps = Omit<ComponentProps<'article'>, 'title' | 'child
   summaryLabel?: ReactNode;
   /** What approving does, under "When you approve". */
   consequences?: readonly ApprovalConsequence[];
+  /** The contract's `canApprove`. False, or a `cannotApproveReason`, replaces `decision`. */
+  canApprove?: boolean;
   /**
    * Set when the officer cannot approve it. The card then says why, in place of `decision`.
-   * Null or unset means they can.
+   * Null or unset, with `canApprove` not false, means they can.
    */
   cannotApproveReason?: CannotApproveReason | null;
   /** Replaces the default words for `cannotApproveReason`, e.g. naming what needs a supervisor. */
@@ -143,8 +166,9 @@ export type ApprovalCardProps = Omit<ComponentProps<'article'>, 'title' | 'child
   actions?: ReactNode;
   /** At the end of the footer: "Open case", "Open ladder", "Open referral". */
   link?: ReactNode;
-  messages?: Partial<Omit<ApprovalCardMessages, 'cannotApprove'>> & {
+  messages?: Partial<Omit<ApprovalCardMessages, 'cannotApprove' | 'kinds'>> & {
     cannotApprove?: Partial<ApprovalCardMessages['cannotApprove']>;
+    kinds?: Partial<ApprovalCardMessages['kinds']>;
   };
 };
 
@@ -157,6 +181,7 @@ export type ApprovalCardProps = Omit<ComponentProps<'article'>, 'title' | 'child
  * would be; the other actions and the link stay.
  */
 export function ApprovalCard({
+  kind,
   icon,
   tone = 'default',
   title,
@@ -168,6 +193,7 @@ export function ApprovalCard({
   summary,
   summaryLabel,
   consequences,
+  canApprove,
   cannotApproveReason,
   cannotApproveText,
   decision,
@@ -181,12 +207,19 @@ export function ApprovalCard({
     ...APPROVAL_CARD_MESSAGES,
     ...messages,
     cannotApprove: { ...APPROVAL_CARD_MESSAGES.cannotApprove, ...messages?.cannotApprove },
+    kinds: { ...APPROVAL_CARD_MESSAGES.kinds, ...messages?.kinds },
   };
+  const kindId = useId();
   const titleId = useId();
   const today = useToday(now);
   const waited =
     proposedAt === undefined ? null : daysBetween(proposedAt, new Date(today).toISOString());
-  const blocked = cannotApproveReason !== undefined && cannotApproveReason !== null;
+  const reason = cannotApproveReason ?? null;
+  const blocked = canApprove === false || reason !== null;
+  const shownDecision = blocked ? undefined : decision;
+  const reasonText =
+    cannotApproveText ??
+    (reason === null ? copy.cannotApproveFallback : copy.cannotApprove[reason]);
   const meta =
     proposer === undefined
       ? details
@@ -199,83 +232,83 @@ export function ApprovalCard({
 
   return (
     <article
-      aria-labelledby={props['aria-label'] === undefined ? titleId : undefined}
-      className={cn(
-        'grid gap-3.5 rounded-xl bg-card p-4 text-card-foreground shadow-card sm:px-5 sm:py-[18px]',
-        className,
-      )}
+      aria-labelledby={props['aria-label'] === undefined ? `${kindId} ${titleId}` : undefined}
+      className={cn('@container rounded-xl bg-card text-card-foreground shadow-card', className)}
       {...props}
     >
-      <div className="flex flex-wrap items-start gap-x-3.5 gap-y-2.5">
-        <IconTile tone={tone} className="size-[38px] [&_svg]:size-[18px]">
-          <Icon icon={icon} />
-        </IconTile>
-        <div className="grid min-w-0 flex-1 basis-[calc(100%-52px)] gap-1 sm:basis-0">
-          <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-semibold tracking-[-0.01em]">
-            <span id={titleId}>{title}</span>
-            {badge}
-          </h3>
-          {meta.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13.5px] text-muted-foreground">
-              {meta.map((detail, index) => (
-                // The details are fixed for an item and never reordered.
-                <span key={index}>{detail}</span>
-              ))}
-            </div>
-          ) : null}
+      <div className="grid gap-3.5 p-4 @min-[560px]:px-5 @min-[560px]:py-[18px]">
+        <div className="flex flex-wrap items-start gap-x-3.5 gap-y-2.5">
+          <IconTile tone={tone} size="md">
+            <Icon icon={icon} />
+          </IconTile>
+          <div className="grid min-w-0 flex-1 basis-[calc(100%-52px)] gap-1 @min-[560px]:basis-0">
+            <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-semibold tracking-[-0.01em]">
+              <span id={kindId} className="sr-only">{`${copy.kinds[kind]}:`}</span>{' '}
+              <span id={titleId}>{title}</span>
+              {badge}
+            </h3>
+            {meta.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[13.5px] text-muted-foreground">
+                {meta.map((detail, index) => (
+                  // The details are fixed for an item and never reordered.
+                  <span key={index}>{detail}</span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          {waited === null ? null : (
+            <Badge
+              variant={waitingVariant(waited)}
+              className="@max-[559px]:ml-[52px] @min-[560px]:shrink-0"
+            >
+              <Icon icon={Clock01Icon} strokeWidth={2.2} />
+              {copy.waiting(waited)}
+            </Badge>
+          )}
         </div>
-        {waited === null ? null : (
-          <Badge variant={waitingVariant(waited)} className="max-sm:ml-[52px] sm:shrink-0">
-            <Icon icon={Clock01Icon} strokeWidth={2.2} />
-            {copy.waiting(waited)}
-          </Badge>
+        {summary === undefined ? null : (
+          <div className="grid gap-2 rounded-lg bg-muted px-3.5 py-3 text-sm text-secondary-foreground">
+            {summaryLabel === undefined ? null : (
+              <div className="text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+                {summaryLabel}
+              </div>
+            )}
+            <div>{summary}</div>
+          </div>
+        )}
+        {consequences === undefined || consequences.length === 0 ? null : (
+          <ApprovalConsequences items={consequences} heading={copy.consequences} headingLevel={4} />
+        )}
+        {blocked ? (
+          <Alert
+            role="note"
+            variant="warning"
+            className="px-3 py-2.5 [&>svg]:top-[13px] [&>svg]:left-3 [&>svg]:size-4 [&>svg~*]:pl-[26px]"
+          >
+            <Icon icon={LockIcon} />
+            <AlertDescription>
+              <b className="font-semibold">{reasonText}</b>
+              {cannotApproveText === undefined && reason === 'proposer'
+                ? ` ${copy.proposerNext}`
+                : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {shownDecision === undefined && actions === undefined && link === undefined ? null : (
+          <div className="flex flex-wrap items-center gap-2 @max-[559px]:[&>[data-slot=decision]>*]:flex-1">
+            {shownDecision === undefined ? null : (
+              <div
+                data-slot="decision"
+                className="flex flex-wrap items-center gap-2 @max-[559px]:w-full"
+              >
+                {shownDecision}
+              </div>
+            )}
+            {actions}
+            {link === undefined ? null : <div className="ml-auto flex items-center">{link}</div>}
+          </div>
         )}
       </div>
-      {summary === undefined ? null : (
-        <div className="grid gap-2 rounded-lg bg-muted px-3.5 py-3 text-sm text-secondary-foreground">
-          {summaryLabel === undefined ? null : (
-            <div className="text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">
-              {summaryLabel}
-            </div>
-          )}
-          <div>{summary}</div>
-        </div>
-      )}
-      {consequences === undefined || consequences.length === 0 ? null : (
-        <ApprovalConsequences items={consequences} heading={copy.consequences} />
-      )}
-      {blocked ? (
-        <Alert
-          role="note"
-          variant="warning"
-          className="px-3 py-2.5 [&>svg]:top-[13px] [&>svg]:left-3 [&>svg]:size-4 [&>svg~*]:pl-[26px]"
-        >
-          <Icon icon={LockIcon} />
-          <AlertDescription>
-            {cannotApproveText === undefined ? (
-              <>
-                <b className="font-semibold">{copy.cannotApprove[cannotApproveReason]}</b>
-                {cannotApproveReason === 'proposer' ? ` ${copy.proposerNext}` : null}
-              </>
-            ) : (
-              <b className="font-semibold">{cannotApproveText}</b>
-            )}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {(blocked ? undefined : decision) === undefined &&
-      actions === undefined &&
-      link === undefined ? null : (
-        <div className="flex flex-wrap items-center gap-2 max-sm:[&>[data-slot=decision]>*]:flex-1">
-          {blocked || decision === undefined ? null : (
-            <div data-slot="decision" className="flex flex-wrap items-center gap-2 max-sm:w-full">
-              {decision}
-            </div>
-          )}
-          {actions}
-          {link === undefined ? null : <div className="ml-auto flex items-center">{link}</div>}
-        </div>
-      )}
     </article>
   );
 }

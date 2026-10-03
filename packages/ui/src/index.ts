@@ -18,12 +18,14 @@ export {
 } from './components/attachment-list';
 export {
   APPROVAL_CARD_MESSAGES,
+  APPROVAL_KINDS,
   ApprovalCard,
   type ApprovalCardMessages,
   type ApprovalCardProps,
   type ApprovalConsequence,
   ApprovalConsequences,
   type ApprovalConsequencesProps,
+  type ApprovalKind,
   CANNOT_APPROVE_REASONS,
   type CannotApproveReason,
 } from './components/approval-card';

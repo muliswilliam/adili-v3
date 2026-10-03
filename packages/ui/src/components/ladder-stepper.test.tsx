@@ -85,12 +85,12 @@ describe('LadderStepper', () => {
       <LadderStepper
         steps={[
           { id: 'a', label: 'Notice to comply', status: 'done' },
-          { id: 'b', label: 'Warning', status: 'declined', detail: 'Declined 2 Sep 2026' },
+          { id: 'b', label: 'Warning', status: 'declined', detail: '2 Sep 2026' },
           {
             id: 'c',
             label: 'Salary stoppage',
             status: 'stopped',
-            detail: 'Salary stopped 1 Oct 2026',
+            detail: 'From 1 Oct 2026',
           },
           { id: 'd', label: 'Disciplinary referral', status: 'skipped' },
           { id: 'e', label: 'Extra', status: 'awaiting', detail: 'Drafted 2 Oct 2026' },
@@ -104,6 +104,74 @@ describe('LadderStepper', () => {
     expect(referral?.textContent).toContain('Not needed');
     expect(extra?.textContent).toContain('Status: Awaiting approval.');
     expect(warning?.dataset.status).toBe('declined');
+  });
+
+  it('marks the step a ladder rests on when none is running', () => {
+    const { rerender } = render(
+      <LadderStepper
+        steps={[
+          { id: 'a', label: 'Notice to comply', status: 'done' },
+          { id: 'b', label: 'Warning', status: 'done' },
+          { id: 'c', label: 'Salary stoppage', status: 'stopped' },
+          { id: 'd', label: 'Disciplinary referral', status: 'awaiting' },
+        ]}
+      />,
+    );
+    expect(
+      items()
+        .getAllByRole('listitem')
+        .map((item) => item.getAttribute('aria-current')),
+    ).toEqual([null, null, null, 'step']);
+
+    rerender(
+      <LadderStepper
+        currentStepId="c"
+        steps={[
+          { id: 'c', label: 'Salary stoppage', status: 'stopped' },
+          { id: 'd', label: 'Disciplinary referral', status: 'awaiting' },
+        ]}
+      />,
+    );
+    expect(items().getAllByRole('listitem')[0]?.getAttribute('aria-current')).toBe('step');
+  });
+
+  it('marks no step once the ladder has ended in compliance', () => {
+    render(
+      <LadderStepper
+        steps={[
+          { id: 'a', label: 'Notice to comply', status: 'complied', detail: '12 Aug 2026' },
+          { id: 'b', label: 'Warning', status: 'skipped' },
+        ]}
+      />,
+    );
+
+    const [notice] = items().getAllByRole('listitem');
+    expect(notice?.textContent).toContain('Status: Complied.');
+    expect(
+      items()
+        .getAllByRole('listitem')
+        .some((item) => item.hasAttribute('aria-current')),
+    ).toBe(false);
+  });
+
+  it('says a reinstated salary, and words a step window its own way', () => {
+    render(
+      <LadderStepper
+        steps={[
+          {
+            id: 'c',
+            label: 'Salary stoppage',
+            status: 'reinstated',
+            detail: '2 Nov 2026',
+            windowEndsAt: '2026-10-31T09:00:00.000Z',
+            windowLabel: (date) => `Stoppage window ends ${date}`,
+          },
+        ]}
+      />,
+    );
+
+    expect(items().getByRole('listitem').textContent).toContain('Status: Salary reinstated.');
+    expect(screen.getByText('Stoppage window ends 31 Oct 2026')).toBeTruthy();
   });
 
   it('takes another name and other wording', () => {

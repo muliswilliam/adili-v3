@@ -60,14 +60,14 @@ export interface BatchSelectorMessages {
   excluded: (excluded: string) => string;
   /** Defaults to "{chunks} chunks of {size}". */
   chunks: (chunks: string, size: string) => string;
-  /** Defaults to "Approve {count}". */
+  /** Defaults to "Approve {count} closures". */
   approve: (count: string) => string;
   emptyTitle: string;
   emptyDescription: string;
   /** Defaults to "Approving {total} closures". */
   running: (total: string) => string;
-  /** Defaults to "Chunk {chunk} of {chunks}". */
-  chunkOf: (chunk: string, chunks: string) => string;
+  /** Chunks finished so far. Defaults to "{chunk} of {chunks} chunks approved". */
+  chunksApproved: (chunk: string, chunks: string) => string;
   progressLabel: string;
   approved: string;
   toGo: string;
@@ -104,11 +104,11 @@ export const BATCH_SELECTOR_MESSAGES: BatchSelectorMessages = {
   ready: (count) => `${count} closures ready`,
   excluded: (excluded) => `${excluded} sampled excluded`,
   chunks: (chunks, size) => `${chunks} chunks of ${size}`,
-  approve: (count) => `Approve ${count}`,
+  approve: (count) => `Approve ${count} closures`,
   emptyTitle: 'Nothing left to approve for these filters',
   emptyDescription: 'New proposals appear after the daily sweep.',
   running: (total) => `Approving ${total} closures`,
-  chunkOf: (chunk, chunks) => `Chunk ${chunk} of ${chunks}`,
+  chunksApproved: (chunk, chunks) => `${chunk} of ${chunks} chunks approved`,
   progressLabel: 'Chunks approved',
   approved: 'approved',
   toGo: 'to go',
@@ -127,6 +127,26 @@ export const BATCH_SELECTOR_MESSAGES: BatchSelectorMessages = {
   resume: 'Resume',
   stop: 'Stop here',
 };
+
+/** The live region's text, keyed so it changes only at a chunk boundary and once at the end. */
+function liveAnnouncement(
+  phase: BatchPhase,
+  run: BatchProgress,
+  copy: BatchSelectorMessages,
+): { key: string; text: string } {
+  if (phase === 'done') return { key: 'done', text: copy.announceDone(formatNumber(run.approved)) };
+  if ((phase === 'running' || phase === 'stopped') && run.chunk > 0) {
+    return {
+      key: `chunk:${String(run.chunk)}`,
+      text: copy.announceChunk(
+        formatNumber(run.chunk),
+        formatNumber(run.chunks),
+        formatNumber(run.approved),
+      ),
+    };
+  }
+  return { key: '', text: '' };
+}
 
 export type BatchSelectorProps = Omit<ComponentProps<'div'>, 'children'> & {
   /** The filter fields (cycle, type, priority band, reporting entity), disabled while it runs. */
@@ -192,31 +212,14 @@ export function BatchSelector({
   const readyChunks = Math.ceil(eligible / chunkSize);
   const run = progress ?? { chunk: 0, chunks: readyChunks, approved: 0, total: eligible };
   const remaining = formatNumber(Math.max(0, run.total - run.approved));
-  const range = references ?? undefined;
+  const referenceRange = references ?? undefined;
 
   // The live text is keyed by chunk, so a count that moves within a chunk is not read out. A
   // stopped run keeps its chunk's key, so resuming does not read the same chunk again.
-  const announcementKey =
-    (phase === 'running' || phase === 'stopped') && run.chunk > 0
-      ? `chunk:${String(run.chunk)}`
-      : phase === 'done'
-        ? 'done'
-        : '';
+  const live = liveAnnouncement(phase, run, copy);
   const [announcement, setAnnouncement] = useState({ key: '', text: '' });
-  if (announcement.key !== announcementKey) {
-    setAnnouncement({
-      key: announcementKey,
-      text:
-        announcementKey === 'done'
-          ? copy.announceDone(formatNumber(run.approved))
-          : announcementKey === ''
-            ? ''
-            : copy.announceChunk(
-                formatNumber(run.chunk),
-                formatNumber(run.chunks),
-                formatNumber(run.approved),
-              ),
-    });
+  if (announcement.key !== live.key) {
+    setAnnouncement(live);
   }
 
   const bar = (tone: 'default' | 'destructive') => (
@@ -224,7 +227,7 @@ export function BatchSelector({
       label={copy.progressLabel}
       value={run.chunk}
       max={Math.max(run.chunks, 1)}
-      valueText={copy.chunkOf(formatNumber(run.chunk), formatNumber(run.chunks))}
+      valueText={copy.chunksApproved(formatNumber(run.chunk), formatNumber(run.chunks))}
       showValue={false}
       announce={false}
       tone={tone}
@@ -253,7 +256,7 @@ export function BatchSelector({
           <Spinner />
           <b className="font-semibold">{copy.running(formatNumber(run.total))}</b>
           <span className="ml-auto text-[13px] text-muted-foreground">
-            {copy.chunkOf(formatNumber(run.chunk), formatNumber(run.chunks))}
+            {copy.chunksApproved(formatNumber(run.chunk), formatNumber(run.chunks))}
           </span>
         </div>
         {bar('default')}
@@ -274,7 +277,7 @@ export function BatchSelector({
     batch = (
       <Alert role={undefined} variant="success">
         <Icon icon={CheckmarkCircle02Icon} strokeWidth={2.2} />
-        <AlertTitle>{copy.done(formatNumber(run.approved), range)}</AlertTitle>
+        <AlertTitle>{copy.done(formatNumber(run.approved), referenceRange)}</AlertTitle>
         <AlertDescription>
           {copy.doneDescription}
           {skipped > 0 ? <> {copy.skipped(formatNumber(skipped))}</> : null}
@@ -298,7 +301,7 @@ export function BatchSelector({
             {copy.stopped(formatNumber(run.chunk + 1), formatNumber(run.chunks))}
           </AlertTitle>
           <AlertDescription>
-            {copy.stoppedDescription(formatNumber(run.approved), remaining, range)}
+            {copy.stoppedDescription(formatNumber(run.approved), remaining, referenceRange)}
             {stoppedReason === undefined ? null : <> {stoppedReason}</>} {copy.resumeNote}
           </AlertDescription>
           {onResume === undefined && onStop === undefined ? null : (
@@ -340,7 +343,7 @@ export function BatchSelector({
           </div>
         </div>
         {onApprove === undefined ? null : (
-          <Button onClick={onApprove} className="max-sm:w-full">
+          <Button onClick={onApprove} className="@max-[480px]:w-full">
             <Icon icon={Tick02Icon} strokeWidth={2.2} />
             {copy.approve(formatNumber(eligible))}
           </Button>
@@ -350,7 +353,7 @@ export function BatchSelector({
   }
 
   return (
-    <div className={cn('grid gap-4', className)} {...props}>
+    <div className={cn('@container grid gap-4', className)} {...props}>
       {filters === undefined ? null : (
         <fieldset disabled={phase === 'running'} className="@container min-w-0">
           <legend className="sr-only">{copy.filters}</legend>
@@ -364,7 +367,7 @@ export function BatchSelector({
       )}
       {counts}
       {batch}
-      <div role="status" aria-live="polite" className="sr-only">
+      <div role="status" className="sr-only">
         {announcement.text}
       </div>
     </div>
