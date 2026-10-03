@@ -39,6 +39,11 @@ export const envSchema = bffEnvSchema.extend({
    */
   REPORTING_MOCK: z.stringbool().default(false),
   /**
+   * With REPORTING_MOCK: the day (`YYYY-MM-DD`) the mock and the Form M workspace take as today,
+   * to show the preview window (from 1 April) without waiting for it. Today by default.
+   */
+  REPORTING_MOCK_TODAY: z.iso.date().optional(),
+  /**
    * With REPORTING_MOCK: the Commission open-data preview (spec 09b) the mock answers with, the
    * latest `published` release by default, a `preview` built since, `none` built yet, or
    * `unavailable` (object storage down).
