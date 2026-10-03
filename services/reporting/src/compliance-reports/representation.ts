@@ -1,4 +1,4 @@
-import type { FormMV1 } from '@adili/forms';
+import { FormMSchema, type FormMV1 } from '@adili/forms';
 import { z } from 'zod';
 
 import type { Conforms } from '../conforms.js';
@@ -45,8 +45,8 @@ export const reportCountsSchema = z
 true satisfies Conforms<ReportCounts, typeof reportCountsSchema>;
 
 /**
- * A `form-m.v1` document: packages/schemas/forms/form-m.v1.json is its schema. A draft need not be
- * complete against it yet (confirming checks that), so the contract names only its parts.
+ * A draft `form-m.v1` document. A draft need not be complete against form-m.v1 yet (confirming
+ * checks that), so the contract names only its parts; a submitted document is `FormM` itself.
  */
 export const formMDocumentSchema = z
   .object({
@@ -143,6 +143,18 @@ export const complianceReportSchema = z.object({
   }),
 });
 true satisfies Conforms<ComplianceReportView, typeof complianceReportSchema>;
+
+/**
+ * A submitted report as filed (`getSubmittedReport`): its document is the frozen `form-m.v1`
+ * (`FormM`, packages/schemas/forms/form-m.v1.json), complete and with its `meta.reference`.
+ */
+export const submittedComplianceReportSchema = complianceReportSchema.extend({
+  document: FormMSchema.nullable().meta({
+    description:
+      'The form-m.v1 document as filed, frozen at submission (a submitted report always has one)',
+  }),
+});
+true satisfies Conforms<ComplianceReportView, typeof submittedComplianceReportSchema>;
 true satisfies Conforms<ComplianceReportSummary, typeof complianceReportSummarySchema>;
 
 export function reportSummary(

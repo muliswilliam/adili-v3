@@ -175,7 +175,7 @@ export interface paths {
         put?: never;
         /**
          * Federated Commission submits a form-m.v1 document (reports:submit scope)
-         * @description For a Commission running its own system: a client-credentials token with scope `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The document is validated against form-m.v1 (`invalid-document`), must name the token's Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June, open for reports (from 1 April of its last half); per section declared plus not declared is expected and the non-filers listed are as many as not declared; access requests granted plus declined are at most received and the decline reasons add up to declined; Part III names who compiled and who confirmed, with dates. The report is then submitted as a hosted confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M PDF, the signed receipt and the officers' emails (`formMDocumentId` and `receiptDocumentId` are null until then). A draft compiled on the platform for the year is superseded. The answer, kept for replays of the key, leaves `document` null.
+         * @description For a Commission running its own system: a client-credentials token with scope `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The document is validated against form-m.v1 (`invalid-document`), must name the token's Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June, open for reports (from 1 April of its last half); per section declared plus not declared is expected and the non-filers listed are as many as not declared; access requests granted plus declined are at most received and the decline reasons count at least every decline (a denial citing several grounds counts under each); Part III names who compiled and who confirmed, with dates. The report is then submitted as a hosted confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M PDF, the signed receipt and the officers' emails (`formMDocumentId` and `receiptDocumentId` are null until then). A draft compiled on the platform for the year is superseded. The answer, kept for replays of the key, leaves `document` null.
          */
         post: operations["submitComplianceReport"];
         delete?: never;
@@ -625,6 +625,170 @@ export interface components {
             receiptDocumentId: string | null;
             /** @description Form M section 5 holds no access request data for the year (zeros with a note) */
             accessDataUnavailable: boolean;
+        };
+        SubmittedComplianceReport: {
+            /** Format: uuid */
+            id: string;
+            commission: {
+                slug: string;
+                issuerCode: string;
+                name: string;
+            };
+            /** @description Financial year start year */
+            fy: number;
+            status: components["schemas"]["ReportStatus"];
+            source: components["schemas"]["ReportSource"];
+            compiledAt: string | null;
+            reviewedBy: components["schemas"]["Officer"] | null;
+            confirmedBy: components["schemas"]["Officer"] | null;
+            submittedAt: string | null;
+            late: boolean | null;
+            /** @description `RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation */
+            reference: string | null;
+            /** Format: date */
+            dueDate: string;
+            /** @description The form-m.v1 document as filed, frozen at submission (a submitted report always has one) */
+            document: components["schemas"]["FormM"] | null;
+            /** @description Empty until the first compile */
+            counts: components["schemas"]["ReportCounts"] | Record<string, never>;
+            /** @description The Restricted Form M PDF, once issued */
+            formMDocumentId: string | null;
+            /** @description The signed acknowledgement receipt, once issued */
+            receiptDocumentId: string | null;
+            /** @description Form M section 5 holds no access request data for the year (zeros with a note) */
+            accessDataUnavailable: boolean;
+        };
+        FormM: {
+            /** @constant */
+            schemaVersion: "form-m.v1";
+            partI: {
+                commissionName: string;
+                issuerCode: string;
+                contactDetails: string;
+                physicalAddress: string;
+                /** Format: email */
+                emailAddress: string;
+                period: {
+                    /** Format: date */
+                    from: string;
+                    /** Format: date */
+                    to: string;
+                    financialYearStart: number;
+                };
+            };
+            partII: {
+                initial: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
+                biennial: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
+                final: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
+                clarifications: {
+                    items: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        natureInGeneralTerms: string;
+                        /** @enum {string} */
+                        statusOfCompliance: "responded" | "resolved" | "pending" | "overdue" | "withdrawn";
+                        clarificationReference?: string;
+                    }[];
+                };
+                accessRequests: {
+                    received: number;
+                    granted: number;
+                    declined: number;
+                    declineReasons: {
+                        /** @enum {string} */
+                        reason: "public-interest" | "prejudice-proceeding" | "frivolous-vexatious" | "not-objectives" | "other";
+                        count: number;
+                    }[];
+                    dataUnavailable: boolean;
+                };
+                complaints: {
+                    registerMaintained: boolean | null;
+                    items: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        nature: string;
+                        status: string;
+                    }[];
+                };
+            };
+            partIII: {
+                compiledBy: {
+                    name: string | null;
+                    designation: string | null;
+                    date: string | null;
+                };
+                confirmedBy: {
+                    name: string | null;
+                    designation: string | null;
+                    date: string | null;
+                };
+            };
+            meta?: {
+                /** Format: date-time */
+                compiledAt?: string;
+                reference?: string;
+                /** @enum {string} */
+                source?: "hosted" | "federated";
+            };
         };
         ManualFields: {
             contactDetails?: string | null;
@@ -1469,7 +1633,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FormMDocument"];
+                "application/json": components["schemas"]["FormM"];
             };
         };
         responses: {
@@ -1602,7 +1766,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
+                    "application/json": components["schemas"]["SubmittedComplianceReport"];
                 };
             };
             /** @description reportId is not a UUID */
