@@ -1,5 +1,11 @@
 import type { FormMV1 } from '@adili/forms';
-import { daysBetween, formatDate, formatDateTime, formatLongDate } from '@adili/ui';
+import {
+  calendarDaysUntil,
+  daysBetween,
+  formatDate,
+  formatDateTime,
+  formatLongDate,
+} from '@adili/ui';
 
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
 import { finalCompileOf, previewFromOf } from './financial-year';
@@ -10,9 +16,20 @@ import { messages as m } from './messages';
  * today in Nairobi (`YYYY-MM-DD`): what each period card, banner, sign-off step and the footer say.
  */
 
-/** Days from `today` to `dueDate`: negative once it has passed. */
+/** Noon in Nairobi on a `YYYY-MM-DD` day, as epoch ms: a "now" for the calendar helpers. */
+const noonOf = (day: string) => Date.parse(`${day}T12:00:00+03:00`);
+
+/** Kenyan calendar days from `today` to `dueDate`: negative once it has passed. */
 export function daysToDue(dueDate: string, today: string): number {
-  return daysBetween(`${today}T12:00:00Z`, `${dueDate}T12:00:00Z`);
+  return calendarDaysUntil(`${dueDate}T12:00:00+03:00`, noonOf(today));
+}
+
+/**
+ * Whether the year has ended and its final draft is due to have been compiled (from 1 July
+ * after it): a year without a report then needs compiling now, not a preview.
+ */
+export function yearEnded(fy: number, today: string): boolean {
+  return today >= finalCompileOf(fy);
 }
 
 /** The line under a period's year: its preview window, days left, or when it was submitted. */
@@ -21,16 +38,16 @@ export function periodLine(period: ReportPeriod, today: string): string {
   if (period.status === 'submitted' && period.submittedAt) {
     return m.submittedOn(formatDate(period.submittedAt), period.late === true);
   }
-  if (period.status === 'not-started') {
+  const days = daysToDue(period.dueDate, today);
+  if (period.status === 'not-started' && !yearEnded(period.fy, today)) {
     return period.previewAvailable
       ? m.previewAvailable(due)
       : m.previewFrom(formatDate(previewFromOf(period.fy)), due);
   }
-  const days = daysToDue(period.dueDate, today);
   return days >= 0 ? m.dueIn(due, days) : m.wasDue(due, -days);
 }
 
-export type DueTone = 'neutral' | 'warning' | 'danger';
+export type DueTone = 'neutral' | 'warning' | 'destructive';
 
 /** The footer's "Due 31 July 2027 · 112 days left", amber within two weeks, red once overdue. */
 export function dueLine(dueDate: string, today: string): { text: string; tone: DueTone } {
@@ -38,7 +55,7 @@ export function dueLine(dueDate: string, today: string): { text: string; tone: D
   const left = days >= 0 ? m.daysLeft(days) : m.daysOverdue(-days);
   return {
     text: `${m.dueFull(formatLongDate(dueDate))} · ${left}`,
-    tone: days < 0 ? 'danger' : days <= 14 ? 'warning' : 'neutral',
+    tone: days < 0 ? 'destructive' : days <= 14 ? 'warning' : 'neutral',
   };
 }
 
@@ -52,6 +69,18 @@ export function isPreview(report: Pick<ComplianceReport, 'fy' | 'compiledAt'>): 
 }
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/**
+ * What the commission-admin has still to fill before confirming, in words: the Part I contact
+ * fields, and Part B's question 6 (whether a complaints register is kept), which has no default.
+ */
+export function manualMissing(document: Pick<FormMV1, 'partI' | 'partII'>): string[] {
+  const missing = partIMissing(document);
+  if (document.partII.complaints.registerMaintained === null) {
+    missing.push(m.missingFields.complaintsRegister);
+  }
+  return missing;
+}
 
 /** The Part I contact fields the commission-admin has still to fill, in words. */
 export function partIMissing(document: Pick<FormMV1, 'partI'>): string[] {

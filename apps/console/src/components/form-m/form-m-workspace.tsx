@@ -1,4 +1,4 @@
-import { COMMISSION_ADMIN, SUPERVISOR } from '@adili/roles';
+import type { FormMV1 } from '@adili/forms';
 import {
   Alert,
   AlertDescription,
@@ -8,6 +8,8 @@ import {
   cn,
   EmptyState,
   focusRing,
+  type FormMDeclarationSectionKey,
+  type FormMSectionProps,
   formatDate,
   formatDateTime,
   Icon,
@@ -34,6 +36,7 @@ import type { FormMResult, FormMWorkspace } from '../../server/form-m.server';
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
 import { Page, PageHead } from '../page';
 import { usePollWhile } from '../use-poll-while';
+import type { FormMCapabilities } from '../workspaces';
 import {
   AccessSection,
   ClarificationsSection,
@@ -48,26 +51,50 @@ import {
   daysToDue,
   dueLine,
   isPreview,
-  partIMissing,
+  manualMissing,
   periodLine,
   type SignOffStep,
   signOffSteps,
 } from './form-m-view';
 import { finalCompileOf, financialYearOf, previewFromOf, yearEndOf } from './financial-year';
+import { yearEnded } from './form-m-view';
 import { messages as m } from './messages';
 
 /** How often, and how many times, the page reloads while the report compiles (seconds). */
 const COMPILE_POLL_MS = 2000;
 const COMPILE_POLLS = 30;
 
+/** A report with its document, as the draft view renders it. */
+export type CompiledReport = ComplianceReport & { document: FormMV1 };
+
+/**
+ * Where the sign-off screens (#226) plug into the draft view, each given the report as it stands:
+ * the footer's action, editable remarks, and the editable Part I and Part B. Without them the
+ * draft reads as it does for the reporting officer.
+ */
+export interface FormMReportExtensions {
+  /** The step's action in the footer: Mark reviewed, Confirm and submit. */
+  footerActions?: (report: CompiledReport) => ReactNode;
+  /** Extra props per section 1-3, e.g. `onRemarkChange` and `autosave` for the supervisor. */
+  sectionProps?: (
+    section: FormMDeclarationSectionKey,
+    report: CompiledReport,
+  ) => Partial<FormMSectionProps>;
+  /** Replaces the read-only Part I, e.g. the commission-admin's contact fields. */
+  partI?: (report: CompiledReport) => ReactNode;
+  /** Replaces the read-only Part B, e.g. the commission-admin's complaints entry. */
+  complaints?: (report: CompiledReport) => ReactNode;
+}
+
 export interface FormMWorkspaceViewProps {
   /** The workspace; null while it loads. */
   result: FormMResult<FormMWorkspace> | null;
-  /** The viewer's realm roles: the supervisor compiles, everyone else reads. */
-  roles: readonly string[];
+  /** What the viewer may do (`formMCapabilities`): the supervisor compiles, others read. */
+  capabilities: FormMCapabilities;
   onSelect: (fy: number) => void;
   /** Compiles a preview or recompiles the year's draft (the supervisor). */
   onCompile: (fy: number) => Promise<FormMResult<null>>;
+  extensions?: FormMReportExtensions;
 }
 
 /**
@@ -79,9 +106,10 @@ export interface FormMWorkspaceViewProps {
  */
 export function FormMWorkspaceView({
   result,
-  roles,
+  capabilities,
   onSelect,
   onCompile,
+  extensions = {},
 }: FormMWorkspaceViewProps) {
   return (
     <Page className="@container">
@@ -89,7 +117,15 @@ export function FormMWorkspaceView({
       {result === null ? (
         <WorkspaceLoading />
       ) : result.ok ? (
-        <Workspace data={result.data} roles={roles} onSelect={onSelect} onCompile={onCompile} />
+        // Keyed by year: a compile in flight or a refusal belongs to the year it was for.
+        <Workspace
+          key={result.data.fy}
+          data={result.data}
+          capabilities={capabilities}
+          onSelect={onSelect}
+          onCompile={onCompile}
+          extensions={extensions}
+        />
       ) : (
         <WorkspaceLoadError />
       )}
@@ -140,19 +176,20 @@ function WorkspaceLoadError() {
 
 function Workspace({
   data,
-  roles,
+  capabilities,
   onSelect,
   onCompile,
+  extensions,
 }: {
   data: FormMWorkspace;
-  roles: readonly string[];
+  capabilities: FormMCapabilities;
   onSelect: (fy: number) => void;
   onCompile: (fy: number) => Promise<FormMResult<null>>;
+  extensions: FormMReportExtensions;
 }) {
   const router = useRouter();
   const { periods, fy, report, today } = data;
   const period = periods.find((candidate) => candidate.fy === fy);
-  const supervisor = roles.includes(SUPERVISOR);
   const [compiling, setCompiling] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
 
@@ -191,8 +228,9 @@ function Workspace({
       {report === null || period === undefined ? (
         <NotStarted
           fy={fy}
+          today={today}
           previewAvailable={period?.previewAvailable ?? false}
-          supervisor={supervisor}
+          compiles={capabilities.reviews}
           compiling={compiling}
           onCompile={() => void compile()}
         />
@@ -203,9 +241,10 @@ function Workspace({
           report={report}
           today={today}
           preview={preview}
-          roles={roles}
+          capabilities={capabilities}
+          extensions={extensions}
           recompile={
-            supervisor && report.status !== 'submitted' ? (
+            capabilities.reviews && report.status !== 'submitted' ? (
               <Button variant="secondary" disabled={compiling} onClick={() => void compile()}>
                 {compiling ? <Spinner className="size-4" /> : <Icon icon={RefreshIcon} />}
                 {m.recompile}
@@ -309,18 +348,46 @@ function PeriodPicker({
 
 function NotStarted({
   fy,
+  today,
   previewAvailable,
-  supervisor,
+  compiles,
   compiling,
   onCompile,
 }: {
   fy: number;
+  today: string;
   previewAvailable: boolean;
-  supervisor: boolean;
+  compiles: boolean;
   compiling: boolean;
   onCompile: () => void;
 }) {
   const year = m.fyLabel(fy);
+  const compileButton = (label: string) => (
+    <Button disabled={compiling} onClick={onCompile}>
+      {compiling ? <Spinner className="size-4" /> : <Icon icon={RefreshIcon} />}
+      {label}
+    </Button>
+  );
+  if (yearEnded(fy, today)) {
+    // The year is over and no draft was compiled (a Commission onboarded after 1 July, or the
+    // schedule did not run): compiling now makes the final draft, not a preview.
+    return (
+      <Card className="p-0 sm:p-0">
+        <EmptyState
+          icon={<Icon icon={Calendar03Icon} />}
+          title={m.pastYearTitle(year)}
+          description={m.pastYearText}
+          action={
+            compiles ? (
+              compileButton(m.compileDraft)
+            ) : (
+              <p className="text-sm text-muted-foreground">{m.supervisorCompilesDraft}</p>
+            )
+          }
+        />
+      </Card>
+    );
+  }
   return (
     <Card className="p-0 sm:p-0">
       {previewAvailable ? (
@@ -329,11 +396,8 @@ function NotStarted({
           title={m.previewTitle(year)}
           description={m.previewText}
           action={
-            supervisor ? (
-              <Button disabled={compiling} onClick={onCompile}>
-                {compiling ? <Spinner className="size-4" /> : <Icon icon={RefreshIcon} />}
-                {m.compilePreview}
-              </Button>
+            compiles ? (
+              compileButton(m.compilePreview)
             ) : (
               <p className="text-sm text-muted-foreground">{m.supervisorCompiles}</p>
             )
@@ -425,21 +489,24 @@ function Banners({
 
 /** The draft (or a submitted report) with the sign-off panel and the footer. */
 function ReportView({
-  report,
+  report: answered,
   today,
   preview,
-  roles,
+  capabilities,
+  extensions,
   recompile,
 }: {
   report: ComplianceReport;
   today: string;
   preview: boolean;
-  roles: readonly string[];
+  capabilities: FormMCapabilities;
+  extensions: FormMReportExtensions;
   recompile: ReactNode;
 }) {
-  const document = report.document;
+  const document = answered.document;
   if (!document) return <Compiling />;
-  const missing = partIMissing(document);
+  const report: CompiledReport = { ...answered, document };
+  const missing = manualMissing(document);
   const submitted = report.status === 'submitted';
   return (
     <>
@@ -477,15 +544,24 @@ function ReportView({
               </div>
             ) : null}
           </Card>
-          <PartICard partI={document.partI} />
+          {extensions.partI?.(report) ?? <PartICard partI={document.partI} />}
           <PartHeading>{m.partII}</PartHeading>
-          <DeclarationSections partII={document.partII} />
+          <DeclarationSections
+            partII={document.partII}
+            sectionProps={
+              extensions.sectionProps
+                ? (section) => extensions.sectionProps?.(section, report) ?? {}
+                : undefined
+            }
+          />
           <ClarificationsSection clarifications={document.partII.clarifications} />
           <AccessSection
             accessRequests={document.partII.accessRequests}
             dataUnavailable={report.accessDataUnavailable}
           />
-          <ComplaintsCard complaints={document.partII.complaints} />
+          {extensions.complaints?.(report) ?? (
+            <ComplaintsCard complaints={document.partII.complaints} />
+          )}
           <PartIIICard partIII={document.partIII} />
         </div>
         <aside className="grid gap-4 @min-[1080px]:sticky @min-[1080px]:top-[76px]">
@@ -494,7 +570,12 @@ function ReportView({
         </aside>
       </div>
       {submitted ? null : (
-        <WorkspaceFooter report={report} today={today} note={footerNote(report, preview, roles)} />
+        <WorkspaceFooter
+          report={report}
+          today={today}
+          note={footerNote(report, preview, capabilities)}
+          actions={preview ? null : extensions.footerActions?.(report)}
+        />
       )}
     </>
   );
@@ -504,11 +585,10 @@ function ReportView({
 function footerNote(
   report: ComplianceReport,
   preview: boolean,
-  roles: readonly string[],
+  capabilities: FormMCapabilities,
 ): string | null {
   if (preview) return m.previewFooter(formatDate(yearEndOf(report.fy)));
-  if (roles.includes(SUPERVISOR) || roles.includes(COMMISSION_ADMIN)) return null;
-  return m.readOnly;
+  return capabilities.readOnly ? m.readOnly : null;
 }
 
 const STEP_MARKS = {
@@ -613,7 +693,7 @@ function SectionsCard({ document }: { document: NonNullable<ComplianceReport['do
 const DUE_TONES = {
   neutral: 'text-foreground',
   warning: 'text-warning',
-  danger: 'text-destructive',
+  destructive: 'text-destructive',
 } as const;
 
 /**

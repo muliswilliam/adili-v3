@@ -1,9 +1,10 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { z } from 'zod';
 
 import { FormMWorkspaceView } from '../../components/form-m/form-m-workspace';
 import { messages as m } from '../../components/form-m/messages';
 import { signInRedirect } from '../../components/sign-in-redirect';
+import { formMCapabilities } from '../../components/workspaces';
 import { compileFormM, financialYear, getFormMWorkspace } from '../../server/form-m';
 import type { FormMResult, FormMWorkspace } from '../../server/form-m.server';
 import { SERVICE_UNAVAILABLE } from '../../server/service-call';
@@ -21,6 +22,11 @@ export const Route = createFileRoute('/form-m/')({
     if (!context.tenant) return SERVICE_UNAVAILABLE;
     const result = await getFormMWorkspace({ data: { slug: context.tenant, fy: deps.fy } });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
+    // A year the Commission has no period for (a typed or stale link): open the default one
+    // under its own address rather than show another year under this one.
+    if (result.ok && deps.fy !== undefined && result.data.fy !== deps.fy) {
+      throw redirect({ to: '/form-m', search: {}, replace: true });
+    }
     return result;
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
@@ -28,13 +34,20 @@ export const Route = createFileRoute('/form-m/')({
   component: FormMLoaded,
 });
 
-function FormMLoading() {
-  const { roles } = Route.useRouteContext();
-  return <FormMWorkspaceView result={null} roles={roles} onSelect={noop} onCompile={unavailable} />;
-}
-
 const noop = () => undefined;
 const unavailable = () => Promise.resolve(SERVICE_UNAVAILABLE);
+
+function FormMLoading() {
+  const { roles } = Route.useRouteContext();
+  return (
+    <FormMWorkspaceView
+      result={null}
+      capabilities={formMCapabilities(roles)}
+      onSelect={noop}
+      onCompile={unavailable}
+    />
+  );
+}
 
 function FormMLoaded() {
   const result = Route.useLoaderData();
@@ -45,7 +58,7 @@ function FormMLoaded() {
   return (
     <FormMWorkspaceView
       result={result}
-      roles={roles}
+      capabilities={formMCapabilities(roles)}
       onSelect={(fy) => {
         void navigate({ search: { fy } });
       }}

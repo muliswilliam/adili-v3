@@ -15,7 +15,8 @@ import {
   resetReportingMock,
   setReportingMockLatency,
 } from '../../server/reporting/mock.server';
-import { FormMWorkspaceView } from './form-m-workspace';
+import { formMCapabilities } from '../workspaces';
+import { type FormMReportExtensions, FormMWorkspaceView } from './form-m-workspace';
 
 const invalidate = vi.fn(() => Promise.resolve());
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate }) }));
@@ -45,24 +46,41 @@ async function click(press: () => void) {
   });
 }
 
-function show(
+function view(
   result: FormMResult<FormMWorkspace> | null,
   {
     roles = [SUPERVISOR],
     onCompile = vi.fn(() => Promise.resolve({ ok: true, data: null } as const)),
     onSelect = vi.fn(),
+    extensions,
   }: {
     roles?: string[];
     onCompile?: (fy: number) => Promise<FormMResult<null>>;
     onSelect?: (fy: number) => void;
+    extensions?: FormMReportExtensions;
   } = {},
 ) {
-  render(
-    <TooltipProvider>
-      <FormMWorkspaceView result={result} roles={roles} onCompile={onCompile} onSelect={onSelect} />
-    </TooltipProvider>,
-  );
-  return { onCompile, onSelect };
+  return {
+    element: (
+      <TooltipProvider>
+        <FormMWorkspaceView
+          result={result}
+          capabilities={formMCapabilities(roles)}
+          onCompile={onCompile}
+          onSelect={onSelect}
+          extensions={extensions}
+        />
+      </TooltipProvider>
+    ),
+    onCompile,
+    onSelect,
+  };
+}
+
+function show(...args: Parameters<typeof view>) {
+  const { element, onCompile, onSelect } = view(...args);
+  const { rerender } = render(element);
+  return { onCompile, onSelect, rerender };
 }
 
 describe('the Form M workspace (S15)', () => {
@@ -209,7 +227,9 @@ describe('the Form M workspace (S15)', () => {
 
     const signOff = within(screen.getByRole('region', { name: 'Sign-off' }));
     expect(signOff.getByText('Draft compiled')).toBeTruthy();
-    expect(signOff.getByText('Missing contact details, email address')).toBeTruthy();
+    expect(
+      signOff.getByText('Missing contact details, email address, Part B register answer'),
+    ).toBeTruthy();
     const nav = within(screen.getByRole('navigation', { name: 'Form M sections' }));
     expect(nav.getByRole('link', { name: /2\. Biennial declarations/ }).getAttribute('href')).toBe(
       '#form-m-section-2',
@@ -246,5 +266,94 @@ describe('the Form M workspace (S15)', () => {
     expect(screen.getByText('Due 31 July 2027 · 112 days left')).toBeTruthy();
     const years = within(screen.getByRole('group', { name: 'Financial year' }));
     expect(years.getByRole('button', { name: /FY 2026\/2027/ }).textContent).toContain('Preview');
+  });
+
+  it('shows who reviewed the draft and when', async () => {
+    resetReportingMock('2026-10-03', { reviewed: true });
+    show(await load('2026-10-03'));
+    expect(screen.getByText('Reviewed by Samuel Njoroge on 1 Oct 2026')).toBeTruthy();
+    const signOff = within(screen.getByRole('region', { name: 'Sign-off' }));
+    expect(signOff.getByText('Samuel Njoroge')).toBeTruthy();
+    expect(
+      signOff.getByText('Missing contact details, email address, Part B register answer'),
+    ).toBeTruthy();
+  });
+
+  it('marks every sign-off step done for a submitted report, with who confirmed it', async () => {
+    resetReportingMock('2027-04-10');
+    show(await load('2027-04-10', { fy: 2025 }));
+    expect(screen.getByRole('heading', { name: 'Submitted to EACC' })).toBeTruthy();
+    const steps = within(screen.getByRole('region', { name: 'Sign-off' }));
+    expect(steps.queryByText(/^Missing/)).toBeNull();
+    expect(steps.getByText('Joyce Wanjiku, 26 Sep 2026, 14:42')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Recompile' })).toBeNull();
+  });
+
+  it('offers to compile a past year that never got a draft, as overdue rather than a preview', async () => {
+    resetReportingMock('2026-10-03');
+    const result = await load('2026-10-03');
+    if (!result.ok) throw new Error('not ok');
+    // A Commission onboarded after 1 July: the year has no report.
+    const pastYear: FormMResult<FormMWorkspace> = {
+      ok: true,
+      data: {
+        ...result.data,
+        report: null,
+        periods: result.data.periods.map((period) =>
+          period.fy === 2025
+            ? { ...period, status: 'not-started', previewAvailable: true }
+            : period,
+        ),
+      },
+    };
+    const { onCompile } = show(pastYear);
+    expect(screen.queryByText(/^Preview Form M/)).toBeNull();
+    expect(screen.getByText('Compile Form M for FY 2025/2026')).toBeTruthy();
+    expect(
+      within(screen.getByRole('group', { name: 'Financial year' })).getByRole('button', {
+        name: /FY 2025\/2026/,
+      }).textContent,
+    ).toContain('Was due 31 Jul 2026 · 64 days overdue');
+    await click(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Compile draft' }));
+    });
+    expect(onCompile).toHaveBeenCalledWith(2025);
+  });
+
+  it('forgets a refusal when another year is shown', async () => {
+    resetReportingMock('2027-04-10');
+    const refused: FormMResult<null> = {
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: { type: 'about:blank', title: 'x', status: 409, code: 'preview-not-available' },
+      },
+    };
+    const { rerender } = show(await load('2027-04-10', { fy: 2026 }), {
+      onCompile: () => Promise.resolve(refused),
+    });
+    await click(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Compile preview' }));
+    });
+    expect(screen.getByRole('alert')).toBeTruthy();
+    rerender(view(await load('2027-04-10', { fy: 2025 })).element);
+    expect(screen.queryByText(/A preview of this year can be compiled/)).toBeNull();
+  });
+
+  it('plugs the sign-off screens in: footer action, editable remarks, Part I and Part B', async () => {
+    resetReportingMock('2026-10-03');
+    show(await load('2026-10-03'), {
+      extensions: {
+        footerActions: () => <button type="button">Mark reviewed</button>,
+        sectionProps: () => ({ onRemarkChange: vi.fn() }),
+        partI: () => <section aria-label="Editable Part I" />,
+        complaints: () => <section aria-label="Editable Part B" />,
+      },
+    });
+    expect(screen.getByRole('button', { name: 'Mark reviewed' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: /Remarks for Kevin Omondi Ochieng/ })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Editable Part I' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Editable Part B' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'B. Complaints and investigations' })).toBeNull();
   });
 });

@@ -1,3 +1,5 @@
+import { plural } from '@adili/ui';
+
 /** The Form M workspace's copy (spec 09 FE comment); section titles quote the prescribed form. */
 export const en = {
   title: 'Form M compliance report',
@@ -17,10 +19,8 @@ export const en = {
   submittedLate: 'Submitted late',
   previewFrom: (date: string, due: string) => `Preview from ${date} · Due ${due}`,
   previewAvailable: (due: string) => `Preview available · Due ${due}`,
-  dueIn: (due: string, days: number) =>
-    `Due ${due} · ${String(days)} ${days === 1 ? 'day' : 'days'} left`,
-  wasDue: (due: string, days: number) =>
-    `Was due ${due} · ${String(days)} ${days === 1 ? 'day' : 'days'} overdue`,
+  dueIn: (due: string, days: number) => `Due ${due} · ${plural(days, 'day')} left`,
+  wasDue: (due: string, days: number) => `Was due ${due} · ${plural(days, 'day')} overdue`,
   submittedOn: (date: string, late: boolean) => `Submitted ${date}${late ? ' (late)' : ''}`,
   loading: 'Loading Form M',
   pagination: 'Pages',
@@ -32,6 +32,11 @@ export const en = {
   loadErrorTitle: 'We could not load Form M',
   loadErrorDetail: 'Check your connection and try again.',
   tryAgain: 'Try again',
+  pastYearTitle: (fy: string) => `Compile Form M for ${fy}`,
+  pastYearText:
+    'No draft was compiled for this year. Compiling uses your roster, filings, clarifications and actions as they are today.',
+  compileDraft: 'Compile draft',
+  supervisorCompilesDraft: 'Your supervisor can compile it.',
   noDraftTitle: 'No draft yet',
   noDraft: (fy: string) =>
     `Form M for ${fy} compiles automatically on 1 July. Preview available from 1 April.`,
@@ -46,7 +51,7 @@ export const en = {
   compileFailed: 'We could not start compiling. Try again.',
   previewNotAvailable: (date: string) => `A preview of this year can be compiled from ${date}.`,
   reportSubmitted: 'This report is submitted and can no longer be compiled.',
-  overdueBanner: (days: number) => `${String(days)} ${days === 1 ? 'day' : 'days'} overdue.`,
+  overdueBanner: (days: number) => `${plural(days, 'day')} overdue.`,
   overdueBannerDetail: 'Late reports are accepted and marked late.',
   dueSoonBanner: (days: number) =>
     days === 1 ? 'Form M due tomorrow.' : `Form M due in ${String(days)} days.`,
@@ -135,6 +140,7 @@ export const en = {
   },
   missing: (fields: string[]) => `Missing ${fields.join(', ')}`,
   missingFields: {
+    complaintsRegister: 'Part B register answer',
     contactDetails: 'contact details',
     physicalAddress: 'physical address',
     emailAddress: 'email address',
@@ -154,8 +160,8 @@ export const en = {
   },
   listed: (n: number) => `${String(n)} listed`,
   dueFull: (due: string) => `Due ${due}`,
-  daysLeft: (days: number) => `${String(days)} ${days === 1 ? 'day' : 'days'} left`,
-  daysOverdue: (days: number) => `${String(days)} ${days === 1 ? 'day' : 'days'} overdue`,
+  daysLeft: (days: number) => `${plural(days, 'day')} left`,
+  daysOverdue: (days: number) => `${plural(days, 'day')} overdue`,
   previewFooter: (date: string) => `Preview. Submit after ${date}.`,
   readOnly: 'Read only',
 };

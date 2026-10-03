@@ -31,7 +31,7 @@ import {
 import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
-import type { ComplianceReport, ReportCounts, ReportPeriod, ReportStatus } from './types';
+import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
 const FIRST_FINANCIAL_YEAR = 2025;
@@ -47,7 +47,41 @@ interface Stored {
   submittedAt: string | null;
   late: boolean | null;
   reference: string | null;
+  reviewedBy: Officer | null;
+  confirmedBy: Officer | null;
   document: FormMV1 | null;
+}
+
+const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
+const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
+
+/** The draft as a supervisor marks it reviewed: Part III's compiled-by filled (spec 09 S5). */
+function reviewed(document: FormMV1, on: string): FormMV1 {
+  return {
+    ...document,
+    partIII: {
+      ...document.partIII,
+      compiledBy: { name: SUPERVISOR_OFFICER.name, designation: 'Deputy Director, HRM', date: on },
+    },
+  };
+}
+
+/** The document as the commission-admin confirmed it: Part I, Part B and Part III filled. */
+function confirmed(document: FormMV1, reviewedOn: string, confirmedOn: string): FormMV1 {
+  const done = reviewed(document, reviewedOn);
+  return {
+    ...done,
+    partI: {
+      ...done.partI,
+      contactDetails: '+254 20 222 3901',
+      emailAddress: 'compliance@publicservice.go.ke',
+    },
+    partII: { ...done.partII, complaints: { registerMaintained: true, items: [] } },
+    partIII: {
+      ...done.partIII,
+      confirmedBy: { name: ADMIN_OFFICER.name, designation: 'Secretary/CEO', date: confirmedOn },
+    },
+  };
 }
 
 const reports = new Map<number, Stored>();
@@ -68,11 +102,12 @@ const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
 /**
  * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default).
- * `corruptDocument` answers a report whose document is not form-m.v1 (contract drift).
+ * `corruptDocument` answers a report whose document is not form-m.v1 (contract drift);
+ * `reviewed` has the supervisor mark the year-before's draft reviewed two days ago.
  */
 export function resetReportingMock(
   day: string = nairobiToday(),
-  options: { corruptDocument?: boolean } = {},
+  options: { corruptDocument?: boolean; reviewed?: boolean } = {},
 ) {
   today = day;
   corruptDocument = options.corruptDocument ?? false;
@@ -82,6 +117,7 @@ export function resetReportingMock(
   if (last < FIRST_FINANCIAL_YEAR) return;
   if (day >= previewFromOf(current)) {
     const submittedOn = plusDays(dueDateOf(last), 57);
+    const reviewedOn = plusDays(submittedOn, -1);
     reports.set(last, {
       fy: last,
       status: 'submitted',
@@ -90,21 +126,26 @@ export function resetReportingMock(
       submittedAt: `${submittedOn}T11:42:00.000Z`,
       late: true,
       reference: `RPT-PSC-${String(last + 1)}-0000001-K`,
-      document: fullDocument(last),
+      reviewedBy: SUPERVISOR_OFFICER,
+      confirmedBy: ADMIN_OFFICER,
+      document: confirmed(fullDocument(last), reviewedOn, submittedOn),
     });
     return;
   }
   const yearStart = finalCompileOf(last);
   const compiledOn = plusDays(day, -11) < yearStart ? yearStart : plusDays(day, -11);
+  const reviewedOn = plusDays(day, -2);
   reports.set(last, {
     fy: last,
-    status: 'draft',
+    status: options.reviewed ? 'reviewed' : 'draft',
     compiledAt: sixAm(compiledOn),
     compileStartedAt: null,
     submittedAt: null,
     late: null,
     reference: null,
-    document: fullDocument(last),
+    reviewedBy: options.reviewed ? SUPERVISOR_OFFICER : null,
+    confirmedBy: null,
+    document: options.reviewed ? reviewed(fullDocument(last), reviewedOn) : fullDocument(last),
   });
 }
 
@@ -115,6 +156,12 @@ export function resetReportingMock(
 export function setReportingMockLatency(factor: number, options: { compileMs?: number } = {}) {
   latency = factor;
   compileMs = options.compileMs ?? COMPILE_MS;
+}
+
+/** The day the mock takes as today: REPORTING_MOCK_TODAY, else today in Nairobi. */
+export function mockReportingToday(): string {
+  ensureSeeded();
+  return today;
 }
 
 function ensureSeeded() {
@@ -206,23 +253,15 @@ function periods(): ReportPeriod[] {
 
 function startCompile(fy: number): Response {
   if (today < previewFromOf(fy)) {
-    return json(409, {
-      type: 'about:blank',
-      title: 'Preview not available',
-      status: 409,
-      code: 'preview-not-available',
-      detail: `A preview of Form M for ${String(fy)}/${String(fy + 1)} can be compiled from ${previewFromOf(fy)}.`,
-    });
+    return problem(409, 'A preview of Form M opens on 1 April', 'preview-not-available');
   }
   const stored = reports.get(fy);
   if (stored?.status === 'submitted') {
-    return json(409, {
-      type: 'about:blank',
-      title: 'Report submitted',
-      status: 409,
-      code: 'report-submitted',
-      detail: 'The report is submitted and can no longer be compiled.',
-    });
+    return problem(
+      409,
+      'The report is submitted and can no longer be compiled',
+      'report-submitted',
+    );
   }
   const next: Stored = stored ?? {
     fy,
@@ -232,6 +271,8 @@ function startCompile(fy: number): Response {
     submittedAt: null,
     late: null,
     reference: null,
+    reviewedBy: null,
+    confirmedBy: null,
     document: null,
   };
   next.status = 'compiling';
@@ -283,8 +324,8 @@ function view(stored: Stored): ComplianceReport {
     status: stored.status,
     source: 'hosted',
     compiledAt: stored.compiledAt,
-    reviewedBy: null,
-    confirmedBy: null,
+    reviewedBy: stored.reviewedBy,
+    confirmedBy: stored.confirmedBy,
     submittedAt: stored.submittedAt,
     late: stored.late,
     reference: stored.reference,
