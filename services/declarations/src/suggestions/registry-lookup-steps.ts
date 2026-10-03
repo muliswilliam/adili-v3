@@ -18,12 +18,18 @@ import {
 } from '../integration-gateway/integration-gateway-client.js';
 import { declarationSuggestionsReady } from './events.js';
 import { type Comparable, findMatchingItem, repeatsDecided } from './match-keys.js';
-import { householdPerson, isOfficer, statementItems } from './persons.js';
+import { savedHouseholdPerson } from './household.js';
+import { isOfficer, statementItems } from './persons.js';
 import { type MappedSuggestion, mapRegistryResult } from './registry-mapping.js';
 import type { RegistryResult } from './registry-results.js';
 import { suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
-import type { LookupAttempt, LookupAttemptOutcome, LookupRef } from './workflow/contract.js';
+import type {
+  LookupAttempt,
+  LookupAttemptOutcome,
+  LookupRef,
+  SetRef,
+} from './workflow/contract.js';
 
 /**
  * What the registry lookup workflow does (its activities delegate here), spec 05b S1-S2: one
@@ -104,7 +110,7 @@ export class RegistryLookupSteps {
   }
 
   /** The set could not be checked at all (a failure that is not the registry's). */
-  async fail(ref: LookupRef & { setId: string }): Promise<void> {
+  async fail(ref: SetRef): Promise<void> {
     await this.settle(ref, { status: 'failed' });
   }
 
@@ -117,20 +123,14 @@ export class RegistryLookupSteps {
     if (isOfficer(ref.personKey)) {
       return this.directory.getPersonNationalId(ref.tenant, ref.personId);
     }
-    const section = await withPerson(this.db, personContext(ref), async (tx) => {
-      const [row] = await tx
-        .select()
-        .from(declarationSections)
-        .where(
-          and(
-            eq(declarationSections.declarationId, ref.declarationId),
-            eq(declarationSections.sectionKey, 'household'),
-          ),
-        );
-      return row ?? null;
-    });
-    if (!section) return null;
-    const household = householdPerson(await this.sections.open(ref.tenant, section), ref.personKey);
+    const household = await withPerson(this.db, personContext(ref), (tx) =>
+      savedHouseholdPerson(
+        tx,
+        this.sections,
+        { id: ref.declarationId, tenant: ref.tenant },
+        ref.personKey,
+      ),
+    );
     return household.listed ? household.nationalId : null;
   }
 
@@ -175,7 +175,7 @@ export class RegistryLookupSteps {
    * declarant has decided on is stored `superseded`, not `new`.
    */
   private async sealed(
-    ref: LookupRef & { setId: string },
+    ref: SetRef,
     verificationResultId: string,
     mapped: MappedSuggestion[],
     decided: readonly Comparable[],
@@ -242,7 +242,7 @@ export class RegistryLookupSteps {
    * later set of theirs is ready already, this one's arrive superseded.
    */
   private async settle(
-    ref: LookupRef & { setId: string },
+    ref: SetRef,
     outcome: {
       status: 'ready' | 'unavailable' | 'no-id' | 'failed';
       verificationResultId?: string | null;

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { RegistryLookupSteps } from '../registry-lookup-steps.js';
-import type { LookupAttempt, LookupAttemptOutcome, LookupRef } from './contract.js';
+import type { LookupAttempt, LookupAttemptOutcome, SetRef } from './contract.js';
 
 /**
  * The activities of the registry lookup workflow, hosted by the declarations worker. Every public
@@ -21,7 +21,7 @@ export class SuggestionActivities {
   }
 
   /** Records the set `failed`: the check could not run, whatever the registry. */
-  markLookupFailed(ref: LookupRef & { setId: string }): Promise<void> {
+  markLookupFailed(ref: SetRef): Promise<void> {
     return this.steps.fail(ref);
   }
 }

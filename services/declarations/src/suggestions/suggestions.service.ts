@@ -13,9 +13,9 @@ import type { Transaction } from '../db/transaction.js';
 import { isRecord, isUuid } from '../guards.js';
 import { personOf } from '../drafts/access.js';
 import { DraftsService } from '../drafts/drafts.service.js';
-import { declarationNotDraft, validationProblem } from '../drafts/problems.js';
-import { type DeclarationRow, liveDeclaration, sectionIs } from '../drafts/repository.js';
-import { declarationSections, type StoredEnvelope } from '../drafts/schema.js';
+import { declarationNotDraft, fieldErrors, validationProblem } from '../drafts/problems.js';
+import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
+import type { StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { etag } from '../http.js';
 import { placementOf } from './acceptance.js';
@@ -24,7 +24,8 @@ import {
   declarationSuggestionAccepted,
   declarationSuggestionDismissed,
 } from './events.js';
-import { householdPerson, isHouseholdPersonKey, isOfficer, isPersonKey } from './persons.js';
+import { savedHouseholdPerson } from './household.js';
+import { isHouseholdPersonKey, isOfficer, isPersonKey } from './persons.js';
 import { RegistryLookupWorkflows } from './registry-lookup-workflows.js';
 import {
   acceptSuggestionRequestSchema,
@@ -241,7 +242,7 @@ export class SuggestionsService {
     const person = personOf(principal);
     const { declaration, row, set } = await this.decidable(person, declarationId, suggestionId);
     const parsed = acceptSuggestionRequestSchema.safeParse(body);
-    if (!parsed.success) throw validationProblem(issuesOf(parsed.error.issues));
+    if (!parsed.success) throw validationProblem(fieldErrors(parsed.error.issues));
     const accepted = { ...parsed.data, overwrite: parsed.data.overwrite === true };
     const verificationResultId = row.verificationResultId ?? set.verificationResultId;
     const source = {
@@ -321,7 +322,7 @@ export class SuggestionsService {
       dismissed: true,
     });
     const parsed = dismissSuggestionRequestSchema.safeParse(body ?? {});
-    if (!parsed.success) throw validationProblem(issuesOf(parsed.error.issues));
+    if (!parsed.success) throw validationProblem(fieldErrors(parsed.error.issues));
     const reason = parsed.data.reason?.trim() ? parsed.data.reason.trim() : null;
     // Sealed before the transaction: the key service is not called with a row lock held.
     const sealed =
@@ -387,8 +388,8 @@ export class SuggestionsService {
   }
 
   /**
-   * The person `personKey` names, if they can be looked up: the officer always (by their roster
-   * record); a spouse or child must be listed in Household, with a national ID.
+   * The person `personKey` names, if they can be looked up: the declarant always (by the national
+   * ID on their person record); a spouse or child must be listed in Household, with a national ID.
    */
   private async checkPerson(
     tx: Transaction,
@@ -400,13 +401,7 @@ export class SuggestionsService {
       { path: 'personKey', message: 'Not a person of the household' },
     ]);
     if (!isHouseholdPersonKey(personKey)) throw notInHousehold;
-    const [section] = await tx
-      .select()
-      .from(declarationSections)
-      .where(sectionIs(declaration.id, 'household'));
-    const household = section
-      ? householdPerson(await this.sections.open(declaration.tenant, section), personKey)
-      : { listed: false as const };
+    const household = await savedHouseholdPerson(tx, this.sections, declaration, personKey);
     if (!household.listed) throw notInHousehold;
     if (household.nationalId === null) {
       throw ProblemException.fromCode('no-id', {
@@ -451,7 +446,7 @@ function parseRequest(body: unknown): RegistryLookupRequest {
   }
   const parsed = registryLookupRequestSchema.safeParse(body);
   if (!parsed.success) {
-    throw validationProblem(issuesOf(parsed.error.issues));
+    throw validationProblem(fieldErrors(parsed.error.issues));
   }
   return parsed.data;
 }
@@ -498,13 +493,6 @@ function notNew(): ProblemException {
   return ProblemException.fromCode('not-new', {
     detail: 'This suggestion was accepted, dismissed or replaced by a later check already.',
   });
-}
-
-function issuesOf(issues: readonly { path: readonly PropertyKey[]; message: string }[]) {
-  return issues.map((issue) => ({
-    path: issue.path.map(String).join('.'),
-    message: issue.message,
-  }));
 }
 
 function setView(set: SetRow, own: Suggestion[]): SuggestionSet {

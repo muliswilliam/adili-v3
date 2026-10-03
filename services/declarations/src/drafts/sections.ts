@@ -1,6 +1,7 @@
 import { type DeclarationSectionKey, type PersonKey, sectionSchema } from '@adili/forms';
 
 import { recordOf } from '../guards.js';
+import { fieldErrors } from './problems.js';
 import type { SectionMetadata } from './schema.js';
 
 /**
@@ -217,14 +218,14 @@ export interface ShapeError {
 export function shapeErrors(key: DeclarationSectionKey, body: unknown): ShapeError[] {
   const parsed = sectionSchema(key).safeParse(body);
   if (parsed.success) return [];
-  return parsed.error.issues
-    .filter((issue) => {
+  return fieldErrors(
+    parsed.error.issues.filter((issue) => {
       if (issue.code === 'custom') return false;
       if (issue.code === 'too_small') return issue.origin !== 'string' && issue.origin !== 'array';
       // Whatever the check, a field that is absent is only missing.
       return valueAt(body, issue.path) !== undefined;
-    })
-    .map((issue) => ({ path: issue.path.map(String).join('.'), message: issue.message }));
+    }),
+  );
 }
 
 function valueAt(value: unknown, path: readonly PropertyKey[]): unknown {

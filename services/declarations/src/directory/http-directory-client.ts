@@ -1,11 +1,11 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
+import { MARITAL_STATUSES } from '@adili/forms';
 import { z } from 'zod';
 
 import type { paths } from './directory-api.gen.js';
 import {
   DirectoryClient,
   DirectoryUnavailable,
-  MARITAL_STATUSES,
   type PulledCommission,
   type PulledPolicy,
   type PulledRosterRecord,

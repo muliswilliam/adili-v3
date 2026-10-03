@@ -27,6 +27,11 @@ export interface LookupRef {
   personKey: PersonKey;
 }
 
+/** One set of a lookup request: the registry answers it on its own. */
+export interface SetRef extends LookupRef {
+  setId: string;
+}
+
 /** One request's lookups: one set per registry, each answered on its own. */
 export interface RegistryLookupsInput extends LookupRef {
   /** The consent the request recorded; also the workflow id's suffix. */
@@ -35,8 +40,7 @@ export interface RegistryLookupsInput extends LookupRef {
 }
 
 /** One attempt at one registry. On the `final` one an unavailable registry is recorded as such. */
-export interface LookupAttempt extends LookupRef {
-  setId: string;
+export interface LookupAttempt extends SetRef {
   system: RegistrySystem;
   final: boolean;
 }

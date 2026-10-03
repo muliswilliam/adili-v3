@@ -1,5 +1,7 @@
 import type { NewEvent } from '@adili/events';
+import type { PersonKey } from '@adili/forms';
 
+import type { RegistrySystem } from './registry-results.js';
 import type { SuggestionSource } from './schema.js';
 
 /**
@@ -14,8 +16,8 @@ export const DECLARATION_LOOKUP_REQUESTED = 'declaration.lookup-requested.v1';
 export interface DeclarationLookupRequestedData extends Record<string, unknown> {
   declarationId: string;
   /** `officer`, `spouse:<id>` or `child:<id>`: the household's own keys. */
-  personKey: string;
-  systems: string[];
+  personKey: PersonKey;
+  systems: RegistrySystem[];
   consentId: string;
 }
 

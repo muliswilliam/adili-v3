@@ -1,5 +1,6 @@
+import type { MARITAL_STATUSES } from '@adili/forms';
+
 /** The marital statuses of `declaration.v1`, which the roster keeps to. */
-export const MARITAL_STATUSES = ['single', 'married', 'separated', 'divorced', 'widowed'] as const;
 export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
 
 /**
