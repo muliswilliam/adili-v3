@@ -1,0 +1,62 @@
+import type { z } from 'zod';
+
+import {
+  aiTaskRatingsSchema,
+  aiUsageCommissionSchema,
+  aiUsageReportSchema,
+} from './ai-usage/ai-usage.service.js';
+import { intakeSchema, intakeStatusSchema } from './compliance-reports/intake.js';
+import {
+  complianceReportSchema,
+  complianceReportSummarySchema,
+  formMDocumentSchema,
+  reportCountsSchema,
+  reportSourceSchema,
+  reportStatusSchema,
+} from './compliance-reports/representation.js';
+import { confirmBody, manualFieldsBody } from './compliance-reports/sign-off-input.js';
+import { narrativeSchema, paragraphSchema } from './national-reports/narrative.js';
+import {
+  nationalAggregatesSchema,
+  nationalReportSchema,
+} from './national-reports/representation.js';
+import { officerSchema } from './officer.js';
+import {
+  icmsPushErrorSchema,
+  icmsStatusSchema,
+  referralGroundsSchema,
+  referralIntakeItemSchema,
+  referralIntakePageSchema,
+} from './referrals/representation.js';
+
+/**
+ * Named schemas of the reporting service's OpenAPI document (`#/components/schemas/<name>`),
+ * exported with the controllers' operations to packages/schemas/internal/reporting.yaml. The
+ * operations of spec 09b not implemented yet stay in packages/schemas/drafts/reporting.yaml,
+ * which may reference these.
+ */
+export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
+  Officer: officerSchema,
+  ReportStatus: reportStatusSchema,
+  ReportSource: reportSourceSchema,
+  ReportCounts: reportCountsSchema,
+  FormMDocument: formMDocumentSchema,
+  ComplianceReportSummary: complianceReportSummarySchema,
+  ComplianceReport: complianceReportSchema,
+  ManualFields: manualFieldsBody,
+  ConfirmReport: confirmBody,
+  IntakeStatus: intakeStatusSchema,
+  Intake: intakeSchema,
+  Narrative: narrativeSchema,
+  NarrativeParagraph: paragraphSchema,
+  NationalAggregates: nationalAggregatesSchema,
+  NationalReport: nationalReportSchema,
+  ReferralGrounds: referralGroundsSchema,
+  IcmsStatus: icmsStatusSchema,
+  IcmsPushError: icmsPushErrorSchema,
+  ReferralIntakeItem: referralIntakeItemSchema,
+  ReferralIntakePage: referralIntakePageSchema,
+  AiUsageReport: aiUsageReportSchema,
+  AiUsageCommission: aiUsageCommissionSchema,
+  AiTaskRatings: aiTaskRatingsSchema,
+};
