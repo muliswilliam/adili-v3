@@ -9,7 +9,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
  * - `error`: the service refused the save for good (`AutosaveFailure` of kind `error`, e.g. 400,
  *   403, or a report approved meanwhile). Not retried; the next edit is saved as usual.
  * - `conflict`: someone else changed it (`AutosaveFailure` of kind `conflict`, e.g. 412). Edits
- *   are no longer saved until `reset`, e.g. after a reload.
+ *   are no longer saved until `reset`, e.g. after a reload. Reserved for saves made with
+ *   `If-Match`: the reporting narrative and remarks PATCHes have no ETag, so they never conflict.
  */
 export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'retrying' | 'error' | 'conflict';
 
@@ -84,6 +85,10 @@ class AutosaveQueue<T> {
   private disposed = false;
   /** Set when `dispose` queued the waiting value behind the save in flight. */
   private sendOnSettle = false;
+  /** Set by a conflict until `reset`. */
+  private conflicted = false;
+  /** Bumped by `reset`; a save from an earlier generation is ignored when it settles. */
+  private generation = 0;
 
   /** Takes the caller's latest save function and delay. */
   configure(save: (value: T) => Promise<void>, delayMs: number) {
@@ -101,7 +106,7 @@ class AutosaveQueue<T> {
   };
 
   change = (value: T) => {
-    if (this.snapshot.status === 'conflict') return;
+    if (this.conflicted) return;
     this.pending = { value, ready: false };
     this.clear('debounce');
     this.set({ status: this.failures > 0 ? 'retrying' : 'saving', failure: null });
@@ -112,26 +117,32 @@ class AutosaveQueue<T> {
     }, this.delayMs);
   };
 
+  /** Sends a waiting value now, unless a failed save is waiting out its backoff. */
   flush = () => {
     if (!this.pending) return;
     this.clear('debounce');
-    this.clear('retry');
     this.markReady();
     this.pump();
   };
 
+  /**
+   * Starts over from `idle`, e.g. after a reload. A save still in flight is left to finish but
+   * its outcome is ignored, so it cannot mark the reloaded state saved or send its value again.
+   */
   reset = () => {
+    this.generation += 1;
     this.clear('debounce');
     this.clear('retry');
     this.pending = null;
     this.failures = 0;
+    this.conflicted = false;
     this.set({ status: 'idle', failure: null });
   };
 
   /**
    * Stops the timers and sends a waiting value, e.g. when the page is left: after the save in
-   * flight, so the older value cannot land last. Nothing is left to show a failure to, so a
-   * value that fails now is not retried.
+   * flight, so the older value cannot land last, and not at all if that save met a conflict.
+   * Nothing is left to show a failure to, so a value that fails now is not retried.
    */
   dispose() {
     this.disposed = true;
@@ -139,12 +150,15 @@ class AutosaveQueue<T> {
     this.clear('retry');
     const waiting = this.pending;
     this.pending = null;
-    if (!waiting || this.snapshot.status === 'conflict') return;
-    const send = () => this.save(waiting.value).catch(() => undefined);
+    if (!waiting || this.conflicted) return;
+    const send = () => {
+      if (this.conflicted) return;
+      this.save(waiting.value).catch(() => undefined);
+    };
     if (this.inFlight) {
       this.sendOnSettle = true;
       void this.inFlight.then(send);
-    } else void send();
+    } else send();
   }
 
   /** Reverses `dispose`, for React's development remount. */
@@ -174,29 +188,39 @@ class AutosaveQueue<T> {
     if (this.disposed || this.inFlight || this.retry || !next?.ready) return;
     this.pending = null;
     this.set({ status: this.failures > 0 ? 'retrying' : 'saving' });
+    const generation = this.generation;
     this.inFlight = this.save(next.value).then(
       () => {
         this.inFlight = null;
+        if (generation !== this.generation) {
+          this.pump();
+          return;
+        }
         this.failures = 0;
         this.set({ savedAt: new Date(), status: this.pending ? 'saving' : 'saved' });
         this.pump();
       },
       (error: unknown) => {
         this.inFlight = null;
+        if (generation !== this.generation) {
+          this.pump();
+          return;
+        }
         if (error instanceof AutosaveFailure) {
           this.failures = 0;
-          this.clear('debounce');
-          // A refused value is not sent again; a newer edit waiting for its pause still is.
-          if (error.kind === 'conflict') this.pending = null;
+          if (error.kind === 'conflict') {
+            // Nothing more is saved over someone else's change, waiting or not.
+            this.conflicted = true;
+            this.clear('debounce');
+            this.pending = null;
+          }
+          // A refused value is not sent again; a newer edit still is, after its own pause.
           this.set(
             this.pending
               ? { status: 'saving', failure: null }
               : { status: error.kind, failure: error },
           );
-          if (this.pending) {
-            this.markReady();
-            this.pump();
-          }
+          this.pump();
           return;
         }
         this.failures += 1;
