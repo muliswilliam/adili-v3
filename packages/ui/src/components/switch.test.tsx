@@ -52,4 +52,35 @@ describe('Switch', () => {
     fireEvent.click(control);
     expect(change).not.toHaveBeenCalled();
   });
+
+  it("keeps the caller's description beside the reason, and reads as off while blocked", () => {
+    render(
+      <>
+        <span id="hint">Compares items by type and description.</span>
+        <Switch
+          checked
+          onCheckedChange={() => undefined}
+          label="Compare"
+          aria-describedby="hint"
+          blockedReason="Nothing to compare."
+        />
+      </>,
+    );
+    const control = screen.getByRole('switch', { name: 'Compare' });
+    expect(control.getAttribute('aria-checked')).toBe('false');
+    const ids = (control.getAttribute('aria-describedby') ?? '').split(' ');
+    expect(ids).toContain('hint');
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toContain(
+      'Nothing to compare.',
+    );
+  });
+
+  it('is not blocked by an empty reason', () => {
+    const change = vi.fn();
+    render(<Switch checked={false} onCheckedChange={change} label="Compare" blockedReason="" />);
+    const control = screen.getByRole('switch', { name: 'Compare' });
+    expect(control.hasAttribute('aria-disabled')).toBe(false);
+    fireEvent.click(control);
+    expect(change).toHaveBeenCalledWith(true);
+  });
 });

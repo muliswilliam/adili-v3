@@ -2,6 +2,7 @@ import { type ComponentProps, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
+import { joinIds } from '../lib/use-field-ids';
 import { Tooltip } from './tooltip';
 
 export type SwitchProps = Omit<ComponentProps<'button'>, 'onClick' | 'children' | 'role'> & {
@@ -12,7 +13,7 @@ export type SwitchProps = Omit<ComponentProps<'button'>, 'onClick' | 'children' 
   /**
    * Why the switch cannot be used now. It stays focusable (`aria-disabled`, not `disabled`) so
    * keyboard and screen reader users reach it and hear the reason as its description; a tooltip
-   * shows it too. Clicks do nothing.
+   * shows it too. Clicks do nothing and it reads as off. An empty reason does not block.
    */
   blockedReason?: string;
 };
@@ -28,16 +29,18 @@ export function Switch({
   label,
   blockedReason,
   className,
+  'aria-describedby': describedBy,
   ...props
 }: SwitchProps) {
   const reasonId = useId();
-  const blocked = Boolean(blockedReason);
+  const blocked = blockedReason !== undefined && blockedReason !== '';
   const control = (
     <button
       type="button"
       role="switch"
-      aria-checked={checked}
-      {...(blocked ? { 'aria-disabled': true, 'aria-describedby': reasonId } : {})}
+      aria-checked={checked && !blocked}
+      aria-describedby={joinIds(describedBy, blocked ? reasonId : undefined)}
+      {...(blocked ? { 'aria-disabled': true } : {})}
       onClick={() => {
         if (!blocked) onCheckedChange(!checked);
       }}
@@ -57,7 +60,7 @@ export function Switch({
       {label}
     </button>
   );
-  if (!blockedReason) return control;
+  if (!blocked) return control;
   return (
     <>
       <Tooltip content={blockedReason}>{control}</Tooltip>
