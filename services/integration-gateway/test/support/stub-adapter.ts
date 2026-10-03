@@ -26,7 +26,10 @@ export class StubAdapter implements RegistryAdapter<StubRecord> {
   /** `performance.now()` at the start of each call. */
   readonly callTimes: number[] = [];
   behaviour: StubAdapterBehaviour = { kind: 'registry' };
-  /** How long the last hanging call ran, from its start, before its signal aborted; null until one did. */
+  /**
+   * How long the last hanging call ran, from its start, before its signal aborted; null until
+   * one did.
+   */
   abortedAfterMs: number | null = null;
   /** Calls a lookup reserves and makes at once, as KRA's PINs and one PIN's compliance. */
   callsPerLookup = 1;

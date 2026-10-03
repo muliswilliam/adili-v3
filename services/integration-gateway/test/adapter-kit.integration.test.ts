@@ -373,8 +373,9 @@ describe('adapter kit', () => {
       const result = await lookup(WANJIKU);
 
       expect(result).toMatchObject({ outcome: 'unavailable', reason: 'timeout' });
-      // Measured where the call runs: the lookup's own time adds the row write.
-      expect(kra.abortedAfterMs).toBeGreaterThanOrEqual(1_999);
+      // Measured where the call runs: the lookup's own time adds the row write. Timers fire off
+      // libuv's cached loop time, which can trail performance.now() by a few milliseconds.
+      expect(kra.abortedAfterMs).toBeGreaterThanOrEqual(1_990);
       expect(kra.abortedAfterMs).toBeLessThan(3_000);
       const [row] = (await rows()).slice(-1);
       expect(row).toMatchObject({ outcome: 'unavailable', reason: 'timeout' });
