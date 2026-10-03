@@ -2,7 +2,7 @@
  * In-memory stand-in for the reporting service's EACC intake endpoints (reporting.yaml
  * `getEaccIntake`, `getSubmittedReport`) and for documents' downloads of the Form M PDFs and
  * receipts they point at, used when REPORTING_MOCK is set. Fifteen Commissions on the reporting
- * mock's day (`mockReportingToday`, so the Form M workspace and the intake share it) for every
+ * mocks' day (`mockDay` in `mock-store.server.ts`, shared with the Form M workspace) for every
  * financial year from 2025; a report counts as filed once its day has come:
  *
  * - The Public Service Commission (`psc`) is the Form M workspace mock's: EACC sees its report
@@ -29,7 +29,7 @@ import {
   nairobiToday,
 } from '../../components/form-m/financial-year';
 import { json, type MockCaller, mockCallerOf, problem } from '../mock-http';
-import { mockReportingToday, mockStoredReport } from './mock.server';
+import { mockDay, type StoredReport, storedReports } from './mock-store.server';
 import type { Intake, IntakeOutlier, IntakeRow, ReportSource, SubmittedReport } from './types';
 
 type FormM = SubmittedReport['document'];
@@ -214,29 +214,39 @@ interface Filing {
   reference: string;
   /** The form as filed, for the workspace mock's report; built from the fixture otherwise. */
   document: FormM | null;
+  /** The workspace mock's report as stored (its compile and sign-off), for psc only. */
+  stored: StoredReport | null;
 }
 
 /** `commission`'s report for the year as EACC has it by today; null when it has not reported. */
 function filingOf(commission: Fixture, fy: number): Filing | null {
   if (commission.counts === null) {
-    const stored = mockStoredReport(fy);
+    mockDay(); // Seeds the store on the first read.
+    const stored = storedReports.get(fy);
     if (stored?.status !== 'submitted') return null;
-    // A submitted report has all four (the workspace mock's `submitted`); the types allow null.
     const { submittedAt, late, reference, document } = stored;
     if (submittedAt === null || late === null || reference === null || document === null) {
-      return null;
+      throw new Error(`The workspace mock's submitted report for ${String(fy)} lacks a field`);
     }
-    return { day: nairobiToday(new Date(submittedAt)), submittedAt, late, reference, document };
+    return {
+      day: nairobiToday(new Date(submittedAt)),
+      submittedAt,
+      late,
+      reference,
+      document,
+      stored,
+    };
   }
   if (commission.filedAfterDue === null) return null;
   const day = plusDays(dueDateOf(fy), commission.filedAfterDue);
-  if (day > mockReportingToday()) return null;
+  if (day > mockDay()) return null;
   return {
     day,
     submittedAt: `${day}T08:05:00.000Z`,
     late: day > dueDateOf(fy),
     reference: referenceOf(commission, fy),
     document: null,
+    stored: null,
   };
 }
 
@@ -247,7 +257,7 @@ function filingOf(commission: Fixture, fy: number): Filing | null {
 function chaseRounds(fy: number, filed: string | null): string[] {
   const august = plusDays(dueDateOf(fy), 1);
   const weekday = new Date(`${august}T00:00:00Z`).getUTCDay();
-  const today = mockReportingToday();
+  const today = mockDay();
   const rounds: string[] = [];
   for (
     let day = plusDays(august, (6 - weekday + 7) % 7);
@@ -523,15 +533,23 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
     fy,
     status: 'submitted',
     source: commission.source,
-    compiledAt: sixAm(plusDays(filing.day, -5)),
-    reviewedBy:
-      commission.source === 'hosted' && compiledBy.name
-        ? { subject: `mock-${commission.slug}-supervisor`, name: compiledBy.name }
-        : null,
-    confirmedBy:
-      commission.source === 'hosted' && confirmedBy.name
-        ? { subject: `mock-${commission.slug}-admin`, name: confirmedBy.name }
-        : null,
+    ...(filing.stored
+      ? {
+          compiledAt: filing.stored.compiledAt,
+          reviewedBy: filing.stored.reviewedBy,
+          confirmedBy: filing.stored.confirmedBy,
+        }
+      : {
+          compiledAt: sixAm(plusDays(filing.day, -5)),
+          reviewedBy:
+            commission.source === 'hosted' && compiledBy.name
+              ? { subject: `mock-${commission.slug}-supervisor`, name: compiledBy.name }
+              : null,
+          confirmedBy:
+            commission.source === 'hosted' && confirmedBy.name
+              ? { subject: `mock-${commission.slug}-admin`, name: confirmedBy.name }
+              : null,
+        }),
     submittedAt: filing.submittedAt,
     late: filing.late,
     reference: filing.reference,
@@ -641,10 +659,6 @@ export async function mockReportingDocumentsFetch(input: Request): Promise<Respo
   await delay(200);
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
   const id = match?.[1];
-  // The national consolidated report's PDF is the NCR mock's (ncr-mock.server.ts).
-  if (id && (await import('./ncr-mock.server')).mockNcrFileTitle(id)) {
-    return (await import('./ncr-mock.server')).mockNcrDocumentsFetch(input);
-  }
   if (input.method !== 'GET' || !id || !mockReportingFileTitle(id)) {
     return problem(404, 'Not found');
   }
