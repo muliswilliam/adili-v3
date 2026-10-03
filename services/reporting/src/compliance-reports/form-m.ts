@@ -115,6 +115,17 @@ export function aggregateFacts(
  * so the reasons may add up to more than (c). Outcomes count in the year the request was
  * received, so (b) and (c) never exceed (a); a withdrawn request counts in (a) only.
  */
+/** How each way a Form K request ends counts in section 5: (b) or (c), and its (d) reasons. */
+const OUTCOME_COUNTS: Record<
+  AccessRequestFactOutcome,
+  { as: 'granted' | 'declined'; reasons: 'none' | 'grounds' | 'other' }
+> = {
+  grant: { as: 'granted', reasons: 'none' },
+  'partial-grant': { as: 'granted', reasons: 'grounds' },
+  deny: { as: 'declined', reasons: 'grounds' },
+  'cannot-identify': { as: 'declined', reasons: 'other' },
+};
+
 function accessSection(requests: readonly AccessRequestFactRow[]): {
   counts: ReportCounts['accessRequests'];
   declineReasons: Aggregate['declineReasons'];
@@ -123,13 +134,11 @@ function accessSection(requests: readonly AccessRequestFactRow[]): {
   const reasons = new Map<DeclineReason, number>();
   const cite = (reason: DeclineReason) => reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
   for (const request of requests) {
-    if (request.withdrawn) continue;
-    if (request.outcome === 'grant' || request.outcome === 'partial-grant') counts.granted += 1;
-    if (request.outcome === 'deny' || request.outcome === 'cannot-identify') counts.declined += 1;
-    if (request.outcome === 'partial-grant' || request.outcome === 'deny') {
-      for (const ground of new Set(request.grounds)) cite(ground);
-    }
-    if (request.outcome === 'cannot-identify') cite(CANNOT_IDENTIFY_DECLINE_REASON);
+    if (request.withdrawn || request.outcome === null) continue;
+    const counted = OUTCOME_COUNTS[request.outcome];
+    counts[counted.as] += 1;
+    if (counted.reasons === 'grounds') for (const ground of new Set(request.grounds)) cite(ground);
+    if (counted.reasons === 'other') cite(CANNOT_IDENTIFY_DECLINE_REASON);
   }
   const declineReasons = DECLINE_REASONS.flatMap((reason) => {
     const count = reasons.get(reason) ?? 0;

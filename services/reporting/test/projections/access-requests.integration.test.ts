@@ -75,6 +75,39 @@ describe('access request projections (Form M section 5)', () => {
     ]);
   });
 
+  it('keeps the earliest way a request closed, whatever order its closing events arrive in', async () => {
+    const requestId = randomUUID();
+    const denied = accessEvent('psc', 'decided', {
+      requestId,
+      at: '2028-02-10T08:00:00Z',
+      outcome: 'deny',
+      grounds: ['public-interest'],
+    });
+    // A later, conflicting closure (not one access produces): it must not replace the first.
+    const unidentified = accessEvent('psc', 'cannot-identify', {
+      requestId,
+      at: '2028-02-12T08:00:00Z',
+    });
+    const closed = {
+      outcome: 'deny',
+      grounds: ['public-interest'],
+      closedAt: new Date('2028-02-10T08:00:00Z'),
+    };
+
+    expect(await api.deliver(denied)).toBe(true);
+    expect(await api.deliver(unidentified)).toBe(true);
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequestFacts))).toEqual([
+      expect.objectContaining({ requestId, ...closed }),
+    ]);
+
+    await api.reset();
+    expect(await api.deliver(unidentified)).toBe(true);
+    expect(await api.deliver(denied)).toBe(true);
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequestFacts))).toEqual([
+      expect.objectContaining({ requestId, ...closed }),
+    ]);
+  });
+
   it('closes a request whose officer cannot be identified, and records a withdrawal, under their Commission', async () => {
     const unidentified = randomUUID();
     const withdrawn = randomUUID();

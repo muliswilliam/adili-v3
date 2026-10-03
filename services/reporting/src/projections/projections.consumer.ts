@@ -4,6 +4,7 @@ import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
 import {
   ACCESS_REQUEST_CANNOT_IDENTIFY,
+  type AccessGround,
   ACCESS_REQUEST_DECIDED,
   ACCESS_REQUEST_RECEIVED,
   ACCESS_REQUEST_WITHDRAWN,
@@ -53,6 +54,7 @@ import {
 } from './events.js';
 import {
   accessRequestFacts,
+  type AccessRequestFactOutcome,
   actionFacts,
   type ActionStatus,
   aiFeedbackFacts,
@@ -382,7 +384,7 @@ export class ProjectionsConsumer {
   @OnEvent(ACCESS_REQUEST_DECIDED)
   accessRequestDecided(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRequestDecidedDataSchema.parse(event.data);
-    return this.accessRequest(event, data.subjectId, {
+    return this.closeAccessRequest(event, data.subjectId, {
       outcome: data.outcome,
       grounds: data.grounds,
       closedAt: new Date(data.at),
@@ -393,7 +395,7 @@ export class ProjectionsConsumer {
   @OnEvent(ACCESS_REQUEST_CANNOT_IDENTIFY)
   accessRequestCannotIdentify(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRequestCannotIdentifyDataSchema.parse(event.data);
-    return this.accessRequest(event, data.subjectId, {
+    return this.closeAccessRequest(event, data.subjectId, {
       outcome: 'cannot-identify',
       grounds: [],
       closedAt: new Date(data.at),
@@ -409,7 +411,8 @@ export class ProjectionsConsumer {
 
   /**
    * Upserts what one event knows of a Form K request, and only that, so a decision that arrives
-   * before the receipt still lands in the year the receipt brings.
+   * before the receipt still lands in the year the receipt brings. Receipt and withdrawal
+   * happen once per request.
    */
   private accessRequest(
     event: EventEnvelope,
@@ -421,6 +424,31 @@ export class ProjectionsConsumer {
         .insert(accessRequestFacts)
         .values({ requestId, tenant, ...facts })
         .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
+    );
+  }
+
+  /**
+   * How a Form K request closed: a decision, or the officer not identified. Final, so the
+   * earliest closure holds and a later (or late redelivered) one cannot replace it.
+   */
+  private closeAccessRequest(
+    event: EventEnvelope,
+    requestId: string,
+    facts: { outcome: AccessRequestFactOutcome; grounds: AccessGround[]; closedAt: Date },
+  ): Promise<boolean> {
+    const first = sql`(${accessRequestFacts.closedAt} is null or excluded.closed_at < ${accessRequestFacts.closedAt})`;
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(accessRequestFacts)
+        .values({ requestId, tenant, ...facts })
+        .onConflictDoUpdate({
+          target: accessRequestFacts.requestId,
+          set: {
+            outcome: sql`case when ${first} then excluded.outcome else ${accessRequestFacts.outcome} end`,
+            grounds: sql`case when ${first} then excluded.grounds else ${accessRequestFacts.grounds} end`,
+            closedAt: sql`case when ${first} then excluded.closed_at else ${accessRequestFacts.closedAt} end`,
+          },
+        }),
     );
   }
 

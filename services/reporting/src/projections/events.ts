@@ -6,9 +6,11 @@ import { ACTION_STEPS, OBLIGATION_TYPES } from './schema.js';
  * The events the reporting service projects (spec 09 backend detail), and the identifiers it
  * reads from each. Producers: declarations (spec 04 obligations, spec 06 submission), review
  * (spec 07a clarifications, spec 07c copilot, spec 08 determinations, actions and referrals) and
- * the ai-gateway (spec 07c ratings). Access request events (spec 10) are validated with their
- * producer's schemas (`@adili/events/contracts/schemas`). Every event carries
- * the Commission in its `tenant` extension; the time an event happened is its envelope `time`.
+ * the ai-gateway (spec 07c ratings). Every event carries the Commission in its `tenant`
+ * extension; the time an event happened is its envelope `time`, except where the data dates it
+ * (`referral.sent.v1` `sentAt`, `ai.feedback.recorded.v1` `recordedAt`). Access request events
+ * (spec 10) are validated with their producer's schemas (`@adili/events/contracts/schemas`) and
+ * dated by their register entry's `at`.
  */
 
 export const OBLIGATION_CREATED = 'obligation.created.v1';
