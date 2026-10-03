@@ -42,15 +42,16 @@ const ruleTasks = z.array(taskNameSchema).min(1).nullable().meta({
 });
 
 /**
- * Contract `GateRuleInput`: a cell of the gate, for every task or only the ones named. Leaving
- * `tasks` out keeps an existing rule's scope; a rule for some tasks only is refused a change
- * without `tasks` (send them again, or null to widen it to every task).
+ * Contract `GateRuleInput`: a cell of the gate, for every task or only the ones named. A change
+ * that leaves `tasks` out is for every task: to a cell with a rule for some tasks only it is
+ * refused, allowing or blocking, so a scope is neither widened nor dropped by accident. Name the
+ * tasks to keep it, or send `tasks: null` to make the rule every task's.
  */
 export const gateRuleInputSchema = z.strictObject({
   ...gateCellSchema.shape,
   tasks: ruleTasks.optional().meta({
     description:
-      'The tasks the rule is for; null for every task, which a rule for some tasks only needs to be widened. Left out: every task for a new rule; refused for a rule that names tasks',
+      "The tasks the rule is for; null for every task. Left out: every task, except over a rule for some tasks only, where the change (allowing or blocking) is refused: name the tasks to keep the scope, or send null to make the rule every task's",
   }),
 });
 export type GateRuleInput = z.input<typeof gateRuleInputSchema>;
@@ -228,7 +229,8 @@ export class GatePolicies {
               ],
             });
           }
-          const tasks = input.tasks ?? before?.tasks ?? null;
+          // `null` widens on purpose; left out keeps the rule as it is (none for a new one).
+          const tasks = input.tasks === undefined ? (before?.tasks ?? null) : input.tasks;
           const decision = {
             allowed: input.allowed,
             tasks,
