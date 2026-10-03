@@ -1,4 +1,8 @@
-import { type CodedRefusal, problemLabel } from '../server/service-call';
+import {
+  type CodedRefusal,
+  type DecisionRefusal as SharedDecisionRefusal,
+  problemLabel,
+} from '../server/service-call';
 
 /**
  * The refusals of review's referral endpoints (spec 08) the screens explain, by problem code,
@@ -29,6 +33,8 @@ export type ProposeRefusal = CodedRefusal<keyof typeof PROPOSE_REFUSAL_STATUS>;
 
 /** Why review refused approving or declining a referral. */
 export type DecisionRefusal = CodedRefusal<keyof typeof DECISION_REFUSAL_STATUS>;
+// The inbox's notice reads every kind's decision refusals (`service-call.ts` `DecisionRefusal`).
+DECISION_REFUSAL_STATUS satisfies Record<SharedDecisionRefusal['kind'], 403 | 409>;
 
 /** The refusal's status and code, as a dialog prints it ("409 referral-open"). */
 export function referralRefusalProblem(refusal: ProposeRefusal | DecisionRefusal): string {

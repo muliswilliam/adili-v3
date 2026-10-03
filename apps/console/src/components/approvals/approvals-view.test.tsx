@@ -198,6 +198,22 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
     expect(await screen.findByText('Returned to the reviewer')).toBeTruthy();
   });
 
+  it('says a refused return cannot be returned, not approved (403)', async () => {
+    await open();
+    const { reassign } = await import('../../server/review-case.server');
+    fireEvent.click(within(card('Mary Achieng')).getByRole('button', { name: 'Return' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Return to the reviewer' });
+    await reassign(client(), MOCK_CASE_IDS.peters, ME.subject);
+    fireEvent.change(within(dialog).getByLabelText('Reason'), {
+      target: { value: 'Say how the HR letter explains the late filing.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return proposal' }));
+    const notice = await screen.findByRole('dialog', { name: 'You cannot return this' });
+    expect(
+      within(notice).getByText('You cannot return this: you reviewed this case.'),
+    ).toBeTruthy();
+  });
+
   it('explains a separation-of-duties refusal and offers Reassign (403)', async () => {
     await open();
     // The viewer is handed the case after the inbox loaded: now a reviewer of record.

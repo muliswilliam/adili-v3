@@ -208,10 +208,25 @@ describe('ReferralPage (spec 08 FE-6)', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Approve referral to EACC' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and send to EACC' }));
     expect(
-      await screen.findByText('You cannot approve this: you reviewed this case.'),
+      await screen.findByText('You reviewed this case, so another supervisor must decide it.'),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Approve and send' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Reassign' })).toBeTruthy();
+  });
+
+  it('after a refused decline, says why without speaking of approving (403)', async () => {
+    await open(R.fromPeter);
+    await reassign(client(), CASES.peters, ME.subject);
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Decline referral' });
+    fireEvent.change(within(dialog).getByLabelText('Note'), {
+      target: { value: 'Declared in an amendment.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Decline referral' }));
+    expect(
+      await screen.findByText('You reviewed this case, so another supervisor must decide it.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Decline' })).toBeNull();
   });
 
   it('links to the case a referral was proposed from', async () => {

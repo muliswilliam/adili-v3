@@ -202,6 +202,22 @@ describe('the referrals tab of the approvals inbox (spec 08 FE-3, FE-6)', () => 
     expect(within(notice).getByRole('button', { name: 'Reassign to another supervisor' }));
   });
 
+  it('says a refused decline cannot be declined, not approved (403)', async () => {
+    await open();
+    fireEvent.click(within(card('Mary Achieng')).getByRole('button', { name: 'Decline' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Decline referral' });
+    await reassign(client(), CASES.peters, ME.subject);
+    fireEvent.change(within(dialog).getByLabelText('Note'), {
+      target: { value: 'Declared in an amendment.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Decline referral' }));
+    const notice = await screen.findByRole('dialog', { name: 'You cannot decline this' });
+    expect(
+      within(notice).getByText('You cannot decline this: you reviewed this case.'),
+    ).toBeTruthy();
+    expect(within(notice).getByText('403 separation-of-duties')).toBeTruthy();
+  });
+
   it('says so when someone else decided first (409 not-proposed)', async () => {
     await open();
     fireEvent.click(
