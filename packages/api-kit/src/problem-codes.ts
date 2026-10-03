@@ -62,11 +62,15 @@ export const PROBLEM_CODES = {
   'identity-mismatch': { status: HttpStatus.CONFLICT, title: 'Identity does not match IPRS' },
   /**
    * Submission: the token lacks the step-up ACR, or its one-time code is more than five minutes
-   * old; `stepUpUrl` starts a fresh step-up and returns to the declaration.
+   * old; `stepUpUrl` starts a fresh step-up and returns to the declaration (a Form M
+   * confirmation sends no `stepUpUrl`).
    */
   'step-up-required': { status: HttpStatus.FORBIDDEN, title: 'Step-up required' },
-  /** Submission: the declaration does not validate; `blocking` lists what to complete. */
-  incomplete: { status: HttpStatus.BAD_REQUEST, title: 'Declaration incomplete' },
+  /**
+   * Submission: the form does not validate against its schema. A declaration lists what to
+   * complete in `blocking`; a Form M confirmation names the fields in `errors`.
+   */
+  incomplete: { status: HttpStatus.BAD_REQUEST, title: 'Form incomplete' },
   /** Submission: the statement date (Africa/Nairobi) has not come yet. */
   'before-statement-date': { status: HttpStatus.CONFLICT, title: 'Before the statement date' },
   /** Submission of an amendment after the obligation's due date; changes go to the Commission. */

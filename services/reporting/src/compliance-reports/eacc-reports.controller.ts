@@ -79,7 +79,7 @@ export class EaccReportsController {
     description:
       "eacc-analyst and eacc-supervisor (tenant `eacc`) read every Commission's submitted report; a Commission's supervisor, commission-admin and reporting officer, and its own system (`reports:submit`), read their own. Anyone else, another Commission's report, a report not submitted and an unknown id are 404. The document is the frozen `form-m.v1` as filed; the PDF and receipt download through documents by `formMDocumentId` and `receiptDocumentId` (null until issued). Each read is audited (`audit.read.v1`, action `compliance-report.viewed`) under the tenant of the Commission whose report it is.",
   })
-  @ApiOkResponse({ description: 'Report', schema: schemaRef('ComplianceReport') })
+  @ApiOkResponse({ description: 'Report', schema: schemaRef('SubmittedComplianceReport') })
   @ApiProblemResponse(400, 'reportId is not a UUID')
   @ApiProblemResponse(404, 'Not found, not submitted, or not visible to the caller')
   @ApiProblemResponse(503, 'The Commission directory could not be reached')

@@ -1,4 +1,4 @@
-import { DeclarationSchema, FormMSchema } from '@adili/forms';
+import { DeclarationSchema } from '@adili/forms';
 import type { z } from 'zod';
 
 import {
@@ -41,7 +41,6 @@ import {
 
 const declaration = DeclarationSchema.shape;
 const statement = declaration.statements.element.shape;
-const formM = FormMSchema.shape;
 
 /** Named schemas of the documents service's OpenAPI document (`#/components/schemas/<name>`). */
 export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
@@ -74,9 +73,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   FormMPayload: formMPayload,
   ComplianceReportReceiptPayload: complianceReportReceiptPayload,
   NcrPayload: ncrPayload,
-  // Parts of form-m.v1 the Form M payload repeats, named so the contract states them once.
-  FormMDeclarationSection: formM.partII.shape.initial,
-  FormMSignatory: formM.partIII.shape.compiledBy,
+  // form-m.v1's parts stay unnamed in the payload: naming the declaration section would export
+  // biennial's intersection as an allOf of two closed objects, which no document satisfies.
   DisclosedDeclaration: disclosedDeclarationSchema,
   DeclarationV1: DeclarationSchema,
   // Parts of declaration.v1 both payloads print, named so the contract states them once.

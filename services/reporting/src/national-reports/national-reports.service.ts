@@ -16,7 +16,7 @@ import { activeCommissions } from '../compliance-reports/commission.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { referencePeriodOf } from '../financial-year.js';
 import { officerOf } from '../officer.js';
-import { conflict, forbidden, notFound, workflowUnavailable } from '../problems.js';
+import { notFound, problem, workflowUnavailable } from '../problems.js';
 import { buildAggregates } from './aggregates.js';
 import { eaccContext } from '../system-context.js';
 import { NCR_ISSUER } from './contract.js';
@@ -82,7 +82,7 @@ export class NationalReportsService {
     return withTenant(this.db, eaccContext(principal.subject), async (tx) => {
       const receipts = await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy));
       if (receipts.length === 0) {
-        throw conflict(
+        throw problem(
           'no-submitted-reports',
           'No Commission has submitted its report for the year yet.',
         );
@@ -175,9 +175,9 @@ export class NationalReportsService {
         report.authorSubject === principal.subject ||
         report.contributors.includes(principal.subject)
       ) {
-        throw forbidden(
-          'The author cannot approve: another EACC supervisor approves the report.',
+        throw problem(
           'separation-of-duties',
+          'The author cannot approve: another EACC supervisor approves the report.',
         );
       }
       const reference = await allocateReference(tx, NCR, {
@@ -253,7 +253,7 @@ async function lockedDraft(tx: ReportingTransaction, fy: number): Promise<Nation
     .for('update');
   if (!report) throw notFound(NOT_BUILT);
   if (report.status === 'approved') {
-    throw conflict('ncr-approved', 'The report is approved and can no longer change.');
+    throw problem('ncr-approved', 'The report is approved and can no longer change.');
   }
   return report;
 }

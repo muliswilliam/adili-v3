@@ -623,11 +623,66 @@ export interface components {
                 };
             };
             partII: {
-                initial: components["schemas"]["FormMDeclarationSection"];
-                biennial: components["schemas"]["FormMDeclarationSection"] & {
+                initial: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
                     noCycleInPeriod?: boolean;
                 };
-                final: components["schemas"]["FormMDeclarationSection"];
+                biennial: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
+                final: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
                 clarifications: {
                     items: {
                         name: string;
@@ -662,8 +717,16 @@ export interface components {
                 };
             };
             partIII: {
-                compiledBy: components["schemas"]["FormMSignatory"];
-                confirmedBy: components["schemas"]["FormMSignatory"];
+                compiledBy: {
+                    name: string | null;
+                    designation: string | null;
+                    date: string | null;
+                };
+                confirmedBy: {
+                    name: string | null;
+                    designation: string | null;
+                    date: string | null;
+                };
             };
             meta: {
                 /** Format: date-time */
@@ -782,31 +845,6 @@ export interface components {
             approver: string;
             /** Format: date-time */
             approvedAt: string;
-        };
-        FormMDeclarationSection: {
-            expected: number;
-            declared: number;
-            notDeclared: number;
-            nonFilers: {
-                name: string;
-                designation: string;
-                identifier: string;
-                /** Format: date */
-                date: string;
-                /** @enum {string} */
-                actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
-                /** @enum {string} */
-                complied: "yes" | "no" | "pending";
-                remarks?: string;
-                /** Format: uuid */
-                obligationId?: string;
-            }[];
-            noCycleInPeriod?: boolean;
-        };
-        FormMSignatory: {
-            name: string | null;
-            designation: string | null;
-            date: string | null;
         };
         /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
         DisclosedDeclaration: {

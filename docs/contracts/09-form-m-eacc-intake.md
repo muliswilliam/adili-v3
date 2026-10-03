@@ -33,31 +33,48 @@ Operations: none added, none dropped, none moved. Changed:
 - **Problems documented that the draft left out:**
   - 400 when `fy` is not a financial year, on `getComplianceReport`, `compileComplianceReport` and the four NCR operations.
   - 422 (Idempotency-Key reused with another request) on `approveNationalReport` and `pushReferralToIcms`, as on the other keyed writes.
-- `submitComplianceReport`: the body is the named `FormMDocument` (the parts of a `form-m.v1` document; the service validates the rest against `forms/form-m.v1.json`, `invalid-document`) instead of any object.
+- `submitComplianceReport`: the body is the named `FormM`, the full `form-m.v1` schema (from `@adili/forms` `FormMSchema`, as documents' `FormMPayload`), instead of any object. The service validates it against `forms/form-m.v1.json` (`invalid-document`).
+- `getSubmittedReport` answers `SubmittedComplianceReport`: a `ComplianceReport` whose `document` is the frozen `FormM`. The Commission's own `getComplianceReport` keeps the loose `FormMDocument`, because a draft need not be complete yet. `FormM`'s parts are not named components: naming the declaration section makes Zod export biennial's intersection as an `allOf` of two closed objects, which no document satisfies. documents' `FormMPayload` had that defect, fixed in #238.
 - `listReferralIntake`: `icmsStatus` is an inline enum, and `cursor` (1 to 200 characters) is documented as the previous page's `nextCursor`.
 - `getEaccIntake`: `status` refers to `IntakeStatus`, `fy` is described.
 - The draft's shared `parameters` (`Slug`, `FinancialYear`, `IdempotencyKey`) and `responses` (`NotFound`, `Forbidden`) are inlined per operation (code-first export). The 09b drafts keep using them, from `drafts/reporting.yaml`.
 
 Schemas changed:
 
-- New: `ReportCounts` (was `counts: object`), `NationalAggregates` (was `aggregates: object`), `FormMDocument` (was `document: object`), `ConfirmReport`, `ReferralIntakePage` (was inline).
+- New: `ReportCounts` (was `counts: object`), `NationalAggregates` (was `aggregates: object`), `FormMDocument` (was `document: object`, for drafts), `FormM` (its parts unnamed, see below), `SubmittedComplianceReport`, `ConfirmReport`, `ReferralIntakePage` (was inline).
 - `ComplianceReport.counts` and `NationalReport.aggregates` are the typed shape, or `{}` before the first compile or build.
 - Every field the draft listed is there, with the same names and required fields; descriptions added from the code.
 - Nullables are exported as `anyOf [..., null]` rather than `type: [..., 'null']`, and `Officer | null` as `anyOf` rather than `oneOf`.
-- `ProblemDetails.code` is the shared enum of `@adili/api-kit` `PROBLEM_CODES`, as in every exported contract, instead of the hand-written `string`. Reporting's codes are registered there (#238): `report-submitted`, `report-compiling`, `preview-not-available`, `not-reviewed`, `invalid-remarks`, `invalid-document`, `inconsistent-document`, `tenant-mismatch`, `ncr-approved`, `no-submitted-reports`, `icms-push-failed`, `separation-of-duties` (with the already registered `incomplete` and `step-up-required`). Reporting's problem helpers take a `ProblemCode`, so a code it sends cannot be left out of the contract. Every contract and client is regenerated with the longer enum.
+- `ProblemDetails.code` is the shared enum of `@adili/api-kit` `PROBLEM_CODES`, as in every exported contract, instead of the hand-written `string`. Reporting's codes are now registered there (#238): `report-submitted`, `report-compiling`, `preview-not-available`, `not-reviewed`, `invalid-remarks`, `invalid-document`, `inconsistent-document`, `tenant-mismatch`, `ncr-approved`, `no-submitted-reports`, `icms-push-failed` and `separation-of-duties`, next to the already registered `incomplete` (now titled "Form incomplete", as it covers Form M too) and `step-up-required`.
+  - Every coded problem goes through `problem(code, ...)` (`ProblemException.fromCode`), so the registry's status and title are on the wire and the code is the `type`, as in access. The `about:blank` types and generic titles are gone.
+  - `problem` takes a `ProblemCode`, so a code reporting sends through its helpers must be registered first. api-kit does not enforce this for every service: `ProblemExtensions.code` is still a free string, and review sends unregistered codes (#501).
+  - Every contract and client is regenerated with the longer enum.
 
 ### Spec 09b drafts
 
 `getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataSnapshot`, `publishOpenDataRelease`, `withdrawOpenDataRelease`, `getCommissionOpenDataPreview` and the public `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable` moved unchanged into `drafts/reporting.yaml`, with `PatternCandidate`, `OpenDataTable`, `OpenDataRelease` and the parameters and responses they use.
 The export marks them `x-draft: true`.
 
-PR #491 (spec 09b backend) edits `internal/reporting.yaml` by hand. Once this merges, the file is generated, so #491's rebase conflicts on it: the operations #491 implements are documented on its controllers and deleted from `drafts/reporting.yaml` (the export refuses an operation both define), the rest of its edits go into the draft, and `pnpm --filter @adili/reporting contracts` writes the file. #238 adds no migrations.
+PR #491 (spec 09b backend) edits `internal/reporting.yaml` by hand. Once #238 merges, that file is generated, so #491's rebase conflicts on it. Taking the generated file as is would undo #491's contract changes. Instead:
+
+1. **The five operations it implements** (`getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataSnapshot`, `getCommissionOpenDataPreview`):
+   - document them on its controllers (`@ApiOperation`, `@ApiBody`, `schemaRef`);
+   - delete them from `drafts/reporting.yaml`, because the export refuses an operation both define.
+2. **The components they use** (`PatternCandidate`, `OpenDataRelease`, `OpenDataTable`) become Zod schemas in `OPENAPI_SCHEMAS`, each with a `Conforms` check, and leave the draft. The export also refuses a component the draft and the code both define (`withDraft` in api-kit `contract.ts`). The five operations still drafted (`publishOpenDataRelease`, `withdrawOpenDataRelease`, the public `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable`) keep `$ref`-ing them, which works because a draft may reference implemented components.
+3. **Its changes to operations already converged here:**
+   - `NationalReport.narrativeDraft` and the new `NarrativeDraft` schema go into `nationalReportSchema` (with `Conforms`) and `OPENAPI_SCHEMAS`.
+   - The new `getNationalReport` description (the `drafting` narrative draft looked up at the ai-gateway) goes on `national-reports.controller.ts`.
+   - None of these can stay in the draft.
+4. **Its problem codes** are registered in `PROBLEM_CODES`: `ai-not-enabled`, `narrative-validation`, `no-pattern-candidates`, `aggregates-rebuilt`, `narrative-draft-failed`, `ncr-not-built`, `reconciliation-failed`. Reporting's problem helpers take a `ProblemCode`, so #491's calls do not compile until they are registered. Its `conflict(code, ...)` calls become `problem(code, ...)`, the single coded helper, now built on `ProblemException.fromCode`.
+5. Run `pnpm --filter @adili/reporting contracts`, then `pnpm contracts:drift`, and regenerate the clients: the `ProblemDetails.code` enum grows in every contract.
+
+#238 adds no migrations, so #491's 0009 and 0010 do not conflict with it.
 
 ### PR #493 (Form M section 5 from access events, #467)
 
 #493 changes section 5 while this PR is open, and is not merged into it:
 
-- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)". After #238 that text lives in `federated-reports.controller.ts`; #493 changes it there and re-exports. Its `federated-submission.ts` rule and the contract then agree again.
+- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)". #493 is ready and will likely merge first, so #238 already carries the new sentence, in `federated-reports.controller.ts`. The export keeps it either way. Until #493 lands, the contract states #493's rule, while this branch's `federated-submission.ts` still enforces the stricter "add up to declined".
 - Its other changes (the `access_request_facts` projection, migration 0009, `form-m.ts` compiling section 5, `dataUnavailable` false for hosted reports) touch no HTTP contract. `ComplianceReport.accessDataUnavailable` and `ReportCounts.accessRequests` keep their shape.
 - It updates `docs/contracts/10-access-requests.md`, which this PR does not touch.
 

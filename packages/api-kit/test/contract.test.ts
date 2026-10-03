@@ -137,6 +137,18 @@ describe('repeatedParameters', () => {
     ]);
   });
 
+  it.each(['#/components/parameters/IdempotencyKy', 'other.yaml#/components/parameters/Key'])(
+    'refuses a parameter reference it cannot resolve (%s)',
+    (ref) => {
+      const document = documentWith(
+        { '/v1/closures': { post: { parameters: [{ $ref: ref }], responses: ok } } },
+        { IdempotencyKey: { name: 'Idempotency-Key', in: 'header' } },
+      );
+
+      expect(() => repeatedParameters(document)).toThrow(`Unresolved parameter reference: ${ref}`);
+    },
+  );
+
   it('lets an operation replace its path parameter of the same name and location', () => {
     const document = documentWith({
       '/v1/cases/{caseId}': {

@@ -1,3 +1,4 @@
+import { FormMSchema } from '@adili/forms';
 import type { z } from 'zod';
 
 import {
@@ -13,6 +14,7 @@ import {
   reportCountsSchema,
   reportSourceSchema,
   reportStatusSchema,
+  submittedComplianceReportSchema,
 } from './compliance-reports/representation.js';
 import { confirmBody, manualFieldsBody } from './compliance-reports/sign-off-input.js';
 import { narrativeSchema, paragraphSchema } from './national-reports/narrative.js';
@@ -43,6 +45,11 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   FormMDocument: formMDocumentSchema,
   ComplianceReportSummary: complianceReportSummarySchema,
   ComplianceReport: complianceReportSchema,
+  SubmittedComplianceReport: submittedComplianceReportSchema,
+  // form-m.v1 (packages/schemas/forms/form-m.v1.json). Its parts stay unnamed: naming the
+  // declaration section would export biennial's intersection as an allOf of two closed objects,
+  // which no document satisfies.
+  FormM: FormMSchema,
   ManualFields: manualFieldsBody,
   ConfirmReport: confirmBody,
   IntakeStatus: intakeStatusSchema,

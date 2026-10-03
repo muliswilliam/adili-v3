@@ -454,7 +454,7 @@ paths:
       tags:
         - federated
       summary: Federated Commission submits a form-m.v1 document (reports:submit scope)
-      description: "For a Commission running its own system: a client-credentials token with scope `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The document is validated against form-m.v1 (`invalid-document`), must name the token's Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June, open for reports (from 1 April of its last half); per section declared plus not declared is expected and the non-filers listed are as many as not declared; access requests granted plus declined are at most received and the decline reasons add up to declined; Part III names who compiled and who confirmed, with dates. The report is then submitted as a hosted confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M PDF, the signed receipt and the officers' emails (`formMDocumentId` and `receiptDocumentId` are null until then). A draft compiled on the platform for the year is superseded. The answer, kept for replays of the key, leaves `document` null."
+      description: "For a Commission running its own system: a client-credentials token with scope `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The document is validated against form-m.v1 (`invalid-document`), must name the token's Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June, open for reports (from 1 April of its last half); per section declared plus not declared is expected and the non-filers listed are as many as not declared; access requests granted plus declined are at most received and the decline reasons count at least every decline (a denial citing several grounds counts under each); Part III names who compiled and who confirmed, with dates. The report is then submitted as a hosted confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M PDF, the signed receipt and the officers' emails (`formMDocumentId` and `receiptDocumentId` are null until then). A draft compiled on the platform for the year is superseded. The answer, kept for replays of the key, leaves `document` null."
       operationId: submitComplianceReport
       parameters:
         - name: Idempotency-Key
@@ -469,7 +469,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/FormMDocument'
+              $ref: '#/components/schemas/FormM'
       responses:
         '201':
           description: Submitted with its reference; the PDF and receipt follow
@@ -580,7 +580,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ComplianceReport'
+                $ref: '#/components/schemas/SubmittedComplianceReport'
         '400':
           description: reportId is not a UUID
           content:
@@ -1516,6 +1516,543 @@ components:
         - formMDocumentId
         - receiptDocumentId
         - accessDataUnavailable
+    SubmittedComplianceReport:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        commission:
+          type: object
+          properties:
+            slug:
+              type: string
+            issuerCode:
+              type: string
+            name:
+              type: string
+          required:
+            - slug
+            - issuerCode
+            - name
+        fy:
+          type: integer
+          description: Financial year start year
+        status:
+          $ref: '#/components/schemas/ReportStatus'
+        source:
+          $ref: '#/components/schemas/ReportSource'
+        compiledAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        reviewedBy:
+          anyOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        confirmedBy:
+          anyOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        submittedAt:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        late:
+          type:
+            - boolean
+            - 'null'
+        reference:
+          description: '`RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation'
+          type:
+            - string
+            - 'null'
+        dueDate:
+          type: string
+          format: date
+        document:
+          anyOf:
+            - $ref: '#/components/schemas/FormM'
+            - type: 'null'
+          description: The form-m.v1 document as filed, frozen at submission (a submitted report always has one)
+        counts:
+          anyOf:
+            - $ref: '#/components/schemas/ReportCounts'
+            - type: object
+              properties: {}
+              additionalProperties: false
+          description: Empty until the first compile
+        formMDocumentId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The Restricted Form M PDF, once issued
+        receiptDocumentId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: The signed acknowledgement receipt, once issued
+        accessDataUnavailable:
+          type: boolean
+          description: Form M section 5 holds no access request data for the year (zeros with a note)
+      required:
+        - id
+        - commission
+        - fy
+        - status
+        - source
+        - compiledAt
+        - reviewedBy
+        - confirmedBy
+        - submittedAt
+        - late
+        - reference
+        - dueDate
+        - document
+        - counts
+        - formMDocumentId
+        - receiptDocumentId
+        - accessDataUnavailable
+    FormM:
+      type: object
+      properties:
+        schemaVersion:
+          type: string
+          const: form-m.v1
+        partI:
+          type: object
+          properties:
+            commissionName:
+              type: string
+              minLength: 1
+              maxLength: 200
+            issuerCode:
+              type: string
+              pattern: ^[A-Z0-9]{2,20}$
+            contactDetails:
+              type: string
+              maxLength: 200
+            physicalAddress:
+              type: string
+              maxLength: 200
+            emailAddress:
+              type: string
+              format: email
+            period:
+              type: object
+              properties:
+                from:
+                  type: string
+                  format: date
+                to:
+                  type: string
+                  format: date
+                financialYearStart:
+                  type: integer
+                  minimum: 2025
+              required:
+                - from
+                - to
+                - financialYearStart
+              additionalProperties: false
+          required:
+            - commissionName
+            - issuerCode
+            - contactDetails
+            - physicalAddress
+            - emailAddress
+            - period
+          additionalProperties: false
+        partII:
+          type: object
+          properties:
+            initial:
+              type: object
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                declared:
+                  type: integer
+                  minimum: 0
+                notDeclared:
+                  type: integer
+                  minimum: 0
+                nonFilers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      actionTaken:
+                        type: string
+                        enum:
+                          - none
+                          - notice-to-comply
+                          - warning
+                          - salary-stoppage
+                          - disciplinary-referral
+                          - referred-to-eacc
+                      complied:
+                        type: string
+                        enum:
+                          - yes
+                          - no
+                          - pending
+                      remarks:
+                        type: string
+                        maxLength: 500
+                      obligationId:
+                        type: string
+                        format: uuid
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - date
+                      - actionTaken
+                      - complied
+                    additionalProperties: false
+                noCycleInPeriod:
+                  type: boolean
+              required:
+                - expected
+                - declared
+                - notDeclared
+                - nonFilers
+              additionalProperties: false
+            biennial:
+              type: object
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                declared:
+                  type: integer
+                  minimum: 0
+                notDeclared:
+                  type: integer
+                  minimum: 0
+                nonFilers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      actionTaken:
+                        type: string
+                        enum:
+                          - none
+                          - notice-to-comply
+                          - warning
+                          - salary-stoppage
+                          - disciplinary-referral
+                          - referred-to-eacc
+                      complied:
+                        type: string
+                        enum:
+                          - yes
+                          - no
+                          - pending
+                      remarks:
+                        type: string
+                        maxLength: 500
+                      obligationId:
+                        type: string
+                        format: uuid
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - date
+                      - actionTaken
+                      - complied
+                    additionalProperties: false
+                noCycleInPeriod:
+                  type: boolean
+              required:
+                - expected
+                - declared
+                - notDeclared
+                - nonFilers
+              additionalProperties: false
+            final:
+              type: object
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                declared:
+                  type: integer
+                  minimum: 0
+                notDeclared:
+                  type: integer
+                  minimum: 0
+                nonFilers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      actionTaken:
+                        type: string
+                        enum:
+                          - none
+                          - notice-to-comply
+                          - warning
+                          - salary-stoppage
+                          - disciplinary-referral
+                          - referred-to-eacc
+                      complied:
+                        type: string
+                        enum:
+                          - yes
+                          - no
+                          - pending
+                      remarks:
+                        type: string
+                        maxLength: 500
+                      obligationId:
+                        type: string
+                        format: uuid
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - date
+                      - actionTaken
+                      - complied
+                    additionalProperties: false
+                noCycleInPeriod:
+                  type: boolean
+              required:
+                - expected
+                - declared
+                - notDeclared
+                - nonFilers
+              additionalProperties: false
+            clarifications:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      natureInGeneralTerms:
+                        type: string
+                        maxLength: 300
+                      statusOfCompliance:
+                        type: string
+                        enum:
+                          - responded
+                          - resolved
+                          - pending
+                          - overdue
+                          - withdrawn
+                      clarificationReference:
+                        type: string
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - natureInGeneralTerms
+                      - statusOfCompliance
+                    additionalProperties: false
+              required:
+                - items
+              additionalProperties: false
+            accessRequests:
+              type: object
+              properties:
+                received:
+                  type: integer
+                  minimum: 0
+                granted:
+                  type: integer
+                  minimum: 0
+                declined:
+                  type: integer
+                  minimum: 0
+                declineReasons:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      reason:
+                        type: string
+                        enum:
+                          - public-interest
+                          - prejudice-proceeding
+                          - frivolous-vexatious
+                          - not-objectives
+                          - other
+                      count:
+                        type: integer
+                        minimum: 0
+                    required:
+                      - reason
+                      - count
+                    additionalProperties: false
+                dataUnavailable:
+                  type: boolean
+              required:
+                - received
+                - granted
+                - declined
+                - declineReasons
+                - dataUnavailable
+              additionalProperties: false
+            complaints:
+              type: object
+              properties:
+                registerMaintained:
+                  type:
+                    - boolean
+                    - 'null'
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      nature:
+                        type: string
+                        maxLength: 300
+                      status:
+                        type: string
+                        maxLength: 100
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - nature
+                      - status
+                    additionalProperties: false
+              required:
+                - registerMaintained
+                - items
+              additionalProperties: false
+          required:
+            - initial
+            - biennial
+            - final
+            - clarifications
+            - accessRequests
+            - complaints
+          additionalProperties: false
+        partIII:
+          type: object
+          properties:
+            compiledBy:
+              type: object
+              properties:
+                name:
+                  anyOf:
+                    - type: string
+                      maxLength: 200
+                    - type: 'null'
+                designation:
+                  anyOf:
+                    - type: string
+                      maxLength: 100
+                    - type: 'null'
+                date:
+                  anyOf:
+                    - type: string
+                      format: date
+                    - type: 'null'
+              required:
+                - name
+                - designation
+                - date
+              additionalProperties: false
+            confirmedBy:
+              type: object
+              properties:
+                name:
+                  anyOf:
+                    - type: string
+                      maxLength: 200
+                    - type: 'null'
+                designation:
+                  anyOf:
+                    - type: string
+                      maxLength: 100
+                    - type: 'null'
+                date:
+                  anyOf:
+                    - type: string
+                      format: date
+                    - type: 'null'
+              required:
+                - name
+                - designation
+                - date
+              additionalProperties: false
+          required:
+            - compiledBy
+            - confirmedBy
+          additionalProperties: false
+        meta:
+          type: object
+          properties:
+            compiledAt:
+              type: string
+              format: date-time
+            reference:
+              type: string
+            source:
+              type: string
+              enum:
+                - hosted
+                - federated
+          additionalProperties: false
+      required:
+        - schemaVersion
+        - partI
+        - partII
+        - partIII
+      additionalProperties: false
     ManualFields:
       type: object
       properties:
