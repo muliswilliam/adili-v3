@@ -183,11 +183,12 @@ describe('HttpIntegrationGatewayClient', () => {
     });
   });
 
-  it('is unavailable while ICMS is down (503) and rejected on a 4xx', async () => {
+  it('is unavailable while ICMS is down (503) and rejected on a 400 or a 409', async () => {
     const fetch = vi
       .fn<Fetch>()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 400 }));
+      .mockResolvedValueOnce(new Response(null, { status: 400 }))
+      .mockResolvedValueOnce(new Response(null, { status: 409 }));
     const client = new HttpIntegrationGatewayClient({
       gatewayUrl: 'http://gateway.test',
       tokens,
@@ -197,6 +198,7 @@ describe('HttpIntegrationGatewayClient', () => {
     await expect(client.submitReferral(referral)).rejects.toBeInstanceOf(
       IntegrationGatewayUnavailable,
     );
+    await expect(client.submitReferral(referral)).rejects.toBeInstanceOf(InternalApiRejected);
     await expect(client.submitReferral(referral)).rejects.toBeInstanceOf(InternalApiRejected);
   });
 
@@ -352,21 +354,24 @@ describe('HttpDocumentsClient', () => {
   const request0 = {
     type: 'compliance-report-receipt',
     templateVersion: 1,
-    disclosureLevel: 'restricted',
     issuerTenant: 'psc',
     subjectRef: 'compliance-report:0199b000-0000-7000-8000-00000000a001',
     subjectPersonId: null,
-    payload: { reference: 'RPT-PSC-2027-0000001-4' },
-    publicPayload: {
+    payload: {
       reference: 'RPT-PSC-2027-0000001-4',
-      type: 'compliance-report-receipt',
-      issuer: 'PSC',
-      issuedAt: '2028-07-20T07:00:00.000Z',
+      sha256: '3f'.repeat(32),
+      submittedAt: '2028-07-20T07:00:00.000Z',
+      commissionName: 'Public Service Commission',
+      issuerCode: 'PSC',
+      financialYear: '2027/2028',
+      dueDate: '2028-07-31',
+      late: false,
+      source: 'hosted',
     },
     idempotencyKey: '5b2d8e61-9c4f-4a07-8e13-6f2a9d4c7b18',
   } as const;
 
-  it('issues a document for the Commission with the idempotency key', async () => {
+  it('issues a document for the Commission with the idempotency key, the tenant in X-Acting-Tenant only', async () => {
     const fetch = vi.fn<Fetch>(() =>
       Promise.resolve(
         Response.json(
@@ -387,12 +392,12 @@ describe('HttpDocumentsClient', () => {
       id: '0199b000-0000-7000-8000-00000000d001',
       verificationId: 'ADL-7Q4K',
     });
-    const { idempotencyKey, ...body } = request0;
+    const { idempotencyKey, issuerTenant, ...body } = request0;
     expect(await request(fetch)).toEqual({
       url: 'http://documents.test/internal/v1/documents/issue',
       method: 'POST',
       headers: expect.objectContaining({
-        'x-acting-tenant': 'psc',
+        'x-acting-tenant': issuerTenant,
         'idempotency-key': idempotencyKey,
       }) as Record<string, string>,
       body,

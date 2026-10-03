@@ -441,8 +441,14 @@ describe('S21 declaration attachments (spec 05)', () => {
   });
 });
 
-describe('S17 clarification attachments (spec 07a)', () => {
-  const PURPOSE = 'clarification-attachment';
+/**
+ * A declarant's evidence on a response the review service takes: to a clarification (spec 07a
+ * S17), and to a notice of the administrative action ladder (`action-response`, spec 08 S9).
+ */
+describe.each([
+  ['S17 clarification attachments (spec 07a)', 'clarification-attachment'],
+  ['S9 notice response attachments (spec 08)', 'action-response'],
+])('%s', (_, PURPOSE) => {
   /** The review service's account, checking a response's attachments. */
   const REVIEW: Caller = {
     sub: 'service-account-review',
@@ -461,11 +467,11 @@ describe('S17 clarification attachments (spec 07a)', () => {
     ['a JPEG', JPEG_PHOTO, JPEG],
     ['a PNG', PNG, PNG_TYPE],
     ['a HEIC photo', HEIC_PHOTO, HEIC],
-  ])('completes %s to clean for the declarant who uploaded it', async (_, bytes, type) => {
+  ])('completes %s to clean for the declarant who uploaded it', async (__, bytes, type) => {
     const reservation = await uploadAttachment(bytes, type, DECLARANT, PURPOSE);
     expect(reservation.maxSize).toBe(20 * MB);
     expect(new URL(reservation.uploadUrl).pathname).toBe(
-      `/quarantine/clarification-attachment/${reservation.id}`,
+      `/quarantine/${PURPOSE}/${reservation.id}`,
     );
 
     const response = await complete(reservation.id, DECLARANT);
@@ -487,7 +493,7 @@ describe('S17 clarification attachments (spec 07a)', () => {
     ['a CSV', CSV],
     ['an XLSX', XLSX],
     ['a GIF', 'image/gif'],
-  ])('refuses %s with 400', async (_, contentType) => {
+  ])('refuses %s with 400', async (__, contentType) => {
     const response = await api.post(
       '/v1/uploads',
       { purpose: PURPOSE, contentType, declaredSize: 10 },
@@ -549,7 +555,7 @@ describe('S17 clarification attachments (spec 07a)', () => {
     await api.app.get(UploadsService).sweepOrphans();
 
     expect((await row(clean.id)).state).toBe('clean');
-    expect(await objectStatus('clean', `clarification-attachment/${clean.id}`)).toBe(200);
+    expect(await objectStatus('clean', `${PURPOSE}/${clean.id}`)).toBe(200);
   });
 });
 

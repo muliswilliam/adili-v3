@@ -15,6 +15,10 @@
       "types": "./dist/register.d.ts",
       "default": "./dist/register.js"
     },
+    "./http-route": {
+      "types": "./dist/http-route.d.ts",
+      "default": "./dist/http-route.js"
+    },
     "./url-redaction": {
       "types": "./dist/url-redaction.d.ts",
       "default": "./dist/url-redaction.js"
@@ -30,6 +34,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.80.0",
+    "@opentelemetry/core": "^2.11.0",
     "@opentelemetry/exporter-metrics-otlp-grpc": "^0.222.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.222.0",
     "@opentelemetry/instrumentation": "^0.222.0",

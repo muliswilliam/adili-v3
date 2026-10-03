@@ -1,6 +1,5 @@
 import type { TenantContext } from '@adili/data-access';
-
-import { EACC_TENANT } from './access.js';
+import { EACC_TENANT } from '@adili/roles';
 
 /** `app.subject` of the service's own transactions (consumers, workflows). */
 export const SYSTEM_SUBJECT = 'system:reporting';

@@ -418,6 +418,7 @@ describe('adapter kit', () => {
 
   describe('rate limit', () => {
     it('queues calls to respect the per-system bucket, refusing past the max wait', async () => {
+      const queued = performance.now();
       const results = await Promise.all(
         ['30000000', '30000001', '30000002'].map((subject) => lookup(subject, forCase, ntsa)),
       );
@@ -428,9 +429,13 @@ describe('adapter kit', () => {
       expect(outcomes.filter((outcome) => outcome === 'not-found')).toHaveLength(2);
       expect(outcomes.filter((outcome) => outcome === 'rate-limited')).toHaveLength(1);
       expect(ntsa.calls).toBe(2);
-      const [first = 0, second = 0] = ntsa.callTimes;
-      // One a second; Valkey's clock has millisecond resolution.
-      expect(second - first).toBeGreaterThanOrEqual(990);
+      // One a second, timed from the slots: the first slot falls after `queued`, the second a
+      // second after it. The gap between the two calls is no measure: the first call can start
+      // late after its slot (its reply waits on a busy event loop) while the second, timed on
+      // Valkey's clock, starts on its slot. Within 2 ms: Valkey's TIME floored to the millisecond
+      // and a Node timer firing up to a millisecond early.
+      const [, second = 0] = ntsa.callTimes;
+      expect(second - queued).toBeGreaterThanOrEqual(998);
     });
   });
 

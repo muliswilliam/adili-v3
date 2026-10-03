@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { eq, sql } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -740,6 +742,142 @@ describe('internal messages API', () => {
         expect(response.json()).toMatchObject({ errors: [{ path: 'params.daysLeft' }] });
         expect(directory.lookups).toHaveLength(0);
       });
+    });
+
+    describe('decisions, notices and salary (spec 08)', () => {
+      const portalUrl = 'https://portal.adili.go.ke/notices/0199a8f0-6666-7000-8000-000000000002';
+      const ADM = 'ADM-PSC-2028-0000233-9';
+      /** The params the review service sends each template. */
+      const PARAMS: Record<string, Record<string, string>> = {
+        decision: {
+          commission: 'Public Service Commission',
+          reference: 'CMP-PSC-2027-0000001-D',
+          outcome: 'Non-compliant',
+          portalUrl,
+        },
+        notice: {
+          commission: 'Public Service Commission',
+          reference: ADM,
+          step: 'Warning',
+          actBy: '2028-01-19',
+          portalUrl,
+        },
+        'salary-stopped': {
+          commission: 'Public Service Commission',
+          reference: ADM,
+          stoppedFrom: '2028-02-05',
+          actBy: '2028-03-05',
+          portalUrl,
+        },
+        'salary-reinstated': {
+          commission: 'Public Service Commission',
+          reference: ADM,
+          reinstatedOn: '2028-02-20',
+          portalUrl,
+        },
+      };
+      const message = (name: string, channel: 'sms' | 'email', personId: string) => ({
+        channel,
+        recipient: { kind: 'person', personId },
+        template: `${name}-${channel}`,
+        params: PARAMS[name],
+        tenant: 'psc',
+      });
+
+      it.each(Object.keys(PARAMS))(
+        'emails and texts %s to the verified contacts, with no letter attached',
+        async (name) => {
+          const personId = newPerson();
+          directory.set(personId, { email: 'grace@example.go.ke', phone: '+254712345678' });
+
+          const mailed = await send(message(name, 'email', personId));
+          const texted = await send(message(name, 'sms', personId));
+
+          expect(mailed.statusCode).toBe(201);
+          expect(mailed.json()).toMatchObject({ template: `${name}-email`, status: 'sent' });
+          expect(texted.statusCode).toBe(201);
+          expect(texted.json()).toMatchObject({ template: `${name}-sms`, status: 'sent' });
+          const reference = PARAMS[name]?.reference ?? '';
+          expect(email.sent).toHaveLength(1);
+          expect(email.sent[0]?.to).toBe('grace@example.go.ke');
+          expect(email.sent[0]?.subject).toContain(reference);
+          expect(email.sent[0]?.html).toContain(portalUrl);
+          expect(Object.keys(email.sent[0] ?? {}).sort()).toEqual([
+            'html',
+            'subject',
+            'text',
+            'to',
+          ]);
+          expect(sms.sent).toHaveLength(1);
+          expect(sms.sent[0]?.to).toBe('+254712345678');
+          expect(sms.sent[0]?.text).toContain(reference);
+        },
+      );
+
+      it('rejects a notice for a step that has its own message before looking anyone up', async () => {
+        const response = await send({
+          ...message('notice', 'sms', newPerson()),
+          params: { ...PARAMS.notice, step: 'Salary stoppage' },
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(response.json()).toMatchObject({ errors: [{ path: 'params.step' }] });
+        expect(directory.lookups).toHaveLength(0);
+      });
+    });
+  });
+
+  describe('Form M emails to Commission staff (spec 09)', () => {
+    /** The params the reporting service sends each template, to a staff member's address. */
+    const PARAMS: Record<string, Record<string, string | number>> = {
+      'form-m-draft-ready-email': { financialYear: '2027/2028', dueDate: '2028-07-31' },
+      'form-m-reminder-email': { financialYear: '2027/2028', dueDate: '2028-07-31', daysLeft: 14 },
+      'form-m-receipt-email': {
+        financialYear: '2027/2028',
+        reference: 'RPT-PSC-2028-0000001-O',
+        submittedOn: '2028-07-15',
+        late: 'no',
+      },
+      'form-m-chase-email': { financialYear: '2027/2028', dueDate: '2028-07-31', round: 1 },
+    };
+    /** As reporting's notifications client sends it: an address, English, the Commission. */
+    const message = (template: string) => ({
+      channel: 'email',
+      recipient: { kind: 'address', to: 'supervisor@psc.go.ke' },
+      template,
+      params: PARAMS[template],
+      locale: 'en',
+      tenant: 'psc',
+    });
+
+    it.each(Object.keys(PARAMS))(
+      'emails %s to the staff address, with no report attached',
+      async (template) => {
+        const response = await send(message(template), {
+          ...auth,
+          'idempotency-key': randomUUID(),
+        });
+
+        expect(response.statusCode, response.body).toBe(201);
+        expect(response.json()).toMatchObject({ template, status: 'sent' });
+        expect(email.sent).toHaveLength(1);
+        expect(email.sent[0]?.to).toBe('supervisor@psc.go.ke');
+        expect(email.sent[0]?.subject).toContain('Form M');
+        expect(email.sent[0]?.text).toContain('2027/2028');
+        expect(Object.keys(email.sent[0] ?? {}).sort()).toEqual(['html', 'subject', 'text', 'to']);
+        expect(directory.lookups).toHaveLength(0);
+      },
+    );
+
+    it('rejects a reminder whose due date is not 31 July after the year', async () => {
+      const response = await send({
+        ...message('form-m-reminder-email'),
+        params: { ...PARAMS['form-m-reminder-email'], dueDate: '2028-06-30' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ errors: [{ path: 'params.dueDate' }] });
+      expect(email.sent).toHaveLength(0);
     });
   });
 });

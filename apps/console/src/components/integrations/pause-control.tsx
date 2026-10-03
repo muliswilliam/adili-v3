@@ -25,7 +25,7 @@ import type {
   SystemCoverage,
 } from '../../server/integration-gateway/client';
 import { goToSignIn } from '../sign-in-redirect';
-import { systemInfo } from './coverage';
+import { isInstructed, systemInfo } from './coverage';
 import { messages as m } from './messages';
 
 /** Pauses (`paused: true`) or resumes a system; the gateway's answer. */
@@ -36,9 +36,20 @@ export type SetPaused = (
 
 const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } as const;
 
-/** What the pause dialog lists for a system: registries feed review cases, IPRS onboarding. */
+/**
+ * What the pause dialog lists for a system: registries feed review cases, IPRS onboarding; an
+ * instructed system's callers get "unavailable" (nothing is queued), and nothing of it is cached.
+ */
 function pauseEffects(row: SystemCoverage): string[] {
   const system = systemInfo(row.system);
+  if (isInstructed(system)) {
+    return [
+      m.pauseNothingSent(system),
+      m.pauseNothingQueued,
+      system.instructed.retries,
+      m.auditNote,
+    ];
+  }
   const effects =
     row.system === 'iprs'
       ? [m.pauseOnboarding]
@@ -126,7 +137,9 @@ export function PauseControl({
             <div className="grid gap-2 text-[15px] text-secondary-foreground">
               {pausing ? (
                 <>
-                  <p>{m.pauseText(system)}</p>
+                  <p>
+                    {isInstructed(system) ? m.pauseInstructionsText(system) : m.pauseText(system)}
+                  </p>
                   <ul className="grid list-disc gap-1 pl-5 text-sm">
                     {pauseEffects(row).map((effect) => (
                       <li key={effect}>{effect}</li>
@@ -135,7 +148,12 @@ export function PauseControl({
                 </>
               ) : (
                 <>
-                  <p>{m.resumeText(system, row.rateLimitPerMinute)}</p>
+                  <p>
+                    {isInstructed(system)
+                      ? m.resumeInstructionsText(system, row.rateLimitPerMinute)
+                      : m.resumeText(system, row.rateLimitPerMinute)}
+                  </p>
+                  {isInstructed(system) ? <p>{system.instructed.resumed}</p> : null}
                   <p className="text-sm text-muted-foreground">{m.auditNote}</p>
                 </>
               )}

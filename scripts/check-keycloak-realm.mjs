@@ -316,6 +316,7 @@ for (const [id, needed] of [
       'review:internal',
       'documents:internal',
       'messages',
+      'icms',
     ],
   ],
   ['notifications', ['directory:person-contacts']],
@@ -372,6 +373,10 @@ for (const client of realm.clients ?? []) {
   // Payroll instructions stop an officer's salary: only review sends them (spec 08).
   if (client.clientId !== 'review' && scopesOf.includes('payroll')) {
     fail(`${client.clientId} must not get payroll (review only)`);
+  }
+  // ICMS referrals open an EACC case on a declarant: only reporting registers them (spec 09).
+  if (client.clientId !== 'reporting' && scopesOf.includes('icms')) {
+    fail(`${client.clientId} must not get icms (reporting only)`);
   }
   // Applicants' particulars likewise: only access reads them and records verifications (spec 10).
   if (client.clientId !== 'access' && scopesOf.includes('directory:applicants')) {

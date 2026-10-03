@@ -5,12 +5,14 @@ import {
   type ExecutionContext,
   HttpStatus,
   Injectable,
+  mixin,
+  type Type,
   UseGuards,
 } from '@nestjs/common';
 import { ApiHeader } from '@nestjs/swagger';
 import { ApiProblemResponse, type AuthenticatedRequest, ProblemException } from '@adili/api-kit';
 
-import type { LegalBasis } from '../db/schema.js';
+import type { InstructionLegalBasis, LegalBasis } from '../db/schema.js';
 import type { LookupContext, LookupPurpose } from './registry-adapter.js';
 
 export const LEGAL_BASIS_HEADER = 'x-legal-basis';
@@ -21,7 +23,17 @@ export const SUBJECT_PERSON_HEADER = 'x-subject-person';
 const CASE_REF = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type PurposeRequest = AuthenticatedRequest & { lookupPurpose?: LookupPurpose };
+type PurposeRequest = AuthenticatedRequest & {
+  lookupPurpose?: LookupPurpose;
+  instructionPurpose?: InstructionPurpose;
+};
+
+/** Why an instruction (an act on a system, not a read) is sent, as the calling service declares it. */
+export interface InstructionPurpose {
+  legalBasis: InstructionLegalBasis;
+  /** The review case (or other record) the instruction is for; null when there is none. */
+  caseRef: string | null;
+}
 
 /** The services that call the lookups which take `X-Legal-Basis`, by OAuth client (`azp`). */
 type LookupClient = 'review' | 'declarations';
@@ -170,6 +182,78 @@ export const CurrentLookupContext = createParamDecorator(
       throw new Error('CurrentLookupContext used on a route without InternalApi() and purpose');
     }
     return { caller, purpose, tenant };
+  },
+);
+
+/**
+ * Reads why an instruction is sent from `X-Legal-Basis` (required, one of `legalBases`: the bases
+ * the route's instructions may be sent on) and `X-Case-Ref` (optional). Missing or malformed
+ * headers are a 400 problem naming the header.
+ */
+export function parseInstructionPurpose(
+  headers: PurposeRequest['headers'],
+  legalBases: readonly InstructionLegalBasis[],
+): InstructionPurpose {
+  const legalBasis = single(headers[LEGAL_BASIS_HEADER]);
+  if (!legalBasis || !(legalBases as readonly string[]).includes(legalBasis)) {
+    throw invalid('X-Legal-Basis', `Must name the legal basis: one of ${legalBases.join(', ')}`);
+  }
+  const caseRef = single(headers[CASE_REF_HEADER]);
+  if (caseRef !== undefined && !CASE_REF.test(caseRef)) {
+    throw invalid('X-Case-Ref', 'Must be an id or reference of at most 100 characters');
+  }
+  return { legalBasis: legalBasis as InstructionLegalBasis, caseRef: caseRef ?? null };
+}
+
+function instructionPurposeGuard(legalBases: readonly InstructionLegalBasis[]): Type<CanActivate> {
+  @Injectable()
+  class InstructionPurposeGuard implements CanActivate {
+    canActivate(context: ExecutionContext): boolean {
+      const request = context.switchToHttp().getRequest<PurposeRequest>();
+      request.instructionPurpose = parseInstructionPurpose(request.headers, legalBases);
+      return true;
+    }
+  }
+  return mixin(InstructionPurposeGuard);
+}
+
+/**
+ * Requires an instruction route's caller to declare why it instructs the system (ADR-008, ADR-009:
+ * payroll only after a recorded decision): `X-Legal-Basis`, one of `legalBases`, and optionally
+ * the case in `X-Case-Ref`, which `@CurrentInstructionPurpose()` reads. Documents the headers and
+ * the 400.
+ */
+export const InstructionPurposeHeaders = (legalBases: readonly InstructionLegalBasis[]) =>
+  applyDecorators(
+    UseGuards(instructionPurposeGuard(legalBases)),
+    ApiHeader({
+      name: 'X-Legal-Basis',
+      required: true,
+      description: `Why the system is instructed, recorded with the instruction: ${legalBases.join(' or ')}`,
+      schema: { type: 'string', enum: [...legalBases] },
+    }),
+    ApiHeader({
+      name: 'X-Case-Ref',
+      required: false,
+      description: 'Review case the instruction is for; recorded with the instruction',
+      schema: { type: 'string', pattern: CASE_REF.source },
+    }),
+    ApiProblemResponse(
+      HttpStatus.BAD_REQUEST,
+      'X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid',
+    ),
+  );
+
+/** The purpose `@InstructionPurposeHeaders()` read. */
+export const CurrentInstructionPurpose = createParamDecorator(
+  (_: unknown, context: ExecutionContext): InstructionPurpose => {
+    const purpose = context.switchToHttp().getRequest<PurposeRequest>().instructionPurpose;
+    if (!purpose) {
+      throw new Error(
+        'CurrentInstructionPurpose used on a route without InstructionPurposeHeaders()',
+      );
+    }
+    return purpose;
   },
 );
 

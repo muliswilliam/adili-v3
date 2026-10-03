@@ -46,7 +46,7 @@ export abstract class IntegrationGatewayClient {
    * it) and answers the registration (a case number now, or `pending`). Idempotent by referral
    * reference: a replay answers the stored registration and registers nothing twice. Throws
    * `IntegrationGatewayUnavailable` when ICMS cannot be reached and `InternalApiRejected` when the
-   * gateway refuses the request.
+   * gateway refuses the request (400, or 409 for another referral under the reference).
    */
   abstract submitReferral(referral: IcmsReferralRequest): Promise<IcmsReferral>;
 

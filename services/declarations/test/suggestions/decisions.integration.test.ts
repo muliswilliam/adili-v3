@@ -571,7 +571,7 @@ describe('accepting a suggestion (S4)', () => {
     );
   });
 
-  it('makes one change and one event of two accepts at once (no Idempotency-Key, ADR-013 8.11)', async () => {
+  it('makes one change and one event of two accepts at once (no Idempotency-Key, ADR-013 8.13)', async () => {
     const draft = await givenDraft();
     givenOfficerRegistries();
     const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
@@ -828,7 +828,7 @@ describe('dismissing, and checking again (S5)', () => {
     expect(await eventsOf('declaration.suggestion-dismissed.v1')).toHaveLength(1);
   });
 
-  it('answers both of two dismissals at once with the dismissed suggestion, making one change and one event (ADR-013 8.11)', async () => {
+  it('answers both of two dismissals at once with the dismissed suggestion, making one change and one event (ADR-013 8.13)', async () => {
     const draft = await givenDraft();
     givenOfficerRegistries();
     const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);

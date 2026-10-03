@@ -6053,6 +6053,10 @@ components:
     ReferralPackagePayload:
       type: object
       properties:
+        declarantPersonId:
+          type: string
+          format: uuid
+          description: 'The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed'
         reference:
           type: string
         grounds:
@@ -6183,6 +6187,7 @@ components:
               - reference
               - documentId
       required:
+        - declarantPersonId
         - reference
         - grounds
         - groundsLabel
@@ -6217,6 +6222,10 @@ components:
     DeterminationLetterPayload:
       type: object
       properties:
+        declarantPersonId:
+          type: string
+          format: uuid
+          description: 'Who may download the letter: the documents service checks the issue request against it. Not printed'
         declarantName:
           type: string
         commission:
@@ -6246,6 +6255,7 @@ components:
           type: string
           format: uri
       required:
+        - declarantPersonId
         - declarantName
         - commission
         - declarationReference
@@ -6258,6 +6268,12 @@ components:
     ActionLetterPayload:
       type: object
       properties:
+        declarantPersonId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: 'Who may download the letter: the documents service checks the issue request against it; null for an officer who never onboarded. Not printed'
         declarantName:
           type: string
         personnelFileNumber:
@@ -6311,6 +6327,7 @@ components:
           type: string
           format: uri
       required:
+        - declarantPersonId
         - declarantName
         - personnelFileNumber
         - commission

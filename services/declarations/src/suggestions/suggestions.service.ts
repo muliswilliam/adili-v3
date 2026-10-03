@@ -464,7 +464,7 @@ type SuggestionRow = typeof suggestions.$inferSelect;
  * In the deciding transaction: the suggestion, locked, becomes `status` if it is still `new`;
  * 409 `not-new` if another request decided it first (or a re-check superseded it), except that a
  * dismissal finding it dismissed already answers it unchanged (dismiss is idempotent by state,
- * ADR-013 §8.11).
+ * ADR-013 §8.13).
  */
 async function decide(
   tx: Transaction,

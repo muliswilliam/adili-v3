@@ -78,6 +78,7 @@ export class ReferralPackagePayloadService {
       throw error;
     }
     return {
+      declarantPersonId: referral.personId,
       reference,
       grounds: referral.grounds,
       groundsLabel: GROUNDS_LABELS[referral.grounds],

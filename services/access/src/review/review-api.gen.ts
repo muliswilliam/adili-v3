@@ -1964,6 +1964,11 @@ export interface components {
             narrative: string;
         };
         ReferralPackagePayload: {
+            /**
+             * Format: uuid
+             * @description The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed
+             */
+            declarantPersonId: string;
             reference: string;
             grounds: components["schemas"]["ReferralGrounds"];
             groundsLabel: string;
@@ -2025,6 +2030,11 @@ export interface components {
             reassignedTo: components["schemas"]["Assignee"];
         };
         DeterminationLetterPayload: {
+            /**
+             * Format: uuid
+             * @description Who may download the letter: the documents service checks the issue request against it. Not printed
+             */
+            declarantPersonId: string;
             declarantName: string;
             commission: {
                 name: string;
@@ -2041,6 +2051,8 @@ export interface components {
             portalUrl: string;
         };
         ActionLetterPayload: {
+            /** @description Who may download the letter: the documents service checks the issue request against it; null for an officer who never onboarded. Not printed */
+            declarantPersonId: string | null;
             declarantName: string;
             personnelFileNumber: string;
             commission: {

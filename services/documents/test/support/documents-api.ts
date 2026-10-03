@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, S3Client } from '@aws-sdk/client-s3';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
@@ -34,6 +34,7 @@ import {
   uploads,
 } from '../../src/db/schema.js';
 import { DeclarationsClient } from '../../src/declarations/declarations-client.js';
+import { HTTPS_LINKS_ONLY } from '../../src/issuance/issuance.service.js';
 import { OpenBao } from '../../src/issuance/openbao.js';
 import { ReviewClient } from '../../src/review/review-client.js';
 import { GotenbergRenderer, PdfRenderer } from '../../src/issuance/renderer.js';
@@ -72,6 +73,8 @@ export interface DocumentsApiOptions {
   gotenbergUrl?: string;
   /** OpenBao the service signs with; defaults to `TEST_OPENBAO_URL`. */
   openbaoUrl?: string;
+  /** Refuse printed links that are not https, as in production. */
+  httpsLinksOnly?: boolean;
   /**
    * Consume events from RabbitMQ (`TEST_RABBITMQ_URL`) on a queue of the suite's own, so events
    * reach the consumers as in the service (retries, dead-lettering); `publish` sends them.
@@ -112,7 +115,7 @@ export interface DocumentsApi {
   s3: S3Client;
   /** The declarations internal API the acknowledgement payloads are pulled from. */
   declarations: FakeDeclarations;
-  /** The review internal API the clarification letter payloads are pulled from. */
+  /** The review internal API the letter and referral package payloads are pulled from. */
   review: FakeReview;
   /** Gotenberg, which a test can take down. */
   renderer: SwitchableRenderer;
@@ -194,6 +197,9 @@ export async function startDocumentsApi(options: DocumentsApiOptions = {}): Prom
       options.scanner ??
         new ClamdScanner(requireEnv('TEST_CLAMAV_HOST'), Number(requireEnv('TEST_CLAMAV_PORT'))),
     );
+  if (options.httpsLinksOnly !== undefined) {
+    builder = builder.overrideProvider(HTTPS_LINKS_ONLY).useValue(options.httpsLinksOnly);
+  }
   if (options.completeBudgetMs !== undefined) {
     builder = builder.overrideProvider(COMPLETE_BUDGET_MS).useValue(options.completeBudgetMs);
   }
@@ -323,12 +329,6 @@ async function deleteObjects(s3: S3Client, bucket: string, keys: string[]): Prom
       }),
     );
   }
-}
-
-/** Keys of the objects under `prefix` in `bucket`, e.g. to assert nothing was stored. */
-export async function listKeys(s3: S3Client, bucket: string, prefix: string): Promise<string[]> {
-  const listed = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix }));
-  return (listed.Contents ?? []).flatMap(({ Key }) => (Key ? [Key] : []));
 }
 
 /** OpenBao as the tests reach it (`TEST_OPENBAO_URL`, `TEST_OPENBAO_TOKEN`), or at `url`. */

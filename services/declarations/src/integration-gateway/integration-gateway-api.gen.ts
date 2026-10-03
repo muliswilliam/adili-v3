@@ -144,6 +144,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/payroll/instructions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
+         * @description Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll (a pending one is asked again; while payroll does not answer, it answers the stored pending acknowledgement (200)); another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging an instruction with nothing stored is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+         */
+        post: operations["submitPayrollInstruction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/payroll/instructions/{instructionReference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stored instruction and acknowledgement
+         * @description The instruction as payroll acknowledged it, from the gateway's store (payroll is not called). Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+         */
+        get: operations["getPayrollInstruction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/icms/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a referral with ICMS and return the case number (idempotent by referral reference)
+         * @description Registers the referral with ICMS and stores its registration (case number, status, registered at) with the legal basis and case. Idempotent by referral reference: the same referral again answers the stored registration (200) without calling ICMS; one about another declarant or from another Commission under the same reference is 409. Behind ICMS's own circuit breaker, rate limit, timeout and pause; never cached. ICMS not answering is 503 and nothing is recorded as registered: retry. The national ID and name travel in the body; only the national ID is kept, as a keyed hash. Requires a service token with scope `icms`. Referrals act for no tenant: the referring Commission is in the referral (ADR-013 section 8.7).
+         */
+        post: operations["submitIcmsReferral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/internal/v1/icms/referrals/{referralReference}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stored ICMS registration for a referral reference
+         * @description The referral as ICMS registered it, from the gateway's store (ICMS is not called). Requires a service token with scope `icms`. Referrals act for no tenant: the referring Commission is in the referral (ADR-013 section 8.7).
+         */
+        get: operations["getIcmsReferral"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/verification-results/{resultId}": {
         parameters: {
             query?: never;
@@ -173,7 +253,7 @@ export interface paths {
         };
         /**
          * Per-system call volume, cache hit rate, breaker state and last success
-         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa): lookups and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime, timeout and breaker rule. Platform administrators only.
+         * @description Every system with an adapter (IPRS, KRA, NTSA, BRS, ArdhiSasa, HR supplier lists, payroll, ICMS): lookups (for payroll and ICMS, instructions and referrals sent) and failed calls in the last 24 hours, cache hit rate, breaker state, last success, paused (by whom and since when), and the configured rate limit, cache lifetime (null for payroll and ICMS, never cached), timeout and breaker rule. Platform administrators only.
          */
         get: operations["getIntegrationsCoverage"];
         put?: never;
@@ -195,7 +275,7 @@ export interface paths {
         put?: never;
         /**
          * Force lookups to unavailable during a known outage (platform-admin)
-         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
+         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent; one already stored answers what is stored (200), a pending payroll acknowledgement included. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
          */
         post: operations["pauseIntegration"];
         delete?: never;
@@ -218,78 +298,6 @@ export interface paths {
          * @description Lookups call the system again, within its rate limit and behind its breaker. Records `integrations.system.resumed.v1`. Resuming a system that is not paused changes nothing. Platform administrators only.
          */
         post: operations["resumeIntegration"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/payroll/instructions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send a stop or resume salary instruction to payroll (idempotent by instruction reference) */
-        post: operations["submitPayrollInstruction"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/payroll/instructions/{instructionReference}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instructionReference: string;
-            };
-            cookie?: never;
-        };
-        /** Stored instruction and acknowledgement */
-        get: operations["getPayrollInstruction"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/icms/referrals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Register a referral with ICMS and return the case number (idempotent by referral reference) */
-        post: operations["submitIcmsReferral"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/icms/referrals/{referralReference}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                referralReference: string;
-            };
-            cookie?: never;
-        };
-        /** Stored ICMS registration for a referral reference */
-        get: operations["getIcmsReferral"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -445,11 +453,11 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
-        /** @description How one registry integration is behaving */
+        /** @description How one integration is behaving */
         SystemCoverage: {
             system: components["schemas"]["System"];
             calls24h: number;
-            /** @description Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers */
+            /** @description Share of the last 24 hours of answers (found or not found) served from the cache; 0 without answers, and always 0 for a system that is never cached */
             cacheHitRate: number;
             failures24h: number;
             /**
@@ -464,7 +472,8 @@ export interface components {
             /** @description When it was paused; null unless paused */
             pausedAt: string | null;
             rateLimitPerMinute: number;
-            cacheTtlSeconds: number;
+            /** @description How long an answer is reused; null for a system that is never cached (payroll instructions, ICMS referrals) */
+            cacheTtlSeconds: number | null;
             timeoutMs: number;
             breakerFailureThreshold: number;
             breakerCooldownSeconds: number;
@@ -476,6 +485,68 @@ export interface components {
             system: components["schemas"]["System"];
             ratePerMinute: number;
         }[];
+        /** @enum {string} */
+        PayrollAction: "stop_salary" | "resume_salary";
+        /** @description A stop or resume salary instruction for payroll */
+        PayrollInstructionRequest: {
+            /** @description The ADM reference (stop) or ADM reference with -R suffix (resume) */
+            instructionReference: string;
+            employerCode: string;
+            personalNumber: string;
+            nationalId: string;
+            action: components["schemas"]["PayrollAction"];
+            reason: string;
+            /** Format: date */
+            effectiveDate: string;
+        };
+        /** @description A payroll instruction and its acknowledgement. Payroll accepts an instruction as it receives it, so the gateway currently always answers accepted with a payroll reference; pending and failed are reserved */
+        PayrollInstruction: {
+            instructionReference: string;
+            action: components["schemas"]["PayrollAction"];
+            /**
+             * @description Currently always accepted; pending and failed are reserved
+             * @enum {string}
+             */
+            status: "accepted" | "pending" | "failed";
+            /** @description Payroll's own reference. Currently always present; null is reserved for a pending instruction */
+            payrollReference: string | null;
+            /** @description When payroll received it, by payroll's clock. Currently always present; null is reserved for a pending instruction */
+            receivedAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the gateway sent the instruction payroll acknowledged
+             */
+            sentAt: string;
+        };
+        /** @description A referral to register with ICMS */
+        IcmsReferralRequest: {
+            /** @description The RFL reference */
+            referralReference: string;
+            nationalId: string;
+            fullName: string;
+            /** @description The referring Commission's issuer code, e.g. PSC */
+            referringCommission: string;
+            grounds: string;
+            details: string;
+        };
+        /** @description A referral and its ICMS registration. ICMS registers a referral as it receives it, so the gateway currently always answers registered with a case number; pending and failed are reserved */
+        IcmsReferral: {
+            referralReference: string;
+            /** @description ICMS's case number, e.g. EACC/ICMS/2028/000123. Currently always present; null is reserved for a pending registration */
+            caseNumber: string | null;
+            /**
+             * @description Currently always registered; pending and failed are reserved
+             * @enum {string}
+             */
+            status: "registered" | "pending" | "failed";
+            /** @description When ICMS registered it, by ICMS's clock. Currently always present; null is reserved for a pending registration */
+            registeredAt: string | null;
+            /**
+             * Format: date-time
+             * @description When the gateway sent the referral ICMS answered
+             */
+            sentAt: string;
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -493,68 +564,9 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        PayrollAction: "stop_salary" | "resume_salary";
-        PayrollInstructionRequest: {
-            /** @description The ADM reference (stop) or ADM reference with -R suffix (resume) */
-            instructionReference: string;
-            employerCode: string;
-            personalNumber: string;
-            nationalId: string;
-            action: components["schemas"]["PayrollAction"];
-            reason: string;
-            /** Format: date */
-            effectiveDate: string;
-        };
-        PayrollInstruction: {
-            instructionReference: string;
-            action: components["schemas"]["PayrollAction"];
-            /** @enum {string} */
-            status: "accepted" | "pending" | "failed";
-            payrollReference: string | null;
-            /** Format: date-time */
-            receivedAt: string | null;
-            /** Format: date-time */
-            sentAt: string;
-        };
-        IcmsReferralRequest: {
-            /** @description The RFL reference */
-            referralReference: string;
-            nationalId: string;
-            fullName: string;
-            /** @description Issuer code */
-            referringCommission: string;
-            grounds: string;
-            details: string;
-        };
-        IcmsReferral: {
-            referralReference: string;
-            caseNumber: string | null;
-            /** @enum {string} */
-            status: "registered" | "pending" | "failed";
-            /** Format: date-time */
-            registeredAt: string | null;
-            /** Format: date-time */
-            sentAt: string;
-        };
     };
-    responses: {
-        /** @description X-Legal-Basis header missing or unknown */
-        MissingLegalBasis: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-    };
-    parameters: {
-        /** @description Review case the lookup is for; recorded on the result and the audit event */
-        CaseRef: string;
-        /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request */
-        LegalBasis: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -954,6 +966,234 @@ export interface operations {
             };
         };
     };
+    submitPayrollInstruction: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Why the system is instructed, recorded with the instruction: am-sanctions */
+                "X-Legal-Basis": "am-sanctions";
+                /** @description Review case the instruction is for; recorded with the instruction */
+                "X-Case-Ref"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayrollInstructionRequest"];
+            };
+        };
+        responses: {
+            /** @description Already acknowledged (replay) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollInstruction"];
+                };
+            };
+            /** @description Sent now and acknowledged by payroll */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollInstruction"];
+                };
+            };
+            /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the scopes: payroll */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `instruction-reference-conflict`: another instruction was sent under the reference */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upstream-unavailable`: payroll did not acknowledge (down, timed out, breaker open or paused); nothing recorded as sent */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getPayrollInstruction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                instructionReference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The instruction */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollInstruction"];
+                };
+            };
+            /** @description Requires one of the scopes: payroll */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No instruction acknowledged under the reference */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    submitIcmsReferral: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Why the system is instructed, recorded with the instruction: regs-r20-referral */
+                "X-Legal-Basis": "regs-r20-referral";
+                /** @description Review case the instruction is for; recorded with the instruction */
+                "X-Case-Ref"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IcmsReferralRequest"];
+            };
+        };
+        responses: {
+            /** @description Already registered (replay) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IcmsReferral"];
+                };
+            };
+            /** @description Registered now */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IcmsReferral"];
+                };
+            };
+            /** @description X-Legal-Basis missing or not one the instruction may be sent on, X-Case-Ref malformed, or the body invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires one of the scopes: icms */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `referral-reference-conflict`: another referral was registered under the reference */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `upstream-unavailable`: ICMS did not answer (down, timed out, breaker open or paused); nothing registered */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getIcmsReferral: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referralReference: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The registration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IcmsReferral"];
+                };
+            };
+            /** @description Requires one of the scopes: icms */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No referral registered under the reference */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     getVerificationResult: {
         parameters: {
             query?: never;
@@ -1078,7 +1318,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No adapter for the system (payroll and ICMS have no coverage to pause) */
+            /** @description No adapter for the system */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1139,7 +1379,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description No adapter for the system (payroll and ICMS have no coverage to pause) */
+            /** @description No adapter for the system */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1159,164 +1399,6 @@ export interface operations {
             };
             /** @description Problem type `pause-flag-unavailable`: the change is recorded but the pause flag could not be written; retry to apply it */
             503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    submitPayrollInstruction: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request */
-                "X-Legal-Basis": components["parameters"]["LegalBasis"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PayrollInstructionRequest"];
-            };
-        };
-        responses: {
-            /** @description Already submitted (replay) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description Acknowledged by payroll */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            400: components["responses"]["MissingLegalBasis"];
-            /** @description Payroll unavailable; nothing recorded as sent */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getPayrollInstruction: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                instructionReference: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Instruction */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PayrollInstruction"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    submitIcmsReferral: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
-                "X-Case-Ref"?: components["parameters"]["CaseRef"];
-                /** @description e.g. regs-r20-1-b, act-s35-5, adr-014-onboarding, declarant-request */
-                "X-Legal-Basis": components["parameters"]["LegalBasis"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IcmsReferralRequest"];
-            };
-        };
-        responses: {
-            /** @description Already registered (replay) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IcmsReferral"];
-                };
-            };
-            /** @description Registered */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IcmsReferral"];
-                };
-            };
-            400: components["responses"]["MissingLegalBasis"];
-            /** @description ICMS unavailable; nothing registered */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getIcmsReferral: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                referralReference: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Registration */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IcmsReferral"];
-                };
-            };
-            /** @description Not found */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };

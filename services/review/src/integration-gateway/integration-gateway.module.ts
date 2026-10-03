@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
-import { REGISTRY_SCOPE } from '@adili/roles';
+import { PAYROLL_SCOPE, REGISTRY_SCOPE } from '@adili/roles';
 
 import { config } from '../config.js';
-import { HttpIntegrationGatewayClient, PAYROLL_SCOPE } from './http-integration-gateway-client.js';
+import { HttpIntegrationGatewayClient } from './http-integration-gateway-client.js';
 import { IntegrationGatewayClient } from './integration-gateway-client.js';
 
 /**

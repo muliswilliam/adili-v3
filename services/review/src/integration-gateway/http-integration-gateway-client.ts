@@ -22,9 +22,6 @@ import {
   type SupplierCheckResult,
 } from './integration-gateway-client.js';
 
-/** The scope the review service's token needs for the gateway's payroll instructions. */
-export const PAYROLL_SCOPE = 'payroll';
-
 /** The legal basis of every payroll instruction: sanctions under the Administrative Mechanisms. */
 export const PAYROLL_LEGAL_BASIS = 'am-sanctions';
 
@@ -81,8 +78,9 @@ const refused = {
  *
  * - `POST /internal/v1/payroll/instructions` (`payroll`), with the legal basis `am-sanctions` and
  *   the review case when there is one. 201 (sent now) and 200 (a replay of the same reference)
- *   both answer the acknowledgement; an instruction the gateway refuses (400) is
- *   `InternalApiRejected`, anything else unexpected `IntegrationGatewayUnavailable`.
+ *   both answer the acknowledgement; an instruction the gateway refuses (400, or 409 for another
+ *   instruction under the reference) is `InternalApiRejected`, anything else unexpected
+ *   `IntegrationGatewayUnavailable`.
  * - The registry lookups, the supplier check and stored results (`registry`), acting for the
  *   Commission (`X-Acting-Tenant`) with the legal basis, the case and its declarant
  *   (`X-Subject-Person`, so reads of the stored result are audited as reads of their data). A lookup always answers
@@ -127,7 +125,11 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
       {
         status: [200, 201],
         schema: instructionSchema,
-        otherwise: { 400: rejectedBy('integration-gateway') },
+        // A conflict (another instruction under the reference) is no better on a retry.
+        otherwise: {
+          400: rejectedBy('integration-gateway'),
+          409: rejectedBy('integration-gateway'),
+        },
       },
     );
   }
