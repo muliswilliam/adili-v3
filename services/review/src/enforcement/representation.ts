@@ -123,6 +123,26 @@ export type ActionLetterPayload = z.infer<typeof actionLetterPayloadSchema>;
 /** review.yaml `DeclarantNotice`. */
 export const declarantNoticeSchema = z.object({
   actionId: z.uuid(),
+  ladderId: z.uuid().meta({
+    description: 'The ladder the step belongs to: the notices of one subject share it',
+  }),
+  subject: z
+    .object({
+      kind: subjectKindSchema,
+      reference: z.string().meta({
+        description:
+          "The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference",
+      }),
+      dueAt: z.iso.datetime().nullable().meta({
+        description:
+          "When the clarification's response was due; null for an obligation (its due date is the declarations service's)",
+      }),
+    })
+    .meta({ description: 'What the declarant failed to do, as the letter names it' }),
+  windowDays: z.number().int().min(1).nullable().meta({
+    description:
+      'Days the step gives the declarant to act, from issue to `actBy`; null for a step without a deadline',
+  }),
   commission: z.object({ slug: z.string(), name: z.string() }),
   step: actionStepSchema,
   status: actionStatusSchema,

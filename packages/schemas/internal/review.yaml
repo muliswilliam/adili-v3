@@ -6377,6 +6377,38 @@ components:
         actionId:
           type: string
           format: uuid
+        ladderId:
+          type: string
+          format: uuid
+          description: 'The ladder the step belongs to: the notices of one subject share it'
+        subject:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+                - obligation
+                - clarification
+            reference:
+              type: string
+              description: The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference
+            dueAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              description: When the clarification's response was due; null for an obligation (its due date is the declarations service's)
+          required:
+            - kind
+            - reference
+            - dueAt
+          description: What the declarant failed to do, as the letter names it
+        windowDays:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: Days the step gives the declarant to act, from issue to `actBy`; null for a step without a deadline
         commission:
           type: object
           properties:
@@ -6450,6 +6482,9 @@ components:
             - type: 'null'
       required:
         - actionId
+        - ladderId
+        - subject
+        - windowDays
         - commission
         - step
         - status

@@ -576,6 +576,9 @@ describe('enforcement ladder', () => {
     expect(mine.json<DeclarantNoticeView[]>()).toEqual([
       {
         actionId: noticeId,
+        ladderId: actions[0]?.ladderId,
+        subject: { kind: 'obligation', reference: obligation.cycleKey, dueAt: null },
+        windowDays: 14,
         commission: { slug: 'psc', name: 'Public Service Commission' },
         step: 'notice-to-comply',
         status: 'issued',
@@ -769,6 +772,27 @@ describe('enforcement ladder', () => {
       subjectReference: 'CLR-PSC-2027-0000009-K',
       whatToDo: 'respond-to-clarification',
     });
+    // The declarant's notice names its clarification, when the response was due, and the ladder.
+    const declarantJames: Caller = {
+      sub: 'declarant-james',
+      roles: ['declarant'],
+      personId: version.personId ?? undefined,
+    };
+    const notices = await api.get('/v1/me/notices', declarantJames);
+    expect(notices.statusCode, notices.body).toBe(200);
+    expect(notices.json()).toMatchObject([
+      {
+        actionId: noticeId,
+        ladderId: drafted.ladder.id,
+        subject: {
+          kind: 'clarification',
+          reference: 'CLR-PSC-2027-0000009-K',
+          dueAt: '2027-12-01T08:00:00.000Z',
+        },
+        windowDays: 14,
+        whatToDo: 'respond-to-clarification',
+      },
+    ]);
 
     await api.enforcement.clarificationResponded(
       clarificationEvent('clarification.responded.v1', 'psc', clarificationId, caseId),

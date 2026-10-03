@@ -14,9 +14,22 @@ import { DocumentsClient } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { ACTION_RESPONDED } from './events.js';
-import { type ActionRow, recordAction, REVIEW_STAFF_STEPS, whatToDo } from './ladder-records.js';
+import { clarifications } from '../cases/schema.js';
+import type { ReviewTransaction } from '../cases/case-lookup.js';
+import {
+  type ActionRow,
+  type LadderRow,
+  recordAction,
+  REVIEW_STAFF_STEPS,
+  whatToDo,
+} from './ladder-records.js';
 import { type DeclarantNoticeView, responseView } from './representation.js';
-import { type ActionResponse, administrativeActions, ISSUED_ACTION_STATUSES } from './schema.js';
+import {
+  type ActionResponse,
+  administrativeActions,
+  enforcementLadders,
+  ISSUED_ACTION_STATUSES,
+} from './schema.js';
 
 /** review.yaml `respondToNotice` body. */
 export const noticeResponseInput = z.object({
@@ -51,15 +64,16 @@ export class DeclarantNoticesService {
   ) {}
 
   async list(personId: string): Promise<DeclarantNoticeView[]> {
-    const rows = await this.db.transaction(async (tx) => {
+    const { rows, subjects } = await this.db.transaction(async (tx) => {
       await asPerson(tx, personId);
-      return tx
+      const own = await tx
         .select()
         .from(administrativeActions)
         .where(ownIssued(personId))
         .orderBy(desc(administrativeActions.issuedAt));
+      return { rows: own, subjects: await subjectsOf(tx, own) };
     });
-    return this.views(rows);
+    return this.views(rows, subjects);
   }
 
   /**
@@ -107,9 +121,9 @@ export class DeclarantNoticesService {
         actor: `person:${personId}`,
         at: now,
       });
-      return row;
+      return { row, subjects: await subjectsOf(tx, [row]) };
     });
-    const [view] = await this.views([responded]);
+    const [view] = await this.views([responded.row], responded.subjects);
     return notFoundIfInvisible(view);
   }
 
@@ -139,18 +153,31 @@ export class DeclarantNoticesService {
   }
 
   /** Adds each Commission's name, read from the directory once per Commission. */
-  private async views(rows: ActionRow[]): Promise<DeclarantNoticeView[]> {
+  private async views(
+    rows: ActionRow[],
+    subjects: ReadonlyMap<string, NoticeSubject>,
+  ): Promise<DeclarantNoticeView[]> {
     const names = new Map<string, string>();
     for (const tenant of new Set(rows.map((row) => row.tenant))) {
       const commission = await withUpstream(() => this.directory.getCommission(tenant));
       names.set(tenant, commission.name);
     }
-    return rows.flatMap((row) =>
-      row.reference === null || row.issuedAt === null
+    return rows.flatMap((row) => {
+      const subject = subjects.get(row.ladderId);
+      return row.reference === null || row.issuedAt === null || subject === undefined
         ? []
         : [
             {
               actionId: row.id,
+              ladderId: row.ladderId,
+              subject,
+              windowDays:
+                row.windowEndsAt === null
+                  ? null
+                  : Math.max(
+                      1,
+                      Math.round((row.windowEndsAt.getTime() - row.issuedAt.getTime()) / DAY_MS),
+                    ),
               commission: { slug: row.tenant, name: names.get(row.tenant) ?? row.tenant },
               step: row.step,
               status: row.status,
@@ -164,9 +191,75 @@ export class DeclarantNoticesService {
               salaryStoppedAt: row.salaryStoppedAt?.toISOString() ?? null,
               salaryReinstatedAt: row.salaryReinstatedAt?.toISOString() ?? null,
             },
-          ],
+          ];
+    });
+  }
+}
+
+const DAY_MS = 86_400_000;
+
+type NoticeSubject = DeclarantNoticeView['subject'];
+
+/**
+ * The subject of each ladder the person's steps belong to, by ladder id: its kind and reference,
+ * and for a clarification when its response was due. The ladders are their Commission's records
+ * (no person policy), so each Commission's are read under its tenant, by the ids of steps the
+ * person may see; the clarifications under the person's own policy.
+ */
+async function subjectsOf(
+  tx: ReviewTransaction,
+  rows: readonly ActionRow[],
+): Promise<Map<string, NoticeSubject>> {
+  const subjects = new Map<string, NoticeSubject>();
+  const byTenant = new Map<string, Set<string>>();
+  for (const row of rows) {
+    byTenant.set(row.tenant, (byTenant.get(row.tenant) ?? new Set()).add(row.ladderId));
+  }
+  const ladders: {
+    id: string;
+    kind: LadderRow['subjectKind'];
+    subjectId: string;
+    reference: string;
+  }[] = [];
+  for (const [tenant, ids] of byTenant) {
+    await tx.execute(sql`select set_config('app.tenant', ${tenant}, true)`);
+    ladders.push(
+      ...(await tx
+        .select({
+          id: enforcementLadders.id,
+          kind: enforcementLadders.subjectKind,
+          subjectId: enforcementLadders.subjectId,
+          reference: enforcementLadders.subjectReference,
+        })
+        .from(enforcementLadders)
+        .where(
+          and(eq(enforcementLadders.tenant, tenant), inArray(enforcementLadders.id, [...ids])),
+        )),
     );
   }
+  await tx.execute(sql`select set_config('app.tenant', '', true)`);
+  const clarificationIds = ladders.flatMap((ladder) =>
+    ladder.kind === 'clarification' ? [ladder.subjectId] : [],
+  );
+  const due = new Map(
+    clarificationIds.length === 0
+      ? []
+      : (
+          await tx
+            .select({ id: clarifications.id, dueAt: clarifications.dueAt })
+            .from(clarifications)
+            .where(inArray(clarifications.id, clarificationIds))
+        ).map((each) => [each.id, each.dueAt] as const),
+  );
+  for (const ladder of ladders) {
+    subjects.set(ladder.id, {
+      kind: ladder.kind,
+      reference: ladder.reference,
+      dueAt:
+        ladder.kind === 'clarification' ? (due.get(ladder.subjectId)?.toISOString() ?? null) : null,
+    });
+  }
+  return subjects;
 }
 
 /** The person's own steps that have gone to them. */
