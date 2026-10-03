@@ -1,5 +1,6 @@
 import { formatDate } from '@adili/ui';
 
+import { en, type Label } from '../declaration/translatable';
 import type { ActionStatus, ActionStep, DeclarantNotice } from '../server/review/types';
 import type { LadderStepState } from './view';
 
@@ -9,14 +10,6 @@ import type { LadderStepState } from './view';
  * slot, empty until the Swahili copy is done; screens read English. `COPY_SW` holds the page
  * copy's Swahili, key by key, likewise empty.
  */
-
-interface Label {
-  en: string;
-  /** Empty until translated. */
-  sw: string;
-}
-
-const en = (text: string): Label => ({ en: text, sw: '' });
 
 const days = (n: number) => `${String(n)} ${n === 1 ? 'day' : 'days'}`;
 

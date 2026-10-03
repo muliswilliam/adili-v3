@@ -1,5 +1,7 @@
 import { formatDate } from '@adili/ui';
 
+import { declineKeepsLadderOpen } from '../../actions/ladder';
+
 import type { ActionStep } from '../../server/actions.server';
 import { stepLabel } from '../actions/messages';
 
@@ -38,8 +40,11 @@ export const messages = {
         ? `${stepLabel(step)} approved. ${reference} allocated.`
         : `${stepLabel(step)} approved`,
     declined: (step: ActionStep) =>
-      step === 'disciplinary-referral'
+      declineKeepsLadderOpen(step)
         ? `${stepLabel(step)} declined. The ladder waits for compliance.`
         : `${stepLabel(step)} declined. The ladder has ended.`,
   },
 } as const;
+
+/** Swahili for `messages`, key by key; empty until translated. */
+export const sw: Partial<Record<keyof typeof messages, string>> = {};

@@ -36,7 +36,7 @@
  */
 import { REVIEWER, SUPERVISOR } from '@adili/roles';
 
-import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
+import { declineKeepsLadderOpen, isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
 import { stepLabel } from '../../components/actions/messages';
 import { isRecord, json, type MockCaller, problem, readJson } from '../mock-http';
 import type { components } from './api.gen';
@@ -902,7 +902,7 @@ async function decline(request: Request, caller: MockCaller, id: string): Promis
   replace(
     stored,
     declined,
-    action.step === 'disciplinary-referral' ? {} : { status: 'declined', endedAt: at },
+    declineKeepsLadderOpen(action.step) ? {} : { status: 'declined', endedAt: at },
   );
   return json(200, declined);
 }
