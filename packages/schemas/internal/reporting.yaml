@@ -1109,23 +1109,56 @@ paths:
     get:
       tags:
         - open-data
-      summary: The Commission's own rows of the latest preview or release, suppression applied (commission-admin)
+      summary: The Commission's own rows of the current preview or published release, suppression as released (commission-admin)
+      description: The release shown is, of the most recent financial year with a preview or published release, the one built last; withdrawn releases are never shown. Only the Commission tables, filtered to the caller's Commission; national tables and other Commissions' rows are never returned. Anyone not of the Commission gets 404, its other staff 403.
       operationId: getCommissionOpenDataPreview
       x-draft: true
       responses:
         '200':
-          description: Rows per table
+          description: The release and the Commission's rows per table
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties:
-                  type: array
-                  items:
+                required:
+                  - release
+                  - tables
+                properties:
+                  release:
+                    $ref: '#/components/schemas/OpenDataRelease'
+                  tables:
                     type: object
-                    additionalProperties: true
+                    required:
+                      - filing-by-commission
+                      - compliance-by-commission
+                      - access-requests
+                    additionalProperties: false
+                    properties:
+                      filing-by-commission:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+                      compliance-by-commission:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+                      access-requests:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '503':
+          description: Object storage could not be reached
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /open-data/v1/releases:
     get:
       tags:

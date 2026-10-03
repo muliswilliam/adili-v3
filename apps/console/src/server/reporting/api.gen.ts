@@ -449,7 +449,10 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** The Commission's own rows of the latest preview or release, suppression applied (commission-admin) */
+        /**
+         * The Commission's own rows of the current preview or published release, suppression as released (commission-admin)
+         * @description The release shown is, of the most recent financial year with a preview or published release, the one built last; withdrawn releases are never shown. Only the Commission tables, filtered to the caller's Commission; national tables and other Commissions' rows are never returned. Anyone not of the Commission gets 404, its other staff 403.
+         */
         get: operations["getCommissionOpenDataPreview"];
         put?: never;
         post?: never;
@@ -2381,20 +2384,39 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Rows per table */
+            /** @description The release and the Commission's rows per table */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        [key: string]: {
-                            [key: string]: unknown;
-                        }[];
+                        release: components["schemas"]["OpenDataRelease"];
+                        tables: {
+                            "filing-by-commission": {
+                                [key: string]: unknown;
+                            }[];
+                            "compliance-by-commission": {
+                                [key: string]: unknown;
+                            }[];
+                            "access-requests": {
+                                [key: string]: unknown;
+                            }[];
+                        };
                     };
                 };
             };
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Object storage could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     listOpenDataReleases: {
