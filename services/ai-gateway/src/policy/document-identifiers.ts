@@ -502,7 +502,8 @@ interface Marker {
   from: number;
 }
 
-const ROMAN = /^[ivx]{2,4}$/iu;
+/** A roman numeral of two letters or more, up to 39 ("ii", "iv", "xii"); "i" alone is a letter. */
+const ROMAN = /^(?=[ivx]{2,})x{0,3}(?:ix|iv|v?i{0,3})$/iu;
 const ROMAN_DIGITS: Readonly<Partial<Record<string, number>>> = { i: 1, v: 5, x: 10 };
 /** A roman numeral's value ("iv" is 4); its letters are i, v and x. */
 function romanValue(text: string): number {
@@ -532,7 +533,7 @@ function markerOf(tokens: readonly Token[]): Marker | null {
     }
     if (token?.kind !== 'word') return null;
     if (ROMAN.test(token.text)) return { kind: 'roman', value: romanValue(token.text) };
-    if (LIST_LETTERS.test(token.text) && token.text.length === 1) {
+    if (LIST_LETTERS.test(token.text)) {
       return { kind: 'letter', value: token.text.toLowerCase().charCodeAt(0) - 96 };
     }
     return null;
@@ -568,12 +569,13 @@ function markerOf(tokens: readonly Token[]): Marker | null {
 }
 
 /**
- * Whether a list line, from token `from` (past its marker), reads as a name: one to six
- * capitalised name words, particles and initials ("J."), none a field, place, organisation,
- * office, heading or common word; then nothing, or a comma, dash or colon and only offices or field
- * words ("Mary Wanjiru, Secretary"). With `office`, the office part is required.
+ * How a list line reads, from token `from` (past its marker): `name` for one to six capitalised
+ * name words, particles and initials ("J."), after any office ("Secretary Mary Wanjiru"), none a
+ * field, place, organisation, office, heading or common word, and nothing else; `name-office` for
+ * such a name, a comma, dash or colon, and only offices or field words ("Mary Wanjiru,
+ * Secretary"); `other` for anything else.
  */
-function readsAsName(tokens: readonly Token[], from: number, office = false): boolean {
+function listLine(tokens: readonly Token[], from: number): 'name' | 'name-office' | 'other' {
   let at = from;
   let names = 0;
   for (; at < tokens.length; at++) {
@@ -582,19 +584,20 @@ function readsAsName(tokens: readonly Token[], from: number, office = false): bo
     if (token?.kind === 'other' && token.text === '.' && names > 0) continue;
     if (token?.kind !== 'word') break;
     if (PARTICLES.has(token.text)) continue;
-    if (!isCapitalised(token.text) || WRITTEN_ONLY.has(lower(token.text))) return false;
+    // An office before the name, wherever the list puts it ("Chairman John Kamau").
+    if (names === 0 && (ROLE_WORDS.has(lower(token.text)) || qualifiesOffice(token.text))) continue;
+    if (!isCapitalised(token.text) || WRITTEN_ONLY.has(lower(token.text))) return 'other';
     names++;
   }
-  if (names === 0 || names > 6) return false;
+  if (names === 0 || names > 6) return 'other';
   const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
-  if (rest.length === 0) return !office;
+  if (rest.length === 0) return 'name';
   const [mark, ...after] = rest;
   const separates =
     mark?.kind === 'joiner' ||
     mark?.kind === 'colon' ||
     (mark?.kind === 'other' && BULLETS.has(mark.text));
-  return (
-    separates &&
+  const office =
     after.length > 0 &&
     after.every(
       (token) =>
@@ -602,18 +605,29 @@ function readsAsName(tokens: readonly Token[], from: number, office = false): bo
         (ROLE_WORDS.has(lower(token.text)) ||
           qualifiesOffice(token.text) ||
           FIELD_WORDS.has(lower(token.text))),
-    )
-  );
+    );
+  return separates && office ? 'name-office' : 'other';
 }
 
+/** Whether a list line reads as a name, with or without an office after it. */
+const readsAsName = (tokens: readonly Token[], from: number) => listLine(tokens, from) !== 'other';
+
+/** Lines past an unmarked one that the next entry may come after: a heading and its fields. */
+const ENTRY_LOOKAHEAD = 5;
+
 /**
- * The parties a list under a stand-alone label holds, from line `first`. Every entry is read
- * with a label's span rules, whatever data it holds. The list goes on:
- * - at a marked line, unless its numbering starts again or repeats (same kind and indent) and it
- *   does not read as a name, or it comes after a blank line and does not read as a name;
- * - at an unmarked line straight below, when it is a name wrapped from the entry above, the next
- *   line continues the numbering (a heading between entries is skipped), a name and an office, or
- *   a name in a list whose first entry is unmarked too.
+ * The parties a list under a stand-alone label holds, from line `first`. The list's level is its
+ * first marker's kind and indent. Every entry at that level is read with a label's span rules,
+ * whatever data it holds. The list goes on:
+ * - at a marked line of the level, unless its numbering starts again or repeats and it does not
+ *   read as a name;
+ * - at a marked line of another kind or indent (a sub-list: "(a) Toyota Premio"), read only if it
+ *   reads as a name;
+ * - at an unmarked line before the level's next number (within a few lines), read only if it is a
+ *   wrapped name: a heading and its fields are skipped;
+ * - at an unmarked line straight below, when it is a name wrapped from the entry above, a name and
+ *   an office, or a name in a list whose first entry is unmarked too.
+ * After a blank line, a line must read as a name.
  */
 function listParties(
   nameLines: readonly string[],
@@ -624,6 +638,19 @@ function listParties(
   const firstMarker = markerOf(tokensAt(first));
   parties.push(...labelParties(tokensAt(first), firstMarker?.from ?? 0));
   let level = firstMarker?.kind === 'bullet' ? null : firstMarker;
+  const atLevel = (marker: Marker | null) =>
+    marker !== null &&
+    level !== null &&
+    marker.kind === level.kind &&
+    marker.indent === level.indent;
+  // Whether the level's next number comes within a few lines after `row`.
+  const nextNumberAhead = (row: number) => {
+    for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
+      const marker = markerOf(tokensAt(at));
+      if (atLevel(marker)) return marker?.value === (level?.value ?? 0) + 1;
+    }
+    return false;
+  };
   let at = first;
   for (let entries = 1; entries < MAX_ENTRIES; entries++) {
     const next = nextLine(nameLines, at);
@@ -632,33 +659,23 @@ function listParties(
     const marker = markerOf(tokens);
     const name = readsAsName(tokens, marker?.from ?? 0);
     if (next > at + 1 && !name) break;
-    if (marker) {
-      const same = level !== null && marker.kind === level.kind && marker.indent === level.indent;
-      if (same && marker.value <= (level?.value ?? 0) && !name) break;
-      parties.push(...labelParties(tokens, marker.from));
-      if (marker.kind !== 'bullet' && (same || level === null)) level = marker;
-      at = next;
-      continue;
-    }
-    const following = next + 1 < nameLines.length ? markerOf(tokensAt(next + 1)) : null;
-    const continues =
-      level !== null &&
-      following !== null &&
-      following.kind === level.kind &&
-      following.indent === level.indent &&
-      following.value === level.value + 1;
-    if (continues) {
-      // Between two entries numbered in turn: a wrapped name, or a heading to skip.
-      if (wrapsName(tokens)) parties.push(...labelParties(tokens, 0));
-      at = next;
-      continue;
-    }
-    const wraps =
-      next === at + 1 && wrapsFrom(tokensAt(at), nameLines[at] ?? '') && wrapsName(tokens);
-    const plainList = firstMarker === null && readsAsName(tokens, 0);
-    if (!wraps && !plainList && !readsAsName(tokens, 0, true)) break;
-    parties.push(...labelParties(tokens, 0));
     at = next;
+    if (marker && (level === null || atLevel(marker))) {
+      if (level !== null && marker.value <= level.value && !name) break;
+      parties.push(...labelParties(tokens, marker.from));
+      if (marker.kind !== 'bullet') level = marker;
+      continue;
+    }
+    if (marker || nextNumberAhead(next)) {
+      // A sub-list's line, or a line before the next entry: read only a name.
+      if (marker ? name : wrapsName(tokens))
+        parties.push(...labelParties(tokens, marker?.from ?? 0));
+      continue;
+    }
+    const wraps = wrapsFrom(tokensAt(next - 1), nameLines[next - 1] ?? '') && wrapsName(tokens);
+    const plainList = firstMarker === null && name;
+    if (!wraps && !plainList && listLine(tokens, 0) !== 'name-office') break;
+    parties.push(...labelParties(tokens, 0));
   }
   return parties;
 }
@@ -773,7 +790,7 @@ const MAX_ENTRIES = 20;
 /** Marks that start a list entry: a bullet or dash, after which a name may follow. */
 const BULLETS = new Set(['-', '*', '\u2022', '\u2013', '\u2014']);
 /** Letters and roman numerals that number a list ("a)", "ii."). */
-const LIST_LETTERS = /^(?:[a-z]|[ivx]{1,4})$/iu;
+const LIST_LETTERS = /^[a-z]$/iu;
 
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
 const ADDRESS_LABEL = new RegExp(

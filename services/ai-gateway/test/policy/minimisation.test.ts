@@ -916,6 +916,53 @@ describe('minimise a text layer: names out, fields readable', () => {
     // After a blank line, an entry must read as a name (F75).
     ['Directors:\n1. John Kamau\n\nKenya Power, Bank', 'John Kamau', 'Kenya Power Bank'],
     ['Directors:\n1. John Kamau\n\n2. Kenya Power, Bank', 'John Kamau', 'Kenya Power Bank'],
+    // A marked line of another kind or indent is read only if it reads as a name (F77).
+    [
+      'Directors:\n1. John Kamau\n(a) Toyota Premio\nMake: Toyota\nModel: Premio\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Toyota Premio Make Model',
+    ],
+    [
+      'Directors:\n1. John Kamau\nb. Box 123 Nakuru\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Box Nakuru',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(b) Plot 7 Njoro\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Plot Njoro',
+    ],
+    [
+      'Shareholders:\n1. John Kamau\na) Tumaini Holdings Ltd - Ordinary Shares\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Tumaini Holdings Ltd Ordinary Shares',
+    ],
+    [
+      'Directors:\n1. John Kamau\na) Kenya Power\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Kenya Power',
+    ],
+    [
+      'Directors:\n1. John Kamau\nEquity Bank, Nakuru Branch\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Equity Bank Nakuru Branch',
+    ],
+    [
+      'Directors:\n1. John Kamau\na) Peter Otieno\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Directors',
+    ],
+    // An office before a name on an unmarked line (F78).
+    [
+      'Directors:\nChairman John Kamau\nSecretary Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Chairman Secretary',
+    ],
+    [
+      'Directors:\nJohn Kamau\nSecretary Mary Wanjiru\nTreasurer Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Secretary Treasurer',
+    ],
     // Common words a name holds stay readable in prose (F48, F55).
     [
       'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',
