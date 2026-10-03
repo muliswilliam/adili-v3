@@ -963,6 +963,88 @@ describe('minimise a text layer: names out, fields readable', () => {
       'John Kamau Mary Wanjiru Peter Otieno',
       'Secretary Treasurer',
     ],
+    // A sub-entry is a name when its leading words are; the rest is read as a span (F81).
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(b) Peter Otieno - 40%\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      '40',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno PIN A012345678Z\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'PIN',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno Tel 0712 345 678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Tel',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno 0712345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno - 500 shares\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      '500 shares',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno KES 500,000\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'KES 500,000',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno, Nakuru\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Nakuru',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno - Son\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Son',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno (Son)\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Son',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno born 1990\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'born 1990',
+    ],
+    [
+      'Directors:\n1. John Kamau\n   2. Peter Otieno ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n- Peter Otieno ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\ni. John Kamau\nii. Mary Wanjiru\niii. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors',
+    ],
+    // "i." starts a roman list when "ii." comes next (F81).
+    [
+      'Directors:\ni. John Kamau\nID 12345678\nii. Mary Wanjiru\nID 23456789\niii. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'ID',
+    ],
+    [
+      'Directors:\n(i) John Kamau\nPIN A012345678Z\n(ii) Mary Wanjiru\nPIN A012345679Z\n(iii) Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'PIN',
+    ],
     // Common words a name holds stay readable in prose (F48, F55).
     [
       'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',
