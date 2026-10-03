@@ -21,7 +21,7 @@ async function file(id: string, inline: boolean): Promise<Response> {
       ? (await import('../../server/access/mock.server')).mockAccessFileTitle(id)
       : null) ??
     (config.REPORTING_MOCK
-      ? (await import('../../server/reporting/mock.server')).mockReportingFileTitle(id)
+      ? (await import('../../server/reporting/ncr-mock.server')).mockNcrFileTitle(id)
       : null);
   if (!title) return new Response(null, { status: 404 });
   return new Response(placeholderPdf([title, 'Placeholder file from the development mock.']), {

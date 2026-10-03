@@ -7,11 +7,20 @@ import {
   nationalReportPdf,
   saveNationalReportNarrative,
 } from './national-report.server';
+import { mockReportingClient as sharedMockClient } from './reporting/mock.server';
 import {
-  mockReportingClient,
-  mockReportingDocumentsClient,
-  resetReportingMock,
-} from './reporting/mock.server';
+  mockNcrDocumentsClient,
+  resetNcrMock as resetReportingMock,
+} from './reporting/ncr-mock.server';
+
+/** A reporting mock client as an EACC officer named `name`, whose subject follows the name. */
+function mockReportingClient(name: string, roles: readonly string[]) {
+  return sharedMockClient(roles, {
+    name,
+    subject: `user-${name.toLowerCase().replace(/\W+/g, '-')}`,
+    tenant: 'eacc',
+  });
+}
 
 const ANALYST = ['eacc-analyst'];
 const SUPERVISOR = ['eacc-supervisor'];
@@ -257,7 +266,7 @@ describe('S11 nationalReportPdf', () => {
     const documentId = page.ok ? page.data.report?.documentId : null;
     if (!documentId) throw new Error('expected the PDF');
 
-    const link = await nationalReportPdf(mockReportingDocumentsClient(ANALYST), documentId);
+    const link = await nationalReportPdf(mockNcrDocumentsClient(ANALYST), documentId);
 
     expect(link).toMatchObject({
       ok: true,

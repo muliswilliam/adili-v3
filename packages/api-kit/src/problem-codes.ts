@@ -62,11 +62,15 @@ export const PROBLEM_CODES = {
   'identity-mismatch': { status: HttpStatus.CONFLICT, title: 'Identity does not match IPRS' },
   /**
    * Submission: the token lacks the step-up ACR, or its one-time code is more than five minutes
-   * old; `stepUpUrl` starts a fresh step-up and returns to the declaration.
+   * old; `stepUpUrl` starts a fresh step-up and returns to the declaration (a Form M
+   * confirmation sends no `stepUpUrl`).
    */
   'step-up-required': { status: HttpStatus.FORBIDDEN, title: 'Step-up required' },
-  /** Submission: the declaration does not validate; `blocking` lists what to complete. */
-  incomplete: { status: HttpStatus.BAD_REQUEST, title: 'Declaration incomplete' },
+  /**
+   * Submission: the form does not validate against its schema. A declaration lists what to
+   * complete in `blocking`; a Form M confirmation names the fields in `errors`.
+   */
+  incomplete: { status: HttpStatus.BAD_REQUEST, title: 'Form incomplete' },
   /** Submission: the statement date (Africa/Nairobi) has not come yet. */
   'before-statement-date': { status: HttpStatus.CONFLICT, title: 'Before the statement date' },
   /** Submission of an amendment after the obligation's due date; changes go to the Commission. */
@@ -129,6 +133,30 @@ export const PROBLEM_CODES = {
   'scope-exceeds-request': { status: HttpStatus.BAD_REQUEST, title: 'Scope exceeds the request' },
   /** Access: denials and partial grants must cite Regulation 24 grounds. */
   'grounds-required': { status: HttpStatus.BAD_REQUEST, title: 'Grounds required' },
+  /** Approvals: the caller proposed, built or wrote what they are asked to approve. */
+  'separation-of-duties': { status: HttpStatus.FORBIDDEN, title: 'Separation of duties' },
+  /** Form M: the year's report is submitted already, and a submitted report no longer changes. */
+  'report-submitted': { status: HttpStatus.CONFLICT, title: 'Report already submitted' },
+  /** Form M: the draft is being compiled; edit it once the compile has finished. */
+  'report-compiling': { status: HttpStatus.CONFLICT, title: 'Report compiling' },
+  /** Form M: a preview of the year cannot be compiled before 1 April of its last half. */
+  'preview-not-available': { status: HttpStatus.CONFLICT, title: 'Preview not available yet' },
+  /** Form M: the draft must be marked reviewed by a supervisor before it is confirmed. */
+  'not-reviewed': { status: HttpStatus.BAD_REQUEST, title: 'Report not reviewed' },
+  /** Form M: a remark names an obligation the draft does not list; `errors` say which. */
+  'invalid-remarks': { status: HttpStatus.BAD_REQUEST, title: 'Invalid remarks' },
+  /** Federated Form M: the document fails form-m.v1; `errors` name the paths. */
+  'invalid-document': { status: HttpStatus.BAD_REQUEST, title: 'Invalid document' },
+  /** Federated Form M: the document breaks Form M's business rules; `errors` name the paths. */
+  'inconsistent-document': { status: HttpStatus.BAD_REQUEST, title: 'Inconsistent document' },
+  /** Federated Form M: the document names another Commission than the caller's token. */
+  'tenant-mismatch': { status: HttpStatus.FORBIDDEN, title: 'Tenant mismatch' },
+  /** NCR: the national consolidated report is approved and no longer changes. */
+  'ncr-approved': { status: HttpStatus.CONFLICT, title: 'NCR already approved' },
+  /** NCR: no Commission has submitted a report for the year, so there is nothing to build from. */
+  'no-submitted-reports': { status: HttpStatus.CONFLICT, title: 'No submitted reports' },
+  /** EACC referrals: the push to ICMS failed; `error` says why, and pushing again retries. */
+  'icms-push-failed': { status: HttpStatus.BAD_GATEWAY, title: 'ICMS push failed' },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;
