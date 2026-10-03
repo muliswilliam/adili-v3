@@ -566,6 +566,8 @@ export const extractSuite: EvalSuite<Expected> = {
           'details.accountType': /fixed deposit/iu,
           'value.kesCents': 125_000_000,
           'location.inKenya': true,
+          // The branch the form names ("Branch Name: Nyali"), read, not minimised (F46).
+          'location.detail': /nyali/iu,
         },
         allowed: ANYWHERE,
         identifiers: ['015029384757'],
