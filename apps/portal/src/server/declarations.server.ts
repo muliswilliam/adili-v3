@@ -455,8 +455,6 @@ export interface ExtractAttachmentInput {
   declarationId: string;
   attachmentId: string;
   documentKindHint: DocumentKind;
-  /** The declaration.v1 item type the fields are for, e.g. `vehicle`. */
-  targetItemType: string;
   /** One per logical request; reuse it when retrying the same request. */
   idempotencyKey: string;
 }
@@ -487,10 +485,8 @@ export function extractAttachment(
           path: { declarationId: input.declarationId, attachmentId: input.attachmentId },
           header: { 'Idempotency-Key': input.idempotencyKey },
         },
-        body: {
-          documentKindHint: input.documentKindHint,
-          targetItemType: input.targetItemType,
-        },
+        // The service reads it into the item it is attached to (its list and type).
+        body: { documentKindHint: input.documentKindHint, language: 'en' },
       },
     );
     if (data) return { status: 'started', set: loadedSet(data) };

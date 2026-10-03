@@ -371,8 +371,8 @@ describe('Read into the form on an attachment (S6, S11)', () => {
     personKey: 'officer',
     sectionKey: KEY,
     itemType: 'vehicle',
-    fields: { registration: 'KCB 782M' },
-    sourceRef: { fields: [{ name: 'registration', confidence: 0.95, page: 1 }] },
+    fields: { 'details.registration': 'KCB 782M' },
+    sourceRef: { fields: [{ name: 'details.registration', confidence: 0.95, page: 1 }] },
     confidence: 0.95,
     matchItemId: null,
     status: 'new',
@@ -438,6 +438,9 @@ describe('Read into the form on an attachment (S6, S11)', () => {
         readyAt: '2026-09-26T07:30:00Z',
         verificationResultId: null,
         aiJobId: null,
+        attachmentId: null,
+        documentKind: null,
+        reason: null,
         suggestions: [read],
       },
     });
@@ -458,7 +461,6 @@ describe('Read into the form on an attachment (S6, S11)', () => {
     expect(extractMock.mock.calls[0]?.[0].data).toMatchObject({
       attachmentId: ATTACHMENT_ID,
       documentKindHint: 'logbook',
-      targetItemType: 'vehicle',
     });
     expect(acceptMock.mock.calls[0]?.[0].data).toMatchObject({
       suggestionId: read.id,

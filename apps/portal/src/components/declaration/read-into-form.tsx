@@ -17,6 +17,7 @@ import {
   FormField,
   Icon,
   Input,
+  MoneyInput,
   RadioCard,
   RadioGroup,
   Spinner,
@@ -135,7 +136,6 @@ export function ReadIntoForm({
         declarationId,
         attachmentId: target.attachmentId,
         documentKindHint: kind,
-        targetItemType: itemType ?? 'other',
         idempotencyKey: crypto.randomUUID(),
       },
     }).catch(() => ({ status: 'unavailable' as const }));
@@ -368,7 +368,7 @@ function Review({
   const low = reading.fields.filter((field) => levelOf(field) === 'low');
   const unticked = low.filter((field) => !ticked.has(field.key)).length;
   const fields = acceptedFields(suggestion, values);
-  const met = clashes(item, fields, suggestion.itemType);
+  const met = clashes(item, fields);
   const documentKind = DOCUMENT_KIND_LABELS[reading.documentKind ?? kind];
   const empty = reading.fields.length === 0;
 
@@ -441,6 +441,27 @@ function Review({
                     disabled={disabled}
                     onValueChange={(code) => {
                       setValues((current) => ({ ...current, [field.key]: code ?? '' }));
+                    }}
+                  />
+                ) : field.input === 'money' ? (
+                  <MoneyInput
+                    value={/^\d+$/.test(values[field.key] ?? '') ? Number(values[field.key]) : null}
+                    disabled={disabled}
+                    onValueChange={(cents) => {
+                      setValues((current) => ({
+                        ...current,
+                        [field.key]: cents === null ? '' : String(cents),
+                      }));
+                    }}
+                  />
+                ) : field.input === 'boolean' ? (
+                  <CheckboxItem
+                    label={COPY.yes}
+                    checked={values[field.key] === 'true'}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      const on = event.target.checked;
+                      setValues((current) => ({ ...current, [field.key]: String(on) }));
                     }}
                   />
                 ) : (

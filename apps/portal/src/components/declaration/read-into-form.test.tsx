@@ -36,14 +36,17 @@ function suggestion(overrides: Partial<LoadedSuggestion> = {}): LoadedSuggestion
     personKey: 'officer',
     sectionKey: KEY,
     itemType: 'vehicle',
-    fields: { registration: 'KCB 782M', make: 'Toyota', model: 'Premio', year: 2015 },
+    fields: {
+      'details.registration': 'KCB 782M',
+      'details.makeModel': 'Toyota Premio',
+      'value.kesCents': 95_000_000,
+    },
     sourceRef: {
       documentKind: 'logbook',
       fields: [
-        { name: 'registration', confidence: 0.97, page: 1 },
-        { name: 'make', confidence: 0.93, page: 1 },
-        { name: 'model', confidence: 0.72, page: 1 },
-        { name: 'year', confidence: 0.41, page: 2 },
+        { name: 'details.registration', confidence: 0.97, page: 1 },
+        { name: 'details.makeModel', confidence: 0.72, page: 1 },
+        { name: 'value.kesCents', confidence: 0.41, page: 2 },
       ],
       warnings: ['Page 3 could not be read.'],
     },
@@ -65,6 +68,9 @@ function set(overrides: Partial<LoadedSuggestionSet> = {}): LoadedSuggestionSet 
     readyAt: null,
     verificationResultId: null,
     aiJobId: '5c000000-0000-4000-8000-000000000001',
+    attachmentId: null,
+    documentKind: null,
+    reason: null,
     suggestions: [],
     ...overrides,
   };
@@ -170,7 +176,7 @@ describe('Read into the form (S6, S11)', () => {
     ).toBeTruthy();
   });
 
-  it('asks for the chosen kind and the item type, then shows Reading… while it polls', async () => {
+  it('asks for the chosen kind, then shows Reading… while it polls', async () => {
     listMock.mockResolvedValue({ status: 'ok', sets: [set()] });
     renderSheet({ pollLimit: 100 });
     fireEvent.click(within(sheet()).getByRole('radio', { name: 'Title deed' }));
@@ -182,7 +188,6 @@ describe('Read into the form (S6, S11)', () => {
         declarationId: DECLARATION_ID,
         attachmentId: ATTACHMENT_ID,
         documentKindHint: 'title-deed',
-        targetItemType: 'vehicle',
       }) as unknown,
     });
     await waitFor(() => {
@@ -216,11 +221,13 @@ describe('Read into the form (S6, S11)', () => {
     expect(within(sheet()).getByText('Page 3 could not be read.')).toBeTruthy();
     expect(field('Registration').getByText('High')).toBeTruthy();
     expect(field('Registration').getByText('Page 1')).toBeTruthy();
-    expect(field('Model').getByText('Medium')).toBeTruthy();
-    expect(field('Year').getByText('Low')).toBeTruthy();
-    expect(field('Year').getByText('Page 2')).toBeTruthy();
-    expect(field('Year').getByText('Confidence:', { exact: false })).toBeTruthy();
+    expect(field('Make and model').getByText('Medium')).toBeTruthy();
+    expect(field('Value').getByText('Low')).toBeTruthy();
+    expect(field('Value').getByText('Page 2')).toBeTruthy();
+    expect(field('Value').getByText('Confidence:', { exact: false })).toBeTruthy();
     expect(within(sheet()).getByLabelText('Registration')).toHaveProperty('value', 'KCB 782M');
+    // An amount reads in shillings, though it is held in cents.
+    expect(within(sheet()).getByLabelText('Value')).toHaveProperty('value', '950,000');
   });
 
   it('needs a tick on each Low field before anything is applied', async () => {
@@ -232,7 +239,7 @@ describe('Read into the form (S6, S11)', () => {
     expect(within(sheet()).getByText('Tick the Low field to continue.')).toBeTruthy();
     expect(field('Registration').queryByRole('checkbox')).toBeNull();
     fireEvent.click(
-      within(sheet()).getByRole('checkbox', { name: 'I checked this against the document: Year' }),
+      within(sheet()).getByRole('checkbox', { name: 'I checked this against the document: Value' }),
     );
     expect(add).toHaveProperty('disabled', false);
     expect(apply).toHaveProperty('disabled', false);
@@ -241,7 +248,10 @@ describe('Read into the form (S6, S11)', () => {
 
   it('applies the edited fields to this item through accept', async () => {
     await review();
-    fireEvent.change(within(sheet()).getByLabelText('Year'), { target: { value: ' 2016 ' } });
+    fireEvent.change(within(sheet()).getByLabelText('Make and model'), {
+      target: { value: ' Toyota Premio, 2016 ' },
+    });
+    fireEvent.change(within(sheet()).getByLabelText('Value'), { target: { value: '900,000' } });
     fireEvent.click(within(sheet()).getByRole('checkbox', { name: /I checked this/ }));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Apply to this item' }));
     await waitFor(() => {
@@ -256,7 +266,11 @@ describe('Read into the form (S6, S11)', () => {
         declarationId: DECLARATION_ID,
         suggestionId: suggestion().id,
         ifMatch: '"1"',
-        fields: { registration: 'KCB 782M', make: 'Toyota', model: 'Premio', year: '2016' },
+        fields: {
+          'details.registration': 'KCB 782M',
+          'details.makeModel': 'Toyota Premio, 2016',
+          'value.kesCents': 90_000_000,
+        },
         applyToItemId: ITEM_ID,
         overwrite: false,
       },
@@ -356,18 +370,13 @@ describe('Read into the form (S6, S11)', () => {
   it('gives the reason the service gives', async () => {
     listMock.mockResolvedValue({
       status: 'ok',
-      sets: [
-        set({
-          status: 'failed',
-          suggestions: [suggestion({ status: 'superseded', sourceRef: { reason: 'too blurred' } })],
-        }),
-      ],
+      sets: [set({ status: 'failed', reason: 'document-unreadable' })],
     });
     renderSheet();
     read();
     expect(
       await within(sheet()).findByText(
-        'Could not read this document (too blurred). You can enter the details manually.',
+        'Could not read this document (the file is damaged, too long, or of a type that cannot be read). You can enter the details manually.',
       ),
     ).toBeTruthy();
   });
