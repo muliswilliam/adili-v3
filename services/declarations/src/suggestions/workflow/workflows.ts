@@ -67,11 +67,11 @@ export async function registryLookups(input: RegistryLookupsInput): Promise<void
   );
 }
 
-// A reading's settling: the gateway's job read, and the sets written. Retried a few times; the
-// workflow pulls again later should it still fail.
+// A reading's settling: the gateway's job read, and the sets written. Retried a few times (and
+// while the starting transaction is open); the workflow pulls again later should it still fail.
 const { settleReading } = proxyActivities<ReadingActivities>({
   startToCloseTimeout: '1 minute',
-  retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumAttempts: 5 },
+  retry: { initialInterval: '1 second', backoffCoefficient: 2, maximumAttempts: 8 },
 });
 
 // Database work: retried until it succeeds, so a set is never left pending.
@@ -85,7 +85,8 @@ export const readingJobFinished = defineSignal(READING_JOB_FINISHED_SIGNAL);
 /**
  * `DocumentReadingWorkflow`, one per declaration and `extract-document` job (workflow id
  * `document-reading-<declarationId>-<jobId>`), started by the request with the declarant from
- * its token: settles the job's sets once it has ended, on the job's event (a signal) or by
+ * its token, inside the transaction that recorded the job (its first settling waits for that
+ * transaction to end, and ends the run if it rolled back): settles the job's sets once it has ended, on the job's event (a signal) or by
  * pulling it every `READING_PULL_INTERVAL_MS` (which also covers an event that came before the
  * workflow started); past `timeoutMs` the sets still pending are failed
  * (`unavailable`), so the declarant can ask again.
@@ -98,7 +99,9 @@ export async function documentReading(input: DocumentReadingInput): Promise<void
     subject: input.subject,
     jobId: input.jobId,
   };
-  let ended = false;
+  // The first settling waits for the transaction that started the workflow to end (ADR-003).
+  let transactionId: string | null = input.transactionId;
+  let ended = true;
   setHandler(readingJobFinished, () => {
     ended = true;
   });
@@ -107,7 +110,8 @@ export async function documentReading(input: DocumentReadingInput): Promise<void
     if (ended) {
       ended = false;
       try {
-        if ((await settleReading(ref)) === 'settled') return;
+        if ((await settleReading({ ...ref, transactionId })) === 'settled') return;
+        transactionId = null;
       } catch (error) {
         if (!(error instanceof ActivityFailure)) throw error;
       }

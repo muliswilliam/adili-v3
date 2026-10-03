@@ -181,3 +181,26 @@ export function aiGatewayUnavailable(): ProblemException {
     detail: 'The document could not be sent to be read. Try again.',
   });
 }
+
+/**
+ * 503: a concurrent request for the same reading took its reservation back as this one found it
+ * (spec 05b); nothing was recorded, and asking again reads it.
+ */
+export function readingConflict(): ProblemException {
+  return new ProblemException({
+    type: 'reading-conflict',
+    title: 'Document reading busy',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The document is being asked for by another request. Try again.',
+  });
+}
+
+/** 503: Temporal could not take the workflow that follows the change; nothing was recorded. */
+export function workflowUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'workflow-unavailable',
+    title: 'Service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The request could not be recorded just now. Try again.',
+  });
+}

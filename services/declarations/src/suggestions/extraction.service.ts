@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { errorType, notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ASSET_TYPES, INCOME_TYPES, LIABILITY_TYPES, type PersonKey } from '@adili/forms';
@@ -31,7 +31,9 @@ import {
   documentsUnavailable,
   fieldErrors,
   uploadNotClean,
+  readingConflict,
   validationProblem,
+  workflowUnavailable,
 } from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import { declarationAttachments, declarationSections } from '../drafts/schema.js';
@@ -41,7 +43,12 @@ import { statementPersonKey } from '../drafts/sections.js';
 import { DocumentReadingSteps, outcomeOf } from './document-reading-steps.js';
 import { DocumentReadingWorkflows } from './document-reading-workflows.js';
 import { declarationExtractionRequested } from './events.js';
-import { READING_TIMEOUT_MS, type ReadingRef } from './workflow/contract.js';
+import {
+  type DocumentReadingInput,
+  READING_TIMEOUT_MS,
+  type ReadingRef,
+} from './workflow/contract.js';
+import { currentTransactionId } from '../db/workflow-transactions.js';
 import {
   type ExtractAttachmentRequest,
   extractAttachmentRequestSchema,
@@ -74,7 +81,6 @@ export function readingSubjectRef(declarationId: string): string {
   return `declaration:${declarationId}`;
 }
 
-/** The declaration a reading's job is about, from its subject; null for anyone else's job. */
 /** The reading's workflow ref without its job: the declarant as the request's token names them. */
 function refOf(person: PersonContext, declaration: DeclarationRow): Omit<ReadingRef, 'jobId'> {
   return {
@@ -85,6 +91,7 @@ function refOf(person: PersonContext, declaration: DeclarationRow): Omit<Reading
   };
 }
 
+/** The declaration a reading's job is about, from its subject; null for anyone else's job. */
 export function declarationOfSubjectRef(subjectRef: string): string | null {
   const id = subjectRef.startsWith('declaration:') ? subjectRef.slice('declaration:'.length) : '';
   return isUuid(id) ? id : null;
@@ -222,26 +229,19 @@ export class ExtractionService {
       );
       throw aiGatewayUnavailable();
     }
-    await this.recordJob(person, reading, setId, job.id, outcomeOf(job));
-    if (job.status === 'succeeded') {
-      await this.steps.settled(person, declaration, job);
-      return;
-    }
-    if (isFinished(job)) return;
-    const ref = { ...refOf(person, declaration), jobId: job.id };
+    // A live job's workflow is started in the transaction that records it (ADR-003 decision 7).
+    const live = !isFinished(job);
+    await this.recordJob(person, reading, setId, job.id, outcomeOf(job), live);
+    if (job.status !== 'succeeded') return;
     try {
-      await this.workflows.start({ ...ref, timeoutMs: READING_TIMEOUT_MS });
+      await this.steps.settled(person, declaration, job);
     } catch (error) {
-      // Nothing would settle it: it fails now, and asking again reads it (from the cache).
+      // Recorded, but its reading could not be: fail it, so it can be asked again.
       this.logger.warn(
-        {
-          declarationId: declaration.id,
-          jobId: job.id,
-          err: error instanceof Error ? error.name : typeof error,
-        },
-        'Document reading workflow not started',
+        { declarationId: declaration.id, jobId: job.id, err: errorType(error) },
+        'A document reading the gateway had read was not recorded',
       );
-      await this.steps.expire(ref);
+      await this.steps.expire({ ...refOf(person, declaration), jobId: job.id });
     }
   }
 
@@ -418,20 +418,35 @@ export class ExtractionService {
             eq(suggestionSets.status, 'pending'),
           ),
         );
-      if (!first) throw new Error('A pending reading conflicted and is gone');
+      // The winner took its reservation back (its reading could not be asked for): try again.
+      if (!first) throw readingConflict();
       return first.id;
     });
   }
 
-  /** The reserved set's job and, if it ended at once, its outcome, with the request's event. */
+  /**
+   * The reserved set's job and, if it ended at once, its outcome, with the request's event. For a
+   * live job (`live`) its `DocumentReadingWorkflow` is started in the same transaction, before
+   * the set is written, with the transaction's id: Temporal unreachable rolls it back (503
+   * `workflow-unavailable`), so a job is never recorded without its workflow.
+   */
   private async recordJob(
     person: PersonContext,
     { declaration, attachment }: Reading,
     setId: string,
     aiJobId: string | null,
     outcome: { status: SuggestionSetStatus; reason: ExtractionFailure | null } | null,
+    live = false,
   ): Promise<void> {
     await withPerson(this.db, person, async (tx) => {
+      if (live && aiJobId) {
+        await this.startWorkflow({
+          ...refOf(person, declaration),
+          jobId: aiJobId,
+          transactionId: await currentTransactionId(tx),
+          timeoutMs: READING_TIMEOUT_MS,
+        });
+      }
       await tx
         .update(suggestionSets)
         .set({ aiJobId, ...(outcome ?? {}) })
@@ -446,6 +461,18 @@ export class ExtractionService {
         }),
       );
     });
+  }
+
+  private async startWorkflow(input: DocumentReadingInput): Promise<void> {
+    try {
+      await this.workflows.start(input);
+    } catch (error) {
+      this.logger.warn(
+        { declarationId: input.declarationId, jobId: input.jobId, err: errorType(error) },
+        'Document reading workflow not started',
+      );
+      throw workflowUnavailable();
+    }
   }
 
   /** Takes back a reservation whose reading could not be asked for. */

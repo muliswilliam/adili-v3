@@ -3,9 +3,20 @@ import { randomUUID } from 'node:crypto';
 import type { EventEnvelope } from '@adili/events';
 import { eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { ApplicationFailure } from '@temporalio/common';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { commissionRefs, filingObligations, outbox, rosterSnapshots } from '../../src/db/schema.js';
+import {
+  commissionRefs,
+  declarations,
+  filingObligations,
+  outbox,
+  rosterSnapshots,
+  suggestions,
+} from '../../src/db/schema.js';
+import { TRANSACTION_OPEN } from '../../src/db/workflow-transactions.js';
+import { DocumentReadingWorkflows } from '../../src/suggestions/document-reading-workflows.js';
+import { ReadingActivities } from '../../src/suggestions/workflow/activities.js';
 import type {
   Declaration,
   DeclarationAttachment,
@@ -545,8 +556,7 @@ describe('when the Commission does not read documents, or the reading fails (S6)
       })
     ).json<SuggestionSet>();
     if (!car.aiJobId || !loan.aiJobId) throw new Error('no jobs');
-    const carJob = api.ai.finish(car.aiJobId, { output: logbookReading() });
-    api.ai.finish(loan.aiJobId, { output: logbookReading() });
+    const carJob = { id: car.aiJobId, subjectRef: `declaration:${draft.id}` };
 
     // Another task's event, a job no reading of the declaration has, and this job named for
     // another declaration settle nothing.
@@ -562,11 +572,85 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     await new Promise((resolve) => setTimeout(resolve, 1_000));
     expect((await documentSets(draft.id)).map((set) => set.status)).toEqual(['pending', 'pending']);
 
+    // The loan's job never ends; the car's does, and its event settles its set only.
+    api.ai.finish(car.aiJobId, { output: logbookReading() });
     await deliver(draft.id, jobEvent('ai.job.completed.v1', carJob));
 
     const sets = await documentSets(draft.id);
     expect(sets.find((set) => set.id === car.id)?.status).toBe('ready');
     expect(sets.find((set) => set.id === loan.id)?.status).toBe('pending');
+  });
+});
+
+describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
+  function readingRef(declarationId: string, jobId: string) {
+    return { tenant: 'psc', declarationId, personId: ACHIENG, subject: ACHIENG, jobId };
+  }
+
+  it('waits for the transaction that started the workflow, and settles nothing once it rolled back', async () => {
+    const { draft } = await draftWithLogbook();
+    const activities = api.app.get(ReadingActivities);
+    const client = await api.db.$client.connect();
+    try {
+      await client.query('begin');
+      const open = await client.query<{ id: string }>('select pg_current_xact_id()::text as id');
+      const ref = { ...readingRef(draft.id, randomUUID()), transactionId: open.rows[0]?.id ?? '' };
+
+      const failure = await activities.settleReading(ref).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(ApplicationFailure);
+      expect(failure).toMatchObject({ type: TRANSACTION_OPEN, nonRetryable: false });
+
+      await client.query('rollback');
+      expect(await activities.settleReading(ref)).toBe('settled');
+    } finally {
+      client.release();
+    }
+  });
+
+  it('writes no reading into a declaration that is no longer a draft', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    const set = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+    if (!set.aiJobId) throw new Error('no job');
+    api.ai.finish(set.aiJobId, { output: logbookReading() });
+    await api.asPerson(ACHIENG, (tx) =>
+      tx.update(declarations).set({ status: 'submitted' }).where(eq(declarations.id, draft.id)),
+    );
+
+    const outcome = await api.app
+      .get(ReadingActivities)
+      .settleReading({ ...readingRef(draft.id, set.aiJobId), transactionId: null });
+
+    expect(outcome).toBe('settled');
+    const rows = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(suggestions).where(eq(suggestions.declarationId, draft.id)),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it('answers 503 and records nothing when the workflow cannot be started', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    vi.spyOn(api.app.get(DocumentReadingWorkflows), 'start').mockRejectedValueOnce(
+      new Error('Temporal unavailable'),
+    );
+
+    const response = await extract(draft.id, attachment.id);
+
+    expect(response.statusCode).toBe(503);
+    expect(await documentSets(draft.id)).toEqual([]);
+    expect(await eventsOf('declaration.extraction-requested.v1')).toEqual([]);
+    // Asking again reads it (the gateway answers from its live job).
+    expect((await extract(draft.id, attachment.id)).statusCode).toBe(202);
+  });
+
+  it('answers 503 and records nothing when documents does not answer', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    api.documents.unavailable = true;
+
+    const response = await extract(draft.id, attachment.id);
+
+    expect(response.statusCode).toBe(503);
+    expect(api.ai.requests).toEqual([]);
+    expect(await documentSets(draft.id)).toEqual([]);
   });
 });
 
