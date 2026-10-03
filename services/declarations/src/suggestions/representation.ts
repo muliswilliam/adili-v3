@@ -89,7 +89,7 @@ export type RegistryLookupRequest = z.infer<typeof registryLookupRequestSchema>;
 export const acceptSuggestionRequestSchema = z.object({
   fields: z.record(z.string(), z.unknown()).meta({
     description:
-      "The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). Value fields are not taken: the declarant enters values on the item",
+      "The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). For a registry's, value fields are not taken: the declarant enters values on the item. For a document's reading, its fields by declaration.v1 path, values included, each typed as read (an amount may come as text, e.g. \"1,180,000\"); fields it did not read are refused",
   }),
   applyToItemId: z.uuid().nullable().meta({
     description:

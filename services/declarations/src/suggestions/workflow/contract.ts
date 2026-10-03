@@ -51,3 +51,42 @@ export type LookupAttemptOutcome = 'recorded' | 'retry';
 export function registryLookupsWorkflowId(consentId: string): string {
   return `registry-lookups-${consentId}`;
 }
+
+export const DOCUMENT_READING_WORKFLOW = 'documentReading';
+/** Sent by the consumer of the gateway's `ai.job.*` events when the reading's job ended. */
+export const READING_JOB_FINISHED_SIGNAL = 'readingJobFinished';
+
+/**
+ * How long a reading may stay `pending` before it counts as failed (`unavailable`), so the
+ * declarant can ask again: the gateway's job takes up to four provider attempts with backoff, so
+ * well under this.
+ */
+export const READING_TIMEOUT_MS = 15 * 60_000;
+/** How often the workflow pulls the job when no event said it ended. */
+export const READING_PULL_INTERVAL_MS = 60_000;
+
+/**
+ * An `extract-document` job and the declarant who asked for it, as the request's token named
+ * them: the workflow's activities settle the job's sets under that person's row-level security
+ * (ADR-018), so nothing about the person is taken from the gateway or its events.
+ */
+export interface ReadingRef {
+  tenant: string;
+  declarationId: string;
+  personId: string;
+  subject: string;
+  jobId: string;
+}
+
+export interface DocumentReadingInput extends ReadingRef {
+  /** From the start, after which the job's pending sets are failed. */
+  timeoutMs: number;
+}
+
+/** `settled`: nothing waits for the job any more; `pending`: it has not ended yet. */
+export type ReadingOutcome = 'settled' | 'pending';
+
+/** One workflow per declaration and job: an equal request served from the cache shares it. */
+export function documentReadingWorkflowId(declarationId: string, jobId: string): string {
+  return `document-reading-${declarationId}-${jobId}`;
+}

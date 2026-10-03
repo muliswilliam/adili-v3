@@ -122,7 +122,7 @@ export class SuggestionsController {
     summary:
       'Add the suggestion as an item, or apply it to an existing item (declarant); through the section save',
     description:
-      "A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. Values are never filled. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.",
+      "A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. A registry's suggestion never fills values. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). A document's reading (source `document`) is different: as new it adds an item of the reading's type in its statement list; its fields are written at their declaration.v1 paths, typed as read, amounts included (`value.kesCents`, `outstanding.kesCents`: the document's figure the declarant checked); a field it did not read is refused (400); applied to an item of another type, 400; it is not refused for an item holding another identifier. The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.",
   })
   @ApiHeader({
     name: 'If-Match',
@@ -138,7 +138,7 @@ export class SuggestionsController {
   })
   @ApiProblemResponse(
     400,
-    "Validation failed: the fields do not fit the item, `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN)",
+    "Validation failed: the fields do not fit the item (for a document, a field it did not read, or a value the field cannot take), `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN)",
   )
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(

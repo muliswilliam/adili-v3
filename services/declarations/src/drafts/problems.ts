@@ -171,3 +171,13 @@ export function violatedUniqueConstraint(error: unknown): string | undefined {
   }
   return undefined;
 }
+
+/** 503: the ai-gateway did not take a document reading (spec 05b); nothing was recorded. */
+export function aiGatewayUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'ai-gateway-unavailable',
+    title: 'Document reading unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The document could not be sent to be read. Try again.',
+  });
+}

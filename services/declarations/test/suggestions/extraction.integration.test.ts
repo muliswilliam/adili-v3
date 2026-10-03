@@ -12,6 +12,7 @@ import type {
   SectionEnvelope,
 } from '../../src/drafts/representation.js';
 import type { SuggestionSet } from '../../src/suggestions/representation.js';
+import { READING_TIMEOUT_MS } from '../../src/suggestions/workflow/contract.js';
 import { contractErrors } from '../support/contract.js';
 import {
   type Caller,
@@ -167,6 +168,26 @@ function jobEvent(
   };
 }
 
+/**
+ * Delivers the job's event as the transport would and waits for its reading workflow to settle
+ * the job's sets.
+ */
+async function deliver(declarationId: string, event: EventEnvelope): Promise<void> {
+  const jobId = (event.data as { jobId: string }).jobId;
+  if (event.type === 'ai.job.failed.v1') await api.extractionJobs.failed(event);
+  else if (event.type === 'ai.job.blocked.v1') await api.extractionJobs.blocked(event);
+  else await api.extractionJobs.completed(event);
+  await expect
+    .poll(
+      async () =>
+        (await documentSets(declarationId)).some(
+          (set) => set.aiJobId === jobId && set.status === 'pending',
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe(false);
+}
+
 async function eventsOf(type: string) {
   const rows = await api.db
     .select({ envelope: outbox.envelope })
@@ -244,7 +265,7 @@ describe('reading a document (S6)', () => {
     const set = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
     const job = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
 
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', job));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', job));
 
     const [read] = await documentSets(draft.id);
     expect(read).toMatchObject({ id: set.id, status: 'ready', reason: null });
@@ -315,7 +336,7 @@ describe('reading a document (S6)', () => {
     const { draft, attachment } = await draftWithLogbook();
     await extract(draft.id, attachment.id);
     const job = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', job));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', job));
     const [read] = await documentSets(draft.id);
     const suggestion = read?.suggestions[0];
     if (!suggestion) throw new Error('no suggestion');
@@ -336,7 +357,7 @@ describe('reading a document (S6)', () => {
     const { draft, attachment } = await draftWithLogbook();
     await extract(draft.id, attachment.id);
     const job = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', job));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', job));
     const [read] = await documentSets(draft.id);
     const suggestion = read?.suggestions[0];
     if (!suggestion) throw new Error('no suggestion');
@@ -372,7 +393,7 @@ describe('reading a document (S6)', () => {
     const { draft, attachment } = await draftWithLogbook();
     await extract(draft.id, attachment.id);
     const job = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', job));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', job));
     const suggestion = (await documentSets(draft.id))[0]?.suggestions[0];
     if (!suggestion) throw new Error('no suggestion');
 
@@ -439,9 +460,7 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     await extract(draft.id, attachment.id);
     const job = api.ai.finish(api.ai.onlyJob().id, { reason: 'document-unavailable' });
 
-    await api.extractionJobs.failed(
-      jobEvent('ai.job.failed.v1', job, { reason: 'document-unavailable' }),
-    );
+    await deliver(draft.id, jobEvent('ai.job.failed.v1', job, { reason: 'document-unavailable' }));
 
     expect(await documentSets(draft.id)).toEqual([
       expect.objectContaining({
@@ -467,7 +486,7 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     await extract(draft.id, attachment.id);
     const job = api.ai.finish(api.ai.onlyJob().id, { reason: jobReason });
 
-    await api.extractionJobs.failed(jobEvent('ai.job.failed.v1', job, { reason: jobReason }));
+    await deliver(draft.id, jobEvent('ai.job.failed.v1', job, { reason: jobReason }));
 
     expect((await documentSets(draft.id))[0]).toMatchObject({ status: 'failed', reason });
   });
@@ -477,7 +496,7 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     await extract(draft.id, attachment.id);
     const job = api.ai.finish(api.ai.onlyJob().id, { output: null });
 
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', job));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', job));
 
     expect((await documentSets(draft.id))[0]).toMatchObject({
       status: 'failed',
@@ -512,19 +531,42 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     expect(await documentSets(draft.id)).toEqual([]);
   });
 
-  it('ignores the events of other tasks and of jobs it did not ask for', async () => {
+  it('settles a set only on the event of its own job, about its own declaration', async () => {
     const { draft, attachment } = await draftWithLogbook();
-    await extract(draft.id, attachment.id);
-    const job = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
+    const letter = upload('psc', ACHIENG, { fileName: 'loan-letter.pdf' });
+    api.documents.givenUploads(letter);
+    const linked = await api.request('POST', `/v1/declarations/${draft.id}/attachments`, achieng, {
+      body: { sectionKey: STATEMENT, itemId: LOAN.id, uploadId: letter.id },
+    });
+    const car = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+    const loan = (
+      await extract(draft.id, linked.json<DeclarationAttachment>().id, {
+        documentKindHint: 'bank-letter',
+      })
+    ).json<SuggestionSet>();
+    if (!car.aiJobId || !loan.aiJobId) throw new Error('no jobs');
+    const carJob = api.ai.finish(car.aiJobId, { output: logbookReading() });
+    api.ai.finish(loan.aiJobId, { output: logbookReading() });
 
+    // Another task's event, a job no reading of the declaration has, and this job named for
+    // another declaration settle nothing.
     await api.extractionJobs.completed(
-      jobEvent('ai.job.completed.v1', job, { task: 'summarize-declaration' }),
+      jobEvent('ai.job.completed.v1', carJob, { task: 'summarize-declaration' }),
     );
     await api.extractionJobs.completed(
       jobEvent('ai.job.completed.v1', { id: randomUUID(), subjectRef: `declaration:${draft.id}` }),
     );
+    await api.extractionJobs.completed(
+      jobEvent('ai.job.completed.v1', { id: carJob.id, subjectRef: `declaration:${randomUUID()}` }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    expect((await documentSets(draft.id)).map((set) => set.status)).toEqual(['pending', 'pending']);
 
-    expect((await documentSets(draft.id)).map((set) => set.status)).toEqual(['pending']);
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', carJob));
+
+    const sets = await documentSets(draft.id);
+    expect(sets.find((set) => set.id === car.id)?.status).toBe('ready');
+    expect(sets.find((set) => set.id === loan.id)?.status).toBe('pending');
   });
 });
 
@@ -558,19 +600,65 @@ describe('one reading per attachment and kind', () => {
     expect(ids.size).toBe(1);
     expect(await documentSets(draft.id)).toHaveLength(1);
     expect(await eventsOf('declaration.extraction-requested.v1')).toHaveLength(1);
+    // Only the request that reserved the reading fetched the link and asked the gateway.
+    expect(api.documents.downloads).toHaveLength(1);
+    expect(api.ai.requests).toHaveLength(1);
+  });
+
+  it('reads it into the new item type when the item was retyped while the first reading is pending', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    const first = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+    const retyped = await api.request(
+      'PUT',
+      `/v1/declarations/${draft.id}/sections/${STATEMENT}`,
+      achieng,
+      {
+        headers: { 'if-match': await etagOf(draft.id) },
+        body: {
+          ...(await statement(draft.id)).contents,
+          assets: [{ ...CAR, type: 'other' }],
+        },
+      },
+    );
+    expect(retyped.statusCode).toBe(200);
+
+    const second = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+
+    expect(second.id).not.toBe(first.id);
+    expect(second.status).toBe('pending');
+    expect(api.ai.requests.map(({ request }) => request.input.target)).toEqual([
+      { section: 'assets', itemType: 'vehicle' },
+      { section: 'assets', itemType: 'other' },
+    ]);
+  });
+
+  it('counts a reading pending past the timeout as failed, so it can be asked again', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    const stuck = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+    api.clock.advance(READING_TIMEOUT_MS + 1_000);
+
+    const again = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+
+    expect(again.id).not.toBe(stuck.id);
+    expect(again.status).toBe('pending');
+    const sets = await documentSets(draft.id);
+    expect(sets.find((set) => set.id === stuck.id)).toMatchObject({
+      status: 'failed',
+      reason: 'unavailable',
+    });
   });
 
   it('reads it again as another kind, superseding the earlier reading not decided on', async () => {
     const { draft, attachment } = await draftWithLogbook();
     await extract(draft.id, attachment.id);
     const first = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', first));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', first));
 
     await extract(draft.id, attachment.id, { documentKindHint: 'other' });
     const second = [...api.ai.jobs.values()].find((job) => job.id !== first.id);
     if (!second) throw new Error('no second job');
     api.ai.finish(second.id, { output: logbookReading({ detectedKind: 'other' }) });
-    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', second));
+    await deliver(draft.id, jobEvent('ai.job.completed.v1', second));
 
     const sets = await documentSets(draft.id);
     expect(sets.map((set) => set.suggestions.map((each) => each.status))).toEqual([
