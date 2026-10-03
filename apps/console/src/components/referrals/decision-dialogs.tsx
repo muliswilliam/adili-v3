@@ -27,7 +27,7 @@ import { useId, useState } from 'react';
 
 import { DECLINE_NOTE_MAX_LENGTH } from '../../referral/view';
 import type { ReferralGrounds } from '../../server/review/types';
-import { DialogFailure, DialogHeading, type FailureText } from '../determination/dialog-parts';
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 import { messages as t } from './messages';
 
 /** What a decision dialog names: the declarant, the grounds and how much the package holds. */
@@ -35,8 +35,8 @@ export interface ReferralSubject {
   id: string;
   declarantName: string;
   grounds: ReferralGrounds;
-  /** Items the package will list (the cover sheet's manifest). */
-  evidenceItems: number;
+  /** Items the package will list (the cover sheet's manifest); null where it is not known. */
+  evidenceItems: number | null;
 }
 
 /** What approving a referral does, in text before the approver decides (S13). */
@@ -46,7 +46,10 @@ export function referralConsequences(subject: ReferralSubject): ApprovalConseque
     {
       icon: Archive02Icon,
       title: t.approveDialog.package,
-      detail: t.approveDialog.packageDetail(subject.evidenceItems),
+      detail:
+        subject.evidenceItems === null
+          ? t.approveDialog.packageDetailUncounted
+          : t.approveDialog.packageDetail(subject.evidenceItems),
     },
     { icon: SentIcon, title: t.approveDialog.eacc, detail: t.approveDialog.eaccDetail },
   ];

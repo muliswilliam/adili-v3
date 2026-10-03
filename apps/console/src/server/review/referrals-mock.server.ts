@@ -16,6 +16,8 @@
  *   409 `not-proposed` once decided. Approval allocates the RFL reference; the package (a
  *   manifest with a SHA-256 per item) is assembled and the referral sent
  *   `MOCK_PACKAGE_DELAY_MS` later, as the service's workflow does in the background.
+ * - The approvals inbox lists the proposed ones through `referralApprovals`
+ *   (`approvals-mock.server.ts`), with their summary as the service's `ReferralApprovals` has it.
  *
  * Seeded (`MOCK_REFERRAL_IDS`): two system proposals (two missed cycles, an unanswered
  * clarification), assets referrals proposed by Peter Mwangi, by Mercy Wambui on a case the
@@ -27,6 +29,7 @@ import { SUPERVISOR } from '@adili/roles';
 
 import { ASSET_RULES } from '../../referral/view';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import type { MockApprovalSource } from './approvals-mock.server';
 import type { Assignee, CaseListItem, Clarification, Flag, Referral } from './types';
 
 /** What the referrals mock reads of a case, resolved for the caller. */
@@ -51,7 +54,7 @@ export interface ReferralCaller extends Assignee {
 export const MOCK_REFERRAL_IDS = {
   /** System: two biennial cycles unfiled past the ladder; no case. */
   twoMissedCycles: 'fe1e0000-0000-4000-8000-000000000001',
-  /** System: a clarification of Peter Mwangi's case unanswered past the stoppage window. */
+  /** System: a clarification of Mercy Wambui's case unanswered past the stoppage window. */
   unanswered: 'fe1e0000-0000-4000-8000-000000000002',
   /** Proposed by Peter Mwangi from his case: anyone else's supervisor may approve it. */
   fromPeter: 'fe1e0000-0000-4000-8000-000000000003',
@@ -122,9 +125,10 @@ function caseEvidence(found: ReferralCase, flagIds: string[], clarificationIds: 
       reference: `${reference} v${String(found.item.currentVersion)}`,
     },
     ...flags.map((flag): Evidence => ({ kind: 'flag', reference: `${reference} ${flag.ruleId}` })),
-    ...clarifications.map(
-      (each): Evidence => ({ kind: 'clarification', reference: each.reference ?? each.id }),
-    ),
+    ...clarifications.map((each): Evidence => ({
+      kind: 'clarification',
+      reference: each.reference ?? each.id,
+    })),
     ...clarifications.flatMap((each): Evidence[] =>
       each.letter && each.reference ? [{ kind: 'letter', reference: each.reference }] : [],
     ),
@@ -178,6 +182,7 @@ const CALLER: Assignee = { subject: CALLER_SUBJECT, name: CALLER_SUBJECT };
 /** The cases the seeded referrals come from (`MOCK_CASE_IDS` of the case mock). */
 export interface ReferralSeedCases {
   peters: string;
+  awaitingOld: string;
   awaitingOfRecord: string;
   awaitingFurther: string;
   returned: string;
@@ -231,7 +236,7 @@ export function resetReferralsMock(
       proposedAt: at(days),
       narrative,
       declarantName: found.item.declarantName,
-      personnelFileNumber: found.item.personnelFileNumber ?? '',
+      personnelFileNumber: found.item.personnelFileNumber,
       sources: { caseIds: [caseId], flagIds, clarificationIds },
       evidence: caseEvidence(found, flagIds, clarificationIds),
     });
@@ -262,13 +267,13 @@ export function resetReferralsMock(
       ],
     }),
     (() => {
-      const found = cases.find(seedCases.peters);
+      const found = cases.find(seedCases.awaitingOld);
       if (!found) return null;
       const overdue = found.clarifications.find((each) => each.status === 'overdue');
       const clr = overdue?.reference ?? `CLR-${issuer}-${String(year)}-0000187-S`;
       return stored({
         id: R.unanswered,
-        caseId: seedCases.peters,
+        caseId: seedCases.awaitingOld,
         cycleYear: found.item.cycleYear,
         grounds: 'unanswered-clarification',
         proposerKind: 'system',
@@ -276,9 +281,9 @@ export function resetReferralsMock(
         proposedAt: at(24),
         narrative: `${clr} unanswered; the ladder reached the end of the salary stoppage window.`,
         declarantName: found.item.declarantName,
-        personnelFileNumber: found.item.personnelFileNumber ?? '',
+        personnelFileNumber: found.item.personnelFileNumber,
         sources: {
-          caseIds: [seedCases.peters],
+          caseIds: [seedCases.awaitingOld],
           clarificationIds: overdue ? [overdue.id] : [],
           actionIds: [randomUUID(), randomUUID()],
         },
@@ -389,12 +394,14 @@ function current(found: StoredReferral): StoredReferral {
 }
 
 function view(found: StoredReferral, caller: Assignee, withEvidence: boolean): Referral {
-  const { evidence, packageDocumentId: _document, ...rest } = current(found);
-  return {
-    ...rest,
-    proposer: resolved(rest.proposer, caller),
-    ...(withEvidence ? { evidence } : {}),
+  const referral: Referral & { packageDocumentId?: string | null } = {
+    ...current(found),
+    proposer: resolved(found.proposer, caller),
   };
+  // Where the mock keeps the package's document; the contract has it under `package`.
+  delete referral.packageDocumentId;
+  if (!withEvidence) delete referral.evidence;
+  return referral;
 }
 
 /** The evidence package a document id is, for the placeholder file route. */
@@ -407,14 +414,50 @@ export function mockReferralPackageTitle(documentId: string): string | null {
   return null;
 }
 
+/** How much of the narrative the inbox card shows (services/review `NARRATIVE_EXCERPT`). */
+const NARRATIVE_EXCERPT = 200;
+
 /**
- * The proposed referrals, oldest first, with who may not approve each (the approvals inbox's
- * referral source).
+ * The approvals inbox's referral source (`approvals-mock.server.ts`): the proposed referrals
+ * with their summary as the service's `ReferralApprovals` gives it, and who may not approve
+ * each by the separation-of-duties rule. `casesFor` reads the cases for the caller.
  */
-export function pendingReferrals(): Referral[] {
-  return [...referrals.values()]
-    .filter((each) => current(each).status === 'proposed')
-    .sort((a, b) => a.proposedAt.localeCompare(b.proposedAt) || a.id.localeCompare(b.id));
+export function referralApprovals(
+  casesFor: (caller: Assignee) => ReferralCases,
+): MockApprovalSource {
+  return {
+    kind: 'referral',
+    pending: (caller) =>
+      [...referrals.values()]
+        .filter((each) => current(each).status === 'proposed')
+        .map((each) => ({
+          subjectId: each.id,
+          proposedAt: each.proposedAt,
+          proposerKind: each.proposerKind,
+          proposer: resolved(each.proposer, caller),
+          summary: {
+            grounds: each.grounds,
+            caseId: each.caseId,
+            cycleYear: each.cycleYear,
+            declarantName: each.declarantName,
+            personnelFileNumber: each.personnelFileNumber,
+            narrativeExcerpt: each.narrative.slice(0, NARRATIVE_EXCERPT),
+            evidence: {
+              flags: each.sources.flagIds.length,
+              clarifications: each.sources.clarificationIds.length,
+              obligations: each.sources.obligationIds.length,
+              actions: each.sources.actionIds.length,
+            },
+          },
+          cannotApproveReason: cannotApproveReferral(each, casesFor(caller), caller),
+        })),
+    find: (subjectId) => {
+      const found = referrals.get(subjectId);
+      if (!found) return null;
+      const { status } = current(found);
+      return { pending: status === 'proposed', status };
+    },
+  };
 }
 
 function coded(status: number, code: string, detail: string, extra: object = {}) {
@@ -591,7 +634,7 @@ async function proposeOn(
     proposedAt: new Date().toISOString(),
     narrative: narrative.trim(),
     declarantName: found.item.declarantName,
-    personnelFileNumber: found.item.personnelFileNumber ?? '',
+    personnelFileNumber: found.item.personnelFileNumber,
     sources: { caseIds: [caseId], flagIds, clarificationIds },
     evidence: caseEvidence(found, flagIds, clarificationIds),
   });

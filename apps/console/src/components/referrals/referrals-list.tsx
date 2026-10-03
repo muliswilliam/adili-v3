@@ -18,7 +18,7 @@ import { ComputerIcon, Flag02Icon, Search01Icon } from '@hugeicons/core-free-ico
 import type { ReactNode } from 'react';
 
 import type { ReferralsPage } from '../../server/referrals.server';
-import type { Referral, ReferralStatus } from '../../server/review/types';
+import type { Referral } from '../../server/review/types';
 import type { ServiceResult } from '../../server/service-call';
 import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';

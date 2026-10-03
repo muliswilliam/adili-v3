@@ -90,7 +90,10 @@ export const declineCaseReferral = createServerFn({ method: 'POST' })
     z.object({ referralId: id, note: z.string().trim().min(1).max(DECLINE_NOTE_MAX_LENGTH) }),
   )
   .handler(({ data }): Promise<ReferralResult<Referral, ReferralDecisionRefusal>> =>
-    withReviewer((client) => declineReferral(client, data.referralId, data.note), decisionSignedOut),
+    withReviewer(
+      (client) => declineReferral(client, data.referralId, data.note),
+      decisionSignedOut,
+    ),
   );
 
 /**

@@ -17,7 +17,7 @@ export const APPROVAL_KINDS = [
 ] as const satisfies readonly ApprovalKind[];
 
 /** The kinds the inbox shows so far, in tab order; the first is the default tab. */
-export const INBOX_KINDS = ['determination'] as const satisfies readonly ApprovalKind[];
+export const INBOX_KINDS = ['determination', 'referral'] as const satisfies readonly ApprovalKind[];
 
 export type InboxKind = (typeof INBOX_KINDS)[number];
 
@@ -34,14 +34,41 @@ const determinationSummary = z.object({
 });
 export type DeterminationSummary = z.infer<typeof determinationSummary>;
 
+/**
+ * A referral's summary (services/review `ReferralApprovals`): the grounds, the declarant, the
+ * narrative's start and how much evidence it rests on. `caseId` is null for two missed cycles.
+ */
+const referralSummary = z.object({
+  grounds: z.enum([
+    'undeclared-assets',
+    'unexplained-assets',
+    'two-missed-cycles',
+    'unanswered-clarification',
+  ]),
+  caseId: z.uuid().nullable(),
+  cycleYear: z.number().int(),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+  narrativeExcerpt: z.string(),
+  evidence: z.object({
+    flags: z.number().int().nonnegative(),
+    clarifications: z.number().int().nonnegative(),
+    obligations: z.number().int().nonnegative(),
+    actions: z.number().int().nonnegative(),
+  }),
+});
+export type ReferralSummary = z.infer<typeof referralSummary>;
+
 /** Each shown kind's summary, as its schema reads it. */
 export interface Summaries {
   determination: DeterminationSummary;
+  referral: ReferralSummary;
 }
 
 /** The summary schema of each kind the inbox shows. */
 export const SUMMARIES: { [K in InboxKind]: z.ZodType<Summaries[K]> } = {
   determination: determinationSummary,
+  referral: referralSummary,
 };
 
 export function isInboxKind(kind: string): kind is InboxKind {

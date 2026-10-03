@@ -45,10 +45,12 @@ function referral(overrides: Partial<Referral> = {}): Referral {
 describe('referableFlags', () => {
   it('keeps the registry and comparison flags that still count', () => {
     const flags = mockFlags('v1');
-    const kept = referableFlags([
-      ...flags,
-      { ...flags[0]!, id: 'closed', closedReason: 'superseded-by-recheck' },
-    ]).map((flag) => flag.ruleId);
+    const closed = flags.map((flag) => ({
+      ...flag,
+      id: `${flag.id}-closed`,
+      closedReason: 'superseded-by-recheck' as const,
+    }));
+    const kept = referableFlags([...flags, ...closed]).map((flag) => flag.ruleId);
     expect(kept).toEqual(['value-change-25', 'acquisition-unflagged', 'income-vs-asset-growth']);
   });
 });
@@ -71,12 +73,13 @@ describe('referableClarifications', () => {
 
 describe('referralErrors', () => {
   it('asks for the grounds, a flag and the narrative', () => {
-    expect(referralErrors({ grounds: null, flagIds: [], clarificationIds: [], narrative: ' ' }))
-      .toEqual({
-        grounds: 'Choose the grounds.',
-        evidence: 'Select at least one flag that supports the referral.',
-        narrative: 'Enter the narrative.',
-      });
+    expect(
+      referralErrors({ grounds: null, flagIds: [], clarificationIds: [], narrative: ' ' }),
+    ).toEqual({
+      grounds: 'Choose the grounds.',
+      evidence: 'Select at least one flag that supports the referral.',
+      narrative: 'Enter the narrative.',
+    });
   });
 
   it('caps the narrative at 8,000 characters', () => {

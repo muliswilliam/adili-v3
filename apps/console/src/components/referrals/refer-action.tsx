@@ -8,7 +8,7 @@ import { proposeCaseReferral } from '../../server/referrals';
 import { REFERRAL_REFUSAL_STATUS } from '../../server/referrals.server';
 import type { CaseView } from '../../server/review-case.server';
 import type { ReferralInput } from '../../server/review/types';
-import type { FailureText } from '../determination/dialog-parts';
+import type { FailureText } from '../dialog-parts';
 import { messages as t } from './messages';
 import { ReferDialog } from './refer-dialog';
 

@@ -66,8 +66,7 @@ function countsOf(counts: Record<string, number>): ApprovalCounts {
 function inboxItem(item: ApprovalItem): InboxItem | null {
   if (!isInboxKind(item.kind)) return null;
   // The one cast: an item of kind `item.kind` read by that kind's schema is that kind's member
-  // of the union, which TypeScript cannot see through the generic. With one kind it is a no-op.
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- needed from two kinds
+  // of the union, which TypeScript cannot see through the generic.
   return itemOfKind(item.kind, item) as InboxItem | null;
 }
 

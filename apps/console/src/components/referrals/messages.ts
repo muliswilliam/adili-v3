@@ -164,6 +164,7 @@ export const messages = {
     package: 'The evidence package is assembled',
     packageDetail: (items: number) =>
       `${plural(items, 'item')} with SHA-256 hashes on the cover sheet · Confidential`,
+    packageDetailUncounted: 'SHA-256 hashes on the cover sheet · Confidential',
     eacc: 'EACC receives the referral',
     eaccDetail: 'For intake and investigation',
     consequences: 'When you approve',

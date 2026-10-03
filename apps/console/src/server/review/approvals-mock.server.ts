@@ -5,8 +5,9 @@
  * caller's `cannotApproveReason`, and finds one to reassign. The inbox orders them oldest first,
  * pages them by cursor and counts them by kind and age band (across kinds); supervisors only
  * (403 `supervisor-required`). Reassigning records the supervisor an approval is pointed at;
- * 409 `not-proposed` once decided. The determinations' source is `determinations-mock.server.ts`;
- * the ladder's actions (#205) and referrals (#211) add theirs to `resetApprovalsMock`.
+ * 409 `not-proposed` once decided. The determinations' source is `determinations-mock.server.ts`,
+ * the referrals' `referrals-mock.server.ts`; the ladder's actions (#205) add theirs to
+ * `resetApprovalsMock`.
  */
 import { SUPERVISOR } from '@adili/roles';
 

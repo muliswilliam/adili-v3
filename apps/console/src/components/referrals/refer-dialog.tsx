@@ -28,7 +28,7 @@ import {
   referralErrors,
 } from '../../referral/view';
 import type { Clarification, Flag, ReferralInput } from '../../server/review/types';
-import { DialogFailure, DialogHeading, type FailureText } from '../determination/dialog-parts';
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 import { TONES } from '../review/status-badge';
 import { messages as t } from './messages';
 

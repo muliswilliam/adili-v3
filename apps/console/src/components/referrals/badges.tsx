@@ -11,13 +11,12 @@ import { type ReferralPhase, referralPhase } from '../../referral/view';
 import type { Referral, ReferralGrounds } from '../../server/review/types';
 import { messages as t } from './messages';
 
-const PHASES: Record<ReferralPhase, { variant: BadgeProps['variant']; icon: IconProps['icon'] }> =
-  {
-    proposed: { variant: 'warning', icon: Clock01Icon },
-    assembling: { variant: 'info', icon: RefreshIcon },
-    sent: { variant: 'success', icon: SentIcon },
-    declined: { variant: 'destructive', icon: Cancel01Icon },
-  };
+const PHASES: Record<ReferralPhase, { variant: BadgeProps['variant']; icon: IconProps['icon'] }> = {
+  proposed: { variant: 'warning', icon: Clock01Icon },
+  assembling: { variant: 'info', icon: RefreshIcon },
+  sent: { variant: 'success', icon: SentIcon },
+  declined: { variant: 'destructive', icon: Cancel01Icon },
+};
 
 /** Where a referral stands: awaiting approval, assembling, sent to EACC or declined. */
 export function ReferralStatusBadge({ referral }: { referral: Pick<Referral, 'status'> }) {

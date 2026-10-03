@@ -38,12 +38,7 @@ import {
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useRef, useState } from 'react';
 
-import {
-  approvalPanel,
-  obligationLabel,
-  referralPhase,
-  referralTitle,
-} from '../../referral/view';
+import { approvalPanel, obligationLabel, referralPhase, referralTitle } from '../../referral/view';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
 import {
   approveCaseReferral,
@@ -53,7 +48,7 @@ import {
 import type { ReferralDecisionRefusal, ReferralResult } from '../../server/referrals.server';
 import type { Assignee, Referral, ReferralManifestKind } from '../../server/review/types';
 import { ReassignDialog, type ReassignTarget } from '../approvals/reassign-dialog';
-import type { FailureText } from '../determination/dialog-parts';
+import type { FailureText } from '../dialog-parts';
 import { downloadFrom } from '../download';
 import { Page } from '../page';
 import { usePollWhile } from '../use-poll-while';
@@ -229,10 +224,7 @@ export function ReferralPage({
                 {referral.proposerKind === 'system' ? (
                   <Icon icon={ComputerIcon} className="size-3.5" />
                 ) : null}
-                {t.detail.proposedBy(
-                  referral.proposer?.name ?? t.systemSweep,
-                  referral.proposedAt,
-                )}
+                {t.detail.proposedBy(referral.proposer?.name ?? t.systemSweep, referral.proposedAt)}
               </span>
             }
           >
@@ -472,9 +464,7 @@ function ApprovalBody({
           </span>
           <div>
             <dt className="font-medium">{t.detail.sentToEacc}</dt>
-            <dd className="text-[13px] text-muted-foreground">
-              {formatDateTime(referral.sentAt)}
-            </dd>
+            <dd className="text-[13px] text-muted-foreground">{formatDateTime(referral.sentAt)}</dd>
           </div>
         </div>
       ) : null}
@@ -514,8 +504,10 @@ function PackageCard({
   }
   const pack = referral.package;
   const rows = pack
-    ? pack.manifest.map((each) => ({ ...each, sha256: each.sha256 as string | null }))
-    : (referral.evidence ?? []).map((each) => ({ ...each, sha256: null as string | null }));
+    ? pack.manifest.map(
+        (each): { kind: ReferralManifestKind; reference: string; sha256: string | null } => each,
+      )
+    : (referral.evidence ?? []).map((each) => ({ ...each, sha256: null }));
   return (
     <Section title={t.detail.packageTitle}>
       {pack ? null : (

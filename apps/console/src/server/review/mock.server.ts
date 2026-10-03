@@ -78,6 +78,7 @@ import {
 } from './determinations-mock.server';
 import {
   mockReferralPackageTitle,
+  referralApprovals,
   type ReferralCases,
   referralsRoute,
   resetReferralsMock,
@@ -776,6 +777,7 @@ export function resetReviewMock(
     now,
     {
       peters: C.peters,
+      awaitingOld: C.awaitingOld,
       awaitingOfRecord: C.awaitingOfRecord,
       awaitingFurther: C.awaitingFurther,
       returned: C.returned,
@@ -885,7 +887,7 @@ function seedDeterminationCases(now: number) {
   }
   // First: the determinations seed their reassignments into it.
   resetApprovalsMock({
-    sources: [determinationApprovals],
+    sources: [determinationApprovals, referralApprovals(referralCases)],
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import createClient from 'openapi-fetch';
 
+import { loadApprovals } from './approvals.server';
 import type { paths as DocumentsPaths } from './documents/api.gen';
 import {
   approveReferral,
@@ -149,9 +150,9 @@ describe('loadReferral', () => {
         proposer: null,
         package: null,
         evidence: expect.arrayContaining([
-          { kind: 'obligation', reference: expect.any(String) },
-          { kind: 'letter', reference: expect.stringMatching(/^ADM-/) },
-        ]),
+          { kind: 'obligation', reference: expect.any(String) as string },
+          { kind: 'letter', reference: expect.stringMatching(/^ADM-/) as string },
+        ]) as unknown,
       },
     });
   });
@@ -182,7 +183,7 @@ describe('approveReferral (S13)', () => {
       data: {
         status: 'approved',
         approver: SUP,
-        reference: expect.stringMatching(/^RFL-TSC-/),
+        reference: expect.stringMatching(/^RFL-TSC-/) as string,
         package: null,
         sentAt: null,
       },
@@ -191,7 +192,11 @@ describe('approveReferral (S13)', () => {
     const sent = await loadReferral(supervisor(), R.fromPeter);
     expect(sent).toMatchObject({
       ok: true,
-      data: { status: 'sent', sentAt: expect.any(String), package: { documentId: expect.any(String) } },
+      data: {
+        status: 'sent',
+        sentAt: expect.any(String) as string,
+        package: { documentId: expect.any(String) as string },
+      },
     });
   });
 
@@ -247,12 +252,55 @@ describe('referralPackageLink', () => {
     const result = await referralPackageLink(supervisor(), documents(), R.sent);
     expect(result).toMatchObject({
       ok: true,
-      data: { downloadUrl: expect.stringMatching(/^\/api\/mock-files\//) },
+      data: { downloadUrl: expect.stringMatching(/^\/api\/mock-files\//) as string },
     });
   });
 
   it('has no link before the package is assembled', async () => {
     const result = await referralPackageLink(supervisor(), documents(), R.twoMissedCycles);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('the approvals inbox’s referrals (S14)', () => {
+  it('lists proposed referrals oldest first, with the summary and canApprove for the caller', async () => {
+    const result = await loadApprovals(supervisor(ME), 'tsc', { kind: 'referral' });
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(result.data.items.map((item) => item.subjectId)).toEqual([
+      R.unanswered,
+      R.ofRecord,
+      R.fromPeter,
+      R.twoMissedCycles,
+      R.byCaller,
+    ]);
+    const byId = new Map(result.data.items.map((item) => [item.subjectId, item]));
+    expect(byId.get(R.twoMissedCycles)).toMatchObject({
+      kind: 'referral',
+      proposerKind: 'system',
+      proposer: null,
+      canApprove: true,
+      summary: {
+        grounds: 'two-missed-cycles',
+        caseId: null,
+        declarantName: 'Stephen Mwangi Karanja',
+        evidence: { flags: 0, clarifications: 0, obligations: 2, actions: 3 },
+      },
+    });
+    expect(byId.get(R.ofRecord)).toMatchObject({
+      canApprove: false,
+      cannotApproveReason: 'reviewer-of-record',
+    });
+    expect(byId.get(R.byCaller)).toMatchObject({
+      canApprove: false,
+      cannotApproveReason: 'proposer',
+      proposer: ME,
+    });
+  });
+
+  it('leaves a referral out of the inbox once it is decided', async () => {
+    await declineReferral(supervisor(), R.fromPeter, 'Declared in an amendment.');
+    const result = await loadApprovals(supervisor(), 'tsc', { kind: 'referral' });
+    expect(result.ok && result.data.items.map((item) => item.subjectId)).not.toContain(R.fromPeter);
+    expect(result.ok && result.data.counts.byKind.referral).toBe(4);
   });
 });

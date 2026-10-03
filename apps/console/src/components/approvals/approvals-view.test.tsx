@@ -69,6 +69,11 @@ vi.mock('../../server/determinations', async () => {
     ),
   };
 });
+// The referrals tab is tested in referral-approval.test.tsx.
+vi.mock('../../server/referrals', () => ({
+  approveCaseReferral: vi.fn(),
+  declineCaseReferral: vi.fn(),
+}));
 vi.mock('../../server/approvals', async () => {
   const server = await import('../../server/approvals.server');
   interface Data<T> {
@@ -128,10 +133,11 @@ beforeEach(() => {
 describe('ApprovalsView (spec 08 FE-3, S14)', () => {
   it('lists the proposals with counts by kind and age, oldest first', async () => {
     await open();
-    expect(screen.getByText('4 awaiting approval')).toBeTruthy();
+    expect(screen.getByText('9 awaiting approval')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Determinations\s*4/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Referrals\s*5/ })).toBeTruthy();
     const bands = screen.getByLabelText('Waiting');
-    expect(bands.textContent).toBe('WaitingUnder 7 days17 to 30 days2Over 30 days1');
+    expect(bands.textContent).toBe('WaitingUnder 7 days47 to 30 days4Over 30 days1');
     expect(screen.getAllByRole('article')).toHaveLength(4);
     expect(within(card('Ruth Nekesa Wafula')).getByText('Reassigned to you')).toBeTruthy();
     expect(within(card('Ruth Nekesa Wafula')).getByText('Waiting 35 days')).toBeTruthy();
