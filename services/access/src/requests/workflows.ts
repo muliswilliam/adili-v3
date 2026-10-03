@@ -119,8 +119,9 @@ export async function accessRequest(
 
   const received = await untilRecorded(input);
   const closed = stopOf(received);
-  if (closed !== null) return carriedOut(input, { outcome: stopWith(state, closed) });
   try {
+    // Inside the try: carrying out a decision read at once fails, after its retries, as any step.
+    if (closed !== null) return await carriedOut(input, { outcome: stopWith(state, closed) });
     const [result] = await Promise.all([course(input, state, received), reminders(input, state)]);
     return result;
   } catch (error) {

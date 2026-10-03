@@ -797,6 +797,41 @@ describe('AccessRequestWorkflow', () => {
       expect(dayOf(input, recorded, 'close-window')).toBe(8 + WINDOW_DAYS);
     }, 60_000);
 
+    it('held, and decided while the applicant is unverified: the decision is carried out', async () => {
+      const input = await inputReceived();
+      const stored: Stored = { state: 'held' };
+      const { mocks, recorded } = activities({
+        stored,
+        on: { 'remind-5': () => signalOwnWorkflow('decided') },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'decided' });
+      expect(recorded.calls).toEqual(['remind-5', ...GRANT_STEPS]);
+      expect(mocks.resolution).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('the notice served and the request decided, the signals arriving together: the decision is carried out', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({
+        resolutions: ['awaiting-notice'],
+        on: {
+          'remind-5': () => signalOwnWorkflow('resolved'),
+          // Recorded, consented to in writing and decided while the run still waits for it.
+          resolution: async () => {
+            await signalOwnWorkflow('notified');
+            await signalOwnWorkflow('decided');
+          },
+        },
+      });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'decided' });
+      expect(recorded.calls).toEqual(['remind-5', 'resolution', ...GRANT_STEPS]);
+    }, 60_000);
+
     it('decided before the run first read the request: the decision is carried out', async () => {
       const input = await inputReceived();
       const { mocks, recorded } = activities({ stored: { state: 'decided' } });
