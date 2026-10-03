@@ -1,30 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { errorType } from '@adili/api-kit';
-import {
-  BrokenCircuitError,
-  CircuitState,
-  TaskCancelledError,
-  timeout,
-  TimeoutStrategy,
-} from 'cockatiel';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { UnavailableReason } from '../db/schema.js';
 import { SubjectHasher } from '../verification/subject-hasher.js';
 import { VerificationResults } from '../verification/verification-results.js';
 import { type Answer, AnswerCache } from './answer-cache.js';
-import { CircuitBreakers } from './circuit-breakers.js';
-import { PauseFlags } from './pause-flags.js';
-import { RateLimiter } from './rate-limiter.js';
 import type {
   KeyedRegistryAdapter,
   LookupContext,
   LookupResult,
   RegistryAdapter,
-  UpstreamCalls,
 } from './registry-adapter.js';
+import { ResilientCalls } from './resilient-calls.js';
 import { policyOf, SYSTEM_POLICIES, type SystemPolicies } from './system-policies.js';
-import { UpstreamError } from './upstream-error.js';
 
 /** A lookup's outcome before it is recorded. */
 type Resolved<T> =
@@ -33,9 +22,9 @@ type Resolved<T> =
   | { outcome: 'unavailable'; reason: UnavailableReason };
 
 /**
- * The adapter kit: every registry lookup goes through `lookup`, whatever the registry. In order:
- * the 24-hour cache of answers (found and not found), the pause flag, the system's rate limit,
- * then the adapter's call, timed out and behind the system's circuit breaker. Every call to the
+ * The adapter kit's lookups: every registry lookup goes through `lookup`, whatever the registry.
+ * The 24-hour cache of answers (found and not found) first, then the adapter's call through
+ * `ResilientCalls` (pause flag, rate limit, timeout and circuit breaker). Every call to the
  * registry takes a rate-limit slot: the kit reserves the adapter's usual calls together before
  * the timeout starts, and the adapter charges any more (KRA's second PIN) without waiting, so
  * queueing for our own limit never counts against the timeout or the breaker. Every lookup,
@@ -47,9 +36,7 @@ export class RegistryLookups {
 
   constructor(
     private readonly cache: AnswerCache,
-    private readonly pauses: PauseFlags,
-    private readonly rateLimiter: RateLimiter,
-    private readonly breakers: CircuitBreakers,
+    private readonly calls: ResilientCalls,
     private readonly hasher: SubjectHasher,
     private readonly results: VerificationResults,
     @Inject(SYSTEM_POLICIES) private readonly policies: SystemPolicies,
@@ -103,48 +90,24 @@ export class RegistryLookups {
     subjectHash: string,
   ): Promise<Resolved<T>> {
     const { system } = adapter;
-    const policy = policyOf(this.policies, system);
-    const hit = await this.cache.get(adapter, subjectHash);
+    const { cacheTtlSeconds } = policyOf(this.policies, system);
+    // A system without a cache lifetime answers every lookup afresh.
+    const hit = cacheTtlSeconds === null ? undefined : await this.cache.get(adapter, subjectHash);
     if (hit) return fromAnswer(hit, true);
 
-    if (await this.pauses.isPaused(system)) return this.unavailable(adapter, subjectHash, 'paused');
-    // An open circuit answers at once, before the call would queue for the rate limit.
-    if (this.breakers.failsFast(system)) {
-      return this.unavailable(adapter, subjectHash, 'breaker-open');
-    }
-    if (!(await this.rateLimiter.reserve(system, policy, adapter.callsPerLookup ?? 1))) {
-      return this.unavailable(adapter, subjectHash, 'rate-limited');
-    }
-
-    const calls: UpstreamCalls = {
-      charge: (count) => this.rateLimiter.charge(system, policy, count),
-    };
-    let answer: Answer<T>;
-    try {
-      const deadline = timeout(policy.timeoutMs, TimeoutStrategy.Aggressive);
-      const data = await this.breakers
-        .of(system)
-        .execute(() => deadline.execute(({ signal }) => adapter.fetch(subject, signal, calls)));
-      answer = data === null ? { found: false } : { found: true, data };
-    } catch (error) {
-      return this.unavailable(adapter, subjectHash, unavailableReason(error));
-    }
-    await this.cache.set(adapter, subjectHash, answer, policy.cacheTtlSeconds);
-    return fromAnswer(answer, false);
-  }
-
-  private unavailable(
-    adapter: Pick<RegistryAdapter<unknown>, 'system'>,
-    subjectHash: string,
-    reason: UnavailableReason,
-  ): Resolved<never> {
-    const breaker = CircuitState[this.breakers.of(adapter.system).state];
     // Subject hash only: logs never carry national IDs or names.
-    this.logger.warn(
-      { system: adapter.system, subjectHash, reason, breaker },
-      'Registry unavailable',
+    const call = await this.calls.call(
+      system,
+      (signal, calls) => adapter.fetch(subject, signal, calls),
+      { calls: adapter.callsPerLookup ?? 1, log: { subjectHash } },
     );
-    return { outcome: 'unavailable', reason };
+    if (call.outcome === 'unavailable') return call;
+    const answer: Answer<T> =
+      call.value === null ? { found: false } : { found: true, data: call.value };
+    if (cacheTtlSeconds !== null) {
+      await this.cache.set(adapter, subjectHash, answer, cacheTtlSeconds);
+    }
+    return fromAnswer(answer, false);
   }
 
   private async record<T>(
@@ -188,11 +151,4 @@ function fromAnswer<T>(answer: Answer<T>, cached: boolean): Resolved<T> {
   return answer.found
     ? { outcome: 'found', data: answer.data, cached }
     : { outcome: 'not-found', cached };
-}
-
-function unavailableReason(error: unknown): UnavailableReason {
-  if (error instanceof BrokenCircuitError) return 'breaker-open';
-  if (error instanceof TaskCancelledError) return 'timeout';
-  if (error instanceof UpstreamError) return error.reason;
-  throw error;
 }

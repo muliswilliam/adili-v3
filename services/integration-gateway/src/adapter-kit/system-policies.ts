@@ -2,12 +2,19 @@ import type { System } from '../db/schema.js';
 
 export const SYSTEM_POLICIES = Symbol('SYSTEM_POLICIES');
 
-/** How the kit treats one registry. Configuration, so load can be tuned with the registry. */
+/**
+ * How the kit treats one system. Configuration, so load can be tuned with the system. The
+ * timeout, rate limit and queue wait are every call's (`ResilientCalls`); the cache lifetime is
+ * a lookup's (`RegistryLookups`).
+ */
 export interface SystemPolicy {
   /** Longest wait for one answer (every call the adapter makes for it). */
   timeoutMs: number;
-  /** How long an answer (found or not found) is reused. */
-  cacheTtlSeconds: number;
+  /**
+   * How long a lookup's answer (found or not found) is reused; null for a system whose calls are
+   * never answered from a cache (payroll instructions, ICMS referrals: each is an act, not a read).
+   */
+  cacheTtlSeconds: number | null;
   /** Calls per minute sent to the registry across every instance. */
   ratePerMinute: number;
   /**

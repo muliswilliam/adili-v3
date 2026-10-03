@@ -183,11 +183,12 @@ describe('HttpIntegrationGatewayClient', () => {
     });
   });
 
-  it('is unavailable while ICMS is down (503) and rejected on a 4xx', async () => {
+  it('is unavailable while ICMS is down (503) and rejected on a 400 or a 409', async () => {
     const fetch = vi
       .fn<Fetch>()
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 400 }));
+      .mockResolvedValueOnce(new Response(null, { status: 400 }))
+      .mockResolvedValueOnce(new Response(null, { status: 409 }));
     const client = new HttpIntegrationGatewayClient({
       gatewayUrl: 'http://gateway.test',
       tokens,
@@ -197,6 +198,7 @@ describe('HttpIntegrationGatewayClient', () => {
     await expect(client.submitReferral(referral)).rejects.toBeInstanceOf(
       IntegrationGatewayUnavailable,
     );
+    await expect(client.submitReferral(referral)).rejects.toBeInstanceOf(InternalApiRejected);
     await expect(client.submitReferral(referral)).rejects.toBeInstanceOf(InternalApiRejected);
   });
 

@@ -88,9 +88,12 @@ describe('HttpIntegrationGatewayClient', () => {
     }
   });
 
-  it('a refused instruction (400, e.g. no legal basis) is rejected, not retried', async () => {
+  it.each([
+    [400, 'e.g. no legal basis'],
+    [409, 'another instruction under the reference'],
+  ])('a refused instruction (%i, %s) is rejected, not retried', async (status) => {
     const fetch = vi.fn<typeof globalThis.fetch>(() =>
-      Promise.resolve(Response.json({ title: 'Bad Request' }, { status: 400 })),
+      Promise.resolve(Response.json({ title: 'Refused' }, { status })),
     );
 
     await expect(
