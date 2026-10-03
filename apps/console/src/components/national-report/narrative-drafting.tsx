@@ -505,9 +505,9 @@ function DraftingSection({ label }: { label: string }) {
         <Spinner className="size-3.5 text-ai" />
         {m.draftingSection(label)}
       </p>
-      <Skeleton className="h-2.5 w-[96%] bg-ai/15" />
-      <Skeleton className="h-2.5 w-[88%] bg-ai/15" />
-      <Skeleton className="h-2.5 w-[64%] bg-ai/15" />
+      <Skeleton className="h-2.5 w-[96%] from-ai/12 via-ai/5 to-ai/12" />
+      <Skeleton className="h-2.5 w-[88%] from-ai/12 via-ai/5 to-ai/12" />
+      <Skeleton className="h-2.5 w-[64%] from-ai/12 via-ai/5 to-ai/12" />
     </div>
   );
 }
