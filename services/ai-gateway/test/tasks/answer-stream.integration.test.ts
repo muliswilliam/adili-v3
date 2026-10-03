@@ -414,7 +414,7 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const [job] = await t.db.select().from(jobs).where(eq(jobs.idempotencyKey, key));
     expect(job).toMatchObject({
       status: 'failed',
-      reason: 'provider',
+      reason: 'cancelled',
       tokensIn: 0,
       tokensOut: 0,
       costMicros: 0,
@@ -472,7 +472,7 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
         },
         { timeout: 10_000 },
       )
-      .toEqual({ status: 'failed', reason: 'provider' });
+      .toEqual({ status: 'failed', reason: 'cancelled' });
     // The call is paid for without a final result: charged an estimate, which the budget counts.
     const [job] = await t.db.select().from(jobs).where(eq(jobs.idempotencyKey, key));
     expect(job?.tokensIn).toBeGreaterThan(0);

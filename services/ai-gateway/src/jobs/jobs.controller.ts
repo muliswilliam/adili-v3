@@ -154,8 +154,8 @@ export class JobsController {
       "`delta` {text}, the answer's prose as the model writes it, provisional until the end; then " +
       'either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that ' +
       'failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job ' +
-      'failed. A caller that disconnects mid-stream fails the job with reason `provider`, as the ' +
-      'contract has no reason for it. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the ' +
+      'failed. A caller that disconnects fails the job with reason `cancelled`. A `: ping` comment ' +
+      'is sent every 15 s. The Idempotency-Key names the job like the ' +
       "task endpoint's: a finished key returns its `final` (or `error`) only; an equal request " +
       'with a succeeded job is served from it as one `delta` and its `final`.',
   })

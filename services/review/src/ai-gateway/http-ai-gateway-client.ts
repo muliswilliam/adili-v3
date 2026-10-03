@@ -45,6 +45,7 @@ const jobSchema = z.object({
       'provider',
       'provider-unavailable',
       'timeout',
+      'cancelled',
     ])
     .nullable(),
   promptVersion: z.int(),

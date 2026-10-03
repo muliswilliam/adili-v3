@@ -131,7 +131,7 @@ export class TaskStreams {
     // Gone before the call: it would be paid for and its answer never read.
     if (signal.aborted) {
       this.logger.log({ jobId: job.id }, 'The caller left before the call; failing the job');
-      await this.executor.finish(job, { status: 'failed', reason: 'provider' }, NO_CALL);
+      await this.executor.finish(job, { status: 'failed', reason: 'cancelled' }, NO_CALL);
       return;
     }
     const provider = this.providers.get(job.provider);
@@ -194,7 +194,7 @@ export class TaskStreams {
         if (error instanceof CallerGone) {
           this.breaker.release(provider.name);
           this.logger.log({ jobId: job.id }, 'The caller left mid-stream; failing the job');
-          await this.executor.finish(job, { status: 'failed', reason: 'provider' }, estimated());
+          await this.executor.finish(job, { status: 'failed', reason: 'cancelled' }, estimated());
           return;
         }
         if (error instanceof UnknownTokenError) {
