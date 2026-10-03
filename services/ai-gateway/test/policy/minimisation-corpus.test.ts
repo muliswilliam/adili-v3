@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { minimise } from '../../src/policy/minimisation.js';
 
 /**
- * The review corpus of PR #506 (#314 review rounds 4 to 18): each probe is a document's pages, the
+ * The review corpus of PR #506 (#314 review rounds 4 to 21): each probe is a document's pages, the
  * name words that must not be sent (in any case, tokens aside) and the text that must stay as it
  * is. A change that leaks a name or hides a field again fails here.
  */
@@ -57,13 +57,66 @@ const EXPECTED_FAILURES: Readonly<Record<string, string>> = {
     '#504: a first name that is a place ("Kenya") after a shape is read as the address\'s',
   'r20-spec-41':
     '#504: a letter\'s addressee ("To:") and signature ("Yours faithfully,") are not read',
-  'r20-spec-45': '#504: "Next of Kin:" is not a label',
-  'r20-spec-46': '#504: "Nominee(s):" is not a label',
-  'r20-spec-47': '#504: "Nominee(s):" is not a label',
+  'r20-spec-45': '#504 (high priority): "Next of Kin:" is not a label',
+  'r20-spec-46': '#504 (high priority): "Nominee(s):" is not a label',
+  'r20-spec-47': '#504 (high priority): "Nominee(s):" is not a label',
   'r20-spec-48': '#504: the second party of "certify that X and Y" is not read',
   'r20-spec-84': '#504: the second party of "certify that X and Y" is not read',
   'r20-spec-91':
-    '#504: an organisation\'s words are hidden as names wherever they recur ("Stima" in "Sacco: Stima Sacco")',
+    'regression from the Applicant label (F101), #504: an organisation\'s words are hidden as names wherever they recur ("Stima" in "Sacco: Stima Sacco")',
+  'r21-std-3':
+    '#504: a parcel whose section follows a number and a slash ("12/KISUMU MUNICIPALITY BLOCK 7/412") is not found',
+  'r21-std-31': '#504: a second party on the next line after a shape, with no joiner, is not read',
+  'r21-std-36': '#504: a name after "Member Deposits KES ..." is not read',
+  'r21-spec-13':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-14':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-15':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-16':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-17':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-21':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-25':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-28':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-30':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-31':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-34':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-40':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-41':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-44':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-45':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-108':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-109':
+    '#504: an organisation or place the reader does not know, after an ID, is read as a party',
+  'r21-spec-85':
+    "#504: an organisation's words are hidden as names wherever they recur (Applicant, Beneficiary, Borrower, Shareholder labels)",
+  'r21-spec-86':
+    "#504: an organisation's words are hidden as names wherever they recur (Applicant, Beneficiary, Borrower, Shareholder labels)",
+  'r21-spec-87':
+    "#504: an organisation's words are hidden as names wherever they recur (Applicant, Beneficiary, Borrower, Shareholder labels)",
+  'r21-spec-88':
+    "#504: an organisation's words are hidden as names wherever they recur (Applicant, Beneficiary, Borrower, Shareholder labels)",
+  'r21-spec-89':
+    "#504: an organisation's words are hidden as names wherever they recur (Applicant, Beneficiary, Borrower, Shareholder labels)",
+  'r21-spec-90':
+    "#504: an organisation's words are hidden as names wherever they recur (Applicant, Beneficiary, Borrower, Shareholder labels)",
+  'r21-spec-99': '#504 (high priority): "Next of Kin:" is not a label',
+  'r21-spec-100': '#504 (high priority): "Nominee(s):" is not a label',
+  'r21-spec-101': '#504 (high priority): "Next of Kin:" is not a label',
 };
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
