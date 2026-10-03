@@ -18,6 +18,7 @@ import {
 import {
   AlertCircleIcon,
   ArrowRight01Icon,
+  BanIcon,
   BanknoteIcon,
   Clock01Icon,
   LegalHammerIcon,
@@ -100,7 +101,7 @@ export function NoticeStatusBadge({ notice }: { notice: DeclarantNotice }) {
   const variant = stopped || pastNotice ? 'destructive' : STATUS_TONES[notice.status];
   return (
     <Badge variant={variant}>
-      <Icon icon={pastNotice ? AlertCircleIcon : STATUS_ICONS[notice.status]} />
+      <Icon icon={stopped ? BanIcon : pastNotice ? AlertCircleIcon : STATUS_ICONS[notice.status]} />
       {stopped ? SALARY_STOPPED.en : STATUS_LABELS[notice.status].en}
     </Badge>
   );
