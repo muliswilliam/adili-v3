@@ -181,6 +181,7 @@ const WORKSPACE_ICONS: Record<string, IconProps['icon']> = {
   roster: UserGroupIcon,
   obligations: Calendar03Icon,
   commission: Home01Icon,
+  'open-data-preview': ChartColumnIcon,
   compliance: FileChartColumnIcon,
   audit: Search01Icon,
   support: CustomerSupportIcon,

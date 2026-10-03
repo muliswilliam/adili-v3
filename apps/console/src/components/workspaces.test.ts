@@ -257,3 +257,24 @@ describe('S16 AI policy workspace', () => {
     expect(workspaceFor([role], 'ai-policy')).toBeUndefined();
   });
 });
+
+describe('spec 09b Open data preview', () => {
+  it("opens for commission admins, on their Commission's preview", () => {
+    expect(workspaceFor(['commission-admin'], 'open-data-preview')).toMatchObject({
+      title: 'Open data preview',
+      href: '/commission/open-data',
+      readOnly: false,
+    });
+  });
+
+  it.each([
+    'reporting-officer',
+    'reviewer',
+    'supervisor',
+    'eacc-analyst',
+    'eacc-supervisor',
+    'platform-admin',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'open-data-preview')).toBeUndefined();
+  });
+});

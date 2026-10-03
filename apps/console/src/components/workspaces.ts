@@ -34,7 +34,8 @@ export type WorkspaceHref =
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
-  | '/ai-policy';
+  | '/ai-policy'
+  | '/commission/open-data';
 
 interface WorkspaceDefinition {
   id: string;
@@ -168,6 +169,16 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'commission',
     title: 'Commission administration',
     description: 'Manage users, policies and document templates for your Commission.',
+    roles: [COMMISSION_ADMIN],
+  },
+  {
+    // Commission settings: the Commission's own rows of the current open-data release (spec 09b
+    // S6). Its other staff do not see it; EACC sees every Commission's in its Open data.
+    id: 'open-data-preview',
+    title: 'Open data preview',
+    description:
+      "Your Commission's figures in the latest open-data release, with the same suppression the public sees.",
+    href: '/commission/open-data',
     roles: [COMMISSION_ADMIN],
   },
   {
