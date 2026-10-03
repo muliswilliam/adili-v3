@@ -47,7 +47,7 @@ Operations changed:
   - `targetItemType` is gone from the body. The target is the item the document is attached to: its statement list and type, sent to the gateway as `target: {section, itemType}` (see the ai-gateway below). The body is the named `ExtractAttachmentRequest`, `{documentKindHint, language}`, required, as drafted (`language` defaults to `en`).
   - `Idempotency-Key` is required.
   - Not enabled is a `not-enabled` set (202), not the draft's 409 `not-enabled`: the gateway decides by policy when the job is created and records a `blocked` job in its audit, so there is no pre-check.
-  - Problems: 400 for an unknown kind or language, an attached item with no type, or a missing Idempotency-Key. A missing body or document kind is also a 400 (validation), though the export's text does not name it. 409 `declaration-not-draft`, `upload-not-clean`, or a request with the same Idempotency-Key still running; 422 for a reused key; 503 `documents-unavailable`, `ai-gateway-unavailable` or `workflow-unavailable` (Documents, the gateway or the workflow engine could not take it), or `reading-conflict` (a concurrent request for the same reading gave it up). No reading is recorded on a 503; try again.
+  - Problems: 400 for an unknown kind or language, an attached item with no type, or a missing Idempotency-Key; 404 when the declaration or attachment is not found or not visible to the caller (another declarant, a reviewer, an attachment not on the draft). A missing body or document kind is also a 400 (validation), though the export's text does not name it. 409 `declaration-not-draft`, `upload-not-clean`, or a request with the same Idempotency-Key still running; 422 for a reused key; 503 `documents-unavailable`, `ai-gateway-unavailable` or `workflow-unavailable` (Documents, the gateway or the workflow engine could not take it), or `reading-conflict` (a concurrent request for the same reading gave it up). No reading is recorded on a 503; try again.
   - One reading is pending per attachment, kind, section and item type (declarations migrations 0022 and 0023). Asking again for the same attachment, kind, section and item type while a reading is pending, or offered and not decided on, answers that reading. A reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones.
   - A file a reading does not take (HEIC) fails at once as `document-unreadable`, without being sent (#505).
   - A `DocumentReadingWorkflow` on the declarations worker settles the set. For a live job, it is started inside the transaction that records the job (`DocumentReadingInput.transactionId`). It carries the requesting declarant's person id and subject from their token, so no tenant-wide read finds whose draft it is. A reading not settled within 15 minutes fails as `unavailable`, and the declarant can ask again.
@@ -118,6 +118,7 @@ None of these is a contract left in a draft; each needs a contract change when i
 - #504: the declarant's and household's names in `ExtractDocumentInput`, so minimisation tokenises them anywhere in a text layer.
 - #505: HEIC and oversized images in `extract-document`.
 - #515: document reading in the Commission's AI status for commission-admins (story 18).
-Not a contract change:
+
+**Not a contract change:**
 
 - #530: registry lookups start their workflow after commit, and settle on a declaration past the draft.
