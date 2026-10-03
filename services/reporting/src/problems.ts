@@ -1,9 +1,10 @@
 import { HttpStatus } from '@nestjs/common';
-import { ProblemException } from '@adili/api-kit';
+import { type ProblemCode, ProblemException } from '@adili/api-kit';
 
 /**
  * The reporting service's problem responses (RFC 9457), built one way. A problem the console
- * acts on carries a `code` extension; `errors` name the fields at fault.
+ * acts on carries a `code` from the platform registry (`PROBLEM_CODES`), so the contract's
+ * `ProblemDetails.code` lists it; `errors` name the fields at fault.
  */
 
 /** A field at fault, by its path in the request. */
@@ -15,7 +16,7 @@ export interface ProblemError {
 /** 400: the request cannot be taken as it is. */
 export function badRequest(
   detail: string,
-  options: { code?: string; errors?: readonly ProblemError[] } = {},
+  options: { code?: ProblemCode; errors?: readonly ProblemError[] } = {},
 ): ProblemException {
   const { code, errors } = options;
   return new ProblemException(
@@ -31,7 +32,7 @@ export function badRequest(
 }
 
 /** 403: the caller may not do this. */
-export function forbidden(detail: string, code?: string): ProblemException {
+export function forbidden(detail: string, code?: ProblemCode): ProblemException {
   return new ProblemException(
     { type: 'about:blank', title: 'Forbidden', status: HttpStatus.FORBIDDEN, detail },
     code === undefined ? {} : { code },
@@ -51,7 +52,7 @@ export function notFound(
 }
 
 /** 409 `code`: the resource's state refuses the change. */
-export function conflict(code: string, detail: string): ProblemException {
+export function conflict(code: ProblemCode, detail: string): ProblemException {
   return new ProblemException(
     { type: 'about:blank', title: 'Conflict', status: HttpStatus.CONFLICT, detail },
     { code },
@@ -60,7 +61,7 @@ export function conflict(code: string, detail: string): ProblemException {
 
 /** 502 `code`: an upstream system refused or failed the work; `extensions` say how. */
 export function badGateway(
-  code: string,
+  code: ProblemCode,
   detail: string,
   extensions: Record<string, unknown> = {},
 ): ProblemException {
