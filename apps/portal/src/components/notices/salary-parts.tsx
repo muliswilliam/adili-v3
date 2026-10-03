@@ -21,7 +21,11 @@ export function SalaryBanner({ standing }: { standing: SalaryStanding }) {
       <Alert variant="success" role="status">
         <Icon icon={Tick02Icon} />
         <AlertTitle>
-          {standing.kind === 'reinstated' ? S.reinstated(standing.at) : S.reinstating}
+          {standing.kind === 'reinstated'
+            ? S.reinstated(standing.at)
+            : standing.complied
+              ? S.reinstating.complied
+              : S.reinstating.ended}
         </AlertTitle>
       </Alert>
     );

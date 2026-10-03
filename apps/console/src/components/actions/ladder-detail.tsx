@@ -50,6 +50,7 @@ import {
   PayrollInstruction,
   payrollInstructionsOf,
   payrollLine,
+  reinstatedAtOf,
   SalaryStoppedBadge,
   salaryStopped,
 } from './payroll-instruction';
@@ -115,9 +116,7 @@ export function LadderDetailView({
 }: LadderDetailProps) {
   const subject = subjectOf(ladder);
   const steps = ladderSteps(ladder);
-  const reinstatedAt =
-    ladder.steps.findLast((action) => action.payrollResume?.receivedAt)?.payrollResume
-      ?.receivedAt ?? null;
+  const reinstatedAt = reinstatedAtOf(ladder.steps);
   const declined =
     ladder.status === 'declined'
       ? (ladder.steps.findLast((action) => action.status === 'declined') ?? null)

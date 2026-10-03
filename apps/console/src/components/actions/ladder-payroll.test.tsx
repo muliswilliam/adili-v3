@@ -172,6 +172,9 @@ describe('approving and declining the grave steps on the ladder (S6, S10)', () =
       within(dialog).getByText('The reporting entity is told to start disciplinary proceedings'),
     ).toBeTruthy();
     expect(within(dialog).queryByText(/must act by/)).toBeNull();
+    // No message goes out for a referral (S10): only the letter and the reporting entity's event.
+    expect(within(dialog).queryByText(/is notified/)).toBeNull();
+    expect(within(dialog).getByText(/finds it under Notices in the portal/)).toBeTruthy();
   });
 
   it('says a declined disciplinary referral leaves the salary stopped and the ladder waiting', async () => {

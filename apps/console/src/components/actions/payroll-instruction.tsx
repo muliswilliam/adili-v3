@@ -50,25 +50,43 @@ export function payrollInstructionsOf(
   return [...stop, ...resume];
 }
 
+/** When payroll acknowledged `ack`, or null while it has not (waiting or refused). */
+export function acknowledgedAt(ack: PayrollAck | null): string | null {
+  return ack !== null && payrollState(ack) === 'acknowledged' ? ack.receivedAt : null;
+}
+
 /** The stepper's payroll line for a salary stoppage, or undefined for none. */
 export function payrollLine(action: AdministrativeAction): string | undefined {
   if (action.step !== 'salary-stoppage') return undefined;
-  if (action.payrollResume?.receivedAt) {
-    return c.stepper.resumeAcknowledged(action.payrollResume.receivedAt);
+  const resumed = acknowledgedAt(action.payrollResume);
+  if (resumed) return c.stepper.resumeAcknowledged(resumed);
+  const stopped = acknowledgedAt(action.payrollStop);
+  if (stopped) return c.stepper.stopAcknowledged(stopped);
+  if (action.payrollStop !== null && payrollState(action.payrollStop) === 'failed') {
+    return c.payroll.failed;
   }
-  if (action.payrollStop?.receivedAt)
-    return c.stepper.stopAcknowledged(action.payrollStop.receivedAt);
-  return action.status === 'approved-pending-payroll' ? c.stepper.waiting : undefined;
+  return action.status === 'approved-pending-payroll' || action.payrollStop !== null
+    ? c.stepper.waiting
+    : undefined;
 }
 
 /** A salary stoppage payroll acknowledged and has not reinstated: the salary is stopped now. */
 export function salaryStopped(action: AdministrativeAction): boolean {
   return (
     action.step === 'salary-stoppage' &&
-    action.payrollStop?.receivedAt != null &&
-    action.payrollResume === null &&
+    acknowledgedAt(action.payrollStop) !== null &&
+    acknowledgedAt(action.payrollResume) === null &&
     (action.status === 'issued' || action.status === 'responded')
   );
+}
+
+/** When payroll acknowledged the ladder's latest reinstatement, or null. */
+export function reinstatedAtOf(steps: readonly AdministrativeAction[]): string | null {
+  for (const step of [...steps].reverse()) {
+    const at = acknowledgedAt(step.payrollResume);
+    if (at) return at;
+  }
+  return null;
 }
 
 /** "Salary stopped", in red, for a stoppage in force (the prototype's step badge). */

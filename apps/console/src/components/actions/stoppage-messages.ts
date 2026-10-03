@@ -38,6 +38,8 @@ export const stoppageCopy = {
     `Salary reinstatement acknowledged ${formatDate(date)}.`,
   before: {
     title: 'What came before',
+    earlier: 'Earlier steps',
+    attachments: (n: number) => `${String(n)} ${n === 1 ? 'document' : 'documents'}`,
     firstStep: 'No earlier steps. This is the first step of the ladder.',
     issued: (date: string) => `Issued ${formatDate(date)}`,
     approvedBy: (name: string) => `approved by ${name}`,
@@ -61,7 +63,11 @@ export const stoppageCopy = {
     letterDetail: 'Restricted, with a QR code',
     disciplinaryLetter: 'A disciplinary referral letter is issued to the declarant',
     reportingEntity: 'The reporting entity is told to start disciplinary proceedings',
-    reportingEntityDetail: 'The ladder then waits for compliance',
+    // No message goes out for a referral (spec 08 S10): the declarant finds the letter in the portal.
+    disciplinaryLetterDetail:
+      'Restricted, with a QR code; the declarant finds it under Notices in the portal',
+    reportingEntityDetail:
+      'Recorded as an event for the reporting entity; the ladder then waits for compliance',
     reinstatedDetail: 'Salary is reinstated automatically when they comply',
     read: 'I have read the notice, the warning and any responses',
     confirmStoppage: 'Approve and stop salary',
@@ -69,7 +75,6 @@ export const stoppageCopy = {
   approvedDetail: {
     'salary-stoppage':
       'The stop-salary instruction goes to payroll; the letter is issued once payroll acknowledges it.',
-    'disciplinary-referral':
-      'The letter is issued, the declarant notified and the reporting entity told to act.',
+    'disciplinary-referral': 'The letter is issued and the reporting entity told to act.',
   } as Partial<Record<ActionStep, string>>,
 } as const;

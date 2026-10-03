@@ -139,7 +139,7 @@ describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
     expect(within(notice).getByText('Notice to comply')).toBeTruthy();
     expect(within(notice).getByText('Initial declaration')).toBeTruthy();
     expect(within(notice).getByText('File 20260318')).toBeTruthy();
-    expect(within(notice).getByText('First step: nothing was issued before it.')).toBeTruthy();
+    expect(within(notice).getByText('No earlier steps. This is the first step of the ladder.')).toBeTruthy();
     expect(
       within(notice)
         .getByRole('link', { name: /Open ladder/ })
@@ -150,10 +150,11 @@ describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
   it('shows the steps before a warning, and why a reviewer of record cannot approve (S9)', async () => {
     await open();
     const warning = card('Lydia Moraa Nyakundi');
-    expect(
-      within(warning).getByText(/^Notice to comply ADM-TSC-2026-\d{7}-[0-9A-Z], issued/),
-    ).toBeTruthy();
-    expect(within(warning).getByText('No response from the declarant.')).toBeTruthy();
+    const earlier = within(warning).getByRole('list', { name: 'Earlier steps' });
+    expect(within(earlier).getByText('Notice to comply')).toBeTruthy();
+    expect(within(earlier).getByText(/^ADM-TSC-2026-\d{7}-[0-9A-Z]$/)).toBeTruthy();
+    expect(within(earlier).getByText(/^Issued /)).toBeTruthy();
+    expect(within(earlier).getByText('No response from the declarant')).toBeTruthy();
     expect(within(warning).queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(
       within(warning).getByRole('button', { name: 'Reassign to another supervisor' }),

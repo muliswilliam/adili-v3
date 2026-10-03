@@ -28,10 +28,8 @@ import {
   File01Icon,
   HashtagIcon,
   InformationCircleIcon,
-  Mail01Icon,
   Notification01Icon,
   RefreshIcon,
-  UserWarning01Icon,
 } from '@hugeicons/core-free-icons';
 import { useId, useState } from 'react';
 
@@ -40,7 +38,7 @@ import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts'
 import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
 import type { ActionStep } from '../../server/actions.server';
 import { en as m } from './messages';
-import { type EarlierSteps, WhatCameBefore } from './prior-steps';
+import { type EarlierSteps, STEP_ICONS, WhatCameBefore } from './prior-steps';
 import { stoppageCopy as stoppage } from './stoppage-messages';
 
 /**
@@ -98,17 +96,12 @@ export function consequencesOf(
   if (step === 'disciplinary-referral') {
     return [
       { icon: HashtagIcon, title: m.consequences.reference },
-      { icon: File01Icon, title: a.disciplinaryLetter, detail: a.letterDetail },
+      { icon: File01Icon, title: a.disciplinaryLetter, detail: a.disciplinaryLetterDetail },
       {
         icon: Building03Icon,
         title: a.reportingEntity,
         detail: a.reportingEntityDetail,
         grave: true,
-      },
-      {
-        icon: Notification01Icon,
-        title: m.consequences.notified(declarantName),
-        detail: m.consequences.notifiedDetail,
       },
     ];
   }
@@ -185,13 +178,7 @@ export function ApproveStepDialog({
     >
       <DialogContent busy={state.busy} className={earlier ? 'sm:max-w-[680px]' : undefined}>
         <DialogHeading
-          icon={
-            salary
-              ? BanknoteIcon
-              : step === 'disciplinary-referral'
-                ? UserWarning01Icon
-                : Mail01Icon
-          }
+          icon={salary ? BanknoteIcon : STEP_ICONS[step]}
           tone={isGraveStep(step) ? 'destructive' : undefined}
           title={m.approveTitle(step)}
           description={`${declarantName} · ${subjectTitle}`}

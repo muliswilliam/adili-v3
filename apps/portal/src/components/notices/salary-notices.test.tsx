@@ -100,6 +100,25 @@ describe('a salary stoppage notice (S17, US 20)', () => {
     expect(screen.getAllByText('Salary stopped')).toHaveLength(1);
   });
 
+  it('does not say the declarant complied when the ladder ended without it', async () => {
+    const all = (await notices('reinstating')).map((each) =>
+      each.actionId === IDS.stoppage ? { ...each, status: 'cancelled' as const } : each,
+    );
+    const notice = all.find((each) => each.actionId === IDS.stoppage);
+    if (!notice) throw new Error('no stoppage');
+    render(
+      <ToastProvider>
+        <NoticePage notice={notice} all={all} now={NOW} />
+      </ToastProvider>,
+    );
+    expect(
+      screen.getByText(
+        'This notice has closed. Your salary reinstatement is being sent to payroll. We will SMS you when payroll confirms it.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/You have complied/)).toBeNull();
+  });
+
   it('says when payroll confirmed the reinstatement (S7)', async () => {
     await page('reinstated', IDS.stoppage);
     const confirmed = formatDate(new Date(NOW_MS - DAY).toISOString());

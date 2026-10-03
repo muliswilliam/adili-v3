@@ -8,13 +8,16 @@ import { isClosed } from './view';
  * - `stopped`: payroll stopped the salary and the ladder is open.
  * - `disciplinary`: the Commission asked the reporting entity to start disciplinary proceedings; the
  *   salary stays stopped.
- * - `reinstating`: the declarant complied; the reinstatement is on its way to payroll.
- * - `reinstated`: payroll confirmed the reinstatement (`at`).
+ * - `reinstating`: the ladder closed, the reinstatement on its way to payroll. `complied`: the
+ *   declarant complied; otherwise the ladder ended without it (the obligation cancelled or the
+ *   clarification withdrawn: the notice is `cancelled`).
+ * - `reinstated`: payroll confirmed the reinstatement (`at`). The notice no longer says why the
+ *   ladder closed, so neither does the copy.
  */
 export type SalaryStanding =
   | { kind: 'stopped'; notice: DeclarantNotice }
   | { kind: 'disciplinary'; notice: DeclarantNotice }
-  | { kind: 'reinstating'; notice: DeclarantNotice }
+  | { kind: 'reinstating'; notice: DeclarantNotice; complied: boolean }
   | { kind: 'reinstated'; notice: DeclarantNotice; at: string };
 
 /** The salary's standing a notice tells, or null for a notice to comply or a warning. */
@@ -26,7 +29,9 @@ export function salaryStandingOf(notice: DeclarantNotice): SalaryStanding | null
   if (notice.salaryReinstatedAt !== null) {
     return { kind: 'reinstated', notice, at: notice.salaryReinstatedAt };
   }
-  return isClosed(notice) ? { kind: 'reinstating', notice } : { kind: 'stopped', notice };
+  return isClosed(notice)
+    ? { kind: 'reinstating', notice, complied: notice.status === 'complied' }
+    : { kind: 'stopped', notice };
 }
 
 /**

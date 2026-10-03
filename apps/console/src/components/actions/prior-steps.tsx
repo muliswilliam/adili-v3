@@ -15,7 +15,8 @@ import { stepLabel } from './messages';
 import { PayrollInstruction, payrollInstructionsOf } from './payroll-instruction';
 import { stoppageCopy as c } from './stoppage-messages';
 
-const STEP_ICONS: Record<ActionStep, IconProps['icon']> = {
+/** Each step's icon, on the inbox card, its earlier steps and the approve dialog. */
+export const STEP_ICONS: Record<ActionStep, IconProps['icon']> = {
   'notice-to-comply': Notification01Icon,
   warning: AlertCircleIcon,
   'salary-stoppage': BanIcon,
@@ -55,7 +56,7 @@ export function WhatCameBefore({ earlier }: { earlier: EarlierSteps }) {
       <h3 className="text-[14.5px] font-semibold">{c.before.title}</h3>
       <div className="rounded-lg bg-muted px-3.5 py-3">
         {earlier.state === 'ok' ? (
-          <PriorSteps steps={earlier.steps} />
+          <PriorSteps steps={earlier.steps.map(priorStepOf)} label={c.before.title} />
         ) : earlier.state === 'failed' ? (
           <div role="alert" className="grid justify-items-start gap-2 text-sm">
             <p className="flex items-center gap-1.5 text-destructive">
@@ -78,12 +79,63 @@ export function WhatCameBefore({ earlier }: { earlier: EarlierSteps }) {
   );
 }
 
-function PriorSteps({ steps }: { steps: readonly AdministrativeAction[] }) {
+/**
+ * One earlier step as `PriorSteps` shows it: from the ladder in full (the approve dialog) or from
+ * the inbox item's summary (the card, with a response excerpt and how many files came with it).
+ */
+export interface PriorStepView {
+  id: string;
+  step: ActionStep;
+  reference: string | null;
+  /** "Issued 29 Jul 2026 · approved by … · act by …", or null. */
+  line: string | null;
+  response: { at: string; text: string; files: ReactNode[] } | null;
+  /** The salary stoppage's payroll instructions; none from a summary. */
+  action: AdministrativeAction | null;
+}
+
+/** A ladder's step, read in full. */
+export function priorStepOf(step: AdministrativeAction): PriorStepView {
+  return {
+    id: step.id,
+    step: step.step,
+    reference: step.reference,
+    line: issuedLine(step),
+    response: step.response
+      ? {
+          at: step.response.submittedAt,
+          text: step.response.text,
+          files: step.response.attachments.map((file) => (
+            <Badge key={file.uploadId}>
+              <Icon icon={Attachment01Icon} />
+              {file.fileName}
+            </Badge>
+          )),
+        }
+      : null,
+    action: step,
+  };
+}
+
+/**
+ * The steps before the one to approve: each with its reference and when it was issued, the
+ * salary stoppage's payroll instructions, and the declarant's response (or that there was none,
+ * for a notice or a warning). `clamp` shortens responses to three lines (the inbox card).
+ */
+export function PriorSteps({
+  steps,
+  label,
+  clamp = false,
+}: {
+  steps: readonly PriorStepView[];
+  label: string;
+  clamp?: boolean;
+}) {
   if (steps.length === 0) {
     return <p className="text-[13px] text-muted-foreground">{c.before.firstStep}</p>;
   }
   return (
-    <ul aria-label={c.before.title} className="grid divide-y divide-dashed divide-border">
+    <ul aria-label={label} className="grid divide-y divide-dashed divide-border">
       {steps.map((step) => (
         <li
           key={step.id}
@@ -105,19 +157,16 @@ function PriorSteps({ steps }: { steps: readonly AdministrativeAction[] }) {
                   </span>
                 ) : null}
               </div>
-              <IssuedLine step={step} />
+              {step.line ? <p className="text-[13px] text-muted-foreground">{step.line}</p> : null}
             </div>
-            {payrollInstructionsOf(step).map((instruction) => (
-              <PayrollInstruction key={instruction.action} {...instruction} />
-            ))}
+            {step.action
+              ? payrollInstructionsOf(step.action).map((instruction) => (
+                  <PayrollInstruction key={instruction.action} {...instruction} />
+                ))
+              : null}
             {step.response ? (
-              <Response at={step.response.submittedAt} text={step.response.text}>
-                {step.response.attachments.map((file) => (
-                  <Badge key={file.uploadId}>
-                    <Icon icon={Attachment01Icon} />
-                    {file.fileName}
-                  </Badge>
-                ))}
+              <Response at={step.response.at} text={step.response.text} clamp={clamp}>
+                {step.response.files.length > 0 ? step.response.files : null}
               </Response>
             ) : takesResponse(step.step) ? (
               <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
@@ -133,7 +182,7 @@ function PriorSteps({ steps }: { steps: readonly AdministrativeAction[] }) {
 }
 
 /** "Issued 29 Jul 2026 · approved by Faith Achieng · act by 12 Aug 2026". */
-function IssuedLine({ step }: { step: AdministrativeAction }) {
+function issuedLine(step: AdministrativeAction): string | null {
   if (!step.issuedAt) return null;
   const parts = [c.before.issued(step.issuedAt)];
   if (step.approver) parts.push(c.before.approvedBy(step.approver.name));
@@ -144,13 +193,23 @@ function IssuedLine({ step }: { step: AdministrativeAction }) {
         : c.before.actBy(step.windowEndsAt),
     );
   }
-  return <p className="text-[13px] text-muted-foreground">{parts.join(' · ')}</p>;
+  return parts.join(' · ');
 }
 
-function Response({ at, text, children }: { at: string; text: string; children?: ReactNode }) {
+function Response({
+  at,
+  text,
+  clamp,
+  children,
+}: {
+  at: string;
+  text: string;
+  clamp: boolean;
+  children?: ReactNode;
+}) {
   return (
     <blockquote className="grid gap-1.5 rounded-md border-l-[3px] border-border bg-card px-3 py-2 text-[13.5px] text-secondary-foreground">
-      <p className="whitespace-pre-line">
+      <p className={clamp ? 'line-clamp-3' : 'whitespace-pre-line'}>
         <span className="font-semibold text-foreground">{c.before.response(at)}</span> {text}
       </p>
       {children ? <div className="flex flex-wrap gap-1.5">{children}</div> : null}

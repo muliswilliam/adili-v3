@@ -31,7 +31,6 @@ import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
-import { envSchema } from '../env.server';
 import {
   type MockSalary,
   noticeInStore,
@@ -350,16 +349,20 @@ export function mockNotice(actionId: string) {
   return noticeInStore(actionId);
 }
 
-function ensureSeeded() {
-  if (clarifications.size === 0) {
-    resetReviewMock(Date.now(), {
-      salary: envSchema.shape.REVIEW_MOCK_SALARY.parse(process.env.REVIEW_MOCK_SALARY),
-    });
-  }
+/** Seeds the fixtures on first use; `salary` is the dev server's REVIEW_MOCK_SALARY. */
+function ensureSeeded(salary: MockSalary = 'none') {
+  if (clarifications.size === 0) resetReviewMock(Date.now(), { salary });
 }
 
-export function mockReviewFetch(request: Request): Promise<Response> {
-  ensureSeeded();
+/**
+ * Answers a review client request. The client passes its environment's REVIEW_MOCK_SALARY
+ * (`client.server.ts`); tests seed with `resetReviewMock`.
+ */
+export function mockReviewFetch(
+  request: Request,
+  options: { salary?: MockSalary } = {},
+): Promise<Response> {
+  ensureSeeded(options.salary);
   return route(request);
 }
 
