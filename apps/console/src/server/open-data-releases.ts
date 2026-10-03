@@ -3,7 +3,9 @@ import { z } from 'zod';
 
 import { withViewerClient } from './as-viewer.server';
 import { env } from './env.server';
+import { financialYearOf } from '../components/form-m/financial-year';
 import { financialYear } from './form-m';
+import { reportingToday } from './reporting/today.server';
 import {
   buildOpenDataSnapshot,
   listOpenDataReleases,
@@ -38,6 +40,8 @@ function publicLinks(): PublicLinks {
 export interface ReleasesPage {
   releases: ReleasesResult<OpenDataRelease[]>;
   links: PublicLinks;
+  /** The year Build snapshot builds: today's, the mock's day with the reporting mock. */
+  fy: number;
 }
 
 export interface ReleasePage {
@@ -49,6 +53,7 @@ export const getOpenDataReleasesPage = createServerFn({ method: 'GET' }).handler
   async (): Promise<ReleasesPage> => ({
     releases: await withViewerClient(reportingClient, listOpenDataReleases),
     links: publicLinks(),
+    fy: financialYearOf(await reportingToday()),
   }),
 );
 

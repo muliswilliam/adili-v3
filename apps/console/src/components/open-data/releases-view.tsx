@@ -66,9 +66,10 @@ export interface ReleasesViewProps {
 
 type BuildState =
   | { kind: 'idle' }
-  | { kind: 'confirming'; key: string }
-  | { kind: 'building'; key: string }
-  | { kind: 'failed'; key: string; message: string };
+  /** The year the dialog asks to build, so the build is the one confirmed. */
+  | { kind: 'confirming'; fy: number }
+  | { kind: 'building' }
+  | { kind: 'failed'; fy: number; message: string };
 
 /**
  * EACC's open-data releases (spec 09b FE-3, #350): every release with its year, kind, version,
@@ -95,11 +96,12 @@ export function ReleasesView(props: ReleasesViewProps) {
   }
   const building = build.kind === 'building';
   const startBuild = () => {
-    setBuild({ kind: 'confirming', key: keyFor(props.fy) });
+    setBuild({ kind: 'confirming', fy: props.fy });
   };
-  const runBuild = async (key: string) => {
-    const { fy } = props;
-    setBuild({ kind: 'building', key });
+  /** Builds `fy`, under the year's pending key if a build of it may have been recorded. */
+  const runBuild = async (fy: number) => {
+    const key = keyFor(fy);
+    setBuild({ kind: 'building' });
     const built = await props.build(fy, key);
     if (built.ok) {
       setPending(null);
@@ -113,10 +115,9 @@ export function ReleasesView(props: ReleasesViewProps) {
     }
     // A refusal (4xx) wrote nothing, so a retry is a new build. A build that got no answer may
     // have been recorded, and one still running (`idempotency-key-in-use`) will be: the retry, or
-    // the next Build snapshot, keeps its key and so replays it.
-    const retryKey = mayBeRecorded(built) ? key : crypto.randomUUID();
+    // the next Build snapshot of that year, keeps its key and so replays it.
     setPending(mayBeRecorded(built) ? { key, fy } : null);
-    setBuild({ kind: 'failed', key: retryKey, message: buildFailure(built) });
+    setBuild({ kind: 'failed', fy, message: buildFailure(built) });
   };
   return (
     <Page>
@@ -144,7 +145,7 @@ export function ReleasesView(props: ReleasesViewProps) {
         <BuildStopped
           message={build.message}
           busy={false}
-          onRetry={() => void runBuild(pending ? keyFor(props.fy) : build.key)}
+          onRetry={() => void runBuild(build.fy)}
           onDismiss={() => {
             setBuild({ kind: 'idle' });
           }}
@@ -178,7 +179,7 @@ export function ReleasesView(props: ReleasesViewProps) {
           if (!open) setBuild({ kind: 'idle' });
         }}
         onBuild={() => {
-          if (build.kind === 'confirming') void runBuild(build.key);
+          if (build.kind === 'confirming') void runBuild(build.fy);
         }}
       />
     </Page>
