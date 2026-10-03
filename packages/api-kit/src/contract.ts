@@ -74,18 +74,27 @@ interface ParameterRef {
   $ref?: string;
 }
 
+/** A reference to one of the document's own shared parameters. */
+const PARAMETER_REF = /^#\/components\/parameters\/([^/]+)$/;
+
 /**
  * Each operation's parameters documented more than once, as `METHOD /path: location names`.
  * An operation's parameters are its own plus its path's (`$ref`s resolved), where an operation's
  * parameter of the same name and location replaces its path's, as OpenAPI defines. Header names
- * are compared without case; query, path and cookie names with it.
+ * are compared without case; query, path and cookie names with it. A reference that is not to
+ * one of the document's own `components.parameters` is an error.
  */
 export function repeatedParameters(document: OpenAPIObject): string[] {
   const shared = (document.components?.parameters ?? {}) as Record<string, ParameterRef>;
-  const resolve = (parameter: ParameterRef): ParameterRef =>
-    parameter.$ref === undefined
-      ? parameter
-      : (shared[parameter.$ref.replace('#/components/parameters/', '')] ?? parameter);
+  const resolve = (parameter: ParameterRef): ParameterRef => {
+    if (parameter.$ref === undefined) return parameter;
+    const name = PARAMETER_REF.exec(parameter.$ref)?.[1];
+    const found = name === undefined ? undefined : shared[name];
+    if (found === undefined) {
+      throw new Error(`Unresolved parameter reference: ${parameter.$ref}`);
+    }
+    return found;
+  };
   const exact = ({ name, in: location }: ParameterRef) => `${location ?? ''}:${name ?? ''}`;
 
   const repeated: string[] = [];
