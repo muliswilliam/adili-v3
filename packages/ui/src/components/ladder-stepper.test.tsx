@@ -54,8 +54,8 @@ describe('LadderStepper', () => {
     const [notice, warning, stoppage] = items().getAllByRole('listitem');
     expect(notice?.textContent).toContain('Status: Done.');
     expect(warning?.textContent).toContain('Status: In progress.');
-    // A step with no detail shows its status as its line, so it is not said twice.
-    expect(stoppage?.textContent).toBe('3Salary stoppageNot started');
+    // A step with no detail shows its status word as its line, read once.
+    expect(stoppage?.textContent).toBe('3Salary stoppageStatus: Not started.');
   });
 
   it('hides the number circle from screen readers', () => {

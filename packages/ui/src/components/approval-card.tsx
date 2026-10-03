@@ -4,6 +4,7 @@ import { type ComponentProps, type ReactNode, useId } from 'react';
 import { daysBetween, plural } from '../lib/calendar-days';
 import { cn } from '../lib/cn';
 import { useToday } from '../lib/use-today';
+import { Alert, AlertDescription } from './alert';
 import { Badge, type BadgeProps } from './badge';
 import { Icon, type IconProps } from './icon';
 import { IconTile } from './icon-tile';
@@ -26,7 +27,10 @@ export interface ApprovalCardMessages {
   proposedBy: string;
   /** Defaults to "Today" / "Waiting 1 day" / "Waiting {n} days". */
   waiting: (days: number) => string;
+  /** Why the officer cannot approve, in semibold. */
   cannotApprove: Record<CannotApproveReason, string>;
+  /** After the `proposer` reason. Defaults to "Someone else must approve it.". */
+  proposerNext: string;
   /** The heading of the consequences list. Defaults to "When you approve". */
   consequences: string;
 }
@@ -35,10 +39,11 @@ export const APPROVAL_CARD_MESSAGES: ApprovalCardMessages = {
   proposedBy: 'Proposed by',
   waiting: (days) => (days <= 0 ? 'Today' : `Waiting ${plural(days, 'day')}`),
   cannotApprove: {
-    proposer: 'You proposed this. Another officer must approve it.',
+    proposer: 'You proposed this.',
     'reviewer-of-record': 'You cannot approve this: you reviewed this case.',
     role: 'Only a supervisor can approve this.',
   },
+  proposerNext: 'Someone else must approve it.',
   consequences: 'When you approve',
 };
 
@@ -81,7 +86,7 @@ export function ApprovalConsequences({
             // The lines are fixed for an item and never reordered.
             key={index}
             data-grave={item.grave ? 'true' : undefined}
-            className="grid grid-cols-[30px_minmax(0,1fr)] items-start gap-3 text-sm"
+            className="grid grid-cols-[30px_minmax(0,1fr)] items-start gap-3 text-[14.5px]"
           >
             <IconTile tone={item.grave ? 'destructive' : 'default'} size="xs">
               <Icon icon={item.icon} />
@@ -99,7 +104,7 @@ export function ApprovalConsequences({
   );
 }
 
-const WAITING_VARIANT = (days: number): NonNullable<BadgeProps['variant']> =>
+const waitingVariant = (days: number): NonNullable<BadgeProps['variant']> =>
   days > 30 ? 'destructive' : days >= 7 ? 'warning' : 'default';
 
 export type ApprovalCardProps = Omit<ComponentProps<'article'>, 'title' | 'children'> & {
@@ -206,11 +211,8 @@ export function ApprovalCard({
           <Icon icon={icon} />
         </IconTile>
         <div className="grid min-w-0 flex-1 basis-[calc(100%-52px)] gap-1 sm:basis-0">
-          <h3
-            id={titleId}
-            className="flex flex-wrap items-center gap-2 text-[15.5px] font-semibold tracking-[-0.01em]"
-          >
-            {title}
+          <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-semibold tracking-[-0.01em]">
+            <span id={titleId}>{title}</span>
             {badge}
           </h3>
           {meta.length > 0 ? (
@@ -223,7 +225,7 @@ export function ApprovalCard({
           ) : null}
         </div>
         {waited === null ? null : (
-          <Badge variant={WAITING_VARIANT(waited)} className="max-sm:ml-[52px] sm:shrink-0">
+          <Badge variant={waitingVariant(waited)} className="max-sm:ml-[52px] sm:shrink-0">
             <Icon icon={Clock01Icon} strokeWidth={2.2} />
             {copy.waiting(waited)}
           </Badge>
@@ -243,13 +245,23 @@ export function ApprovalCard({
         <ApprovalConsequences items={consequences} heading={copy.consequences} />
       )}
       {blocked ? (
-        <div
+        <Alert
           role="note"
-          className="flex items-start gap-2.5 rounded-lg bg-warning-subtle px-3 py-2.5 text-sm font-semibold text-warning-subtle-foreground"
+          variant="warning"
+          className="px-3 py-2.5 [&>svg]:top-[13px] [&>svg]:left-3 [&>svg]:size-4 [&>svg~*]:pl-[26px]"
         >
-          <Icon icon={LockIcon} className="mt-0.5" />
-          <span>{cannotApproveText ?? copy.cannotApprove[cannotApproveReason]}</span>
-        </div>
+          <Icon icon={LockIcon} />
+          <AlertDescription>
+            {cannotApproveText === undefined ? (
+              <>
+                <b className="font-semibold">{copy.cannotApprove[cannotApproveReason]}</b>
+                {cannotApproveReason === 'proposer' ? ` ${copy.proposerNext}` : null}
+              </>
+            ) : (
+              <b className="font-semibold">{cannotApproveText}</b>
+            )}
+          </AlertDescription>
+        </Alert>
       ) : null}
       {(blocked ? undefined : decision) === undefined &&
       actions === undefined &&

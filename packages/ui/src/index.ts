@@ -43,6 +43,7 @@ export {
   BATCH_SELECTOR_MESSAGES,
   type BatchPhase,
   type BatchProgress,
+  type BatchReferences,
   BatchSelector,
   type BatchSelectorMessages,
   type BatchSelectorProps,

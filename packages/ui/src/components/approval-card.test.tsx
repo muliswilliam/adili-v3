@@ -47,10 +47,11 @@ describe('ApprovalCard', () => {
     expect(card.textContent).toContain('Proposed by Kevin Omondi');
   });
 
-  it('puts a badge beside the title', () => {
+  it('puts a badge beside the title, leaving it out of the card name', () => {
     renderCard({ badge: <span>Supervisor only</span> });
 
     expect(within(screen.getByRole('heading')).getByText('Supervisor only')).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Jane Wanjiru' })).toBeTruthy();
   });
 
   it('says how long the proposal has waited, amber from 7 days and red past 30', () => {
@@ -115,7 +116,7 @@ describe('ApprovalCard', () => {
 
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.getByRole('note').textContent).toBe(
-      'You proposed this. Another officer must approve it.',
+      'You proposed this. Someone else must approve it.',
     );
     expect(screen.getByRole('button', { name: 'Reassign' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open case' })).toBeTruthy();

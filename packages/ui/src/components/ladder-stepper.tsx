@@ -50,8 +50,6 @@ export interface LadderStepperStep {
 }
 
 export interface LadderStepperMessages {
-  /** The ladder's name for screen readers. Defaults to "Administrative action ladder". */
-  label: string;
   /** Read before a step's status word. Defaults to "Status". */
   statusPrefix: string;
   statuses: Record<LadderStepStatus, string>;
@@ -60,7 +58,6 @@ export interface LadderStepperMessages {
 }
 
 export const LADDER_STEPPER_MESSAGES: LadderStepperMessages = {
-  label: 'Administrative action ladder',
   statusPrefix: 'Status',
   statuses: {
     upcoming: 'Not started',
@@ -116,7 +113,7 @@ export type LadderStepperProps = Omit<ComponentProps<'ol'>, 'children'> & {
  */
 export function LadderStepper({
   steps,
-  label,
+  label = 'Administrative action ladder',
   messages,
   className,
   style,
@@ -130,7 +127,7 @@ export function LadderStepper({
   return (
     <div className="@container">
       <ol
-        aria-label={label ?? copy.label}
+        aria-label={label}
         className={cn(
           'grid grid-cols-1 @min-[700px]:grid-cols-[repeat(var(--ladder-steps),minmax(0,1fr))]',
           className,
@@ -185,14 +182,20 @@ export function LadderStepper({
               >
                 {step.label}
               </span>
-              {step.detail === undefined ? (
-                <span className="text-[12.5px] leading-[1.35] text-muted-foreground">{word}</span>
-              ) : (
-                <span className="text-[12.5px] leading-[1.35] text-muted-foreground">
-                  <span className="sr-only">{`${copy.statusPrefix}: ${word}. `}</span>
-                  {step.detail}
-                </span>
-              )}
+              <span className="text-[12.5px] leading-[1.35] text-muted-foreground">
+                {step.detail === undefined ? (
+                  <>
+                    <span className="sr-only">{`${copy.statusPrefix}: `}</span>
+                    {word}
+                    <span className="sr-only">.</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="sr-only">{`${copy.statusPrefix}: ${word}. `}</span>
+                    {step.detail}
+                  </>
+                )}
+              </span>
               {step.windowEndsAt === undefined ? null : (
                 <span className="text-[12.5px] leading-[1.35] text-muted-foreground">
                   {copy.windowEndsAt(formatDate(step.windowEndsAt))}

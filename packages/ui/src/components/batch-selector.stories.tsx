@@ -53,6 +53,10 @@ type Story = StoryObj<typeof meta>;
 
 export const Ready: Story = {};
 
+export const NoProposalsYet: Story = {
+  args: { phase: 'pending', eligible: 0, windowClosesAt: '2026-09-30T09:00:00.000Z' },
+};
+
 export const NothingLeft: Story = { args: { eligible: 0 } };
 
 export const Running: Story = {
@@ -63,8 +67,7 @@ export const Done: Story = {
   args: {
     phase: 'done',
     progress: { chunk: 13, chunks: 13, approved: 1240, total: 1240 },
-    firstReference: 'CMP-TSC-2026-0000100-1',
-    lastReference: 'CMP-TSC-2026-0001339-K',
+    references: { first: 'CMP-TSC-2026-0000100-1', last: 'CMP-TSC-2026-0001339-K' },
   },
 };
 
@@ -72,8 +75,7 @@ export const Stopped: Story = {
   args: {
     phase: 'stopped',
     progress: { chunk: 3, chunks: 13, approved: 300, total: 1240 },
-    firstReference: 'CMP-TSC-2026-0000100-1',
-    lastReference: 'CMP-TSC-2026-0000399-4',
+    references: { first: 'CMP-TSC-2026-0000100-1', last: 'CMP-TSC-2026-0000399-4' },
     stoppedReason: 'The numbering service did not respond.',
   },
 };

@@ -1,26 +1,36 @@
 import {
   Alert02Icon,
   CheckmarkCircle02Icon,
+  Clock01Icon,
   RefreshIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { type ComponentProps, type ReactNode, useState } from 'react';
 
 import { cn } from '../lib/cn';
+import { formatDate } from '../lib/format-date';
 import { formatNumber } from '../lib/format-number';
+import { Alert, AlertDescription, AlertTitle } from './alert';
 import { Button } from './button';
 import { Icon } from './icon';
 import { ProgressBar } from './progress-bar';
 import { Spinner } from './spinner';
 
 /**
- * Where a bulk approval stands. `ready`: the filters' eligible items wait for approval.
- * `running`: chunks are being approved. `done`: every chunk is approved. `stopped`: a chunk
- * failed; the chunks before it stay approved and the rest are unchanged.
+ * Where a bulk approval stands. `pending`: nothing is proposed yet, as the sweep proposes only
+ * after the cycle's clarification window closes. `ready`: the filters' eligible items wait for
+ * approval. `running`: chunks are being approved. `done`: every chunk is approved. `stopped`: a
+ * chunk failed; the chunks before it stay approved and the rest are unchanged.
  */
-export type BatchPhase = 'ready' | 'running' | 'done' | 'stopped';
+export type BatchPhase = 'pending' | 'ready' | 'running' | 'done' | 'stopped';
 
-export const BATCH_PHASES: readonly BatchPhase[] = ['ready', 'running', 'done', 'stopped'];
+export const BATCH_PHASES: readonly BatchPhase[] = [
+  'pending',
+  'ready',
+  'running',
+  'done',
+  'stopped',
+];
 
 /** A run's progress: `chunk` chunks of `chunks` approved, `approved` items of `total`. */
 export interface BatchProgress {
@@ -30,15 +40,26 @@ export interface BatchProgress {
   total: number;
 }
 
+/** The first and last reference numbers a run's approved chunks allocated. */
+export interface BatchReferences {
+  first: string;
+  last: string;
+}
+
 /** Counts reach the messages already formatted with thousands separators ("1,240"). */
 export interface BatchSelectorMessages {
   /** The filter group's name for screen readers. Defaults to "Filters". */
   filters: string;
   filtersLocked: string;
+  pendingTitle: string;
+  /** Defaults to "They appear after the clarification window closes on {date}.". */
+  pendingDescription: (date?: string) => string;
   /** Defaults to "{count} closures ready". */
   ready: (count: string) => string;
-  /** Defaults to "{excluded} sampled excluded · {chunks} chunks of {size}". */
-  readyDetail: (excluded: string, chunks: string, size: string) => string;
+  /** Defaults to "{excluded} sampled excluded". */
+  excluded: (excluded: string) => string;
+  /** Defaults to "{chunks} chunks of {size}". */
+  chunks: (chunks: string, size: string) => string;
   /** Defaults to "Approve {count}". */
   approve: (count: string) => string;
   emptyTitle: string;
@@ -55,32 +76,34 @@ export interface BatchSelectorMessages {
   /** Read when the run finishes. Defaults to "Approved {approved} closures.". */
   announceDone: (approved: string) => string;
   /** Defaults to "Approved {approved} closures ({first} to {last})", or without the range. */
-  done: (approved: string, first?: string, last?: string) => string;
+  done: (approved: string, references?: BatchReferences) => string;
   doneDescription: string;
+  /** Defaults to "{skipped} closures of cases you once held are left for another supervisor.". */
+  skipped: (skipped: string) => string;
   again: string;
   /** Defaults to "Approval stopped at chunk {chunk} of {chunks}", naming the chunk that failed. */
   stopped: (chunk: string, chunks: string) => string;
   /** Defaults to "{approved} approved ({first} to {last}); {unchanged} unchanged.". */
-  stoppedDescription: (
-    approved: string,
-    unchanged: string,
-    first?: string,
-    last?: string,
-  ) => string;
+  stoppedDescription: (approved: string, unchanged: string, references?: BatchReferences) => string;
   resumeNote: string;
   resume: string;
   stop: string;
 }
 
-const range = (first?: string, last?: string) =>
-  first !== undefined && last !== undefined ? ` (${first} to ${last})` : '';
+const range = (references?: BatchReferences) =>
+  references === undefined ? '' : ` (${references.first} to ${references.last})`;
 
 export const BATCH_SELECTOR_MESSAGES: BatchSelectorMessages = {
   filters: 'Filters',
   filtersLocked: 'Filters are locked while approval runs.',
+  pendingTitle: 'No proposals yet for these filters',
+  pendingDescription: (date) =>
+    date === undefined
+      ? 'They appear after the clarification window closes.'
+      : `They appear after the clarification window closes on ${date}.`,
   ready: (count) => `${count} closures ready`,
-  readyDetail: (excluded, chunks, size) =>
-    `${excluded} sampled excluded · ${chunks} chunks of ${size}`,
+  excluded: (excluded) => `${excluded} sampled excluded`,
+  chunks: (chunks, size) => `${chunks} chunks of ${size}`,
   approve: (count) => `Approve ${count}`,
   emptyTitle: 'Nothing left to approve for these filters',
   emptyDescription: 'New proposals appear after the daily sweep.',
@@ -92,12 +115,14 @@ export const BATCH_SELECTOR_MESSAGES: BatchSelectorMessages = {
   announceChunk: (chunk, chunks, approved) =>
     `Chunk ${chunk} of ${chunks} approved. ${approved} closures.`,
   announceDone: (approved) => `Approved ${approved} closures.`,
-  done: (approved, first, last) => `Approved ${approved} closures${range(first, last)}`,
+  done: (approved, references) => `Approved ${approved} closures${range(references)}`,
   doneDescription: 'Declarants notified.',
+  skipped: (skipped) =>
+    `${skipped} closures of cases you once held are left for another supervisor.`,
   again: 'Approve another batch',
   stopped: (chunk, chunks) => `Approval stopped at chunk ${chunk} of ${chunks}`,
-  stoppedDescription: (approved, unchanged, first, last) =>
-    `${approved} approved${range(first, last)}; ${unchanged} unchanged.`,
+  stoppedDescription: (approved, unchanged, references) =>
+    `${approved} approved${range(references)}; ${unchanged} unchanged.`,
   resumeNote: 'Resume skips no numbers.',
   resume: 'Resume',
   stop: 'Stop here',
@@ -115,11 +140,14 @@ export type BatchSelectorProps = Omit<ComponentProps<'div'>, 'children'> & {
   excluded?: number;
   /** Items approved per chunk. Defaults to 100, as the closures contract. */
   chunkSize?: number;
+  /** While pending: when the clarification window closes (the contract's `windowClosedAt`). */
+  windowClosesAt?: string | null;
   /** Required while running, done or stopped. */
   progress?: BatchProgress;
-  /** The first and last reference numbers the approved chunks allocated. */
-  firstReference?: string | null;
-  lastReference?: string | null;
+  /** The reference range the approved chunks allocated. */
+  references?: BatchReferences | null;
+  /** When done: closures left for another supervisor (the contract's `skipped`). */
+  skipped?: number;
   /** Why the run stopped, e.g. "The numbering service did not respond.". */
   stoppedReason?: ReactNode;
   onApprove?: () => void;
@@ -132,12 +160,13 @@ export type BatchSelectorProps = Omit<ComponentProps<'div'>, 'children'> & {
 
 /**
  * A bulk approval by filters, as the bulk closure page: the filter fields, optional counts, and
- * the batch. Ready: "{n} closures ready", what is excluded and how many chunks, and an Approve
- * button (open a confirmation from `onApprove`). Running: the filters lock, a progress bar of
- * chunks and the approved and remaining counts. Done: the count and reference range on green.
- * Stopped: an alert naming the failed chunk, what stayed approved and unchanged, with Resume and
- * Stop here. A polite live region reads progress only when a chunk completes, and once at the
- * end, so a long run does not flood a screen reader.
+ * the batch. Pending: no proposals until the clarification window closes. Ready: "{n} closures
+ * ready", what is excluded and how many chunks, and an Approve button (open a confirmation from
+ * `onApprove`). Running: the filters lock, a progress bar of chunks and the approved and
+ * remaining counts. Done: the count and reference range on green. Stopped: an alert naming the
+ * failed chunk, what stayed approved and unchanged, with Resume and Stop here. A polite live
+ * region reads progress only when a chunk completes, and once at the end, so a long run does
+ * not flood a screen reader.
  */
 export function BatchSelector({
   filters,
@@ -146,9 +175,10 @@ export function BatchSelector({
   eligible,
   excluded,
   chunkSize = 100,
+  windowClosesAt,
   progress,
-  firstReference,
-  lastReference,
+  references,
+  skipped = 0,
   stoppedReason,
   onApprove,
   onResume,
@@ -159,43 +189,42 @@ export function BatchSelector({
   ...props
 }: BatchSelectorProps) {
   const copy = { ...BATCH_SELECTOR_MESSAGES, ...messages };
-  const n = formatNumber;
-  const run = progress ?? {
-    chunk: 0,
-    chunks: Math.ceil(eligible / chunkSize),
-    approved: 0,
-    total: eligible,
-  };
-  const first = firstReference ?? undefined;
-  const last = lastReference ?? undefined;
+  const readyChunks = Math.ceil(eligible / chunkSize);
+  const run = progress ?? { chunk: 0, chunks: readyChunks, approved: 0, total: eligible };
+  const remaining = formatNumber(Math.max(0, run.total - run.approved));
+  const range = references ?? undefined;
 
-  // The live text is keyed by chunk, so a count that moves within a chunk is not read out.
+  // The live text is keyed by chunk, so a count that moves within a chunk is not read out. A
+  // stopped run keeps its chunk's key, so resuming does not read the same chunk again.
   const announcementKey =
-    phase === 'running' && run.chunk > 0
+    (phase === 'running' || phase === 'stopped') && run.chunk > 0
       ? `chunk:${String(run.chunk)}`
       : phase === 'done'
         ? 'done'
         : '';
-  const announcementFor = (key: string) =>
-    key === 'done'
-      ? copy.announceDone(n(run.approved))
-      : key === ''
-        ? ''
-        : copy.announceChunk(n(run.chunk), n(run.chunks), n(run.approved));
-  const [announcement, setAnnouncement] = useState(() => ({
-    key: announcementKey,
-    text: announcementFor(announcementKey),
-  }));
+  const [announcement, setAnnouncement] = useState({ key: '', text: '' });
   if (announcement.key !== announcementKey) {
-    setAnnouncement({ key: announcementKey, text: announcementFor(announcementKey) });
+    setAnnouncement({
+      key: announcementKey,
+      text:
+        announcementKey === 'done'
+          ? copy.announceDone(formatNumber(run.approved))
+          : announcementKey === ''
+            ? ''
+            : copy.announceChunk(
+                formatNumber(run.chunk),
+                formatNumber(run.chunks),
+                formatNumber(run.approved),
+              ),
+    });
   }
 
-  const bar = (tone: 'default' | 'success' | 'destructive') => (
+  const bar = (tone: 'default' | 'destructive') => (
     <ProgressBar
       label={copy.progressLabel}
       value={run.chunk}
       max={Math.max(run.chunks, 1)}
-      valueText={copy.chunkOf(n(run.chunk), n(run.chunks))}
+      valueText={copy.chunkOf(formatNumber(run.chunk), formatNumber(run.chunks))}
       showValue={false}
       announce={false}
       tone={tone}
@@ -203,41 +232,53 @@ export function BatchSelector({
   );
 
   let batch: ReactNode;
-  if (phase === 'running') {
+  if (phase === 'pending') {
+    batch = (
+      <Alert role={undefined} variant="neutral">
+        <Icon icon={Clock01Icon} />
+        <AlertTitle>{copy.pendingTitle}</AlertTitle>
+        <AlertDescription>
+          {copy.pendingDescription(
+            windowClosesAt === undefined || windowClosesAt === null
+              ? undefined
+              : formatDate(windowClosesAt),
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  } else if (phase === 'running') {
     batch = (
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <Spinner />
-          <b className="font-semibold">{copy.running(n(run.total))}</b>
+          <b className="font-semibold">{copy.running(formatNumber(run.total))}</b>
           <span className="ml-auto text-[13px] text-muted-foreground">
-            {copy.chunkOf(n(run.chunk), n(run.chunks))}
+            {copy.chunkOf(formatNumber(run.chunk), formatNumber(run.chunks))}
           </span>
         </div>
         {bar('default')}
         <div className="flex flex-wrap gap-x-[18px] gap-y-1.5 text-[13.5px] text-muted-foreground">
           <span>
-            <b className="font-semibold text-foreground tabular-nums">{n(run.approved)}</b>{' '}
+            <b className="font-semibold text-foreground tabular-nums">
+              {formatNumber(run.approved)}
+            </b>{' '}
             {copy.approved}
           </span>
           <span>
-            <b className="font-semibold text-foreground tabular-nums">
-              {n(Math.max(0, run.total - run.approved))}
-            </b>{' '}
-            {copy.toGo}
+            <b className="font-semibold text-foreground tabular-nums">{remaining}</b> {copy.toGo}
           </span>
         </div>
       </div>
     );
   } else if (phase === 'done') {
     batch = (
-      <div className="relative grid gap-0.5 rounded-lg bg-success-subtle px-4 py-3.5 pl-[46px] text-sm text-success-subtle-foreground">
-        <Icon
-          icon={CheckmarkCircle02Icon}
-          strokeWidth={2.2}
-          className="absolute top-4 left-4 size-[18px]"
-        />
-        <div className="font-semibold">{copy.done(n(run.approved), first, last)}</div>
-        <div>{copy.doneDescription}</div>
+      <Alert role={undefined} variant="success">
+        <Icon icon={CheckmarkCircle02Icon} strokeWidth={2.2} />
+        <AlertTitle>{copy.done(formatNumber(run.approved), range)}</AlertTitle>
+        <AlertDescription>
+          {copy.doneDescription}
+          {skipped > 0 ? <> {copy.skipped(formatNumber(skipped))}</> : null}
+        </AlertDescription>
         {onReset === undefined ? null : (
           <div className="mt-2.5">
             <Button variant="secondary" size="sm" onClick={onReset}>
@@ -245,27 +286,21 @@ export function BatchSelector({
             </Button>
           </div>
         )}
-      </div>
+      </Alert>
     );
   } else if (phase === 'stopped') {
     batch = (
       <div className="grid gap-4">
         {bar('destructive')}
-        <div
-          role="alert"
-          className="relative grid gap-0.5 rounded-lg bg-destructive-subtle px-4 py-3.5 pl-[46px] text-sm text-destructive-subtle-foreground"
-        >
-          <Icon icon={Alert02Icon} className="absolute top-4 left-4 size-[18px]" />
-          <div className="font-semibold">{copy.stopped(n(run.chunk + 1), n(run.chunks))}</div>
-          <div>
-            {copy.stoppedDescription(
-              n(run.approved),
-              n(Math.max(0, run.total - run.approved)),
-              first,
-              last,
-            )}
+        <Alert variant="destructive">
+          <Icon icon={Alert02Icon} />
+          <AlertTitle>
+            {copy.stopped(formatNumber(run.chunk + 1), formatNumber(run.chunks))}
+          </AlertTitle>
+          <AlertDescription>
+            {copy.stoppedDescription(formatNumber(run.approved), remaining, range)}
             {stoppedReason === undefined ? null : <> {stoppedReason}</>} {copy.resumeNote}
-          </div>
+          </AlertDescription>
           {onResume === undefined && onStop === undefined ? null : (
             <div className="mt-2.5 flex flex-wrap gap-2">
               {onResume === undefined ? null : (
@@ -281,34 +316,33 @@ export function BatchSelector({
               )}
             </div>
           )}
-        </div>
+        </Alert>
       </div>
     );
   } else if (eligible <= 0) {
     batch = (
-      <div className="relative grid gap-0.5 rounded-lg bg-success-subtle px-4 py-3.5 pl-[46px] text-sm text-success-subtle-foreground">
-        <Icon
-          icon={CheckmarkCircle02Icon}
-          strokeWidth={2.2}
-          className="absolute top-4 left-4 size-[18px]"
-        />
-        <div className="font-semibold">{copy.emptyTitle}</div>
-        <div>{copy.emptyDescription}</div>
-      </div>
+      <Alert role={undefined} variant="success">
+        <Icon icon={CheckmarkCircle02Icon} strokeWidth={2.2} />
+        <AlertTitle>{copy.emptyTitle}</AlertTitle>
+        <AlertDescription>{copy.emptyDescription}</AlertDescription>
+      </Alert>
     );
   } else {
+    const chunksText = copy.chunks(formatNumber(readyChunks), formatNumber(chunkSize));
     batch = (
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-[220px] flex-1">
-          <div className="text-base font-semibold">{copy.ready(n(eligible))}</div>
+          <div className="text-base font-semibold">{copy.ready(formatNumber(eligible))}</div>
           <div className="text-[13px] text-muted-foreground">
-            {copy.readyDetail(n(excluded ?? 0), n(Math.ceil(eligible / chunkSize)), n(chunkSize))}
+            {excluded === undefined
+              ? chunksText
+              : `${copy.excluded(formatNumber(excluded))} · ${chunksText}`}
           </div>
         </div>
         {onApprove === undefined ? null : (
           <Button onClick={onApprove} className="max-sm:w-full">
             <Icon icon={Tick02Icon} strokeWidth={2.2} />
-            {copy.approve(n(eligible))}
+            {copy.approve(formatNumber(eligible))}
           </Button>
         )}
       </div>

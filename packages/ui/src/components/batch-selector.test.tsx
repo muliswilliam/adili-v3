@@ -115,8 +115,8 @@ describe('BatchSelector', () => {
     const { handlers } = renderBatch({
       phase: 'done',
       progress: { chunk: 13, chunks: 13, approved: 1240, total: 1240 },
-      firstReference: 'CMP-TSC-2026-0000100-1',
-      lastReference: 'CMP-TSC-2026-0001339-K',
+      references: { first: 'CMP-TSC-2026-0000100-1', last: 'CMP-TSC-2026-0001339-K' },
+      skipped: 3,
     });
 
     expect(
@@ -125,6 +125,10 @@ describe('BatchSelector', () => {
       ),
     ).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('Approved 1,240 closures.');
+    expect(
+      screen.getByText(/3 closures of cases you once held are left for another supervisor\./),
+    ).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Approve another batch' }));
     expect(handlers.onReset).toHaveBeenCalledOnce();
   });
@@ -133,8 +137,7 @@ describe('BatchSelector', () => {
     const { handlers } = renderBatch({
       phase: 'stopped',
       progress: { chunk: 3, chunks: 13, approved: 300, total: 1240 },
-      firstReference: 'CMP-TSC-2026-0000100-1',
-      lastReference: 'CMP-TSC-2026-0000399-4',
+      references: { first: 'CMP-TSC-2026-0000100-1', last: 'CMP-TSC-2026-0000399-4' },
       stoppedReason: 'The numbering service did not respond.',
     });
 
@@ -152,6 +155,42 @@ describe('BatchSelector', () => {
     expect(handlers.onResume).toHaveBeenCalledOnce();
     fireEvent.click(within(alert).getByRole('button', { name: 'Stop here' }));
     expect(handlers.onStop).toHaveBeenCalledOnce();
+  });
+
+  it('says no proposals are made before the clarification window closes', () => {
+    renderBatch({ phase: 'pending', eligible: 0, windowClosesAt: '2026-09-30T09:00:00.000Z' });
+
+    expect(screen.getByText('No proposals yet for these filters')).toBeTruthy();
+    expect(
+      screen.getByText('They appear after the clarification window closes on 30 Sep 2026.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
+  });
+
+  it('leaves out the excluded count when there is none to give', () => {
+    renderBatch({ excluded: undefined });
+
+    expect(screen.getByText('13 chunks of 100')).toBeTruthy();
+  });
+
+  it('does not read the last chunk again when a stopped run resumes', () => {
+    const { rerender, handlers } = renderBatch(running(3, 300));
+    const live = screen.getByRole('status');
+    const at = (phase: BatchSelectorProps['phase'], chunk: number) => (
+      <BatchSelector
+        phase={phase}
+        eligible={1240}
+        progress={{ chunk, chunks: 13, approved: chunk * 100, total: 1240 }}
+        {...handlers}
+      />
+    );
+
+    rerender(at('stopped', 3));
+    rerender(at('running', 3));
+    expect(live.textContent).toBe('Chunk 3 of 13 approved. 300 closures.');
+
+    rerender(at('running', 4));
+    expect(live.textContent).toBe('Chunk 4 of 13 approved. 400 closures.');
   });
 
   it('takes other wording', () => {
