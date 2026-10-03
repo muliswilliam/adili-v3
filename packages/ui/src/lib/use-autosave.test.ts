@@ -213,6 +213,157 @@ describe('useAutosave', () => {
     expect(save).toHaveBeenLastCalledWith('only');
   });
 
+  describe('a save still in flight at reset', () => {
+    async function inFlightAtReset(outcome: (pending: ReturnType<typeof deferred>) => void) {
+      const first = deferred();
+      const save = vi
+        .fn<(value: string) => Promise<void>>()
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValue(undefined);
+      const hook = renderHook(() => useAutosave(save, { delayMs: 10 }));
+      act(() => {
+        hook.result.current.change('before reload');
+        vi.advanceTimersByTime(10);
+      });
+      act(() => {
+        hook.result.current.reset();
+      });
+      outcome(first);
+      await settle();
+      await settle();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      await settle();
+      return { save, result: hook.result };
+    }
+
+    it('does not mark the reloaded state saved when it succeeds', async () => {
+      const { result } = await inFlightAtReset((first) => {
+        first.resolve();
+      });
+
+      expect(result.current.status).toBe('idle');
+      expect(result.current.savedAt).toBeNull();
+    });
+
+    it('does not stop the reloaded state when it is refused', async () => {
+      const { result } = await inFlightAtReset((first) => {
+        first.reject(new AutosaveFailure('conflict'));
+      });
+
+      expect(result.current.status).toBe('idle');
+      act(() => {
+        result.current.change('after reload');
+      });
+      expect(result.current.status).toBe('saving');
+    });
+
+    it('does not send its value again when it fails', async () => {
+      const { save, result } = await inFlightAtReset((first) => {
+        first.reject(new Error('offline'));
+      });
+
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(result.current.status).toBe('idle');
+    });
+
+    it('lets an edit made after the reset go once it settles', async () => {
+      const first = deferred();
+      const save = vi
+        .fn<(value: string) => Promise<void>>()
+        .mockReturnValueOnce(first.promise)
+        .mockResolvedValue(undefined);
+      const { result } = renderHook(() => useAutosave(save, { delayMs: 10 }));
+      act(() => {
+        result.current.change('before reload');
+        vi.advanceTimersByTime(10);
+      });
+      act(() => {
+        result.current.reset();
+        result.current.change('after reload');
+        vi.advanceTimersByTime(10);
+      });
+      expect(save).toHaveBeenCalledTimes(1);
+
+      first.resolve();
+      await settle();
+      await settle();
+
+      expect(save).toHaveBeenLastCalledWith('after reload');
+      expect(result.current.status).toBe('saved');
+    });
+  });
+
+  it('does not send the edit waiting at unmount when the save in flight meets a conflict', async () => {
+    const first = deferred();
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const { result, unmount } = renderHook(() => useAutosave(save, { delayMs: 10 }));
+
+    act(() => {
+      result.current.change('mine');
+      vi.advanceTimersByTime(10);
+      result.current.change('more');
+    });
+    unmount();
+    first.reject(new AutosaveFailure('conflict'));
+    await settle();
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits out the backoff even when flushed', async () => {
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAutosave(save, { delayMs: 10 }));
+
+    act(() => {
+      result.current.change('x');
+      vi.advanceTimersByTime(10);
+    });
+    await settle();
+    act(() => {
+      result.current.flush();
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+    });
+    await settle();
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it('lets a newer edit finish its pause after a refusal', async () => {
+    const first = deferred();
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const { result } = renderHook(() => useAutosave(save, { delayMs: 100 }));
+
+    act(() => {
+      result.current.change('refused');
+      vi.advanceTimersByTime(100);
+      result.current.change('newer');
+    });
+    first.reject(new AutosaveFailure('error'));
+    await settle();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    await settle();
+    expect(save).toHaveBeenLastCalledWith('newer');
+  });
+
   it('saves at once on flush, e.g. when the editor loses focus', async () => {
     const save = vi.fn<(value: string) => Promise<void>>(() => Promise.resolve());
     const { result } = renderHook(() => useAutosave(save, { delayMs: 5_000 }));

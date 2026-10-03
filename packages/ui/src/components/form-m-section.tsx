@@ -167,13 +167,20 @@ export type FormMSectionProps = Omit<ComponentProps<'section'>, 'children'> & {
   firstRowNumber?: number;
   /** Under the list, e.g. the console's pager. */
   pagination?: ReactNode;
-  /** Makes the remarks editable (the supervisor); called with the row and its new remark. */
+  /**
+   * Makes the remarks editable (the supervisor); called with the row and its new remark. Remarks
+   * are saved by obligation id, so a row without `obligationId` stays read-only. One
+   * `useAutosave` per report serves sections 1-3: keep a running obligation id to remark map of
+   * every edit and `change` it with the whole map, so a save never drops another section's edit.
+   */
   onRemarkChange?: (row: FormMNonFiler, remarks: string) => void;
   /** Who edited a row's remark over the compiled one, if anyone. */
   remarkEditedBy?: (row: FormMNonFiler) => string | null;
   /**
    * The `useAutosave` saving the remarks: the header says how it stands once something changed,
-   * and a remark field flushes it when it loses focus. Nothing is said without it.
+   * and a remark field flushes it when it loses focus. Nothing is said without it. Reject a save
+   * with `AutosaveFailure('error')` when the report was submitted meanwhile; a 409 while the
+   * report is compiling is passing, so let it retry.
    */
   autosave?: AutosaveState;
   /** Below which the rate is amber, as a share. 0.8 by default. */
@@ -331,7 +338,7 @@ export function FormMSection({
                           </Badge>
                         </TableCell>
                         <TableCell className="align-top">
-                          {editable ? (
+                          {editable && row.obligationId ? (
                             <>
                               <Textarea
                                 autoGrow
