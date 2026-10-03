@@ -1,6 +1,8 @@
 import type { Cycle, NationalMeasure, OpenDataTableKey } from '../../server/open-data-tables';
 import { formatNumber } from '../format';
-import { fyLabel } from '../national-report/model';
+
+/** "2025/2026": the financial year by its start year. */
+const fyLabel = (fy: number) => `${String(fy)}/${String(fy + 1)}`;
 
 /**
  * Copy of EACC's open-data releases (spec 09b FE-3, #350), as the 12-open-data prototype words
