@@ -124,7 +124,8 @@ export class RegistryLookupSteps {
    * when there is none any more (the person was taken out, or their ID removed, since the request).
    */
   private async nationalId(ref: LookupRef): Promise<string | null> {
-    if (isOfficer(ref.personKey)) {
+    const { personKey } = ref;
+    if (isOfficer(personKey)) {
       return this.directory.getPersonNationalId(ref.tenant, ref.personId);
     }
     const household = await withPerson(this.db, personContext(ref), (tx) =>
@@ -132,7 +133,7 @@ export class RegistryLookupSteps {
         tx,
         this.sections,
         { id: ref.declarationId, tenant: ref.tenant },
-        ref.personKey,
+        personKey,
       ),
     );
     return household.listed ? household.nationalId : null;

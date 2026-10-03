@@ -1,3 +1,5 @@
+import type { PersonKey } from '@adili/forms';
+
 import type { Transaction } from '../db/transaction.js';
 import { sectionIs } from '../drafts/repository.js';
 import { declarationSections } from '../drafts/schema.js';
@@ -12,7 +14,7 @@ export async function savedHouseholdPerson(
   tx: Transaction,
   sections: SectionCipher,
   declaration: { id: string; tenant: string },
-  personKey: string,
+  personKey: Exclude<PersonKey, 'officer'>,
 ): Promise<HouseholdPerson> {
   const [section] = await tx
     .select()
