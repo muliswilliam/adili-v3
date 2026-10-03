@@ -10,6 +10,11 @@
  * included) and, while any line holds exactly one suppressed figure, suppresses the next smallest
  * figure in that line. Totals apply the same threshold to their own denominators.
  *
+ * A figure over no officers (a structural zero, such as a section with nothing expected of a
+ * Commission that year) describes nobody and is published: it is never suppressed, and never
+ * chosen as a complementary cell, since a reader who sees its zero denominator knows it is zero
+ * and it would protect nothing.
+ *
  * Deterministic and idempotent: the same table always yields the same markers, and the result
  * has no line with a single suppressed figure, so suppressing it again changes nothing.
  */
@@ -90,7 +95,7 @@ export function suppressTable(table: CountTable, options: SuppressionOptions = {
     officers,
     rank,
     order: (order += 1),
-    suppressed: officers < threshold,
+    suppressed: officers > 0 && officers < threshold,
   });
   /** A line of figures with the total they add up to. */
   const lineOf = (members: Figure[], rank: Rank): { members: Figure[]; total: Figure } => ({
@@ -127,7 +132,7 @@ export function suppressTable(table: CountTable, options: SuppressionOptions = {
     // A one-figure line (a total of an empty table) adds nothing a reader could subtract.
     const next = lines
       .find((line) => line.length > 1 && line.filter((f) => f.suppressed).length === 1)
-      ?.filter((f) => !f.suppressed)
+      ?.filter((f) => !f.suppressed && f.officers > 0)
       .sort(bySuppressionPreference)[0];
     if (next === undefined) break;
     next.suppressed = true;

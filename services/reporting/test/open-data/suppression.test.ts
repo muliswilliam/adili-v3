@@ -149,6 +149,27 @@ describe('open data suppression', () => {
     expect(recoverableLines(released)).toEqual([]);
   });
 
+  it('publishes figures over no officers and never picks them as complementary cells', () => {
+    // psc had no biennial cycle in the year (nothing expected): its zero describes nobody. Its
+    // final cell (6 officers) is suppressed, and the complement is its initial cell, not the
+    // structural zero, which a reader knows from its denominator.
+    const released = suppressTable({
+      rows: ['psc', 'tsc'],
+      columns: ['initial', 'biennial', 'final'],
+      cells: [
+        [c(20, 25), c(0, 0), c(5, 6)],
+        [c(30, 40), c(80, 100), c(12, 15)],
+      ],
+    });
+
+    expect(released.cells).toEqual([
+      [S, v(0), S],
+      [S, v(80), S],
+    ]);
+    expect(released.rowTotals).toEqual([v(25), v(122)]);
+    expect(recoverableLines(released)).toEqual([]);
+  });
+
   it('takes the threshold as a parameter', () => {
     expect(
       suppressTable(threeByThree, { threshold: 5 })
@@ -172,7 +193,7 @@ describe('open data suppression', () => {
       ...threeByThree,
       cells: threeByThree.cells.map((row, r) =>
         row.map((cell, col) =>
-          released.cells[r]?.[col]?.suppressed ? { ...cell, officers: 0 } : cell,
+          released.cells[r]?.[col]?.suppressed ? { ...cell, officers: 1 } : cell,
         ),
       ),
     };
