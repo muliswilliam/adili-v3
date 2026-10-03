@@ -182,6 +182,11 @@ function seedSalary(now: number, salary: Exclude<MockSalary, 'none'>) {
     const found = notices.get(id);
     if (found) notices.set(id, { ...found, ...change });
   };
+  // The ladder dated back: notice answered, warning ignored, salary stopped 6 days ago.
+  update(ids.noticeResponded, { issuedAt: at(now, -36), actBy: at(now, -22) });
+  const responded = notices.get(ids.noticeResponded)?.response;
+  if (responded)
+    update(ids.noticeResponded, { response: { ...responded, submittedAt: at(now, -30) } });
   update(ids.warning, { issuedAt: at(now, -21), actBy: at(now, -7) });
   notices.set(
     ids.stoppage,

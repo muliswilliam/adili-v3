@@ -81,6 +81,8 @@ describe('a salary stoppage notice (S17, US 20)', () => {
     ).toBeTruthy();
     expect(within(salary).getByText('ADM-TSC-2026-0000358-0')).toBeTruthy();
     expect(within(salary).getByText('Automatic when you comply')).toBeTruthy();
+    // The stoppage window is the Commission's: the declarant has no date to act by but to comply.
+    expect(screen.queryByText(/Act by|days left/)).toBeNull();
   });
 
   it('says the reinstatement is on its way to payroll once the declarant complied (S7)', async () => {

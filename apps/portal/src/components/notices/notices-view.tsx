@@ -18,7 +18,9 @@ import {
 import {
   AlertCircleIcon,
   ArrowRight01Icon,
+  BanknoteIcon,
   Clock01Icon,
+  LegalHammerIcon,
   Notification01Icon,
   RefreshIcon,
   SentIcon,
@@ -151,7 +153,11 @@ function NoticeRow({
             icon={
               isClosed(notice) || notice.step === 'notice-to-comply'
                 ? Notification01Icon
-                : AlertCircleIcon
+                : notice.step === 'salary-stoppage'
+                  ? BanknoteIcon
+                  : notice.step === 'disciplinary-referral'
+                    ? LegalHammerIcon
+                    : AlertCircleIcon
             }
           />
         </IconTile>
@@ -367,7 +373,7 @@ function Notices({
   const shown = notices.slice((current - 1) * NOTICES_PAGE_SIZE, current * NOTICES_PAGE_SIZE);
   const allComplied = notices.every(isClosed);
   // The ladder of the notice on top, or of the latest one once everything has closed.
-  const stripFor = urgent ?? (allComplied ? (notices[0] ?? null) : null);
+  const stripFor = salary?.notice ?? urgent ?? (allComplied ? (notices[0] ?? null) : null);
   return (
     <div className="mt-6 grid gap-4">
       {salary ? (
