@@ -17,6 +17,7 @@ import {
   currentFigure,
   type NationalFigure,
   parseAggregateKey,
+  NATIONAL_SUBJECT,
 } from '../../server/reporting/aggregate-keys';
 
 /**
@@ -24,8 +25,6 @@ import {
  * S1, #331): each candidate as a card's words, the figures a citation carries as chip labels and
  * values, and where in the tables a figure is.
  */
-
-const NATIONAL = 'national';
 
 /** "2025/2026": a financial year by its start year, as figures and comparisons name it. */
 export const fyLabel = (fy: number) => `${String(fy)}/${String(fy + 1)}`;
@@ -52,7 +51,7 @@ function numberIn(values: PatternCandidate['values'], name: string): number | nu
 
 /** "Nairobi City County Public Service Board", "National", or the slug for a name not known. */
 export function subjectName(subject: string, aggregates: NationalAggregates): string {
-  if (subject === NATIONAL) return 'National';
+  if (subject === NATIONAL_SUBJECT) return 'National';
   return aggregates.byCommission[subject]?.name ?? subject;
 }
 

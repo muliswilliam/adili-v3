@@ -7,8 +7,8 @@ export const HIGHLIGHT_MS = 2_400;
  * declaration pane, a figure's row in the national report. Returns false when the page does not
  * have the element.
  */
-export function highlightTarget(id: string, root: Document = document): boolean {
-  const element = root.getElementById(id);
+export function highlightTarget(id: string): boolean {
+  const element = document.getElementById(id);
   if (!element) return false;
   element.scrollIntoView({ behavior: 'smooth', block: 'center' });
   element.setAttribute('data-target-highlight', '');

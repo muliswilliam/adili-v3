@@ -30,8 +30,9 @@ export type ApproveReport = (
 /**
  * "Approve the national report?": the consequences (NCR reference, the Restricted PDF under the
  * approver's name, no more edits) with the author and approver named. Mount it per opening: one
- * Idempotency-Key per opening, so a retry after a failure replays rather than approves twice. The service's refusal
- * of a supervisor who built or wrote part of it (`separation-of-duties`) is said in the dialog.
+ * Idempotency-Key per opening, so a retry after a failure replays rather than approves twice.
+ * The service's refusal of a supervisor who built or wrote part of it (`separation-of-duties`)
+ * is said in the dialog.
  */
 export function ApproveDialog({
   open,

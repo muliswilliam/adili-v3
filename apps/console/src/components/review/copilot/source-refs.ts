@@ -1,6 +1,5 @@
 import type { SourceRef, SourceRefTarget } from '@adili/ui';
 
-import { highlightTarget } from '../../highlight-target';
 import { messages as t } from './messages';
 
 /**
@@ -211,14 +210,4 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
     }
     return sectionRef(ref, sectionKey ?? undefined);
   };
-}
-
-export { HIGHLIGHT_MS } from '../../highlight-target';
-
-/**
- * Scrolls the declaration pane to a ref's target and highlights it (`highlightTarget`). Returns
- * false when the pane does not have the element, for instance while it shows another version.
- */
-export function highlightInDeclaration(anchorId: string, root: Document = document): boolean {
-  return highlightTarget(anchorId, root);
 }

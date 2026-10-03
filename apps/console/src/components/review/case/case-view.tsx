@@ -45,7 +45,8 @@ import type { ServiceError, ServiceResult } from '../../../server/service-call';
 import { Page } from '../../page';
 import { useCaseAssignment } from '../assignment';
 import { CaseCopilot, type CaseCopilotProps } from '../copilot/case-copilot';
-import { declarationAnchorId, highlightInDeclaration } from '../copilot/source-refs';
+import { highlightTarget } from '../../highlight-target';
+import { declarationAnchorId } from '../copilot/source-refs';
 import { RecheckDialog } from './assignment-dialogs';
 import { CaseClarifications } from '../case-clarifications';
 import { useDraftWithAi } from '../draft-with-ai/use-draft-with-ai';
@@ -245,7 +246,7 @@ export function CaseView({
     setPane('main');
     // The pane may have to show first on a narrow screen.
     requestAnimationFrame(() => {
-      highlightInDeclaration(declarationAnchorId({ kind: 'item', itemId }));
+      highlightTarget(declarationAnchorId({ kind: 'item', itemId }));
     });
   }
 

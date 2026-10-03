@@ -33,114 +33,31 @@ import {
   finalCompileOf,
   FIRST_FINANCIAL_YEAR,
   financialYearOf,
-  nairobiToday,
   previewFromOf,
 } from '../../components/form-m/financial-year';
-import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
 import {
+  fullDocument,
+  MOCK_PSC,
   mockDay,
-  mockStoreSeeded,
-  seedMockStoreWith,
-  setMockDay,
-  storedReports,
+  mockDocumentCorrupt,
+  previewDocument,
+  saveStoredReport,
+  storedReport,
   type StoredReport,
+  storedYears,
 } from './mock-store.server';
 import { isNarrativeDraftPath, mockNarrativeDraftFetch } from './narrative-draft-mock.server';
-import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
-const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
+export { resetReportingMock, submitMockReport } from './mock-store.server';
+import type { ComplianceReport, ReportCounts, ReportPeriod } from './types';
+
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
 
-type Stored = StoredReport;
-
-const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
-const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
-
-/** The draft as a supervisor marks it reviewed: Part III's compiled-by filled (spec 09 S5). */
-function reviewed(document: FormMV1, on: string): FormMV1 {
-  return {
-    ...document,
-    partIII: {
-      ...document.partIII,
-      compiledBy: { name: SUPERVISOR_OFFICER.name, designation: 'Deputy Director, HRM', date: on },
-    },
-  };
-}
-
-/** The document as the commission-admin confirmed it: Part I, Part B and Part III filled. */
-function confirmed(document: FormMV1, reviewedOn: string, confirmedOn: string): FormMV1 {
-  const done = reviewed(document, reviewedOn);
-  return {
-    ...done,
-    partI: {
-      ...done.partI,
-      contactDetails: '+254 20 222 3901',
-      emailAddress: 'compliance@publicservice.go.ke',
-    },
-    partII: { ...done.partII, complaints: { registerMaintained: true, items: [] } },
-    partIII: {
-      ...done.partIII,
-      confirmedBy: { name: ADMIN_OFFICER.name, designation: 'Secretary/CEO', date: confirmedOn },
-    },
-  };
-}
-
-const reports = storedReports;
 let latency = 1;
 let compileMs = COMPILE_MS;
-let corruptDocument = false;
-
-/** `date` plus `days`, as `YYYY-MM-DD`. */
-function plusDays(date: string, days: number): string {
-  const at = new Date(`${date}T00:00:00Z`);
-  at.setUTCDate(at.getUTCDate() + days);
-  return at.toISOString().slice(0, 10);
-}
-
-/** The Nairobi day (`YYYY-MM-DD`) of an instant. */
-const nairobiDayOf = (iso: string) => nairobiToday(new Date(iso));
-
-/** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
-const sixAm = (date: string) => `${date}T03:00:00.000Z`;
-
-/**
- * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default).
- * `corruptDocument` answers a report whose document is not form-m.v1 (contract drift);
- * `reviewed` has the supervisor mark the year-before's draft reviewed two days ago.
- */
-export function resetReportingMock(
-  day: string = nairobiToday(),
-  options: { corruptDocument?: boolean; reviewed?: boolean } = {},
-) {
-  setMockDay(day);
-  corruptDocument = options.corruptDocument ?? false;
-  reports.clear();
-  const current = financialYearOf(day);
-  const last = current - 1;
-  if (last < FIRST_FINANCIAL_YEAR) return;
-  if (day >= previewFromOf(current)) {
-    reports.set(last, submitted(last, `${plusDays(dueDateOf(last), 57)}T11:42:00.000Z`));
-    return;
-  }
-  const yearStart = finalCompileOf(last);
-  const compiledOn = plusDays(day, -11) < yearStart ? yearStart : plusDays(day, -11);
-  const reviewedOn = plusDays(day, -2);
-  reports.set(last, {
-    fy: last,
-    status: options.reviewed ? 'reviewed' : 'draft',
-    compiledAt: sixAm(compiledOn),
-    compileStartedAt: null,
-    submittedAt: null,
-    late: null,
-    reference: null,
-    reviewedBy: options.reviewed ? SUPERVISOR_OFFICER : null,
-    confirmedBy: null,
-    document: options.reviewed ? reviewed(fullDocument(last), reviewedOn) : fullDocument(last),
-  });
-}
 
 /**
  * Scales the mock's answer delays (0 in tests); `compileMs` sets how long a compile takes
@@ -153,17 +70,7 @@ export function setReportingMockLatency(factor: number, options: { compileMs?: n
 
 /** The day the mock takes as today: REPORTING_MOCK_TODAY, else today in Nairobi. */
 export function mockReportingToday(): string {
-  ensureSeeded();
   return mockDay();
-}
-
-seedMockStoreWith(() => {
-  resetReportingMock(env().REPORTING_MOCK_TODAY);
-});
-
-function ensureSeeded() {
-  // The dev server's first request: seed from REPORTING_MOCK_TODAY. Tests seed explicitly.
-  if (!mockStoreSeeded()) resetReportingMock(env().REPORTING_MOCK_TODAY);
 }
 
 const delay = (ms: number) =>
@@ -207,7 +114,6 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   if (new URL(input.url).pathname.startsWith('/v1/eacc/national-reports/')) {
     return (await import('./ncr-mock.server')).mockNcrFetch(input);
   }
-  ensureSeeded();
   await delay(250);
   const url = new URL(input.url);
   const match = /^\/v1\/commissions\/([^/]+)\/compliance-reports(?:\/(\d+)(\/compile)?)?$/.exec(
@@ -217,8 +123,8 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   const [, slug, fyText, compile] = match;
   const caller = mockCallerOf(input);
   const visible =
-    slug === PSC.slug &&
-    caller.tenant === PSC.slug &&
+    slug === MOCK_PSC.slug &&
+    caller.tenant === MOCK_PSC.slug &&
     caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
   if (!visible) return notFound();
 
@@ -237,7 +143,7 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
     return startCompile(fy);
   }
   if (input.method !== 'GET') return notFound();
-  const stored = reports.get(fy);
+  const stored = storedReport(fy);
   if (!stored) return notFound();
   advance(stored);
   return json(200, view(stored));
@@ -245,12 +151,12 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
 
 function periods(): ReportPeriod[] {
   const current = financialYearOf(mockDay());
-  const years = new Set([current, current - 1, ...reports.keys()]);
+  const years = new Set([current, current - 1, ...storedYears()]);
   return [...years]
     .filter((fy) => fy >= FIRST_FINANCIAL_YEAR && fy <= current)
     .sort((a, b) => b - a)
     .map((fy) => {
-      const stored = reports.get(fy);
+      const stored = storedReport(fy);
       if (stored) advance(stored);
       return {
         fy,
@@ -268,7 +174,7 @@ function startCompile(fy: number): Response {
   if (mockDay() < previewFromOf(fy)) {
     return problem(409, 'A preview of Form M opens on 1 April', 'preview-not-available');
   }
-  const stored = reports.get(fy);
+  const stored = storedReport(fy);
   if (stored?.status === 'submitted') {
     return problem(
       409,
@@ -276,7 +182,7 @@ function startCompile(fy: number): Response {
       'report-submitted',
     );
   }
-  const next: Stored = stored ?? {
+  const next: StoredReport = stored ?? {
     fy,
     status: 'compiling',
     compiledAt: null,
@@ -290,12 +196,12 @@ function startCompile(fy: number): Response {
   };
   next.status = 'compiling';
   next.compileStartedAt = Date.now();
-  reports.set(fy, next);
+  saveStoredReport(next);
   return new Response(null, { status: 202 });
 }
 
 /** Runs the mock workflow: a compile finishes once its time has come. */
-function advance(stored: Stored) {
+function advance(stored: StoredReport) {
   if (stored.status !== 'compiling' || stored.compileStartedAt === null) return;
   if (Date.now() < stored.compileStartedAt + compileMs) return;
   stored.status = 'draft';
@@ -306,33 +212,6 @@ function advance(stored: Stored) {
   // A year compiled before it ends is a preview of today's data.
   stored.document =
     mockDay() < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
-}
-
-/**
- * The year's report as the commission-admin's confirmation leaves it at `submittedAt`: reference
- * allocated, reviewed the day before, Part I, Part B and Part III filled, late when its Nairobi
- * day is after 31 July. The seed (April to June) and `submitMockReport` both build it here.
- */
-function submitted(fy: number, submittedAt: string): Stored {
-  const day = nairobiDayOf(submittedAt);
-  return {
-    fy,
-    status: 'submitted',
-    compiledAt: sixAm(finalCompileOf(fy)),
-    compileStartedAt: null,
-    submittedAt,
-    late: day > dueDateOf(fy),
-    reference: `RPT-PSC-${String(fy + 1)}-0000001-K`,
-    reviewedBy: SUPERVISOR_OFFICER,
-    confirmedBy: ADMIN_OFFICER,
-    document: confirmed(fullDocument(fy), plusDays(day, -1), day),
-  };
-}
-
-/** Submits the year's report on `day` at 11:20 in Nairobi (tests and the EACC intake demo). */
-export function submitMockReport(fy: number, day: string) {
-  ensureSeeded();
-  reports.set(fy, submitted(fy, `${day}T08:20:00.000Z`));
 }
 
 function countsOf(document: FormMV1): ReportCounts {
@@ -355,11 +234,11 @@ function countsOf(document: FormMV1): ReportCounts {
   };
 }
 
-function view(stored: Stored): ComplianceReport {
+function view(stored: StoredReport): ComplianceReport {
   const document = stored.status === 'compiling' ? null : stored.document;
   return {
     id: `0199a000-0000-7000-8000-00000000${String(stored.fy)}`,
-    commission: PSC,
+    commission: MOCK_PSC,
     fy: stored.fy,
     status: stored.status,
     source: 'hosted',
@@ -371,7 +250,7 @@ function view(stored: Stored): ComplianceReport {
     reference: stored.reference,
     dueDate: dueDateOf(stored.fy),
     document:
-      document && corruptDocument
+      document && mockDocumentCorrupt()
         ? ({ ...document, schemaVersion: 'form-m.v0' } as unknown as FormMV1)
         : document,
     counts: stored.document ? countsOf(stored.document) : {},
@@ -380,269 +259,3 @@ function view(stored: Stored): ComplianceReport {
     accessDataUnavailable: stored.document?.partII.accessRequests.dataUnavailable ?? true,
   };
 }
-
-type NonFiler = FormMV1['partII']['initial']['nonFilers'][number];
-
-const REMARKS: Record<NonFiler['actionTaken'], string> = {
-  none: 'No administrative action taken',
-  'notice-to-comply': 'Notice to comply issued',
-  warning: 'Warning issued',
-  'salary-stoppage': 'Salary stopped',
-  'disciplinary-referral': 'Referred for disciplinary action',
-  'referred-to-eacc': 'Referred to EACC',
-};
-
-function nonFiler(
-  obligation: number,
-  name: string,
-  designation: string,
-  identifier: string,
-  date: string,
-  actionTaken: NonFiler['actionTaken'],
-  complied: NonFiler['complied'],
-): NonFiler {
-  return {
-    obligationId: `0199b000-0000-7000-8000-${String(obligation).padStart(12, '0')}`,
-    name,
-    designation,
-    identifier,
-    date,
-    actionTaken,
-    complied,
-    remarks: REMARKS[actionTaken],
-  };
-}
-
-const UNSIGNED: FormMV1['partIII'] = {
-  compiledBy: { name: null, designation: null, date: null },
-  confirmedBy: { name: null, designation: null, date: null },
-};
-
-function partI(fy: number): FormMV1['partI'] {
-  return {
-    commissionName: PSC.name,
-    issuerCode: PSC.issuerCode,
-    contactDetails: '',
-    physicalAddress: 'Commission House, Harambee Avenue, Nairobi',
-    emailAddress: '',
-    period: { from: `${String(fy)}-07-01`, to: `${String(fy + 1)}-06-30`, financialYearStart: fy },
-  };
-}
-
-/** The year's draft as the scheduled compile assembles it (the prototype's PSC fixture). */
-function fullDocument(fy: number): FormMV1 {
-  const y = (offset: number) => String(fy + offset);
-  return {
-    schemaVersion: 'form-m.v1',
-    partI: partI(fy),
-    partII: {
-      initial: {
-        expected: 12,
-        declared: 10,
-        notDeclared: 2,
-        nonFilers: [
-          nonFiler(
-            101,
-            'Kevin Omondi Ochieng',
-            'Human Resource Officer II',
-            `PSC/${y(0)}/0418`,
-            `${y(0)}-09-01`,
-            'notice-to-comply',
-            'yes',
-          ),
-          nonFiler(
-            102,
-            'Mercy Chebet Rotich',
-            'Records Management Officer',
-            `PSC/${y(1)}/0032`,
-            `${y(1)}-05-18`,
-            'none',
-            'no',
-          ),
-        ],
-      },
-      biennial: {
-        expected: 100,
-        declared: 95,
-        notDeclared: 5,
-        noCycleInPeriod: false,
-        nonFilers: [
-          nonFiler(
-            201,
-            'Peter Mwangi Githinji',
-            'Principal Accountant',
-            'PSC/2011/0217',
-            '2011-03-01',
-            'salary-stoppage',
-            'pending',
-          ),
-          nonFiler(
-            202,
-            'Halima Abdi Hassan',
-            'Senior Legal Officer',
-            'PSC/2016/0098',
-            '2016-08-15',
-            'warning',
-            'pending',
-          ),
-          nonFiler(
-            203,
-            'Joseph Kiprono Langat',
-            'Driver III',
-            'PSC/2008/0544',
-            '2008-01-07',
-            'notice-to-comply',
-            'yes',
-          ),
-          nonFiler(
-            204,
-            'Esther Nyambura Wairimu',
-            'Office Administrator',
-            'PSC/2019/0310',
-            '2019-06-03',
-            'referred-to-eacc',
-            'no',
-          ),
-          nonFiler(
-            205,
-            'Collins Barasa Wekesa',
-            'ICT Officer I',
-            'PSC/2021/0127',
-            '2021-10-11',
-            'disciplinary-referral',
-            'no',
-          ),
-        ],
-      },
-      final: {
-        expected: 4,
-        declared: 3,
-        notDeclared: 1,
-        nonFilers: [
-          nonFiler(
-            301,
-            'Lucy Atieno Odhiambo',
-            'Deputy Director, Finance',
-            'PSC/2004/0061',
-            `${y(1)}-03-31`,
-            'notice-to-comply',
-            'pending',
-          ),
-        ],
-      },
-      clarifications: { items: CLARIFICATIONS.map((item) => ({ ...item })) },
-      accessRequests: {
-        received: 0,
-        granted: 0,
-        declined: 0,
-        declineReasons: [],
-        dataUnavailable: true,
-      },
-      complaints: { registerMaintained: null, items: [] },
-    },
-    partIII: UNSIGNED,
-  };
-}
-
-/** A preview of the year from today's data: no biennial cycle, access requests captured. */
-function previewDocument(fy: number): FormMV1 {
-  const y = (offset: number) => String(fy + offset);
-  const full = fullDocument(fy);
-  return {
-    ...full,
-    partII: {
-      ...full.partII,
-      initial: {
-        expected: 7,
-        declared: 5,
-        notDeclared: 2,
-        nonFilers: [
-          nonFiler(
-            401,
-            'Nelson Kibet Cheruiyot',
-            'Economist II',
-            `PSC/${y(0)}/0107`,
-            `${y(0)}-11-02`,
-            'notice-to-comply',
-            'pending',
-          ),
-          nonFiler(
-            402,
-            'Janet Moraa Nyakundi',
-            'Clerical Officer',
-            `PSC/${y(1)}/0004`,
-            `${y(1)}-02-15`,
-            'none',
-            'no',
-          ),
-        ],
-      },
-      biennial: { expected: 0, declared: 0, notDeclared: 0, nonFilers: [], noCycleInPeriod: true },
-      final: { expected: 2, declared: 2, notDeclared: 0, nonFilers: [] },
-      clarifications: {
-        items: CLARIFICATIONS.slice(0, 2).map((item) => ({
-          ...item,
-          statusOfCompliance: 'pending',
-        })),
-      },
-      accessRequests: {
-        received: 3,
-        granted: 2,
-        declined: 1,
-        declineReasons: [{ reason: 'frivolous-vexatious', count: 1 }],
-        dataUnavailable: false,
-      },
-    },
-  };
-}
-
-const CLARIFICATIONS: FormMV1['partII']['clarifications']['items'] = [
-  {
-    name: "Samuel Kariuki Ndung'u",
-    designation: 'Director, Establishment',
-    identifier: 'PSC/2002/0015',
-    natureInGeneralTerms: 'Supporting documents for an asset',
-    statusOfCompliance: 'resolved',
-    clarificationReference: 'CLR-PSC-2025-0000011-3',
-  },
-  {
-    name: 'Ann Wambui Mugo',
-    designation: 'Senior Economist',
-    identifier: 'PSC/2013/0205',
-    natureInGeneralTerms: 'Explanation of the source of funds for an asset',
-    statusOfCompliance: 'responded',
-    clarificationReference: 'CLR-PSC-2026-0000003-6',
-  },
-  {
-    name: 'Hassan Omar Mohamed',
-    designation: 'Principal Administrative Officer',
-    identifier: 'PSC/2009/0133',
-    natureInGeneralTerms: 'Missing liability details',
-    statusOfCompliance: 'pending',
-    clarificationReference: 'CLR-PSC-2026-0000009-T',
-  },
-  {
-    name: 'Beatrice Njeri Kimani',
-    designation: 'Accountant I',
-    identifier: 'PSC/2018/0276',
-    natureInGeneralTerms: "Incomplete spouse's financial statement",
-    statusOfCompliance: 'overdue',
-    clarificationReference: 'CLR-PSC-2026-0000014-Z',
-  },
-  {
-    name: 'Daniel Mutua Musyoka',
-    designation: 'Supply Chain Officer II',
-    identifier: 'PSC/2020/0391',
-    natureInGeneralTerms: 'Undisclosed directorship or membership',
-    statusOfCompliance: 'resolved',
-    clarificationReference: 'CLR-PSC-2026-0000017-T',
-  },
-  {
-    name: 'Rose Akinyi Otieno',
-    designation: 'Assistant Director, HRM',
-    identifier: 'PSC/2012/0188',
-    natureInGeneralTerms: 'Basis of valuation not stated',
-    statusOfCompliance: 'withdrawn',
-    clarificationReference: 'CLR-PSC-2026-0000021-2',
-  },
-];

@@ -23,18 +23,26 @@
  * the second an AI draft; `stale`, that draft built before the latest report came in; `approved`,
  * approved by Esther Chebet with its PDF. The receipts carry no clarification or access-request
  * counts, so those totals are 0. A narrative save with `offline` in its text answers 503, so the
- * editor's retry shows. `mockNcrDocumentsFetch` answers documents' download of the NCR PDF, with
- * links to `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
+ * editor's retry shows. `mockNcrDocumentsFetch` answers documents' download of the NCR PDF (through
+ * `report-documents-mock.server.ts`), with links to `/api/mock-files/{id}`.
  */
-import { EACC_SUPERVISOR } from '@adili/roles';
+import { EACC_SUPERVISOR, EACC_TENANT } from '@adili/roles';
 import { NARRATIVE_MAX_LENGTH } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import type { paths as documentsPaths } from '../documents/api.gen';
 import { type Env, envSchema } from '../env.server';
-import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
+import {
+  documentDownloadIdOf,
+  isRecord,
+  json,
+  mockCallerOf,
+  problem,
+  readJson,
+  unsignedMockToken,
+} from '../mock-http';
 import { isCandidatesPath, mockCandidatesFetch } from './candidates-mock.server';
-import { isEacc, mockEaccIntake, mockHasBiennialCycle } from './eacc-mock.server';
+import { hasBiennialCycle, isEacc, mockDelay, mockEaccIntake } from './eacc-mock.server';
 import {
   type CommissionAggregate,
   type Intake,
@@ -286,7 +294,7 @@ function buildAggregates(fy: number, receipts: readonly Row[]): NationalAggregat
       initial: section(countsOf(row, 'initial')),
       biennial: {
         ...section(countsOf(row, 'biennial')),
-        noCycleInPeriod: !mockHasBiennialCycle(fy),
+        noCycleInPeriod: !hasBiennialCycle(fy),
       },
       final: section(countsOf(row, 'final')),
       clarifications: 0,
@@ -442,7 +450,7 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
       );
     }
     if (report?.status === 'approved') return approvedConflict();
-    await delay(900);
+    await mockDelay(900);
     const next: StoredReport = report ?? {
       id: crypto.randomUUID(),
       fy,
@@ -512,7 +520,7 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
         'separation-of-duties',
       );
     }
-    await delay(700);
+    await mockDelay(700);
     data.sequence += 1;
     Object.assign(report, {
       status: 'approved',
@@ -549,21 +557,20 @@ function narrativeErrors(body: unknown): { path: string; message: string }[] {
   return errors;
 }
 
-/** Answers documents' download of an approved NCR's PDF, for EACC analysts and supervisors. */
-export function mockNcrDocumentsFetch(request: Request): Promise<Response> {
-  const data = ensureSeeded();
-  const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
-  const known = [...data.reports.values()].some((report) => report.documentId === match?.[1]);
-  if (request.method !== 'GET' || !match?.[1] || !isEacc(mockCallerOf(request)) || !known) {
-    return Promise.resolve(problem(404, 'Not found'));
-  }
-  return Promise.resolve(
-    json(200, {
-      downloadUrl: `/api/mock-files/${match[1]}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-      sha256: '0'.repeat(64),
-    }),
-  );
+/**
+ * Answers documents' download of an approved NCR's PDF, for EACC analysts and supervisors; null
+ * for a request about any other document, which another mock answers.
+ */
+export async function mockNcrDocumentsFetch(request: Request): Promise<Response | null> {
+  const id = documentDownloadIdOf(request);
+  if (!id || !mockNcrFileTitle(id)) return null;
+  await mockDelay(200);
+  if (!isEacc(mockCallerOf(request))) return problem(404, 'Not found');
+  return json(200, {
+    downloadUrl: `/api/mock-files/${id}`,
+    expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    sha256: '0'.repeat(64),
+  });
 }
 
 /** The title of a mock file this mock links to, or null: the NCR PDF of an approved report. */
@@ -572,21 +579,18 @@ export function mockNcrFileTitle(id: string): string | null {
   return report?.reference ? `${report.reference}.pdf` : null;
 }
 
-function delay(ms: number): Promise<void> {
-  return process.env.VITEST ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /** A documents client answered by this mock, as an EACC officer holding `roles`, for tests. */
 export function mockNcrDocumentsClient(roles: readonly string[]) {
   const token = unsignedMockToken({
     subject: 'mock-eacc',
     name: 'EACC officer',
     roles,
-    tenant: 'eacc',
+    tenant: EACC_TENANT,
   });
   return createClient<documentsPaths>({
     baseUrl: 'http://documents.test',
     headers: { authorization: `Bearer ${token}` },
-    fetch: mockNcrDocumentsFetch,
+    fetch: async (request: Request) =>
+      (await mockNcrDocumentsFetch(request)) ?? problem(404, 'Not found'),
   });
 }
