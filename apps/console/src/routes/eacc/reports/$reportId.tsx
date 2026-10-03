@@ -27,9 +27,9 @@ function crumbOf(loaderData: unknown): string {
 
 /** A Commission's Form M as filed (spec 09 FE-3): EACC's report viewer. */
 export const Route = createFileRoute('/eacc/reports/$reportId')({
-  loader: async ({ params, context, location }): Promise<EaccResult<ReportView> | null> => {
-    if (!context.workspace) return null;
-    if (!UUID.test(params.reportId)) return NOT_FOUND;
+  loader: async ({ params, context, location }): Promise<EaccResult<ReportView>> => {
+    // Commission staff read their own report in the Form M workspace; here it is not found.
+    if (!context.workspace || !UUID.test(params.reportId)) return NOT_FOUND;
     const result = await getSubmittedReport({ data: { reportId: params.reportId } });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
@@ -43,9 +43,7 @@ export const Route = createFileRoute('/eacc/reports/$reportId')({
 });
 
 function ReportLoaded() {
-  const result = Route.useLoaderData();
-  if (!result) return null;
-  return <ReportPage result={result} />;
+  return <ReportPage result={Route.useLoaderData()} />;
 }
 
 async function download(documentId: string): Promise<boolean> {

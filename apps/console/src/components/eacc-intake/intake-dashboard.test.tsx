@@ -6,11 +6,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import { loadIntake } from '../../server/eacc-intake.server';
 import type { IntakePage } from '../../server/eacc-intake';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
 import {
-  resetEaccIntakeMock,
-  setEaccIntakeMockLatency,
-} from '../../server/reporting/eacc-mock.server';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+  mockReportingClient,
+  resetReportingMock,
+  submitMockReport,
+} from '../../server/reporting/mock.server';
 import { IntakeDashboard, type IntakeSearch } from './intake-dashboard';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -30,7 +31,9 @@ afterAll(() => {
 });
 beforeEach(() => {
   invalidate.mockClear();
-  resetEaccIntakeMock(TODAY);
+  resetReportingMock(TODAY);
+  // The Public Service Commission files on 28 July, on time (spec 09 S9).
+  submitMockReport(2025, '2026-07-28');
 });
 
 async function page(fy = 2025): Promise<IntakePage> {

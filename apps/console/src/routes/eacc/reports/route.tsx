@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useMatches } from '@tanstack/react-router';
 
 import { messages as m } from '../../../components/eacc-intake/messages';
 import { signInRedirect } from '../../../components/sign-in-redirect';
@@ -15,8 +15,8 @@ function opensWorkspace(context: unknown): boolean {
 
 /**
  * EACC's compliance reports (spec 09 FE-3): the intake of every Commission's Form M per financial
- * year and the report viewer, for EACC analysts and supervisors. Anyone else is told the page is
- * not theirs, as the reporting service answers them 403.
+ * year and the report viewer, for EACC analysts and supervisors. Anyone else is told the intake
+ * is not theirs, as the reporting service answers them 403, and finds no report (404).
  */
 export const Route = createFileRoute('/eacc/reports')({
   beforeLoad: async ({ location }) => {
@@ -27,13 +27,16 @@ export const Route = createFileRoute('/eacc/reports')({
   },
   staticData: {
     // Staff without the workspace get no trail back to a page they cannot open.
-    crumb: ({ context, isLeaf }) => (isLeaf || opensWorkspace(context) ? m.crumb : null),
+    crumb: ({ context, isLeaf }) => (isLeaf || opensWorkspace(context) ? m.title : null),
   },
   component: ComplianceReportsLayout,
 });
 
 function ComplianceReportsLayout() {
   const { viewer, roles, workspace } = Route.useRouteContext();
+  // A report anyone else opens reads as not found, as the service answers (the prototype's
+  // Commission roles), not as a page they may not open.
+  const onReport = useMatches().some((match) => match.routeId === '/eacc/reports/$reportId');
   return (
     <WorkspaceLayout
       viewer={viewer}
@@ -41,6 +44,7 @@ function ComplianceReportsLayout() {
       workspace={workspace}
       title={m.title}
       forbidden={m.forbidden}
+      open={onReport}
     >
       <Outlet />
     </WorkspaceLayout>

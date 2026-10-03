@@ -15,6 +15,7 @@ import {
   formatDateTime,
   formatPercent,
   Icon,
+  INTAKE_STATUSES,
   IntakeStatusBadge,
   RateBar,
   Select,
@@ -42,7 +43,7 @@ import {
 import { type ReactNode, useId, useState } from 'react';
 
 import type { IntakePage } from '../../server/eacc-intake';
-import type { Intake, IntakeRow, IntakeStatus } from '../../server/reporting/types';
+import type { Intake, IntakeRow } from '../../server/reporting/types';
 import { problemStatus } from '../../server/service-call';
 import { CursorPager } from '../cursor-pager';
 import { dueDateOf } from '../form-m/financial-year';
@@ -79,12 +80,6 @@ export interface IntakeDashboardProps {
   /** The row's report as a link to the report viewer, around `children`. */
   reportLink: (row: IntakeRow, children: ReactNode) => ReactNode;
 }
-
-const STATUS_CHIPS: readonly IntakeStatus[] = [
-  'submitted-on-time',
-  'submitted-late',
-  'not-reported',
-];
 
 /** `search` without empty values, so the URL carries only what is set. */
 function compact(search: IntakeSearch): IntakeSearch {
@@ -286,7 +281,7 @@ function IntakeTable({
           >
             {m.all}
           </FilterChip>
-          {STATUS_CHIPS.map((status) => (
+          {INTAKE_STATUSES.map((status) => (
             <FilterChip
               key={status}
               pressed={search.status === status}

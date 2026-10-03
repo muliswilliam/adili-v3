@@ -5,10 +5,9 @@ import { createDocumentsClient } from './documents/client';
 import { loadIntake, loadSubmittedReport, reportFileLink } from './eacc-intake.server';
 import {
   mockReportingDocumentsFetch,
-  resetEaccIntakeMock,
   setEaccIntakeMockLatency,
 } from './reporting/eacc-mock.server';
-import { mockReportingClient } from './reporting/mock.server';
+import { mockReportingClient, resetReportingMock, submitMockReport } from './reporting/mock.server';
 import { unsignedMockToken } from './mock-http';
 
 const analyst = () => mockReportingClient([EACC_ANALYST], { tenant: 'eacc', name: 'Brian Otieno' });
@@ -20,7 +19,9 @@ afterAll(() => {
   setEaccIntakeMockLatency(1);
 });
 beforeEach(() => {
-  resetEaccIntakeMock('2026-10-03');
+  resetReportingMock('2026-10-03');
+  // The Public Service Commission files on 28 July, on time (spec 09 S9).
+  submitMockReport(2025, '2026-07-28');
 });
 
 async function intake(client: ReturnType<typeof mockReportingClient>, fy = 2025) {
@@ -81,6 +82,29 @@ describe('the EACC intake (S9)', () => {
       nationalDeclaredRate: null,
     });
     expect(data.commissions.every((commission) => commission.chases.count === 0)).toBe(true);
+  });
+
+  it('shows psc as the Form M workspace has it: not reported while a draft, then as submitted', async () => {
+    resetReportingMock('2026-10-03');
+    const draft = row(await intake(analyst()), 'psc');
+    expect(draft).toMatchObject({ status: 'not-reported', reportId: null });
+    expect(draft.chases.count).toBe(10);
+    submitMockReport(2025, '2026-10-02');
+    expect(row(await intake(analyst()), 'psc')).toMatchObject({
+      status: 'submitted-late',
+      reference: 'RPT-PSC-2026-0000001-K',
+      submittedAt: '2026-10-02T08:20:00.000Z',
+      chases: { count: 9, lastAt: '2026-09-26T03:00:00.000Z' },
+    });
+  });
+
+  it('validates the query before the caller, and takes any year from 2025', async () => {
+    const reviewer = mockReportingClient([REVIEWER], { tenant: 'psc' });
+    expect(await loadIntake(reviewer, 2024)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 400 } },
+    });
+    expect((await intake(analyst(), 2030)).totals.notReported).toBe(15);
   });
 
   it('is the same for an EACC supervisor', async () => {

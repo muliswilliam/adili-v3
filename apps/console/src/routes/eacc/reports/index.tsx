@@ -1,3 +1,4 @@
+import { INTAKE_STATUSES } from '@adili/ui';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { z } from 'zod';
 
@@ -13,10 +14,7 @@ import { financialYear } from '../../../server/form-m';
  */
 const searchSchema = z.object({
   fy: financialYear.optional().catch(undefined),
-  status: z
-    .enum(['not-reported', 'submitted-on-time', 'submitted-late'])
-    .optional()
-    .catch(undefined),
+  status: z.literal(INTAKE_STATUSES).optional().catch(undefined),
   outliers: z.boolean().optional().catch(undefined),
   q: z.string().max(100).optional().catch(undefined),
   page: z.int().min(1).optional().catch(undefined),
@@ -39,7 +37,7 @@ export const Route = createFileRoute('/eacc/reports/')({
     crumb: ({ context }) =>
       typeof context === 'object' && context !== null && 'workspace' in context && context.workspace
         ? m.intakeCrumb
-        : m.crumb,
+        : m.title,
   },
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: IntakeLoading,

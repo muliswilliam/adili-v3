@@ -6,6 +6,9 @@
  * (`services/reporting/src/financial-year.ts`); the console only reads them.
  */
 
+/** The first financial year reports exist for (reporting.yaml `FinancialYear`). */
+export const FIRST_FINANCIAL_YEAR = 2025;
+
 /** The financial year (start year) a Nairobi day falls in. */
 export function financialYearOf(day: string): number {
   const year = Number(day.slice(0, 4));

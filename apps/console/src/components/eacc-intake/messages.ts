@@ -1,9 +1,10 @@
+import { plural } from '@adili/ui';
+
 import type { IntakeOutlier, IntakeStatus } from '../../server/reporting/types';
 
 /** EACC's compliance reports intake and report viewer copy (spec 09 FE comment, FE-3). */
 export const en = {
   title: 'Compliance reports',
-  crumb: 'Compliance reports',
   intakeCrumb: 'Intake',
   forbidden: 'This page is for EACC analysts and supervisors.',
   financialYear: 'Financial year',
@@ -52,8 +53,7 @@ export const en = {
     'section-missing': 'Section missing',
   } satisfies Record<IntakeOutlier, string>,
   none: '-',
-  chased: (count: number, last: string) =>
-    `Chased ${String(count)} ${count === 1 ? 'time' : 'times'}, last ${last}`,
+  chased: (count: number, last: string) => `Chased ${plural(count, 'time')}, last ${last}`,
   openReport: 'Open report',
   openReportOf: (name: string) => `Open the report of ${name}`,
   chaseHistory: 'Chase history',
@@ -87,7 +87,7 @@ export const en = {
   downloadFailed: 'We could not download the file. Try again.',
   reference: 'Reference number',
   submitted: 'Submitted',
-  daysLate: (days: number) => `${String(days)} ${days === 1 ? 'day' : 'days'} late`,
+  daysLate: (days: number) => `${plural(days, 'day')} late`,
   period: 'Period',
   periodLine: (fy: string, due: string) => `${fy}, due ${due}`,
   compiledBy: 'Compiled by',

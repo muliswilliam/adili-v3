@@ -35,7 +35,7 @@ export interface IntakePage {
 export const getEaccIntake = createServerFn({ method: 'GET' })
   .validator(z.object({ fy: financialYear.optional() }))
   .handler(async ({ data }): Promise<IntakePage> => {
-    const day = today();
+    const day = await today();
     const fy = data.fy ?? defaultFinancialYear(day);
     return { today: day, fy, intake: await asReportingViewer((client) => loadIntake(client, fy)) };
   });

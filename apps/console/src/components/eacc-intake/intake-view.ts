@@ -1,14 +1,14 @@
+import { addDays, daysBetween } from '@adili/ui';
+
 import type { Intake, IntakeRow, IntakeStatus } from '../../server/reporting/types';
-import { dueDateOf, financialYearOf } from '../form-m/financial-year';
+import { nairobiDay } from '../access/request-view';
+import { dueDateOf, FIRST_FINANCIAL_YEAR, financialYearOf } from '../form-m/financial-year';
 
 /**
  * The EACC intake dashboard's rules (spec 09 FE-3), apart from rendering: which financial years
  * it offers, how its filters narrow the year's Commissions, and what the chase and deadline
  * lines say. Days are `YYYY-MM-DD` in Nairobi.
  */
-
-/** The first financial year reports exist for (reporting.yaml `FinancialYear`). */
-export const FIRST_FINANCIAL_YEAR = 2025;
 
 export interface FinancialYearOption {
   fy: number;
@@ -70,18 +70,6 @@ export function intakeCounts(rows: readonly IntakeRow[]): IntakeCounts {
   };
 }
 
-/** `date` plus `days`, as `YYYY-MM-DD`. */
-function plusDays(date: string, days: number): string {
-  const at = new Date(`${date}T00:00:00Z`);
-  at.setUTCDate(at.getUTCDate() + days);
-  return at.toISOString().slice(0, 10);
-}
-
-/** The Nairobi day of an ISO date-time. */
-export function nairobiDay(iso: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Nairobi' }).format(new Date(iso));
-}
-
 /**
  * The day of EACC's next weekly chase: a week after the latest round, while a Commission has not
  * reported and that day has not passed (a chase that stopped, e.g. once the national report was
@@ -94,7 +82,7 @@ export function nextChaseOn(intake: Intake, today: string): string | null {
     .sort()
     .at(-1);
   if (!last) return null;
-  const next = plusDays(last, 7);
+  const next = addDays(last, 7).slice(0, 10);
   return next >= today ? next : null;
 }
 
@@ -106,6 +94,5 @@ export function awaitingReports(intake: Intake, today: string): boolean {
 
 /** Whole days after the due date a report came in, by its Nairobi day; 0 when on time. */
 export function daysLate(submittedAt: string, dueDate: string): number {
-  const day = nairobiDay(submittedAt);
-  return Math.max(0, Math.round((Date.parse(day) - Date.parse(dueDate)) / 86_400_000));
+  return Math.max(0, daysBetween(dueDate, submittedAt));
 }

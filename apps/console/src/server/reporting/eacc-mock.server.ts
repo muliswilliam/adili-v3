@@ -1,14 +1,15 @@
 /**
  * In-memory stand-in for the reporting service's EACC intake endpoints (reporting.yaml
  * `getEaccIntake`, `getSubmittedReport`) and for documents' downloads of the Form M PDFs and
- * receipts they point at, used when REPORTING_MOCK is set. Fifteen Commissions, seeded relative
- * to "today" (REPORTING_MOCK_TODAY, else the day in Nairobi) for every financial year from 2025
- * to the current one; a report counts as filed once its day has come:
+ * receipts they point at, used when REPORTING_MOCK is set. Fifteen Commissions on the reporting
+ * mock's day (`mockReportingToday`, so the Form M workspace and the intake share it) for every
+ * financial year from 2025; a report counts as filed once its day has come:
  *
- * - Filed by 31 July: the Public Service Commission (`psc`, the spec 09 fixture: 12 appointed and
- *   10 initial declarations, 100 in service and 95 biennial, 4 exits and 3 final), the
- *   Parliamentary Service Commission, the National Police Service Commission and six county
- *   public service boards.
+ * - The Public Service Commission (`psc`) is the Form M workspace mock's: EACC sees its report
+ *   once it is submitted there (with its date, late flag and reference), and not reported while
+ *   it is a draft.
+ * - Filed by 31 July: the Parliamentary Service Commission, the National Police Service
+ *   Commission and six county public service boards.
  * - Filed late: the Teachers Service Commission (`tsc`, 12 August, through its own system, with
  *   long lists), Nairobi City (3 September, low biennial rate) and Kirinyaga.
  * - Not reported: the Judicial Service Commission (`jsc`), Kisumu and Kisii.
@@ -20,17 +21,17 @@
  * (anyone else, and a report not filed yet, 404).
  */
 import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
+import { addDays, INTAKE_STATUSES } from '@adili/ui';
 
-import { dueDateOf, financialYearOf, nairobiToday } from '../../components/form-m/financial-year';
-import { env } from '../env.server';
+import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
 import { json, type MockCaller, mockCallerOf, problem } from '../mock-http';
+import { mockReportingToday, mockStoredReport } from './mock.server';
 import type { Intake, IntakeOutlier, IntakeRow, ReportSource, SubmittedReport } from './types';
 
 type FormM = SubmittedReport['document'];
 type SectionKey = 'initial' | 'biennial' | 'final';
 type NonFiler = FormM['partII']['initial']['nonFilers'][number];
 
-const FIRST_FINANCIAL_YEAR = 2025;
 /** The service's default `INTAKE_MIN_<SECTION>_RATE`. */
 const MIN_RATE = 0.8;
 
@@ -146,16 +147,9 @@ const COMMISSIONS: readonly Fixture[] = (
     fixture(
       'psc',
       'Public Service Commission',
-      -3,
+      // Filed when the Form M workspace mock submits it (see `filingOf`).
+      null,
       { initial: [12, 10], biennial: [100, 95], final: [4, 3] },
-      {
-        contact: {
-          phone: '+254 20 222 3901',
-          address: 'Commission House, Harambee Avenue, Nairobi',
-          email: 'compliance@publicservice.go.ke',
-        },
-        officers: { compiledBy: 'Samuel Njoroge', confirmedBy: 'Dr. Mary Wambui' },
-      },
     ),
     fixture(
       'tsc',
@@ -180,17 +174,12 @@ const COMMISSIONS: readonly Fixture[] = (
   ] satisfies Fixture[]
 ).sort((a, b) => a.name.localeCompare(b.name));
 
-let today = '';
 let latency = 1;
 let offline = false;
 
-/** Seeds the intake as it stands on `day` (`YYYY-MM-DD`); `offline` answers 503 to every read. */
-export function resetEaccIntakeMock(
-  day: string = nairobiToday(),
-  options: { offline?: boolean } = {},
-) {
-  today = day;
-  offline = options.offline ?? false;
+/** `offline` answers 503 to every read, as when the Commission directory cannot be reached. */
+export function setEaccIntakeMockOffline(value: boolean) {
+  offline = value;
 }
 
 /** Scales the mock's answer delays (0 in tests). */
@@ -198,31 +187,52 @@ export function setEaccIntakeMockLatency(factor: number) {
   latency = factor;
 }
 
-function ensureSeeded() {
-  // The dev server's first request: seed from REPORTING_MOCK_TODAY. Tests seed explicitly.
-  if (today === '') resetEaccIntakeMock(env().REPORTING_MOCK_TODAY);
-}
-
 const delay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms * latency);
   });
 
-/** `date` plus `days`, as `YYYY-MM-DD`. */
-function plusDays(date: string, days: number): string {
-  const at = new Date(`${date}T00:00:00Z`);
-  at.setUTCDate(at.getUTCDate() + days);
-  return at.toISOString().slice(0, 10);
-}
+/** The day `days` after `day` (`YYYY-MM-DD`). */
+const plusDays = (day: string, days: number) => addDays(day, days).slice(0, 10);
 
 /** 06:00 in Nairobi on `date`. */
 const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
-/** The day `commission` files the year's report; null when it has not (by today). */
-function filedOn(commission: Fixture, fy: number): string | null {
+/** A report EACC has received. */
+interface Filing {
+  /** The day it came in. */
+  day: string;
+  submittedAt: string;
+  late: boolean;
+  reference: string;
+  /** The form as filed, for the workspace mock's report; built from the fixture otherwise. */
+  document: FormM | null;
+}
+
+/** `commission`'s report for the year as EACC has it by today; null when it has not reported. */
+function filingOf(commission: Fixture, fy: number): Filing | null {
+  if (commission.slug === 'psc') {
+    const stored = mockStoredReport(fy);
+    if (stored?.status !== 'submitted' || !stored.submittedAt || !stored.document) return null;
+    const day = stored.submittedAt.slice(0, 10);
+    return {
+      day,
+      submittedAt: stored.submittedAt,
+      late: stored.late ?? day > dueDateOf(fy),
+      reference: stored.reference ?? referenceOf(commission, fy),
+      document: stored.document,
+    };
+  }
   if (commission.filedAfterDue === null) return null;
   const day = plusDays(dueDateOf(fy), commission.filedAfterDue);
-  return day <= today ? day : null;
+  if (day > mockReportingToday()) return null;
+  return {
+    day,
+    submittedAt: `${day}T08:05:00.000Z`,
+    late: day > dueDateOf(fy),
+    reference: referenceOf(commission, fy),
+    document: null,
+  };
 }
 
 /**
@@ -232,6 +242,7 @@ function filedOn(commission: Fixture, fy: number): string | null {
 function chaseRounds(fy: number, filed: string | null): string[] {
   const august = plusDays(dueDateOf(fy), 1);
   const weekday = new Date(`${august}T00:00:00Z`).getUTCDay();
+  const today = mockReportingToday();
   const rounds: string[] = [];
   for (
     let day = plusDays(august, (6 - weekday + 7) % 7);
@@ -246,7 +257,13 @@ function chaseRounds(fy: number, filed: string | null): string[] {
 /** Whether the year has a biennial declaration cycle (odd start years, as FY 2027 in spec 09). */
 const hasBiennialCycle = (fy: number) => fy % 2 === 1;
 
-function sectionCounts(commission: Fixture, fy: number, section: SectionKey) {
+function sectionCounts(
+  commission: Fixture,
+  fy: number,
+  section: SectionKey,
+  filing: Filing | null = null,
+) {
+  if (filing?.document) return filing.document.partII[section];
   if (section === 'biennial' && !hasBiennialCycle(fy)) return { expected: 0, declared: 0 };
   const [expected, declared] = commission.counts[section];
   return { expected, declared };
@@ -283,14 +300,14 @@ const referenceOf = (commission: Fixture, fy: number) =>
   `RPT-${commission.issuerCode}-${String(fy + 1)}-0000001-K`;
 
 function intakeRow(commission: Fixture, index: number, fy: number): IntakeRow {
-  const filed = filedOn(commission, fy);
-  const rounds = chaseRounds(fy, filed);
+  const filing = filingOf(commission, fy);
+  const rounds = chaseRounds(fy, filing?.day ?? null);
   const chases = {
     count: rounds.length,
     lastAt: rounds.length ? sixAm(rounds.at(-1) ?? '') : null,
   };
   const base = { commission: { slug: commission.slug, name: commission.name }, chases };
-  if (!filed) {
+  if (!filing) {
     return {
       ...base,
       status: 'not-reported',
@@ -305,16 +322,16 @@ function intakeRow(commission: Fixture, index: number, fy: number): IntakeRow {
   }
   const rates = Object.fromEntries(
     SECTIONS.map((section) => {
-      const { expected, declared } = sectionCounts(commission, fy, section);
+      const { expected, declared } = sectionCounts(commission, fy, section, filing);
       return [section, { expected, declared, rate: rateOf(declared, expected) }];
     }),
   ) as IntakeRow['rates'];
   return {
     ...base,
-    status: filed > dueDateOf(fy) ? 'submitted-late' : 'submitted-on-time',
+    status: filing.late ? 'submitted-late' : 'submitted-on-time',
     reportId: reportIdOf(index, fy),
-    reference: referenceOf(commission, fy),
-    submittedAt: `${filed}T08:05:00.000Z`,
+    reference: filing.reference,
+    submittedAt: filing.submittedAt,
     rates,
     outliers: outliersOf(rates, fy),
     formMDocumentId: formMDocumentIdOf(index, fy),
@@ -480,9 +497,9 @@ function documentOf(commission: Fixture, fy: number, filed: string): FormM {
 function submittedReport(index: number, fy: number): SubmittedReport | null {
   const commission = COMMISSIONS[index];
   if (!commission) return null;
-  const filed = filedOn(commission, fy);
-  if (!filed) return null;
-  const document = documentOf(commission, fy, filed);
+  const filing = filingOf(commission, fy);
+  if (!filing) return null;
+  const document = filing.document ?? documentOf(commission, fy, filing.day);
   const counts = (key: SectionKey) => {
     const { expected, declared, notDeclared } = document.partII[key];
     return { expected, declared, notDeclared };
@@ -494,7 +511,7 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
     fy,
     status: 'submitted',
     source: commission.source,
-    compiledAt: sixAm(plusDays(filed, -5)),
+    compiledAt: sixAm(plusDays(filing.day, -5)),
     reviewedBy:
       commission.source === 'hosted' && compiledBy.name
         ? { subject: `mock-${commission.slug}-supervisor`, name: compiledBy.name }
@@ -503,9 +520,9 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
       commission.source === 'hosted' && confirmedBy.name
         ? { subject: `mock-${commission.slug}-admin`, name: confirmedBy.name }
         : null,
-    submittedAt: `${filed}T08:05:00.000Z`,
-    late: filed > dueDateOf(fy),
-    reference: referenceOf(commission, fy),
+    submittedAt: filing.submittedAt,
+    late: filing.late,
+    reference: filing.reference,
     dueDate: dueDateOf(fy),
     document,
     counts: {
@@ -513,11 +530,15 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
       biennial: { ...counts('biennial'), noCycleInPeriod: !hasBiennialCycle(fy) },
       final: counts('final'),
       clarifications: document.partII.clarifications.items.length,
-      accessRequests: { received: 0, granted: 0, declined: 0 },
+      accessRequests: {
+        received: document.partII.accessRequests.received,
+        granted: document.partII.accessRequests.granted,
+        declined: document.partII.accessRequests.declined,
+      },
     },
     formMDocumentId: formMDocumentIdOf(index, fy),
     receiptDocumentId: receiptDocumentIdOf(index, fy),
-    accessDataUnavailable: true,
+    accessDataUnavailable: document.partII.accessRequests.dataUnavailable,
   };
 }
 
@@ -536,24 +557,25 @@ function parseReportId(id: string): { index: number; fy: number } | null {
   return { fy: Number(match[1]), index: Number(match[2]) };
 }
 
-const years = () => ({ first: FIRST_FINANCIAL_YEAR, last: financialYearOf(today) });
-
 /** Answers `/v1/eacc/compliance-reports` and `/v1/eacc/compliance-reports/{reportId}`. */
 export async function mockEaccIntakeFetch(input: Request): Promise<Response> {
-  ensureSeeded();
   await delay(300);
-  if (offline) return problem(503, 'The Commission directory could not be reached');
   const url = new URL(input.url);
   const caller = mockCallerOf(input);
   if (input.method !== 'GET') return problem(404, 'Not found');
   if (url.pathname === '/v1/eacc/compliance-reports') {
-    if (!isEacc(caller)) return problem(403, 'Only EACC analysts and supervisors');
+    // The query is validated before the caller, as the controller's pipes run before its guard.
     const fy = Number(url.searchParams.get('fy'));
-    const { first, last } = years();
-    if (!Number.isInteger(fy) || fy < first || fy > last) {
-      return problem(400, 'The financial year is not one reports exist for');
-    }
     const status = url.searchParams.get('status');
+    if (
+      !Number.isInteger(fy) ||
+      fy < FIRST_FINANCIAL_YEAR ||
+      (status !== null && !(INTAKE_STATUSES as readonly string[]).includes(status))
+    ) {
+      return problem(400, 'Query failed validation');
+    }
+    if (!isEacc(caller)) return problem(403, 'Only EACC analysts and supervisors');
+    if (offline) return problem(503, 'The Commission directory could not be reached');
     const outliersOnly = url.searchParams.get('outliersOnly') === 'true';
     const whole = intake(fy);
     return json(200, {
@@ -566,6 +588,7 @@ export async function mockEaccIntakeFetch(input: Request): Promise<Response> {
   const match = /^\/v1\/eacc\/compliance-reports\/([^/]+)$/.exec(url.pathname);
   const id = match?.[1];
   if (!id) return problem(404, 'Not found');
+  if (offline) return problem(503, 'The Commission directory could not be reached');
   const parsed = parseReportId(id);
   const report = parsed ? submittedReport(parsed.index, parsed.fy) : null;
   if (!report || !(isEacc(caller) || readsOwnReport(caller, report.commission.slug))) {
@@ -578,11 +601,11 @@ export async function mockEaccIntakeFetch(input: Request): Promise<Response> {
 export function mockReportingFileTitle(documentId: string): string | null {
   const match = /^0199c([23])00-0000-7000-8000-(\d{4})(\d{8})$/.exec(documentId);
   if (!match) return null;
-  ensureSeeded();
   const fy = Number(match[2]);
   const commission = COMMISSIONS[Number(match[3])];
-  if (!commission || !filedOn(commission, fy)) return null;
-  const reference = referenceOf(commission, fy);
+  const filing = commission ? filingOf(commission, fy) : null;
+  if (!filing) return null;
+  const { reference } = filing;
   return match[1] === '2' ? `Form M ${reference}.pdf` : `Receipt ${reference}.pdf`;
 }
 

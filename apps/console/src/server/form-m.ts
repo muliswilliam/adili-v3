@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { nairobiToday } from '../components/form-m/financial-year';
+import { FIRST_FINANCIAL_YEAR, nairobiToday } from '../components/form-m/financial-year';
 import { asReportingViewer } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import { env } from './env.server';
@@ -18,7 +18,7 @@ import {
  */
 
 /** A financial year (start year) reports exist for (reporting.yaml `FinancialYear`). */
-export const financialYear = z.int().min(2025).max(9999);
+export const financialYear = z.int().min(FIRST_FINANCIAL_YEAR).max(9999);
 
 /**
  * Today in Nairobi, the day the workspace counts days to the due date from; with the reporting

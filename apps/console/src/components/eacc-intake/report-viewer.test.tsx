@@ -10,11 +10,12 @@ import {
   loadSubmittedReport,
   type ReportView,
 } from '../../server/eacc-intake.server';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
 import {
-  resetEaccIntakeMock,
-  setEaccIntakeMockLatency,
-} from '../../server/reporting/eacc-mock.server';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+  mockReportingClient,
+  resetReportingMock,
+  submitMockReport,
+} from '../../server/reporting/mock.server';
 import { ReportViewer } from './report-viewer';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -28,7 +29,9 @@ afterAll(() => {
 });
 beforeEach(() => {
   invalidate.mockClear();
-  resetEaccIntakeMock('2026-10-03');
+  resetReportingMock('2026-10-03');
+  // The Public Service Commission files on 28 July, on time (spec 09 S9).
+  submitMockReport(2025, '2026-07-28');
 });
 
 const analyst = () => mockReportingClient([EACC_ANALYST], { tenant: 'eacc' });
@@ -88,10 +91,10 @@ describe('the report viewer (S9, S15)', () => {
     expect(screen.getByText('Restricted')).toBeTruthy();
     const facts = within(screen.getByRole('region', { name: 'Report details' }));
     expect(facts.getByText('RPT-PSC-2026-0000001-K')).toBeTruthy();
-    expect(facts.getByText('28 Jul 2026, 11:05')).toBeTruthy();
+    expect(facts.getByText('28 Jul 2026, 11:20')).toBeTruthy();
     expect(facts.getByText('FY 2025/2026, due 31 Jul 2026')).toBeTruthy();
     expect(facts.getByText('Samuel Njoroge')).toBeTruthy();
-    expect(facts.getByText('Dr. Mary Wambui')).toBeTruthy();
+    expect(facts.getByText('Joyce Wanjiku')).toBeTruthy();
     // The form as the Commission filed it.
     expect(
       screen.getByRole('heading', { name: 'Part I: Description of the Responsible Commission' }),
