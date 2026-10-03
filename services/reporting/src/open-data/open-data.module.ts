@@ -1,0 +1,19 @@
+import { Module } from '@nestjs/common';
+
+import { ClockModule } from '../clock.module.js';
+import { OpenDataController } from './open-data.controller.js';
+import { OpenDataService } from './open-data.service.js';
+import { OpenDataReleaseBuilder } from './release-builder.js';
+
+/**
+ * Open-data releases of the year's aggregates (spec 09b): building them (`OpenDataReleaseBuilder`,
+ * exported for the release workflow's activities) and EACC's endpoints. The dataset files go
+ * through `OpenDataFiles` (`OpenDataStorageModule`, global).
+ */
+@Module({
+  imports: [ClockModule],
+  controllers: [OpenDataController],
+  providers: [OpenDataReleaseBuilder, OpenDataService],
+  exports: [OpenDataReleaseBuilder],
+})
+export class OpenDataModule {}

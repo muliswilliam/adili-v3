@@ -29,6 +29,7 @@
     "@adili/roles": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1140.0",
     "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^12.1.0",
     "@nestjs/microservices": "^12.1.0",
