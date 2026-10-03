@@ -38,7 +38,7 @@ import type { DeterminationResult } from '../../server/determinations.server';
 import type { Determination } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
-import { decidedNotice, proposerName, ReassignActions } from './approval-parts';
+import { decisionNotice, proposerName, ReassignActions } from './approval-parts';
 import { messages as t } from './determination-messages';
 import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
 import { messages as m } from './messages';
@@ -193,24 +193,7 @@ export function DeterminationApproval({
 
 /** What a refusal of approve or return means for the supervisor (403, 409). */
 export function noticeOf(refusal: DeterminationRefusal): ApprovalNotice {
-  const problem = refusalProblem(refusal);
-  if (refusal.kind === 'separation-of-duties') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused[refusal.reason], problem },
-      after: t.refused.separationAfter,
-      offerReassign: true,
-    };
-  }
-  if (refusal.kind === 'supervisor-required') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused.role, problem },
-      after: t.refused.roleAfter,
-      offerReassign: false,
-    };
-  }
-  return decidedNotice();
+  return decisionNotice(refusal, refusalProblem(refusal), t.refused);
 }
 
 /** A failed call, in the open dialog. */

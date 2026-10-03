@@ -51,6 +51,46 @@ export function decidedNotice(): ApprovalNotice {
   };
 }
 
+/** A kind's words for a refused decision (its messages' `refused`). */
+export interface RefusedCopy {
+  title: string;
+  proposer: string;
+  'reviewer-of-record': string;
+  role: string;
+  /** Under a separation-of-duties refusal: why another supervisor must decide it. */
+  separationAfter: string;
+  /** Under a supervisor-required refusal. */
+  roleAfter: string;
+}
+
+/**
+ * What a refused decision means for the supervisor, for any kind: separation of duties (with
+ * Reassign), supervisor required, or decided already. `problem` is the status and code printed.
+ */
+export function decisionNotice(
+  refusal: { kind: string; reason?: 'proposer' | 'reviewer-of-record' },
+  problem: string,
+  copy: RefusedCopy,
+): ApprovalNotice {
+  if (refusal.kind === 'separation-of-duties') {
+    return {
+      title: copy.title,
+      failure: { title: copy[refusal.reason ?? 'reviewer-of-record'], problem },
+      after: copy.separationAfter,
+      offerReassign: true,
+    };
+  }
+  if (refusal.kind === 'supervisor-required') {
+    return {
+      title: copy.title,
+      failure: { title: copy.role, problem },
+      after: copy.roleAfter,
+      offerReassign: false,
+    };
+  }
+  return decidedNotice();
+}
+
 /** Who proposed an approval, by name, or "the system": always inside a sentence. */
 export function proposerName(item: InboxItem): string {
   return item.proposer?.name ?? m.system;

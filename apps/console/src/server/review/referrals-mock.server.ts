@@ -27,21 +27,20 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { SUPERVISOR } from '@adili/roles';
 
-import { ASSET_RULES } from '../../referral/view';
+import { ASSET_RULES, NARRATIVE_EXCERPT } from '../../referral/view';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { MockApprovalSource } from './approvals-mock.server';
-import { MOCK_CALLER, type MockApprover, mockProblem, resolvedCaller } from './mock-parts.server';
-import type { Assignee, CaseListItem, Clarification, Flag, Referral } from './types';
+import {
+  MOCK_CALLER,
+  type MockApprover,
+  type MockCase,
+  mockProblem,
+  resolvedCaller,
+} from './mock-parts.server';
+import type { Assignee, Clarification, Flag, Referral } from './types';
 
-/** What the referrals mock reads of a case, resolved for the caller. */
-export interface ReferralCase {
-  item: CaseListItem;
-  holder: Assignee | null;
-  /** Everyone who held the case: its reviewers of record. */
-  history: Assignee[];
-  flags: Flag[];
-  clarifications: Clarification[];
-}
+/** What the referrals mock reads of a case: the shared view, with its flags and clarifications. */
+export type ReferralCase = MockCase & { flags: Flag[]; clarifications: Clarification[] };
 
 export interface ReferralCases {
   find: (caseId: string) => ReferralCase | null;
@@ -400,9 +399,6 @@ export function mockReferralPackageTitle(documentId: string): string | null {
   }
   return null;
 }
-
-/** How much of the narrative the inbox card shows (services/review `NARRATIVE_EXCERPT`). */
-const NARRATIVE_EXCERPT = 200;
 
 /**
  * The approvals inbox's referral source (`approvals-mock.server.ts`): the proposed referrals

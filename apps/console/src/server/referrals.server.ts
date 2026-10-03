@@ -1,7 +1,18 @@
 import type { DocumentsClient } from './documents/client';
 import type { ReviewClient } from './review/client.server';
 import type { Referral, ReferralInput, ReferralStatus } from './review/types';
-import { callService, type ServiceError, type ServiceResult } from './service-call';
+import {
+  DECISION_REFUSAL_STATUS,
+  type DecisionRefusal,
+  PROPOSE_REFUSAL_STATUS,
+  type ProposeRefusal,
+} from '../referral/refusals';
+import {
+  callService,
+  callWithRefusals,
+  type RefusalResult,
+  type ServiceResult,
+} from './service-call';
 
 /**
  * The review service's referral endpoints (spec 08, S12 and S13): propose an assets referral
@@ -11,80 +22,13 @@ import { callService, type ServiceError, type ServiceResult } from './service-ca
  * caller injects the client (see `referrals.ts` for the server functions).
  */
 
-/** Why review refused a referral call, as review.yaml's problem codes name it. */
-export type ReferralRefusal =
-  /** Propose: one from the case already waits for approval (409). */
-  | { kind: 'referral-open' }
-  /** Propose: only the case's assignee proposes (403). */
-  | { kind: 'not-the-assignee' }
-  /** Approve or decline: the caller proposed it or held one of its cases (403). */
-  | { kind: 'separation-of-duties'; reason: 'proposer' | 'reviewer-of-record' }
-  /** Approve or decline: a reviewer, not a supervisor (403). */
-  | { kind: 'supervisor-required' }
-  /** Approve or decline: it was decided already (409). */
-  | { kind: 'not-proposed' };
+export type { DecisionRefusal, ProposeRefusal };
 
-/** The refusals of a decision (approve, decline). */
-export type ReferralDecisionRefusal = Exclude<
-  ReferralRefusal,
-  { kind: 'referral-open' | 'not-the-assignee' }
->;
+/** A proposal's answer: the referral, a refusal (assignee, one open), or a failure. */
+export type ProposeResult = RefusalResult<Referral, ProposeRefusal>;
 
-export type ReferralResult<T, Refusal extends ReferralRefusal = ReferralRefusal> =
-  | { ok: true; data: T }
-  | { ok: false; refusal: Refusal }
-  | { ok: false; refusal: null; error: ServiceError };
-
-/** Each refusal's HTTP status, as review.yaml answers it. */
-export const REFERRAL_REFUSAL_STATUS: Record<ReferralRefusal['kind'], 403 | 409> = {
-  'referral-open': 409,
-  'not-the-assignee': 403,
-  'separation-of-duties': 403,
-  'supervisor-required': 403,
-  'not-proposed': 409,
-};
-
-function isRefusalKind(value: unknown): value is ReferralRefusal['kind'] {
-  return typeof value === 'string' && value in REFERRAL_REFUSAL_STATUS;
-}
-
-/** The refusal a 403 or 409 problem names, or null for any other answer. */
-export function referralRefusalOf(error: ServiceError): ReferralRefusal | null {
-  if (error.kind !== 'problem') return null;
-  const problem: { status: number; type: string; code?: unknown; reason?: unknown } = error.problem;
-  if (problem.status !== 403 && problem.status !== 409) return null;
-  const code = isRefusalKind(problem.code) ? problem.code : problem.type;
-  if (!isRefusalKind(code)) return null;
-  if (code === 'separation-of-duties') {
-    return {
-      kind: code,
-      reason: problem.reason === 'proposer' ? 'proposer' : 'reviewer-of-record',
-    };
-  }
-  return { kind: code };
-}
-
-async function settle<T>(
-  call: () => Promise<{ data?: T; error?: unknown; response: Response }>,
-): Promise<ReferralResult<T>> {
-  const result = await callService(call);
-  if (result.ok) return result;
-  const refusal = referralRefusalOf(result.error);
-  return refusal ? { ok: false, refusal } : { ok: false, refusal: null, error: result.error };
-}
-
-/** A decision's answer: a proposal's refusals (assignee, open) are outside the contract here. */
-async function decision(
-  call: () => Promise<{ data?: Referral; error?: unknown; response: Response }>,
-): Promise<ReferralResult<Referral, ReferralDecisionRefusal>> {
-  const result = await settle(call);
-  if (result.ok || result.refusal === null) return result;
-  const { refusal } = result;
-  if (refusal.kind === 'referral-open' || refusal.kind === 'not-the-assignee') {
-    return { ok: false, refusal: null, error: { kind: 'unavailable', detail: null } };
-  }
-  return { ok: false, refusal };
-}
+/** A decision's answer: the referral, a refusal (separation of duties, decided), or a failure. */
+export type DecisionResult = RefusalResult<Referral, DecisionRefusal>;
 
 /**
  * `POST /v1/review/cases/{caseId}/referrals`: the case's assignee proposes an assets referral
@@ -96,12 +40,14 @@ export function proposeReferral(
   caseId: string,
   input: ReferralInput,
   idempotencyKey: string,
-): Promise<ReferralResult<Referral>> {
-  return settle(() =>
-    client.POST('/v1/review/cases/{caseId}/referrals', {
-      params: { path: { caseId }, header: { 'Idempotency-Key': idempotencyKey } },
-      body: input,
-    }),
+): Promise<ProposeResult> {
+  return callWithRefusals(
+    () =>
+      client.POST('/v1/review/cases/{caseId}/referrals', {
+        params: { path: { caseId }, header: { 'Idempotency-Key': idempotencyKey } },
+        body: input,
+      }),
+    PROPOSE_REFUSAL_STATUS,
   );
 }
 
@@ -158,11 +104,13 @@ export function approveReferral(
   client: ReviewClient,
   referralId: string,
   idempotencyKey: string,
-): Promise<ReferralResult<Referral, ReferralDecisionRefusal>> {
-  return decision(() =>
-    client.POST('/v1/review/referrals/{referralId}/approve', {
-      params: { path: { referralId }, header: { 'Idempotency-Key': idempotencyKey } },
-    }),
+): Promise<DecisionResult> {
+  return callWithRefusals(
+    () =>
+      client.POST('/v1/review/referrals/{referralId}/approve', {
+        params: { path: { referralId }, header: { 'Idempotency-Key': idempotencyKey } },
+      }),
+    DECISION_REFUSAL_STATUS,
   );
 }
 
@@ -171,12 +119,14 @@ export function declineReferral(
   client: ReviewClient,
   referralId: string,
   note: string,
-): Promise<ReferralResult<Referral, ReferralDecisionRefusal>> {
-  return decision(() =>
-    client.POST('/v1/review/referrals/{referralId}/decline', {
-      params: { path: { referralId } },
-      body: { reason: note },
-    }),
+): Promise<DecisionResult> {
+  return callWithRefusals(
+    () =>
+      client.POST('/v1/review/referrals/{referralId}/decline', {
+        params: { path: { referralId } },
+        body: { reason: note },
+      }),
+    DECISION_REFUSAL_STATUS,
   );
 }
 

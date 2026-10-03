@@ -41,6 +41,7 @@ import { type ReactNode, useCallback, useState } from 'react';
 import { approvalPanel, evidenceLabel, referralPhase, referralTitle } from '../../referral/view';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
 import { getReferralPackageLink } from '../../server/referrals';
+import type { DecisionResult } from '../../server/referrals.server';
 import type { Assignee, Referral, ReferralManifestKind } from '../../server/review/types';
 import { ReassignDialog, type ReassignTarget } from '../approvals/reassign-dialog';
 import type { FailureText } from '../dialog-parts';
@@ -54,7 +55,7 @@ import {
   type ReferralSubject,
 } from './decision-dialogs';
 import { messages as t } from './messages';
-import { type ReferralDecision, useReferralDecisions } from './use-referral-decisions';
+import { useReferralDecisions } from './use-referral-decisions';
 
 export interface ReferralPageProps {
   referral: Referral;
@@ -138,7 +139,7 @@ export function ReferralPage({
 
   /** Settles a decision: a refusal by the rule says why on the page; another's decision reloads. */
   async function settle(
-    result: ReferralDecision,
+    result: DecisionResult,
     success: (data: Referral) => string,
   ): Promise<FailureText | null> {
     if (result.ok) {

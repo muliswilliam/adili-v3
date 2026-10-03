@@ -133,7 +133,7 @@ describe('the referrals tab of the approvals inbox (spec 08 FE-3, FE-6)', () => 
     expect(screen.getAllByRole('article')).toHaveLength(5);
     const system = card('Stephen Mwangi Karanja');
     expect(within(system).getByText('Two missed cycles')).toBeTruthy();
-    expect(within(system).getByText(/Proposed by\s*The system/)).toBeTruthy();
+    expect(within(system).getByText(/Proposed by\s*the system/)).toBeTruthy();
     expect(within(system).getByText('2 obligations')).toBeTruthy();
     expect(within(system).getByText('3 letters')).toBeTruthy();
     expect(within(system).getByRole('link', { name: 'Open referral' }).getAttribute('href')).toBe(

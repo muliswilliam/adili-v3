@@ -12,10 +12,9 @@ import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import type { ReferralSummary } from '../../approvals/kinds';
-import {
-  REFERRAL_REFUSAL_STATUS,
-  type ReferralDecisionRefusal,
-} from '../../server/referrals.server';
+import { type DecisionRefusal, referralRefusalProblem } from '../../referral/refusals';
+import { NARRATIVE_EXCERPT } from '../../referral/view';
+import type { DecisionResult } from '../../server/referrals.server';
 import type { Referral } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
 import type { FailureText } from '../dialog-parts';
@@ -26,8 +25,8 @@ import {
   type ReferralSubject,
 } from '../referrals/decision-dialogs';
 import { messages as referrals } from '../referrals/messages';
-import { type ReferralDecision, useReferralDecisions } from '../referrals/use-referral-decisions';
-import { proposerName, ReassignActions } from './approval-parts';
+import { useReferralDecisions } from '../referrals/use-referral-decisions';
+import { decisionNotice, proposerName, ReassignActions } from './approval-parts';
 import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
 import { messages as inbox } from './messages';
 import { messages as t } from './referral-messages';
@@ -47,10 +46,11 @@ function evidenceCounts(
   ].flatMap(({ icon, count, label }) => (count > 0 ? [{ icon, label: label(count) }] : []));
 }
 
-/** review cuts the narrative at this many characters for the inbox (`NARRATIVE_EXCERPT`). */
-const NARRATIVE_EXCERPT = 200;
-
-/** The narrative's start, with an ellipsis where review cut it. */
+/**
+ * The narrative's start, with an ellipsis where review cut it. The excerpt is never longer than
+ * `NARRATIVE_EXCERPT`, and the summary does not say whether it was cut, so one exactly that long
+ * reads as cut.
+ */
 function excerpt(text: string): string {
   return text.length >= NARRATIVE_EXCERPT ? `${text.trimEnd()}…` : text;
 }
@@ -87,7 +87,7 @@ export function ReferralApproval({
 
   /** Settles a call: a refusal or a decision made first becomes a notice. */
   async function settle(
-    result: ReferralDecision,
+    result: DecisionResult,
     success: (data: Referral) => string,
   ): Promise<FailureText | null> {
     if (result.ok) {
@@ -199,30 +199,8 @@ export function ReferralApproval({
 }
 
 /** What a refusal of approve or decline means for the supervisor (403, 409). */
-export function referralNoticeOf(refusal: ReferralDecisionRefusal): ApprovalNotice {
-  const problem = `${String(REFERRAL_REFUSAL_STATUS[refusal.kind])} ${refusal.kind}`;
-  if (refusal.kind === 'separation-of-duties') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused[refusal.reason], problem },
-      after: t.refused.separationAfter,
-      offerReassign: true,
-    };
-  }
-  if (refusal.kind === 'supervisor-required') {
-    return {
-      title: t.refused.title,
-      failure: { title: t.refused.role, problem },
-      after: t.refused.roleAfter,
-      offerReassign: false,
-    };
-  }
-  return {
-    title: t.decided.title,
-    failure: { title: t.decided.body, problem },
-    after: t.decided.after,
-    offerReassign: false,
-  };
+export function referralNoticeOf(refusal: DecisionRefusal): ApprovalNotice {
+  return decisionNotice(refusal, referralRefusalProblem(refusal), t.refused);
 }
 
 /** A failed call, in the open dialog. */

@@ -1043,15 +1043,11 @@ function mockCases(caller: Assignee): MockCases {
 function referralCases(caller: Assignee): ReferralCases {
   return {
     find: (caseId) => {
+      const found = mockCases(caller).find(caseId);
       const stored = cases.get(caseId);
-      if (!stored) return null;
-      return {
-        item: listItem(stored, caller),
-        holder: holderOf(stored, caller),
-        history: stored.history.map((each) => officer(each, caller)),
-        flags: stored.flags,
-        clarifications: ofCase(caseId),
-      };
+      return found && stored
+        ? { ...found, flags: stored.flags, clarifications: ofCase(caseId) }
+        : null;
     },
   };
 }

@@ -4,6 +4,8 @@ import { z } from 'zod';
 import {
   ASSETS_GROUNDS,
   DECLINE_NOTE_MAX_LENGTH,
+  MAX_CLARIFICATIONS,
+  MAX_FLAGS,
   NARRATIVE_MAX_LENGTH,
   REFERRAL_STATUSES,
 } from '../referral/view';
@@ -16,8 +18,8 @@ import {
   listReferrals,
   loadReferral,
   proposeReferral,
-  type ReferralDecisionRefusal,
-  type ReferralResult,
+  type DecisionResult,
+  type ProposeResult,
   type ReferralsPage,
   referralPackageLink,
 } from './referrals.server';
@@ -32,7 +34,8 @@ import type { ServiceResult } from './service-call';
 
 const id = z.uuid();
 
-const signedOut = <T>(): ReferralResult<T> => ({
+/** Without a session: what any referral call answers. */
+const signedOut = (): { ok: false; refusal: null; error: { kind: 'unauthenticated' } } => ({
   ok: false,
   refusal: null,
   error: { kind: 'unauthenticated' },
@@ -42,16 +45,16 @@ const signedOut = <T>(): ReferralResult<T> => ({
 export const referralInput = z.object({
   grounds: z.enum(ASSETS_GROUNDS),
   narrative: z.string().trim().min(1).max(NARRATIVE_MAX_LENGTH),
-  flagIds: z.array(id).min(1).max(100),
-  clarificationIds: z.array(id).max(50),
+  flagIds: z.array(id).min(1).max(MAX_FLAGS),
+  clarificationIds: z.array(id).max(MAX_CLARIFICATIONS),
 });
 
 export const proposeCaseReferral = createServerFn({ method: 'POST' })
   .validator(z.object({ caseId: id, input: referralInput, idempotencyKey: id }))
-  .handler(({ data }): Promise<ReferralResult<Referral>> =>
+  .handler(({ data }): Promise<ProposeResult> =>
     withReviewer(
       (client) => proposeReferral(client, data.caseId, data.input, data.idempotencyKey),
-      signedOut<Referral>,
+      signedOut,
     ),
   );
 
@@ -75,18 +78,12 @@ export const getReferral = createServerFn({ method: 'GET' })
     asReviewer((client) => loadReferral(client, data.referralId)),
   );
 
-const decisionSignedOut = (): ReferralResult<Referral, ReferralDecisionRefusal> => ({
-  ok: false,
-  refusal: null,
-  error: { kind: 'unauthenticated' },
-});
-
 export const approveCaseReferral = createServerFn({ method: 'POST' })
   .validator(z.object({ referralId: id, idempotencyKey: id }))
-  .handler(({ data }): Promise<ReferralResult<Referral, ReferralDecisionRefusal>> =>
+  .handler(({ data }): Promise<DecisionResult> =>
     withReviewer(
       (client) => approveReferral(client, data.referralId, data.idempotencyKey),
-      decisionSignedOut,
+      signedOut,
     ),
   );
 
@@ -94,11 +91,8 @@ export const declineCaseReferral = createServerFn({ method: 'POST' })
   .validator(
     z.object({ referralId: id, note: z.string().trim().min(1).max(DECLINE_NOTE_MAX_LENGTH) }),
   )
-  .handler(({ data }): Promise<ReferralResult<Referral, ReferralDecisionRefusal>> =>
-    withReviewer(
-      (client) => declineReferral(client, data.referralId, data.note),
-      decisionSignedOut,
-    ),
+  .handler(({ data }): Promise<DecisionResult> =>
+    withReviewer((client) => declineReferral(client, data.referralId, data.note), signedOut),
   );
 
 /**

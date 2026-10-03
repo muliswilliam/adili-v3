@@ -141,6 +141,7 @@ export const messages = {
     proposed: 'Referral proposed for approval',
     openReferral: 'Open referral',
   },
+  /** A refused proposal, in the Refer to EACC dialog. */
   refusals: {
     'referral-open': {
       title: 'A referral from this case already waits for approval',
@@ -150,9 +151,6 @@ export const messages = {
       title: 'Only the assigned reviewer can refer this case',
       detail: 'The case has been reassigned. Your text is kept.',
     },
-    'separation-of-duties': { title: 'You cannot approve this' },
-    'supervisor-required': { title: 'Only a supervisor can approve a referral to EACC' },
-    'not-proposed': { title: 'Someone decided this referral while the page was open' },
   },
   approveDialog: {
     title: 'Approve referral to EACC',

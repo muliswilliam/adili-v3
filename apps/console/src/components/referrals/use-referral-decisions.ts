@@ -1,10 +1,7 @@
 import { useRef } from 'react';
 
 import { approveCaseReferral, declineCaseReferral } from '../../server/referrals';
-import type { ReferralDecisionRefusal, ReferralResult } from '../../server/referrals.server';
-import type { Referral } from '../../server/review/types';
-
-export type ReferralDecision = ReferralResult<Referral, ReferralDecisionRefusal>;
+import type { DecisionResult } from '../../server/referrals.server';
 
 /**
  * Approve and decline one referral, as the inbox card and the referral page both call them. One
@@ -14,7 +11,7 @@ export type ReferralDecision = ReferralResult<Referral, ReferralDecisionRefusal>
 export function useReferralDecisions(referralId: string, newKey: () => string) {
   const approvalKey = useRef<string | null>(null);
   return {
-    approve: async (): Promise<ReferralDecision> => {
+    approve: async (): Promise<DecisionResult> => {
       approvalKey.current ??= newKey();
       const result = await approveCaseReferral({
         data: { referralId, idempotencyKey: approvalKey.current },
@@ -22,7 +19,7 @@ export function useReferralDecisions(referralId: string, newKey: () => string) {
       if (result.ok || result.refusal) approvalKey.current = null;
       return result;
     },
-    decline: (note: string): Promise<ReferralDecision> =>
+    decline: (note: string): Promise<DecisionResult> =>
       declineCaseReferral({ data: { referralId, note } }),
   };
 }

@@ -41,6 +41,16 @@ export const REFERRAL_STATUSES = [
 
 /** review.yaml `ReferralInput.narrative`. */
 export const NARRATIVE_MAX_LENGTH = 8000;
+/** review.yaml `ReferralInput.flagIds` and `clarificationIds`. */
+export const MAX_FLAGS = 100;
+export const MAX_CLARIFICATIONS = 50;
+
+/**
+ * Where review cuts a referral's narrative for the approvals inbox (`NARRATIVE_EXCERPT` in
+ * services/review `referral-approvals.ts`; `service-rules.test.ts` keeps the two equal).
+ */
+export const NARRATIVE_EXCERPT = 200;
+
 /** review.yaml `ReasonInput.reason`, the supervisor's note when declining. */
 export const DECLINE_NOTE_MAX_LENGTH = 2000;
 
@@ -48,7 +58,7 @@ export const DECLINE_NOTE_MAX_LENGTH = 2000;
  * The flags an assets referral rests on, each with what its rule found as the referral names it:
  * the registry cross-checks (spec 07b) and the comparisons with the previous declaration that
  * point at undeclared or unexplained assets, as the review service checks them (`ASSET_RULES` in
- * services/review, a 400 for any other).
+ * services/review, a 400 for any other; `service-rules.test.ts` keeps the two equal).
  */
 export const ASSET_RULE_LABELS = {
   'value-change-25': 'Value changed by more than 25%',
@@ -103,9 +113,13 @@ export interface ReferralErrors {
 export function referralErrors(form: ReferralForm): ReferralErrors {
   const errors: ReferralErrors = {};
   if (form.grounds === null) errors.grounds = 'Choose the grounds.';
-  // review.yaml: 1 to 100 flags; clarifications are optional.
+  // review.yaml: 1 to 100 flags, up to 50 clarifications.
   if (form.flagIds.length === 0) {
     errors.evidence = 'Select at least one flag that supports the referral.';
+  } else if (form.flagIds.length > MAX_FLAGS) {
+    errors.evidence = `Select up to ${formatNumber(MAX_FLAGS)} flags.`;
+  } else if (form.clarificationIds.length > MAX_CLARIFICATIONS) {
+    errors.evidence = `Select up to ${formatNumber(MAX_CLARIFICATIONS)} clarifications.`;
   }
   if (!form.narrative.trim()) errors.narrative = 'Enter the narrative.';
   else if (form.narrative.length > NARRATIVE_MAX_LENGTH) {

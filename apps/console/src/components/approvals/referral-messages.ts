@@ -26,9 +26,4 @@ export const messages = {
       'You proposed it or held its case after this page loaded, so another supervisor must approve it.',
     roleAfter: 'Your account is not a supervisor of this Commission any more.',
   },
-  decided: {
-    title: 'Already decided',
-    body: 'Someone decided this referral while the page was open.',
-    after: 'The list has been refreshed. Nothing was changed by you.',
-  },
 } as const;

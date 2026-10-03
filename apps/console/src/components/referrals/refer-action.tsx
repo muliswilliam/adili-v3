@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 
 import { referableClarifications, referableFlags } from '../../referral/view';
 import { proposeCaseReferral } from '../../server/referrals';
-import { REFERRAL_REFUSAL_STATUS } from '../../server/referrals.server';
+import { referralRefusalProblem } from '../../referral/refusals';
 import type { CaseView } from '../../server/review-case.server';
 import type { ReferralInput } from '../../server/review/types';
 import type { FailureText } from '../dialog-parts';
@@ -46,7 +46,7 @@ export function ReferAction({
       if (result.refusal) {
         const { kind } = result.refusal;
         const text: { title: string; detail?: string } = t.refusals[kind];
-        return { ...text, problem: `${String(REFERRAL_REFUSAL_STATUS[kind])} ${kind}` };
+        return { ...text, problem: referralRefusalProblem(result.refusal) };
       }
       return {
         title: result.error.kind === 'unauthenticated' ? t.toasts.sessionEnded : t.toasts.failed,

@@ -154,3 +154,17 @@ describe('evidenceLabel', () => {
     });
   });
 });
+
+describe('referralErrors limits', () => {
+  it('caps the clarifications at 50 and the flags at 100 (review.yaml ReferralInput)', () => {
+    const ids = (count: number) => Array.from({ length: count }, (_, index) => String(index));
+    const form = { grounds: 'undeclared-assets', narrative: 'x' } as const;
+    expect(referralErrors({ ...form, flagIds: ids(1), clarificationIds: ids(51) })).toEqual({
+      evidence: 'Select up to 50 clarifications.',
+    });
+    expect(referralErrors({ ...form, flagIds: ids(101), clarificationIds: [] })).toEqual({
+      evidence: 'Select up to 100 flags.',
+    });
+    expect(referralErrors({ ...form, flagIds: ids(100), clarificationIds: ids(50) })).toEqual({});
+  });
+});
