@@ -244,6 +244,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/documents/{documentId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke an issued document (services)
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Sets the status to revoked with the reason (e.g. a clarification letter withdrawn as issued in error, spec 07a), re-signs the verification record and emits `document.revoked.v1`; the verify page then shows the document revoked.
+         */
+        post: operations["revokeDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/documents/{documentId}": {
         parameters: {
             query?: never;
@@ -266,34 +286,6 @@ export interface paths {
         get: operations["internalGetDocument"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/documents/{documentId}/revoke": {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Revoke an issued document (services)
-         * @description Sets `status` to revoked with the reason, e.g. a clarification letter withdrawn as issued
-         *     in error (spec 07a); the verify page then shows the document revoked. Service tokens with
-         *     scope documents:internal, acting in X-Acting-Tenant for the issuing tenant. A document
-         *     already revoked is refused with 409.
-         */
-        post: operations["revokeDocument"];
         delete?: never;
         options?: never;
         head?: never;
@@ -417,6 +409,14 @@ export interface components {
              * @description The newer document of the same type and tenant
              */
             supersededBy: string;
+        };
+        /**
+         * @description Why the document is revoked, a category the verify page may show: issued-in-error (e.g. a clarification letter withdrawn as issued in error, spec 07a), withdrawn or other
+         * @enum {string}
+         */
+        RevocationReason: "issued-in-error" | "withdrawn" | "other";
+        RevokeDocument: {
+            reason: components["schemas"]["RevocationReason"];
         };
         IssuedDocument: {
             /** Format: uuid */
@@ -1012,8 +1012,6 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        RevocationReason: "issued-in-error";
         /** @description An issued document as its issuer reads it, with the SHA-256 of the signed PDF */
         InternalIssuedDocument: components["schemas"]["IssuedDocument"] & {
             /** @description SHA-256 of the signed PDF, lowercase hex */
@@ -1697,6 +1695,91 @@ export interface operations {
             };
         };
     };
+    revokeDocument: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                documentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeDocument"];
+            };
+        };
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedDocument"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not the acting tenant's document */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `document-not-valid`: revoked, superseded or expired already. A caller revoking a document it issued once may treat it as done */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `signer-unavailable`: nothing changed; retry */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     internalGetDocument: {
         parameters: {
             query?: never;
@@ -1722,55 +1805,6 @@ export interface operations {
             };
             /** @description Not found, or not the acting tenant's document */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    revokeDocument: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    reason: components["schemas"]["RevocationReason"];
-                };
-            };
-        };
-        responses: {
-            /** @description Revoked */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuedDocument"];
-                };
-            };
-            /** @description Not found, or not the acting tenant's document */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Already revoked */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };

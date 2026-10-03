@@ -5,12 +5,14 @@ import { withTenant } from '@adili/data-access';
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import {
   documentIssuedDataSchema,
+  documentRevokedDataSchema,
   documentSupersededDataSchema,
 } from '@adili/events/contracts/schemas';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { issuedDocuments, outbox, verificationRecords } from '../../src/db/schema.js';
+import { IssuanceDependencyUnavailable } from '../../src/issuance/errors.js';
 import {
   canonicalRecord,
   RecordSigner,
@@ -133,6 +135,17 @@ const supersede = (
   idempotencyKey: string | null = null,
 ) =>
   api.post(`/internal/v1/documents/${id}/supersede`, { supersededBy }, DECLARATIONS, {
+    idempotencyKey,
+    headers: { 'x-acting-tenant': tenant },
+  });
+
+const revoke = (
+  id: string,
+  reason = 'issued-in-error',
+  tenant = 'psc',
+  idempotencyKey: string | null = null,
+) =>
+  api.post(`/internal/v1/documents/${id}/revoke`, { reason }, REVIEW, {
     idempotencyKey,
     headers: { 'x-acting-tenant': tenant },
   });
@@ -564,6 +577,162 @@ describe('S10 superseding', () => {
     const version1 = await issued();
     const version2 = await issued();
     expect((await supersede(version1.id, version2.id, 'tsc')).statusCode).toBe(404);
+  });
+});
+
+describe('spec 07a revoking a document issued in error', () => {
+  it('marks it revoked with the reason, re-signs its record and emits document.revoked.v1', async () => {
+    const document = await issued();
+
+    const response = await revoke(document.id);
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<IssuedDocument>();
+    expect(
+      contractErrors(okResponse('/internal/v1/documents/{documentId}/revoke', 'post'), body),
+    ).toEqual([]);
+    expect(body).toMatchObject({ id: document.id, status: 'revoked', supersededBy: null });
+
+    const row = await documentRow(document.id);
+    expect(row.record).toMatchObject({
+      status: 'revoked',
+      statusReasonCategory: 'issued-in-error',
+      supersededBy: null,
+    });
+    expect(row.record.statusChangedAt).not.toBeNull();
+    const publicKey = await recordPublicKey(row.record.recordSigningKeyVersion);
+    expect(
+      verify(
+        null,
+        canonicalRecord(signedRecordOf(row, null)),
+        publicKey,
+        Buffer.from(row.record.recordSignature, 'base64'),
+      ),
+    ).toBe(true);
+
+    const events = await eventsAbout(document.id);
+    expect(events.map((event) => event.eventType)).toEqual([
+      'document.issued.v1',
+      'document.revoked.v1',
+    ]);
+    expect(documentRevokedDataSchema.safeParse(events[1]?.envelope.data).error).toBeUndefined();
+    expect(events[1]?.envelope.data).toMatchObject({
+      documentId: document.id,
+      verificationId: document.verificationId,
+      status: 'revoked',
+      reasonCategory: 'issued-in-error',
+      statusChangedAt: row.record.statusChangedAt?.toISOString(),
+    });
+  });
+
+  it('refuses to revoke twice with 409, and changes nothing', async () => {
+    const document = await issued();
+    expect((await revoke(document.id)).statusCode).toBe(200);
+    const revoked = await documentRow(document.id);
+
+    const again = await revoke(document.id, 'withdrawn');
+
+    expect(again.statusCode).toBe(409);
+    expect(again.json<Problem>().type).toBe('document-not-valid');
+    expect((await documentRow(document.id)).record).toEqual(revoked.record);
+    expect(await eventsAbout(document.id)).toHaveLength(2);
+  });
+
+  it('refuses a superseded document with 409', async () => {
+    const version1 = await issued();
+    const version2 = await issued();
+    expect((await supersede(version1.id, version2.id)).statusCode).toBe(200);
+
+    const response = await revoke(version1.id);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json<Problem>().type).toBe('document-not-valid');
+    expect((await documentRow(version1.id)).record.status).toBe('superseded');
+  });
+
+  it('replays a retried revoke with the same Idempotency-Key instead of refusing it', async () => {
+    const document = await issued();
+    const key = randomUUID();
+    const first = await revoke(document.id, 'issued-in-error', 'psc', key);
+    expect(first.statusCode).toBe(200);
+
+    const retry = await revoke(document.id, 'issued-in-error', 'psc', key);
+
+    expect(retry.statusCode).toBe(200);
+    expect(retry.headers['idempotent-replayed']).toBe('true');
+    expect(retry.json()).toEqual(first.json());
+    expect(await eventsAbout(document.id)).toHaveLength(2);
+  });
+
+  it('signs with no lock held, so a revoke that lands meanwhile wins and the other is refused', async () => {
+    const document = await issued();
+    const records = api.app.get(RecordSigner);
+    const sign = records.sign.bind(records);
+    let meanwhile: Promise<Awaited<ReturnType<typeof revoke>>> | undefined;
+    const spy = vi.spyOn(records, 'sign').mockImplementation(async (record) => {
+      // The first signature waits for another revoke of the same document to finish.
+      if (!meanwhile) {
+        meanwhile = revoke(document.id, 'withdrawn');
+        await meanwhile;
+      }
+      return sign(record);
+    });
+
+    let response: Awaited<ReturnType<typeof revoke>>;
+    try {
+      response = await revoke(document.id);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect((await meanwhile)?.statusCode).toBe(200);
+    expect(response.statusCode).toBe(409);
+    expect((await documentRow(document.id)).record.statusReasonCategory).toBe('withdrawn');
+    expect(await eventsAbout(document.id)).toHaveLength(2);
+  });
+
+  it("answers 404 for another tenant's document or none, and changes nothing", async () => {
+    const document = await issued();
+    expect((await revoke(document.id, 'issued-in-error', 'tsc')).statusCode).toBe(404);
+    expect((await revoke(randomUUID())).statusCode).toBe(404);
+    expect((await documentRow(document.id)).record.status).toBe('valid');
+    expect(await eventsAbout(document.id)).toHaveLength(1);
+  });
+
+  it('answers 502 signer-unavailable when the signer fails, and changes nothing', async () => {
+    const document = await issued();
+    const spy = vi
+      .spyOn(api.app.get(RecordSigner), 'sign')
+      .mockRejectedValue(new IssuanceDependencyUnavailable('signer', 'OpenBao is down'));
+
+    let response: Awaited<ReturnType<typeof revoke>>;
+    try {
+      response = await revoke(document.id);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json<Problem>().type).toBe('signer-unavailable');
+    expect((await documentRow(document.id)).record.status).toBe('valid');
+    expect(await eventsAbout(document.id)).toHaveLength(1);
+  });
+
+  it('refuses a reason that is not a revocation reason with 400', async () => {
+    const document = await issued();
+    const response = await revoke(document.id, 'because');
+    expect(response.statusCode).toBe(400);
+    expect(response.json<Problem>().errors).toEqual([expect.objectContaining({ path: 'reason' })]);
+  });
+
+  it('refuses callers without the documents:internal scope with 403', async () => {
+    const document = await issued();
+    const response = await api.post(
+      `/internal/v1/documents/${document.id}/revoke`,
+      { reason: 'issued-in-error' },
+      OFFICER,
+      { idempotencyKey: null, headers: { 'x-acting-tenant': 'psc' } },
+    );
+    expect(response.statusCode).toBe(403);
   });
 });
 

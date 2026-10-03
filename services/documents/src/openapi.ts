@@ -9,6 +9,8 @@ import {
   documentTypeSchema,
   issueDocumentBody,
   issuedDocumentSchema,
+  revocationReasonSchema,
+  revokeDocumentBody,
   supersedeDocumentBody,
   watermarkSchema,
 } from './issuance/representation.js';
@@ -47,6 +49,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   IssueDocument: issueDocumentBody,
   ClarificationLetterSource: clarificationLetterSource,
   SupersedeDocument: supersedeDocumentBody,
+  RevocationReason: revocationReasonSchema,
+  RevokeDocument: revokeDocumentBody,
   IssuedDocument: issuedDocumentSchema,
   DocumentDownload: documentDownloadSchema,
   Watermark: watermarkSchema,
