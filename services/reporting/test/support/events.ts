@@ -21,7 +21,7 @@ export function envelope(
       ? 'adili/declarations'
       : type.startsWith('ai.')
         ? 'adili/ai-gateway'
-        : type.startsWith('access.') || type.startsWith('lea.')
+        : type.startsWith('access.')
           ? 'adili/access'
           : 'adili/review';
   return {
@@ -274,13 +274,12 @@ export function aiFeedbackRecorded(
   );
 }
 
-/** The access-register steps reporting projects (spec 10 `access.request.*` / `lea.request.*`). */
+/** The access-register steps reporting projects (spec 10 `access.request.*`). */
 type AccessStep = 'received' | 'decided' | 'cannot-identify' | 'withdrawn';
 
 /**
- * An access-register event as the access service publishes it (spec 10,
- * `packages/events/src/contracts/access.ts`): a Form K request (`access.request.*`, Act s.36(1))
- * or, with `lea`, a law enforcement request (`lea.request.*`, s.36(2)). The subject is the
+ * An access-register event of a Form K request (`access.request.*`, Act s.36(1)) as the access
+ * service publishes it (spec 10, `packages/events/src/contracts/access.ts`). The subject is the
  * request.
  */
 export function accessEvent(
@@ -289,18 +288,14 @@ export function accessEvent(
   fixture: {
     requestId: string;
     at: string;
-    lea?: boolean;
     outcome?: 'grant' | 'partial-grant' | 'deny';
     grounds?: string[];
   },
 ): EventEnvelope {
-  const lea = fixture.lea ?? false;
   const facts =
     step === 'received'
       ? {
-          decisionDeadlineAt: new Date(
-            Date.parse(fixture.at) + (lea ? 14 : 30) * 86_400_000,
-          ).toISOString(),
+          decisionDeadlineAt: new Date(Date.parse(fixture.at) + 30 * 86_400_000).toISOString(),
         }
       : step === 'decided'
         ? { outcome: fixture.outcome ?? 'grant', grounds: fixture.grounds ?? [] }
@@ -308,17 +303,17 @@ export function accessEvent(
           ? { declineReason: 'other' }
           : {};
   return envelope(
-    `${lea ? 'lea' : 'access'}.request.${step}.v1`,
+    `access.request.${step}.v1`,
     tenant,
     fixture.requestId,
     {
       registerEntryId: randomUUID(),
-      subjectKind: lea ? 'lea-request' : 'access-request',
+      subjectKind: 'access-request',
       subjectId: fixture.requestId,
-      reference: `${lea ? 'LEA' : 'ARQ'}-${tenant.toUpperCase()}-2028-0000001-3`,
+      reference: `ARQ-${tenant.toUpperCase()}-2028-0000001-3`,
       tenant,
       kind: step,
-      legalBasis: lea ? 'act-s36-2' : 'act-s36-1',
+      legalBasis: 'act-s36-1',
       personId: step === 'received' ? null : randomUUID(),
       actor: step === 'received' ? null : `access-officer-${tenant}`,
       at: fixture.at,

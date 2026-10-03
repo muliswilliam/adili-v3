@@ -316,17 +316,14 @@ describe('Form M compile (S2, S3, S4)', () => {
   });
 
   it('section 5: counts the Form K requests received in the year, with their outcomes and the reasons cited', async () => {
-    const request = () => randomUUID();
-    const [granted, partial, denied, unidentified, withdrawn, open, lateDecided, lastYear] = [
-      request(),
-      request(),
-      request(),
-      request(),
-      request(),
-      request(),
-      request(),
-      request(),
-    ];
+    const granted = randomUUID();
+    const partial = randomUUID();
+    const denied = randomUUID();
+    const unidentified = randomUUID();
+    const withdrawn = randomUUID();
+    const open = randomUUID();
+    const lateDecided = randomUUID();
+    const lastYear = randomUUID();
     const events = [
       // FY 2027 (1 July 2027 to 30 June 2028, Nairobi time).
       accessEvent('psc', 'received', { requestId: granted, at: '2027-08-02T08:00:00Z' }),
@@ -365,7 +362,7 @@ describe('Form M compile (S2, S3, S4)', () => {
       accessEvent('psc', 'received', { requestId: lastYear, at: '2027-06-25T08:00:00Z' }),
       accessEvent('psc', 'decided', { requestId: lastYear, at: '2027-07-10T08:00:00Z' }),
       // Another Commission's request.
-      accessEvent('tsc', 'received', { requestId: request(), at: '2027-08-02T08:00:00Z' }),
+      accessEvent('tsc', 'received', { requestId: randomUUID(), at: '2027-08-02T08:00:00Z' }),
     ];
     for (const event of events) await api.deliver(event);
     api.declarations.given('psc');

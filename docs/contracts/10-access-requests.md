@@ -117,6 +117,6 @@ Reporting projects these into `access_request_facts` (#467): one row per Form K 
 4. **(c) declined:** `deny` plus `cannot-identify` closures.
 5. **(d) reasons:** a count per Regulation 24 ground cited on denials and partial grants, plus `other` per cannot-identify closure, in Regulation 24 order, reasons none cited left out. A denial citing several grounds counts once under each, so the reasons may add up to more than (c); `federated-submission.ts` accepts reasons that add up to at least (c).
 6. **Year of receipt.** Outcomes count in the financial year the request was received, so (b) + (c) never exceeds (a). A withdrawn request counts in (a) only.
-7. **`dataUnavailable`** is false for hosted reports: the platform captures every Form K request.
+7. **`dataUnavailable`** is false for every hosted report. Gap 6 of the original analysis wanted it true for years before access went live; access ships with the platform, whose first reportable year (`FIRST_FINANCIAL_YEAR`, 2025) is also the first year Form K requests are taken, so no hosted year precedes it. A deployment that turns access on later would need a go-live year here.
 
 #238 (reporting contract convergence, spec 09) does not conflict with any of this. It exports reporting's HTTP contract and checks form-m.v1 in CI; reporting has no HTTP dependency on access, and #238 does not cover consuming access events. The two only touch the same lists of exported services (CI comment, `docs/how-we-work.md`, `docs/agents/issue-tracker.md`), so whichever merges second adds its service to those lists.

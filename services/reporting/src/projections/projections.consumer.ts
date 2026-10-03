@@ -372,20 +372,17 @@ export class ProjectionsConsumer {
   accessRequestReceived(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRequestReceivedDataSchema.parse(event.data);
     const receivedAt = new Date(data.at);
-    const facts = { fy: financialYearAt(receivedAt), receivedAt };
-    return this.project(event, (tx, tenant) =>
-      tx
-        .insert(accessRequestFacts)
-        .values({ requestId: data.subjectId, tenant, ...facts })
-        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
-    );
+    return this.accessRequest(event, data.subjectId, {
+      fy: financialYearAt(receivedAt),
+      receivedAt,
+    });
   }
 
   /** The access officer's final decision, with the Regulation 24 grounds it cites. */
   @OnEvent(ACCESS_REQUEST_DECIDED)
   accessRequestDecided(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRequestDecidedDataSchema.parse(event.data);
-    return this.closeAccessRequest(event, data.subjectId, {
+    return this.accessRequest(event, data.subjectId, {
       outcome: data.outcome,
       grounds: data.grounds,
       closedAt: new Date(data.at),
@@ -396,7 +393,7 @@ export class ProjectionsConsumer {
   @OnEvent(ACCESS_REQUEST_CANNOT_IDENTIFY)
   accessRequestCannotIdentify(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRequestCannotIdentifyDataSchema.parse(event.data);
-    return this.closeAccessRequest(event, data.subjectId, {
+    return this.accessRequest(event, data.subjectId, {
       outcome: 'cannot-identify',
       grounds: [],
       closedAt: new Date(data.at),
@@ -407,23 +404,17 @@ export class ProjectionsConsumer {
   @OnEvent(ACCESS_REQUEST_WITHDRAWN)
   accessRequestWithdrawn(@Payload() event: EventEnvelope): Promise<boolean> {
     const data = accessRegisterEventDataSchema.parse(event.data);
-    const facts = { withdrawnAt: new Date(data.at) };
-    return this.project(event, (tx, tenant) =>
-      tx
-        .insert(accessRequestFacts)
-        .values({ requestId: data.subjectId, tenant, ...facts })
-        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
-    );
+    return this.accessRequest(event, data.subjectId, { withdrawnAt: new Date(data.at) });
   }
 
   /**
-   * How a Form K request ended (final). Writes only those columns, so a decision that arrives
+   * Upserts what one event knows of a Form K request, and only that, so a decision that arrives
    * before the receipt still lands in the year the receipt brings.
    */
-  private closeAccessRequest(
+  private accessRequest(
     event: EventEnvelope,
     requestId: string,
-    facts: Pick<typeof accessRequestFacts.$inferInsert, 'outcome' | 'grounds' | 'closedAt'>,
+    facts: Partial<Omit<typeof accessRequestFacts.$inferInsert, 'requestId' | 'tenant'>>,
   ): Promise<boolean> {
     return this.project(event, (tx, tenant) =>
       tx
