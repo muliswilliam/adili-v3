@@ -39,7 +39,8 @@ export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
 /**
  * The declarant's request to check registries for a person (Data Protection Act s.30(1)(a)): who
  * asked, when, under which consent text, for which registries. One per lookup request; its sets
- * point at it. Identifiers only.
+ * point at it. Identifiers only. The draft's working copy, deleted with its suggestions; the
+ * record that lasts is `declaration.lookup-requested.v1` in the audit trail (`expiry.ts`).
  */
 export const suggestionConsents = pgTable(
   'suggestion_consents',
