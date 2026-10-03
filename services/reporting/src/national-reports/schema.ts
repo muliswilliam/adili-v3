@@ -123,8 +123,44 @@ export const nationalReportParagraphs = pgTable(
   ],
 );
 
+/** reporting.yaml `draftNationalReportNarrative` `section`: one section, or the whole narrative. */
+export const DRAFT_SCOPES = [...NARRATIVE_SECTIONS, 'all'] as const;
+export type DraftScope = (typeof DRAFT_SCOPES)[number];
+
+/** reporting.yaml `NarrativeDraft.status`. */
+export const NARRATIVE_DRAFT_STATUSES = ['drafting', 'inserted', 'failed'] as const;
+export type NarrativeDraftStatus = (typeof NARRATIVE_DRAFT_STATUSES)[number];
+
+/**
+ * The report's latest AI narrative draft (spec 09b): the ai-gateway job writing it and what to do
+ * with its paragraphs once it ends, so a draft not ready within the request's wait is completed
+ * when the report is read again. One per report; a new draft request replaces it, and the job of
+ * a replaced draft is never inserted. `aggregatesBuiltAt` is the build the task input came from:
+ * a draft that ends after a rebuild is discarded (`aggregates-rebuilt`), as its figures are old.
+ * No text or figures: the paragraphs go into `national_report_paragraphs` once inserted.
+ */
+export const nationalReportNarrativeDrafts = pgTable('national_report_narrative_drafts', {
+  nationalReportId: uuid()
+    .primaryKey()
+    .references(() => nationalReports.id, { onDelete: 'cascade' }),
+  /** The ai-gateway job. */
+  jobId: uuid().notNull(),
+  section: text().$type<DraftScope>().notNull(),
+  /** Replace every paragraph of the section(s), not only those still AI drafts. */
+  replaceAll: boolean().notNull(),
+  status: text().$type<NarrativeDraftStatus>().notNull(),
+  /** Why a failed draft was discarded: the gateway's job reason, or the service's own. */
+  failureReason: text(),
+  aggregatesBuiltAt: timestamp({ withTimezone: true }).notNull(),
+  /** Who asked for the draft: the paragraphs are theirs, and they become a contributor. */
+  requestedBy: text().notNull(),
+  requestedAt: timestamp({ withTimezone: true }).notNull(),
+  finishedAt: timestamp({ withTimezone: true }),
+});
+
 export const nationalReportsSchema = {
   nationalReports,
   nationalReportAggregates,
   nationalReportParagraphs,
+  nationalReportNarrativeDrafts,
 };

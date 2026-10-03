@@ -2,7 +2,10 @@ import { type Officer, storedOfficer } from '../officer.js';
 import type { NationalAggregates } from './aggregates.js';
 import { type Narrative, narrativeOf, type Paragraph } from './narrative.js';
 import type {
+  DraftScope,
+  NarrativeDraftStatus,
   nationalReportAggregates,
+  nationalReportNarrativeDrafts,
   nationalReportParagraphs,
   nationalReports,
   NationalReportStatus,
@@ -11,6 +14,18 @@ import type {
 export type NationalReportRow = typeof nationalReports.$inferSelect;
 export type AggregatesRow = typeof nationalReportAggregates.$inferSelect;
 export type ParagraphRow = typeof nationalReportParagraphs.$inferSelect;
+export type NarrativeDraftRow = typeof nationalReportNarrativeDrafts.$inferSelect;
+
+/** reporting.yaml `NarrativeDraft`: the report's latest AI narrative draft. */
+export interface NarrativeDraftView {
+  jobId: string;
+  section: DraftScope;
+  replaceAll: boolean;
+  status: NarrativeDraftStatus;
+  failureReason: string | null;
+  requestedAt: string;
+  finishedAt: string | null;
+}
 
 /** reporting.yaml `NationalReport`. */
 export interface NationalReportView {
@@ -23,6 +38,7 @@ export interface NationalReportView {
   aggregates: NationalAggregates | Record<string, never>;
   narrative: Narrative;
   narrativeParagraphs: Paragraph[];
+  narrativeDraft: NarrativeDraftView | null;
   author: Officer | null;
   approver: Officer | null;
   approvedAt: string | null;
@@ -48,6 +64,7 @@ export function nationalReportView(
   report: NationalReportRow,
   aggregates: AggregatesRow | undefined,
   paragraphs: readonly Paragraph[],
+  draft: NarrativeDraftRow | undefined,
 ): NationalReportView {
   const ordered = [...paragraphs].sort(
     (a, b) => sectionOrder(a) - sectionOrder(b) || a.position - b.position,
@@ -62,11 +79,24 @@ export function nationalReportView(
     aggregates: aggregates?.aggregates ?? {},
     narrative: narrativeOf(ordered),
     narrativeParagraphs: ordered,
+    narrativeDraft: draft ? narrativeDraftView(draft) : null,
     author: { subject: report.authorSubject, name: report.authorName },
     approver: storedOfficer(report.approverSubject, report.approverName),
     approvedAt: report.approvedAt?.toISOString() ?? null,
     reference: report.reference,
     documentId: report.documentId,
+  };
+}
+
+function narrativeDraftView(draft: NarrativeDraftRow): NarrativeDraftView {
+  return {
+    jobId: draft.jobId,
+    section: draft.section,
+    replaceAll: draft.replaceAll,
+    status: draft.status,
+    failureReason: draft.failureReason,
+    requestedAt: draft.requestedAt.toISOString(),
+    finishedAt: draft.finishedAt?.toISOString() ?? null,
   };
 }
 

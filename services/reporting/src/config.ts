@@ -24,6 +24,8 @@ export const envSchema = baseEnvSchema.extend({
   DOCUMENTS_URL: z.url(),
   /** Base URL of the integration-gateway, whose ICMS adapter registers EACC's referrals. */
   INTEGRATION_GATEWAY_URL: z.url(),
+  /** Base URL of the ai-gateway, whose `narrate-compliance-report` task drafts the NCR narrative. */
+  AI_GATEWAY_URL: z.url(),
   /**
    * Pushing a referral to ICMS: how many times the gateway is tried while ICMS is unreachable,
    * and the pause before the second try (doubling for each later one), before the push is left

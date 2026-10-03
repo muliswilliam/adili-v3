@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { AiGatewayUnavailable, type TaskRequest } from '../../src/ai-gateway/ai-gateway-client.js';
+import { HttpAiGatewayClient } from '../../src/ai-gateway/http-ai-gateway-client.js';
 import { DeclarationsUnavailable } from '../../src/declarations/declarations-client.js';
 import { HttpDeclarationsClient } from '../../src/declarations/http-declarations-client.js';
 import { DirectoryUnavailable } from '../../src/directory/directory-client.js';
@@ -222,6 +224,91 @@ describe('HttpIntegrationGatewayClient', () => {
       method: 'GET',
     });
     expect(await client.getReferral(referral.referralReference)).toBeNull();
+  });
+});
+
+describe('HttpAiGatewayClient', () => {
+  const task: TaskRequest = {
+    tenant: 'eacc',
+    dataClass: 'restricted',
+    subjectRef: 'national-report:0199b000-0000-7000-8000-0000000000c1',
+    promptVersion: 1,
+    input: {
+      kind: 'narrate-compliance-report',
+      fy: 2028,
+      totals: { commissions: 1 },
+      rates: { filingRate: 0.9 },
+      commissionTable: [{ code: 'psc', commissionName: 'Public Service Commission', figures: {} }],
+      priorYears: [],
+      candidates: [],
+      section: 'overview',
+      language: 'en',
+    },
+  };
+  const job = {
+    id: '0199b000-0000-7000-8000-0000000000a1',
+    task: 'narrate-compliance-report',
+    tenant: 'eacc',
+    subjectRef: task.subjectRef,
+    status: 'succeeded',
+    reason: null,
+    promptVersion: 1,
+    output: { label: {}, paragraphs: [] },
+    createdAt: '2028-08-20T08:00:00.000Z',
+    finishedAt: '2028-08-20T08:00:05.000Z',
+  };
+  const key = '0199b000-0000-7000-8000-0000000000a9';
+  const client = (fetch: Fetch) =>
+    new HttpAiGatewayClient({ gatewayUrl: 'http://ai.test', tokens, fetch });
+
+  it('posts the task for EACC with the idempotency key and the wait, and answers the job', async () => {
+    const fetch = vi.fn<Fetch>().mockResolvedValueOnce(Response.json(job, { status: 200 }));
+
+    const answer = await client(fetch).runTask('narrate-compliance-report', task, key, {
+      waitSeconds: 20,
+    });
+
+    expect(answer).toMatchObject({ id: job.id, status: 'succeeded', output: job.output });
+    const { tenant, ...body } = task;
+    expect(await request(fetch)).toMatchObject({
+      url: 'http://ai.test/internal/v1/tasks/narrate-compliance-report',
+      method: 'POST',
+      headers: { 'idempotency-key': key, 'x-acting-tenant': tenant },
+      body: { ...body, waitSeconds: 20 },
+    });
+  });
+
+  it('refuses a wait over 20 s; unavailable on a 503 or 429, rejected on a 4xx', async () => {
+    const fetch = vi
+      .fn<Fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 429 }))
+      .mockResolvedValueOnce(new Response(null, { status: 422 }));
+    const gateway = client(fetch);
+
+    expect(() =>
+      gateway.runTask('narrate-compliance-report', task, key, { waitSeconds: 21 }),
+    ).toThrow(RangeError);
+    for (const error of [AiGatewayUnavailable, AiGatewayUnavailable, InternalApiRejected]) {
+      await expect(gateway.runTask('narrate-compliance-report', task, key)).rejects.toBeInstanceOf(
+        error,
+      );
+    }
+  });
+
+  it('reads a job for the tenant; null for none', async () => {
+    const fetch = vi
+      .fn<Fetch>()
+      .mockResolvedValueOnce(Response.json({ ...job, status: 'running', output: null }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    expect(await client(fetch).getJob('eacc', job.id)).toMatchObject({ status: 'running' });
+    expect(await request(fetch)).toMatchObject({
+      url: `http://ai.test/internal/v1/jobs/${job.id}`,
+      method: 'GET',
+      headers: { 'x-acting-tenant': 'eacc' },
+    });
+    expect(await client(fetch).getJob('eacc', job.id)).toBeNull();
   });
 });
 
