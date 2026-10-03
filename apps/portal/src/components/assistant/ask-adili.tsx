@@ -477,7 +477,7 @@ function Answer({
             onRate={rate}
             noteMaxLength={500}
             messages={copy.feedback}
-            className="items-start"
+            className="w-full items-stretch [&>[role=group]]:self-start"
           />
         </>
       }
