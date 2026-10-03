@@ -23,6 +23,7 @@
  */
 import { EACC_ROLES } from '@adili/roles';
 
+import { ICMS_STATUSES } from '../../components/referral-intake/statuses';
 import { json, mockCallerOf, problem } from '../mock-http';
 import type {
   IcmsPushError,
@@ -70,12 +71,7 @@ const GROUNDS: IntakeReferralGrounds[] = [
   'unanswered-clarification',
 ];
 
-const ICMS_STATUSES: ReadonlySet<string> = new Set<IcmsStatus>([
-  'not-pushed',
-  'pushed',
-  'registered',
-  'push-failed',
-]);
+const STATUSES: ReadonlySet<string> = new Set(ICMS_STATUSES);
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -87,7 +83,7 @@ interface Stored {
 }
 
 let store = new Map<string, Stored>();
-/** Answers by Idempotency-Key: the status and body of the first push with it. */
+/** Answers by referral and Idempotency-Key: the status and body of the first push with it. */
 let replays = new Map<string, { status: number; body: unknown }>();
 let nextCaseNumber = 4813;
 /** Each evidence package's document id, with its referral's reference. */
@@ -238,7 +234,7 @@ function ensureSeeded(): void {
 /** The latest sent first; the cursor is the index of the next row. */
 function list(url: URL): Response {
   const status = url.searchParams.get('icmsStatus');
-  if (status !== null && !ICMS_STATUSES.has(status)) {
+  if (status !== null && !STATUSES.has(status)) {
     return problem(400, 'icmsStatus is not an ICMS status');
   }
   const limitParam = url.searchParams.get('limit');
@@ -264,12 +260,13 @@ function list(url: URL): Response {
 
 function push(referralId: string, key: string | null, caller: ReportingOfficer): Response {
   if (!key || !/^[0-9a-f-]{36}$/i.test(key)) return problem(400, 'Idempotency-Key is required');
-  const replay = replays.get(key);
+  const replayKey = `${referralId} ${key}`;
+  const replay = replays.get(replayKey);
   if (replay) return json(replay.status, replay.body);
   const stored = store.get(referralId);
   if (!stored) return problem(404, 'Not in the intake');
   const answer = (status: number, body: unknown) => {
-    replays.set(key, { status, body });
+    replays.set(replayKey, { status, body });
     return json(status, body);
   };
   const { item } = stored;

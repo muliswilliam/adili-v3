@@ -113,8 +113,8 @@ export const messages = {
     referral: 'Referral',
     commission: 'Referring Commission',
     grounds: 'Grounds',
-    officer: 'Officer',
-    officerValue: 'ID number and full name',
+    declarant: 'Declarant',
+    declarantValue: 'ID number and full name',
     sending: 'Sending to ICMS…',
     sendingDetail: 'Waiting for the case number.',
     cancel: 'Cancel',
@@ -132,5 +132,11 @@ export const messages = {
   pushUnanswered: {
     title: 'The push did not complete.',
     detail: 'Try again. ICMS never registers a referral twice.',
+  },
+  /** A push refused for good, in the dialog: trying again will not help. */
+  pushRefused: {
+    403: 'Only EACC analysts and supervisors can push referrals to ICMS.',
+    404: 'This referral is no longer in the intake.',
+    other: 'Reporting refused the push. Reload the page and try again.',
   },
 } as const;

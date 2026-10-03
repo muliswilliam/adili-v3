@@ -23,7 +23,7 @@ import type { ServiceResult } from './service-call';
 const id = z.uuid();
 
 /** Rows per page: each row carries a package and a status line, so a page stays scannable. */
-export const INTAKE_PAGE_SIZE = 20;
+const INTAKE_PAGE_SIZE = 20;
 
 export const getReferralIntake = createServerFn({ method: 'GET' })
   .validator(

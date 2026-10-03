@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { EACC_ANALYST } from '@adili/roles';
+import { EACC_ANALYST, SUPERVISOR } from '@adili/roles';
 import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useEffect, useState } from 'react';
@@ -29,7 +29,8 @@ vi.mock('../download', () => ({
   },
 }));
 
-const client = () => mockReportingClient('Brian Otieno', [EACC_ANALYST]);
+const signedIn = { roles: [EACC_ANALYST] as string[] };
+const client = () => mockReportingClient('Brian Otieno', signedIn.roles);
 
 vi.mock('../../server/referral-intake', async () => {
   const server = await import('../../server/referral-intake.server');
@@ -104,6 +105,7 @@ beforeEach(() => {
   invalidate.mockClear();
   download.mockClear();
   pushes.mockClear();
+  signedIn.roles = [EACC_ANALYST];
 });
 
 describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
@@ -196,6 +198,7 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
       within(dialog).getByText('Send this referral to ICMS? The case number will be recorded.'),
     ).toBeTruthy();
     expect(within(dialog).getByText('What ICMS receives')).toBeTruthy();
+    expect(within(dialog).getByText('Declarant')).toBeTruthy();
     expect(within(dialog).getByText('ID number and full name')).toBeTruthy();
     expect(within(dialog).getByText('RFL-PSC-2026-0000003-7')).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Push to ICMS' }));
@@ -270,5 +273,19 @@ describe('ReferralIntakeView (spec 09 FE-5, S12, S15)', () => {
     const retry = await screen.findByRole('dialog', { name: 'Retry push to ICMS' });
     fireEvent.click(within(retry).getByRole('button', { name: 'Retry' }));
     expect(await screen.findByText(/^Registered in ICMS as ICMS-2026-\d{6}$/)).toBeTruthy();
+  });
+
+  it('says why a refused push will not work by retrying, and keeps the dialog open', async () => {
+    await open();
+    signedIn.roles = [SUPERVISOR];
+    fireEvent.click(row('RFL-PSC-2026-0000003-7').getByRole('button', { name: 'Push to ICMS' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Push to ICMS' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Push to ICMS' }));
+    expect(
+      await within(dialog).findByText(
+        'Only EACC analysts and supervisors can push referrals to ICMS.',
+      ),
+    ).toBeTruthy();
+    expect(invalidate).not.toHaveBeenCalled();
   });
 });

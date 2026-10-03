@@ -25,17 +25,16 @@ import {
   Download04Icon,
   InboxIcon,
   PackageIcon,
-  RefreshIcon,
   SentIcon,
   Tick02Icon,
   ViewIcon,
 } from '@hugeicons/core-free-icons';
-import type { ReactNode } from 'react';
-
 import type { ReferralIntakeItem } from '../../server/reporting/types';
 import { ConfidentialBadge } from '../referrals/badges';
 import { IcmsStatusBadge } from './badges';
+import { Fact } from './fact';
 import { messages as t } from './messages';
+import { PushButton, pushable } from './push-button';
 
 interface HistoryEntry {
   key: string;
@@ -46,7 +45,7 @@ interface HistoryEntry {
 }
 
 /** What happened to the referral at EACC, the latest first. */
-export function intakeHistory(referral: ReferralIntakeItem): HistoryEntry[] {
+function intakeHistory(referral: ReferralIntakeItem): HistoryEntry[] {
   const entries: HistoryEntry[] = [];
   if (referral.icmsStatus === 'registered' && referral.icmsCaseNumber) {
     entries.push({
@@ -189,15 +188,8 @@ export function ReferralIntakeDrawer({
             <DrawerClose asChild>
               <Button variant="secondary">{t.detail.close}</Button>
             </DrawerClose>
-            {referral.icmsStatus === 'not-pushed' || referral.icmsStatus === 'push-failed' ? (
-              <Button
-                onClick={() => {
-                  onPush(referral);
-                }}
-              >
-                <Icon icon={referral.icmsStatus === 'push-failed' ? RefreshIcon : SentIcon} />
-                {referral.icmsStatus === 'push-failed' ? t.list.retry : t.list.push}
-              </Button>
+            {pushable(referral) ? (
+              <PushButton referral={referral} variant="default" onPush={onPush} />
             ) : null}
           </DrawerFooter>
         </DrawerContent>
@@ -235,13 +227,4 @@ function StatusCallout({ referral }: { referral: ReferralIntakeItem }) {
     );
   }
   return null;
-}
-
-function Fact({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[13px] text-muted-foreground">{term}</dt>
-      <dd className="mt-0.5 text-[15px] font-medium">{children}</dd>
-    </div>
-  );
 }

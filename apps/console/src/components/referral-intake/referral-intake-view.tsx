@@ -16,13 +16,7 @@ import {
   TableRow,
   useToast,
 } from '@adili/ui';
-import {
-  Download04Icon,
-  FilterIcon,
-  Flag02Icon,
-  RefreshIcon,
-  SentIcon,
-} from '@hugeicons/core-free-icons';
+import { Download04Icon, FilterIcon, Flag02Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
@@ -33,8 +27,10 @@ import type { FailureText } from '../dialog-parts';
 import { downloadFrom } from '../download';
 import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
+import { usePollWhile } from '../use-poll-while';
 import { ConfidentialBadge } from '../referrals/badges';
 import { IcmsStatusBadge } from './badges';
+import { PushButton, pushable } from './push-button';
 import { messages as t } from './messages';
 import { PushDialog } from './push-dialog';
 import { ReferralIntakeDrawer } from './referral-intake-drawer';
@@ -42,6 +38,10 @@ import { ICMS_STATUSES } from './statuses';
 
 export const INTAKE_FILTERS = ['all', ...ICMS_STATUSES] as const;
 export type IntakeFilter = (typeof INTAKE_FILTERS)[number];
+
+/** Reload every 5 seconds while a referral waits for its case number, at most 12 times. */
+const PUSHED_POLL_MS = 5_000;
+const PUSHED_POLL_TIMES = 12;
 
 export interface ReferralIntakeViewProps {
   /** The page for `filter`; null while it loads. */
@@ -55,10 +55,6 @@ export interface ReferralIntakeViewProps {
   /** A fresh Idempotency-Key per push confirmation; tests may fix it. */
   newKey?: () => string;
 }
-
-/** Whether the referral can be pushed (again) to ICMS. */
-const pushable = (referral: ReferralIntakeItem) =>
-  referral.icmsStatus === 'not-pushed' || referral.icmsStatus === 'push-failed';
 
 /**
  * EACC's referrals received (spec 09 FE-5; S12, S15): the referrals Commissions sent, the latest
@@ -84,6 +80,12 @@ export function ReferralIntakeView({
   );
   const [downloading, setDownloading] = useState<string | null>(null);
   const items = result?.ok ? result.data.items : [];
+  // ICMS assigns a pushed referral's case number shortly after; reload until it shows.
+  usePollWhile(
+    items.some((each) => each.icmsStatus === 'pushed'),
+    PUSHED_POLL_MS,
+    PUSHED_POLL_TIMES,
+  );
   // The drawer reads the row as last loaded, so it follows a push.
   const opened = items.find((each) => each.referralId === openedId) ?? null;
 
@@ -114,6 +116,12 @@ export function ReferralIntakeView({
       return null;
     }
     if (answer?.error.kind === 'unauthenticated') return { title: t.toasts.sessionEnded };
+    if (answer?.error.kind === 'problem') {
+      const { status } = answer.error.problem;
+      return {
+        title: status === 403 || status === 404 ? t.pushRefused[status] : t.pushRefused.other,
+      };
+    }
     return { title: t.pushUnanswered.title, detail: t.pushUnanswered.detail };
   }
 
@@ -205,12 +213,21 @@ export function ReferralIntakeView({
               </TableHeader>
               <TableBody>
                 {items.map((referral) => (
-                  <TableRow key={referral.referralId}>
+                  <TableRow
+                    key={referral.referralId}
+                    className="cursor-pointer"
+                    onClick={(event) => {
+                      // A click on a control in the row is that control's; anywhere else opens it.
+                      if (!(event.target as HTMLElement).closest('button, a')) {
+                        setOpenedId(referral.referralId);
+                      }
+                    }}
+                  >
                     <TableCell className="whitespace-nowrap">
                       <button
                         type="button"
                         className={cn(
-                          'font-mono text-[13.5px] font-semibold hover:underline',
+                          'rounded-sm font-mono text-[13.5px] font-semibold hover:underline',
                           focusRing,
                         )}
                         onClick={() => {
@@ -244,31 +261,22 @@ export function ReferralIntakeView({
                       <IcmsStatusCell referral={referral} />
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
-                      {pushable(referral) ? (
-                        <Button
-                          size="sm"
-                          variant={referral.icmsStatus === 'push-failed' ? 'secondary' : 'default'}
-                          onClick={() => {
-                            askPush(referral);
-                          }}
-                        >
-                          <Icon
-                            icon={referral.icmsStatus === 'push-failed' ? RefreshIcon : SentIcon}
-                          />
-                          {referral.icmsStatus === 'push-failed' ? t.list.retry : t.list.push}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          aria-label={t.list.viewFor(referral.reference)}
-                          onClick={() => {
-                            setOpenedId(referral.referralId);
-                          }}
-                        >
-                          {t.list.view}
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {pushable(referral) ? (
+                          <PushButton referral={referral} size="sm" onPush={askPush} />
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={t.list.viewFor(referral.reference)}
+                            onClick={() => {
+                              setOpenedId(referral.referralId);
+                            }}
+                          >
+                            {t.list.view}
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

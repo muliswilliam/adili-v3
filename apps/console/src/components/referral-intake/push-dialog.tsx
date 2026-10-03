@@ -6,14 +6,17 @@ import {
   DialogContent,
   DialogFooter,
   Icon,
+  ReferenceChip,
   Spinner,
 } from '@adili/ui';
-import { RefreshIcon, SentIcon } from '@hugeicons/core-free-icons';
-import { type ReactNode, useState } from 'react';
+import { SentIcon } from '@hugeicons/core-free-icons';
+import { useState } from 'react';
 
 import type { ReferralIntakeItem } from '../../server/reporting/types';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
+import { Fact } from './fact';
 import { messages as t } from './messages';
+import { pushAction } from './push-button';
 
 /**
  * Push a referral to ICMS (spec 09 FE-5): what ICMS receives, then the push, which waits for the
@@ -69,16 +72,14 @@ export function PushDialog({
                     {t.pushDialog.receives}
                   </h3>
                   <dl className="grid gap-x-4 gap-y-3 min-[480px]:grid-cols-2">
-                    <Field term={t.pushDialog.referral}>
-                      <span className="font-mono text-[14px] font-normal">
-                        {referral.reference}
-                      </span>
-                    </Field>
-                    <Field term={t.pushDialog.commission}>{referral.commission.name}</Field>
-                    <Field term={t.pushDialog.grounds}>{t.grounds[referral.grounds]}</Field>
-                    <Field term={t.pushDialog.officer}>
-                      <span className="font-normal">{t.pushDialog.officerValue}</span>
-                    </Field>
+                    <Fact term={t.pushDialog.referral}>
+                      <ReferenceChip reference={referral.reference} size="sm" />
+                    </Fact>
+                    <Fact term={t.pushDialog.commission}>{referral.commission.name}</Fact>
+                    <Fact term={t.pushDialog.grounds}>{t.grounds[referral.grounds]}</Fact>
+                    <Fact term={t.pushDialog.declarant}>
+                      <span className="font-normal">{t.pushDialog.declarantValue}</span>
+                    </Fact>
                   </dl>
                 </section>
               </>
@@ -101,21 +102,12 @@ export function PushDialog({
                 });
               }}
             >
-              <Icon icon={retry ? RefreshIcon : SentIcon} />
-              {retry ? t.pushDialog.retry : t.pushDialog.confirm}
+              <Icon icon={pushAction(referral).icon} />
+              {pushAction(referral).label}
             </Button>
           </DialogFooter>
         </DialogContent>
       ) : null}
     </Dialog>
-  );
-}
-
-function Field({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[13px] text-muted-foreground">{term}</dt>
-      <dd className="mt-0.5 text-[15px] font-medium">{children}</dd>
-    </div>
   );
 }
