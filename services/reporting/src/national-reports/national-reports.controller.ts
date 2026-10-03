@@ -29,7 +29,8 @@ import { z } from 'zod';
 import { FIRST_FINANCIAL_YEAR } from '../financial-year.js';
 import type { PatternCandidate } from './candidates.js';
 import type { Narrative } from './narrative.js';
-import { type DraftRequest, NationalReportsService } from './national-reports.service.js';
+import { type DraftRequest, NarrativeDraftService } from './narrative-draft.service.js';
+import { NationalReportsService } from './national-reports.service.js';
 import type { NationalReportView } from './representation.js';
 import { DRAFT_SCOPES } from './schema.js';
 
@@ -73,7 +74,10 @@ const APPROVED = 'Problem code `ncr-approved`: the report no longer changes';
 @ApiTags('ncr')
 @Controller('v1/eacc/national-reports')
 export class NationalReportsController {
-  constructor(private readonly reports: NationalReportsService) {}
+  constructor(
+    private readonly reports: NationalReportsService,
+    private readonly drafts: NarrativeDraftService,
+  ) {}
 
   @Get(':fy')
   @ApiFinancialYearParam()
@@ -175,7 +179,7 @@ export class NationalReportsController {
     @IdempotencyKey() key: string,
     @Res({ passthrough: true }) reply: Reply,
   ): Promise<NationalReportView> {
-    const { report, drafting } = await this.reports.draftNarrative(principal, fy, body, key);
+    const { report, drafting } = await this.drafts.draft(principal, fy, body, key);
     if (drafting) void reply.status(HttpStatus.ACCEPTED);
     return report;
   }

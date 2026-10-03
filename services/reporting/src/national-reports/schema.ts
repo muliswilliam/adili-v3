@@ -11,6 +11,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import type { NationalAggregates } from './aggregates.js';
+import type { DraftFailureReason } from './narrative-draft.js';
 
 /**
  * EACC's national consolidated report (NCR, spec 09): one per financial year, built by an EACC
@@ -150,7 +151,7 @@ export const nationalReportNarrativeDrafts = pgTable('national_report_narrative_
   replaceAll: boolean().notNull(),
   status: text().$type<NarrativeDraftStatus>().notNull(),
   /** Why a failed draft was discarded: the gateway's job reason, or the service's own. */
-  failureReason: text(),
+  failureReason: text().$type<DraftFailureReason>(),
   aggregatesBuiltAt: timestamp({ withTimezone: true }).notNull(),
   /** Who asked for the draft: the paragraphs are theirs, and they become a contributor. */
   requestedBy: text().notNull(),

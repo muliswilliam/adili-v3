@@ -15,6 +15,26 @@ export type DataClass = Schemas['DataClass'];
 export type AiJobStatus = Schemas['JobStatus'];
 export type AiJobReason = Schemas['JobReason'];
 
+export const AI_JOB_STATUSES = [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'blocked',
+] as const satisfies readonly AiJobStatus[];
+
+/** Every `JobReason`, as the client validates the gateway's answers. */
+export const AI_JOB_REASONS = [
+  'policy',
+  'budget',
+  'validation',
+  'refused',
+  'provider',
+  'provider-unavailable',
+  'timeout',
+  'cancelled',
+] as const satisfies readonly AiJobReason[];
+
 /**
  * The longest a task call waits for its job to end (spec 09b): the analyst waits on a narrative
  * draft this long, and a job not done by then is polled. Within the gateway's 30 s maximum.

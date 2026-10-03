@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
-import type { NarrateComplianceReportInput } from '../ai-gateway/ai-gateway-client.js';
-import type { AiJob } from '../ai-gateway/ai-gateway-client.js';
+import type {
+  AiJob,
+  AiJobReason,
+  AiJobStatus,
+  NarrateComplianceReportInput,
+} from '../ai-gateway/ai-gateway-client.js';
 import type { PatternCandidate } from './candidates.js';
 import type { DraftedParagraph } from './narrative.js';
 import type { NarrativeFigures } from './narrative-input.js';
@@ -64,7 +68,7 @@ const outputSchema = z.object({
 export type DraftOutcome =
   | { status: 'drafting' }
   | { status: 'succeeded'; paragraphs: DraftedParagraph[] }
-  | { status: 'failed'; reason: string };
+  | { status: 'failed'; reason: DraftFailureReason };
 
 /**
  * Why a draft was discarded beyond the gateway's job reasons: the gateway refused the request, no
@@ -79,11 +83,21 @@ export const DRAFT_FAILURES = {
   approved: 'ncr-approved',
 } as const;
 
+/**
+ * Why a draft failed, as recorded (`national_report_narrative_drafts.failure_reason`) and
+ * answered: the gateway job's reason (ai-gateway.yaml `JobReason`), its ended status when it gave
+ * none, or the service's own (`DRAFT_FAILURES`).
+ */
+export type DraftFailureReason =
+  | AiJobReason
+  | Exclude<AiJobStatus, 'queued' | 'running' | 'succeeded'>
+  | (typeof DRAFT_FAILURES)[keyof typeof DRAFT_FAILURES];
+
 /** The outcome of a job as the gateway answers it (null: it has no such job). */
 export function outcomeOf(job: AiJob | null): DraftOutcome {
   if (job === null) return { status: 'failed', reason: DRAFT_FAILURES.missing };
   if (job.status === 'queued' || job.status === 'running') return { status: 'drafting' };
-  if (job.status !== 'succeeded') {
+  if (job.status === 'failed' || job.status === 'blocked') {
     return { status: 'failed', reason: job.reason ?? job.status };
   }
   const output = outputSchema.safeParse(job.output);

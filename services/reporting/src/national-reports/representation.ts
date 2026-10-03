@@ -1,6 +1,7 @@
 import { type Officer, storedOfficer } from '../officer.js';
 import type { NationalAggregates } from './aggregates.js';
 import { type Narrative, narrativeOf, type Paragraph } from './narrative.js';
+import type { DraftFailureReason } from './narrative-draft.js';
 import type {
   DraftScope,
   NarrativeDraftStatus,
@@ -22,7 +23,7 @@ export interface NarrativeDraftView {
   section: DraftScope;
   replaceAll: boolean;
   status: NarrativeDraftStatus;
-  failureReason: string | null;
+  failureReason: DraftFailureReason | null;
   requestedAt: string;
   finishedAt: string | null;
 }

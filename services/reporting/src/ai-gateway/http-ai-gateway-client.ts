@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { refusedWith } from '../internal-api/internal-api.js';
 import type { paths } from './ai-gateway-api.gen.js';
 import {
+  AI_JOB_REASONS,
+  AI_JOB_STATUSES,
   type AiJob,
   AiGatewayClient,
   AiGatewayUnavailable,
@@ -33,19 +35,8 @@ const jobSchema = z.object({
   id: z.uuid(),
   task: z.string(),
   subjectRef: z.string(),
-  status: z.enum(['queued', 'running', 'succeeded', 'failed', 'blocked']),
-  reason: z
-    .enum([
-      'policy',
-      'budget',
-      'validation',
-      'refused',
-      'provider',
-      'provider-unavailable',
-      'timeout',
-      'cancelled',
-    ])
-    .nullable(),
+  status: z.enum(AI_JOB_STATUSES),
+  reason: z.enum(AI_JOB_REASONS).nullable(),
   promptVersion: z.int(),
   output: z.record(z.string(), z.unknown()).nullable(),
   finishedAt: z.string().nullable(),

@@ -12,7 +12,7 @@ import {
   narrativeFigures,
   narrativeYear,
 } from '../../src/national-reports/narrative-input.js';
-import { CANDIDATE_THRESHOLDS } from '../../src/national-reports/national-reports.service.js';
+import { CANDIDATE_THRESHOLDS } from '../../src/national-reports/national-report-store.js';
 import {
   FY2027_CANDIDATES,
   HISTORY,
