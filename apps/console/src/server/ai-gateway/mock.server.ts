@@ -437,9 +437,29 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
           message: 'At most one rule per data class and provider class',
         });
       }
-      const tasks = Array.isArray(rule.tasks)
-        ? TASK_NAMES.filter((task) => (rule.tasks as unknown[]).includes(task))
-        : null;
+      // As the gateway: a list of tasks it runs, null for every task, or left out.
+      let tasks: GateRuleInput['tasks'];
+      if (Array.isArray(rule.tasks)) {
+        const named = rule.tasks as unknown[];
+        tasks = TASK_NAMES.filter((task) => named.includes(task));
+        if (named.length === 0 || tasks.length !== named.length) {
+          errors.push({ path: `/rules/${String(index)}/tasks`, message: 'Unknown task' });
+        }
+      } else if (rule.tasks === null) {
+        tasks = null;
+      } else if (rule.tasks !== undefined) {
+        errors.push({ path: `/rules/${String(index)}/tasks`, message: 'Must be a list of tasks' });
+      }
+      // A rule for some tasks only is widened on purpose (`tasks: null`), never silently.
+      const before = tenantOf(slug).rules.find(
+        (each) => each.dataClass === dataClass && each.providerClass === providerClass,
+      );
+      if (before?.tasks && tasks === undefined) {
+        errors.push({
+          path: `/rules/${String(index)}/tasks`,
+          message: 'The rule is for some tasks only: send tasks, or null for every task',
+        });
+      }
       rules.push({ dataClass, providerClass, allowed: rule.allowed === true, tasks });
     }
   });
@@ -457,7 +477,7 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
       ),
       {
         ...rule,
-        tasks: rule.tasks ?? null,
+        tasks: rule.tasks === undefined ? null : rule.tasks,
         approvalRef,
         changedBy: caller.subject,
         changedByName: caller.name,

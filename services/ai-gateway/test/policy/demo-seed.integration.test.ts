@@ -118,4 +118,28 @@ describe('demo gate seed', () => {
     ]);
     expect(await seedDemoGatePolicies(gate, ['docdemo'], DEMO_DOCUMENT_GATE_CHANGE)).toEqual([]);
   });
+
+  it("brings the seed's own earlier rule up to date, and leaves a platform admin's", async () => {
+    const wide = {
+      ...DEMO_DOCUMENT_GATE_CHANGE,
+      rules: [
+        {
+          dataClass: 'highly-confidential' as const,
+          providerClass: 'external' as const,
+          allowed: true,
+          tasks: null,
+        },
+      ],
+    };
+    // As an earlier seed recorded it, before rules named tasks: open for every task.
+    await gate.set('olddemo', wide, { subject: 'system:demo-seed', name: 'Demo seed' });
+    await gate.set('admindemo', wide, { subject: 'platform-admin-1', name: null });
+
+    expect(
+      await seedDemoGatePolicies(gate, ['olddemo', 'admindemo'], DEMO_DOCUMENT_GATE_CHANGE),
+    ).toEqual(['olddemo']);
+
+    expect(await gate.rules('olddemo')).toMatchObject([{ tasks: ['extract-document'] }]);
+    expect(await gate.rules('admindemo')).toMatchObject([{ tasks: null }]);
+  });
 });

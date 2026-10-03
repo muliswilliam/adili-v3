@@ -648,7 +648,7 @@ export interface components {
             dataClass: components["schemas"]["DataClass"];
             providerClass: components["schemas"]["ProviderClass"];
             allowed: boolean;
-            /** @description The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair */
+            /** @description The tasks the rule is for; null for every task, which a rule for some tasks only needs to be widened. Left out: every task for a new rule; refused for a rule that names tasks */
             tasks?: components["schemas"]["TaskName"][] | null;
         };
         GateCell: {

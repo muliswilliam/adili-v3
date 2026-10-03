@@ -1966,13 +1966,13 @@ components:
         allowed:
           type: boolean
         tasks:
+          description: 'The tasks the rule is for; null for every task, which a rule for some tasks only needs to be widened. Left out: every task for a new rule; refused for a rule that names tasks'
           anyOf:
             - minItems: 1
               type: array
               items:
                 $ref: '#/components/schemas/TaskName'
             - type: 'null'
-          description: The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair
       required:
         - dataClass
         - providerClass

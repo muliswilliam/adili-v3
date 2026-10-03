@@ -148,6 +148,35 @@ describe('admin API', { timeout: 90_000 }, () => {
   });
 
   describe('gate policy (S16)', () => {
+    it('widens a rule for some tasks only when tasks: null says so (spec 05b)', async () => {
+      const put = (rules: object[]) =>
+        request('PUT', '/v1/ai/policies/scoped', admin, { rules, approvalRef: 'EACC/AI/2026/040' });
+      const cell = { dataClass: 'highly-confidential', providerClass: 'external' } as const;
+      await put([{ ...cell, allowed: true, tasks: ['extract-document'] }]);
+
+      // A change that names no tasks would apply to every task: refused, nothing stored.
+      const silent = await put([{ ...cell, allowed: true }]);
+      expect(silent.statusCode).toBe(400);
+      expect(contractErrors('ProblemDetails', silent.json())).toEqual([]);
+      expect(silent.json()).toMatchObject({ errors: [{ path: 'rules.0.tasks' }] });
+      const kept = (await request('GET', '/v1/ai/policies', admin)).json<{
+        tenants: { tenant: string; rules: { tasks: string[] | null }[] }[];
+      }>();
+      expect(kept.tenants.find((each) => each.tenant === 'scoped')?.rules).toMatchObject([
+        { tasks: ['extract-document'] },
+      ]);
+
+      // Revoking for the same tasks, then widening on purpose.
+      expect(
+        (await put([{ ...cell, allowed: false, tasks: ['extract-document'] }])).json(),
+      ).toMatchObject({
+        rules: [{ allowed: false, tasks: ['extract-document'] }],
+      });
+      expect((await put([{ ...cell, allowed: true, tasks: null }])).json()).toMatchObject({
+        rules: [{ allowed: true, tasks: null }],
+      });
+    });
+
     it('applies several rules on one approval, audits each with the reference, and lists them', async () => {
       const before = await request('GET', '/v1/ai/policies', admin);
       expect(before.statusCode).toBe(200);

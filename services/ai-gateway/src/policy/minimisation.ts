@@ -269,6 +269,16 @@ const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
 ];
 
 /**
+ * A number a page labels as a person's (membership, payroll, staff, personal, customer or policy
+ * number, in English or Swahili), with letters and digits both (UW-00781): a digits-only one is
+ * an ID or account number by its shape already.
+ */
+const DOCUMENT_NUMBER_PATTERN = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)\s+(?:no\.?|number)|nambari\s+ya\s+(?:uanachama|mwanachama|mshahara))[ \t]*[:\-]?[ \t]*((?=[A-Z0-9/-]*[A-Z])(?=[A-Z0-9/-]*\d)[A-Z0-9][A-Z0-9/-]{2,})`,
+  'gu',
+);
+
+/**
  * What introduces an address on a page, at the start of a line, in English or Swahili; the rest
  * of the line is the address (a house, a plot, a street and a town), which no shape gives away.
  */
@@ -376,6 +386,10 @@ function collect(
       for (const pattern of DOCUMENT_NAME_PATTERNS) {
         for (const match of value.matchAll(pattern)) collectName(match[1] ?? '', known, true);
       }
+      for (const match of value.matchAll(DOCUMENT_NUMBER_PATTERN)) {
+        const number = match[1] ?? '';
+        if (!known.has(number)) known.set(number, 'FILE_NUMBER');
+      }
       for (const match of value.matchAll(DOCUMENT_ADDRESS_PATTERN)) {
         const address = match[1]?.trim() ?? '';
         if (address.length >= 2 && !known.has(address)) known.set(address, 'ADDRESS');
@@ -409,6 +423,9 @@ const NOT_NAMES = new Set([
   ...['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of'],
   // Courtesy titles and forms of address a salutation runs into ("Dear Mr. Ouma", "Dear Sir").
   ...['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam'],
+  // A company or office a party label runs into ("Borrower: Tumaini Produce Limited").
+  ...['limited', 'ltd', 'ltd.', 'plc', 'company', 'co.', 'bank', 'sacco', 'society'],
+  ...['holdings', 'enterprises', 'branch', 'manager', 'officer', 'secretary'],
 ]);
 
 /**

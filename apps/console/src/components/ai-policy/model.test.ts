@@ -10,6 +10,7 @@ import {
   budgetResetsOn,
   changedByText,
   changeText,
+  cellScope,
   confirmText,
   filterCounts,
   filterRows,
@@ -183,6 +184,34 @@ describe('the edit dialog', () => {
       { dataClass: 'synthetic', providerClass: 'external', allowed: false },
       { dataClass: 'highly-confidential', providerClass: 'self-hosted', allowed: true },
     ]);
+  });
+
+  it('keeps a rule for some tasks only for those tasks: ticked as it is, saved with its tasks', () => {
+    const documents = rule({ dataClass: 'highly-confidential', tasks: ['extract-document'] });
+    const cells = gate([documents]);
+    const draft = gateDraft(cells);
+    expect(draft['highly-confidential|external']).toBe(true);
+    expect(cellScope(cells, 'highly-confidential', 'external')).toEqual(['extract-document']);
+    expect(gateChanges(cells, draft)).toEqual([]);
+
+    // Unticking revokes it for the same tasks; it never widens to every task.
+    draft['highly-confidential|external'] = false;
+    expect(gateChanges(cells, draft)).toEqual([
+      {
+        dataClass: 'highly-confidential',
+        providerClass: 'external',
+        allowed: false,
+        tasks: ['extract-document'],
+      },
+    ]);
+    const [revoke] = gateChanges(cells, draft);
+    if (!revoke) throw new Error('No change');
+    expect(confirmText(revoke, 'Public Service Commission')).toBe(
+      'External providers will no longer process highly confidential data for Public Service Commission, for extract-document only. New AI requests are blocked; outputs already shown stay.',
+    );
+    expect(confirmText({ ...revoke, allowed: true }, 'Public Service Commission')).toBe(
+      'External providers may process highly confidential data for Public Service Commission, for extract-document only.',
+    );
   });
 
   it('words each change for the confirm step', () => {

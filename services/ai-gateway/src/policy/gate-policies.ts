@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { ProblemException } from '@adili/api-kit';
 import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, eq, sql } from 'drizzle-orm';
@@ -40,10 +41,17 @@ const ruleTasks = z.array(taskNameSchema).min(1).nullable().meta({
     "The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair",
 });
 
-/** Contract `GateRuleInput`: a cell of the gate, for every task or only the ones named. */
+/**
+ * Contract `GateRuleInput`: a cell of the gate, for every task or only the ones named. Leaving
+ * `tasks` out keeps an existing rule's scope; a rule for some tasks only is refused a change
+ * without `tasks` (send them again, or null to widen it to every task).
+ */
 export const gateRuleInputSchema = z.strictObject({
   ...gateCellSchema.shape,
-  tasks: ruleTasks.optional(),
+  tasks: ruleTasks.optional().meta({
+    description:
+      'The tasks the rule is for; null for every task, which a rule for some tasks only needs to be widened. Left out: every task for a new rule; refused for a rule that names tasks',
+  }),
 });
 export type GateRuleInput = z.input<typeof gateRuleInputSchema>;
 
@@ -198,14 +206,29 @@ export class GatePolicies {
       async (tx) => {
         // Concurrent changes of the tenant's gate apply, and are audited, in turn.
         await lockTenantSetting(tx, 'gate', tenant);
-        for (const input of change.rules) {
+        for (const [index, input] of change.rules.entries()) {
           const key = and(
             eq(gatePolicies.tenant, tenant),
             eq(gatePolicies.dataClass, input.dataClass),
             eq(gatePolicies.providerClass, input.providerClass),
           );
           const [before] = await tx.select().from(gatePolicies).where(key);
-          const tasks = input.tasks ?? null;
+          // A rule for some tasks only is widened to every task on purpose (`tasks: null`), never
+          // by a change that does not mention tasks; the throw rolls back the whole change.
+          if (before?.tasks && input.tasks === undefined) {
+            throw new ProblemException({
+              type: 'about:blank',
+              title: 'Validation failed',
+              status: HttpStatus.BAD_REQUEST,
+              errors: [
+                {
+                  path: `rules.${index}.tasks`,
+                  message: `The rule is for ${before.tasks.join(', ')} only: send tasks to keep it so, or null for every task`,
+                },
+              ],
+            });
+          }
+          const tasks = input.tasks ?? before?.tasks ?? null;
           const decision = {
             allowed: input.allowed,
             tasks,

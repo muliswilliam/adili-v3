@@ -291,6 +291,7 @@ export const extractSuite: EvalSuite<Expected> = {
           'KARIUKI',
           'ESTHER',
           'WAIRIMU',
+          'NDUNG’U',
           '21870034',
           '23019876',
           'KAJIADO/KITENGELA/4471',
@@ -384,7 +385,7 @@ export const extractSuite: EvalSuite<Expected> = {
       allowed: ANYWHERE,
       absent: ['amount.kesCents'],
       identifiers: ['0102938475610', 'A004567812M', '2009087654'],
-      neverSent: ['Halima', 'Mohamed', '2009087654', 'A004567812M', '0102938475610'],
+      neverSent: ['Halima', 'Mohamed', 'Ali', '2009087654', 'A004567812M', '0102938475610'],
       warns: true,
     }),
     golden('hati ya mshahara ya kaunti', 'payslip-county-kisumu.jpg', 'payslip', SALARY, 'sw', {
@@ -456,7 +457,7 @@ export const extractSuite: EvalSuite<Expected> = {
         fields: { creditor: /ufanisi walimu sacco/iu, 'outstanding.kesCents': 38_000_000 },
         allowed: ANYWHERE,
         identifiers: [],
-        neverSent: ['Joyce', 'Kerubo', 'Nyamweya'],
+        neverSent: ['Joyce', 'Kerubo', 'Nyamweya', 'UW-00781'],
       },
     ),
     golden(
@@ -472,7 +473,7 @@ export const extractSuite: EvalSuite<Expected> = {
         allowed: ANYWHERE,
         absent: ['location.country'],
         identifiers: [],
-        neverSent: ['Rehema', 'Achieng', 'Otieno'],
+        neverSent: ['Rehema', 'Achieng', 'Otieno', 'BW-02214'],
       },
     ),
     golden(
@@ -495,6 +496,7 @@ export const extractSuite: EvalSuite<Expected> = {
           'Fatuma',
           'Hassan',
           'Kevin',
+          'Otieno',
           'Odera',
           'House 14, Riverside Drive',
         ],

@@ -46,6 +46,16 @@ export const DECLARANT_TASKS = ['answer-declarant-question'] as const satisfies 
  */
 export const DOCUMENT_TASKS = ['extract-document'] as const satisfies readonly TaskName[];
 
+/**
+ * Whether a gate rule decides a cell for the Commission's reviewer tasks, as the gateway's tenant
+ * status reads it (`GatePolicies.effective`): it names no tasks, or names every one of them. A rule
+ * for some tasks only (the demo's document reading) leaves the cell to the default for them.
+ */
+export function decidesForReviewers(rule: { tasks: readonly TaskName[] | null }): boolean {
+  const { tasks } = rule;
+  return tasks === null || TASK_NAMES.filter(isReviewerTask).every((task) => tasks.includes(task));
+}
+
 /** Whether `task` is one a Commission's officers call to review, which its AI status reads. */
 export function isReviewerTask(task: TaskName): boolean {
   return (
