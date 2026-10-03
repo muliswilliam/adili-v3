@@ -177,4 +177,38 @@ describe('#350 build snapshot', () => {
     fireEvent.click(within(alert).getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByText('Snapshot build stopped.')).toBeNull();
   });
+
+  it('retries a build that got no answer with the same key, so it is not built twice', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { kind: 'unavailable', detail: null, problemType: 'storage-unavailable' },
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Conflict', status: 409 },
+        },
+      })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    renderView({ result: await releasesOf('history'), build });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+    expect(
+      await screen.findByText('File storage could not be reached. Nothing was written.'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByText('The snapshot could not be built. Nothing was written.');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await waitFor(() => {
+      expect(build).toHaveBeenCalledTimes(3);
+    });
+    const keys = build.mock.calls.map(([, key]) => key);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
 });

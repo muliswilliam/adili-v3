@@ -103,8 +103,10 @@ export function ReleasesView(props: ReleasesViewProps) {
       props.onUnauthenticated();
       return;
     }
-    // A retry is a new build: the refused one wrote nothing.
-    setBuild({ kind: 'failed', key: crypto.randomUUID(), message: buildFailure(built) });
+    // A refusal (4xx) wrote nothing, so a retry is a new build. A build that timed out or failed
+    // on the way back may have been recorded: the retry keeps its key and replays it.
+    const retryKey = built.error.kind === 'unavailable' ? key : crypto.randomUUID();
+    setBuild({ kind: 'failed', key: retryKey, message: buildFailure(built) });
   };
   return (
     <Page>
@@ -182,8 +184,11 @@ function buildFailure(result: Extract<ReleasesResult<unknown>, { ok: false }>): 
     }
     if (code === 'fy-not-started') return m.fyNotStarted;
   }
-  if (error.kind === 'unavailable' && error.problemType?.includes('storage')) {
+  if (error.kind === 'unavailable' && error.problemType === 'storage-unavailable') {
     return m.storageUnavailable;
+  }
+  if (error.kind === 'unavailable' && error.problemType === 'directory-unavailable') {
+    return m.directoryUnavailable;
   }
   return m.buildFailed;
 }

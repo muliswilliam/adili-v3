@@ -24,7 +24,7 @@ import { createHash } from 'node:crypto';
 
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson } from '../mock-http';
-import { mockNcrCommissions, mockNcrSourceOf } from './ncr-mock.server';
+import { BRIAN, ESTHER, mockNcrCommissions, mockNcrSourceOf } from './ncr-mock.server';
 import {
   buildReleaseTables,
   type ComplianceCounts,
@@ -46,9 +46,6 @@ const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'];
 const PATH = '/v1/eacc/open-data/releases';
 const FIRST_YEAR = 2025;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const BRIAN: Officer = { subject: 'mock-brian-otieno', name: 'Brian Otieno' };
-const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' };
 
 type Source = OpenDataReleaseDetail['source'];
 

@@ -251,7 +251,7 @@ function ManifestCard({
     >
       <div className="flex items-center gap-3.5 px-4 py-3.5">
         {verifyUrl ? (
-          <div className="shrink-0 rounded-lg p-1 leading-none shadow-[0_0_0_1px_var(--border)]">
+          <div className="shrink-0 rounded-lg p-1 leading-none shadow-card-flat">
             <QrCode value={verifyUrl} label={m.manifestQr(code)} size={64} />
           </div>
         ) : null}

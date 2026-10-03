@@ -1,5 +1,4 @@
-import type { Cycle, NationalMeasure } from '../../server/open-data-tables';
-import type { OpenDataTableKey } from '../../server/open-data-tables';
+import type { Cycle, NationalMeasure, OpenDataTableKey } from '../../server/open-data-tables';
 import { formatNumber } from '../format';
 import { fyLabel } from '../national-report/model';
 
@@ -54,6 +53,8 @@ export const en = {
   buildFailed: 'The snapshot could not be built. Nothing was written.',
   fyNotStarted: 'The financial year has not started yet.',
   storageUnavailable: 'File storage could not be reached. Nothing was written.',
+  directoryUnavailable:
+    'The directory could not be reached to count Commissions. Nothing was written.',
   dismiss: 'Dismiss',
 
   // Release page
@@ -162,34 +163,40 @@ export const en = {
   fileRows: (rows: number) => `${formatNumber(rows)} rows`,
   fileHidden: (hidden: number) => `${formatNumber(hidden)} hidden`,
   fileHash: (sha: string) => `SHA-256 ${sha}`,
+
+  // Reconciliation mismatches (`buildOpenDataRelease` 409 `mismatches`), by dot path.
+  mismatch: {
+    reporting: {
+      commissions: 'Commissions',
+      reported: 'Commissions reported',
+      onTime: 'reported on time',
+      late: 'reported late',
+      notReported: 'not reported',
+    },
+    national: {
+      expected: 'declarations expected',
+      declared: 'declarations made',
+      notDeclared: 'did not declare',
+    },
+    clarifications: 'clarifications issued',
+    inCycle: (cycle: Cycle) => (cycle === 'all' ? 'in all cycles' : `in the ${cycle} cycle`),
+  },
 } as const;
 
-export const sw: Partial<typeof en> = {};
+export const sw: Partial<Record<keyof typeof en, string>> = {};
 
 export const messages = en;
 
 /** The words for a reconciliation mismatch's dot path, e.g. `national.final.declared`. */
 export function mismatchLabel(path: string): string {
   const [scope, part, figure] = path.split('.');
-  if (scope === 'reporting' && part) {
-    const reporting: Record<string, string> = {
-      commissions: 'Commissions',
-      reported: 'Commissions reported',
-      onTime: 'reported on time',
-      late: 'reported late',
-      notReported: 'not reported',
-    };
-    return reporting[part] ?? path;
+  const { reporting, national, inCycle } = en.mismatch;
+  if (scope === 'reporting' && part && part in reporting) {
+    return reporting[part as keyof typeof reporting];
   }
-  if (scope === 'national' && part === 'clarifications') return 'clarifications issued';
-  if (scope === 'national' && part && figure) {
-    const figures: Record<string, string> = {
-      expected: 'declarations expected',
-      declared: 'declarations made',
-      notDeclared: 'did not declare',
-    };
-    const cycle = part === 'all' ? 'in all cycles' : `in the ${part} cycle`;
-    return `${figures[figure] ?? figure} ${cycle}`;
+  if (scope === 'national' && part === 'clarifications') return en.mismatch.clarifications;
+  if (scope === 'national' && part && figure && figure in national && part in en.cycles) {
+    return `${national[figure as keyof typeof national]} ${inCycle(part as Cycle)}`;
   }
   return path;
 }

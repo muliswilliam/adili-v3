@@ -9,7 +9,7 @@ export function KindTag({ className, ...props }: ComponentProps<'span'>) {
   return (
     <span
       className={cn(
-        'inline-flex h-[22px] items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-secondary-foreground shadow-[inset_0_0_0_1px_var(--input)]',
+        'inline-flex h-[22px] items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-secondary-foreground shadow-card-flat',
         className,
       )}
       {...props}

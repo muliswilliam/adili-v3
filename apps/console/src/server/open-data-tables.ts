@@ -1,4 +1,7 @@
+import type { Assert } from '@adili/ui';
 import { z } from 'zod';
+
+import type { OpenDataTableName } from './reporting/types';
 
 /**
  * An open-data release's six tables as the reporting service builds them (#491
@@ -18,6 +21,15 @@ export const OPEN_DATA_TABLES = [
   'national-totals',
 ] as const;
 export type OpenDataTableKey = (typeof OPEN_DATA_TABLES)[number];
+
+/** The six tables are the contract's (`OpenDataTable`), no more and no fewer. */
+export type TablesMatchContract = Assert<
+  [OpenDataTableKey] extends [OpenDataTableName]
+    ? [OpenDataTableName] extends [OpenDataTableKey]
+      ? true
+      : false
+    : false
+>;
 
 /** Filing cycles: the Form M sections, and `all` for the three together. */
 export const CYCLES = ['initial', 'biennial', 'final', 'all'] as const;
@@ -83,9 +95,10 @@ export const ACCESS_REQUEST_FIGURES = ['received', 'granted', 'declined'] as con
 const accessRequestsRow = z.object({
   commission: z.string(),
   commissionName: z.string(),
-  received: figure,
-  granted: figure,
-  declined: figure,
+  ...(Object.fromEntries(ACCESS_REQUEST_FIGURES.map((name) => [name, figure])) as Record<
+    (typeof ACCESS_REQUEST_FIGURES)[number],
+    typeof figure
+  >),
   suppressed: z.boolean(),
 });
 

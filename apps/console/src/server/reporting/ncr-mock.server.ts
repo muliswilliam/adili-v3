@@ -84,8 +84,9 @@ interface Store {
 
 let store: Store | null = null;
 
-const BRIAN: Officer = { subject: 'mock-brian-otieno', name: 'Brian Otieno' };
-const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' };
+/** The mock's EACC analyst and supervisor, shared with the releases part. */
+export const BRIAN: Officer = { subject: 'mock-brian-otieno', name: 'Brian Otieno' };
+export const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' };
 
 const DRAFT_OVERVIEW =
   'This report consolidates the compliance reports (Form M) received from Responsible Commissions for the financial year 1 July 2025 to 30 June 2026 under Regulation 25(2) of the Conflict of Interest Regulations, 2026.';
