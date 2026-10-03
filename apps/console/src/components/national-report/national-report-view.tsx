@@ -1,4 +1,5 @@
 import {
+  AiLabel,
   Alert,
   AlertDescription,
   AutosaveFailure,
@@ -9,8 +10,8 @@ import {
   formatDate,
   formatDateTime,
   Icon,
+  NATIONAL_REPORT_NARRATIVE_SECTIONS,
   NarrativeEditor,
-  type NarrativeSection,
   ReferenceChip,
   type ReferencePart,
   Select,
@@ -112,12 +113,6 @@ export interface NationalReportViewProps {
 const PDF_POLL_MS = 2_000;
 const PDF_POLLS = 15;
 
-const NARRATIVE_SECTIONS: NarrativeSection[] = [
-  { id: 'overview', label: m.sections.overview, maxLength: 20_000 },
-  { id: 'findings', label: m.sections.findings, maxLength: 40_000 },
-  { id: 'recommendations', label: m.sections.recommendations, maxLength: 20_000 },
-];
-
 /**
  * EACC's national consolidated report for a financial year (spec 09 FE-4, S11 and S15): built by
  * an EACC analyst from the Commissions' submitted reports (national totals per Form M section, a
@@ -161,8 +156,11 @@ export function NationalReportView(props: NationalReportViewProps) {
 function YearSelect({ fy, years, onYearChange }: NationalReportViewProps) {
   const id = useId();
   return (
-    <div className="flex items-center gap-2.5">
-      <label htmlFor={id} className="text-[13.5px] text-muted-foreground">
+    <div className="flex w-full min-w-0 items-center gap-2.5 sm:w-auto">
+      <label
+        htmlFor={id}
+        className="sr-only text-[13.5px] whitespace-nowrap text-muted-foreground sm:not-sr-only"
+      >
         {m.yearLabel}
       </label>
       <Select
@@ -171,7 +169,7 @@ function YearSelect({ fy, years, onYearChange }: NationalReportViewProps) {
         onValueChange={(value) => {
           onYearChange(Number(value));
         }}
-        className="h-10 w-auto min-w-[260px]"
+        className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[260px]"
       >
         {years.map((year) => (
           <SelectItem key={year} value={String(year)}>
@@ -309,7 +307,11 @@ function Built({
     <div className="flex flex-col gap-4">
       <StatusBar {...props} report={report} isAnalyst={isAnalyst} onRebuild={onRebuild} />
       {newReports > 0 ? (
-        <Alert variant="warning" className="items-center">
+        <Alert
+          variant="warning"
+          role="status"
+          className="py-2.5 [&>svg]:top-1/2 [&>svg]:-translate-y-1/2"
+        >
           <Icon icon={InformationCircleIcon} />
           <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span>
@@ -374,7 +376,7 @@ function StatusBar({
       : null,
   ].filter(Boolean);
   return (
-    <Card className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 sm:px-5 sm:py-4">
+    <Card className="flex-row flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4 sm:px-5 sm:py-4">
       {approved ? (
         <Badge variant="success" className="pl-[7px]">
           <Icon icon={Tick02Icon} strokeWidth={2.4} />
@@ -513,7 +515,7 @@ function NarrativeCard({
   return (
     <NarrativeEditor<NarrativeParagraph>
       id="ncr-narrative"
-      sections={NARRATIVE_SECTIONS}
+      sections={NATIONAL_REPORT_NARRATIVE_SECTIONS}
       value={value}
       readOnly={!context.canEdit}
       readOnlyNote={approved ? m.frozenAtApproval : m.writtenByAnalyst}
@@ -533,10 +535,13 @@ function NarrativeCard({
       })}
       actions={extensions?.narrativeActions?.(context)}
       notice={extensions?.narrativeNotice?.(context)}
-      paragraphMeta={
-        extensions?.paragraphMeta
-          ? (paragraph) => extensions.paragraphMeta?.(paragraph, context)
-          : undefined
+      paragraphMeta={(paragraph) =>
+        extensions?.paragraphMeta ? (
+          extensions.paragraphMeta(paragraph, context)
+        ) : paragraph.aiDraft ? (
+          // Until #341 brings its own labels, an AI-drafted paragraph still says it is one.
+          <AiLabel size="sm" text={m.aiDraft} />
+        ) : null
       }
       title={m.narrativeTitle}
     />

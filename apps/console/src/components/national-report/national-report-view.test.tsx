@@ -291,10 +291,11 @@ describe('S11 S15 national report: the draft', () => {
     expect(screen.getByRole('button', { name: 'Approve' })).toHaveProperty('disabled', true);
   });
 
-  it('shows the narrative read only to an EACC supervisor', async () => {
+  it('shows the narrative read only to an EACC supervisor, an AI-drafted paragraph labelled', async () => {
     renderView({ result: await pageOf('draft'), viewer: SUPERVISOR });
 
     expect(screen.getByText('Written by the analyst')).toBeDefined();
+    expect(screen.getAllByRole('img', { name: /^AI draft\./ })).toHaveLength(1);
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Rebuild' })).toBeNull();
   });

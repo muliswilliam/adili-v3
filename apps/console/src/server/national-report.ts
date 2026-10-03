@@ -1,3 +1,4 @@
+import { NARRATIVE_MAX_LENGTH } from '@adili/ui';
 import { createServerFn } from '@tanstack/react-start';
 import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
@@ -30,9 +31,9 @@ const fy = z.number().int().min(2025).max(2100);
 
 /** reporting.yaml `Narrative`, with its limits. */
 const narrative = z.strictObject({
-  overview: z.string().max(20_000),
-  findings: z.string().max(40_000),
-  recommendations: z.string().max(20_000),
+  overview: z.string().max(NARRATIVE_MAX_LENGTH.overview),
+  findings: z.string().max(NARRATIVE_MAX_LENGTH.findings),
+  recommendations: z.string().max(NARRATIVE_MAX_LENGTH.recommendations),
 });
 
 const UNAUTHENTICATED = { ok: false, error: { kind: 'unauthenticated' } } as const;

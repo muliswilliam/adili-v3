@@ -77,9 +77,9 @@ export const en = {
   nextPage: 'Next page',
 
   narrativeTitle: 'Narrative',
-  sections: { overview: 'Overview', findings: 'Findings', recommendations: 'Recommendations' },
   writtenByAnalyst: 'Written by the analyst',
   frozenAtApproval: 'Frozen at approval',
+  aiDraft: 'AI draft',
 
   approveTitle: 'Approve the national report?',
   approveText: (fy: string) =>

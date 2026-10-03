@@ -1,4 +1,8 @@
-import { narrativeSectionText, type NarrativeValue } from '@adili/ui';
+import {
+  NATIONAL_REPORT_NARRATIVE_SECTIONS,
+  narrativeSections,
+  type NarrativeValue,
+} from '@adili/ui';
 import { EACC_SUPERVISOR } from '@adili/roles';
 import { z } from 'zod';
 
@@ -70,10 +74,11 @@ export function editorValueOf(paragraphs: readonly NarrativeParagraph[]): Narrat
 
 /** What the contract saves: each section's paragraphs joined by a blank line. */
 export function narrativeTextOf(value: NarrativeEditorValue): Narrative {
+  const text = narrativeSections(value, NATIONAL_REPORT_NARRATIVE_SECTIONS);
   return {
-    overview: narrativeSectionText(value.overview ?? []),
-    findings: narrativeSectionText(value.findings ?? []),
-    recommendations: narrativeSectionText(value.recommendations ?? []),
+    overview: text.overview ?? '',
+    findings: text.findings ?? '',
+    recommendations: text.recommendations ?? '',
   };
 }
 
