@@ -23,7 +23,7 @@
 import { SUPERVISOR } from '@adili/roles';
 import { addDays, nairobiDayStartOf } from '@adili/ui';
 
-import { CLOSURE_TYPES, CYCLE_YEARS } from '../../closures/search';
+import { CLOSURE_TYPES, closureFilterKey, CYCLE_YEARS } from '../../closures/search';
 import { json, type MockCaller, problem } from '../mock-http';
 import type { components } from './api.gen';
 
@@ -184,9 +184,6 @@ function filterOf(url: URL): Filter | null {
   };
 }
 
-const filterKey = (filter: Filter) =>
-  `${String(filter.cycleYear)}|${filter.type ?? ''}|${filter.reportingEntityId ?? ''}`;
-
 function matches(filter: Filter) {
   return (each: Proposal) =>
     each.cycleYear === filter.cycleYear &&
@@ -224,10 +221,10 @@ async function approve(
   const approval = `${caller}:${key}`;
   // A key is bound to the filters it was first sent with (review.yaml: 422).
   const bound = filters.get(approval);
-  if (bound !== undefined && bound !== filterKey(filter)) {
+  if (bound !== undefined && bound !== closureFilterKey(filter)) {
     return problem(422, 'Idempotency-Key reused with a different request');
   }
-  filters.set(approval, filterKey(filter));
+  filters.set(approval, closureFilterKey(filter));
   const waiting = () =>
     proposals.filter(
       (each) =>

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import type { BulkApprovalResult, ClosureFilter, ClosureSummary } from '../../server/closures';
 import type { ServiceError, ServiceResult } from '../../server/service-call';
+import { closureFilterKey } from '../../closures/search';
 
 /** Closures per chunk, as the review service approves them (review.yaml `approveBulkClosures`). */
 export const CHUNK_SIZE = 100;
@@ -53,8 +54,6 @@ export interface BulkApproval {
 }
 
 const IDLE: BulkRun = { status: 'idle' };
-const filterKey = (filter: ClosureFilter) =>
-  `${String(filter.cycleYear)}|${filter.type ?? ''}|${filter.reportingEntityId ?? ''}`;
 
 /**
  * One bulk approval at a time (spec 08 FE-4, S4), for the filters on screen. The approval is one
@@ -96,7 +95,7 @@ export function useBulkApproval({
   }, [readSummary]);
 
   // New filters drop a stopped or finished run: its key belongs to the old ones.
-  const currentKey = filterKey(filter);
+  const currentKey = closureFilterKey(filter);
   const [seenKey, setSeenKey] = useState(currentKey);
   if (seenKey !== currentKey) {
     setSeenKey(currentKey);
@@ -139,7 +138,7 @@ export function useBulkApproval({
     void approve(key, from.filter).then(async (outcome) => {
       if (generation.current !== attempt) return;
       if (outcome.ok) {
-        setLeft({ key: filterKey(from.filter), count: outcome.data.skipped });
+        setLeft({ key: closureFilterKey(from.filter), count: outcome.data.skipped });
         setRun({
           status: 'done',
           key,
@@ -153,7 +152,9 @@ export function useBulkApproval({
       // What stayed approved: the counts as they are now.
       const read = await reader.current(from.filter);
       if (generation.current !== attempt) return;
-      const counted = read.ok ? Math.min(from.total, read.data.approved - from.baseline) : 0;
+      const counted = read.ok
+        ? Math.max(0, Math.min(from.total, read.data.approved - from.baseline))
+        : 0;
       if (noAnswer(outcome.error) && counted > from.approved) {
         send(key, { ...from, approved: counted });
         return;

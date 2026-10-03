@@ -37,3 +37,12 @@ export function closureFilter(search: ClosureSearch): ClosureFilter {
     ? { cycleYear: search.cycle }
     : { cycleYear: search.cycle, type: search.type };
 }
+
+/** One string per filter, to tell whether two requests ask for the same closures. */
+export function closureFilterKey(filter: {
+  cycleYear: number;
+  type?: string | null;
+  reportingEntityId?: string | null;
+}): string {
+  return `${String(filter.cycleYear)}|${filter.type ?? ''}|${filter.reportingEntityId ?? ''}`;
+}

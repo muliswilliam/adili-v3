@@ -328,6 +328,8 @@ describe('BulkClosureView', () => {
     expect(
       screen.getByText('3 closures of cases you once held are left for another supervisor.'),
     ).toBeTruthy();
+    expect(tile('Eligible proposals')?.textContent).toContain('0');
+    expect(tile('Eligible proposals')?.textContent).not.toContain('3');
     expect(screen.queryByRole('button', { name: /^Approve/ })).toBeNull();
   });
 

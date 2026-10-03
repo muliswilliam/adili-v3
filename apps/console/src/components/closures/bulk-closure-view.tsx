@@ -1,6 +1,7 @@
 import {
   ApprovalConsequences,
   type BatchPhase,
+  BATCH_FILTERS_GRID,
   BatchSelector,
   Button,
   Card,
@@ -132,7 +133,15 @@ export function BulkClosureView(props: BulkClosureViewProps) {
                 cycles={props.cycles}
               />
             }
-            counts={swept ? <Counts summary={counts} approvedByRun={run?.approved ?? 0} /> : null}
+            counts={
+              swept ? (
+                <Counts
+                  summary={counts}
+                  approvedByRun={run?.approved ?? 0}
+                  leftForOthers={bulk.leftForOthers}
+                />
+              ) : null
+            }
             phase={phase}
             eligible={eligible}
             excluded={counts.sampled}
@@ -251,12 +260,21 @@ function FilterFields({
 }
 
 /** Eligible, sampled (with the rate and the way to the queue) and approved, as the run moves. */
-function Counts({ summary, approvedByRun }: { summary: ClosureSummary; approvedByRun: number }) {
+function Counts({
+  summary,
+  approvedByRun,
+  leftForOthers,
+}: {
+  summary: ClosureSummary;
+  approvedByRun: number;
+  /** Waiting closures this supervisor may not approve, as the batch leaves them out. */
+  leftForOthers: number;
+}) {
   return (
     <div role="group" aria-label={m.countsLabel} className={TILES}>
       <StatTile
         label={m.eligible}
-        value={Math.max(0, summary.eligibleProposed - approvedByRun)}
+        value={Math.max(0, summary.eligibleProposed - leftForOthers - approvedByRun)}
         marker={<Icon icon={Archive02Icon} />}
         description={m.eligibleDescription}
       />
@@ -287,7 +305,7 @@ function Counts({ summary, approvedByRun }: { summary: ClosureSummary; approvedB
 function BatchSkeleton() {
   return (
     <Card aria-busy="true" className="@container grid gap-4 p-5 sm:p-5">
-      <div className="grid grid-cols-1 gap-3 @min-[600px]:grid-cols-2 @min-[1000px]:grid-cols-4">
+      <div className={BATCH_FILTERS_GRID}>
         {[0, 1, 2, 3].map((each) => (
           <Skeleton key={each} className="h-[68px] rounded-lg" />
         ))}

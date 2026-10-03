@@ -128,6 +128,14 @@ export const BATCH_SELECTOR_MESSAGES: BatchSelectorMessages = {
   stop: 'Stop here',
 };
 
+/**
+ * The filter fields' grid: one column, two from 600px and four from 1000px of the fieldset's
+ * own width (the prototype's 700px and 1100px are of the app, about that much less a page's and
+ * a card's padding). Exported for a caller's loading skeleton of the same shape.
+ */
+export const BATCH_FILTERS_GRID =
+  'grid grid-cols-1 gap-3 @min-[600px]:grid-cols-2 @min-[1000px]:grid-cols-4';
+
 /** The live region's text, keyed so it changes only at a chunk boundary and once at the end. */
 function liveAnnouncement(
   phase: BatchPhase,
@@ -357,11 +365,7 @@ export function BatchSelector({
       {filters === undefined ? null : (
         <fieldset disabled={phase === 'running'} className="@container min-w-0">
           <legend className="sr-only">{copy.filters}</legend>
-          {/* The prototype's 700px and 1100px are of the app; inside a page and card that is
-              about 600px and 1000px of the fieldset's own width. */}
-          <div className="grid grid-cols-1 gap-3 @min-[600px]:grid-cols-2 @min-[1000px]:grid-cols-4">
-            {filters}
-          </div>
+          <div className={BATCH_FILTERS_GRID}>{filters}</div>
           {phase === 'running' ? (
             <p className="mt-3 text-[13px] text-muted-foreground">{copy.filtersLocked}</p>
           ) : null}

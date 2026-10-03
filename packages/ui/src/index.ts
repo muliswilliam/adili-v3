@@ -41,6 +41,7 @@ export {
 export { Avatar, type AvatarProps, type AvatarTone } from './components/avatar';
 export { Badge, type BadgeProps, badgeVariants } from './components/badge';
 export {
+  BATCH_FILTERS_GRID,
   BATCH_PHASES,
   BATCH_SELECTOR_MESSAGES,
   type BatchPhase,
