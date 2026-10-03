@@ -5,6 +5,7 @@ import {
   COMMISSION_ROSTER_ROLES,
   COMMISSION_STAFF_ROLES,
   EACC_ROLES,
+  FORM_M_ROLES,
   HELPDESK,
   LAW_ENFORCEMENT,
   NATIONAL_ROLES,
@@ -35,6 +36,7 @@ export type WorkspaceHref =
   | '/lea/requests'
   | '/platform/law-enforcement'
   | '/ai-policy'
+  | '/form-m'
   | '/eacc/reports';
 
 interface WorkspaceDefinition {
@@ -95,6 +97,13 @@ export const COMMISSION_POLICY_ROLES = [PLATFORM_ADMIN] as const;
 export function readsCommissionPolicy(roles: readonly string[]): boolean {
   return COMMISSION_POLICY_ROLES.some((role) => roles.includes(role));
 }
+
+/**
+ * Roles that act on their Commission's Form M (spec 09): the supervisor compiles and reviews, the
+ * commission-admin confirms and submits. The reporting officer only reads it (`FORM_M_ROLES`);
+ * nobody else sees it, EACC included.
+ */
+export const FORM_M_WRITE_ROLES = [SUPERVISOR, COMMISSION_ADMIN] as const;
 
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
@@ -172,6 +181,15 @@ const WORKSPACES: WorkspaceDefinition[] = [
     roles: [COMMISSION_ADMIN],
   },
   {
+    id: 'form-m',
+    title: 'Form M',
+    description: "Your Commission's compliance report to EACC, compiled from your data.",
+    readOnlyDescription: "Your Commission's compliance report to EACC and where it stands.",
+    href: '/form-m',
+    roles: FORM_M_ROLES,
+    writeRoles: FORM_M_WRITE_ROLES,
+  },
+  {
     id: 'compliance',
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
@@ -229,4 +247,23 @@ export function workspacesFor(roles: readonly string[]): Workspace[] {
 /** The workspace with `id` if the user's roles open it. */
 export function workspaceFor(roles: readonly string[], id: string): Workspace | undefined {
   return workspacesFor(roles).find((workspace) => workspace.id === id);
+}
+
+/** What the viewer may do in their Commission's Form M workspace (spec 09 access table). */
+export interface FormMCapabilities {
+  /** Compiles a preview and recompiles; edits remarks and marks the draft reviewed (#226). */
+  reviews: boolean;
+  /** Enters Part I contact details and Part B, then confirms and submits (#226). */
+  signsOff: boolean;
+  /** Reads only (the reporting officer). */
+  readOnly: boolean;
+}
+
+/** The viewer's Form M capabilities, derived once from their realm roles. */
+export function formMCapabilities(roles: readonly string[]): FormMCapabilities {
+  return {
+    reviews: roles.includes(SUPERVISOR),
+    signsOff: roles.includes(COMMISSION_ADMIN),
+    readOnly: workspaceFor(roles, 'form-m')?.readOnly ?? true,
+  };
 }

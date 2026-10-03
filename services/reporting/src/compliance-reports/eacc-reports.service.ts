@@ -12,7 +12,7 @@ import { notFound } from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { activeCommissions, commissionOf } from './commission.js';
 import { buildIntake, type IntakeFilters, type IntakeView, type RateThresholds } from './intake.js';
-import { type ComplianceReportView, reportView } from './representation.js';
+import { reportView, type SubmittedReportView } from './representation.js';
 import { complianceReports, reportChases, reportReceipts } from './schema.js';
 import { openSnapshot } from './snapshot.js';
 
@@ -79,7 +79,7 @@ export class EaccReportsService {
     principal: Principal,
     reportId: string,
     audit: ReadAudit,
-  ): Promise<ComplianceReportView> {
+  ): Promise<SubmittedReportView> {
     const reader = submittedReportReader(principal, REPORTS_SUBMIT_SCOPE);
     const report = await withTenant(
       this.db,
@@ -101,6 +101,9 @@ export class EaccReportsService {
     if (!report) throw notFound();
     audit.resource({ tenant: report.tenant });
     const document = await openSnapshot(this.cipher, report.tenant, report);
-    return reportView(report, await commissionOf(this.directory, report.tenant), document);
+    // Submission freezes the document in the same transaction that marks the report submitted.
+    if (document === null) throw new Error(`Submitted report ${report.id} has no document`);
+    const view = reportView(report, await commissionOf(this.directory, report.tenant), document);
+    return { ...view, document };
   }
 }

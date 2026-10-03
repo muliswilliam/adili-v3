@@ -9,11 +9,11 @@ import {
   type NationalReportResult,
   loadNationalReportPage,
 } from '../../server/national-report.server';
+import { mockReportingClient } from '../../server/reporting/mock.server';
 import {
-  mockReportingClient,
-  type ReportingMockSeed,
-  resetReportingMock,
-} from '../../server/reporting/mock.server';
+  type NcrMockSeed as ReportingMockSeed,
+  resetNcrMock as resetReportingMock,
+} from '../../server/reporting/ncr-mock.server';
 import type { NationalReport } from '../../server/reporting/types';
 import { NationalReportView } from './national-report-view';
 
@@ -38,7 +38,7 @@ const SUPERVISOR = {
 async function pageOf(seed: ReportingMockSeed, fy = 2025) {
   resetReportingMock(seed, { pdfDelayMs: 0 });
   const result = await loadNationalReportPage(
-    mockReportingClient('Baraka Mutua', ['eacc-analyst']),
+    mockReportingClient(['eacc-analyst'], { name: 'Baraka Mutua', tenant: 'eacc' }),
     fy,
   );
   if (!result.ok) throw new Error('the mock did not load');

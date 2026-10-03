@@ -90,7 +90,7 @@ export const getNationalReportPdf = createServerFn({ method: 'GET' })
         mock:
           import.meta.env.DEV && config.REPORTING_MOCK
             ? async (request) =>
-                (await import('./reporting/mock.server')).mockReportingDocumentsFetch(request)
+                (await import('./reporting/ncr-mock.server')).mockNcrDocumentsFetch(request)
             : null,
       });
       return nationalReportPdf(documents, data.documentId);
