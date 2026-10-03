@@ -27,7 +27,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { addDays } from '@adili/ui';
+import { addDays, nairobiDayStartOf } from '@adili/ui';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { type MockCaller, mockCallerOf } from './mock-caller';
@@ -407,9 +407,7 @@ function iso(now: number, days: number): string {
 
 /** 09:10 in Nairobi on the seeding day, or the day before when that is still ahead. */
 function morningOf(now: number): number {
-  const today = Date.parse(
-    `${new Date(now + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)}T06:10:00Z`,
-  );
+  const today = Date.parse(nairobiDayStartOf(new Date(now).toISOString())) + (9 * 60 + 10) * 60_000;
   return today <= now ? today : today - 24 * 60 * 60 * 1000;
 }
 

@@ -3,6 +3,7 @@ import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { type FormKDraft, formKDraftSchema } from '../access/form-k';
+import { decisionClock } from '../access/progress';
 import {
   closedAt,
   listRequests,
@@ -256,6 +257,17 @@ describe('listRequests', () => {
 });
 
 describe('loadRequest', () => {
+  it('dates the seeds by Kenyan day, even between 00:00 and 03:00 in Nairobi', async () => {
+    // 01:00 on 3 October in Nairobi, while UTC is still on 2 October.
+    const night = Date.parse('2026-10-02T22:00:00Z');
+    resetAccessMock(night);
+    const result = await loadRequest(clients().access, IDS.deciding);
+    if (result.status !== 'ok') throw new Error(result.status);
+    // Submitted 27 Kenyan days ago, at 09:12 in Nairobi: day 27 of 30, due in 3 days.
+    expect(result.request.submittedAt).toBe('2026-09-06T06:12:00.000Z');
+    expect(decisionClock(result.request, night)).toMatchObject({ day: 27, of: 30, daysLeft: 3 });
+  });
+
   it('is not found for a request that is not the applicant’s', async () => {
     expect(await loadRequest(clients().access, crypto.randomUUID())).toEqual({
       status: 'not-found',

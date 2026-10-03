@@ -22,6 +22,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
+import { addDays, nairobiDayStartOf } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import type { paths as DocumentsPaths } from '../documents/api.gen';
@@ -363,11 +364,19 @@ const SEEDS: Seed[] = [
   },
 ];
 
-/** Seeded mornings, so the screens read like an office day whenever the mock starts. */
+/** Minutes later in the morning per day back a seed was received, so no two share a time. */
+const STAGGER_MINUTES_PER_DAY = 7;
+
+/**
+ * Seeded mornings, so the screens read like an office day whenever the mock starts: `daysAgo`
+ * Kenyan calendar days ago, as the screens count days, at 09:30 in Nairobi plus
+ * `STAGGER_MINUTES_PER_DAY` for each of those days. Today's is never later than now, nor
+ * before today's Kenyan midnight.
+ */
 function morningOf(now: number, daysAgo: number): number {
-  const day = new Date(now - daysAgo * DAY_MS);
-  day.setUTCHours(6, 30 + daysAgo * 7, 0, 0);
-  return Math.min(day.getTime(), now - 60_000);
+  const dayStart = Date.parse(addDays(nairobiDayStartOf(new Date(now).toISOString()), -daysAgo));
+  const morning = dayStart + (9 * 60 + 30 + daysAgo * STAGGER_MINUTES_PER_DAY) * 60_000;
+  return Math.min(morning, Math.max(dayStart, now - 60_000));
 }
 
 function build(seed: Seed, now: number): Stored {
