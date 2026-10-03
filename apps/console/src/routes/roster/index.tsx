@@ -20,6 +20,7 @@ import {
   AlertCircleIcon,
   ArrowDown01Icon,
   ArrowRight01Icon,
+  ChartColumnIcon,
   Clock01Icon,
   Download04Icon,
   File02Icon,
@@ -147,6 +148,12 @@ function RosterOverview() {
       {banner}
       <SummaryTiles roster={roster} />
       <nav aria-label={m.links} className="mt-4 flex flex-wrap gap-2">
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/coverage">
+            <Icon icon={ChartColumnIcon} />
+            {m.coverageLink}
+          </Link>
+        </Button>
         <Button asChild variant="secondary" size="sm">
           <Link to="/roster/records">
             <Icon icon={LeftToRightListBulletIcon} />

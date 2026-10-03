@@ -11,6 +11,7 @@ import { commissionSlug } from './commission-slug';
 import {
   callDeclarations,
   type CommissionObligationsSummary,
+  type DeclarationProgress,
   type DeclarationsResult,
   type NationalObligationsSummary,
   type ObligationDetail,
@@ -29,6 +30,23 @@ export const getCommissionObligationsSummary = createServerFn({ method: 'GET' })
       callDeclarations(() =>
         client.GET('/v1/commissions/{slug}/obligations/summary', {
           params: { path: { slug: data.slug } },
+        }),
+      ),
+    ),
+  );
+
+/**
+ * `GET /v1/commissions/{slug}/declarations/progress`: a cycle's obligations per reporting entity,
+ * not started, in progress, submitted and late (the current cycle without `cycle`). Counts only.
+ * The Commission's reporting officers and commission admins; 404 for anyone else.
+ */
+export const getDeclarationProgress = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug: commissionSlug, cycle: z.string().max(40).optional() }))
+  .handler(({ data }): Promise<DeclarationsResult<DeclarationProgress>> =>
+    asDeclarationsViewer((client) =>
+      callDeclarations(() =>
+        client.GET('/v1/commissions/{slug}/declarations/progress', {
+          params: { path: { slug: data.slug }, query: data.cycle ? { cycle: data.cycle } : {} },
         }),
       ),
     ),

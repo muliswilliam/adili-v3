@@ -568,6 +568,54 @@ export const en = {
   docsLimitsTitle: 'Rate limits',
   docsLimitsText:
     'Each client has its own budget: writes (batches and exits) and reads (imports and their rows) are counted apart. Every response carries RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset (seconds until the budget is full again); on 429, wait the seconds in Retry-After.',
+  // Coverage (#301): declaration progress per reporting entity
+  coverageTitle: 'Coverage',
+  coverageLink: 'Coverage',
+  coverageCycle: 'Cycle',
+  coverageUpdated: (time: string) => `Updated ${time}`,
+  coverageUpdating: 'Updating…',
+  coverageRefresh: 'Refresh counts',
+  coverageCounts: 'Declaration progress',
+  coverageNotStarted: 'Not started',
+  coverageInProgress: 'In progress',
+  coverageInProgressHint: 'A draft exists. Nobody at the Commission can see its content.',
+  coverageSubmitted: 'Submitted',
+  coverageLate: 'Late',
+  coverageLateHint: 'Past the due date and not submitted, with or without a draft.',
+  coverageHintLabel: (label: string) => `About ${label}`,
+  coverageShare: (percent: number) => `${formatNumber(percent)}%`,
+  coverageEntity: 'Reporting entity',
+  coverageObligations: 'Obligations',
+  coverageBar: 'Progress',
+  coverageNoEntity: 'No reporting entity',
+  coverageSearchLabel: 'Search reporting entities',
+  coverageSearchPlaceholder: 'Reporting entity',
+  coverageCaption: (cycle: string) => `Obligations per reporting entity for ${cycle}, with totals`,
+  coverageLoadingCaption: 'Obligations per reporting entity (loading)',
+  coverageTotal: 'Total',
+  coverageTotalMatching: (count: number) => `Total, ${formatNumber(count)} matching`,
+  coverageBarLabel: (submitted: number, inProgress: number, late: number) =>
+    `${formatNumber(submitted)}% submitted, ${formatNumber(inProgress)}% in progress, ${formatNumber(late)}% late`,
+  coverageCardCounts: (notStarted: number, inProgress: number, submitted: number) =>
+    `${formatNumber(notStarted)} not started · ${formatNumber(inProgress)} in progress · ${formatNumber(submitted)} submitted`,
+  coverageCardLate: (late: number) => `${formatNumber(late)} late`,
+  coverageNoMatchesTitle: 'No matches',
+  coverageNoMatchesText: 'Try another name.',
+  coverageClearSearch: 'Clear search',
+  coverageEmptyTitle: (cycle: string) => `Nothing due in ${cycle} yet`,
+  coverageEmptyNotOpen: (opensOn: string) => `Obligations open on ${opensOn}.`,
+  coverageEmptyText: 'No declarants have an obligation in this cycle right now.',
+  coverageNotOpen: (cycle: string, opens: string) =>
+    `${cycle} opens on ${opens}. Until then, counts cover initial and final declarations.`,
+  coverageNoRosterText: 'Coverage appears once the roster is imported.',
+  coverageErrorTitle: 'Counts could not be loaded',
+  coverageNotFoundTitle: 'Page not found',
+  coverageNotFoundText: 'This page does not exist or you do not have access to it.',
+  coveragePagination: 'Reporting entity pages',
+  coveragePageRange: (from: number, to: number, total: number) =>
+    `${formatNumber(from)}-${formatNumber(to)} of ${formatNumber(total)}`,
+  coveragePageRows: (count: number) =>
+    `${formatNumber(count)} reporting ${count === 1 ? 'entity' : 'entities'}`,
 } as const;
 
 /** Swahili translations, key by key; empty until reviewed. */

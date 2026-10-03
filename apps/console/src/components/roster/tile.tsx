@@ -5,11 +5,14 @@ import type { ReactNode } from 'react';
 export function Tile({
   icon,
   label,
+  hint,
   className,
   children,
 }: {
   icon: IconProps['icon'];
   label: string;
+  /** After the label, e.g. a tooltip saying what the count holds. */
+  hint?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -18,6 +21,7 @@ export function Tile({
       <p className="flex items-center gap-1.5 text-[13.5px] font-medium text-muted-foreground [&_svg]:size-[15px]">
         <Icon icon={icon} />
         {label}
+        {hint}
       </p>
       {children}
     </Card>
