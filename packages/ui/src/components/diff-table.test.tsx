@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   diffDelta,
   type DiffGroup,
+  diffHighlighted,
   diffKind,
   diffPercent,
   type DiffRow,
@@ -271,6 +272,30 @@ describe('DiffTable', () => {
     expect(big('Mortgage')).toBe(false);
     expect(big('Bank and cash')).toBe(false);
     expect(big('Investments')).toBe(false);
+  });
+
+  it('shades by the exact percentage: 24.96% shows as +25.0% but is under the threshold', () => {
+    const nearly: DiffRow = {
+      id: 'nearly',
+      label: 'Land',
+      previousCents: 100_000_00,
+      currentCents: 124_960_00,
+    };
+    expect(diffHighlighted(nearly)).toBe(false);
+    expect(diffHighlighted({ ...nearly, currentCents: 125_000_00 })).toBe(true);
+    // Up from nothing has no percentage to shade.
+    expect(diffHighlighted({ ...nearly, previousCents: 0 })).toBe(false);
+    render(
+      <DiffTable
+        caption="Nearly"
+        previousVersion={1}
+        currentVersion={2}
+        groups={[{ id: 'g', rows: [nearly] }]}
+      />,
+    );
+    const row = screen.getByRole('rowheader', { name: 'Land' }).closest('tr');
+    expect(row?.textContent).toContain('+25.0%');
+    expect(row?.hasAttribute('data-big')).toBe(false);
   });
 
   it('leaves out the group heading for an unnamed group', () => {

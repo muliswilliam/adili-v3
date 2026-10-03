@@ -83,4 +83,17 @@ describe('Switch', () => {
     fireEvent.click(control);
     expect(change).toHaveBeenCalledWith(true);
   });
+
+  it('stays blocked whatever aria-disabled the caller passes', () => {
+    render(
+      <Switch
+        checked={false}
+        onCheckedChange={() => undefined}
+        label="Compare"
+        aria-disabled={false}
+        blockedReason="Nothing to compare."
+      />,
+    );
+    expect(screen.getByRole('switch').getAttribute('aria-disabled')).toBe('true');
+  });
 });

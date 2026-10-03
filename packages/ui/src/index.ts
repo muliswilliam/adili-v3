@@ -174,6 +174,7 @@ export {
   diffDelta,
   type DiffGroup,
   type DiffKind,
+  diffHighlighted,
   diffKind,
   diffPercent,
   type DiffRow,

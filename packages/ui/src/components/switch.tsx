@@ -29,7 +29,7 @@ export function Switch({
   label,
   blockedReason,
   className,
-  'aria-describedby': describedBy,
+  'aria-describedby': ownDescribedBy,
   ...props
 }: SwitchProps) {
   const reasonId = useId();
@@ -39,8 +39,7 @@ export function Switch({
       type="button"
       role="switch"
       aria-checked={checked && !blocked}
-      aria-describedby={joinIds(describedBy, blocked ? reasonId : undefined)}
-      {...(blocked ? { 'aria-disabled': true } : {})}
+      aria-describedby={joinIds(ownDescribedBy, blocked ? reasonId : undefined)}
       onClick={() => {
         if (!blocked) onCheckedChange(!checked);
       }}
@@ -50,6 +49,8 @@ export function Switch({
         className,
       )}
       {...props}
+      // After the caller's props, so a blocked switch stays blocked.
+      {...(blocked ? { 'aria-disabled': true } : {})}
     >
       <span
         aria-hidden="true"
