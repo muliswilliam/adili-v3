@@ -11,7 +11,7 @@ describe('SuppressionMarker', () => {
   it('shows "‹10" for a suppressed figure, and says why in words true of any suppressed cell', () => {
     const { container } = render(<SuppressionMarker />);
 
-    expect(marker(container).dataset.suppression).toBe('suppressed');
+    expect(marker(container).dataset.unshown).toBe('suppressed');
     expect(screen.getByText('‹10').getAttribute('aria-hidden')).toBe('true');
     // A complementary cell can count 10 or more officers, so the words never say "fewer than 10".
     expect(screen.getByText('Not shown to protect privacy').className).toContain('sr-only');
@@ -40,7 +40,7 @@ describe('SuppressionMarker', () => {
   it('says a Commission did not report', () => {
     const { container } = render(<SuppressionMarker kind="not-reported" />);
 
-    expect(marker(container).dataset.suppression).toBe('not-reported');
+    expect(marker(container).dataset.unshown).toBe('not-reported');
     expect(screen.getByText('Not reported').getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByText('The Commission has not reported for this year').className).toContain(
       'sr-only',
@@ -50,7 +50,7 @@ describe('SuppressionMarker', () => {
   it('says a figure is not collected yet, which is not suppression', () => {
     const { container } = render(<SuppressionMarker kind="not-collected" />);
 
-    expect(marker(container).dataset.suppression).toBe('not-collected');
+    expect(marker(container).dataset.unshown).toBe('not-collected');
     expect(screen.getByText('Not collected').getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByText('Not collected yet').className).toContain('sr-only');
     expect(marker(container).className).not.toContain('bg-stripes-muted');
@@ -107,7 +107,7 @@ describe('SuppressionLegend', () => {
   it('hides its keys’ chips from screen readers, without a tooltip, as the key words explain them', () => {
     render(<SuppressionLegend keys={['suppressed', 'complementary']} />);
 
-    const chips = screen.getByRole('note').querySelectorAll('[data-suppression]');
+    const chips = screen.getByRole('note').querySelectorAll('[data-unshown]');
     expect(chips).toHaveLength(2);
     for (const chip of chips) {
       expect(chip.getAttribute('aria-hidden')).toBe('true');

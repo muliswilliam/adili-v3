@@ -539,10 +539,10 @@ export {
 } from './components/suggestion-card';
 export {
   DEFAULT_SUPPRESSION_THRESHOLD,
-  SUPPRESSION_KINDS,
+  UNSHOWN_FIGURE_KINDS,
   SUPPRESSION_LEGEND_MESSAGES,
   SUPPRESSION_MARKER_MESSAGES,
-  type SuppressionKind,
+  type UnshownFigureKind,
   SuppressionLegend,
   type SuppressionLegendMessages,
   type SuppressionLegendMessagesOverride,
