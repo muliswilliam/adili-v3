@@ -54,6 +54,10 @@ describe('ICMS referrals', () => {
       authorization: `Bearer ${await t.token({ clientId: 'reporting', scope: 'icms' })}`,
       'x-legal-basis': 'regs-r20-referral',
     };
+    // The first fetch in a process pays undici's lazy start-up, which on a busy CI runner can
+    // outlast the 300ms timeout. Pay it here, without a timeout, so the first test's call
+    // does not time out.
+    await (await fetch(`${icms.baseUrl}/warm-up`)).body?.cancel();
     return async () => {
       await t.close();
       await icms.close();
