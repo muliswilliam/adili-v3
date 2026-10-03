@@ -61,7 +61,7 @@ export function NationalTotals({ aggregates }: { aggregates: NationalAggregates 
         </TableHeader>
         <TableBody>
           {rows.map((row) => (
-            <TableRow key={row.key}>
+            <TableRow key={row.key} id={`ncr-total-${row.key}`}>
               <TableHead
                 scope="row"
                 className={cn(

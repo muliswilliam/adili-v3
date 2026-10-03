@@ -7,12 +7,17 @@ import {
   reportYears,
 } from '../../../components/national-report/model';
 import { NationalReportView } from '../../../components/national-report/national-report-view';
+import {
+  type PatternCandidatesLoad,
+  useNcrPatterns,
+} from '../../../components/national-report/notable-patterns';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
 import {
   approveNationalReportFn,
   buildNationalReportFn,
   getNationalReportPage,
   getNationalReportPdf,
+  getPatternCandidatesFn,
   saveNationalReportNarrativeFn,
 } from '../../../server/national-report';
 import type {
@@ -39,6 +44,8 @@ export const Route = createFileRoute('/eacc/reports/ncr')({
   component: NcrLoaded,
 });
 
+const loadCandidates: PatternCandidatesLoad = (fy) => getPatternCandidatesFn({ data: { fy } });
+
 function NcrLoading() {
   return <NcrPage result={null} />;
 }
@@ -54,20 +61,31 @@ function NcrPage({ result }: { result: NationalReportResult<NationalReportPage> 
   const { viewer, roles, subject } = Route.useRouteContext();
   const navigate = useNavigate({ from: '/eacc/reports/ncr' });
   const now = new Date();
+  const fy = search.fy ?? defaultReportYear(now);
+  const page = search.page ?? 1;
+  const onPageChange = (next: number) => {
+    void navigate({
+      search: (previous) => ({ ...previous, page: next > 1 ? next : undefined }),
+      resetScroll: false,
+    });
+  };
+  const extensions = useNcrPatterns({
+    fy,
+    report: result?.ok ? result.data.report : null,
+    load: loadCandidates,
+    page,
+    onPageChange,
+    onUnauthenticated: goToSignIn,
+  });
   return (
     <NationalReportView
-      fy={search.fy ?? defaultReportYear(now)}
+      fy={fy}
       years={reportYears(now)}
       onYearChange={(fy) => {
         void navigate({ search: { fy } });
       }}
-      page={search.page ?? 1}
-      onPageChange={(page) => {
-        void navigate({
-          search: (previous) => ({ ...previous, page: page > 1 ? page : undefined }),
-          resetScroll: false,
-        });
-      }}
+      page={page}
+      onPageChange={onPageChange}
       result={result}
       viewer={{ subject: subject ?? '', name: viewer.user.name, roles }}
       build={(fy) => buildNationalReportFn({ data: { fy } })}
@@ -78,6 +96,7 @@ function NcrPage({ result }: { result: NationalReportResult<NationalReportPage> 
         goToSignIn();
       }}
       forbiddenAction={<BackToOverview />}
+      extensions={extensions}
     />
   );
 }

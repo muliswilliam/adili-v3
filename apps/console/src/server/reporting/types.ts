@@ -55,3 +55,6 @@ export interface ReportingProblem {
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
 }
+
+/** reporting.yaml `PatternCandidate`: a notable pattern the service computed for the year. */
+export type PatternCandidate = Schemas['PatternCandidate'];

@@ -542,6 +542,11 @@ function conflict(code: string, detail: string) {
 
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
+/** The aggregates of the year's report as last built, or null before its first build. */
+export function ncrMockAggregates(fy: number): NationalAggregates | null {
+  return ensureSeeded().reports.get(fy)?.aggregates ?? null;
+}
+
 /** Whether `pathname` is one of the EACC endpoints this part of the mock answers. */
 export function isNcrPath(pathname: string): boolean {
   return pathname.startsWith('/v1/eacc/');
