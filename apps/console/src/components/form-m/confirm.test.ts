@@ -73,7 +73,7 @@ describe('confirming Form M with a step-up (S6)', () => {
       { status: 'incomplete', paths: ['partI.emailAddress'] },
       { step: 'refused', reason: 'incomplete', paths: ['partI.emailAddress'] },
     ],
-    [{ status: 'forbidden' }, { step: 'confirm', key: 'key-1', checked: true, failed: true }],
+    [{ status: 'forbidden' }, { step: 'refused', reason: 'forbidden' }],
   ] as const)('moves on after %o', (answer, next) => {
     const sent = run([
       ...confirming,

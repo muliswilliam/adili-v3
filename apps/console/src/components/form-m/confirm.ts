@@ -10,7 +10,8 @@ import type { ConfirmOutcome } from '../../server/form-m-sign-off.server';
  */
 
 /** Why the service did not take the confirmation, shown as a banner over the report. */
-export type ConfirmRefusal = 'not-reviewed' | 'incomplete' | 'already-submitted' | 'compiling';
+export type ConfirmRefusal =
+  'not-reviewed' | 'incomplete' | 'already-submitted' | 'compiling' | 'forbidden';
 
 export type ConfirmState =
   /** The report; "Confirm and submit" is enabled once it is reviewed and Part I and B filled. */
@@ -81,13 +82,13 @@ function answered(key: string, answer: ConfirmOutcome): ConfirmState {
       return { step: 'signed-out' };
     case 'incomplete':
       return { step: 'refused', reason: 'incomplete', paths: answer.paths };
+    // Not the commission-admin any more (a role changed meanwhile) is as final as the others.
     case 'not-reviewed':
     case 'already-submitted':
     case 'compiling':
-      return { step: 'refused', reason: answer.status };
-    // Not the commission-admin's any more (a role changed meanwhile), or no answer: say it did
-    // not go through, and keep the key for another try.
     case 'forbidden':
+      return { step: 'refused', reason: answer.status };
+    // No answer: say it did not go through, and keep the key for another try.
     case 'unavailable':
       return { step: 'confirm', key, checked: true, failed: true };
   }

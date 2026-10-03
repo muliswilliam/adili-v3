@@ -29,6 +29,7 @@
  * 409 `report-compiling` or `report-submitted`. A confirmed report's PDF and receipt are issued
  * four seconds later.
  */
+import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';
 import { COMMISSION_ADMIN, FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
 import type { FormMV1 } from '@adili/forms';
 import createClient from 'openapi-fetch';
@@ -60,8 +61,6 @@ const FIRST_FINANCIAL_YEAR = 2025;
 const COMPILE_MS = 3000;
 /** How long after confirmation the mock's documents issue the PDF and the receipt. */
 const ISSUE_MS = 4000;
-/** A step-up's lifetime for confirming, as the service checks it (`auth_time`). */
-const STEP_UP_SECONDS = 300;
 
 type Signatory = FormMV1['partIII']['compiledBy'];
 type ManualFields = components['schemas']['ManualFields'];
@@ -546,9 +545,9 @@ const officerOf = (caller: MockCaller): Officer => ({
 
 function hasFreshStepUp(caller: MockCaller): boolean {
   return (
-    caller.acr === 'step-up' &&
+    caller.acr === STEP_UP_ACR &&
     caller.authTime !== null &&
-    Date.now() / 1000 - caller.authTime <= STEP_UP_SECONDS
+    Date.now() / 1000 - caller.authTime <= STEP_UP_WINDOW_SECONDS
   );
 }
 
@@ -599,14 +598,16 @@ async function confirm(fy: number, input: Request, caller: MockCaller) {
   return json(200, answer);
 }
 
-/** The form-m.v1 paths a document has still to fill before it validates. */
+/**
+ * The form-m.v1 paths a document has still to fill before it validates (Part I's contacts; the
+ * schema lets Part B's register answer be null).
+ */
 function incompleteOf(document: FormMV1): string[] {
-  const { partI, partII } = document;
+  const { partI } = document;
   return [
     !partI.contactDetails.trim() && 'partI.contactDetails',
     !partI.physicalAddress.trim() && 'partI.physicalAddress',
     !EMAIL.test(partI.emailAddress) && 'partI.emailAddress',
-    partII.complaints.registerMaintained === null && 'partII.complaints.registerMaintained',
   ].filter((path) => typeof path === 'string');
 }
 

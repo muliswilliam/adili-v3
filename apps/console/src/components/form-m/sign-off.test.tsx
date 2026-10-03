@@ -333,6 +333,11 @@ describe('confirming with a step-up (S6, S7)', () => {
     });
   });
 
+  it('says a failed step-up even when the report cannot be confirmed now', async () => {
+    await show(COMMISSION_ADMIN, { seed: { reviewed: true }, marker: 'failed' });
+    expect(await screen.findByText('We could not confirm your identity. Try again.')).toBeTruthy();
+  });
+
   it('treats a step-up the session no longer holds as failed', async () => {
     await show(COMMISSION_ADMIN, {
       seed: ready,
@@ -384,6 +389,11 @@ describe('confirming with a step-up (S6, S7)', () => {
       { status: 'incomplete', paths: ['partI.contactDetails', 'partI.emailAddress'] },
       'Form M is not complete.',
       'Fill contact details and email address in Part I.',
+    ],
+    [
+      { status: 'forbidden' },
+      'Form M was not submitted.',
+      'Only the commission administrator of your Commission can confirm Form M.',
     ],
     [
       { status: 'not-reviewed' },

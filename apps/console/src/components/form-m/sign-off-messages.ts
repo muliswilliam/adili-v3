@@ -94,6 +94,10 @@ export const en = {
       title: 'Form M was not submitted.',
       text: 'The draft is being recompiled. Try again once it is ready.',
     },
+    forbidden: {
+      title: 'Form M was not submitted.',
+      text: 'Only the commission administrator of your Commission can confirm Form M.',
+    },
     incomplete: { title: 'Form M is not complete.' },
   },
   incompleteText: (partI: string[], partB: boolean) =>

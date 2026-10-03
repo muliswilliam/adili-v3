@@ -204,7 +204,7 @@ describe('the commission-admin confirms with a step-up (S6, S7)', () => {
     resetReportingMock('2026-10-03', { reviewed: true });
     expect(await confirmReport(steppedUp(), 'psc', 2025, key())).toEqual({
       status: 'incomplete',
-      paths: ['partI.contactDetails', 'partI.emailAddress', 'partII.complaints.registerMaintained'],
+      paths: ['partI.contactDetails', 'partI.emailAddress'],
     });
   });
 

@@ -32,6 +32,7 @@ import {
 import { type SyntheticEvent, useId, useState } from 'react';
 
 import { Field, FORM_M_ANCHORS, Note, PartCard } from './form-m-document';
+import { emailTakes } from './manual-fields';
 import { messages as fm } from './messages';
 import { messages as m } from './sign-off-messages';
 
@@ -45,11 +46,6 @@ export type PartIValues = Pick<
   FormMV1['partI'],
   'contactDetails' | 'physicalAddress' | 'emailAddress'
 >;
-
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-/** Whether an email address will do for Part I (iv): blank, or one the service takes. */
-export const emailTakes = (value: string) => !value.trim() || EMAIL.test(value.trim());
 
 function YouFillThis() {
   return (

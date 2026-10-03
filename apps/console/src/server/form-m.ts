@@ -3,6 +3,7 @@ import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { nairobiToday } from '../components/form-m/financial-year';
+import { partIEmail } from '../components/form-m/manual-fields';
 import { asReportingViewer, type Unauthenticated, withViewerClient } from './as-viewer.server';
 import { getBff } from './bff.server';
 import { commissionSlug } from './commission-slug';
@@ -92,7 +93,7 @@ export const saveFormMManualFields = createServerFn({ method: 'POST' })
         .object({
           contactDetails: text(200).nullable(),
           physicalAddress: text(200).nullable(),
-          emailAddress: z.email().max(254).nullable(),
+          emailAddress: partIEmail.nullable(),
           complaintsRegisterMaintained: z.boolean().nullable(),
           complaints: z.array(complaint).max(500),
         })

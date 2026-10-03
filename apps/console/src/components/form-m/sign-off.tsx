@@ -26,6 +26,7 @@ import {
   type FormMWorkspaceViewProps,
 } from './form-m-workspace';
 import { manualMissing } from './form-m-view';
+import { emailTakes } from './manual-fields';
 import { messages as fm } from './messages';
 import {
   ConfirmDialog,
@@ -34,13 +35,7 @@ import {
   StepUpFailedBanner,
 } from './sign-off-dialogs';
 import { messages as m } from './sign-off-messages';
-import {
-  ComplaintsForm,
-  emailTakes,
-  PartIForm,
-  type PartBValues,
-  type PartIValues,
-} from './sign-off-parts';
+import { ComplaintsForm, PartIForm, type PartBValues, type PartIValues } from './sign-off-parts';
 import { SubmittedHeader } from './submitted-header';
 
 /** The reporting service's sign-off calls for the signed-in officer, by financial year. */
@@ -214,14 +209,15 @@ export function FormMSignOffView({
   const ready =
     capabilities.signsOff && report?.status === 'reviewed' && missing.length === 0 && !saving;
 
-  // Back from the step-up: drop the marker, so a reload does not reopen the dialog, then open
-  // it if the session holds a fresh step-up and the report can still be confirmed.
+  // Back from the step-up: drop the marker, so a reload does not reopen the dialog. A failed one
+  // says so; one that went through opens the dialog if the session holds a fresh step-up and the
+  // report can still be confirmed (else it changed meanwhile, and the page shows how it stands).
   const handled = useRef(false);
   useEffect(() => {
     if (!stepUpMarker || handled.current) return;
     handled.current = true;
     navigation.clearStepUpMarker();
-    if (!ready) return;
+    if (stepUpMarker === 'done' && !ready) return;
     const fresh = stepUpMarker === 'done' ? actions.stepUpFresh() : Promise.resolve(false);
     void fresh
       .catch(() => null)
@@ -263,9 +259,16 @@ export function FormMSignOffView({
                 ? viewerName
                 : null,
             onRemarkChange: (row, remark) => {
-              if (!row.obligationId) return;
-              const remarks = { ...edits.remarks[section], [row.obligationId]: remark };
-              setEdits({ ...edits, remarks: { ...edits.remarks, [section]: remarks } });
+              const id = row.obligationId;
+              if (!id) return;
+              const remarks = { ...edits.remarks[section], [id]: remark };
+              setEdits((current) => ({
+                ...current,
+                remarks: {
+                  ...current.remarks,
+                  [section]: { ...current.remarks[section], [id]: remark },
+                },
+              }));
               remarksSaves[section].change(remarks);
             },
           }
@@ -276,7 +279,7 @@ export function FormMSignOffView({
           partI={shown.document.partI}
           autosave={partISave}
           onChange={(values) => {
-            setEdits({ ...edits, partI: values });
+            setEdits((current) => ({ ...current, partI: values }));
             partISave.change(values);
           }}
         />
@@ -287,7 +290,7 @@ export function FormMSignOffView({
           complaints={shown.document.partII.complaints}
           autosave={partBSave}
           onChange={(values) => {
-            setEdits({ ...edits, partB: values });
+            setEdits((current) => ({ ...current, partB: values }));
             partBSave.change(values);
           }}
         />
