@@ -44,7 +44,7 @@ Schemas changed:
 - `ComplianceReport.counts` and `NationalReport.aggregates` are the typed shape, or `{}` before the first compile or build.
 - Every field the draft listed is there, with the same names and required fields; descriptions added from the code.
 - Nullables are exported as `anyOf [..., null]` rather than `type: [..., 'null']`, and `Officer | null` as `anyOf` rather than `oneOf`.
-- `ProblemDetails.code` is the shared enum of `@adili/api-kit` `PROBLEM_CODES`, as in every exported contract. Reporting's own codes (`report-compiling`, `ncr-approved`, `icms-push-failed`, ...) are not in it yet, nor are review's; see Follow-ups.
+- `ProblemDetails.code` is the shared enum of `@adili/api-kit` `PROBLEM_CODES`, as in every exported contract, instead of the hand-written `string`. Reporting's codes are registered there (#238): `report-submitted`, `report-compiling`, `preview-not-available`, `not-reviewed`, `invalid-remarks`, `invalid-document`, `inconsistent-document`, `tenant-mismatch`, `ncr-approved`, `no-submitted-reports`, `icms-push-failed`, `separation-of-duties` (with the already registered `incomplete` and `step-up-required`). Reporting's problem helpers take a `ProblemCode`, so a code it sends cannot be left out of the contract. Every contract and client is regenerated with the longer enum.
 
 ### Spec 09b drafts
 
@@ -101,4 +101,4 @@ Their types live in the reporting service (`src/*/events.ts`), as review's do.
 
 ## Follow-ups
 
-- `ProblemDetails.code` in every exported contract is `PROBLEM_CODES`' enum, but review and reporting send codes outside it (in the problem's extension members), so a generated client's type for `code` misses them. Ticket: #501.
+- Review still sends codes `PROBLEM_CODES` does not hold (`not-proposed`, `supervisor-required`, ...), so its generated clients mistype them. Ticket: #501.
