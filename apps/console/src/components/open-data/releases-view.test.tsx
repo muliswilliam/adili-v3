@@ -211,4 +211,65 @@ describe('#350 build snapshot', () => {
     expect(keys[1]).toBe(keys[0]);
     expect(keys[2]).not.toBe(keys[1]);
   });
+
+  it('F1 keeps the key while the first build is still running, so Try again does not build twice', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: {
+            type: 'idempotency-key-in-use',
+            title: 'Request in progress',
+            status: 409,
+          },
+        },
+      })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    const view = renderView({ result: await releasesOf('history'), build });
+
+    fireEvent.click(screen.getByRole('button', { name: /Build snapshot/ }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+    expect(
+      await screen.findByText('The build is still running. Try again in a moment to see it.'),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalled();
+    });
+    const keys = build.mock.calls.map(([, key]) => key);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it('F2 reuses a build key that got no answer after Dismiss, then a new one once settled', async () => {
+    const build = vi
+      .fn<Props['build']>()
+      .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
+      .mockImplementation((fy, key) => buildOpenDataSnapshot(analyst(), fy, key));
+    const view = renderView({ result: await releasesOf('history'), build });
+    const buildFromDialog = async () => {
+      const [headerButton] = screen.getAllByRole('button', { name: /Build snapshot/ });
+      if (!headerButton) throw new Error('expected Build snapshot');
+      fireEvent.click(headerButton);
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Build' }));
+      await waitFor(() => {
+        expect(screen.queryByText(/^Building FY/)).toBeNull();
+      });
+    };
+
+    await buildFromDialog();
+    fireEvent.click(await screen.findByRole('button', { name: 'Dismiss' }));
+    await buildFromDialog();
+    await waitFor(() => {
+      expect(view.onBuilt).toHaveBeenCalledTimes(1);
+    });
+    await buildFromDialog();
+
+    const keys = build.mock.calls.map(([, key]) => key);
+    expect(keys).toHaveLength(3);
+    expect(keys[1]).toBe(keys[0]);
+    expect(keys[2]).not.toBe(keys[1]);
+  });
 });

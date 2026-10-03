@@ -128,6 +128,25 @@ describe('#350 snapshot preview', () => {
     expect(legend.textContent).toMatch(/\d+ hidden/);
   });
 
+  it('S4 counts the hidden figures of the cycle on show', async () => {
+    renderView(await preview2026());
+    const panel = tablePanel();
+    const hidden = () => /(\d+) hidden/.exec(within(panel).getByRole('note').textContent)?.[1];
+    // Every figure of a suppressed row is hidden: expected, declared, did not declare, rate.
+    const shownRowsHidden = () =>
+      within(panel)
+        .getAllByRole('row')
+        .filter((row) => within(row).queryAllByText('‹10').length === 4).length * 4;
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Final' }));
+    const final = hidden();
+    expect(Number(final)).toBe(shownRowsHidden());
+    fireEvent.click(screen.getByRole('radio', { name: 'All cycles' }));
+
+    expect(Number(hidden() ?? 0)).toBe(shownRowsHidden());
+    expect(hidden()).not.toBe(final);
+  });
+
   it('lists every Commission by name, sortable by any column', async () => {
     renderView(await preview2026());
 
