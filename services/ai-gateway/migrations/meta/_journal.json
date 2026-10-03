@@ -22,6 +22,20 @@
       "when": 1790943723531,
       "tag": "0002_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790963534062,
+      "tag": "0003_job_violations",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791012524733,
+      "tag": "0004_cache_without_violations",
+      "breakpoints": true
     }
   ]
 }

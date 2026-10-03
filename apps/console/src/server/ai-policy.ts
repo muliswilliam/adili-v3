@@ -3,6 +3,7 @@ import { getRequest } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import { aiGatewayClient, type AiGatewayClient } from './ai-gateway/client.server';
+import { isCommissionTask, TASK_NAMES } from './ai-gateway/tasks';
 import type { Route, TenantPolicy, TenantUsage } from './ai-gateway/types';
 import {
   type AiPolicyOverview,
@@ -87,23 +88,30 @@ export const setTenantBudget = createServerFn({ method: 'POST' })
     ),
   );
 
-const taskName = z.enum(['summarize-declaration', 'explain-flags', 'draft-clarification']);
+const taskName = z.enum(TASK_NAMES);
 // Bounds as the contract has them; the gateway validates and its 400 maps back to the field.
 const approvalRef = z.string().max(200);
 
-export const setRouteInput = z.object({
-  /** Null: the route of every Commission without its own. */
-  tenant: commissionSlug.nullable(),
-  task: taskName,
-  provider: z.string().max(100),
-  model: z.string().max(200),
-  params: z.object({
-    maxOutputTokens: z.number().int().positive().optional(),
-    effort: z.enum(['low', 'medium', 'high']).optional(),
-    timeoutMs: z.number().int().positive().optional(),
-  }),
-  approvalRef,
-});
+export const setRouteInput = z
+  .object({
+    /** Null: the route of every Commission without its own. */
+    tenant: commissionSlug.nullable(),
+    task: taskName,
+    provider: z.string().max(100),
+    model: z.string().max(200),
+    params: z.object({
+      maxOutputTokens: z.number().int().positive().optional(),
+      effort: z.enum(['low', 'medium', 'high']).optional(),
+      timeoutMs: z.number().int().positive().optional(),
+    }),
+    approvalRef,
+  })
+  // A Commission's own route is for a task it calls; an EACC task has only a default route, as the
+  // gateway also enforces.
+  .refine(({ tenant, task }) => tenant === null || isCommissionTask(task), {
+    path: ['task'],
+    message: 'Must be a task a Commission calls',
+  });
 
 /** Routes a task's calls for every Commission or for one, audited. */
 export const setRoute = createServerFn({ method: 'POST' })

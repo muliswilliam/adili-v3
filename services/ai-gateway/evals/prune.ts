@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { fixtureKey } from '../src/providers/replay.adapter.js';
 import { SUITES } from './golden/suites.js';
-import { evalModel, evalRequest } from './lib/run.js';
+import { evalModel, evalRequest, streamed } from './lib/run.js';
 
 /**
  * Deletes eval fixtures no golden case requests any more. Record mode only adds files, so a prompt
@@ -11,13 +11,12 @@ import { evalModel, evalRequest } from './lib/run.js';
  */
 
 const FIXTURES_DIR = 'evals/fixtures';
-const AI_MODEL = evalModel();
-
 const wanted = new Set(
   SUITES.flatMap((suite) =>
     suite.cases.map((golden) => {
-      const request = evalRequest(suite.task, golden.input, AI_MODEL);
-      return `${fixtureKey('generateStructured', request)}.json`;
+      const request = evalRequest(suite.task, golden.input, evalModel(suite));
+      const operation = streamed(suite.task, golden.input) ? 'stream' : 'generateStructured';
+      return `${fixtureKey(operation, request)}.json`;
     }),
   ),
 );

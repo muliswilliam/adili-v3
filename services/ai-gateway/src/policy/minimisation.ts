@@ -11,8 +11,10 @@
  * shape anywhere in free text. Values found in fields are also replaced wherever they recur in
  * free text, in any case and, for codes, with or without spaces and dashes; the token stands for
  * the value as its field holds it. Amounts, other dates and item descriptions are left alone: the tasks
- * need them, and the classification gate decides whether they may leave. Over-matching is safe,
- * since every token is restored; it only hides a word from the model.
+ * need them, and the classification gate decides whether they may leave. The exception is what a
+ * declarant asks in their own words (`QUESTION_FIELDS`): Ask Adili needs no figure, and never
+ * receives one (spec 11), so amounts there are tokens too. Over-matching is safe, since every token
+ * is restored; it only hides a word from the model.
  *
  * A token in the output that the input never had (the model invented or garbled one) cannot be
  * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
@@ -39,8 +41,11 @@ export const IDENTIFIER_CLASSES = [
 ] as const;
 export type IdentifierClass = (typeof IDENTIFIER_CLASSES)[number];
 
-/** Input text that already looks like a token; tokenised too, so it cannot collide. */
-type TokenClass = IdentifierClass | 'LITERAL';
+/**
+ * An amount in a declarant's question; input text that already looks like a token, tokenised too
+ * so it cannot collide.
+ */
+type TokenClass = IdentifierClass | 'AMOUNT' | 'LITERAL';
 
 export interface Minimised<T> {
   /** The input with identifiers replaced by tokens. */
@@ -184,6 +189,35 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   },
 ];
 
+/**
+ * Fields holding what a declarant asks in their own words (Ask Adili's `question` and earlier
+ * turns), where amounts are replaced as well as identifiers.
+ */
+const QUESTION_FIELDS = new Set(['question', 'history']);
+
+const CURRENCY = String.raw`(?:KES|KShs?|Kshs?|Shs?|USD|US\$|\$|EUR|€|GBP|£)\.?`;
+const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
+const SCALE = String.raw`(?:million|billion|thousand|mn|bn|m|k)`;
+const CURRENCY_WORD = String.raw`(?:shillings?|bob|dollars?|euros?|pounds?|KES|KSh)`;
+/**
+ * An amount, in English or Swahili: after a currency (KES 3 million, $500), before a currency word
+ * (120k bob, 2,500,000 shillings), with a scale word (3 million, shilingi milioni 3), or in
+ * thousands groups (1,200,000). A bare number (a year, a count, a section) is not one.
+ */
+const AMOUNT = new RegExp(
+  `${EDGE_BEFORE}(?:` +
+    [
+      String.raw`${CURRENCY}\s?${NUMBER}(?:\s?${SCALE}${EDGE_AFTER})?`,
+      String.raw`${NUMBER}\s?(?:${SCALE}\s?)?${CURRENCY_WORD}`,
+      String.raw`${NUMBER}\s?(?:million|billion|thousand)`,
+      String.raw`(?:shilingi\s+)?(?:milioni|bilioni|elfu)\s+${NUMBER}`,
+      String.raw`shilingi\s+${NUMBER}`,
+      String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?`,
+    ].join('|') +
+    `)${EDGE_AFTER}`,
+  'giu',
+);
+
 /** Replaces the identifiers in `input` with tokens; see the module comment. */
 export function minimise<T>(input: T): Minimised<T> {
   const known = new Map<string, IdentifierClass>();
@@ -207,8 +241,9 @@ export function minimise<T>(input: T): Minimised<T> {
 
   const lookup = knownLookup(known);
   const knownPattern = alternation(known);
-  const replaceText = (text: string): string => {
+  const replaceText = (text: string, inQuestion: boolean): string => {
     let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
+    if (inQuestion) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
     if (knownPattern) {
       result = result.replace(knownPattern, (match) => {
         const found = lookup(match);
@@ -379,19 +414,27 @@ function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | unde
   return new RegExp(`${EDGE_BEFORE}(?:${alternatives.join('|')})${EDGE_AFTER}`, 'giu');
 }
 
-/** A copy of `value` with `map` applied to every string outside the untouched fields. */
+/**
+ * A copy of `value` with `map` applied to every string outside the untouched fields, told whether
+ * the string is in a question field.
+ */
 function mapStrings(
   value: unknown,
   key: string | undefined,
-  map: (text: string) => string,
+  map: (text: string, inQuestion: boolean) => string,
+  inQuestion = false,
 ): unknown {
   if (key !== undefined && UNTOUCHED_FIELDS.has(key)) return value;
-  if (typeof value === 'string') return map(value);
-  if (Array.isArray(value)) return value.map((each) => mapStrings(each, key, map));
+  const question = inQuestion || (key !== undefined && QUESTION_FIELDS.has(key));
+  if (typeof value === 'string') return map(value, question);
+  if (Array.isArray(value)) return value.map((each) => mapStrings(each, key, map, question));
   if (value !== null && typeof value === 'object') {
     // Sorted, so tokens are numbered in the same order the canonical JSON shows them.
     return Object.fromEntries(
-      sortedEntries(value).map(([childKey, child]) => [childKey, mapStrings(child, childKey, map)]),
+      sortedEntries(value).map(([childKey, child]) => [
+        childKey,
+        mapStrings(child, childKey, map, question),
+      ]),
     );
   }
   return value;

@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/tasks/answer-declarant-question/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stream an answer (server-sent events: text deltas, then the job with its validated output)
+         * @description Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A caller that disconnects fails the job with reason `cancelled`. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`.
+         */
+        post: operations["streamAnswerDeclarantQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/jobs/{jobId}": {
         parameters: {
             query?: never;
@@ -201,28 +221,11 @@ export interface paths {
         };
         /**
          * Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
-         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process.
+         * @description Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded.
          */
         get: operations["getTenantAiStatus"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/internal/v1/tasks/answer-declarant-question/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Stream an answer (server-sent events: text deltas, then one final structured frame that is validated like a job output) */
-        post: operations["streamAnswerDeclarantQuestion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -234,7 +237,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification";
+        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
         /** @enum {string} */
         DataClass: "synthetic" | "restricted" | "highly-confidential";
         /** @enum {string} */
@@ -245,7 +248,7 @@ export interface components {
          * @description Set when failed or blocked
          * @enum {string}
          */
-        JobReason: "policy" | "budget" | "validation" | "refused" | "provider" | "provider-unavailable" | "timeout";
+        JobReason: "policy" | "budget" | "validation" | "refused" | "provider" | "provider-unavailable" | "timeout" | "cancelled";
         TaskRequest: {
             dataClass: components["schemas"]["DataClass"];
             /** @description Owning record, e.g. review-case:<uuid>; appears in audit and events */
@@ -258,7 +261,7 @@ export interface components {
             /** @default 0 */
             waitSeconds: number;
             /** @description The task's input; its `kind` is the task name */
-            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"];
+            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"] | components["schemas"]["NarrateComplianceReportInput"] | components["schemas"]["AnswerDeclarantQuestionInput"];
         };
         Job: {
             /** Format: uuid */
@@ -281,7 +284,7 @@ export interface components {
                 latencyMs: number;
             };
             /** @description The task's output; null until the job succeeded, or once purged */
-            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | null;
+            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | components["schemas"]["NarrateComplianceReportOutput"] | components["schemas"]["AnswerDeclarantQuestionOutput"] | null;
             /** Format: date-time */
             createdAt: string;
             finishedAt: string | null;
@@ -296,7 +299,7 @@ export interface components {
             model: string;
             /** Format: date-time */
             generatedAt: string;
-            /** @description Fixed text: indicators, not findings; a named reviewer decides */
+            /** @description Fixed text per task and language: for the reviewer tasks, indicators, not findings, a named reviewer decides; for a declarant's answers, not legal advice */
             disclaimer: string;
         };
         SourceRef: {
@@ -414,6 +417,145 @@ export interface components {
                 text: string;
             }[];
         };
+        /** @description Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted` */
+        NarrateComplianceReportInput: {
+            /** @constant */
+            kind: "narrate-compliance-report";
+            /** @description Financial year, by the calendar year it ends in */
+            fy: number;
+            /** @description National counts */
+            totals: {
+                [key: string]: number | null;
+            };
+            /** @description National rates, as fractions (0.164 is 16.4%) */
+            rates: {
+                [key: string]: number | null;
+            };
+            /** @description One row per Commission: code, name and its figures, rates as fractions */
+            commissionTable: {
+                /** @description Commission slug; names the row in aggregate keys */
+                code: string;
+                /** @description A public body, not a person: outside the name fields minimisation tokenises */
+                commissionName: string;
+                figures: {
+                    [key: string]: number | null;
+                };
+            }[];
+            priorYears: {
+                /** @description Financial year, by the calendar year it ends in */
+                fy: number;
+                /** @description National counts */
+                totals: {
+                    [key: string]: number | null;
+                };
+                /** @description National rates, as fractions (0.164 is 16.4%) */
+                rates: {
+                    [key: string]: number | null;
+                };
+                /** @description One row per Commission: code, name and its figures, rates as fractions */
+                commissionTable: {
+                    /** @description Commission slug; names the row in aggregate keys */
+                    code: string;
+                    /** @description A public body, not a person: outside the name fields minimisation tokenises */
+                    commissionName: string;
+                    figures: {
+                        [key: string]: number | null;
+                    };
+                }[];
+            }[];
+            candidates: {
+                id: string;
+                /** @enum {string} */
+                kind: "rate-change" | "threshold-breach" | "chronic-late-reporting" | "clarification-ratio-outlier" | "size-band-outlier" | "non-reporting";
+                /** @description Commission slug, entity type, or `national` */
+                subject: string;
+                values: {
+                    [key: string]: number | string | null;
+                };
+                aggregateKeys: string[];
+            }[];
+            /**
+             * @description `findings` and `all` need at least one candidate: a finding narrates a computed pattern, so with none no draft could pass validation
+             * @enum {string}
+             */
+            section: "overview" | "findings" | "recommendations" | "all";
+            /** @enum {string} */
+            language: "en";
+        };
+        NarrateComplianceReportOutput: {
+            label: components["schemas"]["AiLabel"];
+            /** @description The job fails with reason `validation` unless every number in the text is in the input (separators stripped; a percentage is a rate ×100 rounded half up to the places written, at most two; years only as input FYs), every aggregate ref and candidate id is in the input, every finding narrates a candidate, and the paragraphs cover exactly the sections asked for (overview at most 3, findings 12, recommendations 6) */
+            paragraphs: {
+                /** @enum {string} */
+                section: "overview" | "findings" | "recommendations";
+                text: string;
+                aggregateRefs: string[];
+                candidateIds: string[];
+            }[];
+        };
+        AnswerDeclarantQuestionInput: {
+            /** @constant */
+            kind: "answer-declarant-question";
+            /**
+             * @description `answer` streams an answer to the question (stream endpoint only); `hints` writes one hint per residual (job endpoint only)
+             * @enum {string}
+             */
+            mode: "answer" | "hints";
+            /** @enum {string} */
+            language: "en" | "sw";
+            /** @description The declarant's question; null in hints mode */
+            question: string | null;
+            /** @description Never contains amounts, names, identifiers or descriptions */
+            context: {
+                /** @description The type of the declaration being filled (declarations.yaml) */
+                declarationType: ("initial" | "biennial" | "final") | null;
+                statementDate: string | null;
+                householdCounts: {
+                    spouses: number;
+                    children: number;
+                };
+                /** @description The section the declarant is on */
+                sectionKey: string | null;
+                /** @description What the completeness check still reports: where, and by which rule */
+                residuals: {
+                    /** @description bio, household, other, or statement:<personKey> (declarations.yaml) */
+                    sectionKey: string;
+                    /** @description The completeness rule or schema keyword that reports it, e.g. nil-or-items-required, minLength */
+                    ruleId: string;
+                    /** @description JSON pointer within the section, field names and indexes: /assets/1/value */
+                    fieldPath: string;
+                }[];
+            };
+            /** @description Retrieved corpus passages; an answer may cite only these */
+            passages: {
+                id: string;
+                citation: string;
+                text: string;
+            }[];
+            /** @description Earlier turns, oldest first, to resolve follow-up questions */
+            history: {
+                /** @enum {string} */
+                role: "user" | "assistant";
+                text: string;
+            }[];
+        };
+        AnswerDeclarantQuestionOutput: {
+            label: components["schemas"]["AiLabel"];
+            /** @description The passages do not answer the question; also set when a streamed answer fails its checks, which then has no blocks */
+            declined: boolean;
+            blocks: {
+                text: string;
+                /** @description Passages the block rests on, all from the input; at least one in answer mode */
+                passageIds: string[];
+                /** @description Where in the declaration the block is about; in hints mode, its residual */
+                sectionLink: {
+                    /** @description bio, household, other, or statement:<personKey> (declarations.yaml) */
+                    sectionKey: string;
+                    fieldPath: string | null;
+                } | null;
+            }[];
+            followUps: string[];
+        };
         FeedbackInput: {
             /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
@@ -442,9 +584,9 @@ export interface components {
             tenant: string;
             /** @description Some data class may be sent to the tenant's routed provider class */
             enabled: boolean;
-            /** @description The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
+            /** @description The provider class of the tenant's reviewer task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach */
             providerClass: components["schemas"]["ProviderClass"] | null;
-            /** @description The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is */
+            /** @description The provider the tenant's reviewer task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is */
             provider: string | null;
             /** @description Data classes every routed provider class may process, in DataClass order */
             dataClasses: components["schemas"]["DataClass"][];
@@ -589,94 +731,6 @@ export interface components {
             }[];
             warnings: string[];
         };
-        AnswerDeclarantQuestionInput: {
-            /** @constant */
-            kind: "answer-declarant-question";
-            /** @enum {string} */
-            mode: "answer" | "hints";
-            /** @enum {string} */
-            language: "en" | "sw";
-            /** @description null in hints mode */
-            question: string | null;
-            /** @description Never contains amounts, names, identifiers or descriptions */
-            context: {
-                declarationType: string | null;
-                /** Format: date */
-                statementDate: string | null;
-                householdCounts: {
-                    spouses: number;
-                    children: number;
-                };
-                sectionKey: string | null;
-                residuals: {
-                    ruleId: string;
-                    fieldPath: string;
-                }[];
-            };
-            passages: {
-                id: string;
-                citation: string;
-                text: string;
-            }[];
-            history: {
-                /** @enum {string} */
-                role: "user" | "assistant";
-                text: string;
-            }[];
-        };
-        AnswerDeclarantQuestionOutput: {
-            label: components["schemas"]["AiLabel"];
-            declined: boolean;
-            blocks: {
-                text: string;
-                passageIds: string[];
-                sectionLink: {
-                    sectionKey: string;
-                    fieldPath: string | null;
-                } | null;
-            }[];
-            followUps: string[];
-        };
-        NarrateComplianceReportInput: {
-            /** @constant */
-            kind: "narrate-compliance-report";
-            fy: number;
-            /** @enum {string} */
-            section: "overview" | "findings" | "recommendations" | "all";
-            /** @enum {string} */
-            language: "en";
-            totals: {
-                [key: string]: unknown;
-            };
-            commissionTable: {
-                [key: string]: unknown;
-            }[];
-            rates: {
-                [key: string]: unknown;
-            };
-            priorYears: {
-                [key: string]: unknown;
-            }[];
-            candidates: {
-                id: string;
-                kind: string;
-                subject: string;
-                values: {
-                    [key: string]: unknown;
-                };
-                aggregateKeys: string[];
-            }[];
-        };
-        NarrateComplianceReportOutput: {
-            label: components["schemas"]["AiLabel"];
-            paragraphs: {
-                /** @enum {string} */
-                section: "overview" | "findings" | "recommendations";
-                text: string;
-                aggregateRefs: string[];
-                candidateIds: string[];
-            }[];
-        };
     };
     responses: never;
     parameters: never;
@@ -728,7 +782,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            /** @description Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
+            /** @description Request failed validation (`answer-declarant-question` takes data class `synthetic` only), an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -769,6 +823,89 @@ export interface operations {
                 headers: {
                     /** @description Seconds until the next request would be allowed */
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    streamAnswerDeclarantQuestion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskRequest"];
+            };
+        };
+        responses: {
+            /** @description SSE stream: `delta` {text}, then `final` {job: Job} or `error` {reason: JobReason} */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Request failed validation (data class `synthetic` only), a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The classification gate refused it (`task-blocked`, `reason: policy`); the blocked job is recorded */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Idempotency-Key, or an equal request, is streaming now (`job-in-progress`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Tenant's per-minute limit reached (code `rate-limit-exceeded`, no job), or its monthly budget spent (`task-blocked`, `reason: budget`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No provider reachable for the route (`task-blocked`) */
+            503: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {
@@ -992,7 +1129,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
             };
             cookie?: never;
         };
@@ -1039,7 +1176,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
             };
             cookie?: never;
         };
@@ -1087,7 +1224,7 @@ export interface operations {
             header?: never;
             path: {
                 tenant: string;
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
             };
             cookie?: never;
         };
@@ -1106,7 +1243,7 @@ export interface operations {
                     "application/json": components["schemas"]["Route"];
                 };
             };
-            /** @description Request failed validation, or the provider is not one this gateway reaches */
+            /** @description Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -1135,7 +1272,7 @@ export interface operations {
             header?: never;
             path: {
                 tenant: string;
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
             };
             cookie?: never;
         };
@@ -1333,50 +1470,6 @@ export interface operations {
             };
             /** @description The tenant is not the one the caller acts for */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    streamAnswerDeclarantQuestion: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["TaskRequest"];
-            };
-        };
-        responses: {
-            /** @description SSE stream; events `delta` {text}, `final` {job}, `error` {reason} */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            /** @description Request failed validation */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds` */
-            429: {
                 headers: {
                     [name: string]: unknown;
                 };

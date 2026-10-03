@@ -1,4 +1,4 @@
-import type { StructuredRequest } from '../providers/port.js';
+import type { GenerateRequest, StructuredRequest } from '../providers/port.js';
 import { buildProviderRequest, type CallParams } from '../tasks/provider-request.js';
 import type { TaskDefinition } from '../tasks/task.js';
 import { type Minimised, minimise } from './minimisation.js';
@@ -29,4 +29,14 @@ export function preparePrompt(
     restore: minimised.restore,
     counts: minimised.counts,
   };
+}
+
+/**
+ * The request a streamed task sends (ADR-019): the job's request without the output schema, since
+ * the model writes tagged text that the gateway reads and checks against the schema itself.
+ */
+export function streamedRequest(request: StructuredRequest): GenerateRequest {
+  const sent: GenerateRequest & Partial<Pick<StructuredRequest, 'schema'>> = { ...request };
+  delete sent.schema;
+  return sent;
 }

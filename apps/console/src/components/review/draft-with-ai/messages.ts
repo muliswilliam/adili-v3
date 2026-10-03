@@ -30,6 +30,7 @@ export const en = {
     'provider-unavailable': 'AI service unavailable',
     provider: 'AI service error',
     timeout: 'timed out',
+    cancelled: 'the request was cancelled',
     refused: 'declined by the AI model',
     validation: 'output failed its checks',
     'output-purged': 'the output expired before it was saved',

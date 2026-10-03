@@ -71,7 +71,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Job'
         '400':
-          description: Request failed validation, Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing
+          description: 'Request failed validation (`answer-declarant-question` takes data class `synthetic` only), an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing'
           content:
             application/problem+json:
               schema:
@@ -105,6 +105,79 @@ paths:
               description: Seconds until the next request would be allowed
               schema:
                 type: integer
+      security:
+        - bearer: []
+  /internal/v1/tasks/answer-declarant-question/stream:
+    post:
+      tags:
+        - internal
+      summary: 'Stream an answer (server-sent events: text deltas, then the job with its validated output)'
+      description: "Runs an `answer`-mode input of `answer-declarant-question` as a job, in the request. Events: `delta` {text}, the answer's prose as the model writes it, provisional until the end; then either `final` {job}, the succeeded job, whose output replaces the deltas (an answer that failed its checks arrives as `declined: true` with no blocks), or `error` {reason}, the job failed. A caller that disconnects fails the job with reason `cancelled`. A `: ping` comment is sent every 15 s. The Idempotency-Key names the job like the task endpoint's: a finished key returns its `final` (or `error`) only; an equal request with a succeeded job is served from it as one `delta` and its `final`."
+      operationId: streamAnswerDeclarantQuestion
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '200':
+          description: 'SSE stream: `delta` {text}, then `final` {job: Job} or `error` {reason: JobReason}'
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '400':
+          description: Request failed validation (data class `synthetic` only), a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: 'The classification gate refused it (`task-blocked`, `reason: policy`); the blocked job is recorded'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: The Idempotency-Key, or an equal request, is streaming now (`job-in-progress`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: "Tenant's per-minute limit reached (code `rate-limit-exceeded`, no job), or its monthly budget spent (`task-blocked`, `reason: budget`)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: No provider reachable for the route (`task-blocked`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
   /internal/v1/jobs/{jobId}:
@@ -310,6 +383,8 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
       requestBody:
         required: true
         content:
@@ -360,6 +435,8 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
       responses:
         '204':
           description: Removed
@@ -406,6 +483,8 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
       requestBody:
         required: true
         content:
@@ -420,7 +499,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Route'
         '400':
-          description: Request failed validation, or the provider is not one this gateway reaches
+          description: Request failed validation, the task is one only EACC calls (it has only a default route), or the provider is not one this gateway reaches
           content:
             application/problem+json:
               schema:
@@ -462,6 +541,8 @@ paths:
               - summarize-declaration
               - explain-flags
               - draft-clarification
+              - narrate-compliance-report
+              - answer-declarant-question
       responses:
         '204':
           description: Removed
@@ -584,7 +665,7 @@ paths:
       tags:
         - internal
       summary: Whether AI assistance is enabled for a tenant and with which provider class (review proxies it for the Commission status line)
-      description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's tasks are routed to, and the data classes every one of them may process."
+      description: "Derived from the tenant's routes and its classification gate (explicit rules, else the default): the provider classes the tenant's Commission tasks are routed to, and the data classes every one of them may process. EACC-only tasks such as narrate-compliance-report are excluded."
       operationId: getTenantAiStatus
       parameters:
         - name: X-Acting-Tenant
@@ -627,45 +708,6 @@ paths:
                 $ref: '#/components/schemas/ProblemDetails'
       security:
         - bearer: []
-  /internal/v1/tasks/answer-declarant-question/stream:
-    post:
-      tags:
-        - internal
-      summary: 'Stream an answer (server-sent events: text deltas, then one final structured frame that is validated like a job output)'
-      operationId: streamAnswerDeclarantQuestion
-      x-draft: true
-      parameters:
-        - name: Idempotency-Key
-          in: header
-          required: true
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskRequest'
-      responses:
-        '200':
-          description: SSE stream; events `delta` {text}, `final` {job}, `error` {reason}
-          content:
-            text/event-stream:
-              schema:
-                type: string
-        '400':
-          description: Request failed validation
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '429':
-          description: Per-tenant rate limit (jobs per minute); problem code `rate-limit-exceeded` with `retryAfterSeconds`
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
 components:
   securitySchemes:
     bearer:
@@ -679,6 +721,8 @@ components:
         - summarize-declaration
         - explain-flags
         - draft-clarification
+        - narrate-compliance-report
+        - answer-declarant-question
     DataClass:
       type: string
       enum:
@@ -708,6 +752,7 @@ components:
         - provider
         - provider-unavailable
         - timeout
+        - cancelled
       description: Set when failed or blocked
     TaskRequest:
       type: object
@@ -736,6 +781,8 @@ components:
             - $ref: '#/components/schemas/SummarizeDeclarationInput'
             - $ref: '#/components/schemas/ExplainFlagsInput'
             - $ref: '#/components/schemas/DraftClarificationInput'
+            - $ref: '#/components/schemas/NarrateComplianceReportInput'
+            - $ref: '#/components/schemas/AnswerDeclarantQuestionInput'
           description: The task's input; its `kind` is the task name
       required:
         - dataClass
@@ -797,6 +844,8 @@ components:
             - $ref: '#/components/schemas/SummarizeDeclarationOutput'
             - $ref: '#/components/schemas/ExplainFlagsOutput'
             - $ref: '#/components/schemas/DraftClarificationOutput'
+            - $ref: '#/components/schemas/NarrateComplianceReportOutput'
+            - $ref: '#/components/schemas/AnswerDeclarantQuestionOutput'
             - type: 'null'
           description: The task's output; null until the job succeeded, or once purged
         createdAt:
@@ -842,7 +891,7 @@ components:
           format: date-time
         disclaimer:
           type: string
-          description: 'Fixed text: indicators, not findings; a named reviewer decides'
+          description: "Fixed text per task and language: for the reviewer tasks, indicators, not findings, a named reviewer decides; for a declarant's answers, not legal advice"
       required:
         - aiAssisted
         - task
@@ -1218,6 +1267,409 @@ components:
         - label
         - opening
         - items
+    NarrateComplianceReportInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          const: narrate-compliance-report
+        fy:
+          type: integer
+          description: Financial year, by the calendar year it ends in
+        totals:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type:
+              - number
+              - 'null'
+          description: National counts
+        rates:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type:
+              - number
+              - 'null'
+          description: National rates, as fractions (0.164 is 16.4%)
+        commissionTable:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                pattern: ^[a-z][a-z0-9-]*$
+                description: Commission slug; names the row in aggregate keys
+              commissionName:
+                type: string
+                description: 'A public body, not a person: outside the name fields minimisation tokenises'
+              figures:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  type:
+                    - number
+                    - 'null'
+            required:
+              - code
+              - commissionName
+              - figures
+          description: 'One row per Commission: code, name and its figures, rates as fractions'
+        priorYears:
+          type: array
+          items:
+            type: object
+            properties:
+              fy:
+                type: integer
+                description: Financial year, by the calendar year it ends in
+              totals:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  type:
+                    - number
+                    - 'null'
+                description: National counts
+              rates:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  type:
+                    - number
+                    - 'null'
+                description: National rates, as fractions (0.164 is 16.4%)
+              commissionTable:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                      pattern: ^[a-z][a-z0-9-]*$
+                      description: Commission slug; names the row in aggregate keys
+                    commissionName:
+                      type: string
+                      description: 'A public body, not a person: outside the name fields minimisation tokenises'
+                    figures:
+                      type: object
+                      propertyNames:
+                        type: string
+                      additionalProperties:
+                        type:
+                          - number
+                          - 'null'
+                  required:
+                    - code
+                    - commissionName
+                    - figures
+                description: 'One row per Commission: code, name and its figures, rates as fractions'
+            required:
+              - fy
+              - totals
+              - rates
+              - commissionTable
+        candidates:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              kind:
+                type: string
+                enum:
+                  - rate-change
+                  - threshold-breach
+                  - chronic-late-reporting
+                  - clarification-ratio-outlier
+                  - size-band-outlier
+                  - non-reporting
+              subject:
+                type: string
+                description: Commission slug, entity type, or `national`
+              values:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  type:
+                    - number
+                    - string
+                    - 'null'
+              aggregateKeys:
+                minItems: 1
+                type: array
+                items:
+                  type: string
+            required:
+              - id
+              - kind
+              - subject
+              - values
+              - aggregateKeys
+        section:
+          type: string
+          enum:
+            - overview
+            - findings
+            - recommendations
+            - all
+          description: '`findings` and `all` need at least one candidate: a finding narrates a computed pattern, so with none no draft could pass validation'
+        language:
+          type: string
+          enum:
+            - en
+      required:
+        - kind
+        - fy
+        - totals
+        - rates
+        - commissionTable
+        - priorYears
+        - candidates
+        - section
+        - language
+      description: 'Aggregate keys name each figure: `national.<name>` for totals and rates, `commission.<code>.<name>` for a Commission row, and the same prefixed `fy<fy>.` for a prior year (`fy2025.national.filed`). Aggregates only, no person: callers send data class `restricted`'
+    NarrateComplianceReportOutput:
+      type: object
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        paragraphs:
+          maxItems: 21
+          type: array
+          items:
+            type: object
+            properties:
+              section:
+                type: string
+                enum:
+                  - overview
+                  - findings
+                  - recommendations
+              text:
+                type: string
+                maxLength: 2000
+              aggregateRefs:
+                minItems: 1
+                type: array
+                items:
+                  type: string
+              candidateIds:
+                type: array
+                items:
+                  type: string
+            required:
+              - section
+              - text
+              - aggregateRefs
+              - candidateIds
+          description: The job fails with reason `validation` unless every number in the text is in the input (separators stripped; a percentage is a rate ×100 rounded half up to the places written, at most two; years only as input FYs), every aggregate ref and candidate id is in the input, every finding narrates a candidate, and the paragraphs cover exactly the sections asked for (overview at most 3, findings 12, recommendations 6)
+      required:
+        - label
+        - paragraphs
+    AnswerDeclarantQuestionInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          const: answer-declarant-question
+        mode:
+          type: string
+          enum:
+            - answer
+            - hints
+          description: '`answer` streams an answer to the question (stream endpoint only); `hints` writes one hint per residual (job endpoint only)'
+        language:
+          type: string
+          enum:
+            - en
+            - sw
+        question:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 2000
+            - type: 'null'
+          description: The declarant's question; null in hints mode
+        context:
+          type: object
+          properties:
+            declarationType:
+              anyOf:
+                - type: string
+                  enum:
+                    - initial
+                    - biennial
+                    - final
+                - type: 'null'
+              description: The type of the declaration being filled (declarations.yaml)
+            statementDate:
+              anyOf:
+                - type: string
+                  format: date
+                - type: 'null'
+            householdCounts:
+              type: object
+              properties:
+                spouses:
+                  type: integer
+                  minimum: 0
+                children:
+                  type: integer
+                  minimum: 0
+              required:
+                - spouses
+                - children
+            sectionKey:
+              anyOf:
+                - type: string
+                  pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
+                  description: bio, household, other, or statement:<personKey> (declarations.yaml)
+                - type: 'null'
+              description: The section the declarant is on
+            residuals:
+              maxItems: 20
+              type: array
+              items:
+                type: object
+                properties:
+                  sectionKey:
+                    type: string
+                    pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
+                    description: bio, household, other, or statement:<personKey> (declarations.yaml)
+                  ruleId:
+                    type: string
+                    maxLength: 100
+                    pattern: ^[a-z][A-Za-z0-9]*(-[a-z0-9]+)*$
+                    description: The completeness rule or schema keyword that reports it, e.g. nil-or-items-required, minLength
+                  fieldPath:
+                    type: string
+                    maxLength: 200
+                    pattern: ^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$
+                    description: 'JSON pointer within the section, field names and indexes: /assets/1/value'
+                required:
+                  - sectionKey
+                  - ruleId
+                  - fieldPath
+              description: 'What the completeness check still reports: where, and by which rule'
+          required:
+            - declarationType
+            - statementDate
+            - householdCounts
+            - sectionKey
+            - residuals
+          description: Never contains amounts, names, identifiers or descriptions
+        passages:
+          maxItems: 20
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 100
+              citation:
+                type: string
+                maxLength: 200
+              text:
+                type: string
+                maxLength: 10000
+            required:
+              - id
+              - citation
+              - text
+          description: Retrieved corpus passages; an answer may cite only these
+        history:
+          maxItems: 10
+          type: array
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum:
+                  - user
+                  - assistant
+              text:
+                type: string
+                maxLength: 4000
+            required:
+              - role
+              - text
+          description: Earlier turns, oldest first, to resolve follow-up questions
+      required:
+        - kind
+        - mode
+        - language
+        - question
+        - context
+        - passages
+        - history
+    AnswerDeclarantQuestionOutput:
+      type: object
+      properties:
+        label:
+          $ref: '#/components/schemas/AiLabel'
+        declined:
+          type: boolean
+          description: The passages do not answer the question; also set when a streamed answer fails its checks, which then has no blocks
+        blocks:
+          maxItems: 20
+          type: array
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+                maxLength: 1500
+              passageIds:
+                type: array
+                items:
+                  type: string
+                description: Passages the block rests on, all from the input; at least one in answer mode
+              sectionLink:
+                anyOf:
+                  - type: object
+                    properties:
+                      sectionKey:
+                        type: string
+                        pattern: ^(bio|household|other|statement:(officer|spouse:[0-9a-f-]{36}|child:[0-9a-f-]{36}))$
+                        description: bio, household, other, or statement:<personKey> (declarations.yaml)
+                      fieldPath:
+                        anyOf:
+                          - type: string
+                            maxLength: 200
+                            description: JSON pointer within the section
+                          - type: 'null'
+                    required:
+                      - sectionKey
+                      - fieldPath
+                  - type: 'null'
+                description: Where in the declaration the block is about; in hints mode, its residual
+            required:
+              - text
+              - passageIds
+              - sectionLink
+        followUps:
+          maxItems: 3
+          type: array
+          items:
+            type: string
+            maxLength: 200
+      required:
+        - label
+        - declined
+        - blocks
+        - followUps
     FeedbackInput:
       type: object
       properties:
@@ -1317,9 +1769,9 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ProviderClass'
             - type: 'null'
-          description: The provider class of the tenant's routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
+          description: The provider class of the tenant's reviewer task routes; `external` when they are on more than one. Null when no route names a provider this gateway can reach
         provider:
-          description: The provider the tenant's routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is
+          description: The provider the tenant's reviewer task routes name, of `providerClass` (the first by task order when they name several). Null when `providerClass` is
           type:
             - string
             - 'null'
@@ -1726,262 +2178,5 @@ components:
           type: array
           items:
             type: string
-    AnswerDeclarantQuestionInput:
-      type: object
-      required:
-        - kind
-        - mode
-        - language
-        - question
-        - context
-        - passages
-        - history
-      properties:
-        kind:
-          const: answer-declarant-question
-        mode:
-          type: string
-          enum:
-            - answer
-            - hints
-        language:
-          type: string
-          enum:
-            - en
-            - sw
-        question:
-          type:
-            - string
-            - 'null'
-          maxLength: 2000
-          description: null in hints mode
-        context:
-          type: object
-          description: Never contains amounts, names, identifiers or descriptions
-          required:
-            - declarationType
-            - statementDate
-            - householdCounts
-            - sectionKey
-            - residuals
-          properties:
-            declarationType:
-              type:
-                - string
-                - 'null'
-            statementDate:
-              type:
-                - string
-                - 'null'
-              format: date
-            householdCounts:
-              type: object
-              required:
-                - spouses
-                - children
-              properties:
-                spouses:
-                  type: integer
-                children:
-                  type: integer
-            sectionKey:
-              type:
-                - string
-                - 'null'
-            residuals:
-              type: array
-              items:
-                type: object
-                required:
-                  - ruleId
-                  - fieldPath
-                properties:
-                  ruleId:
-                    type: string
-                  fieldPath:
-                    type: string
-        passages:
-          type: array
-          items:
-            type: object
-            required:
-              - id
-              - citation
-              - text
-            properties:
-              id:
-                type: string
-              citation:
-                type: string
-              text:
-                type: string
-        history:
-          type: array
-          maxItems: 10
-          items:
-            type: object
-            required:
-              - role
-              - text
-            properties:
-              role:
-                type: string
-                enum:
-                  - user
-                  - assistant
-              text:
-                type: string
-    AnswerDeclarantQuestionOutput:
-      type: object
-      required:
-        - label
-        - declined
-        - blocks
-        - followUps
-      properties:
-        label:
-          $ref: '#/components/schemas/AiLabel'
-        declined:
-          type: boolean
-        blocks:
-          type: array
-          items:
-            type: object
-            required:
-              - text
-              - passageIds
-              - sectionLink
-            properties:
-              text:
-                type: string
-                maxLength: 1500
-              passageIds:
-                type: array
-                items:
-                  type: string
-              sectionLink:
-                oneOf:
-                  - type: object
-                    required:
-                      - sectionKey
-                      - fieldPath
-                    properties:
-                      sectionKey:
-                        type: string
-                      fieldPath:
-                        type:
-                          - string
-                          - 'null'
-                  - type: 'null'
-        followUps:
-          type: array
-          maxItems: 3
-          items:
-            type: string
-            maxLength: 200
-    NarrateComplianceReportInput:
-      type: object
-      required:
-        - kind
-        - fy
-        - section
-        - language
-        - totals
-        - commissionTable
-        - rates
-        - priorYears
-        - candidates
-      properties:
-        kind:
-          const: narrate-compliance-report
-        fy:
-          type: integer
-        section:
-          type: string
-          enum:
-            - overview
-            - findings
-            - recommendations
-            - all
-        language:
-          type: string
-          enum:
-            - en
-        totals:
-          type: object
-          additionalProperties: true
-        commissionTable:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        rates:
-          type: object
-          additionalProperties: true
-        priorYears:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-        candidates:
-          type: array
-          items:
-            type: object
-            required:
-              - id
-              - kind
-              - subject
-              - values
-              - aggregateKeys
-            properties:
-              id:
-                type: string
-              kind:
-                type: string
-              subject:
-                type: string
-              values:
-                type: object
-                additionalProperties: true
-              aggregateKeys:
-                type: array
-                items:
-                  type: string
-    NarrateComplianceReportOutput:
-      type: object
-      required:
-        - label
-        - paragraphs
-      properties:
-        label:
-          $ref: '#/components/schemas/AiLabel'
-        paragraphs:
-          type: array
-          items:
-            type: object
-            required:
-              - section
-              - text
-              - aggregateRefs
-              - candidateIds
-            properties:
-              section:
-                type: string
-                enum:
-                  - overview
-                  - findings
-                  - recommendations
-              text:
-                type: string
-                maxLength: 2000
-              aggregateRefs:
-                type: array
-                minItems: 1
-                items:
-                  type: string
-              candidateIds:
-                type: array
-                items:
-                  type: string
 security:
   - bearer: []

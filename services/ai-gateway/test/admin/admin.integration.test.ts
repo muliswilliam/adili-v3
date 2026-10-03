@@ -485,6 +485,8 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['explain-flags', 'kcomm'],
         ['explain-flags', 'tsc'],
         ['draft-clarification', null],
+        ['narrate-compliance-report', null],
+        ['answer-declarant-question', null],
         ['retired-task', null],
       ]);
     });
@@ -536,6 +538,8 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['summarize-declaration', 'rcomm'],
         ['explain-flags', null],
         ['draft-clarification', null],
+        ['narrate-compliance-report', null],
+        ['answer-declarant-question', null],
       ]);
       expect(table).toContainEqual(
         expect.objectContaining({ tenant: 'rcomm', model: 'claude-sonnet-5' }),
@@ -633,6 +637,21 @@ describe('admin API', { timeout: 90_000 }, () => {
         expect(contractErrors('ProblemDetails', response.json())).toEqual([]);
       }
       expect((await request('DELETE', '/v1/ai/routing/explain-flags', admin)).statusCode).toBe(400);
+      expect(await t.db.select().from(routes)).toEqual([]);
+    });
+
+    it("refuses a Commission's own route of a task only EACC calls", async () => {
+      const response = await request(
+        'PUT',
+        '/v1/ai/tenants/rcomm/routing/narrate-compliance-report',
+        admin,
+        { provider: 'local', model: 'm', approvalRef: 'A/1' },
+      );
+      expect(response.statusCode).toBe(400);
+      expect(contractErrors('ProblemDetails', response.json())).toEqual([]);
+      expect(response.json()).toMatchObject({
+        errors: [{ path: 'task', message: 'Must be a task a Commission calls' }],
+      });
       expect(await t.db.select().from(routes)).toEqual([]);
     });
   });

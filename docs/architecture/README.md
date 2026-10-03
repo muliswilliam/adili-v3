@@ -823,6 +823,7 @@ adili-v3/
 | [016](../adr/0016-azure-vm-demo-stand-in.md) | Azure VM as a credit-funded stand-in for the Dokploy demo host |
 | [017](../adr/0017-obligation-reminder-delivery.md) | Service calls for filing obligations: acting tenant on the directory's pulls, two hops for a reminder, longer timeouts |
 | [018](../adr/0018-person-scoped-row-level-security.md) | Person-scoped row-level security: a declarant reads their own rows across Commissions, and writes their own drafts |
+| [019](../adr/0019-streamed-structured-ai-output.md) | Streamed structured AI output as tagged text: the port streams text only; the gateway reads and checks it, and a failed check declines |
 
 ---
 

@@ -184,3 +184,47 @@ _Avoid_: return, submission
 **Reference number**:
 The human-readable identifier of a record, e.g. `DCB-TSC-2027-0012345-A`.
 _Avoid_: ID, code, ticket number
+
+### National reporting
+
+**National consolidated report**:
+EACC's yearly report built from every Commission's compliance report: aggregates, a narrative and an approval. Short form NCR.
+_Avoid_: national report (alone), annual report
+
+**Aggregate key**:
+The stable name of one figure in the NCR aggregates, such as one Commission's non-filer rate in a given year; what a narrative paragraph cites.
+_Avoid_: metric ID, field
+
+**Pattern candidate**:
+A notable pattern computed deterministically from this and prior years' aggregates, such as a rate that doubled or a Commission late three years running. The NCR's Findings section is written from candidates; AI narrates them and never finds its own.
+_Avoid_: insight, pattern (alone)
+
+**AI draft**:
+A narrative paragraph written by AI that the EACC analyst drafting the NCR has not yet edited. Editing it makes it EACC's own text.
+_Avoid_: suggestion, AI text
+
+### Assistance
+
+**Ask Adili**:
+The declarant's filing helper: answers questions on the law and the form from the legal corpus, in English or Kiswahili, and writes hints for what is still missing. It knows where the declarant is, never what they wrote.
+_Avoid_: chatbot, assistant (alone), AI helper
+
+**Legal corpus**:
+The Act, the Regulations, the Administrative Mechanisms and help articles, as citable passages with effective dates. Ask Adili answers only from it.
+_Avoid_: knowledge base, documents
+
+**Passage**:
+One citable unit of the legal corpus, such as `Act s.31` or `Regs r.21`, with its id, citation and text.
+_Avoid_: chunk, snippet, source
+
+**Completeness residual**:
+What the completeness check still reports on a draft: the section, the rule and the field path, never the value.
+_Avoid_: error, missing field, gap
+
+**Hint**:
+A one-line plain-language rephrasing of a completeness residual on the summary page, linked to its field. It sits above the deterministic text, which stays.
+_Avoid_: tip, suggestion
+
+**Decline**:
+Ask Adili's answer when the passages do not support one: no answer, and the declarant is pointed to their reporting officer. An answer that cites what it was not given is replaced by a decline.
+_Avoid_: refusal (that is the model's), fallback

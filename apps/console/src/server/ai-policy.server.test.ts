@@ -10,10 +10,12 @@ import {
 import {
   deleteRoute,
   loadAiPolicyOverview,
+  routedClasses,
   saveGatePolicy,
   saveRoute,
   saveTenantBudget,
 } from './ai-policy.server';
+import type { Route } from './ai-gateway/types';
 import { createDirectoryClient } from './directory/client';
 
 const admin = () => mockAiGatewayClient('Amina Wanjiru', ['platform-admin']);
@@ -145,6 +147,30 @@ describe('S16 loadAiPolicyOverview', () => {
   it('fails when the directory does not answer', async () => {
     const result = await loadAiPolicyOverview(admin(), directory(200, 503).client);
     expect(result).toMatchObject({ ok: false, error: { kind: 'unavailable' } });
+  });
+});
+
+describe('routedClasses', () => {
+  const route = (task: Route['task'], providerClass: Route['providerClass']): Route => ({
+    tenant: null,
+    task,
+    provider: providerClass === 'external' ? 'anthropic' : 'local',
+    providerClass,
+    model: 'model',
+    params: {},
+    configured: false,
+  });
+
+  it("reads a Commission's reviewer tasks only, not EACC's narrate-compliance-report or Ask Adili", () => {
+    const routes = [
+      route('summarize-declaration', 'self-hosted'),
+      route('explain-flags', 'self-hosted'),
+      route('draft-clarification', 'self-hosted'),
+      route('narrate-compliance-report', 'external'),
+      route('answer-declarant-question', 'external'),
+    ];
+
+    expect(routedClasses(routes, 'psc')).toEqual(['self-hosted']);
   });
 });
 
@@ -316,6 +342,27 @@ describe('S2 routing changes', () => {
     });
     const table = (await admin().GET('/v1/ai/routing')).data ?? [];
     expect(table.filter((each) => each.task === 'summarize-declaration')).toEqual([configured]);
+  });
+
+  it("is the gateway's task 400 for a Commission's own route of an EACC task, and none is saved", async () => {
+    const result = await saveRoute(admin(), 'jsc', 'narrate-compliance-report', route);
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'problem',
+        problem: {
+          status: 400,
+          errors: [{ path: 'task', message: 'Must be a task a Commission calls' }],
+        },
+      },
+    });
+    const table = (await admin().GET('/v1/ai/routing')).data ?? [];
+    expect(table.filter((each) => each.task === 'narrate-compliance-report')).toEqual([
+      expect.objectContaining({ tenant: null }),
+    ]);
+
+    const fallback = await saveRoute(admin(), null, 'narrate-compliance-report', route);
+    expect(fallback).toMatchObject({ ok: true, data: { tenant: null } });
   });
 
   it('is a 400 for a provider the gateway cannot reach', async () => {

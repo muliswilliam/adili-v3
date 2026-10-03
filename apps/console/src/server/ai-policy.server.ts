@@ -12,6 +12,7 @@ import type {
   TenantUsage,
   UsageList,
 } from './ai-gateway/types';
+import { isReviewerTask } from './ai-gateway/tasks';
 import { callDirectory, type DirectoryClient } from './directory/client';
 import { callService, type ServiceResult } from './service-call';
 
@@ -100,11 +101,11 @@ export function gateOf(
 const PROVIDER_CLASSES: readonly ProviderClass[] = ['external', 'self-hosted'];
 
 /**
- * The provider classes a Commission's tasks are routed to: per task its own route, else the
- * default route. Routes to a provider the gateway cannot reach send nothing anywhere.
+ * The provider classes a Commission's reviewer tasks are routed to: per task its own route, else
+ * the default route. Routes to a provider the gateway cannot reach send nothing anywhere.
  */
 export function routedClasses(routes: readonly Route[], tenant: string): ProviderClass[] {
-  const tasks = new Set(routes.map((route) => route.task));
+  const tasks = new Set(routes.map((route) => route.task).filter(isReviewerTask));
   const classes = new Set(
     [...tasks].flatMap((task) => {
       const route =

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
-import { aggregateKeys, buildAggregates } from '../../src/national-reports/aggregates.js';
+import { aggregatePaths, buildAggregates } from '../../src/national-reports/aggregates.js';
 import { receiptOf, reportCounts, section } from '../support/receipts.js';
 
 /**
@@ -70,7 +70,7 @@ describe('NCR aggregates', () => {
   });
 
   it('names every number by a stable dot path, rates without a denominator included', () => {
-    const keys = aggregateKeys(
+    const paths = aggregatePaths(
       buildAggregates({
         fy: 2027,
         commissions,
@@ -78,14 +78,14 @@ describe('NCR aggregates', () => {
       }),
     );
 
-    expect(keys).toContain('national.initial.rate');
-    expect(keys).toContain('national.final.rate');
-    expect(keys).toContain('reporting.notReported');
-    expect(keys).toContain('byCommission.psc.biennial.declared');
-    expect(keys).toContain('byCommission.psc.accessRequests.granted');
+    expect(paths).toContain('national.initial.rate');
+    expect(paths).toContain('national.final.rate');
+    expect(paths).toContain('reporting.notReported');
+    expect(paths).toContain('byCommission.psc.biennial.declared');
+    expect(paths).toContain('byCommission.psc.accessRequests.granted');
     // Not reported: no numbers.
-    expect(keys.some((key) => key.startsWith('byCommission.jsc.'))).toBe(false);
-    expect(keys).not.toContain('fy');
-    expect([...keys].sort()).toEqual(keys);
+    expect(paths.some((path) => path.startsWith('byCommission.jsc.'))).toBe(false);
+    expect(paths).not.toContain('fy');
+    expect([...paths].sort()).toEqual(paths);
   });
 });

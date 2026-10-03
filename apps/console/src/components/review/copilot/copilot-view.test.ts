@@ -47,6 +47,7 @@ describe('failureReasonText', () => {
     expect(failureReasonText('validation')).toBe('output failed its checks');
     expect(failureReasonText('budget')).toBe('monthly AI budget used up');
     expect(failureReasonText('output-purged')).toBe('the output expired before it was saved');
+    expect(failureReasonText('cancelled')).toBe('the request was cancelled');
     // The review service's own reasons too (review.yaml `CopilotView.failureReason`).
     expect(failureReasonText('rejected')).toBe('the AI service refused the request');
     expect(failureReasonText('ai-gateway-unavailable')).toBe('AI service unavailable');

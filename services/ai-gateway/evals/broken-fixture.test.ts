@@ -5,11 +5,11 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ReplayAdapter, ReplayFixtureMissingError } from '../src/providers/replay.adapter.js';
-import { ScriptedProvider } from '../test/support/scripted-provider.js';
+import { ScriptedProvider, ScriptedStreamProvider } from '../test/support/scripted-provider.js';
 import { IDS, PEOPLE } from './golden/declarations.js';
 import { itemRef } from './golden/flags.js';
 import { SUITES } from './golden/suites.js';
-import { runTask } from './lib/run.js';
+import { runCase, runTask } from './lib/run.js';
 import { type Score, hardFailures } from './lib/score.js';
 
 /**
@@ -189,6 +189,63 @@ describe('hard scorers on recorded fixtures', () => {
   });
 });
 
+describe('narrative validation on recorded fixtures', () => {
+  const CASE = 'FY2026, all sections, two prior years';
+  const narrative = {
+    paragraphs: [
+      {
+        section: 'overview',
+        text: 'In FY2025/26, 14,854 of 15,910 expected declarations were filed, a filing rate of 93.4%.',
+        aggregateRefs: ['national.filed', 'national.expected', 'national.filingRate'],
+        candidateIds: [],
+      },
+      {
+        section: 'findings',
+        text: "The Teachers Service Commission's non-filer rate doubled, from 4.1% to 8.2%.",
+        aggregateRefs: ['fy2025.commission.tsc.nonFilerRate', 'commission.tsc.nonFilerRate'],
+        candidateIds: ['rate-change:tsc:nonFilerRate'],
+      },
+      {
+        section: 'recommendations',
+        text: 'EACC should ask the Teachers Service Commission to account for its non-filers.',
+        aggregateRefs: ['commission.tsc.nonFilerRate'],
+        candidateIds: ['rate-change:tsc:nonFilerRate'],
+      },
+    ],
+  };
+  type Paragraph = (typeof narrative.paragraphs)[number];
+  const tampered = (index: number, changes: Partial<Paragraph>) => ({
+    paragraphs: narrative.paragraphs.map((each, at) =>
+      at === index ? { ...each, ...changes } : each,
+    ),
+  });
+
+  it('passes a sound narrative', async () => {
+    expect(failingHard(await scoreRecorded('narrate-compliance-report', CASE, narrative))).toEqual(
+      [],
+    );
+  });
+
+  it.each([
+    ['a foreign number', tampered(0, { text: 'In FY2025/26, 14,900 declarations were filed.' })],
+    ['an invented key', tampered(1, { aggregateRefs: ['commission.kdf.nonFilerRate'] })],
+    ['an invented candidate', tampered(1, { candidateIds: ['rate-change:kdf:nonFilerRate'] })],
+    ['a missing section', { paragraphs: narrative.paragraphs.slice(0, 2) }],
+  ])('fails a narrative with %s', async (_, broken) => {
+    expect(failingHard(await scoreRecorded('narrate-compliance-report', CASE, broken))).toEqual([
+      'narrative-valid',
+    ]);
+  });
+
+  it('fails a draft of findings with a paragraph from another section', async () => {
+    const findings = 'FY2026 findings';
+    const broken = { paragraphs: narrative.paragraphs.slice(1) };
+    expect(failingHard(await scoreRecorded('narrate-compliance-report', findings, broken))).toEqual(
+      ['narrative-valid'],
+    );
+  });
+});
+
 describe('recorded fixtures', () => {
   it('miss when the output schema, the prompt or the model changes', async () => {
     const { suite, golden } = goldenCase('summarize-declaration', 'household amendment');
@@ -210,5 +267,69 @@ describe('recorded fixtures', () => {
       ReplayFixtureMissingError,
     );
     await expect(runTask(suite.task, golden.input, replay, MODEL)).resolves.toBeDefined();
+  });
+});
+
+describe('a streamed answer (ADR-019)', () => {
+  /** Records `text`, cut into small chunks, as the stream for a golden case; replays and scores it. */
+  async function scoreStreamed(caseName: string, text: string): Promise<Score[]> {
+    const { suite, golden } = goldenCase('answer-declarant-question', caseName);
+    const dir = await mkdtemp(join(fixturesDir, 'stream-'));
+    const inner = new ScriptedStreamProvider('external');
+    inner.scripts = [{ chunks: text.match(/[\s\S]{1,9}/g) ?? [], end: { status: 'completed' } }];
+    await runCase(
+      suite.task,
+      golden.input,
+      new ReplayAdapter({ fixturesDir: dir, mode: 'record', inner }),
+      MODEL,
+    );
+    const { output, violations } = await runCase(
+      suite.task,
+      golden.input,
+      new ReplayAdapter({ fixturesDir: dir, mode: 'replay' }),
+      MODEL,
+    );
+    return suite.score(golden.input, output, golden.expected, violations);
+  }
+
+  it('passes a sound answer and fails one that cites, values and judges what it should not', async () => {
+    const sound =
+      '<block>Yes. Joint assets should be declared, in Kenya or outside it. <cite ids="act-sch1-note-13"/></block>';
+    expect(failingHard(await scoreStreamed('matatu co-owned with a brother (en)', sound))).toEqual(
+      [],
+    );
+
+    const broken =
+      '<block>Yes, it is worth about 850,000 and you are fully compliant. <cite ids="act-s99"/></block>';
+    expect(failingHard(await scoreStreamed('matatu co-owned with a brother (en)', broken))).toEqual(
+      ['no-invented-numbers', 'no-judgement', 'passages-resolve'],
+    );
+  });
+
+  it('fails an answer to a question the corpus cannot answer', async () => {
+    const answered = '<block>Rent is taxed as income. <cite ids="act-sch1-para-8"/></block>';
+    expect(failingHard(await scoreStreamed('tax rate on rent (en)', answered))).toEqual([
+      'decline-cases-decline',
+    ]);
+    expect(failingHard(await scoreStreamed('tax rate on rent (en)', '<declined/>'))).toEqual([]);
+  });
+
+  it('declines an answer holding a token the input never had, as the gateway does', async () => {
+    const { suite, golden } = goldenCase(
+      'answer-declarant-question',
+      'matatu co-owned with a brother (en)',
+    );
+    const provider = new ScriptedStreamProvider('external');
+    provider.scripts = [
+      {
+        chunks: ['<block>Declare [[PERSON_9]]’s share. <cite ids="act-sch1-note-13"/></block>'],
+        end: { status: 'completed' },
+      },
+    ];
+
+    expect(await runCase(suite.task, golden.input, provider, MODEL)).toEqual({
+      output: { declined: true, blocks: [], followUps: [] },
+      violations: [{ kind: 'unknown-token' }],
+    });
   });
 });

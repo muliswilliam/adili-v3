@@ -23,6 +23,7 @@ const job: Job = {
   output: null,
   outputHash: 'output',
   outputPurgedAt: null,
+  violations: null,
   tokensIn: 0,
   tokensOut: 0,
   costMicros: 0,

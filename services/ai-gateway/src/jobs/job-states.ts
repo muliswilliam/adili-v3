@@ -26,6 +26,7 @@ export function isTerminal(status: JobStatus): status is TerminalStatus {
  * - `provider`: the provider call failed after retries, or cannot succeed; also any other
  *   failure that ends a job without a result (the contract has no internal reason yet).
  * - `timeout`: the provider kept timing out.
+ * - `cancelled`: the caller went away before a streamed job ended (ADR-019).
  * - `policy`, `budget`, `provider-unavailable`: set by the policy layer.
  */
 export const JOB_REASONS = [
@@ -36,6 +37,7 @@ export const JOB_REASONS = [
   'provider',
   'provider-unavailable',
   'timeout',
+  'cancelled',
 ] as const;
 export type JobReason = (typeof JOB_REASONS)[number];
 export const jobReasonSchema = z

@@ -26,7 +26,7 @@ import {
 } from '../jobs/job-states.js';
 import { DATA_CLASSES } from '../jobs/task-request.js';
 import { PROVIDER_CLASSES } from '../providers/port.js';
-import { TASK_NAMES } from '../tasks/task.js';
+import { type OutputViolation, TASK_NAMES } from '../tasks/task.js';
 
 /** `status in ('a', 'b')` for a partial index predicate; the values are constants, not input. */
 export function statusIn(column: AnyColumn, statuses: readonly JobStatus[]): SQL {
@@ -50,6 +50,19 @@ export const CACHE_KEY = [
   'model',
   'inputHash',
 ] as const;
+
+/**
+ * Whether a job answers an equal request, in the cache lookups and the cache index alike: live or
+ * succeeded, its output not purged, and not a decline that replaced an output failing its checks
+ * (a streamed answer, ADR-019), since another call may well pass them.
+ */
+export function servesCache(table: {
+  status: AnyColumn;
+  outputPurgedAt: AnyColumn;
+  violations: AnyColumn;
+}): SQL {
+  return sql`${statusIn(table.status, CACHEABLE_STATUSES)} and ${table.outputPurgedAt} is null and ${table.violations} is null`;
+}
 
 /**
  * One row per task job (spec 07c). Holds hashes, counts and the validated output, never the
@@ -87,6 +100,11 @@ export const jobs = pgTable(
     outputHash: text(),
     /** Set when the retention window cleared `output`; the job then no longer serves the cache. */
     outputPurgedAt: timestamp({ withTimezone: true }),
+    /**
+     * Why an output that fit the schema failed its task's own checks (reason `validation`):
+     * kinds and where, never output text or figures. Not part of the contract's `Job`.
+     */
+    violations: jsonb().$type<OutputViolation[]>(),
     tokensIn: integer().notNull().default(0),
     tokensOut: integer().notNull().default(0),
     costMicros: integer().notNull().default(0),
@@ -108,13 +126,11 @@ export const jobs = pgTable(
       table.caller,
       table.idempotencyKey,
     ),
-    // The result cache: at most one live or succeeded job per key. Failed and blocked jobs drop
-    // out, so a repeat call tries again.
+    // The result cache: at most one live or succeeded job per key. Failed and blocked jobs, and
+    // declines recorded with violations, drop out, so a repeat call tries again.
     uniqueIndex('jobs_cache_idx')
       .on(table[CACHE_KEY[0]], ...CACHE_KEY.slice(1).map((column) => table[column]))
-      .where(
-        sql`${statusIn(table.status, CACHEABLE_STATUSES)} and ${table.outputPurgedAt} is null`,
-      ),
+      .where(servesCache(table)),
     // The janitor's scans: live jobs past the grace period, and outputs past retention.
     index('jobs_live_idx').on(table.id).where(statusIn(table.status, LIVE_STATUSES)),
     index('jobs_output_retention_idx')
@@ -288,6 +304,8 @@ export const auditRecords = pgTable(
     latencyMs: integer(),
     outcome: text({ enum: JOB_STATUSES }),
     reason: text({ enum: JOB_REASONS }),
+    /** The job's `violations`, when its output failed its task's own checks. */
+    violations: jsonb().$type<OutputViolation[]>(),
     // A change (`ai.gate-policy.changed`, `ai.budget.changed`, `ai.route.changed`).
     approvalRef: text(),
     /** What changed: the values before and after. */

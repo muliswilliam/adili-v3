@@ -18,8 +18,10 @@ import {
  * officer.
  *
  * Every number sits at a stable dot path (`national.initial.rate`,
- * `byCommission.psc.final.declared`): what spec 09b's narrative paragraphs cite in
- * `aggregateRefs` and its pattern candidates in `aggregateKeys` (see `aggregateKeys`).
+ * `byCommission.psc.final.declared`; see `aggregatePaths`). Spec 09b's narrative paragraphs
+ * (`aggregateRefs`) and pattern candidates (`aggregateKeys`) do not cite these paths: they cite
+ * aggregate keys in the ai-gateway scheme (`national.<name>`, `commission.<code>.<name>`,
+ * prefixed `fy<fy>.`), built from these aggregates by #326 and #334.
  */
 
 /** A Form M section's counts with its declared rate (declared / expected; null for none). */
@@ -168,21 +170,22 @@ export function buildAggregates(input: {
 
 /**
  * Every number's dot path in `aggregates`, sorted (`national.initial.rate`,
- * `byCommission.psc.final.declared`...): the keys narrative paragraphs and pattern candidates
- * cite. A rate that is null (nothing expected) is still a key.
+ * `byCommission.psc.final.declared`...). A rate that is null (nothing expected) is still a path.
+ * These are not aggregate keys, which narrative paragraphs and pattern candidates cite: those
+ * are in the ai-gateway scheme, and building them is #326 and #334's work.
  */
-export function aggregateKeys(aggregates: NationalAggregates): string[] {
-  const keys: string[] = [];
+export function aggregatePaths(aggregates: NationalAggregates): string[] {
+  const paths: string[] = [];
   const visit = (value: unknown, path: string): void => {
     if (typeof value === 'number' || (value === null && path.endsWith('.rate'))) {
-      keys.push(path);
+      paths.push(path);
     } else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       for (const [key, child] of Object.entries(value)) visit(child, path ? `${path}.${key}` : key);
     }
   };
   visit({ reporting: aggregates.reporting, national: aggregates.national }, '');
   visit({ byCommission: aggregates.byCommission }, '');
-  return keys.sort();
+  return paths.sort();
 }
 
 interface Counts {
