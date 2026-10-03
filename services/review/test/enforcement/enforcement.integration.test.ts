@@ -776,7 +776,7 @@ describe('enforcement ladder', () => {
     const declarantJames: Caller = {
       sub: 'declarant-james',
       roles: ['declarant'],
-      personId: version.personId ?? undefined,
+      personId: version.personId,
     };
     const notices = await api.get('/v1/me/notices', declarantJames);
     expect(notices.statusCode, notices.body).toBe(200);
