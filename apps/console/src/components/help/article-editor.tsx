@@ -540,7 +540,7 @@ function BodyField({
         <div
           lang={language}
           aria-live={readOnly ? undefined : 'polite'}
-          className="min-h-[300px] rounded-[10px] bg-[#fdfdfc] px-[18px] py-4 text-[15px] leading-[1.65] shadow-[0_0_0_1px_var(--color-border)]"
+          className="min-h-[300px] rounded-lg border bg-card px-[18px] py-4 text-[15px] leading-[1.65]"
         >
           {readOnly && language === 'sw' && !draft.bodySw ? (
             <p className="text-muted-foreground">{m.noKiswahiliRead}</p>
@@ -646,7 +646,7 @@ function PublishSwitch({
       />
       <span
         aria-hidden="true"
-        className="relative mt-px h-6 w-10 flex-none rounded-full bg-input transition-colors peer-checked:bg-success peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:rounded-full after:bg-white after:shadow-[0_1px_2px_rgba(0,0,0,0.2)] after:transition-transform peer-checked:after:translate-x-4"
+        className="relative mt-px h-6 w-10 flex-none rounded-full bg-input transition-colors peer-checked:bg-success peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-solid peer-focus-visible:outline-ring after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:rounded-full after:bg-card after:shadow-control after:transition-transform peer-checked:after:translate-x-4"
       />
       <span>
         <span className="text-[14.5px] font-medium">

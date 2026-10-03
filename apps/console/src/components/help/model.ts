@@ -1,3 +1,4 @@
+import type { Assert, Same } from '@adili/ui';
 import { z } from 'zod';
 
 import type {
@@ -159,7 +160,11 @@ export function problemFieldErrors(problem: HelpProblem): ArticleErrors {
   for (const { path, message } of problem.errors ?? []) {
     const field = ARTICLE_FIELDS.find((each) => path === each || path.startsWith(`${each}.`));
     if (!field || errors[field]) continue;
-    errors[field] = field === 'effectiveTo' ? m.errorToBeforeFrom : m.refused(field, message);
+    // The service's own wording for an end on or before the start (help/representation.ts).
+    errors[field] =
+      field === 'effectiveTo' && message === 'must be after effectiveFrom'
+        ? m.errorToBeforeFrom
+        : m.refused(field, message);
   }
   return errors;
 }
@@ -215,6 +220,10 @@ export function corpusVersion(passages: readonly Pick<CorpusPassage, 'version'>[
 }
 
 export const CORPUS_SOURCES = ['act', 'regs', 'am'] as const;
+
+export type ContractCorpusSources = Assert<
+  Same<(typeof CORPUS_SOURCES)[number], CorpusPassage['source']>
+>;
 
 /** The corpus page's URL state. */
 export const corpusSearch = z.object({

@@ -227,7 +227,7 @@ function ThemesTable({
         ))}
       </TableBody>
       <tfoot>
-        <TableRow className="border-t bg-[#fcfcfb] font-semibold">
+        <TableRow className="border-t bg-muted/40 font-semibold">
           <TableHead scope="row" className="font-semibold text-foreground">
             {m.allThemes}
           </TableHead>
@@ -277,10 +277,7 @@ function ShareBar({
       className="h-2 min-w-20 overflow-hidden rounded-full bg-muted"
     >
       <i
-        className={cn(
-          'block h-full rounded-full',
-          warn ? 'bg-[#d98a1c]' : 'bg-secondary-foreground',
-        )}
+        className={cn('block h-full rounded-full', warn ? 'bg-warning' : 'bg-secondary-foreground')}
         style={{ width: `${String(Math.round(Math.min(1, width) * 100))}%` }}
       />
     </div>

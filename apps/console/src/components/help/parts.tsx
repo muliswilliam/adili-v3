@@ -100,7 +100,7 @@ export function ArticleStatusBadge({ status }: { status: ArticleStatus }) {
 /** "EN SW", the SW struck through when there is no Kiswahili text. */
 export function Languages({ kiswahili }: { kiswahili: boolean }) {
   const chip =
-    'inline-flex h-[22px] items-center rounded-[6px] px-[7px] text-[11.5px] font-semibold tracking-[0.02em]';
+    'inline-flex h-[22px] items-center rounded-sm px-[7px] text-[11.5px] font-semibold tracking-[0.02em]';
   return (
     <span
       role="img"
@@ -114,7 +114,7 @@ export function Languages({ kiswahili }: { kiswahili: boolean }) {
           chip,
           kiswahili
             ? 'bg-muted text-secondary-foreground'
-            : 'text-muted-foreground line-through shadow-[inset_0_0_0_1px_var(--color-border)]',
+            : 'border text-muted-foreground line-through',
         )}
       >
         SW
@@ -141,9 +141,9 @@ export function CitationTag({ citation, help = false }: { citation: string; help
   return (
     <span
       className={cn(
-        'inline-flex h-6 items-center gap-[5px] rounded-[7px] px-2 text-[12.5px] font-medium whitespace-nowrap',
+        'inline-flex h-6 items-center gap-[5px] rounded-chip px-2 text-[12.5px] font-medium whitespace-nowrap',
         help
-          ? 'bg-brand-subtle text-brand-subtle-foreground shadow-[inset_0_0_0_1px_var(--color-brand-border,transparent)]'
+          ? 'bg-brand-subtle text-brand-subtle-foreground'
           : 'bg-muted text-secondary-foreground',
       )}
     >

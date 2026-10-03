@@ -1,9 +1,8 @@
 import type { ComponentProps, ReactNode } from 'react';
 
 /**
- * What the help components use of the router, for `vi.mock('@tanstack/react-router', ...)` in
- * their tests: links as plain anchors (path params and search filled in), a blocker whose
- * state the test sets, and `invalidate`.
+ * The router's `Link` as a plain anchor (path params and search filled in), for the help
+ * components' tests to put in their `vi.mock('@tanstack/react-router', ...)`.
  */
 export function TestLink({
   to,

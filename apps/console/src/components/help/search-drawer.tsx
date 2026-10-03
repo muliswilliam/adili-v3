@@ -235,7 +235,7 @@ function Highlighted({ text, q }: { text: string; q: string }) {
   const parts = text.split(new RegExp(`(${words.join('|')})`, 'ig'));
   return parts.map((part, index) =>
     index % 2 === 1 ? (
-      <mark key={index} className="rounded-[3px] bg-[#fff1c2] px-px text-inherit">
+      <mark key={index} className="rounded-sm bg-highlight px-px text-inherit">
         {part}
       </mark>
     ) : (

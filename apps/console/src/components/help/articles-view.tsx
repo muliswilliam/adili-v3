@@ -37,7 +37,7 @@ import {
 } from './model';
 import { ArticleStatusBadge, HelpHeader, inEffect, Languages } from './parts';
 import type { HelpWorkspace } from './scope';
-import { TestSearchButton } from './test-search';
+import { HelpSearchButton } from './help-search-button';
 
 export interface ArticlesViewProps {
   workspace: HelpWorkspace;
@@ -79,7 +79,7 @@ export function ArticlesView({
         current="articles"
         actions={
           <>
-            <TestSearchButton scope={workspace.scope} />
+            <HelpSearchButton scope={workspace.scope} />
             {canWrite ? (
               <Button asChild>
                 <Link to="/help/articles/new">

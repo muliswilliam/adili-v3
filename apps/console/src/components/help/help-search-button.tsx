@@ -8,7 +8,7 @@ import { useHelpSession } from './scope';
 import { HelpSearchDrawer } from './search-drawer';
 
 /** "Test help search" in a help page's header, with the drawer it opens. */
-export function TestSearchButton({ scope }: { scope: HelpScope }) {
+export function HelpSearchButton({ scope }: { scope: HelpScope }) {
   const [open, setOpen] = useState(false);
   const session = useHelpSession();
   return (

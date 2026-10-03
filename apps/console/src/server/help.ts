@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { BODY_MAX, TITLE_MAX } from '../components/help/model';
 import { withViewerClient } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import type {
@@ -42,9 +43,9 @@ const isoDate = z.iso.date();
 
 /** Bounds as the contract's `HelpArticleInput` has them; the service validates the rest. */
 export const helpArticleInput = z.object({
-  title: z.string().max(200),
-  bodyEn: z.string().max(20_000),
-  bodySw: z.string().max(20_000).nullable(),
+  title: z.string().max(TITLE_MAX),
+  bodyEn: z.string().max(BODY_MAX),
+  bodySw: z.string().max(BODY_MAX).nullable(),
   tags: z.array(z.enum(HELP_TAGS)).max(20),
   effectiveFrom: isoDate,
   effectiveTo: isoDate.nullable(),

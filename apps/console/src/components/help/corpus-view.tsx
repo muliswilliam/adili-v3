@@ -66,7 +66,7 @@ import {
 } from './model';
 import { CitationTag, HelpHeader, inEffect } from './parts';
 import type { HelpWorkspace } from './scope';
-import { TestSearchButton } from './test-search';
+import { HelpSearchButton } from './help-search-button';
 
 export type LoadPassage = (passageId: string) => Promise<HelpResult<CorpusPassageText>>;
 export type ImportCorpus = () => Promise<HelpResult<CorpusImportResult>>;
@@ -120,7 +120,7 @@ export function CorpusView({
         current="corpus"
         actions={
           <>
-            <TestSearchButton scope={workspace.scope} />
+            <HelpSearchButton scope={workspace.scope} />
             <Button
               variant="secondary"
               aria-haspopup="dialog"
@@ -486,17 +486,14 @@ function PassageText({
     <div>
       <p className="mb-1.5 text-sm font-medium">{label}</p>
       {loading ? (
-        <div
-          aria-busy="true"
-          className="grid gap-2 rounded-[10px] p-4 shadow-[0_0_0_1px_var(--color-border)]"
-        >
+        <div aria-busy="true" className="grid gap-2 rounded-lg border p-4">
           <Skeleton className="w-full" />
           <Skeleton className="w-4/5" />
         </div>
       ) : text ? (
         <p
           lang={lang}
-          className="rounded-[10px] bg-[#fdfdfc] px-4 py-3.5 text-[14.5px] leading-[1.65] whitespace-pre-wrap shadow-[0_0_0_1px_var(--color-border)]"
+          className="rounded-lg border bg-card px-4 py-3.5 text-[14.5px] leading-[1.65] whitespace-pre-wrap"
         >
           {text}
         </p>
