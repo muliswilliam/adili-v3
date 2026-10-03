@@ -12,6 +12,7 @@ import type {
 } from '../../server/declarations/client';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
+import { problemStatus } from '../../server/service-call';
 import { goToSignIn } from '../sign-in-redirect';
 import { messages as m } from './messages';
 import { ObligationDrawer } from './obligation-drawer';
@@ -47,9 +48,6 @@ export interface ObligationsViewProps {
   /** At the right of the page head, e.g. the way to the Commission's policy. */
   actions?: ReactNode;
 }
-
-const problemStatus = (result: DeclarationsResult<unknown> | null) =>
-  result && !result.ok && result.error.kind === 'problem' ? result.error.problem.status : null;
 
 /**
  * The Obligations workspace of one Commission (spec 04 FE-3): the current cycle, summary tiles,

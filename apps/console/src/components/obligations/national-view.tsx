@@ -16,7 +16,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  Tooltip,
   focusRing,
 } from '@adili/ui';
 import {
@@ -36,8 +35,10 @@ import type {
 } from '../../server/declarations/client';
 import { CursorPager } from '../cursor-pager';
 import { formatNumber } from '../format';
+import { InfoTip } from '../info-tip';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
+import { problemStatus } from '../../server/service-call';
 import { messages as m } from './messages';
 import {
   hasNationalObligations,
@@ -83,9 +84,6 @@ const COLUMNS: Column[] = [
   },
   { sort: 'lastImport', label: m.columnLastImport, numeric: false },
 ];
-
-const problemStatus = (result: DeclarationsResult<unknown> | null) =>
-  result && !result.ok && result.error.kind === 'problem' ? result.error.problem.status : null;
 
 /**
  * EACC's national obligations summary (spec 04 FE-5): per Commission the cycle's upcoming, due
@@ -393,18 +391,7 @@ function SortHead({
     >
       <span className={cn('inline-flex items-center gap-1', column.numeric && 'flex-row-reverse')}>
         {column.hint ? (
-          <Tooltip content={column.hint}>
-            <button
-              type="button"
-              aria-label={m.columnNotOnboardedHintLabel}
-              className={cn(
-                'inline-grid size-5 place-items-center rounded-full hover:text-foreground',
-                focusRing,
-              )}
-            >
-              <Icon icon={InformationCircleIcon} className="size-3.5" />
-            </button>
-          </Tooltip>
+          <InfoTip content={column.hint} label={m.columnNotOnboardedHintLabel} />
         ) : null}
         <button
           type="button"

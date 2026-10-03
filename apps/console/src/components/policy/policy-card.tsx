@@ -8,15 +8,9 @@ import {
   formatDateTime,
   formatMonthDay,
   Icon,
-  Tooltip,
   useToast,
-  focusRing,
 } from '@adili/ui';
-import {
-  InformationCircleIcon,
-  PencilEdit02Icon,
-  Settings01Icon,
-} from '@hugeicons/core-free-icons';
+import { PencilEdit02Icon, Settings01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
@@ -25,6 +19,7 @@ import type { TenantPolicyHistory, TenantPolicyVersion } from '../../server/dire
 import type { ServiceResult } from '../../server/service-call';
 import { AiStatusValue } from '../ai-policy/ai-status';
 import { messages as aiMessages } from '../ai-policy/messages';
+import { InfoTip } from '../info-tip';
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { PolicyDialogContent, type SavePolicyVersion } from './policy-dialog';
@@ -131,18 +126,11 @@ export function PolicyCard({
             <time dateTime={current.obligationsStartDate}>
               {formatDate(current.obligationsStartDate)}
             </time>
-            <Tooltip content={m.startDateTip}>
-              <button
-                type="button"
-                aria-label={m.startDateTipLabel}
-                className={cn(
-                  'inline-grid size-5 place-items-center rounded-full text-muted-foreground hover:text-foreground',
-                  focusRing,
-                )}
-              >
-                <Icon icon={InformationCircleIcon} className="size-3.5" />
-              </button>
-            </Tooltip>
+            <InfoTip
+              content={m.startDateTip}
+              label={m.startDateTipLabel}
+              className="text-muted-foreground"
+            />
           </span>
         </PolicyRow>
         {aiStatus ? (
