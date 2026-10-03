@@ -344,6 +344,19 @@ describe('ICMS referrals', () => {
         expect.objectContaining({ outcome: 'unavailable', reason: 'paused' }),
       ]);
     });
+
+    it('a paused ICMS still answers a stored registration (200) without calling ICMS', async () => {
+      const first = await submit();
+      await t.app.get(PauseFlags).pause('icms');
+
+      const replay = await submit();
+
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect(icms.calls).toBe(1);
+      expect(await calls()).toHaveLength(1);
+      expect(await events(ICMS_REFERRAL_UNACKNOWLEDGED)).toEqual([]);
+    });
   });
 
   describe('S13 legal basis and caller', () => {

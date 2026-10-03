@@ -414,6 +414,43 @@ describe('payroll instructions', () => {
         }),
       ]);
     });
+
+    it('a paused payroll still answers a stored acknowledgement (200) without calling payroll', async () => {
+      const first = await submit();
+      await t.app.get(PauseFlags).pause('payroll');
+
+      const replay = await submit();
+
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect(payroll.calls).toBe(1);
+      expect(await calls()).toHaveLength(1);
+      expect(await events(PAYROLL_INSTRUCTION_UNACKNOWLEDGED)).toEqual([]);
+    });
+
+    it('a paused payroll answers a stored pending acknowledgement (200) without calling payroll', async () => {
+      payroll.behaviour = { kind: 'pending' };
+      const first = await submit();
+      expect(first.json()).toMatchObject({ status: 'pending' });
+      await t.app.get(PauseFlags).pause('payroll');
+
+      const replay = await submit();
+
+      expect(replay.statusCode).toBe(200);
+      expect(replay.json()).toEqual(first.json());
+      expect(payroll.calls).toBe(1);
+      // Asking again was refused by the pause: the attempt is audited, nothing new is stored.
+      expect((await calls()).map((call) => [call.outcome, call.reason])).toEqual([
+        ['answered', null],
+        ['unavailable', 'paused'],
+      ]);
+      expect(await events(PAYROLL_INSTRUCTION_UNACKNOWLEDGED)).toEqual([
+        expect.objectContaining({
+          data: expect.objectContaining({ reason: 'paused' }) as unknown,
+        }),
+      ]);
+      expect(await stored()).toEqual([expect.objectContaining({ status: 'pending' })]);
+    });
   });
 
   describe('S15 legal basis and caller', () => {
