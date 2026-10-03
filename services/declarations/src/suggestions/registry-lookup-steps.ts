@@ -135,16 +135,19 @@ export class RegistryLookupSteps {
   }
 
   /**
-   * What the declarant has decided on from this registry for the person: their accepted and
-   * dismissed suggestions, for the re-suggestion rule (`repeatsDecided`).
+   * What the declarant has decided on from this registry for the person, for the re-suggestion
+   * rule (`repeatsDecided`): their dismissed suggestions, and their accepted ones whose item is
+   * still in the draft. A suggestion whose item the declarant has since deleted is offered again.
    */
   private async decided(attempt: LookupAttempt): Promise<Comparable[]> {
-    const rows = await withPerson(this.db, personContext(attempt), (tx) =>
-      tx
+    const { rows, kept } = await withPerson(this.db, personContext(attempt), async (tx) => {
+      const rows = await tx
         .select({
           id: suggestions.id,
           itemType: suggestions.itemType,
           sectionKey: suggestions.sectionKey,
+          status: suggestions.status,
+          acceptedItemId: suggestions.acceptedItemId,
           ciphertext: suggestions.ciphertext,
           envelope: suggestions.envelope,
         })
@@ -157,10 +160,43 @@ export class RegistryLookupSteps {
             eq(suggestionSets.source, attempt.system),
             inArray(suggestions.status, ['accepted', 'dismissed']),
           ),
+        );
+      const acceptedIn = [
+        ...new Set(rows.filter((row) => row.status === 'accepted').map((row) => row.sectionKey)),
+      ];
+      const sections =
+        acceptedIn.length === 0
+          ? []
+          : await tx
+              .select()
+              .from(declarationSections)
+              .where(
+                and(
+                  eq(declarationSections.declarationId, attempt.declarationId),
+                  inArray(declarationSections.sectionKey, acceptedIn),
+                ),
+              );
+      return { rows, kept: sections };
+    });
+    const itemIdsBySection = new Map(
+      await Promise.all(
+        kept.map(
+          async (section) =>
+            [
+              section.sectionKey,
+              itemIds(await this.sections.open(attempt.tenant, section)),
+            ] as const,
         ),
+      ),
+    );
+    const standing = rows.filter(
+      (row) =>
+        row.status === 'dismissed' ||
+        (row.acceptedItemId !== null &&
+          itemIdsBySection.get(row.sectionKey)?.has(row.acceptedItemId) === true),
     );
     return Promise.all(
-      rows.map(async (row) => ({
+      standing.map(async (row) => ({
         itemType: row.itemType,
         sectionKey: row.sectionKey,
         matchKeys: (await this.cipher.open(attempt.tenant, attempt.declarationId, row.id, row))
@@ -330,4 +366,20 @@ async function isPending(tx: Transaction, attempt: LookupAttempt): Promise<boole
       ),
     );
   return row?.status === 'pending';
+}
+
+/**
+ * The ids of every item a section holds, at any depth (a statement's income, assets and
+ * liabilities, paragraph 9's directorships, Household's spouses): where an accepted suggestion's
+ * item is looked for.
+ */
+function itemIds(contents: unknown, found = new Set<string>()): Set<string> {
+  if (Array.isArray(contents)) {
+    for (const each of contents) itemIds(each, found);
+  } else if (typeof contents === 'object' && contents !== null) {
+    const record = contents as Record<string, unknown>;
+    if (typeof record.id === 'string') found.add(record.id);
+    for (const value of Object.values(record)) itemIds(value, found);
+  }
+  return found;
 }

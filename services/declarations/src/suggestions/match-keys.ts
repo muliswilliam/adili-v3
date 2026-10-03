@@ -124,7 +124,8 @@ export interface Comparable {
 
 /**
  * Whether a registry checked again is suggesting what the declarant has already decided on: an
- * earlier suggestion of the same registry and person, accepted or dismissed, of the same item type
+ * earlier suggestion of the same registry and person, dismissed, or accepted with its item still
+ * declared (the caller leaves out those whose item was deleted), of the same item type
  * and sharing a match key (the same car, parcel, company or PIN). A suggestion with no
  * identifier (KRA's income hint) repeats a decided one of its type in the same section. Such a
  * suggestion is stored `superseded` rather than `new`: the declarant's decision stands, and the

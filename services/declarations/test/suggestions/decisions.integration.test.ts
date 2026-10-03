@@ -793,4 +793,26 @@ describe('dismissing, and checking again (S5)', () => {
       count: 1,
     });
   });
+
+  it('offers again, on a re-check, what the declarant accepted and then deleted', async () => {
+    const draft = await givenDraft();
+    api.gateway.given('ntsa', OFFICER_ID, ntsa.found, { ...ntsa.found, resultId: randomUUID() });
+    const [first] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(first, 'vehicle');
+    const dmax = suggestionOf(first, 'vehicle', 1);
+    await accepted(draft.id, fielder);
+    await dismiss(draft.id, dmax.id);
+    const officer = await section(draft.id, 'statement:officer');
+    await save(draft.id, 'statement:officer', { ...officer.contents, assetsNil: true, assets: [] });
+
+    const sets = await checked(draft.id, achieng, 'officer', ['ntsa']);
+
+    const later = sets.find((set) => set.id !== first?.id);
+    expect(later?.suggestions.map((each) => [each.fields.registration, each.status])).toEqual([
+      ['KCA 123A', 'new'],
+      ['KDA 456X', 'superseded'],
+    ]);
+    // The earlier card still says what the declarant did with it.
+    expect(sets.find((set) => set.id === first?.id)?.suggestions[0]?.status).toBe('accepted');
+  });
 });
