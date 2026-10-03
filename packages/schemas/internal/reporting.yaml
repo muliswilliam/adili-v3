@@ -1111,6 +1111,7 @@ paths:
       tags:
         - open-data
       summary: Publish a preview release (EACC supervisor)
+      description: "eacc-supervisor (tenant `eacc`); anyone else, an eacc-analyst included, 403. Issues the release's manifest (year, kind, version, build time, the NCR reference it reconciles with, the publisher, the suppression threshold, and each table's rows, hidden cells and the SHA-256 of its JSON and CSV files, with the release JSON's) through documents as a Public verifiable document (`open-data-manifest`), then marks the release `published` by the caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no figures). An annual release publishes itself the same way when its NCR is approved, `publishedBy` the approver. The release was reconciled with the NCR when it was built. A year has one published annual release at a time: an annual preview is published only once the year's published one is withdrawn (409 `annual-release-published`)."
       operationId: publishOpenDataRelease
       x-draft: true
       responses:
@@ -1120,10 +1121,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
+        '400':
+          description: The release id is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Not in preview, or reconciliation failed
+          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused the manifest (`manifest-refused`); nothing is published
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents (`documents-unavailable`) or object storage (`storage-unavailable`) could not be reached; nothing is published
           content:
             application/problem+json:
               schema:
@@ -1135,6 +1156,7 @@ paths:
       tags:
         - open-data
       summary: Withdraw a published release with a public reason (EACC supervisor)
+      description: eacc-supervisor (tenant `eacc`); anyone else 403. Revokes the release's manifest through documents (reason `withdrawn`), so its verify page shows it revoked, then marks the release `withdrawn` with the reason (trimmed), by the caller; it stays in the history and its files are still served, with the reason. A corrected release is a new build (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind, version; not the reason).
       operationId: withdrawOpenDataRelease
       x-draft: true
       requestBody:
@@ -1145,11 +1167,13 @@ paths:
               type: object
               required:
                 - reason
+              additionalProperties: false
               properties:
                 reason:
                   type: string
                   minLength: 1
                   maxLength: 1000
+                  description: Shown with the withdrawn release in the public API
       responses:
         '200':
           description: Withdrawn
@@ -1157,10 +1181,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
+        '400':
+          description: Body failed validation, or the release id is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Not published
+          description: The release is a preview or withdrawn already (`release-not-published`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused to revoke the manifest (`manifest-revocation-refused`); nothing is withdrawn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents could not be reached (`documents-unavailable`); nothing is withdrawn
           content:
             application/problem+json:
               schema:
