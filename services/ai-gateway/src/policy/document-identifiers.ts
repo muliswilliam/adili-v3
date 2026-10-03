@@ -9,10 +9,13 @@ import { COUNTIES } from '@adili/forms';
  * word, an organisation, whose other capitalised words are names too. Labelled member numbers and
  * line addresses are found as well.
  *
- * One rule, not a grammar: after a label, every capitalised word to the end of the line, or to the
- * next label, is a name, except numbers, tokens, punctuation, list numbering, offices, titles and
- * a few fillers. After a title, salutation or formula, the run of capitalised words is. The text
- * is read a line and a token at a time, so no pattern backtracks over untrusted input.
+ * One rule, not a grammar: after a label, every capitalised word to the end of the line is a name,
+ * except offices, titles and a few fillers (numbers, tokens and punctuation are skipped). A span
+ * ends only at a word positively known to end it: another label, a field word ("Make", "Salary",
+ * "ID"), or a currency; never at an unknown word, a colon or trailing data. Under a stand-alone
+ * label, every listed line is read the same way. After a title, salutation or formula, the run of
+ * capitalised words is a name. The text is read a line and a token at a time, so no pattern
+ * backtracks over untrusted input.
  *
  * When in doubt a word is a name: over-matching only hides a word from the model, since every
  * token is restored, while a missed name leaves the platform. What this cannot see (a name with
@@ -145,7 +148,9 @@ function tokenAt(tokens: readonly Token[], offset: number): number {
 }
 
 /** Currencies, in any case: KES 12,500,000 is no one's name, and ends a name's span. */
-const CURRENCIES = ['kes', 'ksh', 'kshs', 'usd', 'eur', 'gbp', 'tsh', 'ush'];
+const CURRENCIES: ReadonlySet<string> = new Set([
+  ...['kes', 'ksh', 'kshs', 'sh', 'shs', 'usd', 'eur', 'gbp', 'tsh', 'tzs', 'ush', 'ugx'],
+]);
 
 /** Words that join two parties, in any case: "and", "or", Swahili "na", "aka", "alias". */
 const JOINER_WORDS = new Set(['and', 'or', 'na', 'pia', 'pamoja', 'aka', 'alias']);
@@ -183,6 +188,11 @@ const ROLE_WORDS = new Set([
   ...['officer', 'director', 'accountant', 'clerk', 'registrar', 'advocate', 'trustee'],
   ...['katibu', 'mwenyekiti', 'mhazini', 'mweka'],
 ]);
+/** An office before a colon introduces who holds it ("Chairman: John Kamau"), as a label. */
+const OFFICE_LABEL = new RegExp(
+  `${EDGE}(?i:${[...ROLE_WORDS].join('|')})${AFTER_WORD}(?=[ \\t]*:)`,
+  'gu',
+);
 /** Words that qualify an office rather than name anyone ("Branch Manager", "Senior Officer"). */
 const ROLE_QUALIFIERS = new Set([
   ...['branch', 'senior', 'deputy', 'assistant', 'chief', 'general', 'regional', 'area'],
@@ -197,9 +207,9 @@ const NOT_NAMES = new Set([
   ...['title', 'deed', 'certificate', 'lease', 'republic', 'kenya', 'page', 'register'],
 ]);
 /**
- * Words that label a field of their own on a form ("Make:", "Station:", "Balance:"): before a
- * colon they end a name's span; any other capitalised word before a colon is part of the name
- * ("John Kamau: Chairman").
+ * Words that label a field of their own on a form ("Make:", "Station:", "Salary"): one ends a
+ * name's span, with or without a colon; any other capitalised word is part of the name, before a
+ * colon too ("John Kamau: Chairman").
  */
 const FIELD_WORDS = new Set([
   ...['make', 'model', 'colour', 'color', 'year', 'type', 'fuel', 'engine', 'body', 'chassis'],
@@ -208,6 +218,8 @@ const FIELD_WORDS = new Set([
   ...['status', 'tel', 'telephone', 'phone', 'mobile', 'email', 'address', 'designation'],
   ...['department', 'employer', 'institution', 'account', 'loan', 'ref', 'reference', 'pin'],
   ...['id', 'signature', 'sahihi', 'tarehe', 'kiasi', 'salio', 'cheo', 'idara', 'simu'],
+  ...['gender', 'nationality', 'occupation', 'grade', 'salary', 'pay', 'shares', 'value'],
+  ...['purpose', 'parcel', 'village', 'ward', 'plot'],
 ]);
 /**
  * Words that start a field label of two words or more ("Account Type:", "Basic Salary:", "Date of
@@ -249,9 +261,6 @@ const PLACES = new Set([
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
 ]);
 
-/** Currencies an amount is written in: an amount ends a name's span. */
-const CURRENCY_WORDS = new Set([...CURRENCIES]);
-
 const lower = (word: string) => word.toLowerCase();
 const isOrganisationWord = (word: string | undefined) =>
   word !== undefined && ORGANISATION_WORDS.has(lower(word));
@@ -281,57 +290,26 @@ function colonAfter(tokens: readonly Token[], index: number): number {
   return -1;
 }
 
-/** Whether a number at `index` numbers a list ("1)", "2."), not an amount. */
-function isListMarker(tokens: readonly Token[], index: number): boolean {
-  const number = tokens[index];
-  const next = tokens[index + 1];
-  return (
-    number?.kind === 'number' &&
-    number.text.length <= 2 &&
-    next?.kind === 'other' &&
-    (next.text === '.' || next.text === ')') &&
-    (tokens[index + 2] === undefined || tokens[index + 2]?.kind === 'space')
-  );
-}
-
 /**
- * Whether what follows a colon belongs to the name before it: an office ("John Kamau: Chairman")
- * or a sum ("John Kamau: 50,000"). Anything else makes the word another field's label.
- */
-function nameGoesOn(tokens: readonly Token[], colon: number): boolean {
-  let at = colon + 1;
-  while (tokens[at]?.kind === 'space') at++;
-  const next = tokens[at];
-  // A sum of money, not a count ("Term: 36 Months"): a currency, thousands, or four digits.
-  if (next?.kind === 'number') {
-    const thousands = tokens[at + 1]?.kind === 'joiner' && tokens[at + 2]?.kind === 'number';
-    return next.text.length >= 4 || thousands;
-  }
-  if (next?.kind === 'word' && CURRENCY_WORDS.has(lower(next.text))) return true;
-  return next?.kind === 'word' && (ROLE_WORDS.has(lower(next.text)) || qualifiesOffice(next.text));
-}
-
-/**
- * Whether the word at `index` labels another field: a capitalised word before a colon, unless an
- * office or an amount follows ("Gender: Male" ends a name; "John Kamau: Chairman" does not), or a
- * field label's first word before one more ("Account Type:", "Date of Registration:").
+ * Whether the word at `index` labels another field, which ends a name's span: a field word
+ * ("Make", "Salary", "ID"), with or without a colon, or a field label's first word before one or
+ * two more and a colon ("Account Type:", "Date of Registration:"). Nothing else does, not even a
+ * colon after a name ("John Kamau: Chairman"): when in doubt, a word is a name.
  */
 function labelsAField(tokens: readonly Token[], index: number): boolean {
   const word = tokens[index];
   if (word?.kind !== 'word') return false;
-  const colon = colonAfter(tokens, index);
-  if (colon >= 0) return !nameGoesOn(tokens, colon);
+  if (FIELD_WORDS.has(lower(word.text))) return true;
   if (!FIELD_LEADS.has(lower(word.text))) return false;
-  // The field label's next word, past one space and an "of".
+  // The field label's next words, past spaces and an "of", up to its colon.
   for (let at = index + 1, seen = 0; at < tokens.length && seen < 2; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') return false;
-    const next = colonAfter(tokens, at);
-    if (next >= 0) return !nameGoesOn(tokens, next);
+    if (colonAfter(tokens, at) >= 0 || FIELD_WORDS.has(lower(token.text))) return true;
     if (token.text !== 'of') seen++;
   }
-  return false;
+  return colonAfter(tokens, index) >= 0;
 }
 
 /** Whether a label starts at word `index`: one to three words that are a label ("Account Name"). */
@@ -342,8 +320,8 @@ function startsLabel(tokens: readonly Token[], index: number): boolean {
 
 /**
  * The parties after a label, from token `from`: every capitalised word to the end of the line
- * belongs to one, except where a span ends: at a label, or a capitalised word that labels another
- * field ("Make:"). Lowercase words other than particles, and joiners, end a party.
+ * belongs to one, except where the span ends: at a label, a field word or a currency. Lowercase
+ * words other than particles, and joiners, end a party, not the span.
  */
 function labelParties(tokens: readonly Token[], from: number): string[][] {
   const parties: string[][] = [[]];
@@ -355,11 +333,10 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
   for (let at = from; at < end && words < MAX_WORDS && parties.length <= MAX_PARTIES; at++) {
     const token = tokens[at];
     if (token?.kind === 'joiner') nextParty();
-    // An amount ends the span ("John Kamau KES 12,500,000 Total Shares"); a list's number does not.
-    if (token?.kind === 'number' && !isListMarker(tokens, at)) break;
+    // Numbers and other data are skipped; a currency ends the span ("John Kamau KES 12,500,000").
     if (token?.kind !== 'word') continue;
     const word = token.text;
-    if (CURRENCY_WORDS.has(lower(word))) break;
+    if (CURRENCIES.has(lower(word))) break;
     if (!isCapitalised(word)) {
       if (!PARTICLES.has(word)) nextParty();
       continue;
@@ -506,54 +483,53 @@ const BULLETS = new Set(['-', '*', '\u2022', '\u2013', '\u2014']);
 /** Letters and roman numerals that number a list ("a)", "ii."). */
 const LIST_LETTERS = /^(?:[a-z]|[ivx]{1,4})$/iu;
 
-/**
- * A line listed under a stand-alone label, when it reads as a name: an optional marker ("1.",
- * "a)", "ii.", a dash or a bullet), then capitalised words and particles only, no field, label or common
- * word, then optionally a comma and an office ("John Kamau, Chairman"). Null when it does not,
- * which ends the list.
- */
-function listEntry(tokens: readonly Token[]): string[] | null {
+/** The token after a list entry's marker ("1.", "a)", "ii.", a dash or bullet), or 0 for none. */
+function afterMarker(tokens: readonly Token[]): number {
   let at = 0;
-  const skipSpaces = () => {
-    while (tokens[at]?.kind === 'space') at++;
-  };
-  skipSpaces();
+  while (tokens[at]?.kind === 'space') at++;
   const marker = tokens[at];
-  const after = tokens[at + 1];
-  if (marker?.kind === 'other' && BULLETS.has(marker.text)) at++;
-  else if (
+  const next = tokens[at + 1];
+  if (marker?.kind === 'other' && BULLETS.has(marker.text)) return at + 1;
+  const numbered =
     (marker?.kind === 'number' && marker.text.length <= 2) ||
-    (marker?.kind === 'word' && LIST_LETTERS.test(marker.text))
-  ) {
-    if (after?.kind === 'other' && (after.text === '.' || after.text === ')')) at += 2;
-  }
-  skipSpaces();
-  const name: string[] = [];
+    (marker?.kind === 'word' && LIST_LETTERS.test(marker.text));
+  if (numbered && next?.kind === 'other' && (next.text === '.' || next.text === ')')) return at + 2;
+  return 0;
+}
+
+/**
+ * Whether an unmarked line under a stand-alone label is one more entry: a few capitalised words
+ * and particles, no field word, then nothing or a comma, dash or colon and an office ("Mary
+ * Wanjiru, Secretary"). A marked line ("2. ...") always is.
+ */
+function readsAsName(tokens: readonly Token[]): boolean {
+  const words: string[] = [];
+  let at = 0;
   for (; at < tokens.length; at++) {
     const token = tokens[at];
-    if (token?.kind === 'space' && token.width === 1) continue;
+    if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') break;
-    const word = token.text;
-    if (PARTICLES.has(word)) continue;
-    if (!isCapitalised(word) || LABEL_WORDS.test(word)) return null;
-    if (FIELD_WORDS.has(lower(word)) || COMMON_WORDS.has(lower(word))) return null;
-    name.push(word);
+    if (PARTICLES.has(token.text)) continue;
+    if (!isCapitalised(token.text) || LABEL_WORDS.test(token.text)) return false;
+    if (FIELD_WORDS.has(lower(token.text))) return false;
+    words.push(token.text);
   }
-  if (name.length === 0 || name.length > 6) return null;
-  // What follows the name: nothing, or a comma or dash and an office.
+  if (words.length === 0 || words.length > 6) return false;
   const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
-  if (rest.length === 0) return name;
+  if (rest.length === 0) return true;
   const [mark, ...office] = rest;
   const separates =
     mark?.kind === 'joiner' ||
-    (mark?.kind === 'other' && (BULLETS.has(mark.text) || mark.text === ':'));
-  const isOffice =
+    mark?.kind === 'colon' ||
+    (mark?.kind === 'other' && BULLETS.has(mark.text));
+  return (
+    separates &&
     office.length > 0 &&
     office.every(
       (token) =>
         token.kind === 'word' && (ROLE_WORDS.has(lower(token.text)) || qualifiesOffice(token.text)),
-    );
-  return separates && isOffice ? name : null;
+    )
+  );
 }
 
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
@@ -594,7 +570,8 @@ export function documentIdentifiers(
   };
 
   nameLines.forEach((line, row) => {
-    for (const match of line.matchAll(LABEL)) {
+    const labels = [...line.matchAll(LABEL), ...line.matchAll(OFFICE_LABEL)];
+    for (const match of labels) {
       const end = match.index + match[0].length;
       if (!isLabel(line, match.index, end)) continue;
       if (namesAnotherField(tokensAt(row), match.index, match[0])) continue;
@@ -607,14 +584,17 @@ export function documentIdentifiers(
         // it that list more parties, numbered, bulleted or a name each.
         at = nextLine(nameLines, row);
         if (at < 0) continue;
-        const first = listEntry(tokensAt(at));
-        add(first ? [first] : labelParties(tokensAt(at), 0));
-        // Further entries, across blank lines, while each reads as a name.
+        add(labelParties(tokensAt(at), afterMarker(tokensAt(at))));
+        // Further entries, across blank lines: every marked line, and an unmarked one that reads
+        // as a name. An entry with other data on it is read all the same; only an unmarked line
+        // that is not a name ends the list.
         for (let entries = 1; entries < MAX_ENTRIES; entries++) {
           const next = nextLine(nameLines, at);
-          const entry = next < 0 ? null : listEntry(tokensAt(next));
-          if (!entry) break;
-          add([entry]);
+          if (next < 0) break;
+          const tokens = tokensAt(next);
+          const from = afterMarker(tokens);
+          if (from === 0 && !readsAsName(tokens)) break;
+          add(labelParties(tokens, from));
           at = next;
         }
         continue;

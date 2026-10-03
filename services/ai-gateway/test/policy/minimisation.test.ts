@@ -598,6 +598,9 @@ describe('minimise a text layer in linear time', () => {
     ['Address and paragraph separators', `Address${' \u2029'.repeat(20_000)}`],
     ['a long address', `Physical address: ${'House 14, Riverside Drive, '.repeat(4_000)}`],
     ['Make: A repeated', 'Make: A '.repeat(12_500)],
+    ['Chairman: repeated', 'Chairman: '.repeat(10_000)],
+    ['a long list', `Directors:\n${'1. John Kamau\n'.repeat(7_000)}`],
+    ['Kamau: repeated', `Borrower: ${'Kamau: '.repeat(14_000)}`],
     ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
   ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
@@ -708,6 +711,52 @@ describe('minimise a text layer: names out, fields readable', () => {
       'Directors:\n1. John Kamau\n2. Gender Male\n3. Total Shares 500',
       'John Kamau',
       'Gender Male Total Shares 500',
+    ],
+    // A colon ends a name only after a field word; after a name it goes on (F57).
+    ['Guarantor: Peter Otieno: ID 12345678', 'Peter Otieno', 'Guarantor ID'],
+    ['Director: John Kamau: 12345678', 'John Kamau', 'Director'],
+    ['Witness: Jane Akinyi: Tel 0712 345 678', 'Jane Akinyi', 'Witness Tel'],
+    ['Borrower: John Kamau:\nChairman', 'John Kamau', 'Borrower Chairman'],
+    ['Borrower: John Kamau: Sh 50,000', 'John Kamau', 'Borrower Sh 50,000'],
+    ['Borrower: John Kamau: Shs 50,000 UGX 10 TZS 20', 'John Kamau', 'Shs UGX TZS'],
+    // A field word before a colon is a label, even straight after a name (F58).
+    ['Borrower: John Kamau Loan Amount: KES 50,000', 'John Kamau', 'Loan Amount KES 50,000'],
+    ['Borrower: John Kamau Amount: 50,000', 'John Kamau', 'Amount 50,000'],
+    ['Proprietor: John Kamau Value: 3,000,000', 'John Kamau', 'Value 3,000,000'],
+    ['Employee Name: Mary Wanjiru Basic Salary: 45,000', 'Mary Wanjiru', 'Basic Salary 45,000'],
+    ['Employee Name: Mary Wanjiru Salary: 45,000', 'Mary Wanjiru', 'Salary 45,000'],
+    [
+      'Employee Name: Mary Wanjiru Net Pay: 38,000 Gross Pay: 45,000',
+      'Mary Wanjiru',
+      'Net Pay Gross Pay 38,000 45,000',
+    ],
+    // A list goes on past an entry that does not read as a name; each entry's names are out (F59).
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru: Secretary\n3. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors Secretary',
+    ],
+    [
+      'Directors:\n1. John Kamau 500 shares\n2. Mary Wanjiru 60%\n3. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'shares',
+    ],
+    [
+      'Directors:\n1. John Kamau, appointed 12 May 2020\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'appointed',
+    ],
+    [
+      'Directors:\n1. John Kamau: 500 shares\n2. Mary Wanjiru: 50,000\n3. Peter Otieno: ID 12345678',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'shares ID',
+    ],
+    ['Directors:\n1. Grace Wanjiru\n2. Faith Akinyi', 'Grace Wanjiru Faith Akinyi', 'Directors'],
+    ['Shareholders:\n1. Tumaini Traders Ltd\n2. John Kamau', 'John Kamau', 'Shareholders'],
+    [
+      'Officials:\n- Chairman: John Kamau\n- Treasurer: Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Chairman Treasurer',
     ],
     // Common words a name holds stay readable in prose (F48, F55).
     [

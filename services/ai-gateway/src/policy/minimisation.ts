@@ -9,10 +9,11 @@ import { documentIdentifiers, isCommonWord } from './document-identifiers.js';
  * Task-independent: identifiers are found by where they sit in the input (the declaration.v1
  * field names for names, debtors and creditors, ID numbers, KRA PINs, personnel file numbers,
  * parcel numbers, vehicle registrations, file names, phones, emails, addresses, and dates and
- * places of birth) and by their shape anywhere in free text. Values found in fields are also replaced wherever they recur in
- * free text, in any case and, for codes, with or without spaces and dashes; the token stands for
- * the value as its field holds it. Amounts, other dates and item descriptions are left alone: the tasks
- * need them, and the classification gate decides whether they may leave. The exception is what a
+ * places of birth) and by their shape anywhere in free text. Values found in fields are also
+ * replaced wherever they recur in free text, in any case and, for codes, with or without spaces
+ * and dashes; the token stands for the value as its field holds it. Amounts, other dates and item
+ * descriptions are left alone: the tasks need them, and the classification gate decides whether
+ * they may leave. The exception is what a
  * declarant asks in their own words (`QUESTION_FIELDS`): Ask Adili needs no figure, and never
  * receives one (spec 11), so amounts there are tokens too. Over-matching is safe, since every token
  * is restored; it only hides a word from the model.
