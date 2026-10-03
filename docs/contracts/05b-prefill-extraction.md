@@ -44,13 +44,13 @@ Operations changed:
 - `acceptSuggestion` and `dismissSuggestion` are audited reads of the suggestion (`declaration.suggestion.read`).
 - `dismissSuggestion` (#311): body named `DismissSuggestionRequest`. Dismissing again answers the suggestion as it is (first reason kept, no second event). 409 `not-new` covers accepted and superseded; 400 for a reason over 200 characters.
 - `extractAttachment` (#315):
-  - `targetItemType` is gone from the body. The target is the item the document is attached to: its statement list and type, sent to the gateway as `target: {section, itemType}` (see the ai-gateway below). The body is the named `ExtractAttachmentRequest`, `{documentKindHint, language}`, as drafted otherwise (`language` defaults to `en`).
+  - `targetItemType` is gone from the body. The target is the item the document is attached to: its statement list and type, sent to the gateway as `target: {section, itemType}` (see the ai-gateway below). The body is the named `ExtractAttachmentRequest`, `{documentKindHint, language}`, required, as drafted (`language` defaults to `en`).
   - `Idempotency-Key` is required.
   - Not enabled is a `not-enabled` set (202), not the draft's 409 `not-enabled`: the gateway decides by policy when the job is created and records a `blocked` job in its audit, so there is no pre-check.
-  - Problems: 400 for an unknown kind or language, or an attached item with no type; 409 `upload-not-clean`, `declaration-not-draft`; 422 for a reused key; 503 `documents-unavailable` or `ai-gateway-unavailable`, with no reading recorded.
-  - One reading is pending per attachment, kind, section and item type (declarations migrations 0022 and 0023). Asking again for the same attachment, kind and item type while a reading is pending, or offered and not decided on, answers that reading. A reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones.
+  - Problems: 400 for a missing body or document kind, an unknown kind or language, or an attached item with no type; 409 `upload-not-clean`, `declaration-not-draft`; 422 for a reused key; 503 `documents-unavailable`, `ai-gateway-unavailable` or `workflow-unavailable` (Documents, the gateway or the workflow engine could not take it), or `reading-conflict` (a concurrent request for the same reading gave it up). No reading is recorded on a 503; try again.
+  - One reading is pending per attachment, kind, section and item type (declarations migrations 0022 and 0023). Asking again for the same attachment, kind, section and item type while a reading is pending, or offered and not decided on, answers that reading. A reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones.
   - A file a reading does not take (HEIC) fails at once as `document-unreadable`, without being sent (#505).
-  - A `DocumentReadingWorkflow` on the declarations worker settles the set. It carries the requesting declarant's person id and subject from their token, so no tenant-wide read finds whose draft it is. A reading not settled within 15 minutes fails as `unavailable`, and the declarant can ask again.
+  - A `DocumentReadingWorkflow` on the declarations worker settles the set. It starts inside the transaction that records the reading (`DocumentReadingInput.transactionId`). It carries the requesting declarant's person id and subject from their token, so no tenant-wide read finds whose draft it is. A reading not settled within 15 minutes fails as `unavailable`, and the declarant can ask again.
   - An audited read.
 
 Schemas changed:
@@ -87,7 +87,7 @@ Schemas changed:
 
 - No new endpoints, as drafted. `X-Legal-Basis` on the KRA, NTSA, BRS and ArdhiSasa lookups, and on review's `checkCompanySuppliesEmployer` (07b, which shares the lookup headers), is an enum (the draft described it as free text) of `regs-r20-1-b`, `act-s35-5` and `declarant-request` (#469).
 - Each basis is taken only from the client whose work it is: `declarant-request` from declarations, the other two from review; 403 otherwise (ADR-013 §8.12). `adr-014-onboarding` is no longer accepted in the header (400): the IPRS route records it itself.
-- `X-Case-Ref` and `X-Subject-Person` are documented for both callers on the same routes, `checkCompanySuppliesEmployer` included: the review case and its declarant, or the declaration and the declarant who asked, whoever of the household is looked up (#321).
+- `X-Case-Ref` and `X-Subject-Person` are documented for both callers on the same routes, `checkCompanySuppliesEmployer` included: the review case and its declarant, or the declaration and the declarant who asked, even when the person looked up is a spouse or child (#321).
 - NTSA's vehicle result has no engine capacity, so the `vehicle` suggestion has none (#475).
 
 ## Directory (`internal/directory.yaml`)
@@ -118,3 +118,4 @@ None of these is a contract left in a draft; each needs a contract change when i
 - #504: the declarant's and household's names in `ExtractDocumentInput`, so minimisation tokenises them anywhere in a text layer.
 - #505: HEIC and oversized images in `extract-document`.
 - #515: document reading in the Commission's AI status for commission-admins (story 18).
+- #530: registry lookups start their workflow after commit, and settle on a declaration past the draft.
