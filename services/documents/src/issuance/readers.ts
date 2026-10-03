@@ -13,9 +13,12 @@ import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES, REPORTS_SUBMIT_SCOPE } from '@ad
  * person's, or an access officer's it names (issuance.service.ts `owned`).
  */
 interface Readers {
-  /** The roles that read it in its own tenant. */
+  /**
+   * The roles that read it, with a token of the tenant the table reads for: the document's own
+   * (`OWN_TENANT_READERS`) or EACC's, across Commissions (`EACC_READERS`).
+   */
   roles: readonly string[];
-  /** Or the client scope that does, with a token of its tenant (a federated Commission's system). */
+  /** Or the client scope that does, with a token of that tenant (a federated Commission's system). */
   scope?: string;
 }
 
