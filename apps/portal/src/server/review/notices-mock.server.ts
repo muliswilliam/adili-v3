@@ -4,7 +4,8 @@
  * Teachers Service Commission's notices to John Kennedy, dated relative to when the store was
  * seeded:
  *
- * - `warning`: a warning for an unanswered clarification, issued 2 days ago, act within 12 days.
+ * - `warning`: a warning for unanswered clarification CLR-TSC-2026-0000519-L (due 19 days ago),
+ *   issued 2 days ago, act within 12 days.
  * - `noticeResponded`: the notice before it, issued 16 days ago, answered 10 days ago with a
  *   document; followed by the warning.
  * - `noticeOpen`: a notice to comply for the biennial declaration, issued 5 days ago, 9 days
@@ -34,6 +35,13 @@ export const MOCK_NOTICE_IDS = {
 
 const COMMISSION = { slug: 'tsc', name: 'Teachers Service Commission' };
 
+/** The ladders the notices belong to: one per subject. */
+const LADDERS = {
+  clarification: 'add10000-0000-4000-8000-0000000a0001',
+  filing: 'add10000-0000-4000-8000-0000000a0002',
+  filing2024: 'add10000-0000-4000-8000-0000000a0003',
+} as const;
+
 const notices = new Map<string, Notice>();
 const answered = new Map<string, Response>();
 let failNext = false;
@@ -54,6 +62,20 @@ function notice(
   const issuedAt = at(now, -issuedDaysAgo);
   return {
     actionId,
+    ...(whatToDo === 'respond-to-clarification'
+      ? {
+          ladderId: LADDERS.clarification,
+          subject: {
+            kind: 'clarification' as const,
+            reference: 'CLR-TSC-2026-0000519-L',
+            dueAt: at(now, -19),
+          },
+        }
+      : {
+          ladderId: LADDERS.filing,
+          subject: { kind: 'obligation' as const, reference: 'biennial:2026', dueAt: null },
+        }),
+    windowDays: 14,
     commission: COMMISSION,
     step,
     status: 'issued',
@@ -124,6 +146,8 @@ export function resetNoticesMock(now: number = Date.now(), { empty = false } = {
       now,
       {
         status: 'complied',
+        ladderId: LADDERS.filing2024,
+        subject: { kind: 'obligation', reference: 'biennial:2024', dueAt: null },
       },
     ),
   );

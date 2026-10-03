@@ -1,6 +1,12 @@
 import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 import type { ReviewClient } from './review/client.server';
+import type { paths } from './review/schema.gen';
 import type { DeclarantNotice } from './review/types';
+
+/** review.yaml `respondToNotice` body: the text and the clean `action-response` uploads. */
+export type NoticeResponse = NonNullable<
+  paths['/v1/me/notices/{actionId}/response']['post']['requestBody']
+>['content']['application/json'];
 
 /**
  * The review service's declarant notice endpoints (spec 08 FE-7, S9, S17): the notices to comply
@@ -50,14 +56,13 @@ function conflictOf(error: unknown): NoticeConflict | null {
 export function respondToNotice(
   client: ReviewClient,
   actionId: string,
-  text: string,
-  attachments: string[],
+  body: NoticeResponse,
   idempotencyKey: string,
 ): Promise<NoticeRespondResult> {
   return attempt(async () => {
     const { data, error, response } = await client.POST('/v1/me/notices/{actionId}/response', {
       params: { path: { actionId }, header: { 'Idempotency-Key': idempotencyKey } },
-      body: { text, attachments },
+      body,
     });
     if (data) return { status: 'responded', notice: data };
     switch (response.status) {

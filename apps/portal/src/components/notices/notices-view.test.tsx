@@ -71,7 +71,7 @@ describe('NoticesView (S17)', () => {
     );
     const banner = screen.getByRole('status');
     expect(within(banner).getByText('Act by 7 Oct 2026.')).toBeTruthy();
-    expect(within(banner).getByText('File your declaration.')).toBeTruthy();
+    expect(within(banner).getByText('File your biennial declaration 2026.')).toBeTruthy();
     expect(
       within(banner)
         .getByRole('link', { name: /File declaration/ })

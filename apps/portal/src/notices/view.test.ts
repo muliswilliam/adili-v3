@@ -8,6 +8,9 @@ const NOW = '2026-09-28T09:00:00.000Z';
 function notice(overrides: Partial<DeclarantNotice>): DeclarantNotice {
   return {
     actionId: crypto.randomUUID(),
+    ladderId: 'ladder-filing',
+    subject: { kind: 'obligation', reference: 'biennial:2026', dueAt: null },
+    windowDays: 14,
     commission: { slug: 'tsc', name: 'Teachers Service Commission' },
     step: 'notice-to-comply',
     status: 'issued',
@@ -23,19 +26,29 @@ function notice(overrides: Partial<DeclarantNotice>): DeclarantNotice {
   };
 }
 
+const CLARIFICATION = {
+  ladderId: 'ladder-clarification',
+  subject: { kind: 'clarification' as const, reference: 'CLR-TSC-2026-0000519-L', dueAt: null },
+};
 const first = notice({
+  ...CLARIFICATION,
   whatToDo: 'respond-to-clarification',
   issuedAt: '2026-09-12T09:00:00.000Z',
   actBy: '2026-09-26T09:00:00.000Z',
 });
 const warning = notice({
+  ...CLARIFICATION,
   step: 'warning',
   whatToDo: 'respond-to-clarification',
   issuedAt: '2026-09-26T09:00:00.000Z',
   actBy: '2026-10-10T09:00:00.000Z',
 });
 const filing = notice({});
-const oldComplied = notice({ status: 'complied', issuedAt: '2025-12-01T09:00:00.000Z' });
+const oldComplied = notice({
+  ladderId: 'ladder-2024',
+  status: 'complied',
+  issuedAt: '2025-12-01T09:00:00.000Z',
+});
 const all = [warning, filing, first, oldComplied];
 
 describe('followedBy', () => {
@@ -43,6 +56,20 @@ describe('followedBy', () => {
     expect(followedBy(first, all)?.actionId).toBe(warning.actionId);
     expect(followedBy(warning, all)).toBeNull();
     expect(followedBy(filing, all)).toBeNull();
+  });
+
+  it('keeps two ladders of the same Commission and kind apart', () => {
+    const other = notice({
+      ladderId: 'ladder-other-clarification',
+      subject: { kind: 'clarification', reference: 'CLR-TSC-2026-0000777-X', dueAt: null },
+      whatToDo: 'respond-to-clarification',
+      step: 'warning',
+      issuedAt: '2026-09-27T09:00:00.000Z',
+    });
+    expect(followedBy(first, [...all, other])?.actionId).toBe(warning.actionId);
+    expect(
+      followedBy(notice({ ...CLARIFICATION, whatToDo: 'respond-to-clarification' }), [other]),
+    ).toBeNull();
   });
 });
 
