@@ -321,7 +321,7 @@ export function FormMSignOffView({
 
   const extensions: FormMReportExtensions = {
     sectionProps: (section, shown) =>
-      capabilities.reviews && editable(shown)
+      capabilities.compilesAndReviews && editable(shown)
         ? {
             // Said where remarks were edited, rather than in every section at once.
             ...(sectionEdited(shown, section) ? { autosave: remarksSave } : {}),
@@ -369,7 +369,7 @@ export function FormMSignOffView({
           }}
         />
       ) : undefined,
-    footerActions: (shown) => footerActions(shown),
+    footerActions: (shown, { preview }) => (preview ? null : footerActions(shown)),
     footerNote: (shown) => footerNote(shown),
     banners: () =>
       state.step === 'step-up-failed' ? (
@@ -394,7 +394,7 @@ export function FormMSignOffView({
   };
 
   function footerActions(shown: CompiledReport) {
-    if (capabilities.reviews && shown.status === 'draft') {
+    if (capabilities.compilesAndReviews && shown.status === 'draft') {
       return (
         <>
           <Button
@@ -459,7 +459,7 @@ export function FormMSignOffView({
   }
 
   function footerNote(shown: CompiledReport): string | null | undefined {
-    if (capabilities.reviews) {
+    if (capabilities.compilesAndReviews) {
       return shown.status === 'reviewed' ? m.awaitingConfirmation : null;
     }
     if (!capabilities.signsOff) return undefined;

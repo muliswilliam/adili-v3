@@ -36,7 +36,6 @@ import type { FormMResult, FormMWorkspace } from '../../server/form-m.server';
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
 import { Page, PageHead } from '../page';
 import { usePollWhile } from '../use-poll-while';
-import type { FormMCapabilities } from '../workspaces';
 import {
   AccessSection,
   ClarificationsSection,
@@ -55,9 +54,10 @@ import {
   periodLine,
   type SignOffStep,
   signOffSteps,
+  yearEnded,
 } from './form-m-view';
+import type { FormMCapabilities } from './capabilities';
 import { finalCompileOf, financialYearOf, previewFromOf, yearEndOf } from './financial-year';
-import { yearEnded } from './form-m-view';
 import { messages as m } from './messages';
 
 /** How often, and how many times, the page reloads while the report compiles (seconds). */
@@ -73,8 +73,12 @@ export type CompiledReport = ComplianceReport & { document: FormMV1 };
  * draft reads as it does for the reporting officer.
  */
 export interface FormMReportExtensions {
-  /** The step's action in the footer: Mark reviewed, Confirm and submit. */
-  footerActions?: (report: CompiledReport) => ReactNode;
+  /**
+   * The step's action in the footer: Mark reviewed, Confirm and submit. Told whether the report
+   * is a preview, so the sign-off screens decide what a preview allows; when it returns an action
+   * the footer leaves out its own note.
+   */
+  footerActions?: (report: CompiledReport, context: { preview: boolean }) => ReactNode;
   /** Extra props per section 1-3, e.g. `onRemarkChange` and `autosave` for the supervisor. */
   sectionProps?: (
     section: FormMDeclarationSectionKey,
@@ -99,7 +103,7 @@ export interface FormMReportExtensions {
 export interface FormMWorkspaceViewProps {
   /** The workspace; null while it loads. */
   result: FormMResult<FormMWorkspace> | null;
-  /** What the viewer may do (`formMCapabilities`): the supervisor compiles, others read. */
+  /** What the viewer may do (`formMCapabilities`, from the route): the supervisor compiles. */
   capabilities: FormMCapabilities;
   onSelect: (fy: number) => void;
   /** Compiles a preview or recompiles the year's draft (the supervisor). */
@@ -240,7 +244,7 @@ function Workspace({
           fy={fy}
           today={today}
           previewAvailable={period?.previewAvailable ?? false}
-          compiles={capabilities.reviews}
+          compiles={capabilities.compilesAndReviews}
           compiling={compiling}
           onCompile={() => void compile()}
         />
@@ -254,7 +258,7 @@ function Workspace({
           capabilities={capabilities}
           extensions={extensions}
           recompile={
-            capabilities.reviews && report.status !== 'submitted' ? (
+            capabilities.compilesAndReviews && report.status !== 'submitted' ? (
               <Button variant="secondary" disabled={compiling} onClick={() => void compile()}>
                 {compiling ? <Spinner className="size-4" /> : <Icon icon={RefreshIcon} />}
                 {m.recompile}
@@ -517,6 +521,7 @@ function ReportView({
   if (!document) return <Compiling />;
   const report: CompiledReport = { ...answered, document };
   const missing = manualMissing(document);
+  const actions = extensions.footerActions?.(report, { preview }) ?? null;
   const submitted = report.status === 'submitted';
   const submittedHeader = submitted ? extensions.submitted?.(report) : undefined;
   return (
@@ -587,23 +592,28 @@ function ReportView({
         <WorkspaceFooter
           report={report}
           today={today}
-          note={noteOf(report, preview, capabilities, extensions)}
-          actions={preview ? null : extensions.footerActions?.(report)}
+          note={noteOf(report, preview, capabilities, extensions, actions !== null)}
+          actions={actions}
         />
       )}
     </>
   );
 }
 
-/** The footer's note: the extension's, null included, unless it has none (undefined). */
+/**
+ * The footer's note: the extension's, null included, unless it has none (undefined); else, with
+ * an action in the footer, none, and without one, why there is nothing to do.
+ */
 function noteOf(
   report: CompiledReport,
   preview: boolean,
   capabilities: FormMCapabilities,
   extensions: FormMReportExtensions,
+  hasActions: boolean,
 ): string | null {
   const extended = preview ? undefined : extensions.footerNote?.(report);
-  return extended === undefined ? footerNote(report, preview, capabilities) : extended;
+  if (extended !== undefined) return extended;
+  return hasActions ? null : footerNote(report, preview, capabilities);
 }
 
 /** Why the footer has no action for the viewer, if it says anything. */

@@ -11,7 +11,6 @@ import {
   type SignOffNavigation,
 } from '../../components/form-m/sign-off';
 import { goToSignIn, goToStepUp, signInRedirect } from '../../components/sign-in-redirect';
-import { formMCapabilities } from '../../components/workspaces';
 import {
   compileFormM,
   confirmFormM,
@@ -39,34 +38,43 @@ export const Route = createFileRoute('/form-m/')({
   validateSearch: searchSchema,
   // The step-up marker is the page's to read, not the loader's: dropping it reloads nothing.
   loaderDeps: ({ search }) => ({ fy: search.fy }),
-  loader: async ({ deps, context, location }): Promise<FormMResult<FormMWorkspace> | null> => {
-    // The layout shows no workspace without the role; do not fetch one.
-    if (!context.workspace) return null;
-    // Form M is the viewer's own Commission's, the tenant of their session.
-    if (!context.tenant) return SERVICE_UNAVAILABLE;
-    const result = await getFormMWorkspace({ data: { slug: context.tenant, fy: deps.fy } });
-    if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
-    // A year the Commission has no period for (a typed or stale link): open the default one
-    // under its own address rather than show another year under this one.
-    if (result.ok && deps.fy !== undefined && result.data.fy !== deps.fy) {
-      throw redirect({ to: '/form-m', search: {}, replace: true });
-    }
-    return result;
-  },
+  loader: ({ deps, context, location }) => loadFormM(deps, context, location.href),
   head: () => ({ meta: [{ title: `${m.title} · Adili Online Console` }] }),
   pendingComponent: FormMLoading,
   component: FormMLoaded,
 });
 
+/**
+ * The workspace for `?fy=`: none without the workspace, the viewer's own Commission's otherwise.
+ * A year the Commission has no period for (a typed or stale link) redirects to the default year
+ * under its own address rather than show another year under this one.
+ */
+export async function loadFormM(
+  deps: { fy?: number },
+  context: { workspace: unknown; tenant: string | null },
+  href: string,
+): Promise<FormMResult<FormMWorkspace> | null> {
+  // The layout shows no workspace without the role; do not fetch one.
+  if (!context.workspace) return null;
+  // Form M is the viewer's own Commission's, the tenant of their session.
+  if (!context.tenant) return SERVICE_UNAVAILABLE;
+  const result = await getFormMWorkspace({ data: { slug: context.tenant, fy: deps.fy } });
+  if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(href);
+  if (result.ok && deps.fy !== undefined && result.data.fy !== deps.fy) {
+    throw redirect({ to: '/form-m', search: {}, replace: true });
+  }
+  return result;
+}
+
 const noop = () => undefined;
 const unavailable = () => Promise.resolve(SERVICE_UNAVAILABLE);
 
 function FormMLoading() {
-  const { roles } = Route.useRouteContext();
+  const { capabilities } = Route.useRouteContext();
   return (
     <FormMWorkspaceView
       result={null}
-      capabilities={formMCapabilities(roles)}
+      capabilities={capabilities}
       onSelect={noop}
       onCompile={unavailable}
     />
@@ -91,7 +99,7 @@ function signOffActions(slug: string): SignOffActions {
 function FormMLoaded() {
   const result = Route.useLoaderData();
   const { stepUp } = Route.useSearch();
-  const { roles, tenant, viewer } = Route.useRouteContext();
+  const { capabilities, tenant, viewer } = Route.useRouteContext();
   const navigate = useNavigate({ from: '/form-m/' });
   const actions = useMemo(() => signOffActions(tenant ?? ''), [tenant]);
   const navigation = useMemo<SignOffNavigation>(
@@ -116,7 +124,7 @@ function FormMLoaded() {
     return (
       <FormMWorkspaceView
         result={result}
-        capabilities={formMCapabilities(roles)}
+        capabilities={capabilities}
         onSelect={onSelect}
         onCompile={onCompile}
       />
@@ -127,7 +135,7 @@ function FormMLoaded() {
     <FormMSignOffView
       key={result.data.fy}
       result={result}
-      capabilities={formMCapabilities(roles)}
+      capabilities={capabilities}
       viewerName={viewer.user.name}
       stepUpMarker={stepUp ?? null}
       actions={actions}

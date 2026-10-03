@@ -27,7 +27,12 @@ import {
   resetReportingMock,
   setReportingMockLatency,
 } from '../../server/reporting/mock.server';
-import { formMCapabilities } from '../workspaces';
+import { workspaceFor } from '../workspaces';
+import { formMCapabilities } from './capabilities';
+
+/** The route's capabilities for `roles`. */
+const capabilitiesOf = (roles: string[]) =>
+  formMCapabilities(roles, workspaceFor(roles, 'form-m') ?? null);
 import type { StepUpMarker } from './confirm';
 import { FormMWorkspaceView } from './form-m-workspace';
 import { FormMSignOffView, type SignOffActions, type SignOffNavigation } from './sign-off';
@@ -110,7 +115,7 @@ async function show(
       <TooltipProvider>
         <FormMSignOffView
           result={await load(today, role)}
-          capabilities={formMCapabilities([role])}
+          capabilities={capabilitiesOf([role])}
           viewerName={NAMES[role] ?? ''}
           stepUpMarker={marker}
           actions={actions ?? mockActions(role)}
@@ -284,7 +289,7 @@ describe('the supervisor reviews the draft (S3, S5)', () => {
           <FormMSignOffView
             key={2025}
             result={result}
-            capabilities={formMCapabilities([SUPERVISOR])}
+            capabilities={capabilitiesOf([SUPERVISOR])}
             viewerName="Samuel Njoroge"
             stepUpMarker={null}
             actions={actions}
@@ -807,7 +812,7 @@ describe("the footer note's extension", () => {
       <TooltipProvider>
         <FormMWorkspaceView
           result={result}
-          capabilities={formMCapabilities([REPORTING_OFFICER])}
+          capabilities={capabilitiesOf([REPORTING_OFFICER])}
           onSelect={vi.fn()}
           onCompile={vi.fn(() => Promise.resolve({ ok: true, data: null } as const))}
           extensions={{ footerNote: () => note }}
