@@ -7,8 +7,8 @@ import {
   RequireIdempotencyKey,
   Scopes,
 } from '@adili/api-kit';
+import { REPORTS_SUBMIT_SCOPE } from '@adili/roles';
 
-import { REPORTS_SUBMIT_SCOPE } from './federated-submission.js';
 import { ReportSignOffService } from './report-sign-off.service.js';
 import type { ComplianceReportView } from './representation.js';
 

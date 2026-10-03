@@ -92,6 +92,10 @@ export type LadderView = z.infer<typeof ladderSchema>;
  * `warning.v1`, `salary-stoppage.v1`, `disciplinary-referral.v1`) render.
  */
 export const actionLetterPayloadSchema = z.object({
+  declarantPersonId: z.uuid().nullable().meta({
+    description:
+      'Who may download the letter: the documents service checks the issue request against it; null for an officer who never onboarded. Not printed',
+  }),
   declarantName: z.string(),
   personnelFileNumber: z.string(),
   commission: z.object({ name: z.string(), issuerCode: z.string() }),

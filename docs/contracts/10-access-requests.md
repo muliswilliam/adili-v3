@@ -10,7 +10,7 @@ Each difference below was decided in the ticket named; the generated contract in
 | `internal/access.yaml` | exported from `services/access` (`pnpm --filter @adili/access contracts`) | none (`drafts/access.yaml` deleted: every operation is built) | `pnpm contracts:drift` |
 | `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: specs 05b and 11 only (suggestions, extraction, assistant, hints, help themes) | same |
 | `internal/directory.yaml` | exported | none (`drafts/directory.yaml` deleted by #246 and #263) | same |
-| `internal/documents.yaml` | exported | `drafts/documents.yaml`: spec 08 only (`internalGetDocument`; 07a's `revokeDocument` built by #470) | same |
+| `internal/documents.yaml` | exported | none (`drafts/documents.yaml` deleted: #194 built spec 08's `internalGetDocument`, #470 spec 07a's `revokeDocument`) | same |
 | `internal/notifications.yaml` | exported | none | same |
 | `forms/form-k.v1.json` | hand-written | n/a | `pnpm --filter @adili/schemas lint:forms` (meta-validation and compile), fixtures in `forms/fixtures/form-k.v1` checked by `@adili/forms` tests (`form-k.test.ts`) |
 

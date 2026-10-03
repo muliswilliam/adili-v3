@@ -6,10 +6,20 @@ import {
 } from '@adili/events/contracts';
 import { z } from 'zod';
 
+import {
+  actionLetterSource,
+  clarificationLetterSource,
+  decisionLetterSource,
+  referralPackageSource,
+} from './pulled-payloads.js';
+import { sha256Schema } from './sha256.js';
 import { accessNilLetterPayload } from './templates/access-nil-letter.v1.js';
 import { accessPackagePayload } from './templates/access-package.v1.js';
 import { acknowledgementSlipPayload } from './templates/acknowledgement-slip.v1.js';
 import { certifiedCopyPayload } from './templates/certified-copy.v1.js';
+import { complianceReportReceiptPayload } from './templates/compliance-report-receipt.v1.js';
+import { formMPayload } from './templates/form-m.v1.js';
+import { ncrPayload } from './templates/ncr.v1.js';
 
 /**
  * Request and response shapes of the issuance API, mirroring
@@ -45,16 +55,10 @@ export const watermarkSchema = z
   });
 
 /**
- * The clarification a letter is for: the documents service pulls the fields the template renders
- * from the review service (`internalGetClarificationLetterPayload`, acting for the same tenant),
- * so no personal data travels in the request.
+ * Strict, so a caller sending a field the service does not read (a disclosure level, an issuer or
+ * a public payload, which the template and X-Acting-Tenant decide) is refused, not ignored.
  */
-export const clarificationLetterSource = z.object({ clarificationId: z.uuid() }).meta({
-  description:
-    "A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint",
-});
-
-export const issueDocumentBody = z.object({
+export const issueDocumentBody = z.strictObject({
   type: documentTypeSchema,
   templateVersion: z.int().min(1),
   subjectRef: z
@@ -67,7 +71,7 @@ export const issueDocumentBody = z.object({
     }),
   subjectPersonId: z.uuid().nullable().meta({
     description:
-      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy',
+      'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr',
   }),
   watermark: watermarkSchema.optional(),
   downloadWindowDays: z.int().min(1).max(MAX_DOWNLOAD_WINDOW_DAYS).optional().meta({
@@ -85,18 +89,28 @@ export const issueDocumentBody = z.object({
     }),
   /**
    * The fields the template renders, never stored beyond the PDF. One schema per template; the
-   * service checks the payload against the template of `type` and `templateVersion`. A
-   * clarification letter names its clarification instead, and its fields are pulled.
+   * service checks the payload against the template of `type` and `templateVersion`. A letter
+   * of the review service, or a referral package, names its record instead, and its fields are
+   * pulled (pulled-payloads.ts).
    */
   payload: z
     .union([
       acknowledgementSlipPayload,
       clarificationLetterSource,
+      decisionLetterSource,
+      actionLetterSource,
+      referralPackageSource,
       accessPackagePayload,
       accessNilLetterPayload,
       certifiedCopyPayload,
+      formMPayload,
+      complianceReportReceiptPayload,
+      ncrPayload,
     ])
-    .meta({ description: "The template's payload: the schema named after `type`" }),
+    .meta({
+      description:
+        "The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`)",
+    }),
 });
 export type IssueDocumentBody = z.infer<typeof issueDocumentBody>;
 
@@ -132,7 +146,7 @@ export const issuedDocumentSchema = z.object({
     examples: ['ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-9KMV-8P'],
   }),
   verifyUrl: z.url().meta({ description: "The QR code's payload: the document's verify page" }),
-  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  sha256: sha256Schema,
   status: documentStatusSchema,
   supersededBy: z.uuid().nullable(),
   issuedAt: z.iso.datetime(),
@@ -145,6 +159,6 @@ export type IssuedDocument = z.infer<typeof issuedDocumentSchema>;
 export const documentDownloadSchema = z.object({
   downloadUrl: z.url().meta({ description: 'Presigned GET of the signed PDF' }),
   expiresAt: z.iso.datetime(),
-  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  sha256: sha256Schema,
 });
 export type DocumentDownload = z.infer<typeof documentDownloadSchema>;

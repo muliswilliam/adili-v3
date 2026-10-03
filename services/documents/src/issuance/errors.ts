@@ -23,7 +23,7 @@ const DETAIL: Record<IssuanceDependency, string> = {
   renderer: 'The PDF renderer is unavailable.',
   signer: 'The signing service is unavailable.',
   storage: 'Document storage is unavailable.',
-  review: "The review service, which holds the letter's fields, is unavailable.",
+  review: "The review service, which holds the document's fields, is unavailable.",
 };
 
 const OUTCOME = {

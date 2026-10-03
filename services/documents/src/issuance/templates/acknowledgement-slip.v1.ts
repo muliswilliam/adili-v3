@@ -15,7 +15,12 @@ import {
   SOFT,
   signatureNote,
 } from './page.js';
-import { DECLARATION_TYPES, isDeclarationReference } from './references.js';
+import {
+  commissionNameSchema,
+  DECLARATION_TYPES,
+  isDeclarationReference,
+  issuerCodeSchema,
+} from './references.js';
 import type { DocumentTemplate } from './template.js';
 
 /**
@@ -25,9 +30,8 @@ import type { DocumentTemplate } from './template.js';
 export const acknowledgementSlipPayload = z
   .object({
     declarantName: z.string().trim().min(1).max(200),
-    commissionName: z.string().trim().min(1).max(200),
-    /** The Commission's issuer code, as in the reference number (`PSC`). */
-    issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
+    commissionName: commissionNameSchema,
+    issuerCode: issuerCodeSchema,
     declarationType: z.enum(DECLARATION_TYPES),
     statementDate: z.iso.date(),
     /** The filing obligation's due date; null when the declaration has none. */

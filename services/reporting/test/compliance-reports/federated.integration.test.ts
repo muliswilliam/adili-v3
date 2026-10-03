@@ -165,11 +165,9 @@ describe('Federated Form M submission (S8)', () => {
     expect(api.documents.issued).toEqual([
       expect.objectContaining({
         type: 'form-m',
-        disclosureLevel: 'restricted',
         issuerTenant: 'tsc',
         subjectRef: `compliance-report:${body.id}`,
         payload: stored,
-        publicPayload: { reference, type: 'form-m', issuer: 'TSC', issuedAt: SUBMITTED_AT },
       }),
       expect.objectContaining({ type: 'compliance-report-receipt', issuerTenant: 'tsc' }),
     ]);

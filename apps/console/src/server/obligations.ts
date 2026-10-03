@@ -6,11 +6,13 @@ import {
   OBLIGATION_TYPES,
   obligationsQuery,
 } from '../components/obligations/obligations-query';
+import { progressCycleKey } from '../components/roster/declaration-progress';
 import { asDeclarationsViewer } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import {
   callDeclarations,
   type CommissionObligationsSummary,
+  type DeclarationProgress,
   type DeclarationsResult,
   type NationalObligationsSummary,
   type ObligationDetail,
@@ -29,6 +31,23 @@ export const getCommissionObligationsSummary = createServerFn({ method: 'GET' })
       callDeclarations(() =>
         client.GET('/v1/commissions/{slug}/obligations/summary', {
           params: { path: { slug: data.slug } },
+        }),
+      ),
+    ),
+  );
+
+/**
+ * `GET /v1/commissions/{slug}/declarations/progress`: a cycle's obligations per reporting entity,
+ * not started, in progress, submitted and late (the current cycle without `cycle`). Counts only.
+ * The Commission's reporting officers and commission admins; 404 for anyone else.
+ */
+export const getDeclarationProgress = createServerFn({ method: 'GET' })
+  .validator(z.object({ slug: commissionSlug, cycle: progressCycleKey.optional() }))
+  .handler(({ data }): Promise<DeclarationsResult<DeclarationProgress>> =>
+    asDeclarationsViewer((client) =>
+      callDeclarations(() =>
+        client.GET('/v1/commissions/{slug}/declarations/progress', {
+          params: { path: { slug: data.slug }, query: data.cycle ? { cycle: data.cycle } : {} },
         }),
       ),
     ),

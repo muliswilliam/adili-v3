@@ -12,6 +12,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import { SHA256_HEX } from './sha256.js';
+
 /**
  * Issued documents (ADR-010), tenant data of the issuing Commission under RLS (migration 0008),
  * readable by the person they are about. Insert-only: what was issued never changes; its status
@@ -41,6 +43,14 @@ export const issuedDocuments = pgTable(
     subjectVersion: integer(),
     /** The person who may download it (the declarant); null when no person may. */
     subjectPersonId: uuid(),
+    /**
+     * The person a document is about who must never download it: the declarant a referral package
+     * refers (spec 08, never told of it). An EACC officer is referred by EACC as their Commission,
+     * so an EACC analyst or supervisor whose token names this person (`person_id`) is refused the
+     * package; staff tokens do not name their person yet (#486), so for now this holds only for an
+     * EACC account that does.
+     */
+    excludedPersonId: uuid(),
     verificationId: text().notNull().unique(),
     /** Key in the issued bucket: `issued/<id>.pdf`. */
     objectKey: text().notNull().unique(),
@@ -77,7 +87,10 @@ export const issuedDocuments = pgTable(
       'issued_documents_disclosure_level_check',
       sql`${table.disclosureLevel} in ('public', 'restricted', 'confidential')`,
     ),
-    check('issued_documents_sha256_check', sql`${table.sha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      'issued_documents_sha256_check',
+      sql`${table.sha256} ~ ${sql.raw(`'${SHA256_HEX.source}'`)}`,
+    ),
   ],
 );
 

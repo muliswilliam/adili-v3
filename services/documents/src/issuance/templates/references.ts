@@ -39,10 +39,40 @@ export function declarationSchemeOf(reference: string): NumberingScheme {
   return found;
 }
 
+/** A valid reference number of `scheme`, check character included, e.g. `CMP-PSC-2027-0000001-D`. */
+export function referenceOf(scheme: NumberingScheme) {
+  return z.string().refine((reference) => isReferenceOf(reference, [scheme]), {
+    message: `Must be a ${scheme.code} reference number with a valid check character`,
+  });
+}
+
+/**
+ * Whether `reference`, when a valid number of `scheme`, was numbered by the Commission with
+ * `issuerCode`. An invalid number passes, so that it is reported once, on its own.
+ */
+export function numberedBy(
+  reference: string,
+  scheme: NumberingScheme,
+  issuerCode: string,
+): boolean {
+  return !isReferenceOf(reference, [scheme]) || parse(reference, [scheme]).issuer === issuerCode;
+}
+
+/** A Commission's issuer code, as in its reference numbers, e.g. `PSC`. */
+export const issuerCodeSchema = z.string().regex(/^[A-Z0-9]{2,20}$/);
+
+/** A Commission's name as a document prints it. */
+export const commissionNameSchema = z.string().trim().min(1).max(200);
+
 /** The issuing Commission as the declarations service names it (`CommissionRef`). */
 export const commissionRefSchema = z.strictObject({
   slug: z.string().min(1).max(20),
-  /** As in the reference numbers, e.g. `PSC`. */
-  issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
-  name: z.string().trim().min(1).max(200),
+  issuerCode: issuerCodeSchema,
+  name: commissionNameSchema,
+});
+
+/** The issuing Commission as the review service names it in a letter or package payload. */
+export const letterCommissionSchema = z.object({
+  name: commissionNameSchema,
+  issuerCode: issuerCodeSchema,
 });

@@ -1,15 +1,23 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
-import { CLR, format } from '@adili/numbering/references';
+import { ADM, CLR, CMP, format, RFL } from '@adili/numbering/references';
 import { Ajv2020 } from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 
+import { noticeToComplyV1 } from '../../src/issuance/templates/action-letters.v1.js';
 import { clarificationLetterPayload } from '../../src/issuance/templates/clarification-letter.v1.js';
+import { decisionLetterPayload } from '../../src/issuance/templates/decision-letter.v1.js';
+import { referralPackagePayload } from '../../src/issuance/templates/referral-package.v1.js';
 import { HttpReviewClient } from '../../src/review/http-review-client.js';
-import { ClarificationNotFound, ReviewUnavailable } from '../../src/review/review-client.js';
+import {
+  REVIEW_RECORDS,
+  type ReviewRecord,
+  ReviewRecordNotFound,
+  ReviewUnavailable,
+} from '../../src/review/review-client.js';
 
 /**
  * The review client against answers that conform to the review contract (checked here): a
@@ -52,6 +60,70 @@ const PAYLOAD = {
   portalUrl: `http://localhost:3010/clarifications/${CLARIFICATION_ID}`,
 };
 
+const RECORD_ID = '0192f1a0-5a11-7000-8000-000000000002';
+const COMMISSION = { name: 'Public Service Commission', issuerCode: 'PSC' };
+
+const DETERMINATION_PAYLOAD = {
+  declarantPersonId: '0192f1a0-5a11-7000-8000-0000000000d1',
+  declarantName: 'Achieng Wambui Otieno',
+  commission: COMMISSION,
+  declarationReference: 'DCB-PSC-2027-0000001-1',
+  determinationReference: format(CMP, { issuer: 'PSC', period: 2027, sequence: 1 }),
+  outcome: 'non-compliant',
+  outcomeLabel: 'Non-compliant',
+  reasons: 'The declared value of the plot does not match the sale agreement.',
+  decidedAt: '2027-12-20T08:00:00.000Z',
+  portalUrl: `http://localhost:3010/decisions/${RECORD_ID}`,
+};
+
+const ACTION_PAYLOAD = {
+  declarantPersonId: null,
+  declarantName: 'Achieng Wambui Otieno',
+  personnelFileNumber: 'PSC/2019/0042',
+  commission: COMMISSION,
+  reference: format(ADM, { issuer: 'PSC', period: 2027, sequence: 1 }),
+  step: 'notice-to-comply',
+  stepLabel: 'Notice to comply',
+  subjectKind: 'obligation',
+  subjectReference: 'biennial:2027',
+  whatToDo: 'file-declaration',
+  issuedAt: '2028-01-05T08:00:00.000Z',
+  actBy: '2028-01-19T08:00:00.000Z',
+  salaryStoppedFrom: null,
+  respondUrl: `http://localhost:3010/notices/${RECORD_ID}`,
+};
+
+const REFERRAL_PAYLOAD = {
+  declarantPersonId: '0192f1a0-5a11-7000-8000-0000000000d1',
+  reference: format(RFL, { issuer: 'PSC', period: 2028, sequence: 1 }),
+  grounds: 'two-missed-cycles',
+  groundsLabel: 'Two consecutive declarations not filed',
+  cycleYear: 2027,
+  commission: COMMISSION,
+  declarant: { name: 'Achieng Wambui Otieno', personnelFileNumber: 'PSC/2019/0042' },
+  narrative: 'Proposed by the system: two consecutive biennial declarations not filed.',
+  proposedBy: 'Adili (system proposal)',
+  proposedAt: '2028-02-01T07:00:00.000Z',
+  approvedBy: 'Lucy Wambui',
+  approvedAt: '2028-02-02T07:00:00.000Z',
+  manifest: [
+    { kind: 'obligation', reference: 'biennial:2027', sha256: 'a'.repeat(64), documentId: null },
+  ],
+  versions: [],
+  flags: [],
+  clarifications: [],
+  obligations: [
+    {
+      cycleKey: 'biennial:2027',
+      type: 'biennial',
+      status: 'overdue',
+      dueDate: '2027-12-31',
+      filedAt: null,
+    },
+  ],
+  letters: [],
+};
+
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -80,7 +152,7 @@ describe('HttpReviewClient', () => {
       json(conforming('ClarificationLetterPayload', PAYLOAD)),
     );
 
-    const payload = await client.clarificationLetterPayload('psc', CLARIFICATION_ID);
+    const payload = await client.payload('clarification', 'psc', CLARIFICATION_ID);
 
     expect(payload).toEqual(PAYLOAD);
     expect(clarificationLetterPayload.safeParse(payload).error).toBeUndefined();
@@ -93,12 +165,84 @@ describe('HttpReviewClient', () => {
     ]);
   });
 
-  it('maps 404 to ClarificationNotFound', async () => {
-    const { client } = clientAnswering(() => json({ type: 'about:blank', status: 404 }, 404));
+  it.each([
+    [
+      'determination',
+      'DeterminationLetterPayload',
+      DETERMINATION_PAYLOAD,
+      'determinations',
+      'letter-payload',
+      decisionLetterPayload,
+    ],
+    [
+      'action',
+      'ActionLetterPayload',
+      ACTION_PAYLOAD,
+      'actions',
+      'letter-payload',
+      noticeToComplyV1.payload,
+    ],
+    [
+      'referral',
+      'ReferralPackagePayload',
+      REFERRAL_PAYLOAD,
+      'referrals',
+      'package-payload',
+      referralPackagePayload,
+    ],
+  ] as const)(
+    "pulls a %s's payload (%s) for the Commission, which the template takes",
+    async (record, schema, body, collection, endpoint, template) => {
+      const { client, requests } = clientAnswering(() => json(conforming(schema, body)));
 
-    await expect(client.clarificationLetterPayload('psc', CLARIFICATION_ID)).rejects.toBeInstanceOf(
-      ClarificationNotFound,
+      expect(await client.payload(record, 'psc', RECORD_ID)).toEqual(body);
+      expect(requests).toEqual([
+        {
+          path: `/internal/v1/review/${collection}/${RECORD_ID}/${endpoint}`,
+          actingTenant: 'psc',
+          authorization: 'Bearer token',
+        },
+      ]);
+      // Issuance takes the declarant's person id off before the template checks the fields.
+      const fields: Record<string, unknown> = { ...body };
+      delete fields.declarantPersonId;
+      expect(template.safeParse(fields).error).toBeUndefined();
+    },
+  );
+
+  it.each(Object.keys(REVIEW_RECORDS) as ReviewRecord[])(
+    'maps 404 on a %s to ReviewRecordNotFound',
+    async (record) => {
+      const { client } = clientAnswering(() => json({ type: 'about:blank', status: 404 }, 404));
+
+      await expect(client.payload(record, 'psc', CLARIFICATION_ID)).rejects.toEqual(
+        new ReviewRecordNotFound(record, CLARIFICATION_ID),
+      );
+    },
+  );
+
+  it("keeps the package pull's own budget when the letters' timeout is set", async () => {
+    const client = new HttpReviewClient({
+      reviewUrl: 'http://review.test/',
+      tokens: { token: () => Promise.resolve('token'), invalidate: () => undefined },
+      timeoutMs: 20,
+      // Answers after 100 ms, unless the caller gives up first.
+      fetch: (_input: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            resolve(json(REFERRAL_PAYLOAD));
+          }, 100);
+          init?.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(init.signal?.reason as Error);
+          });
+        }),
+    });
+
+    await expect(client.payload('action', 'psc', RECORD_ID)).rejects.toBeInstanceOf(
+      ReviewUnavailable,
     );
+    expect(await client.payload('referral', 'psc', RECORD_ID)).toEqual(REFERRAL_PAYLOAD);
   });
 
   it('refuses anything but a JSON object, or another status, as unavailable', async () => {
@@ -108,9 +252,9 @@ describe('HttpReviewClient', () => {
       json({ type: 'about:blank', status: 403 }, 403),
     ]) {
       const { client } = clientAnswering(() => answer);
-      await expect(
-        client.clarificationLetterPayload('psc', CLARIFICATION_ID),
-      ).rejects.toBeInstanceOf(ReviewUnavailable);
+      await expect(client.payload('clarification', 'psc', CLARIFICATION_ID)).rejects.toBeInstanceOf(
+        ReviewUnavailable,
+      );
     }
   });
 });

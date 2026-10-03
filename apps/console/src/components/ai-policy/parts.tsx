@@ -1,8 +1,9 @@
-import { Badge, cn, focusRing, Icon, Tooltip } from '@adili/ui';
-import { InformationCircleIcon, Tick02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
+import { Badge, Icon } from '@adili/ui';
+import { Tick02Icon, UnavailableIcon } from '@hugeicons/core-free-icons';
 
 import type { DataClass } from '../../server/ai-gateway/types';
 import type { AiTenantRow } from '../../server/ai-policy.server';
+import { InfoTip } from '../info-tip';
 import { messages as m } from './messages';
 import { allowedProviders } from './model';
 
@@ -10,18 +11,11 @@ import { allowedProviders } from './model';
 
 export function DataClassesTip() {
   return (
-    <Tooltip content={m.dataClassesTip}>
-      <button
-        type="button"
-        aria-label={m.dataClassesTipLabel}
-        className={cn(
-          'inline-grid size-5 place-items-center rounded-full text-muted-foreground hover:text-foreground',
-          focusRing,
-        )}
-      >
-        <Icon icon={InformationCircleIcon} className="size-3.5" />
-      </button>
-    </Tooltip>
+    <InfoTip
+      content={m.dataClassesTip}
+      label={m.dataClassesTipLabel}
+      className="text-muted-foreground"
+    />
   );
 }
 

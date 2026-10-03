@@ -80,6 +80,35 @@ export function formatDate(value: string | Date): string {
   return `${day} ${MONTHS[month - 1]} ${year}`;
 }
 
+/** The calendar date of an instant in Kenyan time, `YYYY-MM-DD`. */
+export function kenyanDate(value: string | Date): string {
+  const { year, month, day } = kenyanParts(new Date(value));
+  const pad = (number: number) => String(number).padStart(2, '0');
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+/** A count as printed, `334,281`. */
+export function formatCount(n: number): string {
+  return esc(n.toLocaleString('en-GB'));
+}
+
+/** The year a `2027/2028` financial year covers, `1 Jul 2027 to 30 Jun 2028`. */
+export function financialYearPeriod(financialYear: string): string {
+  const start = Number(financialYear.slice(0, 4));
+  return `${formatDate(`${start}-07-01`)} to ${formatDate(`${start + 1}-06-30`)}`;
+}
+
+/**
+ * When a Commission's compliance report on a `2027/2028` financial year is due: 31 July after it,
+ * `2028-07-31` (Regs r.25(2)).
+ */
+export function reportDueDate(financialYear: string): string {
+  return `${Number(financialYear.slice(0, 4)) + 1}-07-31`;
+}
+
+/** EACC, which receives the Commissions' compliance reports and issues the national report. */
+export const EACC_ISSUER = { name: 'Ethics and Anti-Corruption Commission', code: 'EACC' };
+
 /** `30 Sep 2026, 14:05 EAT`. */
 export function formatDateTime(value: string | Date): string {
   const { hour, minute } = kenyanParts(new Date(value));
@@ -141,6 +170,28 @@ p{margin:0 0 2.5mm}
 .vpanel .t{font-size:11pt;font-weight:700;margin-bottom:1.5mm}
 .vpanel .vcode{font-size:12pt;font-weight:700;letter-spacing:0.03em;margin:1.5mm 0 2mm}
 .signed{display:flex;justify-content:flex-end;break-inside:avoid}`;
+
+/**
+ * Styles of the ruled tables of the forms and reports (`.ft`: a referral package's manifest, Form
+ * M's lists): a caption, header cells, a number column, numeric cells, a muted sub-line and a
+ * centred "None" row; no row split across pages. Also `.hashc`, a SHA-256 in small mono.
+ */
+export const RULED_TABLE_STYLES = `
+.ft{width:100%;border-collapse:collapse;font-size:7.8pt;line-height:1.35;margin:1mm 0 3mm}
+.ft caption{text-align:left;font-weight:600;font-size:8.2pt;padding:1mm 0 1.4mm}
+.ft th,.ft td{border:0.25mm solid #a8a6a1;padding:1.3mm 1.6mm;text-align:left;vertical-align:top}
+.ft th{background:#f1f0ed;font-weight:600}
+.ft tr{break-inside:avoid}
+.ft .n{width:7mm;text-align:center}
+.ft .num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.ft .sub{color:${MUTED};display:block}
+.ft .none td{text-align:center;color:${MUTED};font-style:italic}
+.hashc{font-family:'DejaVu Sans Mono','Liberation Mono',monospace;font-size:6.6pt;line-height:1.35;word-break:break-all}`;
+
+/** A SHA-256 in two lines of 32 characters, so it fits a table column or a narrow cell. */
+export function twoLineHash(sha256: string): string {
+  return `<span class="hashc">${esc(sha256.slice(0, 32))}<br />${esc(sha256.slice(32))}</span>`;
+}
 
 /**
  * How to check that a multi-page document is genuine: its verification code, and `shows`, what

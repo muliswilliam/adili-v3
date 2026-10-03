@@ -9,9 +9,6 @@ import type { ReportCounts } from './schema.js';
  * the rules it cannot say, checked once the document is valid against it. Pure functions.
  */
 
-/** The OAuth scope a federated Commission's API client submits Form M with. */
-export const REPORTS_SUBMIT_SCOPE = 'reports:submit';
-
 const SECTIONS = ['initial', 'biennial', 'final'] as const;
 
 /**

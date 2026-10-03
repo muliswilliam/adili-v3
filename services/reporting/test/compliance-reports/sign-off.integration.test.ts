@@ -406,24 +406,21 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
         expect.objectContaining({
           type: 'form-m',
           templateVersion: 1,
-          disclosureLevel: 'restricted',
           issuerTenant: 'psc',
           subjectRef: `compliance-report:${report.id}`,
           subjectPersonId: null,
           payload: issued.document,
-          publicPayload: {
-            reference,
-            type: 'form-m',
-            issuer: 'PSC',
-            issuedAt: CONFIRMED_AT,
-          },
         }),
         expect.objectContaining({
           type: 'compliance-report-receipt',
-          disclosureLevel: 'restricted',
           subjectRef: `compliance-report:${report.id}`,
         }),
       ]);
+      // The template decides the disclosure level and what the verify page shows.
+      for (const request of api.documents.issued) {
+        expect(Object.keys(request)).not.toContain('disclosureLevel');
+        expect(Object.keys(request)).not.toContain('publicPayload');
+      }
       const [row] = await api.asPlatform((tx) =>
         tx.select().from(complianceReports).where(eq(complianceReports.id, report.id)),
       );
