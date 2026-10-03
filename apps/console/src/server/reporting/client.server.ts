@@ -5,8 +5,8 @@ import type { paths } from './api.gen';
 
 /**
  * Typed client for the reporting service, generated from `packages/schemas/internal/reporting.yaml`,
- * called as the signed-in user. With REPORTING_MOCK set in development it talks to the in-memory
- * mock instead (`mock.server.ts`).
+ * called as the signed-in Commission officer (supervisor, commission-admin or reporting officer).
+ * With REPORTING_MOCK set in development it talks to the in-memory mock instead (`mock.server.ts`).
  */
 export function reportingClient(accessToken: string) {
   const config = env();

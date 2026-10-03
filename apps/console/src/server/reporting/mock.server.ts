@@ -1,749 +1,617 @@
 /**
- * In-memory stand-in for the reporting service's EACC endpoints the national consolidated report
- * needs (reporting.yaml: `getEaccIntake` for the year's totals, `getNationalReport`,
- * `buildNationalReport`, `updateNationalReportNarrative`, `approveNationalReport`), used when
+ * In-memory stand-in for the reporting service's Form M workspace endpoints (reporting.yaml
+ * `listComplianceReports`, `getComplianceReport`, `compileComplianceReport`), used when
  * REPORTING_MOCK is set, for screens without the reporting service and its upstreams (directory,
- * documents, Temporal) running. It follows the service's rules
- * (`services/reporting/src/national-reports`):
+ * declarations, review, Temporal) running. One store for every caller, seeded for the Public
+ * Service Commission (`psc`) relative to "today" (REPORTING_MOCK_TODAY, else the day in Nairobi):
  *
- * - EACC analysts and supervisors only (403 for anyone else); approving is a supervisor's.
- * - The first build makes the caller the author; every build and narrative save adds the caller to
- *   the contributors, and none of them may approve (403 `separation-of-duties`).
- * - A rebuild recomputes the aggregates from the Commissions' receipts and keeps the narrative;
- *   saving maps each section's text onto the stored paragraphs, so an unchanged paragraph keeps its
- *   id and labels and an edited one stops being an AI draft.
- * - Approval allocates `NCR-EACC-<FY end>-<seq>-<check>`; the PDF follows `pdfDelayMs` later
- *   (four seconds by default), as the approval workflow issues it. A retry with the same
- *   Idempotency-Key replays the approval; another one is 409 `ncr-approved`.
+ * - From July to March: the current financial year has no report yet and no preview (it opens on
+ *   1 April); the year before is a draft compiled eleven days ago (not before 1 July), overdue
+ *   once 31 July has passed: 12 appointed and 10 initial declarations, 100 in service and 95
+ *   biennial, 4 exits and 3 final, 6 clarifications, no access request data yet (section 5 note).
+ * - From April to June: the current year can be previewed; the year before was submitted late.
+ *   A preview compiled then has no biennial cycle and section 5 counts from access requests.
  *
- * One store for every caller. FY 2025/2026: 14 active Commissions, 11 reported (3 late). FY
- * 2026/2027, the current year, nobody has reported for yet. REPORTING_MOCK_NCR picks where FY
- * 2025/2026's report starts: `not-built`; `draft`, built by another analyst (Brian Otieno) with
- * an overview and two findings, the second an AI draft; `stale`, that draft with the Kwale board's
- * late report received since the build; `approved`, approved by Esther Chebet with its PDF.
- *
- * A narrative save with `offline` in its text answers 503, so the editor's retry shows. Also
- * answers the documents service's download of the NCR PDF (`mockReportingDocumentsFetch`), with
- * links to `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
+ * Only the Commission's supervisor, commission-admin and reporting officer see it (anyone else,
+ * and any other Commission, gets 404); only the supervisor compiles (403), from 1 April after the
+ * year (409 `preview-not-available`) and until the report is submitted (409 `report-submitted`).
+ * A compile leaves the report `compiling` for three seconds, then a draft as at that moment.
  */
+import { FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
+import type { FormMV1 } from '@adili/forms';
 import createClient from 'openapi-fetch';
 
-import type { paths as documentsPaths } from '../documents/api.gen';
-import { type Env, envSchema } from '../env.server';
-import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
-import type { paths } from './api.gen';
 import {
-  type CommissionAggregate,
-  type Intake,
-  NARRATIVE_SECTION_IDS,
-  type NarrativeParagraph,
-  type NarrativeSectionId,
-  type NationalAggregates,
-  type NationalReport,
-  type Officer,
-  type SectionAggregate,
-} from './types';
+  dueDateOf,
+  finalCompileOf,
+  financialYearOf,
+  nairobiToday,
+  previewFromOf,
+} from '../../components/form-m/financial-year';
+import { env } from '../env.server';
+import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
+import type { paths } from './api.gen';
+import { isNcrPath, mockNcrFetch } from './ncr-mock.server';
+import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
-export type ReportingMockSeed = Env['REPORTING_MOCK_NCR'];
+const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
+const FIRST_FINANCIAL_YEAR = 2025;
+/** How long the mock's workflow takes to compile a draft. */
+const COMPILE_MS = 3000;
 
-const EACC_ANALYST = 'eacc-analyst';
-const EACC_SUPERVISOR = 'eacc-supervisor';
-
-const MAX_LENGTH: Record<NarrativeSectionId, number> = {
-  overview: 20_000,
-  findings: 40_000,
-  recommendations: 20_000,
-};
-
-interface Counts {
-  expected: number;
-  declared: number;
-}
-
-/** A Commission's Form M as EACC received it: the counts the aggregates are built from. */
-interface Receipt {
-  reportId: string;
-  reference: string;
-  submittedAt: string;
-  late: boolean;
-  initial: Counts;
-  biennial: Counts;
-  final: Counts;
-  clarifications: number;
-}
-
-interface MockCommission {
-  slug: string;
-  name: string;
-  issuer: string;
-}
-
-const COMMISSIONS: MockCommission[] = [
-  { slug: 'tsc', name: 'Teachers Service Commission', issuer: 'TSC' },
-  { slug: 'psc', name: 'Public Service Commission', issuer: 'PSC' },
-  { slug: 'parlsc', name: 'Parliamentary Service Commission', issuer: 'PARLSC' },
-  { slug: 'npsc', name: 'National Police Service Commission', issuer: 'NPSC' },
-  { slug: 'jsc', name: 'Judicial Service Commission', issuer: 'JSC' },
-  { slug: 'cpsbnairobicity', name: 'Nairobi City County Public Service Board', issuer: 'NRB' },
-  { slug: 'cpsbmombasa', name: 'Mombasa County Public Service Board', issuer: 'MSA' },
-  { slug: 'cpsbnakuru', name: 'Nakuru County Public Service Board', issuer: 'NKR' },
-  { slug: 'cpsbkiambu', name: 'Kiambu County Public Service Board', issuer: 'KBU' },
-  { slug: 'cpsbmachakos', name: 'Machakos County Public Service Board', issuer: 'MKS' },
-  { slug: 'cpsbuasingishu', name: 'Uasin Gishu County Public Service Board', issuer: 'UGU' },
-  { slug: 'cpsbkwale', name: 'Kwale County Public Service Board', issuer: 'KWL' },
-  { slug: 'cpsbmandera', name: 'Mandera County Public Service Board', issuer: 'MDR' },
-  { slug: 'cpsbturkana', name: 'Turkana County Public Service Board', issuer: 'TRK' },
-];
-
-const c = (expected: number, declared: number): Counts => ({ expected, declared });
-
-/** FY 2025/2026's receipts (due 31 July 2026), keyed by Commission slug. */
-function receipts2025(): Map<string, Receipt> {
-  const receipt = (
-    slug: string,
-    seq: number,
-    submittedAt: string,
-    initial: Counts,
-    biennial: Counts,
-    final: Counts,
-    clarifications: number,
-  ): [string, Receipt] => {
-    const issuer = COMMISSIONS.find((each) => each.slug === slug)?.issuer ?? slug.toUpperCase();
-    return [
-      slug,
-      {
-        reportId: `0199b000-0000-7000-8000-${String(seq).padStart(12, '0')}`,
-        reference: `RPT-${issuer}-2026-${String(seq).padStart(7, '0')}-K`,
-        submittedAt,
-        late: submittedAt > '2026-07-31T20:59:59Z',
-        initial,
-        biennial,
-        final,
-        clarifications,
-      },
-    ];
-  };
-  return new Map([
-    receipt(
-      'tsc',
-      1,
-      '2026-08-06T09:12:00Z',
-      c(9412, 8960),
-      c(331_870, 318_402),
-      c(7905, 6811),
-      412,
-    ),
-    receipt('psc', 1, '2026-07-21T10:40:00Z', c(214, 206), c(2890, 2811), c(96, 90), 18),
-    receipt('parlsc', 1, '2026-07-28T08:05:00Z', c(96, 94), c(1200, 1188), c(40, 39), 4),
-    receipt(
-      'npsc',
-      1,
-      '2026-07-30T14:22:00Z',
-      c(6120, 5988),
-      c(104_300, 101_120),
-      c(2410, 2209),
-      97,
-    ),
-    receipt('jsc', 1, '2026-07-17T07:58:00Z', c(1180, 1152), c(6400, 6211), c(210, 198), 11),
-    receipt(
-      'cpsbnairobicity',
-      1,
-      '2026-08-12T11:30:00Z',
-      c(1840, 1702),
-      c(16_240, 10_069),
-      c(410, 351),
-      64,
-    ),
-    receipt('cpsbmombasa', 1, '2026-07-24T12:00:00Z', c(620, 598), c(7410, 7102), c(0, 3), 9),
-    receipt('cpsbnakuru', 1, '2026-07-29T09:45:00Z', c(512, 501), c(6802, 6590), c(133, 127), 7),
-    receipt('cpsbkiambu', 1, '2026-07-31T16:10:00Z', c(455, 440), c(6120, 5890), c(148, 101), 12),
-    receipt('cpsbmachakos', 1, '2026-08-03T08:20:00Z', c(388, 371), c(5210, 4988), c(0, 0), 5),
-    receipt(
-      'cpsbuasingishu',
-      1,
-      '2026-07-27T13:35:00Z',
-      c(402, 390),
-      c(5980, 5801),
-      c(121, 116),
-      6,
-    ),
-  ]);
-}
-
-/** The Kwale board's late report, received after the `stale` seed's build. */
-function kwaleReceipt(): Receipt {
-  return {
-    reportId: '0199b000-0000-7000-8000-000000000099',
-    reference: 'RPT-KWL-2026-0000001-K',
-    submittedAt: '2026-09-29T10:05:00Z',
-    late: true,
-    initial: c(254, 244),
-    biennial: c(2822, 2764),
-    final: c(66, 60),
-    clarifications: 3,
-  };
-}
-
-interface StoredReport {
-  id: string;
+interface Stored {
   fy: number;
-  version: number;
-  status: 'draft' | 'approved';
-  builtAt: string;
-  aggregates: NationalAggregates;
-  reportsIncluded: number;
-  paragraphs: NarrativeParagraph[];
-  author: Officer;
-  contributors: string[];
-  approver: Officer | null;
-  approvedAt: string | null;
+  status: Exclude<ReportStatus, 'not-started'>;
+  compiledAt: string | null;
+  /** While compiling: when the compile started. */
+  compileStartedAt: number | null;
+  submittedAt: string | null;
+  late: boolean | null;
   reference: string | null;
-  /** The PDF, once issued: at `pdfReadyAt`. */
-  documentId: string | null;
-  pdfReadyAt: number | null;
+  reviewedBy: Officer | null;
+  confirmedBy: Officer | null;
+  document: FormMV1 | null;
 }
 
-interface Store {
-  receipts: Map<number, Map<string, Receipt>>;
-  reports: Map<number, StoredReport>;
-  approvals: Map<string, Response>;
-  sequence: number;
-  pdfDelayMs: number;
-}
+const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
+const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
 
-let store: Store | null = null;
-
-const BRIAN: Officer = { subject: 'mock-brian-otieno', name: 'Brian Otieno' };
-const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' };
-
-const DRAFT_OVERVIEW =
-  'This report consolidates the compliance reports (Form M) received from Responsible Commissions for the financial year 1 July 2025 to 30 June 2026 under Regulation 25(2) of the Conflict of Interest Regulations, 2026.';
-const DRAFT_FINDINGS = [
-  'Eleven of fourteen Commissions reported, three of them late. The national declared rate is high, driven by the Teachers Service Commission and the National Police Service Commission.',
-  'The Nairobi City County Public Service Board reports a biennial rate of 62%, well below every other Commission.',
-];
-
-function paragraph(
-  section: NarrativeSectionId,
-  position: number,
-  text: string,
-  extra: Partial<NarrativeParagraph> = {},
-): NarrativeParagraph {
+/** The draft as a supervisor marks it reviewed: Part III's compiled-by filled (spec 09 S5). */
+function reviewed(document: FormMV1, on: string): FormMV1 {
   return {
-    id: crypto.randomUUID(),
-    section,
-    position,
-    text,
-    aiDraft: false,
-    aggregateRefs: [],
-    candidateIds: [],
-    ...extra,
+    ...document,
+    partIII: {
+      ...document.partIII,
+      compiledBy: { name: SUPERVISOR_OFFICER.name, designation: 'Deputy Director, HRM', date: on },
+    },
   };
 }
 
-/** Starts the store over at `seed`; `pdfDelayMs` is how long an approval's PDF takes. */
+/** The document as the commission-admin confirmed it: Part I, Part B and Part III filled. */
+function confirmed(document: FormMV1, reviewedOn: string, confirmedOn: string): FormMV1 {
+  const done = reviewed(document, reviewedOn);
+  return {
+    ...done,
+    partI: {
+      ...done.partI,
+      contactDetails: '+254 20 222 3901',
+      emailAddress: 'compliance@publicservice.go.ke',
+    },
+    partII: { ...done.partII, complaints: { registerMaintained: true, items: [] } },
+    partIII: {
+      ...done.partIII,
+      confirmedBy: { name: ADMIN_OFFICER.name, designation: 'Secretary/CEO', date: confirmedOn },
+    },
+  };
+}
+
+const reports = new Map<number, Stored>();
+let today = '';
+let latency = 1;
+let compileMs = COMPILE_MS;
+let corruptDocument = false;
+
+/** `date` plus `days`, as `YYYY-MM-DD`. */
+function plusDays(date: string, days: number): string {
+  const at = new Date(`${date}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
+/** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
+const sixAm = (date: string) => `${date}T03:00:00.000Z`;
+
+/**
+ * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default).
+ * `corruptDocument` answers a report whose document is not form-m.v1 (contract drift);
+ * `reviewed` has the supervisor mark the year-before's draft reviewed two days ago.
+ */
 export function resetReportingMock(
-  seed: ReportingMockSeed,
-  { pdfDelayMs = 4000 }: { pdfDelayMs?: number } = {},
-): void {
-  const receipts = receipts2025();
-  store = {
-    receipts: new Map([
-      [2025, receipts],
-      [2026, new Map<string, Receipt>()],
-    ]),
-    reports: new Map(),
-    approvals: new Map(),
-    sequence: 0,
-    pdfDelayMs,
-  };
-  if (seed === 'not-built') return;
-  const report: StoredReport = {
-    id: '0199b100-0000-7000-8000-000000000001',
-    fy: 2025,
-    version: 3,
-    status: 'draft',
-    builtAt: '2026-09-24T07:15:00Z',
-    aggregates: buildAggregates(2025, receipts),
-    reportsIncluded: receipts.size,
-    paragraphs: [
-      paragraph('overview', 0, DRAFT_OVERVIEW),
-      paragraph('findings', 0, DRAFT_FINDINGS[0] ?? ''),
-      paragraph('findings', 1, DRAFT_FINDINGS[1] ?? '', {
-        aiDraft: true,
-        aggregateRefs: ['commission.cpsbnairobicity.rate.biennial'],
-      }),
-    ],
-    author: BRIAN,
-    contributors: [BRIAN.subject],
-    approver: null,
-    approvedAt: null,
+  day: string = nairobiToday(),
+  options: { corruptDocument?: boolean; reviewed?: boolean } = {},
+) {
+  today = day;
+  corruptDocument = options.corruptDocument ?? false;
+  reports.clear();
+  const current = financialYearOf(day);
+  const last = current - 1;
+  if (last < FIRST_FINANCIAL_YEAR) return;
+  if (day >= previewFromOf(current)) {
+    const submittedOn = plusDays(dueDateOf(last), 57);
+    const reviewedOn = plusDays(submittedOn, -1);
+    reports.set(last, {
+      fy: last,
+      status: 'submitted',
+      compiledAt: sixAm(finalCompileOf(last)),
+      compileStartedAt: null,
+      submittedAt: `${submittedOn}T11:42:00.000Z`,
+      late: true,
+      reference: `RPT-PSC-${String(last + 1)}-0000001-K`,
+      reviewedBy: SUPERVISOR_OFFICER,
+      confirmedBy: ADMIN_OFFICER,
+      document: confirmed(fullDocument(last), reviewedOn, submittedOn),
+    });
+    return;
+  }
+  const yearStart = finalCompileOf(last);
+  const compiledOn = plusDays(day, -11) < yearStart ? yearStart : plusDays(day, -11);
+  const reviewedOn = plusDays(day, -2);
+  reports.set(last, {
+    fy: last,
+    status: options.reviewed ? 'reviewed' : 'draft',
+    compiledAt: sixAm(compiledOn),
+    compileStartedAt: null,
+    submittedAt: null,
+    late: null,
     reference: null,
-    documentId: null,
-    pdfReadyAt: null,
-  };
-  store.reports.set(2025, report);
-  if (seed === 'stale') receipts.set('cpsbkwale', kwaleReceipt());
-  if (seed === 'approved') {
-    store.sequence = 1;
-    report.paragraphs.push(
-      paragraph(
-        'recommendations',
-        0,
-        'Commissions that did not report should do so within 30 days.',
-      ),
-    );
-    Object.assign(report, {
-      status: 'approved',
-      version: 4,
-      approver: ESTHER,
-      approvedAt: '2026-09-25T13:40:00Z',
-      reference: referenceOf(2025, 1),
-      documentId: '0199b200-0000-7000-8000-000000000001',
-      pdfReadyAt: 0,
-    } satisfies Partial<StoredReport>);
-  }
-}
-
-function ensureSeeded(): Store {
-  if (!store) resetReportingMock(seedFromEnv());
-  if (!store) throw new Error('The reporting mock did not seed');
-  return store;
-}
-
-function seedFromEnv(): ReportingMockSeed {
-  return envSchema.shape.REPORTING_MOCK_NCR.catch('not-built').parse(
-    process.env.REPORTING_MOCK_NCR,
-  );
-}
-
-/** NCR references as the numbering package allocates them (ISO 7064 MOD 37-36 check). */
-function referenceOf(fy: number, seq: number): string {
-  const body = `NCR-EACC-${String(fy + 1)}-${String(seq).padStart(7, '0')}`;
-  return `${body}-${checkCharacter(body)}`;
-}
-
-function checkCharacter(input: string): string {
-  const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const modulus = alphabet.length;
-  let state = modulus / 2;
-  for (const char of input.replace(/-/g, '')) {
-    state = ((((state || modulus) * 2) % (modulus + 1)) + alphabet.indexOf(char)) % modulus;
-  }
-  return alphabet.charAt((modulus + 1 - (((state || modulus) * 2) % (modulus + 1))) % modulus);
-}
-
-function rateOf(declared: number, expected: number): number | null {
-  return expected > 0 ? Math.round((declared / expected) * 10_000) / 10_000 : null;
-}
-
-function section(counts: Counts): SectionAggregate {
-  return {
-    expected: counts.expected,
-    declared: counts.declared,
-    notDeclared: Math.max(0, counts.expected - counts.declared),
-    rate: rateOf(counts.declared, counts.expected),
-  };
-}
-
-function add(total: Counts, counts: Counts): Counts {
-  return { expected: total.expected + counts.expected, declared: total.declared + counts.declared };
-}
-
-/** As the service's `buildAggregates`: per section and Commission, from the receipts. */
-function buildAggregates(fy: number, receipts: Map<string, Receipt>): NationalAggregates {
-  let initial = c(0, 0);
-  let biennial = c(0, 0);
-  let final = c(0, 0);
-  let clarifications = 0;
-  const byCommission: Record<string, CommissionAggregate> = {};
-  for (const commission of [...COMMISSIONS].sort((a, b) => a.slug.localeCompare(b.slug))) {
-    const receipt = receipts.get(commission.slug);
-    if (!receipt) {
-      byCommission[commission.slug] = {
-        name: commission.name,
-        status: 'not-reported',
-        reportId: null,
-        reference: null,
-        submittedAt: null,
-        initial: null,
-        biennial: null,
-        final: null,
-        clarifications: null,
-        accessRequests: null,
-      };
-      continue;
-    }
-    initial = add(initial, receipt.initial);
-    biennial = add(biennial, receipt.biennial);
-    final = add(final, receipt.final);
-    clarifications += receipt.clarifications;
-    byCommission[commission.slug] = {
-      name: commission.name,
-      status: receipt.late ? 'submitted-late' : 'submitted-on-time',
-      reportId: receipt.reportId,
-      reference: receipt.reference,
-      submittedAt: receipt.submittedAt,
-      initial: section(receipt.initial),
-      biennial: { ...section(receipt.biennial), noCycleInPeriod: false },
-      final: section(receipt.final),
-      clarifications: receipt.clarifications,
-      accessRequests: { received: 0, granted: 0, declined: 0 },
-    };
-  }
-  const late = [...receipts.values()].filter((receipt) => receipt.late).length;
-  const reported = receipts.size;
-  return {
-    fy,
-    reporting: {
-      commissions: COMMISSIONS.length,
-      reported,
-      onTime: reported - late,
-      late,
-      notReported: COMMISSIONS.length - reported,
-      rate: rateOf(reported, COMMISSIONS.length),
-    },
-    national: {
-      initial: section(initial),
-      biennial: section(biennial),
-      final: section(final),
-      all: section(add(add(initial, biennial), final)),
-      clarifications,
-      accessRequests: { received: 0, granted: 0, declined: 0 },
-    },
-    byCommission,
-  };
-}
-
-function intakeOf(fy: number, receipts: Map<string, Receipt>): Intake {
-  const commissions = [...COMMISSIONS]
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((commission) => {
-      const receipt = receipts.get(commission.slug);
-      const rates = receipt
-        ? Object.fromEntries(
-            (['initial', 'biennial', 'final'] as const).map((key) => [
-              key,
-              { ...receipt[key], rate: rateOf(receipt[key].declared, receipt[key].expected) },
-            ]),
-          )
-        : {};
-      return {
-        commission: { slug: commission.slug, name: commission.name },
-        status: receipt
-          ? receipt.late
-            ? ('submitted-late' as const)
-            : ('submitted-on-time' as const)
-          : ('not-reported' as const),
-        reportId: receipt?.reportId ?? null,
-        reference: receipt?.reference ?? null,
-        submittedAt: receipt?.submittedAt ?? null,
-        rates,
-        outliers: [],
-        chases: { count: 0, lastAt: null },
-        formMDocumentId: null,
-        receiptDocumentId: null,
-      };
-    });
-  const totals = buildAggregates(fy, receipts);
-  return {
-    fy,
-    totals: {
-      onTime: totals.reporting.onTime,
-      late: totals.reporting.late,
-      notReported: totals.reporting.notReported,
-      nationalDeclaredRate: totals.national.all.rate,
-    },
-    commissions,
-  };
-}
-
-function viewOf(report: StoredReport): NationalReport {
-  if (report.pdfReadyAt !== null && report.documentId === null && Date.now() >= report.pdfReadyAt) {
-    report.documentId = crypto.randomUUID();
-  }
-  const paragraphs = [...report.paragraphs].sort(
-    (a, b) =>
-      NARRATIVE_SECTION_IDS.indexOf(a.section) - NARRATIVE_SECTION_IDS.indexOf(b.section) ||
-      a.position - b.position,
-  );
-  const narrative = Object.fromEntries(
-    NARRATIVE_SECTION_IDS.map((id) => [
-      id,
-      paragraphs
-        .filter((each) => each.section === id)
-        .map((each) => each.text)
-        .join('\n\n'),
-    ]),
-  ) as NationalReport['narrative'];
-  return {
-    id: report.id,
-    fy: report.fy,
-    version: report.version,
-    status: report.status,
-    builtAt: report.builtAt,
-    reportsIncluded: report.reportsIncluded,
-    aggregates: report.aggregates,
-    narrative,
-    narrativeParagraphs: paragraphs.map((each) => ({ ...each })),
-    author: report.author,
-    approver: report.approver,
-    approvedAt: report.approvedAt,
-    reference: report.reference,
-    documentId: report.documentId,
-  };
-}
-
-/** As the service's `saveSection`: unchanged text keeps its paragraph, an edit keeps the id. */
-function saveSection(
-  id: NarrativeSectionId,
-  existing: readonly NarrativeParagraph[],
-  text: string,
-): NarrativeParagraph[] {
-  const stored = existing
-    .filter((each) => each.section === id)
-    .sort((a, b) => a.position - b.position);
-  const texts = text
-    .replace(/\r\n?/g, '\n')
-    .split(/\n[ \t]*\n/)
-    .map((each) => each.trim())
-    .filter((each) => each !== '');
-  const used = new Set<string>();
-  const kept = texts.map((each) => {
-    const same = stored.find((candidate) => !used.has(candidate.id) && candidate.text === each);
-    if (same) used.add(same.id);
-    return same;
-  });
-  return texts.map((each, position) => {
-    const same = kept[position];
-    if (same) return { ...same, position };
-    const atPosition = stored[position];
-    if (atPosition && !used.has(atPosition.id)) {
-      used.add(atPosition.id);
-      return { ...atPosition, position, text: each, aiDraft: false };
-    }
-    return paragraph(id, position, each);
+    reviewedBy: options.reviewed ? SUPERVISOR_OFFICER : null,
+    confirmedBy: null,
+    document: options.reviewed ? reviewed(fullDocument(last), reviewedOn) : fullDocument(last),
   });
 }
 
-function forbidden(detail: string, code?: string) {
-  return json(403, {
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: 403,
-    detail,
-    ...(code ? { code } : {}),
+/**
+ * Scales the mock's answer delays (0 in tests); `compileMs` sets how long a compile takes
+ * (three seconds by default), also for one already running.
+ */
+export function setReportingMockLatency(factor: number, options: { compileMs?: number } = {}) {
+  latency = factor;
+  compileMs = options.compileMs ?? COMPILE_MS;
+}
+
+/** The day the mock takes as today: REPORTING_MOCK_TODAY, else today in Nairobi. */
+export function mockReportingToday(): string {
+  ensureSeeded();
+  return today;
+}
+
+function ensureSeeded() {
+  // The dev server's first request: seed from REPORTING_MOCK_TODAY. Tests seed explicitly.
+  if (today === '') resetReportingMock(env().REPORTING_MOCK_TODAY);
+}
+
+const delay = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms * latency);
   });
-}
 
-function conflict(code: string, detail: string) {
-  return json(409, { type: 'about:blank', title: 'Conflict', status: 409, detail, code });
-}
-
-const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
-
-/** Answers the reporting client's requests as the service would, from the store. */
-export async function mockReportingFetch(request: Request): Promise<Response> {
-  const data = ensureSeeded();
-  const url = new URL(request.url);
-  const caller = mockCallerOf(request);
-  const eacc = caller.roles.includes(EACC_ANALYST) || caller.roles.includes(EACC_SUPERVISOR);
-  if (!eacc) {
-    return forbidden(
-      'Only EACC analysts and supervisors work on the national consolidated report.',
-    );
-  }
-  const officer: Officer = {
-    subject: caller.subject ?? 'unknown',
-    name: caller.name ?? caller.subject ?? 'unknown',
-  };
-
-  if (request.method === 'GET' && url.pathname === '/v1/eacc/compliance-reports') {
-    const fy = Number(url.searchParams.get('fy'));
-    const receipts = data.receipts.get(fy);
-    if (!receipts) return problem(400, 'No reports exist for that year');
-    return json(200, intakeOf(fy, receipts));
-  }
-
-  const match = /^\/v1\/eacc\/national-reports\/(\d{4})(?:\/(build|narrative|approve))?$/.exec(
-    url.pathname,
-  );
-  if (!match) return problem(404, 'Not found');
-  const fy = Number(match[1]);
-  const action = match[2];
-  const receipts = data.receipts.get(fy);
-  if (!receipts) return problem(404, NOT_BUILT);
-  const report = data.reports.get(fy);
-
-  if (request.method === 'GET' && !action) {
-    return report ? json(200, viewOf(report)) : problem(404, NOT_BUILT);
-  }
-
-  if (request.method === 'POST' && action === 'build') {
-    if (receipts.size === 0) {
-      return conflict(
-        'no-submitted-reports',
-        'No Commission has submitted its report for the year yet.',
-      );
-    }
-    if (report?.status === 'approved') return approvedConflict();
-    await delay(900);
-    const next: StoredReport = report ?? {
-      id: crypto.randomUUID(),
-      fy,
-      version: 0,
-      status: 'draft',
-      builtAt: '',
-      aggregates: buildAggregates(fy, receipts),
-      reportsIncluded: 0,
-      paragraphs: [],
-      author: officer,
-      contributors: [],
-      approver: null,
-      approvedAt: null,
-      reference: null,
-      documentId: null,
-      pdfReadyAt: null,
-    };
-    Object.assign(next, {
-      builtAt: new Date().toISOString(),
-      aggregates: buildAggregates(fy, receipts),
-      reportsIncluded: receipts.size,
-    });
-    touch(next, officer);
-    data.reports.set(fy, next);
-    return json(200, viewOf(next));
-  }
-
-  if (request.method === 'PATCH' && action === 'narrative') {
-    if (!report) return problem(404, NOT_BUILT);
-    if (report.status === 'approved') return approvedConflict();
-    const body = await readJson(request);
-    const errors = narrativeErrors(body);
-    if (errors.length > 0 || !isRecord(body)) {
-      return json(400, { type: 'about:blank', title: 'Bad Request', status: 400, errors });
-    }
-    const texts = body as Record<NarrativeSectionId, string>;
-    if (NARRATIVE_SECTION_IDS.some((id) => texts[id].includes('offline'))) {
-      return problem(503, 'The reporting service is unavailable');
-    }
-    report.paragraphs = NARRATIVE_SECTION_IDS.flatMap((id) =>
-      saveSection(id, report.paragraphs, texts[id]),
-    );
-    touch(report, officer);
-    return json(200, viewOf(report));
-  }
-
-  if (request.method === 'POST' && action === 'approve') {
-    if (!caller.roles.includes(EACC_SUPERVISOR)) {
-      return forbidden('Only an EACC supervisor can approve the national consolidated report.');
-    }
-    const key = request.headers.get('idempotency-key');
-    if (!key) return problem(400, 'Idempotency-Key missing');
-    const replay = data.approvals.get(key);
-    if (replay) return replay.clone();
-    if (!report) return problem(404, NOT_BUILT);
-    if (report.status === 'approved') return approvedConflict();
-    if (
-      report.author.subject === officer.subject ||
-      report.contributors.includes(officer.subject)
-    ) {
-      return forbidden(
-        'The author cannot approve: another EACC supervisor approves the report.',
-        'separation-of-duties',
-      );
-    }
-    await delay(700);
-    data.sequence += 1;
-    Object.assign(report, {
-      status: 'approved',
-      version: report.version + 1,
-      approver: officer,
-      approvedAt: new Date().toISOString(),
-      reference: referenceOf(fy, data.sequence),
-      pdfReadyAt: Date.now() + data.pdfDelayMs,
-    } satisfies Partial<StoredReport>);
-    const response = json(200, viewOf(report));
-    data.approvals.set(key, response.clone());
-    return response;
-  }
-
-  return problem(405, 'Method not allowed');
-}
-
-function approvedConflict() {
-  return conflict('ncr-approved', 'The report is approved and can no longer change.');
-}
-
-function touch(report: StoredReport, officer: Officer): void {
-  report.version += 1;
-  if (!report.contributors.includes(officer.subject)) report.contributors.push(officer.subject);
-}
-
-function narrativeErrors(body: unknown): { path: string; message: string }[] {
-  if (!isRecord(body)) return [{ path: '', message: 'Must be an object' }];
-  const errors: { path: string; message: string }[] = [];
-  for (const id of NARRATIVE_SECTION_IDS) {
-    const text = body[id];
-    if (typeof text !== 'string') errors.push({ path: id, message: 'Required' });
-    else if (text.length > MAX_LENGTH[id]) {
-      errors.push({ path: id, message: `At most ${String(MAX_LENGTH[id])} characters` });
-    }
-  }
-  return errors;
-}
-
-/** Answers the documents service's download of an approved NCR's PDF, for EACC roles. */
-export function mockReportingDocumentsFetch(request: Request): Promise<Response> {
-  const data = ensureSeeded();
-  const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
-  const caller = mockCallerOf(request);
-  const eacc = caller.roles.includes(EACC_ANALYST) || caller.roles.includes(EACC_SUPERVISOR);
-  const known = [...data.reports.values()].some((report) => report.documentId === match?.[1]);
-  if (request.method !== 'GET' || !match?.[1] || !eacc || !known) {
-    return Promise.resolve(problem(404, 'Not found'));
-  }
-  return Promise.resolve(
-    json(200, {
-      downloadUrl: `/api/mock-files/${match[1]}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
-      sha256: '0'.repeat(64),
-    }),
-  );
-}
-
-/** The title of a mock file this mock links to, or null: the NCR PDF of an approved report. */
-export function mockReportingFileTitle(id: string): string | null {
-  const report = [...ensureSeeded().reports.values()].find((each) => each.documentId === id);
-  return report?.reference ? `${report.reference}.pdf` : null;
-}
-
-function delay(ms: number): Promise<void> {
-  return process.env.VITEST ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function mockToken(name: string, roles: readonly string[]): string {
-  return unsignedMockToken({
-    subject: `user-${name.toLowerCase().replace(/\W+/g, '-')}`,
-    name,
-    roles,
-  });
-}
-
-/** A reporting client answered by this mock, as `name` holding `roles`, for tests. */
-export function mockReportingClient(name: string, roles: readonly string[]) {
+/** A client of the mock as `roles` of `tenant` (tests). */
+export function mockReportingClient(
+  roles: readonly string[],
+  {
+    name = 'Samuel Njoroge',
+    subject = 'mock-officer',
+    tenant = 'psc',
+    fetch = mockReportingFetch,
+  }: {
+    name?: string;
+    subject?: string;
+    tenant?: string;
+    fetch?: (request: Request) => Promise<Response>;
+  } = {},
+) {
+  const token = unsignedMockToken({ subject, name, roles, tenant });
   return createClient<paths>({
     baseUrl: 'http://reporting.test',
-    headers: { authorization: `Bearer ${mockToken(name, roles)}` },
-    fetch: mockReportingFetch,
+    headers: { authorization: `Bearer ${token}` },
+    fetch,
   });
 }
 
-/** A documents client answered by this mock, as an EACC officer holding `roles`, for tests. */
-export function mockReportingDocumentsClient(roles: readonly string[]) {
-  return createClient<documentsPaths>({
-    baseUrl: 'http://documents.test',
-    headers: { authorization: `Bearer ${mockToken('EACC officer', roles)}` },
-    fetch: mockReportingDocumentsFetch,
-  });
+const notFound = () => problem(404, 'Not found');
+
+export async function mockReportingFetch(input: Request): Promise<Response> {
+  // EACC's national consolidated report and intake totals (#233).
+  if (isNcrPath(new URL(input.url).pathname)) return mockNcrFetch(input);
+  ensureSeeded();
+  await delay(250);
+  const url = new URL(input.url);
+  const match = /^\/v1\/commissions\/([^/]+)\/compliance-reports(?:\/(\d+)(\/compile)?)?$/.exec(
+    url.pathname,
+  );
+  if (!match) return notFound();
+  const [, slug, fyText, compile] = match;
+  const caller = mockCallerOf(input);
+  const visible =
+    slug === PSC.slug &&
+    caller.tenant === PSC.slug &&
+    caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
+  if (!visible) return notFound();
+
+  if (fyText === undefined) {
+    return input.method === 'GET' ? json(200, periods()) : notFound();
+  }
+  const fy = Number(fyText);
+  if (fy < FIRST_FINANCIAL_YEAR || fy > financialYearOf(today)) {
+    return problem(400, 'The financial year is not one reports exist for');
+  }
+  if (compile) {
+    if (input.method !== 'POST') return notFound();
+    if (!caller.roles.includes(SUPERVISOR)) {
+      return problem(403, 'Only a supervisor of the Commission can compile its Form M.');
+    }
+    return startCompile(fy);
+  }
+  if (input.method !== 'GET') return notFound();
+  const stored = reports.get(fy);
+  if (!stored) return notFound();
+  advance(stored);
+  return json(200, view(stored));
 }
+
+function periods(): ReportPeriod[] {
+  const current = financialYearOf(today);
+  const years = new Set([current, current - 1, ...reports.keys()]);
+  return [...years]
+    .filter((fy) => fy >= FIRST_FINANCIAL_YEAR && fy <= current)
+    .sort((a, b) => b - a)
+    .map((fy) => {
+      const stored = reports.get(fy);
+      if (stored) advance(stored);
+      return {
+        fy,
+        status: stored?.status ?? 'not-started',
+        dueDate: dueDateOf(fy),
+        reference: stored?.reference ?? null,
+        submittedAt: stored?.submittedAt ?? null,
+        late: stored?.late ?? null,
+        previewAvailable: today >= previewFromOf(fy) && stored?.status !== 'submitted',
+      };
+    });
+}
+
+function startCompile(fy: number): Response {
+  if (today < previewFromOf(fy)) {
+    return problem(409, 'A preview of Form M opens on 1 April', 'preview-not-available');
+  }
+  const stored = reports.get(fy);
+  if (stored?.status === 'submitted') {
+    return problem(
+      409,
+      'The report is submitted and can no longer be compiled',
+      'report-submitted',
+    );
+  }
+  const next: Stored = stored ?? {
+    fy,
+    status: 'compiling',
+    compiledAt: null,
+    compileStartedAt: null,
+    submittedAt: null,
+    late: null,
+    reference: null,
+    reviewedBy: null,
+    confirmedBy: null,
+    document: null,
+  };
+  next.status = 'compiling';
+  next.compileStartedAt = Date.now();
+  reports.set(fy, next);
+  return new Response(null, { status: 202 });
+}
+
+/** Runs the mock workflow: a compile finishes once its time has come. */
+function advance(stored: Stored) {
+  if (stored.status !== 'compiling' || stored.compileStartedAt === null) return;
+  if (Date.now() < stored.compileStartedAt + compileMs) return;
+  stored.status = 'draft';
+  stored.compileStartedAt = null;
+  // As at now, on the mock's day (its clock may be set to another day).
+  const time = new Date().toISOString().slice(10);
+  stored.compiledAt = `${today}${time}`;
+  // A year compiled before it ends is a preview of today's data.
+  stored.document =
+    today < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
+}
+
+function countsOf(document: FormMV1): ReportCounts {
+  const { initial, biennial, final, clarifications, accessRequests } = document.partII;
+  const section = ({ expected, declared, notDeclared }: typeof initial) => ({
+    expected,
+    declared,
+    notDeclared,
+  });
+  return {
+    initial: section(initial),
+    biennial: { ...section(biennial), noCycleInPeriod: biennial.noCycleInPeriod ?? false },
+    final: section(final),
+    clarifications: clarifications.items.length,
+    accessRequests: {
+      received: accessRequests.received,
+      granted: accessRequests.granted,
+      declined: accessRequests.declined,
+    },
+  };
+}
+
+function view(stored: Stored): ComplianceReport {
+  const document = stored.status === 'compiling' ? null : stored.document;
+  return {
+    id: `0199a000-0000-7000-8000-00000000${String(stored.fy)}`,
+    commission: PSC,
+    fy: stored.fy,
+    status: stored.status,
+    source: 'hosted',
+    compiledAt: stored.compiledAt,
+    reviewedBy: stored.reviewedBy,
+    confirmedBy: stored.confirmedBy,
+    submittedAt: stored.submittedAt,
+    late: stored.late,
+    reference: stored.reference,
+    dueDate: dueDateOf(stored.fy),
+    document:
+      document && corruptDocument
+        ? ({ ...document, schemaVersion: 'form-m.v0' } as unknown as FormMV1)
+        : document,
+    counts: stored.document ? countsOf(stored.document) : {},
+    formMDocumentId: null,
+    receiptDocumentId: null,
+    accessDataUnavailable: stored.document?.partII.accessRequests.dataUnavailable ?? true,
+  };
+}
+
+type NonFiler = FormMV1['partII']['initial']['nonFilers'][number];
+
+const REMARKS: Record<NonFiler['actionTaken'], string> = {
+  none: 'No administrative action taken',
+  'notice-to-comply': 'Notice to comply issued',
+  warning: 'Warning issued',
+  'salary-stoppage': 'Salary stopped',
+  'disciplinary-referral': 'Referred for disciplinary action',
+  'referred-to-eacc': 'Referred to EACC',
+};
+
+function nonFiler(
+  obligation: number,
+  name: string,
+  designation: string,
+  identifier: string,
+  date: string,
+  actionTaken: NonFiler['actionTaken'],
+  complied: NonFiler['complied'],
+): NonFiler {
+  return {
+    obligationId: `0199b000-0000-7000-8000-${String(obligation).padStart(12, '0')}`,
+    name,
+    designation,
+    identifier,
+    date,
+    actionTaken,
+    complied,
+    remarks: REMARKS[actionTaken],
+  };
+}
+
+const UNSIGNED: FormMV1['partIII'] = {
+  compiledBy: { name: null, designation: null, date: null },
+  confirmedBy: { name: null, designation: null, date: null },
+};
+
+function partI(fy: number): FormMV1['partI'] {
+  return {
+    commissionName: PSC.name,
+    issuerCode: PSC.issuerCode,
+    contactDetails: '',
+    physicalAddress: 'Commission House, Harambee Avenue, Nairobi',
+    emailAddress: '',
+    period: { from: `${String(fy)}-07-01`, to: `${String(fy + 1)}-06-30`, financialYearStart: fy },
+  };
+}
+
+/** The year's draft as the scheduled compile assembles it (the prototype's PSC fixture). */
+function fullDocument(fy: number): FormMV1 {
+  const y = (offset: number) => String(fy + offset);
+  return {
+    schemaVersion: 'form-m.v1',
+    partI: partI(fy),
+    partII: {
+      initial: {
+        expected: 12,
+        declared: 10,
+        notDeclared: 2,
+        nonFilers: [
+          nonFiler(
+            101,
+            'Kevin Omondi Ochieng',
+            'Human Resource Officer II',
+            `PSC/${y(0)}/0418`,
+            `${y(0)}-09-01`,
+            'notice-to-comply',
+            'yes',
+          ),
+          nonFiler(
+            102,
+            'Mercy Chebet Rotich',
+            'Records Management Officer',
+            `PSC/${y(1)}/0032`,
+            `${y(1)}-05-18`,
+            'none',
+            'no',
+          ),
+        ],
+      },
+      biennial: {
+        expected: 100,
+        declared: 95,
+        notDeclared: 5,
+        noCycleInPeriod: false,
+        nonFilers: [
+          nonFiler(
+            201,
+            'Peter Mwangi Githinji',
+            'Principal Accountant',
+            'PSC/2011/0217',
+            '2011-03-01',
+            'salary-stoppage',
+            'pending',
+          ),
+          nonFiler(
+            202,
+            'Halima Abdi Hassan',
+            'Senior Legal Officer',
+            'PSC/2016/0098',
+            '2016-08-15',
+            'warning',
+            'pending',
+          ),
+          nonFiler(
+            203,
+            'Joseph Kiprono Langat',
+            'Driver III',
+            'PSC/2008/0544',
+            '2008-01-07',
+            'notice-to-comply',
+            'yes',
+          ),
+          nonFiler(
+            204,
+            'Esther Nyambura Wairimu',
+            'Office Administrator',
+            'PSC/2019/0310',
+            '2019-06-03',
+            'referred-to-eacc',
+            'no',
+          ),
+          nonFiler(
+            205,
+            'Collins Barasa Wekesa',
+            'ICT Officer I',
+            'PSC/2021/0127',
+            '2021-10-11',
+            'disciplinary-referral',
+            'no',
+          ),
+        ],
+      },
+      final: {
+        expected: 4,
+        declared: 3,
+        notDeclared: 1,
+        nonFilers: [
+          nonFiler(
+            301,
+            'Lucy Atieno Odhiambo',
+            'Deputy Director, Finance',
+            'PSC/2004/0061',
+            `${y(1)}-03-31`,
+            'notice-to-comply',
+            'pending',
+          ),
+        ],
+      },
+      clarifications: { items: CLARIFICATIONS.map((item) => ({ ...item })) },
+      accessRequests: {
+        received: 0,
+        granted: 0,
+        declined: 0,
+        declineReasons: [],
+        dataUnavailable: true,
+      },
+      complaints: { registerMaintained: null, items: [] },
+    },
+    partIII: UNSIGNED,
+  };
+}
+
+/** A preview of the year from today's data: no biennial cycle, access requests captured. */
+function previewDocument(fy: number): FormMV1 {
+  const y = (offset: number) => String(fy + offset);
+  const full = fullDocument(fy);
+  return {
+    ...full,
+    partII: {
+      ...full.partII,
+      initial: {
+        expected: 7,
+        declared: 5,
+        notDeclared: 2,
+        nonFilers: [
+          nonFiler(
+            401,
+            'Nelson Kibet Cheruiyot',
+            'Economist II',
+            `PSC/${y(0)}/0107`,
+            `${y(0)}-11-02`,
+            'notice-to-comply',
+            'pending',
+          ),
+          nonFiler(
+            402,
+            'Janet Moraa Nyakundi',
+            'Clerical Officer',
+            `PSC/${y(1)}/0004`,
+            `${y(1)}-02-15`,
+            'none',
+            'no',
+          ),
+        ],
+      },
+      biennial: { expected: 0, declared: 0, notDeclared: 0, nonFilers: [], noCycleInPeriod: true },
+      final: { expected: 2, declared: 2, notDeclared: 0, nonFilers: [] },
+      clarifications: {
+        items: CLARIFICATIONS.slice(0, 2).map((item) => ({
+          ...item,
+          statusOfCompliance: 'pending',
+        })),
+      },
+      accessRequests: {
+        received: 3,
+        granted: 2,
+        declined: 1,
+        declineReasons: [{ reason: 'frivolous-vexatious', count: 1 }],
+        dataUnavailable: false,
+      },
+    },
+  };
+}
+
+const CLARIFICATIONS: FormMV1['partII']['clarifications']['items'] = [
+  {
+    name: "Samuel Kariuki Ndung'u",
+    designation: 'Director, Establishment',
+    identifier: 'PSC/2002/0015',
+    natureInGeneralTerms: 'Supporting documents for an asset',
+    statusOfCompliance: 'resolved',
+    clarificationReference: 'CLR-PSC-2025-0000011-3',
+  },
+  {
+    name: 'Ann Wambui Mugo',
+    designation: 'Senior Economist',
+    identifier: 'PSC/2013/0205',
+    natureInGeneralTerms: 'Explanation of the source of funds for an asset',
+    statusOfCompliance: 'responded',
+    clarificationReference: 'CLR-PSC-2026-0000003-6',
+  },
+  {
+    name: 'Hassan Omar Mohamed',
+    designation: 'Principal Administrative Officer',
+    identifier: 'PSC/2009/0133',
+    natureInGeneralTerms: 'Missing liability details',
+    statusOfCompliance: 'pending',
+    clarificationReference: 'CLR-PSC-2026-0000009-T',
+  },
+  {
+    name: 'Beatrice Njeri Kimani',
+    designation: 'Accountant I',
+    identifier: 'PSC/2018/0276',
+    natureInGeneralTerms: "Incomplete spouse's financial statement",
+    statusOfCompliance: 'overdue',
+    clarificationReference: 'CLR-PSC-2026-0000014-Z',
+  },
+  {
+    name: 'Daniel Mutua Musyoka',
+    designation: 'Supply Chain Officer II',
+    identifier: 'PSC/2020/0391',
+    natureInGeneralTerms: 'Undisclosed directorship or membership',
+    statusOfCompliance: 'resolved',
+    clarificationReference: 'CLR-PSC-2026-0000017-T',
+  },
+  {
+    name: 'Rose Akinyi Otieno',
+    designation: 'Assistant Director, HRM',
+    identifier: 'PSC/2012/0188',
+    natureInGeneralTerms: 'Basis of valuation not stated',
+    statusOfCompliance: 'withdrawn',
+    clarificationReference: 'CLR-PSC-2026-0000021-2',
+  },
+];

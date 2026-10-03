@@ -19,7 +19,7 @@ import {
 } from '../integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { officerOf } from '../officer.js';
-import { badGateway, badRequest, notFound, workflowUnavailable } from '../problems.js';
+import { badRequest, notFound, problem, workflowUnavailable } from '../problems.js';
 import { ReviewClient, ReviewUnavailable } from '../review/review-client.js';
 import { eaccContext } from '../system-context.js';
 import {
@@ -276,9 +276,9 @@ function decodeCursor(cursor: string): Cursor {
 
 /** 502 `icms-push-failed`: the referral is `push-failed` with `error`; push again to retry. */
 function pushFailed(error: IcmsPushError): ProblemException {
-  return badGateway(
+  return problem(
     'icms-push-failed',
     'The referral could not be registered with ICMS. Push it again to retry.',
-    { error },
+    { extensions: { error } },
   );
 }
