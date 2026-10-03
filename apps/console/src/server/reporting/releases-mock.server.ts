@@ -22,7 +22,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import { financialYearOf, nairobiToday } from '../../components/form-m/financial-year';
+import { financialYearOf } from '../../components/form-m/financial-year';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem } from '../mock-http';
 import { isEacc } from './eacc-mock.server';
@@ -577,9 +577,9 @@ function aggregatesOf(fy: number, counts: Record<string, LiveCounts>): NationalA
   };
 }
 
-/** The financial year (by its start year) of the mocks' day: REPORTING_MOCK_TODAY, else today. */
+/** The financial year (by its start year) of the mocks' day (REPORTING_MOCK_TODAY, else today). */
 function financialYearNow(): number {
-  return financialYearOf(mockDay() || nairobiToday());
+  return financialYearOf(mockDay());
 }
 
 function conflict(code: string, detail: string) {
