@@ -920,6 +920,9 @@ importers:
       '@adili/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@adili/vitest-config':
+        specifier: workspace:*
+        version: link:../vitest-config
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.6
