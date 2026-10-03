@@ -16,11 +16,7 @@ import {
 import { FakeCipher } from '@adili/data-access/testing';
 import { OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
-import {
-  prebuiltWorkflowBundler,
-  untilActivitiesDrained,
-  untilWorkerPolling,
-} from '@adili/temporal/testing';
+import { endWorkflows, prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -205,17 +201,8 @@ export async function startAccessApi(): Promise<AccessApi> {
         .map((row) => row.envelope as RecordedEvent)
         .filter((event) => type === undefined || event.type === type);
     },
-    async endWorkflows(ids) {
-      for (const id of ids) {
-        try {
-          await temporal.workflow.getHandle(id).terminate();
-        } catch {
-          // Not running.
-        }
-      }
-      // Terminating leaves an activity in flight running: its write would land on what the
-      // test does next.
-      await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
+    endWorkflows(ids) {
+      return endWorkflows(temporal, app.get(TemporalWorkerReadinessCheck), ids);
     },
     async eventually(check, timeoutMs = 20_000) {
       const deadline = Date.now() + timeoutMs;
@@ -260,15 +247,7 @@ export async function startAccessApi(): Promise<AccessApi> {
         ...leaRows.map(({ id }) => leaRequestWorkflowId(id)),
         ...[...requests, ...leaRows].map(({ id }) => onboardedNoticeWorkflowId(id)),
       ];
-      for (const id of workflowIds) {
-        try {
-          await temporal.workflow.getHandle(id).terminate();
-        } catch {
-          // Never started (held), or ended already.
-        }
-      }
-      // As in endWorkflows: no straggling activity writes into the next test.
-      await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
+      await endWorkflows(temporal, app.get(TemporalWorkerReadinessCheck), workflowIds);
       // Children before parents; the register's insert-only trigger does not fire on truncate.
       await db.execute(
         sql`truncate representations, access_requests, lea_requests, access_register, certified_copies, self_access_applications, numbering_counters, idempotency_keys, outbox, inbox`,
