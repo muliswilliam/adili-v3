@@ -229,7 +229,8 @@ const FIELD_WORDS = new Set([
   ...['make', 'model', 'colour', 'color', 'year', 'type', 'fuel', 'engine', 'body', 'chassis'],
   ...['frame', 'rating', 'section', 'station', 'branch', 'district', 'county', 'location'],
   ...['area', 'size', 'use', 'term', 'tenure', 'date', 'amount', 'balance', 'currency'],
-  ...['status', 'tel', 'telephone', 'phone', 'mobile', 'email', 'address', 'designation'],
+  ...['status', 'tel', 'telephone', 'phone', 'mobile', 'email', 'address', 'box'],
+  'designation',
   ...['department', 'employer', 'institution', 'account', 'loan', 'ref', 'reference', 'pin'],
   ...['id', 'signature', 'sahihi', 'tarehe', 'kiasi', 'salio', 'cheo', 'idara', 'simu'],
   ...['gender', 'nationality', 'occupation', 'grade', 'salary', 'pay', 'shares', 'value'],
@@ -502,7 +503,7 @@ interface Marker {
   from: number;
 }
 
-/** A roman numeral of two letters or more, up to 39 ("ii", "iv", "xii"); "i" alone is a letter. */
+/** A roman numeral of two letters or more, up to 39 ("ii", "iv", "xii"); "i" alone is a letter unless "ii" follows. */
 const ROMAN = /^(?=[ivx]{2,})x{0,3}(?:ix|iv|v?i{0,3})$/iu;
 const ROMAN_DIGITS: Readonly<Partial<Record<string, number>>> = { i: 1, v: 5, x: 10 };
 /** A roman numeral's value ("iv" is 4); its letters are i, v and x. */
@@ -569,35 +570,42 @@ function markerOf(tokens: readonly Token[]): Marker | null {
 }
 
 /**
- * How a list line reads, from token `from` (past its marker): `name` for one to six capitalised
- * name words, particles and initials ("J."), after any office ("Secretary Mary Wanjiru"), none a
- * field, place, organisation, office, heading or common word, and nothing else; `name-office` for
- * such a name, a comma, dash or colon, and only offices or field words ("Mary Wanjiru,
- * Secretary"); `other` for anything else.
+ * How a list line reads, from token `from` (past its marker), on its leading words: one to six
+ * capitalised name words, particles and initials ("J."), after any office ("Secretary Mary
+ * Wanjiru"), none a place, organisation, heading or common word, up to the first field word,
+ * currency, uncapitalised word, number, joiner, dash or other mark. `name` when nothing follows
+ * them; `name-office` when a comma, dash or colon and only offices or field words follow ("Mary
+ * Wanjiru, Secretary"); `name-led` when anything else follows ("John Kamau ID 12345678", "Mary
+ * Wanjiru - 40%"); `other` when the leading words are not a name. `names` are the name's words.
  */
-function listLine(tokens: readonly Token[], from: number): 'name' | 'name-office' | 'other' {
+function listLine(tokens: readonly Token[], from: number): ListLine {
+  const other: ListLine = { reading: 'other', names: [] };
+  const names: string[] = [];
   let at = from;
-  let names = 0;
   for (; at < tokens.length; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
-    if (token?.kind === 'other' && token.text === '.' && names > 0) continue;
+    if (token?.kind === 'other' && token.text === '.' && names.length > 0) continue;
     if (token?.kind !== 'word') break;
     if (PARTICLES.has(token.text)) continue;
+    const word = lower(token.text);
     // An office before the name, wherever the list puts it ("Chairman John Kamau").
-    if (names === 0 && (ROLE_WORDS.has(lower(token.text)) || qualifiesOffice(token.text))) continue;
-    if (!isCapitalised(token.text) || WRITTEN_ONLY.has(lower(token.text))) return 'other';
-    names++;
+    if (names.length === 0 && (ROLE_WORDS.has(word) || qualifiesOffice(token.text))) continue;
+    if (FIELD_WORDS.has(word) || CURRENCIES.has(word)) break;
+    // A word after the name ends it ("Peter Otieno born 1990").
+    if (!isCapitalised(token.text) && names.length > 0) break;
+    if (!isCapitalised(token.text) || WRITTEN_ONLY.has(word)) return other;
+    names.push(token.text);
   }
-  if (names === 0 || names > 6) return 'other';
+  if (names.length === 0 || names.length > 6) return other;
   const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
-  if (rest.length === 0) return 'name';
+  if (rest.length === 0) return { reading: 'name', names };
   const [mark, ...after] = rest;
   const separates =
     mark?.kind === 'joiner' ||
     mark?.kind === 'colon' ||
     (mark?.kind === 'other' && BULLETS.has(mark.text));
-  const office =
+  const offices =
     after.length > 0 &&
     after.every(
       (token) =>
@@ -606,11 +614,24 @@ function listLine(tokens: readonly Token[], from: number): 'name' | 'name-office
           qualifiesOffice(token.text) ||
           FIELD_WORDS.has(lower(token.text))),
     );
-  return separates && office ? 'name-office' : 'other';
+  return { reading: separates && offices ? 'name-office' : 'name-led', names };
 }
 
-/** Whether a list line reads as a name, with or without an office after it. */
-const readsAsName = (tokens: readonly Token[], from: number) => listLine(tokens, from) !== 'other';
+/** How a list line reads, and the words of the name it leads with. */
+interface ListLine {
+  reading: 'name' | 'name-office' | 'name-led' | 'other';
+  names: string[];
+}
+
+/**
+ * Whether a list line reads as a name. A marked line is decided on its leading words; an unmarked
+ * one must be a name alone or a name and an office, so a sentence that starts with a name is not
+ * read as an entry.
+ */
+function readsAsName(tokens: readonly Token[], marker: Marker | null): boolean {
+  const { reading } = listLine(tokens, marker?.from ?? 0);
+  return marker ? reading !== 'other' : reading === 'name' || reading === 'name-office';
+}
 
 /** Lines past an unmarked one that the next entry may come after: a heading and its fields. */
 const ENTRY_LOOKAHEAD = 5;
@@ -621,8 +642,8 @@ const ENTRY_LOOKAHEAD = 5;
  * whatever data it holds. The list goes on:
  * - at a marked line of the level, unless its numbering starts again or repeats and it does not
  *   read as a name;
- * - at a marked line of another kind or indent (a sub-list: "(a) Toyota Premio"), read only if it
- *   reads as a name;
+ * - at a marked line of another kind or indent (a sub-list: "(a) Toyota Premio"), read only if its
+ *   leading words read as a name, and then only those ("(a) Peter Otieno ID 12345678");
  * - at an unmarked line before the level's next number (within a few lines), read only if it is a
  *   wrapped name: a heading and its fields are skipped;
  * - at an unmarked line straight below, when it is a name wrapped from the entry above, a name and
@@ -635,7 +656,19 @@ function listParties(
   first: number,
 ): string[][] {
   const parties: string[][] = [];
-  const firstMarker = markerOf(tokensAt(first));
+  // A line's marker; "i." is roman, not a letter, when the next marked line is "ii.".
+  const markerAt = (row: number): Marker | null => {
+    const marker = markerOf(tokensAt(row));
+    if (marker?.kind !== 'letter' || marker.value !== 9) return marker;
+    for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
+      const next = markerOf(tokensAt(at));
+      if (next === null) continue;
+      const roman = next.kind === 'roman' && next.value === 2 && next.indent === marker.indent;
+      return roman ? { ...marker, kind: 'roman', value: 1 } : marker;
+    }
+    return marker;
+  };
+  const firstMarker = markerAt(first);
   parties.push(...labelParties(tokensAt(first), firstMarker?.from ?? 0));
   let level = firstMarker?.kind === 'bullet' ? null : firstMarker;
   const atLevel = (marker: Marker | null) =>
@@ -646,7 +679,7 @@ function listParties(
   // Whether the level's next number comes within a few lines after `row`.
   const nextNumberAhead = (row: number) => {
     for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
-      const marker = markerOf(tokensAt(at));
+      const marker = markerAt(at);
       if (atLevel(marker)) return marker?.value === (level?.value ?? 0) + 1;
     }
     return false;
@@ -656,8 +689,8 @@ function listParties(
     const next = nextLine(nameLines, at);
     if (next < 0) break;
     const tokens = tokensAt(next);
-    const marker = markerOf(tokens);
-    const name = readsAsName(tokens, marker?.from ?? 0);
+    const marker = markerAt(next);
+    const name = readsAsName(tokens, marker);
     if (next > at + 1 && !name) break;
     at = next;
     if (marker && (level === null || atLevel(marker))) {
@@ -666,15 +699,19 @@ function listParties(
       if (marker.kind !== 'bullet') level = marker;
       continue;
     }
-    if (marker || nextNumberAhead(next)) {
-      // A sub-list's line, or a line before the next entry: read only a name.
-      if (marker ? name : wrapsName(tokens))
-        parties.push(...labelParties(tokens, marker?.from ?? 0));
+    if (marker) {
+      // A sub-list's line: only the name it leads with ("(a) Peter Otieno - Son", not "Son").
+      if (name) parties.push(listLine(tokens, marker.from).names);
+      continue;
+    }
+    if (nextNumberAhead(next)) {
+      // A line before the next entry: read only a wrapped name.
+      if (wrapsName(tokens)) parties.push(...labelParties(tokens, 0));
       continue;
     }
     const wraps = wrapsFrom(tokensAt(next - 1), nameLines[next - 1] ?? '') && wrapsName(tokens);
     const plainList = firstMarker === null && name;
-    if (!wraps && !plainList && listLine(tokens, 0) !== 'name-office') break;
+    if (!wraps && !plainList && listLine(tokens, 0).reading !== 'name-office') break;
     parties.push(...labelParties(tokens, 0));
   }
   return parties;
@@ -789,7 +826,7 @@ const LABELLED_ACCOUNT_NUMBER = new RegExp(
 const MAX_ENTRIES = 20;
 /** Marks that start a list entry: a bullet or dash, after which a name may follow. */
 const BULLETS = new Set(['-', '*', '\u2022', '\u2013', '\u2014']);
-/** Letters and roman numerals that number a list ("a)", "ii."). */
+/** A single letter that numbers a list ("a)", "(b)"); roman numerals are `ROMAN`. */
 const LIST_LETTERS = /^[a-z]$/iu;
 
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
