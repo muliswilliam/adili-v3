@@ -39,16 +39,14 @@ export interface CaseRegistryView {
   })[];
 }
 
-/** The case detail as the case view reads it (determinations are spec 08's). */
-export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document' | 'determinations'> & {
+/** The case detail as the case view reads it. */
+export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document'> & {
   flags: CaseFlag[];
   document: JsonObject | null;
 };
 
 function viewOf(detail: CaseDetail): CaseViewDetail {
-  const view: Partial<CaseDetail> = { ...detail };
-  delete view.determinations;
-  return view as CaseViewDetail;
+  return detail as CaseViewDetail;
 }
 
 export interface CaseView {

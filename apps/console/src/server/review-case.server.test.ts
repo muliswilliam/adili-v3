@@ -54,7 +54,7 @@ describe('loadCaseView (S9)', () => {
     expect(detail.reviewerHistory).toEqual([MOCK_OFFICERS.peter, ME]);
     expect(detail.versions.map((each) => each.version)).toEqual([1, 2]);
     expect(detail.timeline.at(0)?.kind).toBe('case-created');
-    expect('determinations' in detail).toBe(false);
+    expect(detail.determinations).toEqual([]);
   });
 
   it('still shows the case when the declarations service is down (502)', async () => {
