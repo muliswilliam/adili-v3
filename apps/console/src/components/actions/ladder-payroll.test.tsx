@@ -166,6 +166,14 @@ describe('a stoppage payroll acknowledged, its letter not yet issued (F11)', () 
     expect(within(stoppageStep()).getByText(/Status: In progress\./)).toBeTruthy();
   });
 
+  it('says only Not needed for an approved stoppage the ladder ended before (F20)', async () => {
+    await show(L.payrollPending, { status: 'complied', closingCause: 'filed' });
+    expect(stoppageStep().dataset.status).toBe('skipped');
+    expect(within(stoppageStep()).getByText('Not needed')).toBeTruthy();
+    expect(within(stoppageStep()).queryByText(/^Approved /)).toBeNull();
+    expect(within(stoppageStep()).queryByText('Waiting for payroll')).toBeNull();
+  });
+
   it('says an approved notice whose letter is being issued is approved (F17)', async () => {
     const issuing = await ladder(L.noticeProposed);
     const approvedAt = new Date(NOW_MS - DAY).toISOString();

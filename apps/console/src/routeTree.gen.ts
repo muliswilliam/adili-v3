@@ -8,737 +8,718 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AccessRouteRouteImport } from './routes/access/route'
-import { Route as ActionsRouteRouteImport } from './routes/actions/route'
-import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
-import { Route as ApprovalsRouteRouteImport } from './routes/approvals/route'
-import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
-import { Route as LeaRouteRouteImport } from './routes/lea/route'
-import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
-import { Route as PlatformRouteRouteImport } from './routes/platform/route'
-import { Route as ReviewRouteRouteImport } from './routes/review/route'
-import { Route as RosterRouteRouteImport } from './routes/roster/route'
-import { Route as AccessIndexRouteImport } from './routes/access/index'
-import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
-import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
-import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route'
-import { Route as ActionsIndexRouteImport } from './routes/actions/index'
-import { Route as ActionsLadderIdRouteImport } from './routes/actions/$ladderId'
-import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
-import { Route as ApprovalsIndexRouteImport } from './routes/approvals/index'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
-import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
-import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
-import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
-import { Route as LeaIndexRouteImport } from './routes/lea/index'
-import { Route as LeaRequestsRouteRouteImport } from './routes/lea/requests/route'
-import { Route as ObligationsIndexRouteImport } from './routes/obligations/index'
-import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy'
-import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route'
-import { Route as PlatformIndexRouteImport } from './routes/platform/index'
-import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
-import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platform/law-enforcement/route'
-import { Route as ReviewQueueRouteImport } from './routes/review/_queue'
-import { Route as RosterIndexRouteImport } from './routes/roster/index'
-import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
-import { Route as RosterCoverageRouteImport } from './routes/roster/coverage'
-import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
-import { Route as RosterImportRouteImport } from './routes/roster/import'
-import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
-import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route'
-import { Route as RosterTemplateRouteImport } from './routes/roster/template'
-import { Route as AccessCertifiedCopiesIndexRouteImport } from './routes/access/certified-copies/index'
-import { Route as AccessCertifiedCopiesApplicationIdRouteImport } from './routes/access/certified-copies/$applicationId'
-import { Route as AccessCertifiedCopiesNewRouteImport } from './routes/access/certified-copies/new'
-import { Route as AccessLeaRequestsIndexRouteImport } from './routes/access/lea-requests/index'
-import { Route as AccessLeaRequestsLeaRequestIdRouteRouteImport } from './routes/access/lea-requests/$leaRequestId/route'
-import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index'
-import { Route as AccessRequestsRequestIdRouteRouteImport } from './routes/access/requests/$requestId/route'
-import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id'
-import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
-import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
-import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
-import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
-import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index'
-import { Route as LeaRequestsLeaRequestIdRouteImport } from './routes/lea/requests/$leaRequestId'
-import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new'
-import { Route as ObligationsNationalIndexRouteImport } from './routes/obligations_/national/index'
-import { Route as PlatformLawEnforcementIndexRouteImport } from './routes/platform/law-enforcement/index'
-import { Route as PlatformLawEnforcementAgencyCodeRouteImport } from './routes/platform/law-enforcement/$agencyCode'
-import { Route as ReviewQueueIndexRouteImport } from './routes/review/_queue/index'
-import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index'
-import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-access/docs'
-import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index'
-import { Route as RosterRecordsIndexRouteImport } from './routes/roster/records/index'
-import { Route as RosterRecordsRecordIdRouteImport } from './routes/roster/records/$recordId'
-import { Route as AccessLeaRequestsLeaRequestIdIndexRouteImport } from './routes/access/lea-requests/$leaRequestId/index'
-import { Route as AccessLeaRequestsLeaRequestIdDecideRouteImport } from './routes/access/lea-requests/$leaRequestId/decide'
-import { Route as AccessRequestsRequestIdIndexRouteImport } from './routes/access/requests/$requestId/index'
-import { Route as AccessRequestsRequestIdDecideRouteImport } from './routes/access/requests/$requestId/decide'
-import { Route as CommissionsSlugObligationsIndexRouteImport } from './routes/commissions/$slug/obligations/index'
-import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commissions/$slug/records/index'
-import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId'
-import { Route as ReviewCasesCaseIdIndexRouteImport } from './routes/review/cases.$caseId.index'
-import { Route as ReviewCasesCaseIdDeterminationRouteImport } from './routes/review/cases.$caseId.determination'
-import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/imports/$importId/index'
-import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv'
-import { Route as CommissionsSlugImportsImportIdIndexRouteImport } from './routes/commissions/$slug/imports/$importId/index'
-import { Route as CommissionsSlugImportsImportIdReportDotcsvRouteImport } from './routes/commissions/$slug/imports/$importId/report[.]csv'
-import { Route as ReviewCasesCaseIdClarificationsClarificationIdRouteImport } from './routes/review/cases.$caseId.clarifications.$clarificationId'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as AccessRouteRouteImport } from './routes/access/route';
+import { Route as ActionsRouteRouteImport } from './routes/actions/route';
+import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route';
+import { Route as ApprovalsRouteRouteImport } from './routes/approvals/route';
+import { Route as CommissionsRouteRouteImport } from './routes/commissions/route';
+import { Route as LeaRouteRouteImport } from './routes/lea/route';
+import { Route as ObligationsRouteRouteImport } from './routes/obligations/route';
+import { Route as PlatformRouteRouteImport } from './routes/platform/route';
+import { Route as ReviewRouteRouteImport } from './routes/review/route';
+import { Route as RosterRouteRouteImport } from './routes/roster/route';
+import { Route as AccessIndexRouteImport } from './routes/access/index';
+import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route';
+import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route';
+import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route';
+import { Route as ActionsIndexRouteImport } from './routes/actions/index';
+import { Route as ActionsLadderIdRouteImport } from './routes/actions/$ladderId';
+import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index';
+import { Route as ApprovalsIndexRouteImport } from './routes/approvals/index';
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback';
+import { Route as AuthLoginRouteImport } from './routes/auth/login';
+import { Route as AuthLogoutRouteImport } from './routes/auth/logout';
+import { Route as CommissionsIndexRouteImport } from './routes/commissions/index';
+import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route';
+import { Route as CommissionsNewRouteImport } from './routes/commissions/new';
+import { Route as LeaIndexRouteImport } from './routes/lea/index';
+import { Route as LeaRequestsRouteRouteImport } from './routes/lea/requests/route';
+import { Route as ObligationsIndexRouteImport } from './routes/obligations/index';
+import { Route as ObligationsPolicyRouteImport } from './routes/obligations/policy';
+import { Route as ObligationsNationalRouteRouteImport } from './routes/obligations_/national/route';
+import { Route as PlatformIndexRouteImport } from './routes/platform/index';
+import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations';
+import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platform/law-enforcement/route';
+import { Route as ReviewQueueRouteImport } from './routes/review/_queue';
+import { Route as RosterIndexRouteImport } from './routes/roster/index';
+import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route';
+import { Route as RosterCoverageRouteImport } from './routes/roster/coverage';
+import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged';
+import { Route as RosterImportRouteImport } from './routes/roster/import';
+import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route';
+import { Route as RosterRecordsRouteRouteImport } from './routes/roster/records/route';
+import { Route as RosterTemplateRouteImport } from './routes/roster/template';
+import { Route as AccessCertifiedCopiesIndexRouteImport } from './routes/access/certified-copies/index';
+import { Route as AccessCertifiedCopiesApplicationIdRouteImport } from './routes/access/certified-copies/$applicationId';
+import { Route as AccessCertifiedCopiesNewRouteImport } from './routes/access/certified-copies/new';
+import { Route as AccessLeaRequestsIndexRouteImport } from './routes/access/lea-requests/index';
+import { Route as AccessLeaRequestsLeaRequestIdRouteRouteImport } from './routes/access/lea-requests/$leaRequestId/route';
+import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index';
+import { Route as AccessRequestsRequestIdRouteRouteImport } from './routes/access/requests/$requestId/route';
+import { Route as ApiMockFilesIdRouteImport } from './routes/api/mock-files.$id';
+import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id';
+import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index';
+import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route';
+import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route';
+import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index';
+import { Route as LeaRequestsLeaRequestIdRouteImport } from './routes/lea/requests/$leaRequestId';
+import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new';
+import { Route as ObligationsNationalIndexRouteImport } from './routes/obligations_/national/index';
+import { Route as PlatformLawEnforcementIndexRouteImport } from './routes/platform/law-enforcement/index';
+import { Route as PlatformLawEnforcementAgencyCodeRouteImport } from './routes/platform/law-enforcement/$agencyCode';
+import { Route as ReviewQueueIndexRouteImport } from './routes/review/_queue/index';
+import { Route as RosterApiAccessIndexRouteImport } from './routes/roster/api-access/index';
+import { Route as RosterApiAccessDocsRouteImport } from './routes/roster/api-access/docs';
+import { Route as RosterImportsIndexRouteImport } from './routes/roster/imports/index';
+import { Route as RosterRecordsIndexRouteImport } from './routes/roster/records/index';
+import { Route as RosterRecordsRecordIdRouteImport } from './routes/roster/records/$recordId';
+import { Route as AccessLeaRequestsLeaRequestIdIndexRouteImport } from './routes/access/lea-requests/$leaRequestId/index';
+import { Route as AccessLeaRequestsLeaRequestIdDecideRouteImport } from './routes/access/lea-requests/$leaRequestId/decide';
+import { Route as AccessRequestsRequestIdIndexRouteImport } from './routes/access/requests/$requestId/index';
+import { Route as AccessRequestsRequestIdDecideRouteImport } from './routes/access/requests/$requestId/decide';
+import { Route as CommissionsSlugObligationsIndexRouteImport } from './routes/commissions/$slug/obligations/index';
+import { Route as CommissionsSlugRecordsIndexRouteImport } from './routes/commissions/$slug/records/index';
+import { Route as CommissionsSlugRecordsRecordIdRouteImport } from './routes/commissions/$slug/records/$recordId';
+import { Route as ReviewCasesCaseIdIndexRouteImport } from './routes/review/cases.$caseId.index';
+import { Route as ReviewCasesCaseIdDeterminationRouteImport } from './routes/review/cases.$caseId.determination';
+import { Route as RosterImportsImportIdIndexRouteImport } from './routes/roster/imports/$importId/index';
+import { Route as RosterImportsImportIdReportDotcsvRouteImport } from './routes/roster/imports/$importId/report[.]csv';
+import { Route as CommissionsSlugImportsImportIdIndexRouteImport } from './routes/commissions/$slug/imports/$importId/index';
+import { Route as CommissionsSlugImportsImportIdReportDotcsvRouteImport } from './routes/commissions/$slug/imports/$importId/report[.]csv';
+import { Route as ReviewCasesCaseIdClarificationsClarificationIdRouteImport } from './routes/review/cases.$caseId.clarifications.$clarificationId';
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessRouteRoute = AccessRouteRouteImport.update({
   id: '/access',
   path: '/access',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ActionsRouteRoute = ActionsRouteRouteImport.update({
   id: '/actions',
   path: '/actions',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
   id: '/ai-policy',
   path: '/ai-policy',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApprovalsRouteRoute = ApprovalsRouteRouteImport.update({
   id: '/approvals',
   path: '/approvals',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LeaRouteRoute = LeaRouteRouteImport.update({
   id: '/lea',
   path: '/lea',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ObligationsRouteRoute = ObligationsRouteRouteImport.update({
   id: '/obligations',
   path: '/obligations',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PlatformRouteRoute = PlatformRouteRouteImport.update({
   id: '/platform',
   path: '/platform',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ReviewRouteRoute = ReviewRouteRouteImport.update({
   id: '/review',
   path: '/review',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const RosterRouteRoute = RosterRouteRouteImport.update({
   id: '/roster',
   path: '/roster',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessIndexRoute = AccessIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccessRouteRoute,
-} as any)
-const AccessCertifiedCopiesRouteRoute =
-  AccessCertifiedCopiesRouteRouteImport.update({
-    id: '/certified-copies',
-    path: '/certified-copies',
-    getParentRoute: () => AccessRouteRoute,
-  } as any)
+} as any);
+const AccessCertifiedCopiesRouteRoute = AccessCertifiedCopiesRouteRouteImport.update({
+  id: '/certified-copies',
+  path: '/certified-copies',
+  getParentRoute: () => AccessRouteRoute,
+} as any);
 const AccessLeaRequestsRouteRoute = AccessLeaRequestsRouteRouteImport.update({
   id: '/lea-requests',
   path: '/lea-requests',
   getParentRoute: () => AccessRouteRoute,
-} as any)
+} as any);
 const AccessRequestsRouteRoute = AccessRequestsRouteRouteImport.update({
   id: '/requests',
   path: '/requests',
   getParentRoute: () => AccessRouteRoute,
-} as any)
+} as any);
 const ActionsIndexRoute = ActionsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ActionsRouteRoute,
-} as any)
+} as any);
 const ActionsLadderIdRoute = ActionsLadderIdRouteImport.update({
   id: '/$ladderId',
   path: '/$ladderId',
   getParentRoute: () => ActionsRouteRoute,
-} as any)
+} as any);
 const AiPolicyIndexRoute = AiPolicyIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AiPolicyRouteRoute,
-} as any)
+} as any);
 const ApprovalsIndexRoute = ApprovalsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ApprovalsRouteRoute,
-} as any)
+} as any);
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
   path: '/auth/logout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CommissionsIndexRoute = CommissionsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CommissionsRouteRoute,
-} as any)
+} as any);
 const CommissionsSlugRouteRoute = CommissionsSlugRouteRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => CommissionsRouteRoute,
-} as any)
+} as any);
 const CommissionsNewRoute = CommissionsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
-} as any)
+} as any);
 const LeaIndexRoute = LeaIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LeaRouteRoute,
-} as any)
+} as any);
 const LeaRequestsRouteRoute = LeaRequestsRouteRouteImport.update({
   id: '/requests',
   path: '/requests',
   getParentRoute: () => LeaRouteRoute,
-} as any)
+} as any);
 const ObligationsIndexRoute = ObligationsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ObligationsRouteRoute,
-} as any)
+} as any);
 const ObligationsPolicyRoute = ObligationsPolicyRouteImport.update({
   id: '/policy',
   path: '/policy',
   getParentRoute: () => ObligationsRouteRoute,
-} as any)
-const ObligationsNationalRouteRoute =
-  ObligationsNationalRouteRouteImport.update({
-    id: '/obligations_/national',
-    path: '/obligations/national',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+} as any);
+const ObligationsNationalRouteRoute = ObligationsNationalRouteRouteImport.update({
+  id: '/obligations_/national',
+  path: '/obligations/national',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const PlatformIndexRoute = PlatformIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PlatformRouteRoute,
-} as any)
+} as any);
 const PlatformIntegrationsRoute = PlatformIntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
   getParentRoute: () => PlatformRouteRoute,
-} as any)
-const PlatformLawEnforcementRouteRoute =
-  PlatformLawEnforcementRouteRouteImport.update({
-    id: '/law-enforcement',
-    path: '/law-enforcement',
-    getParentRoute: () => PlatformRouteRoute,
-  } as any)
+} as any);
+const PlatformLawEnforcementRouteRoute = PlatformLawEnforcementRouteRouteImport.update({
+  id: '/law-enforcement',
+  path: '/law-enforcement',
+  getParentRoute: () => PlatformRouteRoute,
+} as any);
 const ReviewQueueRoute = ReviewQueueRouteImport.update({
   id: '/_queue',
   getParentRoute: () => ReviewRouteRoute,
-} as any)
+} as any);
 const RosterIndexRoute = RosterIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterApiAccessRouteRoute = RosterApiAccessRouteRouteImport.update({
   id: '/api-access',
   path: '/api-access',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterCoverageRoute = RosterCoverageRouteImport.update({
   id: '/coverage',
   path: '/coverage',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterFlaggedRoute = RosterFlaggedRouteImport.update({
   id: '/flagged',
   path: '/flagged',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterImportRoute = RosterImportRouteImport.update({
   id: '/import',
   path: '/import',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterImportsRouteRoute = RosterImportsRouteRouteImport.update({
   id: '/imports',
   path: '/imports',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterRecordsRouteRoute = RosterRecordsRouteRouteImport.update({
   id: '/records',
   path: '/records',
   getParentRoute: () => RosterRouteRoute,
-} as any)
+} as any);
 const RosterTemplateRoute = RosterTemplateRouteImport.update({
   id: '/template',
   path: '/template',
   getParentRoute: () => RosterRouteRoute,
-} as any)
-const AccessCertifiedCopiesIndexRoute =
-  AccessCertifiedCopiesIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
-  } as any)
+} as any);
+const AccessCertifiedCopiesIndexRoute = AccessCertifiedCopiesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+} as any);
 const AccessCertifiedCopiesApplicationIdRoute =
   AccessCertifiedCopiesApplicationIdRouteImport.update({
     id: '/$applicationId',
     path: '/$applicationId',
     getParentRoute: () => AccessCertifiedCopiesRouteRoute,
-  } as any)
-const AccessCertifiedCopiesNewRoute =
-  AccessCertifiedCopiesNewRouteImport.update({
-    id: '/new',
-    path: '/new',
-    getParentRoute: () => AccessCertifiedCopiesRouteRoute,
-  } as any)
+  } as any);
+const AccessCertifiedCopiesNewRoute = AccessCertifiedCopiesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => AccessCertifiedCopiesRouteRoute,
+} as any);
 const AccessLeaRequestsIndexRoute = AccessLeaRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccessLeaRequestsRouteRoute,
-} as any)
+} as any);
 const AccessLeaRequestsLeaRequestIdRouteRoute =
   AccessLeaRequestsLeaRequestIdRouteRouteImport.update({
     id: '/$leaRequestId',
     path: '/$leaRequestId',
     getParentRoute: () => AccessLeaRequestsRouteRoute,
-  } as any)
+  } as any);
 const AccessRequestsIndexRoute = AccessRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccessRequestsRouteRoute,
-} as any)
-const AccessRequestsRequestIdRouteRoute =
-  AccessRequestsRequestIdRouteRouteImport.update({
-    id: '/$requestId',
-    path: '/$requestId',
-    getParentRoute: () => AccessRequestsRouteRoute,
-  } as any)
+} as any);
+const AccessRequestsRequestIdRouteRoute = AccessRequestsRequestIdRouteRouteImport.update({
+  id: '/$requestId',
+  path: '/$requestId',
+  getParentRoute: () => AccessRequestsRouteRoute,
+} as any);
 const ApiMockFilesIdRoute = ApiMockFilesIdRouteImport.update({
   id: '/api/mock-files/$id',
   path: '/api/mock-files/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiMockUploadsIdRoute = ApiMockUploadsIdRouteImport.update({
   id: '/api/mock-uploads/$id',
   path: '/api/mock-uploads/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CommissionsSlugIndexRoute = CommissionsSlugIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => CommissionsSlugRouteRoute,
-} as any)
-const CommissionsSlugObligationsRouteRoute =
-  CommissionsSlugObligationsRouteRouteImport.update({
-    id: '/obligations',
-    path: '/obligations',
-    getParentRoute: () => CommissionsSlugRouteRoute,
-  } as any)
-const CommissionsSlugRecordsRouteRoute =
-  CommissionsSlugRecordsRouteRouteImport.update({
-    id: '/records',
-    path: '/records',
-    getParentRoute: () => CommissionsSlugRouteRoute,
-  } as any)
+} as any);
+const CommissionsSlugObligationsRouteRoute = CommissionsSlugObligationsRouteRouteImport.update({
+  id: '/obligations',
+  path: '/obligations',
+  getParentRoute: () => CommissionsSlugRouteRoute,
+} as any);
+const CommissionsSlugRecordsRouteRoute = CommissionsSlugRecordsRouteRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => CommissionsSlugRouteRoute,
+} as any);
 const LeaRequestsIndexRoute = LeaRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LeaRequestsRouteRoute,
-} as any)
+} as any);
 const LeaRequestsLeaRequestIdRoute = LeaRequestsLeaRequestIdRouteImport.update({
   id: '/$leaRequestId',
   path: '/$leaRequestId',
   getParentRoute: () => LeaRequestsRouteRoute,
-} as any)
+} as any);
 const LeaRequestsNewRoute = LeaRequestsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => LeaRequestsRouteRoute,
-} as any)
-const ObligationsNationalIndexRoute =
-  ObligationsNationalIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => ObligationsNationalRouteRoute,
-  } as any)
-const PlatformLawEnforcementIndexRoute =
-  PlatformLawEnforcementIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => PlatformLawEnforcementRouteRoute,
-  } as any)
-const PlatformLawEnforcementAgencyCodeRoute =
-  PlatformLawEnforcementAgencyCodeRouteImport.update({
-    id: '/$agencyCode',
-    path: '/$agencyCode',
-    getParentRoute: () => PlatformLawEnforcementRouteRoute,
-  } as any)
+} as any);
+const ObligationsNationalIndexRoute = ObligationsNationalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ObligationsNationalRouteRoute,
+} as any);
+const PlatformLawEnforcementIndexRoute = PlatformLawEnforcementIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlatformLawEnforcementRouteRoute,
+} as any);
+const PlatformLawEnforcementAgencyCodeRoute = PlatformLawEnforcementAgencyCodeRouteImport.update({
+  id: '/$agencyCode',
+  path: '/$agencyCode',
+  getParentRoute: () => PlatformLawEnforcementRouteRoute,
+} as any);
 const ReviewQueueIndexRoute = ReviewQueueIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ReviewQueueRoute,
-} as any)
+} as any);
 const RosterApiAccessIndexRoute = RosterApiAccessIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => RosterApiAccessRouteRoute,
-} as any)
+} as any);
 const RosterApiAccessDocsRoute = RosterApiAccessDocsRouteImport.update({
   id: '/docs',
   path: '/docs',
   getParentRoute: () => RosterApiAccessRouteRoute,
-} as any)
+} as any);
 const RosterImportsIndexRoute = RosterImportsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => RosterImportsRouteRoute,
-} as any)
+} as any);
 const RosterRecordsIndexRoute = RosterRecordsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => RosterRecordsRouteRoute,
-} as any)
+} as any);
 const RosterRecordsRecordIdRoute = RosterRecordsRecordIdRouteImport.update({
   id: '/$recordId',
   path: '/$recordId',
   getParentRoute: () => RosterRecordsRouteRoute,
-} as any)
+} as any);
 const AccessLeaRequestsLeaRequestIdIndexRoute =
   AccessLeaRequestsLeaRequestIdIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => AccessLeaRequestsLeaRequestIdRouteRoute,
-  } as any)
+  } as any);
 const AccessLeaRequestsLeaRequestIdDecideRoute =
   AccessLeaRequestsLeaRequestIdDecideRouteImport.update({
     id: '/decide',
     path: '/decide',
     getParentRoute: () => AccessLeaRequestsLeaRequestIdRouteRoute,
-  } as any)
-const AccessRequestsRequestIdIndexRoute =
-  AccessRequestsRequestIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AccessRequestsRequestIdRouteRoute,
-  } as any)
-const AccessRequestsRequestIdDecideRoute =
-  AccessRequestsRequestIdDecideRouteImport.update({
-    id: '/decide',
-    path: '/decide',
-    getParentRoute: () => AccessRequestsRequestIdRouteRoute,
-  } as any)
-const CommissionsSlugObligationsIndexRoute =
-  CommissionsSlugObligationsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => CommissionsSlugObligationsRouteRoute,
-  } as any)
-const CommissionsSlugRecordsIndexRoute =
-  CommissionsSlugRecordsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => CommissionsSlugRecordsRouteRoute,
-  } as any)
-const CommissionsSlugRecordsRecordIdRoute =
-  CommissionsSlugRecordsRecordIdRouteImport.update({
-    id: '/$recordId',
-    path: '/$recordId',
-    getParentRoute: () => CommissionsSlugRecordsRouteRoute,
-  } as any)
+  } as any);
+const AccessRequestsRequestIdIndexRoute = AccessRequestsRequestIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccessRequestsRequestIdRouteRoute,
+} as any);
+const AccessRequestsRequestIdDecideRoute = AccessRequestsRequestIdDecideRouteImport.update({
+  id: '/decide',
+  path: '/decide',
+  getParentRoute: () => AccessRequestsRequestIdRouteRoute,
+} as any);
+const CommissionsSlugObligationsIndexRoute = CommissionsSlugObligationsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CommissionsSlugObligationsRouteRoute,
+} as any);
+const CommissionsSlugRecordsIndexRoute = CommissionsSlugRecordsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CommissionsSlugRecordsRouteRoute,
+} as any);
+const CommissionsSlugRecordsRecordIdRoute = CommissionsSlugRecordsRecordIdRouteImport.update({
+  id: '/$recordId',
+  path: '/$recordId',
+  getParentRoute: () => CommissionsSlugRecordsRouteRoute,
+} as any);
 const ReviewCasesCaseIdIndexRoute = ReviewCasesCaseIdIndexRouteImport.update({
   id: '/cases/$caseId/',
   path: '/cases/$caseId/',
   getParentRoute: () => ReviewRouteRoute,
-} as any)
-const ReviewCasesCaseIdDeterminationRoute =
-  ReviewCasesCaseIdDeterminationRouteImport.update({
-    id: '/cases/$caseId/determination',
-    path: '/cases/$caseId/determination',
-    getParentRoute: () => ReviewRouteRoute,
-  } as any)
-const RosterImportsImportIdIndexRoute =
-  RosterImportsImportIdIndexRouteImport.update({
-    id: '/$importId/',
-    path: '/$importId/',
-    getParentRoute: () => RosterImportsRouteRoute,
-  } as any)
-const RosterImportsImportIdReportDotcsvRoute =
-  RosterImportsImportIdReportDotcsvRouteImport.update({
-    id: '/$importId/report.csv',
-    path: '/$importId/report.csv',
-    getParentRoute: () => RosterImportsRouteRoute,
-  } as any)
+} as any);
+const ReviewCasesCaseIdDeterminationRoute = ReviewCasesCaseIdDeterminationRouteImport.update({
+  id: '/cases/$caseId/determination',
+  path: '/cases/$caseId/determination',
+  getParentRoute: () => ReviewRouteRoute,
+} as any);
+const RosterImportsImportIdIndexRoute = RosterImportsImportIdIndexRouteImport.update({
+  id: '/$importId/',
+  path: '/$importId/',
+  getParentRoute: () => RosterImportsRouteRoute,
+} as any);
+const RosterImportsImportIdReportDotcsvRoute = RosterImportsImportIdReportDotcsvRouteImport.update({
+  id: '/$importId/report.csv',
+  path: '/$importId/report.csv',
+  getParentRoute: () => RosterImportsRouteRoute,
+} as any);
 const CommissionsSlugImportsImportIdIndexRoute =
   CommissionsSlugImportsImportIdIndexRouteImport.update({
     id: '/imports/$importId/',
     path: '/imports/$importId/',
     getParentRoute: () => CommissionsSlugRouteRoute,
-  } as any)
+  } as any);
 const CommissionsSlugImportsImportIdReportDotcsvRoute =
   CommissionsSlugImportsImportIdReportDotcsvRouteImport.update({
     id: '/imports/$importId/report.csv',
     path: '/imports/$importId/report.csv',
     getParentRoute: () => CommissionsSlugRouteRoute,
-  } as any)
+  } as any);
 const ReviewCasesCaseIdClarificationsClarificationIdRoute =
   ReviewCasesCaseIdClarificationsClarificationIdRouteImport.update({
     id: '/cases/$caseId/clarifications/$clarificationId',
     path: '/cases/$caseId/clarifications/$clarificationId',
     getParentRoute: () => ReviewRouteRoute,
-  } as any)
+  } as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/access': typeof AccessRouteRouteWithChildren
-  '/actions': typeof ActionsRouteRouteWithChildren
-  '/ai-policy': typeof AiPolicyRouteRouteWithChildren
-  '/approvals': typeof ApprovalsRouteRouteWithChildren
-  '/commissions': typeof CommissionsRouteRouteWithChildren
-  '/lea': typeof LeaRouteRouteWithChildren
-  '/obligations': typeof ObligationsRouteRouteWithChildren
-  '/platform': typeof PlatformRouteRouteWithChildren
-  '/review': typeof ReviewRouteRouteWithChildren
-  '/roster': typeof RosterRouteRouteWithChildren
-  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
-  '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
-  '/access/requests': typeof AccessRequestsRouteRouteWithChildren
-  '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
-  '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
-  '/obligations/national': typeof ObligationsNationalRouteRouteWithChildren
-  '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
-  '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
-  '/roster/imports': typeof RosterImportsRouteRouteWithChildren
-  '/roster/records': typeof RosterRecordsRouteRouteWithChildren
-  '/actions/$ladderId': typeof ActionsLadderIdRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/commissions/new': typeof CommissionsNewRoute
-  '/obligations/policy': typeof ObligationsPolicyRoute
-  '/platform/integrations': typeof PlatformIntegrationsRoute
-  '/roster/coverage': typeof RosterCoverageRoute
-  '/roster/flagged': typeof RosterFlaggedRoute
-  '/roster/import': typeof RosterImportRoute
-  '/roster/template': typeof RosterTemplateRoute
-  '/access/': typeof AccessIndexRoute
-  '/actions/': typeof ActionsIndexRoute
-  '/ai-policy/': typeof AiPolicyIndexRoute
-  '/approvals/': typeof ApprovalsIndexRoute
-  '/commissions/': typeof CommissionsIndexRoute
-  '/lea/': typeof LeaIndexRoute
-  '/obligations/': typeof ObligationsIndexRoute
-  '/platform/': typeof PlatformIndexRoute
-  '/roster/': typeof RosterIndexRoute
-  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
-  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
-  '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
-  '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
-  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
-  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
-  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
-  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
-  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
-  '/lea/requests/new': typeof LeaRequestsNewRoute
-  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
-  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
-  '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
-  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute
-  '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
-  '/access/requests/': typeof AccessRequestsIndexRoute
-  '/commissions/$slug/': typeof CommissionsSlugIndexRoute
-  '/lea/requests/': typeof LeaRequestsIndexRoute
-  '/obligations/national/': typeof ObligationsNationalIndexRoute
-  '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
-  '/review/': typeof ReviewQueueIndexRoute
-  '/roster/api-access/': typeof RosterApiAccessIndexRoute
-  '/roster/imports/': typeof RosterImportsIndexRoute
-  '/roster/records/': typeof RosterRecordsIndexRoute
-  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute
-  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
-  '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
-  '/review/cases/$caseId/determination': typeof ReviewCasesCaseIdDeterminationRoute
-  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
-  '/access/lea-requests/$leaRequestId/': typeof AccessLeaRequestsLeaRequestIdIndexRoute
-  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
-  '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
-  '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
-  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
-  '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
-  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
-  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
-  '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute
+  '/': typeof IndexRoute;
+  '/access': typeof AccessRouteRouteWithChildren;
+  '/actions': typeof ActionsRouteRouteWithChildren;
+  '/ai-policy': typeof AiPolicyRouteRouteWithChildren;
+  '/approvals': typeof ApprovalsRouteRouteWithChildren;
+  '/commissions': typeof CommissionsRouteRouteWithChildren;
+  '/lea': typeof LeaRouteRouteWithChildren;
+  '/obligations': typeof ObligationsRouteRouteWithChildren;
+  '/platform': typeof PlatformRouteRouteWithChildren;
+  '/review': typeof ReviewRouteRouteWithChildren;
+  '/roster': typeof RosterRouteRouteWithChildren;
+  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren;
+  '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren;
+  '/access/requests': typeof AccessRequestsRouteRouteWithChildren;
+  '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren;
+  '/lea/requests': typeof LeaRequestsRouteRouteWithChildren;
+  '/obligations/national': typeof ObligationsNationalRouteRouteWithChildren;
+  '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren;
+  '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren;
+  '/roster/imports': typeof RosterImportsRouteRouteWithChildren;
+  '/roster/records': typeof RosterRecordsRouteRouteWithChildren;
+  '/actions/$ladderId': typeof ActionsLadderIdRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/commissions/new': typeof CommissionsNewRoute;
+  '/obligations/policy': typeof ObligationsPolicyRoute;
+  '/platform/integrations': typeof PlatformIntegrationsRoute;
+  '/roster/coverage': typeof RosterCoverageRoute;
+  '/roster/flagged': typeof RosterFlaggedRoute;
+  '/roster/import': typeof RosterImportRoute;
+  '/roster/template': typeof RosterTemplateRoute;
+  '/access/': typeof AccessIndexRoute;
+  '/actions/': typeof ActionsIndexRoute;
+  '/ai-policy/': typeof AiPolicyIndexRoute;
+  '/approvals/': typeof ApprovalsIndexRoute;
+  '/commissions/': typeof CommissionsIndexRoute;
+  '/lea/': typeof LeaIndexRoute;
+  '/obligations/': typeof ObligationsIndexRoute;
+  '/platform/': typeof PlatformIndexRoute;
+  '/roster/': typeof RosterIndexRoute;
+  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren;
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren;
+  '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren;
+  '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren;
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute;
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute;
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute;
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute;
+  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute;
+  '/lea/requests/new': typeof LeaRequestsNewRoute;
+  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute;
+  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute;
+  '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute;
+  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute;
+  '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute;
+  '/access/requests/': typeof AccessRequestsIndexRoute;
+  '/commissions/$slug/': typeof CommissionsSlugIndexRoute;
+  '/lea/requests/': typeof LeaRequestsIndexRoute;
+  '/obligations/national/': typeof ObligationsNationalIndexRoute;
+  '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute;
+  '/review/': typeof ReviewQueueIndexRoute;
+  '/roster/api-access/': typeof RosterApiAccessIndexRoute;
+  '/roster/imports/': typeof RosterImportsIndexRoute;
+  '/roster/records/': typeof RosterRecordsIndexRoute;
+  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute;
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute;
+  '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute;
+  '/review/cases/$caseId/determination': typeof ReviewCasesCaseIdDeterminationRoute;
+  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute;
+  '/access/lea-requests/$leaRequestId/': typeof AccessLeaRequestsLeaRequestIdIndexRoute;
+  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute;
+  '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute;
+  '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute;
+  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute;
+  '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute;
+  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute;
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute;
+  '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/review': typeof ReviewQueueIndexRoute
-  '/actions/$ladderId': typeof ActionsLadderIdRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/commissions/new': typeof CommissionsNewRoute
-  '/obligations/policy': typeof ObligationsPolicyRoute
-  '/platform/integrations': typeof PlatformIntegrationsRoute
-  '/roster/coverage': typeof RosterCoverageRoute
-  '/roster/flagged': typeof RosterFlaggedRoute
-  '/roster/import': typeof RosterImportRoute
-  '/roster/template': typeof RosterTemplateRoute
-  '/access': typeof AccessIndexRoute
-  '/actions': typeof ActionsIndexRoute
-  '/ai-policy': typeof AiPolicyIndexRoute
-  '/approvals': typeof ApprovalsIndexRoute
-  '/commissions': typeof CommissionsIndexRoute
-  '/lea': typeof LeaIndexRoute
-  '/obligations': typeof ObligationsIndexRoute
-  '/platform': typeof PlatformIndexRoute
-  '/roster': typeof RosterIndexRoute
-  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
-  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
-  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
-  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
-  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
-  '/lea/requests/new': typeof LeaRequestsNewRoute
-  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
-  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
-  '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
-  '/access/certified-copies': typeof AccessCertifiedCopiesIndexRoute
-  '/access/lea-requests': typeof AccessLeaRequestsIndexRoute
-  '/access/requests': typeof AccessRequestsIndexRoute
-  '/commissions/$slug': typeof CommissionsSlugIndexRoute
-  '/lea/requests': typeof LeaRequestsIndexRoute
-  '/obligations/national': typeof ObligationsNationalIndexRoute
-  '/platform/law-enforcement': typeof PlatformLawEnforcementIndexRoute
-  '/roster/api-access': typeof RosterApiAccessIndexRoute
-  '/roster/imports': typeof RosterImportsIndexRoute
-  '/roster/records': typeof RosterRecordsIndexRoute
-  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute
-  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
-  '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
-  '/review/cases/$caseId/determination': typeof ReviewCasesCaseIdDeterminationRoute
-  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
-  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdIndexRoute
-  '/access/requests/$requestId': typeof AccessRequestsRequestIdIndexRoute
-  '/commissions/$slug/obligations': typeof CommissionsSlugObligationsIndexRoute
-  '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute
-  '/review/cases/$caseId': typeof ReviewCasesCaseIdIndexRoute
-  '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute
-  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
-  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
-  '/commissions/$slug/imports/$importId': typeof CommissionsSlugImportsImportIdIndexRoute
+  '/': typeof IndexRoute;
+  '/review': typeof ReviewQueueIndexRoute;
+  '/actions/$ladderId': typeof ActionsLadderIdRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/commissions/new': typeof CommissionsNewRoute;
+  '/obligations/policy': typeof ObligationsPolicyRoute;
+  '/platform/integrations': typeof PlatformIntegrationsRoute;
+  '/roster/coverage': typeof RosterCoverageRoute;
+  '/roster/flagged': typeof RosterFlaggedRoute;
+  '/roster/import': typeof RosterImportRoute;
+  '/roster/template': typeof RosterTemplateRoute;
+  '/access': typeof AccessIndexRoute;
+  '/actions': typeof ActionsIndexRoute;
+  '/ai-policy': typeof AiPolicyIndexRoute;
+  '/approvals': typeof ApprovalsIndexRoute;
+  '/commissions': typeof CommissionsIndexRoute;
+  '/lea': typeof LeaIndexRoute;
+  '/obligations': typeof ObligationsIndexRoute;
+  '/platform': typeof PlatformIndexRoute;
+  '/roster': typeof RosterIndexRoute;
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute;
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute;
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute;
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute;
+  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute;
+  '/lea/requests/new': typeof LeaRequestsNewRoute;
+  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute;
+  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute;
+  '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute;
+  '/access/certified-copies': typeof AccessCertifiedCopiesIndexRoute;
+  '/access/lea-requests': typeof AccessLeaRequestsIndexRoute;
+  '/access/requests': typeof AccessRequestsIndexRoute;
+  '/commissions/$slug': typeof CommissionsSlugIndexRoute;
+  '/lea/requests': typeof LeaRequestsIndexRoute;
+  '/obligations/national': typeof ObligationsNationalIndexRoute;
+  '/platform/law-enforcement': typeof PlatformLawEnforcementIndexRoute;
+  '/roster/api-access': typeof RosterApiAccessIndexRoute;
+  '/roster/imports': typeof RosterImportsIndexRoute;
+  '/roster/records': typeof RosterRecordsIndexRoute;
+  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute;
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute;
+  '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute;
+  '/review/cases/$caseId/determination': typeof ReviewCasesCaseIdDeterminationRoute;
+  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute;
+  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdIndexRoute;
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdIndexRoute;
+  '/commissions/$slug/obligations': typeof CommissionsSlugObligationsIndexRoute;
+  '/commissions/$slug/records': typeof CommissionsSlugRecordsIndexRoute;
+  '/review/cases/$caseId': typeof ReviewCasesCaseIdIndexRoute;
+  '/roster/imports/$importId': typeof RosterImportsImportIdIndexRoute;
+  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute;
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute;
+  '/commissions/$slug/imports/$importId': typeof CommissionsSlugImportsImportIdIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/access': typeof AccessRouteRouteWithChildren
-  '/actions': typeof ActionsRouteRouteWithChildren
-  '/ai-policy': typeof AiPolicyRouteRouteWithChildren
-  '/approvals': typeof ApprovalsRouteRouteWithChildren
-  '/commissions': typeof CommissionsRouteRouteWithChildren
-  '/lea': typeof LeaRouteRouteWithChildren
-  '/obligations': typeof ObligationsRouteRouteWithChildren
-  '/platform': typeof PlatformRouteRouteWithChildren
-  '/review': typeof ReviewRouteRouteWithChildren
-  '/roster': typeof RosterRouteRouteWithChildren
-  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
-  '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
-  '/access/requests': typeof AccessRequestsRouteRouteWithChildren
-  '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
-  '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
-  '/obligations_/national': typeof ObligationsNationalRouteRouteWithChildren
-  '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
-  '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
-  '/roster/imports': typeof RosterImportsRouteRouteWithChildren
-  '/roster/records': typeof RosterRecordsRouteRouteWithChildren
-  '/actions/$ladderId': typeof ActionsLadderIdRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/commissions/new': typeof CommissionsNewRoute
-  '/obligations/policy': typeof ObligationsPolicyRoute
-  '/platform/integrations': typeof PlatformIntegrationsRoute
-  '/review/_queue': typeof ReviewQueueRouteWithChildren
-  '/roster/coverage': typeof RosterCoverageRoute
-  '/roster/flagged': typeof RosterFlaggedRoute
-  '/roster/import': typeof RosterImportRoute
-  '/roster/template': typeof RosterTemplateRoute
-  '/access/': typeof AccessIndexRoute
-  '/actions/': typeof ActionsIndexRoute
-  '/ai-policy/': typeof AiPolicyIndexRoute
-  '/approvals/': typeof ApprovalsIndexRoute
-  '/commissions/': typeof CommissionsIndexRoute
-  '/lea/': typeof LeaIndexRoute
-  '/obligations/': typeof ObligationsIndexRoute
-  '/platform/': typeof PlatformIndexRoute
-  '/roster/': typeof RosterIndexRoute
-  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
-  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
-  '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren
-  '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren
-  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
-  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
-  '/api/mock-files/$id': typeof ApiMockFilesIdRoute
-  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
-  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
-  '/lea/requests/new': typeof LeaRequestsNewRoute
-  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
-  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute
-  '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute
-  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute
-  '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
-  '/access/requests/': typeof AccessRequestsIndexRoute
-  '/commissions/$slug/': typeof CommissionsSlugIndexRoute
-  '/lea/requests/': typeof LeaRequestsIndexRoute
-  '/obligations_/national/': typeof ObligationsNationalIndexRoute
-  '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
-  '/review/_queue/': typeof ReviewQueueIndexRoute
-  '/roster/api-access/': typeof RosterApiAccessIndexRoute
-  '/roster/imports/': typeof RosterImportsIndexRoute
-  '/roster/records/': typeof RosterRecordsIndexRoute
-  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute
-  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute
-  '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute
-  '/review/cases/$caseId/determination': typeof ReviewCasesCaseIdDeterminationRoute
-  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute
-  '/access/lea-requests/$leaRequestId/': typeof AccessLeaRequestsLeaRequestIdIndexRoute
-  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute
-  '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute
-  '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute
-  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute
-  '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute
-  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute
-  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
-  '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/access': typeof AccessRouteRouteWithChildren;
+  '/actions': typeof ActionsRouteRouteWithChildren;
+  '/ai-policy': typeof AiPolicyRouteRouteWithChildren;
+  '/approvals': typeof ApprovalsRouteRouteWithChildren;
+  '/commissions': typeof CommissionsRouteRouteWithChildren;
+  '/lea': typeof LeaRouteRouteWithChildren;
+  '/obligations': typeof ObligationsRouteRouteWithChildren;
+  '/platform': typeof PlatformRouteRouteWithChildren;
+  '/review': typeof ReviewRouteRouteWithChildren;
+  '/roster': typeof RosterRouteRouteWithChildren;
+  '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren;
+  '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren;
+  '/access/requests': typeof AccessRequestsRouteRouteWithChildren;
+  '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren;
+  '/lea/requests': typeof LeaRequestsRouteRouteWithChildren;
+  '/obligations_/national': typeof ObligationsNationalRouteRouteWithChildren;
+  '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren;
+  '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren;
+  '/roster/imports': typeof RosterImportsRouteRouteWithChildren;
+  '/roster/records': typeof RosterRecordsRouteRouteWithChildren;
+  '/actions/$ladderId': typeof ActionsLadderIdRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/commissions/new': typeof CommissionsNewRoute;
+  '/obligations/policy': typeof ObligationsPolicyRoute;
+  '/platform/integrations': typeof PlatformIntegrationsRoute;
+  '/review/_queue': typeof ReviewQueueRouteWithChildren;
+  '/roster/coverage': typeof RosterCoverageRoute;
+  '/roster/flagged': typeof RosterFlaggedRoute;
+  '/roster/import': typeof RosterImportRoute;
+  '/roster/template': typeof RosterTemplateRoute;
+  '/access/': typeof AccessIndexRoute;
+  '/actions/': typeof ActionsIndexRoute;
+  '/ai-policy/': typeof AiPolicyIndexRoute;
+  '/approvals/': typeof ApprovalsIndexRoute;
+  '/commissions/': typeof CommissionsIndexRoute;
+  '/lea/': typeof LeaIndexRoute;
+  '/obligations/': typeof ObligationsIndexRoute;
+  '/platform/': typeof PlatformIndexRoute;
+  '/roster/': typeof RosterIndexRoute;
+  '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren;
+  '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren;
+  '/commissions/$slug/obligations': typeof CommissionsSlugObligationsRouteRouteWithChildren;
+  '/commissions/$slug/records': typeof CommissionsSlugRecordsRouteRouteWithChildren;
+  '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute;
+  '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute;
+  '/api/mock-files/$id': typeof ApiMockFilesIdRoute;
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute;
+  '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute;
+  '/lea/requests/new': typeof LeaRequestsNewRoute;
+  '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute;
+  '/roster/api-access/docs': typeof RosterApiAccessDocsRoute;
+  '/roster/records/$recordId': typeof RosterRecordsRecordIdRoute;
+  '/access/certified-copies/': typeof AccessCertifiedCopiesIndexRoute;
+  '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute;
+  '/access/requests/': typeof AccessRequestsIndexRoute;
+  '/commissions/$slug/': typeof CommissionsSlugIndexRoute;
+  '/lea/requests/': typeof LeaRequestsIndexRoute;
+  '/obligations_/national/': typeof ObligationsNationalIndexRoute;
+  '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute;
+  '/review/_queue/': typeof ReviewQueueIndexRoute;
+  '/roster/api-access/': typeof RosterApiAccessIndexRoute;
+  '/roster/imports/': typeof RosterImportsIndexRoute;
+  '/roster/records/': typeof RosterRecordsIndexRoute;
+  '/access/lea-requests/$leaRequestId/decide': typeof AccessLeaRequestsLeaRequestIdDecideRoute;
+  '/access/requests/$requestId/decide': typeof AccessRequestsRequestIdDecideRoute;
+  '/commissions/$slug/records/$recordId': typeof CommissionsSlugRecordsRecordIdRoute;
+  '/review/cases/$caseId/determination': typeof ReviewCasesCaseIdDeterminationRoute;
+  '/roster/imports/$importId/report.csv': typeof RosterImportsImportIdReportDotcsvRoute;
+  '/access/lea-requests/$leaRequestId/': typeof AccessLeaRequestsLeaRequestIdIndexRoute;
+  '/access/requests/$requestId/': typeof AccessRequestsRequestIdIndexRoute;
+  '/commissions/$slug/obligations/': typeof CommissionsSlugObligationsIndexRoute;
+  '/commissions/$slug/records/': typeof CommissionsSlugRecordsIndexRoute;
+  '/review/cases/$caseId/': typeof ReviewCasesCaseIdIndexRoute;
+  '/roster/imports/$importId/': typeof RosterImportsImportIdIndexRoute;
+  '/commissions/$slug/imports/$importId/report.csv': typeof CommissionsSlugImportsImportIdReportDotcsvRoute;
+  '/review/cases/$caseId/clarifications/$clarificationId': typeof ReviewCasesCaseIdClarificationsClarificationIdRoute;
+  '/commissions/$slug/imports/$importId/': typeof CommissionsSlugImportsImportIdIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
     | '/access'
@@ -818,8 +799,8 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
-    | '/commissions/$slug/imports/$importId/'
-  fileRoutesByTo: FileRoutesByTo
+    | '/commissions/$slug/imports/$importId/';
+  fileRoutesByTo: FileRoutesByTo;
   to:
     | '/'
     | '/review'
@@ -875,7 +856,7 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
-    | '/commissions/$slug/imports/$importId'
+    | '/commissions/$slug/imports/$importId';
   id:
     | '__root__'
     | '/'
@@ -957,683 +938,671 @@ export interface FileRouteTypes {
     | '/roster/imports/$importId/'
     | '/commissions/$slug/imports/$importId/report.csv'
     | '/review/cases/$caseId/clarifications/$clarificationId'
-    | '/commissions/$slug/imports/$importId/'
-  fileRoutesById: FileRoutesById
+    | '/commissions/$slug/imports/$importId/';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AccessRouteRoute: typeof AccessRouteRouteWithChildren
-  ActionsRouteRoute: typeof ActionsRouteRouteWithChildren
-  AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
-  ApprovalsRouteRoute: typeof ApprovalsRouteRouteWithChildren
-  CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
-  LeaRouteRoute: typeof LeaRouteRouteWithChildren
-  ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
-  PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
-  ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
-  RosterRouteRoute: typeof RosterRouteRouteWithChildren
-  ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
-  AuthCallbackRoute: typeof AuthCallbackRoute
-  AuthLoginRoute: typeof AuthLoginRoute
-  AuthLogoutRoute: typeof AuthLogoutRoute
-  ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
-  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
+  IndexRoute: typeof IndexRoute;
+  AccessRouteRoute: typeof AccessRouteRouteWithChildren;
+  ActionsRouteRoute: typeof ActionsRouteRouteWithChildren;
+  AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren;
+  ApprovalsRouteRoute: typeof ApprovalsRouteRouteWithChildren;
+  CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren;
+  LeaRouteRoute: typeof LeaRouteRouteWithChildren;
+  ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren;
+  PlatformRouteRoute: typeof PlatformRouteRouteWithChildren;
+  ReviewRouteRoute: typeof ReviewRouteRouteWithChildren;
+  RosterRouteRoute: typeof RosterRouteRouteWithChildren;
+  ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren;
+  AuthCallbackRoute: typeof AuthCallbackRoute;
+  AuthLoginRoute: typeof AuthLoginRoute;
+  AuthLogoutRoute: typeof AuthLogoutRoute;
+  ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute;
+  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access': {
-      id: '/access'
-      path: '/access'
-      fullPath: '/access'
-      preLoaderRoute: typeof AccessRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access';
+      path: '/access';
+      fullPath: '/access';
+      preLoaderRoute: typeof AccessRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/actions': {
-      id: '/actions'
-      path: '/actions'
-      fullPath: '/actions'
-      preLoaderRoute: typeof ActionsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/actions';
+      path: '/actions';
+      fullPath: '/actions';
+      preLoaderRoute: typeof ActionsRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/ai-policy': {
-      id: '/ai-policy'
-      path: '/ai-policy'
-      fullPath: '/ai-policy'
-      preLoaderRoute: typeof AiPolicyRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/ai-policy';
+      path: '/ai-policy';
+      fullPath: '/ai-policy';
+      preLoaderRoute: typeof AiPolicyRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/approvals': {
-      id: '/approvals'
-      path: '/approvals'
-      fullPath: '/approvals'
-      preLoaderRoute: typeof ApprovalsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/approvals';
+      path: '/approvals';
+      fullPath: '/approvals';
+      preLoaderRoute: typeof ApprovalsRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/commissions': {
-      id: '/commissions'
-      path: '/commissions'
-      fullPath: '/commissions'
-      preLoaderRoute: typeof CommissionsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/commissions';
+      path: '/commissions';
+      fullPath: '/commissions';
+      preLoaderRoute: typeof CommissionsRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/lea': {
-      id: '/lea'
-      path: '/lea'
-      fullPath: '/lea'
-      preLoaderRoute: typeof LeaRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/lea';
+      path: '/lea';
+      fullPath: '/lea';
+      preLoaderRoute: typeof LeaRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/obligations': {
-      id: '/obligations'
-      path: '/obligations'
-      fullPath: '/obligations'
-      preLoaderRoute: typeof ObligationsRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/obligations';
+      path: '/obligations';
+      fullPath: '/obligations';
+      preLoaderRoute: typeof ObligationsRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/platform': {
-      id: '/platform'
-      path: '/platform'
-      fullPath: '/platform'
-      preLoaderRoute: typeof PlatformRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/platform';
+      path: '/platform';
+      fullPath: '/platform';
+      preLoaderRoute: typeof PlatformRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/review': {
-      id: '/review'
-      path: '/review'
-      fullPath: '/review'
-      preLoaderRoute: typeof ReviewRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/review';
+      path: '/review';
+      fullPath: '/review';
+      preLoaderRoute: typeof ReviewRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/roster': {
-      id: '/roster'
-      path: '/roster'
-      fullPath: '/roster'
-      preLoaderRoute: typeof RosterRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/roster';
+      path: '/roster';
+      fullPath: '/roster';
+      preLoaderRoute: typeof RosterRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/': {
-      id: '/access/'
-      path: '/'
-      fullPath: '/access/'
-      preLoaderRoute: typeof AccessIndexRouteImport
-      parentRoute: typeof AccessRouteRoute
-    }
+      id: '/access/';
+      path: '/';
+      fullPath: '/access/';
+      preLoaderRoute: typeof AccessIndexRouteImport;
+      parentRoute: typeof AccessRouteRoute;
+    };
     '/access/certified-copies': {
-      id: '/access/certified-copies'
-      path: '/certified-copies'
-      fullPath: '/access/certified-copies'
-      preLoaderRoute: typeof AccessCertifiedCopiesRouteRouteImport
-      parentRoute: typeof AccessRouteRoute
-    }
+      id: '/access/certified-copies';
+      path: '/certified-copies';
+      fullPath: '/access/certified-copies';
+      preLoaderRoute: typeof AccessCertifiedCopiesRouteRouteImport;
+      parentRoute: typeof AccessRouteRoute;
+    };
     '/access/lea-requests': {
-      id: '/access/lea-requests'
-      path: '/lea-requests'
-      fullPath: '/access/lea-requests'
-      preLoaderRoute: typeof AccessLeaRequestsRouteRouteImport
-      parentRoute: typeof AccessRouteRoute
-    }
+      id: '/access/lea-requests';
+      path: '/lea-requests';
+      fullPath: '/access/lea-requests';
+      preLoaderRoute: typeof AccessLeaRequestsRouteRouteImport;
+      parentRoute: typeof AccessRouteRoute;
+    };
     '/access/requests': {
-      id: '/access/requests'
-      path: '/requests'
-      fullPath: '/access/requests'
-      preLoaderRoute: typeof AccessRequestsRouteRouteImport
-      parentRoute: typeof AccessRouteRoute
-    }
+      id: '/access/requests';
+      path: '/requests';
+      fullPath: '/access/requests';
+      preLoaderRoute: typeof AccessRequestsRouteRouteImport;
+      parentRoute: typeof AccessRouteRoute;
+    };
     '/actions/': {
-      id: '/actions/'
-      path: '/'
-      fullPath: '/actions/'
-      preLoaderRoute: typeof ActionsIndexRouteImport
-      parentRoute: typeof ActionsRouteRoute
-    }
+      id: '/actions/';
+      path: '/';
+      fullPath: '/actions/';
+      preLoaderRoute: typeof ActionsIndexRouteImport;
+      parentRoute: typeof ActionsRouteRoute;
+    };
     '/actions/$ladderId': {
-      id: '/actions/$ladderId'
-      path: '/$ladderId'
-      fullPath: '/actions/$ladderId'
-      preLoaderRoute: typeof ActionsLadderIdRouteImport
-      parentRoute: typeof ActionsRouteRoute
-    }
+      id: '/actions/$ladderId';
+      path: '/$ladderId';
+      fullPath: '/actions/$ladderId';
+      preLoaderRoute: typeof ActionsLadderIdRouteImport;
+      parentRoute: typeof ActionsRouteRoute;
+    };
     '/ai-policy/': {
-      id: '/ai-policy/'
-      path: '/'
-      fullPath: '/ai-policy/'
-      preLoaderRoute: typeof AiPolicyIndexRouteImport
-      parentRoute: typeof AiPolicyRouteRoute
-    }
+      id: '/ai-policy/';
+      path: '/';
+      fullPath: '/ai-policy/';
+      preLoaderRoute: typeof AiPolicyIndexRouteImport;
+      parentRoute: typeof AiPolicyRouteRoute;
+    };
     '/approvals/': {
-      id: '/approvals/'
-      path: '/'
-      fullPath: '/approvals/'
-      preLoaderRoute: typeof ApprovalsIndexRouteImport
-      parentRoute: typeof ApprovalsRouteRoute
-    }
+      id: '/approvals/';
+      path: '/';
+      fullPath: '/approvals/';
+      preLoaderRoute: typeof ApprovalsIndexRouteImport;
+      parentRoute: typeof ApprovalsRouteRoute;
+    };
     '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/callback';
+      path: '/auth/callback';
+      fullPath: '/auth/callback';
+      preLoaderRoute: typeof AuthCallbackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/login': {
-      id: '/auth/login'
-      path: '/auth/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/login';
+      path: '/auth/login';
+      fullPath: '/auth/login';
+      preLoaderRoute: typeof AuthLoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/logout': {
-      id: '/auth/logout'
-      path: '/auth/logout'
-      fullPath: '/auth/logout'
-      preLoaderRoute: typeof AuthLogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/logout';
+      path: '/auth/logout';
+      fullPath: '/auth/logout';
+      preLoaderRoute: typeof AuthLogoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/commissions/': {
-      id: '/commissions/'
-      path: '/'
-      fullPath: '/commissions/'
-      preLoaderRoute: typeof CommissionsIndexRouteImport
-      parentRoute: typeof CommissionsRouteRoute
-    }
+      id: '/commissions/';
+      path: '/';
+      fullPath: '/commissions/';
+      preLoaderRoute: typeof CommissionsIndexRouteImport;
+      parentRoute: typeof CommissionsRouteRoute;
+    };
     '/commissions/$slug': {
-      id: '/commissions/$slug'
-      path: '/$slug'
-      fullPath: '/commissions/$slug'
-      preLoaderRoute: typeof CommissionsSlugRouteRouteImport
-      parentRoute: typeof CommissionsRouteRoute
-    }
+      id: '/commissions/$slug';
+      path: '/$slug';
+      fullPath: '/commissions/$slug';
+      preLoaderRoute: typeof CommissionsSlugRouteRouteImport;
+      parentRoute: typeof CommissionsRouteRoute;
+    };
     '/commissions/new': {
-      id: '/commissions/new'
-      path: '/new'
-      fullPath: '/commissions/new'
-      preLoaderRoute: typeof CommissionsNewRouteImport
-      parentRoute: typeof CommissionsRouteRoute
-    }
+      id: '/commissions/new';
+      path: '/new';
+      fullPath: '/commissions/new';
+      preLoaderRoute: typeof CommissionsNewRouteImport;
+      parentRoute: typeof CommissionsRouteRoute;
+    };
     '/lea/': {
-      id: '/lea/'
-      path: '/'
-      fullPath: '/lea/'
-      preLoaderRoute: typeof LeaIndexRouteImport
-      parentRoute: typeof LeaRouteRoute
-    }
+      id: '/lea/';
+      path: '/';
+      fullPath: '/lea/';
+      preLoaderRoute: typeof LeaIndexRouteImport;
+      parentRoute: typeof LeaRouteRoute;
+    };
     '/lea/requests': {
-      id: '/lea/requests'
-      path: '/requests'
-      fullPath: '/lea/requests'
-      preLoaderRoute: typeof LeaRequestsRouteRouteImport
-      parentRoute: typeof LeaRouteRoute
-    }
+      id: '/lea/requests';
+      path: '/requests';
+      fullPath: '/lea/requests';
+      preLoaderRoute: typeof LeaRequestsRouteRouteImport;
+      parentRoute: typeof LeaRouteRoute;
+    };
     '/obligations/': {
-      id: '/obligations/'
-      path: '/'
-      fullPath: '/obligations/'
-      preLoaderRoute: typeof ObligationsIndexRouteImport
-      parentRoute: typeof ObligationsRouteRoute
-    }
+      id: '/obligations/';
+      path: '/';
+      fullPath: '/obligations/';
+      preLoaderRoute: typeof ObligationsIndexRouteImport;
+      parentRoute: typeof ObligationsRouteRoute;
+    };
     '/obligations/policy': {
-      id: '/obligations/policy'
-      path: '/policy'
-      fullPath: '/obligations/policy'
-      preLoaderRoute: typeof ObligationsPolicyRouteImport
-      parentRoute: typeof ObligationsRouteRoute
-    }
+      id: '/obligations/policy';
+      path: '/policy';
+      fullPath: '/obligations/policy';
+      preLoaderRoute: typeof ObligationsPolicyRouteImport;
+      parentRoute: typeof ObligationsRouteRoute;
+    };
     '/obligations_/national': {
-      id: '/obligations_/national'
-      path: '/obligations/national'
-      fullPath: '/obligations/national'
-      preLoaderRoute: typeof ObligationsNationalRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/obligations_/national';
+      path: '/obligations/national';
+      fullPath: '/obligations/national';
+      preLoaderRoute: typeof ObligationsNationalRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/platform/': {
-      id: '/platform/'
-      path: '/'
-      fullPath: '/platform/'
-      preLoaderRoute: typeof PlatformIndexRouteImport
-      parentRoute: typeof PlatformRouteRoute
-    }
+      id: '/platform/';
+      path: '/';
+      fullPath: '/platform/';
+      preLoaderRoute: typeof PlatformIndexRouteImport;
+      parentRoute: typeof PlatformRouteRoute;
+    };
     '/platform/integrations': {
-      id: '/platform/integrations'
-      path: '/integrations'
-      fullPath: '/platform/integrations'
-      preLoaderRoute: typeof PlatformIntegrationsRouteImport
-      parentRoute: typeof PlatformRouteRoute
-    }
+      id: '/platform/integrations';
+      path: '/integrations';
+      fullPath: '/platform/integrations';
+      preLoaderRoute: typeof PlatformIntegrationsRouteImport;
+      parentRoute: typeof PlatformRouteRoute;
+    };
     '/platform/law-enforcement': {
-      id: '/platform/law-enforcement'
-      path: '/law-enforcement'
-      fullPath: '/platform/law-enforcement'
-      preLoaderRoute: typeof PlatformLawEnforcementRouteRouteImport
-      parentRoute: typeof PlatformRouteRoute
-    }
+      id: '/platform/law-enforcement';
+      path: '/law-enforcement';
+      fullPath: '/platform/law-enforcement';
+      preLoaderRoute: typeof PlatformLawEnforcementRouteRouteImport;
+      parentRoute: typeof PlatformRouteRoute;
+    };
     '/review/_queue': {
-      id: '/review/_queue'
-      path: ''
-      fullPath: '/review'
-      preLoaderRoute: typeof ReviewQueueRouteImport
-      parentRoute: typeof ReviewRouteRoute
-    }
+      id: '/review/_queue';
+      path: '';
+      fullPath: '/review';
+      preLoaderRoute: typeof ReviewQueueRouteImport;
+      parentRoute: typeof ReviewRouteRoute;
+    };
     '/roster/': {
-      id: '/roster/'
-      path: '/'
-      fullPath: '/roster/'
-      preLoaderRoute: typeof RosterIndexRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/';
+      path: '/';
+      fullPath: '/roster/';
+      preLoaderRoute: typeof RosterIndexRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/api-access': {
-      id: '/roster/api-access'
-      path: '/api-access'
-      fullPath: '/roster/api-access'
-      preLoaderRoute: typeof RosterApiAccessRouteRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/api-access';
+      path: '/api-access';
+      fullPath: '/roster/api-access';
+      preLoaderRoute: typeof RosterApiAccessRouteRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/coverage': {
-      id: '/roster/coverage'
-      path: '/coverage'
-      fullPath: '/roster/coverage'
-      preLoaderRoute: typeof RosterCoverageRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/coverage';
+      path: '/coverage';
+      fullPath: '/roster/coverage';
+      preLoaderRoute: typeof RosterCoverageRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/flagged': {
-      id: '/roster/flagged'
-      path: '/flagged'
-      fullPath: '/roster/flagged'
-      preLoaderRoute: typeof RosterFlaggedRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/flagged';
+      path: '/flagged';
+      fullPath: '/roster/flagged';
+      preLoaderRoute: typeof RosterFlaggedRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/import': {
-      id: '/roster/import'
-      path: '/import'
-      fullPath: '/roster/import'
-      preLoaderRoute: typeof RosterImportRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/import';
+      path: '/import';
+      fullPath: '/roster/import';
+      preLoaderRoute: typeof RosterImportRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/imports': {
-      id: '/roster/imports'
-      path: '/imports'
-      fullPath: '/roster/imports'
-      preLoaderRoute: typeof RosterImportsRouteRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/imports';
+      path: '/imports';
+      fullPath: '/roster/imports';
+      preLoaderRoute: typeof RosterImportsRouteRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/records': {
-      id: '/roster/records'
-      path: '/records'
-      fullPath: '/roster/records'
-      preLoaderRoute: typeof RosterRecordsRouteRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/records';
+      path: '/records';
+      fullPath: '/roster/records';
+      preLoaderRoute: typeof RosterRecordsRouteRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/roster/template': {
-      id: '/roster/template'
-      path: '/template'
-      fullPath: '/roster/template'
-      preLoaderRoute: typeof RosterTemplateRouteImport
-      parentRoute: typeof RosterRouteRoute
-    }
+      id: '/roster/template';
+      path: '/template';
+      fullPath: '/roster/template';
+      preLoaderRoute: typeof RosterTemplateRouteImport;
+      parentRoute: typeof RosterRouteRoute;
+    };
     '/access/certified-copies/': {
-      id: '/access/certified-copies/'
-      path: '/'
-      fullPath: '/access/certified-copies/'
-      preLoaderRoute: typeof AccessCertifiedCopiesIndexRouteImport
-      parentRoute: typeof AccessCertifiedCopiesRouteRoute
-    }
+      id: '/access/certified-copies/';
+      path: '/';
+      fullPath: '/access/certified-copies/';
+      preLoaderRoute: typeof AccessCertifiedCopiesIndexRouteImport;
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute;
+    };
     '/access/certified-copies/$applicationId': {
-      id: '/access/certified-copies/$applicationId'
-      path: '/$applicationId'
-      fullPath: '/access/certified-copies/$applicationId'
-      preLoaderRoute: typeof AccessCertifiedCopiesApplicationIdRouteImport
-      parentRoute: typeof AccessCertifiedCopiesRouteRoute
-    }
+      id: '/access/certified-copies/$applicationId';
+      path: '/$applicationId';
+      fullPath: '/access/certified-copies/$applicationId';
+      preLoaderRoute: typeof AccessCertifiedCopiesApplicationIdRouteImport;
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute;
+    };
     '/access/certified-copies/new': {
-      id: '/access/certified-copies/new'
-      path: '/new'
-      fullPath: '/access/certified-copies/new'
-      preLoaderRoute: typeof AccessCertifiedCopiesNewRouteImport
-      parentRoute: typeof AccessCertifiedCopiesRouteRoute
-    }
+      id: '/access/certified-copies/new';
+      path: '/new';
+      fullPath: '/access/certified-copies/new';
+      preLoaderRoute: typeof AccessCertifiedCopiesNewRouteImport;
+      parentRoute: typeof AccessCertifiedCopiesRouteRoute;
+    };
     '/access/lea-requests/': {
-      id: '/access/lea-requests/'
-      path: '/'
-      fullPath: '/access/lea-requests/'
-      preLoaderRoute: typeof AccessLeaRequestsIndexRouteImport
-      parentRoute: typeof AccessLeaRequestsRouteRoute
-    }
+      id: '/access/lea-requests/';
+      path: '/';
+      fullPath: '/access/lea-requests/';
+      preLoaderRoute: typeof AccessLeaRequestsIndexRouteImport;
+      parentRoute: typeof AccessLeaRequestsRouteRoute;
+    };
     '/access/lea-requests/$leaRequestId': {
-      id: '/access/lea-requests/$leaRequestId'
-      path: '/$leaRequestId'
-      fullPath: '/access/lea-requests/$leaRequestId'
-      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdRouteRouteImport
-      parentRoute: typeof AccessLeaRequestsRouteRoute
-    }
+      id: '/access/lea-requests/$leaRequestId';
+      path: '/$leaRequestId';
+      fullPath: '/access/lea-requests/$leaRequestId';
+      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdRouteRouteImport;
+      parentRoute: typeof AccessLeaRequestsRouteRoute;
+    };
     '/access/requests/': {
-      id: '/access/requests/'
-      path: '/'
-      fullPath: '/access/requests/'
-      preLoaderRoute: typeof AccessRequestsIndexRouteImport
-      parentRoute: typeof AccessRequestsRouteRoute
-    }
+      id: '/access/requests/';
+      path: '/';
+      fullPath: '/access/requests/';
+      preLoaderRoute: typeof AccessRequestsIndexRouteImport;
+      parentRoute: typeof AccessRequestsRouteRoute;
+    };
     '/access/requests/$requestId': {
-      id: '/access/requests/$requestId'
-      path: '/$requestId'
-      fullPath: '/access/requests/$requestId'
-      preLoaderRoute: typeof AccessRequestsRequestIdRouteRouteImport
-      parentRoute: typeof AccessRequestsRouteRoute
-    }
+      id: '/access/requests/$requestId';
+      path: '/$requestId';
+      fullPath: '/access/requests/$requestId';
+      preLoaderRoute: typeof AccessRequestsRequestIdRouteRouteImport;
+      parentRoute: typeof AccessRequestsRouteRoute;
+    };
     '/api/mock-files/$id': {
-      id: '/api/mock-files/$id'
-      path: '/api/mock-files/$id'
-      fullPath: '/api/mock-files/$id'
-      preLoaderRoute: typeof ApiMockFilesIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mock-files/$id';
+      path: '/api/mock-files/$id';
+      fullPath: '/api/mock-files/$id';
+      preLoaderRoute: typeof ApiMockFilesIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/mock-uploads/$id': {
-      id: '/api/mock-uploads/$id'
-      path: '/api/mock-uploads/$id'
-      fullPath: '/api/mock-uploads/$id'
-      preLoaderRoute: typeof ApiMockUploadsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mock-uploads/$id';
+      path: '/api/mock-uploads/$id';
+      fullPath: '/api/mock-uploads/$id';
+      preLoaderRoute: typeof ApiMockUploadsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/commissions/$slug/': {
-      id: '/commissions/$slug/'
-      path: '/'
-      fullPath: '/commissions/$slug/'
-      preLoaderRoute: typeof CommissionsSlugIndexRouteImport
-      parentRoute: typeof CommissionsSlugRouteRoute
-    }
+      id: '/commissions/$slug/';
+      path: '/';
+      fullPath: '/commissions/$slug/';
+      preLoaderRoute: typeof CommissionsSlugIndexRouteImport;
+      parentRoute: typeof CommissionsSlugRouteRoute;
+    };
     '/commissions/$slug/obligations': {
-      id: '/commissions/$slug/obligations'
-      path: '/obligations'
-      fullPath: '/commissions/$slug/obligations'
-      preLoaderRoute: typeof CommissionsSlugObligationsRouteRouteImport
-      parentRoute: typeof CommissionsSlugRouteRoute
-    }
+      id: '/commissions/$slug/obligations';
+      path: '/obligations';
+      fullPath: '/commissions/$slug/obligations';
+      preLoaderRoute: typeof CommissionsSlugObligationsRouteRouteImport;
+      parentRoute: typeof CommissionsSlugRouteRoute;
+    };
     '/commissions/$slug/records': {
-      id: '/commissions/$slug/records'
-      path: '/records'
-      fullPath: '/commissions/$slug/records'
-      preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport
-      parentRoute: typeof CommissionsSlugRouteRoute
-    }
+      id: '/commissions/$slug/records';
+      path: '/records';
+      fullPath: '/commissions/$slug/records';
+      preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport;
+      parentRoute: typeof CommissionsSlugRouteRoute;
+    };
     '/lea/requests/': {
-      id: '/lea/requests/'
-      path: '/'
-      fullPath: '/lea/requests/'
-      preLoaderRoute: typeof LeaRequestsIndexRouteImport
-      parentRoute: typeof LeaRequestsRouteRoute
-    }
+      id: '/lea/requests/';
+      path: '/';
+      fullPath: '/lea/requests/';
+      preLoaderRoute: typeof LeaRequestsIndexRouteImport;
+      parentRoute: typeof LeaRequestsRouteRoute;
+    };
     '/lea/requests/$leaRequestId': {
-      id: '/lea/requests/$leaRequestId'
-      path: '/$leaRequestId'
-      fullPath: '/lea/requests/$leaRequestId'
-      preLoaderRoute: typeof LeaRequestsLeaRequestIdRouteImport
-      parentRoute: typeof LeaRequestsRouteRoute
-    }
+      id: '/lea/requests/$leaRequestId';
+      path: '/$leaRequestId';
+      fullPath: '/lea/requests/$leaRequestId';
+      preLoaderRoute: typeof LeaRequestsLeaRequestIdRouteImport;
+      parentRoute: typeof LeaRequestsRouteRoute;
+    };
     '/lea/requests/new': {
-      id: '/lea/requests/new'
-      path: '/new'
-      fullPath: '/lea/requests/new'
-      preLoaderRoute: typeof LeaRequestsNewRouteImport
-      parentRoute: typeof LeaRequestsRouteRoute
-    }
+      id: '/lea/requests/new';
+      path: '/new';
+      fullPath: '/lea/requests/new';
+      preLoaderRoute: typeof LeaRequestsNewRouteImport;
+      parentRoute: typeof LeaRequestsRouteRoute;
+    };
     '/obligations_/national/': {
-      id: '/obligations_/national/'
-      path: '/'
-      fullPath: '/obligations/national/'
-      preLoaderRoute: typeof ObligationsNationalIndexRouteImport
-      parentRoute: typeof ObligationsNationalRouteRoute
-    }
+      id: '/obligations_/national/';
+      path: '/';
+      fullPath: '/obligations/national/';
+      preLoaderRoute: typeof ObligationsNationalIndexRouteImport;
+      parentRoute: typeof ObligationsNationalRouteRoute;
+    };
     '/platform/law-enforcement/': {
-      id: '/platform/law-enforcement/'
-      path: '/'
-      fullPath: '/platform/law-enforcement/'
-      preLoaderRoute: typeof PlatformLawEnforcementIndexRouteImport
-      parentRoute: typeof PlatformLawEnforcementRouteRoute
-    }
+      id: '/platform/law-enforcement/';
+      path: '/';
+      fullPath: '/platform/law-enforcement/';
+      preLoaderRoute: typeof PlatformLawEnforcementIndexRouteImport;
+      parentRoute: typeof PlatformLawEnforcementRouteRoute;
+    };
     '/platform/law-enforcement/$agencyCode': {
-      id: '/platform/law-enforcement/$agencyCode'
-      path: '/$agencyCode'
-      fullPath: '/platform/law-enforcement/$agencyCode'
-      preLoaderRoute: typeof PlatformLawEnforcementAgencyCodeRouteImport
-      parentRoute: typeof PlatformLawEnforcementRouteRoute
-    }
+      id: '/platform/law-enforcement/$agencyCode';
+      path: '/$agencyCode';
+      fullPath: '/platform/law-enforcement/$agencyCode';
+      preLoaderRoute: typeof PlatformLawEnforcementAgencyCodeRouteImport;
+      parentRoute: typeof PlatformLawEnforcementRouteRoute;
+    };
     '/review/_queue/': {
-      id: '/review/_queue/'
-      path: '/'
-      fullPath: '/review/'
-      preLoaderRoute: typeof ReviewQueueIndexRouteImport
-      parentRoute: typeof ReviewQueueRoute
-    }
+      id: '/review/_queue/';
+      path: '/';
+      fullPath: '/review/';
+      preLoaderRoute: typeof ReviewQueueIndexRouteImport;
+      parentRoute: typeof ReviewQueueRoute;
+    };
     '/roster/api-access/': {
-      id: '/roster/api-access/'
-      path: '/'
-      fullPath: '/roster/api-access/'
-      preLoaderRoute: typeof RosterApiAccessIndexRouteImport
-      parentRoute: typeof RosterApiAccessRouteRoute
-    }
+      id: '/roster/api-access/';
+      path: '/';
+      fullPath: '/roster/api-access/';
+      preLoaderRoute: typeof RosterApiAccessIndexRouteImport;
+      parentRoute: typeof RosterApiAccessRouteRoute;
+    };
     '/roster/api-access/docs': {
-      id: '/roster/api-access/docs'
-      path: '/docs'
-      fullPath: '/roster/api-access/docs'
-      preLoaderRoute: typeof RosterApiAccessDocsRouteImport
-      parentRoute: typeof RosterApiAccessRouteRoute
-    }
+      id: '/roster/api-access/docs';
+      path: '/docs';
+      fullPath: '/roster/api-access/docs';
+      preLoaderRoute: typeof RosterApiAccessDocsRouteImport;
+      parentRoute: typeof RosterApiAccessRouteRoute;
+    };
     '/roster/imports/': {
-      id: '/roster/imports/'
-      path: '/'
-      fullPath: '/roster/imports/'
-      preLoaderRoute: typeof RosterImportsIndexRouteImport
-      parentRoute: typeof RosterImportsRouteRoute
-    }
+      id: '/roster/imports/';
+      path: '/';
+      fullPath: '/roster/imports/';
+      preLoaderRoute: typeof RosterImportsIndexRouteImport;
+      parentRoute: typeof RosterImportsRouteRoute;
+    };
     '/roster/records/': {
-      id: '/roster/records/'
-      path: '/'
-      fullPath: '/roster/records/'
-      preLoaderRoute: typeof RosterRecordsIndexRouteImport
-      parentRoute: typeof RosterRecordsRouteRoute
-    }
+      id: '/roster/records/';
+      path: '/';
+      fullPath: '/roster/records/';
+      preLoaderRoute: typeof RosterRecordsIndexRouteImport;
+      parentRoute: typeof RosterRecordsRouteRoute;
+    };
     '/roster/records/$recordId': {
-      id: '/roster/records/$recordId'
-      path: '/$recordId'
-      fullPath: '/roster/records/$recordId'
-      preLoaderRoute: typeof RosterRecordsRecordIdRouteImport
-      parentRoute: typeof RosterRecordsRouteRoute
-    }
+      id: '/roster/records/$recordId';
+      path: '/$recordId';
+      fullPath: '/roster/records/$recordId';
+      preLoaderRoute: typeof RosterRecordsRecordIdRouteImport;
+      parentRoute: typeof RosterRecordsRouteRoute;
+    };
     '/access/lea-requests/$leaRequestId/': {
-      id: '/access/lea-requests/$leaRequestId/'
-      path: '/'
-      fullPath: '/access/lea-requests/$leaRequestId/'
-      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdIndexRouteImport
-      parentRoute: typeof AccessLeaRequestsLeaRequestIdRouteRoute
-    }
+      id: '/access/lea-requests/$leaRequestId/';
+      path: '/';
+      fullPath: '/access/lea-requests/$leaRequestId/';
+      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdIndexRouteImport;
+      parentRoute: typeof AccessLeaRequestsLeaRequestIdRouteRoute;
+    };
     '/access/lea-requests/$leaRequestId/decide': {
-      id: '/access/lea-requests/$leaRequestId/decide'
-      path: '/decide'
-      fullPath: '/access/lea-requests/$leaRequestId/decide'
-      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdDecideRouteImport
-      parentRoute: typeof AccessLeaRequestsLeaRequestIdRouteRoute
-    }
+      id: '/access/lea-requests/$leaRequestId/decide';
+      path: '/decide';
+      fullPath: '/access/lea-requests/$leaRequestId/decide';
+      preLoaderRoute: typeof AccessLeaRequestsLeaRequestIdDecideRouteImport;
+      parentRoute: typeof AccessLeaRequestsLeaRequestIdRouteRoute;
+    };
     '/access/requests/$requestId/': {
-      id: '/access/requests/$requestId/'
-      path: '/'
-      fullPath: '/access/requests/$requestId/'
-      preLoaderRoute: typeof AccessRequestsRequestIdIndexRouteImport
-      parentRoute: typeof AccessRequestsRequestIdRouteRoute
-    }
+      id: '/access/requests/$requestId/';
+      path: '/';
+      fullPath: '/access/requests/$requestId/';
+      preLoaderRoute: typeof AccessRequestsRequestIdIndexRouteImport;
+      parentRoute: typeof AccessRequestsRequestIdRouteRoute;
+    };
     '/access/requests/$requestId/decide': {
-      id: '/access/requests/$requestId/decide'
-      path: '/decide'
-      fullPath: '/access/requests/$requestId/decide'
-      preLoaderRoute: typeof AccessRequestsRequestIdDecideRouteImport
-      parentRoute: typeof AccessRequestsRequestIdRouteRoute
-    }
+      id: '/access/requests/$requestId/decide';
+      path: '/decide';
+      fullPath: '/access/requests/$requestId/decide';
+      preLoaderRoute: typeof AccessRequestsRequestIdDecideRouteImport;
+      parentRoute: typeof AccessRequestsRequestIdRouteRoute;
+    };
     '/commissions/$slug/obligations/': {
-      id: '/commissions/$slug/obligations/'
-      path: '/'
-      fullPath: '/commissions/$slug/obligations/'
-      preLoaderRoute: typeof CommissionsSlugObligationsIndexRouteImport
-      parentRoute: typeof CommissionsSlugObligationsRouteRoute
-    }
+      id: '/commissions/$slug/obligations/';
+      path: '/';
+      fullPath: '/commissions/$slug/obligations/';
+      preLoaderRoute: typeof CommissionsSlugObligationsIndexRouteImport;
+      parentRoute: typeof CommissionsSlugObligationsRouteRoute;
+    };
     '/commissions/$slug/records/': {
-      id: '/commissions/$slug/records/'
-      path: '/'
-      fullPath: '/commissions/$slug/records/'
-      preLoaderRoute: typeof CommissionsSlugRecordsIndexRouteImport
-      parentRoute: typeof CommissionsSlugRecordsRouteRoute
-    }
+      id: '/commissions/$slug/records/';
+      path: '/';
+      fullPath: '/commissions/$slug/records/';
+      preLoaderRoute: typeof CommissionsSlugRecordsIndexRouteImport;
+      parentRoute: typeof CommissionsSlugRecordsRouteRoute;
+    };
     '/commissions/$slug/records/$recordId': {
-      id: '/commissions/$slug/records/$recordId'
-      path: '/$recordId'
-      fullPath: '/commissions/$slug/records/$recordId'
-      preLoaderRoute: typeof CommissionsSlugRecordsRecordIdRouteImport
-      parentRoute: typeof CommissionsSlugRecordsRouteRoute
-    }
+      id: '/commissions/$slug/records/$recordId';
+      path: '/$recordId';
+      fullPath: '/commissions/$slug/records/$recordId';
+      preLoaderRoute: typeof CommissionsSlugRecordsRecordIdRouteImport;
+      parentRoute: typeof CommissionsSlugRecordsRouteRoute;
+    };
     '/review/cases/$caseId/': {
-      id: '/review/cases/$caseId/'
-      path: '/cases/$caseId'
-      fullPath: '/review/cases/$caseId/'
-      preLoaderRoute: typeof ReviewCasesCaseIdIndexRouteImport
-      parentRoute: typeof ReviewRouteRoute
-    }
+      id: '/review/cases/$caseId/';
+      path: '/cases/$caseId';
+      fullPath: '/review/cases/$caseId/';
+      preLoaderRoute: typeof ReviewCasesCaseIdIndexRouteImport;
+      parentRoute: typeof ReviewRouteRoute;
+    };
     '/review/cases/$caseId/determination': {
-      id: '/review/cases/$caseId/determination'
-      path: '/cases/$caseId/determination'
-      fullPath: '/review/cases/$caseId/determination'
-      preLoaderRoute: typeof ReviewCasesCaseIdDeterminationRouteImport
-      parentRoute: typeof ReviewRouteRoute
-    }
+      id: '/review/cases/$caseId/determination';
+      path: '/cases/$caseId/determination';
+      fullPath: '/review/cases/$caseId/determination';
+      preLoaderRoute: typeof ReviewCasesCaseIdDeterminationRouteImport;
+      parentRoute: typeof ReviewRouteRoute;
+    };
     '/roster/imports/$importId/': {
-      id: '/roster/imports/$importId/'
-      path: '/$importId'
-      fullPath: '/roster/imports/$importId/'
-      preLoaderRoute: typeof RosterImportsImportIdIndexRouteImport
-      parentRoute: typeof RosterImportsRouteRoute
-    }
+      id: '/roster/imports/$importId/';
+      path: '/$importId';
+      fullPath: '/roster/imports/$importId/';
+      preLoaderRoute: typeof RosterImportsImportIdIndexRouteImport;
+      parentRoute: typeof RosterImportsRouteRoute;
+    };
     '/roster/imports/$importId/report.csv': {
-      id: '/roster/imports/$importId/report.csv'
-      path: '/$importId/report.csv'
-      fullPath: '/roster/imports/$importId/report.csv'
-      preLoaderRoute: typeof RosterImportsImportIdReportDotcsvRouteImport
-      parentRoute: typeof RosterImportsRouteRoute
-    }
+      id: '/roster/imports/$importId/report.csv';
+      path: '/$importId/report.csv';
+      fullPath: '/roster/imports/$importId/report.csv';
+      preLoaderRoute: typeof RosterImportsImportIdReportDotcsvRouteImport;
+      parentRoute: typeof RosterImportsRouteRoute;
+    };
     '/commissions/$slug/imports/$importId/': {
-      id: '/commissions/$slug/imports/$importId/'
-      path: '/imports/$importId'
-      fullPath: '/commissions/$slug/imports/$importId/'
-      preLoaderRoute: typeof CommissionsSlugImportsImportIdIndexRouteImport
-      parentRoute: typeof CommissionsSlugRouteRoute
-    }
+      id: '/commissions/$slug/imports/$importId/';
+      path: '/imports/$importId';
+      fullPath: '/commissions/$slug/imports/$importId/';
+      preLoaderRoute: typeof CommissionsSlugImportsImportIdIndexRouteImport;
+      parentRoute: typeof CommissionsSlugRouteRoute;
+    };
     '/commissions/$slug/imports/$importId/report.csv': {
-      id: '/commissions/$slug/imports/$importId/report.csv'
-      path: '/imports/$importId/report.csv'
-      fullPath: '/commissions/$slug/imports/$importId/report.csv'
-      preLoaderRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRouteImport
-      parentRoute: typeof CommissionsSlugRouteRoute
-    }
+      id: '/commissions/$slug/imports/$importId/report.csv';
+      path: '/imports/$importId/report.csv';
+      fullPath: '/commissions/$slug/imports/$importId/report.csv';
+      preLoaderRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRouteImport;
+      parentRoute: typeof CommissionsSlugRouteRoute;
+    };
     '/review/cases/$caseId/clarifications/$clarificationId': {
-      id: '/review/cases/$caseId/clarifications/$clarificationId'
-      path: '/cases/$caseId/clarifications/$clarificationId'
-      fullPath: '/review/cases/$caseId/clarifications/$clarificationId'
-      preLoaderRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRouteImport
-      parentRoute: typeof ReviewRouteRoute
-    }
+      id: '/review/cases/$caseId/clarifications/$clarificationId';
+      path: '/cases/$caseId/clarifications/$clarificationId';
+      fullPath: '/review/cases/$caseId/clarifications/$clarificationId';
+      preLoaderRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRouteImport;
+      parentRoute: typeof ReviewRouteRoute;
+    };
   }
 }
 
 interface AccessCertifiedCopiesRouteRouteChildren {
-  AccessCertifiedCopiesApplicationIdRoute: typeof AccessCertifiedCopiesApplicationIdRoute
-  AccessCertifiedCopiesNewRoute: typeof AccessCertifiedCopiesNewRoute
-  AccessCertifiedCopiesIndexRoute: typeof AccessCertifiedCopiesIndexRoute
+  AccessCertifiedCopiesApplicationIdRoute: typeof AccessCertifiedCopiesApplicationIdRoute;
+  AccessCertifiedCopiesNewRoute: typeof AccessCertifiedCopiesNewRoute;
+  AccessCertifiedCopiesIndexRoute: typeof AccessCertifiedCopiesIndexRoute;
 }
 
-const AccessCertifiedCopiesRouteRouteChildren: AccessCertifiedCopiesRouteRouteChildren =
-  {
-    AccessCertifiedCopiesApplicationIdRoute:
-      AccessCertifiedCopiesApplicationIdRoute,
-    AccessCertifiedCopiesNewRoute: AccessCertifiedCopiesNewRoute,
-    AccessCertifiedCopiesIndexRoute: AccessCertifiedCopiesIndexRoute,
-  }
+const AccessCertifiedCopiesRouteRouteChildren: AccessCertifiedCopiesRouteRouteChildren = {
+  AccessCertifiedCopiesApplicationIdRoute: AccessCertifiedCopiesApplicationIdRoute,
+  AccessCertifiedCopiesNewRoute: AccessCertifiedCopiesNewRoute,
+  AccessCertifiedCopiesIndexRoute: AccessCertifiedCopiesIndexRoute,
+};
 
 const AccessCertifiedCopiesRouteRouteWithChildren =
-  AccessCertifiedCopiesRouteRoute._addFileChildren(
-    AccessCertifiedCopiesRouteRouteChildren,
-  )
+  AccessCertifiedCopiesRouteRoute._addFileChildren(AccessCertifiedCopiesRouteRouteChildren);
 
 interface AccessLeaRequestsLeaRequestIdRouteRouteChildren {
-  AccessLeaRequestsLeaRequestIdDecideRoute: typeof AccessLeaRequestsLeaRequestIdDecideRoute
-  AccessLeaRequestsLeaRequestIdIndexRoute: typeof AccessLeaRequestsLeaRequestIdIndexRoute
+  AccessLeaRequestsLeaRequestIdDecideRoute: typeof AccessLeaRequestsLeaRequestIdDecideRoute;
+  AccessLeaRequestsLeaRequestIdIndexRoute: typeof AccessLeaRequestsLeaRequestIdIndexRoute;
 }
 
 const AccessLeaRequestsLeaRequestIdRouteRouteChildren: AccessLeaRequestsLeaRequestIdRouteRouteChildren =
   {
-    AccessLeaRequestsLeaRequestIdDecideRoute:
-      AccessLeaRequestsLeaRequestIdDecideRoute,
-    AccessLeaRequestsLeaRequestIdIndexRoute:
-      AccessLeaRequestsLeaRequestIdIndexRoute,
-  }
+    AccessLeaRequestsLeaRequestIdDecideRoute: AccessLeaRequestsLeaRequestIdDecideRoute,
+    AccessLeaRequestsLeaRequestIdIndexRoute: AccessLeaRequestsLeaRequestIdIndexRoute,
+  };
 
 const AccessLeaRequestsLeaRequestIdRouteRouteWithChildren =
   AccessLeaRequestsLeaRequestIdRouteRoute._addFileChildren(
     AccessLeaRequestsLeaRequestIdRouteRouteChildren,
-  )
+  );
 
 interface AccessLeaRequestsRouteRouteChildren {
-  AccessLeaRequestsLeaRequestIdRouteRoute: typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
-  AccessLeaRequestsIndexRoute: typeof AccessLeaRequestsIndexRoute
+  AccessLeaRequestsLeaRequestIdRouteRoute: typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren;
+  AccessLeaRequestsIndexRoute: typeof AccessLeaRequestsIndexRoute;
 }
 
-const AccessLeaRequestsRouteRouteChildren: AccessLeaRequestsRouteRouteChildren =
-  {
-    AccessLeaRequestsLeaRequestIdRouteRoute:
-      AccessLeaRequestsLeaRequestIdRouteRouteWithChildren,
-    AccessLeaRequestsIndexRoute: AccessLeaRequestsIndexRoute,
-  }
+const AccessLeaRequestsRouteRouteChildren: AccessLeaRequestsRouteRouteChildren = {
+  AccessLeaRequestsLeaRequestIdRouteRoute: AccessLeaRequestsLeaRequestIdRouteRouteWithChildren,
+  AccessLeaRequestsIndexRoute: AccessLeaRequestsIndexRoute,
+};
 
-const AccessLeaRequestsRouteRouteWithChildren =
-  AccessLeaRequestsRouteRoute._addFileChildren(
-    AccessLeaRequestsRouteRouteChildren,
-  )
+const AccessLeaRequestsRouteRouteWithChildren = AccessLeaRequestsRouteRoute._addFileChildren(
+  AccessLeaRequestsRouteRouteChildren,
+);
 
 interface AccessRequestsRequestIdRouteRouteChildren {
-  AccessRequestsRequestIdDecideRoute: typeof AccessRequestsRequestIdDecideRoute
-  AccessRequestsRequestIdIndexRoute: typeof AccessRequestsRequestIdIndexRoute
+  AccessRequestsRequestIdDecideRoute: typeof AccessRequestsRequestIdDecideRoute;
+  AccessRequestsRequestIdIndexRoute: typeof AccessRequestsRequestIdIndexRoute;
 }
 
-const AccessRequestsRequestIdRouteRouteChildren: AccessRequestsRequestIdRouteRouteChildren =
-  {
-    AccessRequestsRequestIdDecideRoute: AccessRequestsRequestIdDecideRoute,
-    AccessRequestsRequestIdIndexRoute: AccessRequestsRequestIdIndexRoute,
-  }
+const AccessRequestsRequestIdRouteRouteChildren: AccessRequestsRequestIdRouteRouteChildren = {
+  AccessRequestsRequestIdDecideRoute: AccessRequestsRequestIdDecideRoute,
+  AccessRequestsRequestIdIndexRoute: AccessRequestsRequestIdIndexRoute,
+};
 
 const AccessRequestsRequestIdRouteRouteWithChildren =
-  AccessRequestsRequestIdRouteRoute._addFileChildren(
-    AccessRequestsRequestIdRouteRouteChildren,
-  )
+  AccessRequestsRequestIdRouteRoute._addFileChildren(AccessRequestsRequestIdRouteRouteChildren);
 
 interface AccessRequestsRouteRouteChildren {
-  AccessRequestsRequestIdRouteRoute: typeof AccessRequestsRequestIdRouteRouteWithChildren
-  AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
+  AccessRequestsRequestIdRouteRoute: typeof AccessRequestsRequestIdRouteRouteWithChildren;
+  AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute;
 }
 
 const AccessRequestsRouteRouteChildren: AccessRequestsRouteRouteChildren = {
-  AccessRequestsRequestIdRouteRoute:
-    AccessRequestsRequestIdRouteRouteWithChildren,
+  AccessRequestsRequestIdRouteRoute: AccessRequestsRequestIdRouteRouteWithChildren,
   AccessRequestsIndexRoute: AccessRequestsIndexRoute,
-}
+};
 
-const AccessRequestsRouteRouteWithChildren =
-  AccessRequestsRouteRoute._addFileChildren(AccessRequestsRouteRouteChildren)
+const AccessRequestsRouteRouteWithChildren = AccessRequestsRouteRoute._addFileChildren(
+  AccessRequestsRouteRouteChildren,
+);
 
 interface AccessRouteRouteChildren {
-  AccessCertifiedCopiesRouteRoute: typeof AccessCertifiedCopiesRouteRouteWithChildren
-  AccessLeaRequestsRouteRoute: typeof AccessLeaRequestsRouteRouteWithChildren
-  AccessRequestsRouteRoute: typeof AccessRequestsRouteRouteWithChildren
-  AccessIndexRoute: typeof AccessIndexRoute
+  AccessCertifiedCopiesRouteRoute: typeof AccessCertifiedCopiesRouteRouteWithChildren;
+  AccessLeaRequestsRouteRoute: typeof AccessLeaRequestsRouteRouteWithChildren;
+  AccessRequestsRouteRoute: typeof AccessRequestsRouteRouteWithChildren;
+  AccessIndexRoute: typeof AccessIndexRoute;
 }
 
 const AccessRouteRouteChildren: AccessRouteRouteChildren = {
@@ -1641,211 +1610,194 @@ const AccessRouteRouteChildren: AccessRouteRouteChildren = {
   AccessLeaRequestsRouteRoute: AccessLeaRequestsRouteRouteWithChildren,
   AccessRequestsRouteRoute: AccessRequestsRouteRouteWithChildren,
   AccessIndexRoute: AccessIndexRoute,
-}
+};
 
-const AccessRouteRouteWithChildren = AccessRouteRoute._addFileChildren(
-  AccessRouteRouteChildren,
-)
+const AccessRouteRouteWithChildren = AccessRouteRoute._addFileChildren(AccessRouteRouteChildren);
 
 interface ActionsRouteRouteChildren {
-  ActionsLadderIdRoute: typeof ActionsLadderIdRoute
-  ActionsIndexRoute: typeof ActionsIndexRoute
+  ActionsLadderIdRoute: typeof ActionsLadderIdRoute;
+  ActionsIndexRoute: typeof ActionsIndexRoute;
 }
 
 const ActionsRouteRouteChildren: ActionsRouteRouteChildren = {
   ActionsLadderIdRoute: ActionsLadderIdRoute,
   ActionsIndexRoute: ActionsIndexRoute,
-}
+};
 
-const ActionsRouteRouteWithChildren = ActionsRouteRoute._addFileChildren(
-  ActionsRouteRouteChildren,
-)
+const ActionsRouteRouteWithChildren = ActionsRouteRoute._addFileChildren(ActionsRouteRouteChildren);
 
 interface AiPolicyRouteRouteChildren {
-  AiPolicyIndexRoute: typeof AiPolicyIndexRoute
+  AiPolicyIndexRoute: typeof AiPolicyIndexRoute;
 }
 
 const AiPolicyRouteRouteChildren: AiPolicyRouteRouteChildren = {
   AiPolicyIndexRoute: AiPolicyIndexRoute,
-}
+};
 
 const AiPolicyRouteRouteWithChildren = AiPolicyRouteRoute._addFileChildren(
   AiPolicyRouteRouteChildren,
-)
+);
 
 interface ApprovalsRouteRouteChildren {
-  ApprovalsIndexRoute: typeof ApprovalsIndexRoute
+  ApprovalsIndexRoute: typeof ApprovalsIndexRoute;
 }
 
 const ApprovalsRouteRouteChildren: ApprovalsRouteRouteChildren = {
   ApprovalsIndexRoute: ApprovalsIndexRoute,
-}
+};
 
 const ApprovalsRouteRouteWithChildren = ApprovalsRouteRoute._addFileChildren(
   ApprovalsRouteRouteChildren,
-)
+);
 
 interface CommissionsSlugObligationsRouteRouteChildren {
-  CommissionsSlugObligationsIndexRoute: typeof CommissionsSlugObligationsIndexRoute
+  CommissionsSlugObligationsIndexRoute: typeof CommissionsSlugObligationsIndexRoute;
 }
 
-const CommissionsSlugObligationsRouteRouteChildren: CommissionsSlugObligationsRouteRouteChildren =
-  {
-    CommissionsSlugObligationsIndexRoute: CommissionsSlugObligationsIndexRoute,
-  }
+const CommissionsSlugObligationsRouteRouteChildren: CommissionsSlugObligationsRouteRouteChildren = {
+  CommissionsSlugObligationsIndexRoute: CommissionsSlugObligationsIndexRoute,
+};
 
 const CommissionsSlugObligationsRouteRouteWithChildren =
   CommissionsSlugObligationsRouteRoute._addFileChildren(
     CommissionsSlugObligationsRouteRouteChildren,
-  )
+  );
 
 interface CommissionsSlugRecordsRouteRouteChildren {
-  CommissionsSlugRecordsRecordIdRoute: typeof CommissionsSlugRecordsRecordIdRoute
-  CommissionsSlugRecordsIndexRoute: typeof CommissionsSlugRecordsIndexRoute
+  CommissionsSlugRecordsRecordIdRoute: typeof CommissionsSlugRecordsRecordIdRoute;
+  CommissionsSlugRecordsIndexRoute: typeof CommissionsSlugRecordsIndexRoute;
 }
 
-const CommissionsSlugRecordsRouteRouteChildren: CommissionsSlugRecordsRouteRouteChildren =
-  {
-    CommissionsSlugRecordsRecordIdRoute: CommissionsSlugRecordsRecordIdRoute,
-    CommissionsSlugRecordsIndexRoute: CommissionsSlugRecordsIndexRoute,
-  }
+const CommissionsSlugRecordsRouteRouteChildren: CommissionsSlugRecordsRouteRouteChildren = {
+  CommissionsSlugRecordsRecordIdRoute: CommissionsSlugRecordsRecordIdRoute,
+  CommissionsSlugRecordsIndexRoute: CommissionsSlugRecordsIndexRoute,
+};
 
 const CommissionsSlugRecordsRouteRouteWithChildren =
-  CommissionsSlugRecordsRouteRoute._addFileChildren(
-    CommissionsSlugRecordsRouteRouteChildren,
-  )
+  CommissionsSlugRecordsRouteRoute._addFileChildren(CommissionsSlugRecordsRouteRouteChildren);
 
 interface CommissionsSlugRouteRouteChildren {
-  CommissionsSlugObligationsRouteRoute: typeof CommissionsSlugObligationsRouteRouteWithChildren
-  CommissionsSlugRecordsRouteRoute: typeof CommissionsSlugRecordsRouteRouteWithChildren
-  CommissionsSlugIndexRoute: typeof CommissionsSlugIndexRoute
-  CommissionsSlugImportsImportIdReportDotcsvRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRoute
-  CommissionsSlugImportsImportIdIndexRoute: typeof CommissionsSlugImportsImportIdIndexRoute
+  CommissionsSlugObligationsRouteRoute: typeof CommissionsSlugObligationsRouteRouteWithChildren;
+  CommissionsSlugRecordsRouteRoute: typeof CommissionsSlugRecordsRouteRouteWithChildren;
+  CommissionsSlugIndexRoute: typeof CommissionsSlugIndexRoute;
+  CommissionsSlugImportsImportIdReportDotcsvRoute: typeof CommissionsSlugImportsImportIdReportDotcsvRoute;
+  CommissionsSlugImportsImportIdIndexRoute: typeof CommissionsSlugImportsImportIdIndexRoute;
 }
 
 const CommissionsSlugRouteRouteChildren: CommissionsSlugRouteRouteChildren = {
-  CommissionsSlugObligationsRouteRoute:
-    CommissionsSlugObligationsRouteRouteWithChildren,
-  CommissionsSlugRecordsRouteRoute:
-    CommissionsSlugRecordsRouteRouteWithChildren,
+  CommissionsSlugObligationsRouteRoute: CommissionsSlugObligationsRouteRouteWithChildren,
+  CommissionsSlugRecordsRouteRoute: CommissionsSlugRecordsRouteRouteWithChildren,
   CommissionsSlugIndexRoute: CommissionsSlugIndexRoute,
-  CommissionsSlugImportsImportIdReportDotcsvRoute:
-    CommissionsSlugImportsImportIdReportDotcsvRoute,
-  CommissionsSlugImportsImportIdIndexRoute:
-    CommissionsSlugImportsImportIdIndexRoute,
-}
+  CommissionsSlugImportsImportIdReportDotcsvRoute: CommissionsSlugImportsImportIdReportDotcsvRoute,
+  CommissionsSlugImportsImportIdIndexRoute: CommissionsSlugImportsImportIdIndexRoute,
+};
 
-const CommissionsSlugRouteRouteWithChildren =
-  CommissionsSlugRouteRoute._addFileChildren(CommissionsSlugRouteRouteChildren)
+const CommissionsSlugRouteRouteWithChildren = CommissionsSlugRouteRoute._addFileChildren(
+  CommissionsSlugRouteRouteChildren,
+);
 
 interface CommissionsRouteRouteChildren {
-  CommissionsSlugRouteRoute: typeof CommissionsSlugRouteRouteWithChildren
-  CommissionsNewRoute: typeof CommissionsNewRoute
-  CommissionsIndexRoute: typeof CommissionsIndexRoute
+  CommissionsSlugRouteRoute: typeof CommissionsSlugRouteRouteWithChildren;
+  CommissionsNewRoute: typeof CommissionsNewRoute;
+  CommissionsIndexRoute: typeof CommissionsIndexRoute;
 }
 
 const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
   CommissionsSlugRouteRoute: CommissionsSlugRouteRouteWithChildren,
   CommissionsNewRoute: CommissionsNewRoute,
   CommissionsIndexRoute: CommissionsIndexRoute,
-}
+};
 
-const CommissionsRouteRouteWithChildren =
-  CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
+const CommissionsRouteRouteWithChildren = CommissionsRouteRoute._addFileChildren(
+  CommissionsRouteRouteChildren,
+);
 
 interface LeaRequestsRouteRouteChildren {
-  LeaRequestsLeaRequestIdRoute: typeof LeaRequestsLeaRequestIdRoute
-  LeaRequestsNewRoute: typeof LeaRequestsNewRoute
-  LeaRequestsIndexRoute: typeof LeaRequestsIndexRoute
+  LeaRequestsLeaRequestIdRoute: typeof LeaRequestsLeaRequestIdRoute;
+  LeaRequestsNewRoute: typeof LeaRequestsNewRoute;
+  LeaRequestsIndexRoute: typeof LeaRequestsIndexRoute;
 }
 
 const LeaRequestsRouteRouteChildren: LeaRequestsRouteRouteChildren = {
   LeaRequestsLeaRequestIdRoute: LeaRequestsLeaRequestIdRoute,
   LeaRequestsNewRoute: LeaRequestsNewRoute,
   LeaRequestsIndexRoute: LeaRequestsIndexRoute,
-}
+};
 
-const LeaRequestsRouteRouteWithChildren =
-  LeaRequestsRouteRoute._addFileChildren(LeaRequestsRouteRouteChildren)
+const LeaRequestsRouteRouteWithChildren = LeaRequestsRouteRoute._addFileChildren(
+  LeaRequestsRouteRouteChildren,
+);
 
 interface LeaRouteRouteChildren {
-  LeaRequestsRouteRoute: typeof LeaRequestsRouteRouteWithChildren
-  LeaIndexRoute: typeof LeaIndexRoute
+  LeaRequestsRouteRoute: typeof LeaRequestsRouteRouteWithChildren;
+  LeaIndexRoute: typeof LeaIndexRoute;
 }
 
 const LeaRouteRouteChildren: LeaRouteRouteChildren = {
   LeaRequestsRouteRoute: LeaRequestsRouteRouteWithChildren,
   LeaIndexRoute: LeaIndexRoute,
-}
+};
 
-const LeaRouteRouteWithChildren = LeaRouteRoute._addFileChildren(
-  LeaRouteRouteChildren,
-)
+const LeaRouteRouteWithChildren = LeaRouteRoute._addFileChildren(LeaRouteRouteChildren);
 
 interface ObligationsRouteRouteChildren {
-  ObligationsPolicyRoute: typeof ObligationsPolicyRoute
-  ObligationsIndexRoute: typeof ObligationsIndexRoute
+  ObligationsPolicyRoute: typeof ObligationsPolicyRoute;
+  ObligationsIndexRoute: typeof ObligationsIndexRoute;
 }
 
 const ObligationsRouteRouteChildren: ObligationsRouteRouteChildren = {
   ObligationsPolicyRoute: ObligationsPolicyRoute,
   ObligationsIndexRoute: ObligationsIndexRoute,
-}
+};
 
-const ObligationsRouteRouteWithChildren =
-  ObligationsRouteRoute._addFileChildren(ObligationsRouteRouteChildren)
+const ObligationsRouteRouteWithChildren = ObligationsRouteRoute._addFileChildren(
+  ObligationsRouteRouteChildren,
+);
 
 interface PlatformLawEnforcementRouteRouteChildren {
-  PlatformLawEnforcementAgencyCodeRoute: typeof PlatformLawEnforcementAgencyCodeRoute
-  PlatformLawEnforcementIndexRoute: typeof PlatformLawEnforcementIndexRoute
+  PlatformLawEnforcementAgencyCodeRoute: typeof PlatformLawEnforcementAgencyCodeRoute;
+  PlatformLawEnforcementIndexRoute: typeof PlatformLawEnforcementIndexRoute;
 }
 
-const PlatformLawEnforcementRouteRouteChildren: PlatformLawEnforcementRouteRouteChildren =
-  {
-    PlatformLawEnforcementAgencyCodeRoute:
-      PlatformLawEnforcementAgencyCodeRoute,
-    PlatformLawEnforcementIndexRoute: PlatformLawEnforcementIndexRoute,
-  }
+const PlatformLawEnforcementRouteRouteChildren: PlatformLawEnforcementRouteRouteChildren = {
+  PlatformLawEnforcementAgencyCodeRoute: PlatformLawEnforcementAgencyCodeRoute,
+  PlatformLawEnforcementIndexRoute: PlatformLawEnforcementIndexRoute,
+};
 
 const PlatformLawEnforcementRouteRouteWithChildren =
-  PlatformLawEnforcementRouteRoute._addFileChildren(
-    PlatformLawEnforcementRouteRouteChildren,
-  )
+  PlatformLawEnforcementRouteRoute._addFileChildren(PlatformLawEnforcementRouteRouteChildren);
 
 interface PlatformRouteRouteChildren {
-  PlatformLawEnforcementRouteRoute: typeof PlatformLawEnforcementRouteRouteWithChildren
-  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute
-  PlatformIndexRoute: typeof PlatformIndexRoute
+  PlatformLawEnforcementRouteRoute: typeof PlatformLawEnforcementRouteRouteWithChildren;
+  PlatformIntegrationsRoute: typeof PlatformIntegrationsRoute;
+  PlatformIndexRoute: typeof PlatformIndexRoute;
 }
 
 const PlatformRouteRouteChildren: PlatformRouteRouteChildren = {
-  PlatformLawEnforcementRouteRoute:
-    PlatformLawEnforcementRouteRouteWithChildren,
+  PlatformLawEnforcementRouteRoute: PlatformLawEnforcementRouteRouteWithChildren,
   PlatformIntegrationsRoute: PlatformIntegrationsRoute,
   PlatformIndexRoute: PlatformIndexRoute,
-}
+};
 
 const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
   PlatformRouteRouteChildren,
-)
+);
 
 interface ReviewQueueRouteChildren {
-  ReviewQueueIndexRoute: typeof ReviewQueueIndexRoute
+  ReviewQueueIndexRoute: typeof ReviewQueueIndexRoute;
 }
 
 const ReviewQueueRouteChildren: ReviewQueueRouteChildren = {
   ReviewQueueIndexRoute: ReviewQueueIndexRoute,
-}
+};
 
-const ReviewQueueRouteWithChildren = ReviewQueueRoute._addFileChildren(
-  ReviewQueueRouteChildren,
-)
+const ReviewQueueRouteWithChildren = ReviewQueueRoute._addFileChildren(ReviewQueueRouteChildren);
 
 interface ReviewRouteRouteChildren {
-  ReviewQueueRoute: typeof ReviewQueueRouteWithChildren
-  ReviewCasesCaseIdDeterminationRoute: typeof ReviewCasesCaseIdDeterminationRoute
-  ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute
-  ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute
+  ReviewQueueRoute: typeof ReviewQueueRouteWithChildren;
+  ReviewCasesCaseIdDeterminationRoute: typeof ReviewCasesCaseIdDeterminationRoute;
+  ReviewCasesCaseIdIndexRoute: typeof ReviewCasesCaseIdIndexRoute;
+  ReviewCasesCaseIdClarificationsClarificationIdRoute: typeof ReviewCasesCaseIdClarificationsClarificationIdRoute;
 }
 
 const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
@@ -1854,63 +1806,63 @@ const ReviewRouteRouteChildren: ReviewRouteRouteChildren = {
   ReviewCasesCaseIdIndexRoute: ReviewCasesCaseIdIndexRoute,
   ReviewCasesCaseIdClarificationsClarificationIdRoute:
     ReviewCasesCaseIdClarificationsClarificationIdRoute,
-}
+};
 
-const ReviewRouteRouteWithChildren = ReviewRouteRoute._addFileChildren(
-  ReviewRouteRouteChildren,
-)
+const ReviewRouteRouteWithChildren = ReviewRouteRoute._addFileChildren(ReviewRouteRouteChildren);
 
 interface RosterApiAccessRouteRouteChildren {
-  RosterApiAccessDocsRoute: typeof RosterApiAccessDocsRoute
-  RosterApiAccessIndexRoute: typeof RosterApiAccessIndexRoute
+  RosterApiAccessDocsRoute: typeof RosterApiAccessDocsRoute;
+  RosterApiAccessIndexRoute: typeof RosterApiAccessIndexRoute;
 }
 
 const RosterApiAccessRouteRouteChildren: RosterApiAccessRouteRouteChildren = {
   RosterApiAccessDocsRoute: RosterApiAccessDocsRoute,
   RosterApiAccessIndexRoute: RosterApiAccessIndexRoute,
-}
+};
 
-const RosterApiAccessRouteRouteWithChildren =
-  RosterApiAccessRouteRoute._addFileChildren(RosterApiAccessRouteRouteChildren)
+const RosterApiAccessRouteRouteWithChildren = RosterApiAccessRouteRoute._addFileChildren(
+  RosterApiAccessRouteRouteChildren,
+);
 
 interface RosterImportsRouteRouteChildren {
-  RosterImportsIndexRoute: typeof RosterImportsIndexRoute
-  RosterImportsImportIdReportDotcsvRoute: typeof RosterImportsImportIdReportDotcsvRoute
-  RosterImportsImportIdIndexRoute: typeof RosterImportsImportIdIndexRoute
+  RosterImportsIndexRoute: typeof RosterImportsIndexRoute;
+  RosterImportsImportIdReportDotcsvRoute: typeof RosterImportsImportIdReportDotcsvRoute;
+  RosterImportsImportIdIndexRoute: typeof RosterImportsImportIdIndexRoute;
 }
 
 const RosterImportsRouteRouteChildren: RosterImportsRouteRouteChildren = {
   RosterImportsIndexRoute: RosterImportsIndexRoute,
-  RosterImportsImportIdReportDotcsvRoute:
-    RosterImportsImportIdReportDotcsvRoute,
+  RosterImportsImportIdReportDotcsvRoute: RosterImportsImportIdReportDotcsvRoute,
   RosterImportsImportIdIndexRoute: RosterImportsImportIdIndexRoute,
-}
+};
 
-const RosterImportsRouteRouteWithChildren =
-  RosterImportsRouteRoute._addFileChildren(RosterImportsRouteRouteChildren)
+const RosterImportsRouteRouteWithChildren = RosterImportsRouteRoute._addFileChildren(
+  RosterImportsRouteRouteChildren,
+);
 
 interface RosterRecordsRouteRouteChildren {
-  RosterRecordsRecordIdRoute: typeof RosterRecordsRecordIdRoute
-  RosterRecordsIndexRoute: typeof RosterRecordsIndexRoute
+  RosterRecordsRecordIdRoute: typeof RosterRecordsRecordIdRoute;
+  RosterRecordsIndexRoute: typeof RosterRecordsIndexRoute;
 }
 
 const RosterRecordsRouteRouteChildren: RosterRecordsRouteRouteChildren = {
   RosterRecordsRecordIdRoute: RosterRecordsRecordIdRoute,
   RosterRecordsIndexRoute: RosterRecordsIndexRoute,
-}
+};
 
-const RosterRecordsRouteRouteWithChildren =
-  RosterRecordsRouteRoute._addFileChildren(RosterRecordsRouteRouteChildren)
+const RosterRecordsRouteRouteWithChildren = RosterRecordsRouteRoute._addFileChildren(
+  RosterRecordsRouteRouteChildren,
+);
 
 interface RosterRouteRouteChildren {
-  RosterApiAccessRouteRoute: typeof RosterApiAccessRouteRouteWithChildren
-  RosterImportsRouteRoute: typeof RosterImportsRouteRouteWithChildren
-  RosterRecordsRouteRoute: typeof RosterRecordsRouteRouteWithChildren
-  RosterCoverageRoute: typeof RosterCoverageRoute
-  RosterFlaggedRoute: typeof RosterFlaggedRoute
-  RosterImportRoute: typeof RosterImportRoute
-  RosterTemplateRoute: typeof RosterTemplateRoute
-  RosterIndexRoute: typeof RosterIndexRoute
+  RosterApiAccessRouteRoute: typeof RosterApiAccessRouteRouteWithChildren;
+  RosterImportsRouteRoute: typeof RosterImportsRouteRouteWithChildren;
+  RosterRecordsRouteRoute: typeof RosterRecordsRouteRouteWithChildren;
+  RosterCoverageRoute: typeof RosterCoverageRoute;
+  RosterFlaggedRoute: typeof RosterFlaggedRoute;
+  RosterImportRoute: typeof RosterImportRoute;
+  RosterTemplateRoute: typeof RosterTemplateRoute;
+  RosterIndexRoute: typeof RosterIndexRoute;
 }
 
 const RosterRouteRouteChildren: RosterRouteRouteChildren = {
@@ -1922,25 +1874,21 @@ const RosterRouteRouteChildren: RosterRouteRouteChildren = {
   RosterImportRoute: RosterImportRoute,
   RosterTemplateRoute: RosterTemplateRoute,
   RosterIndexRoute: RosterIndexRoute,
-}
+};
 
-const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
-  RosterRouteRouteChildren,
-)
+const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(RosterRouteRouteChildren);
 
 interface ObligationsNationalRouteRouteChildren {
-  ObligationsNationalIndexRoute: typeof ObligationsNationalIndexRoute
+  ObligationsNationalIndexRoute: typeof ObligationsNationalIndexRoute;
 }
 
-const ObligationsNationalRouteRouteChildren: ObligationsNationalRouteRouteChildren =
-  {
-    ObligationsNationalIndexRoute: ObligationsNationalIndexRoute,
-  }
+const ObligationsNationalRouteRouteChildren: ObligationsNationalRouteRouteChildren = {
+  ObligationsNationalIndexRoute: ObligationsNationalIndexRoute,
+};
 
-const ObligationsNationalRouteRouteWithChildren =
-  ObligationsNationalRouteRoute._addFileChildren(
-    ObligationsNationalRouteRouteChildren,
-  )
+const ObligationsNationalRouteRouteWithChildren = ObligationsNationalRouteRoute._addFileChildren(
+  ObligationsNationalRouteRouteChildren,
+);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -1960,16 +1908,16 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLogoutRoute: AuthLogoutRoute,
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { getRouter } from './router.tsx';
+import type { createStart } from '@tanstack/react-start';
 declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
   }
 }

@@ -14,8 +14,9 @@ import { Icon, type IconProps } from './icon';
 /**
  * Where one step of an administrative action ladder stands. `upcoming`: not reached yet.
  * `skipped`: the ladder ended before it (the declarant complied). `awaiting`: drafted and waiting
- * for approval, or approved and waiting for payroll. `current`: issued, its window running.
- * `declined`: the approver declined it. `stopped`: a salary stoppage in force. `done`: issued and
+ * for approval. `current`: approved (its letter being issued, or waiting for payroll) or issued,
+ * its window running. `declined`: the approver declined it. `stopped`: a salary stoppage in force,
+ * from payroll's acknowledgement, whether or not its letter is issued yet. `done`: issued and
  * passed to a later step. `complied`: the declarant complied while it ran. `reinstated`: a
  * stopped salary was paid again.
  */

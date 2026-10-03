@@ -65,7 +65,8 @@ export function stepStatusOf(
       return ladderStatus === 'active' ? 'awaiting' : 'skipped';
     case 'approved':
     case 'approved-pending-payroll':
-      // Decided, not waiting for approval: a stoppage payroll acknowledged has stopped the salary.
+      // Decided (`isApproved`), not waiting for approval: a stoppage payroll acknowledged has
+      // stopped the salary.
       if (ladderStatus !== 'active') return 'skipped';
       return salaryStopped(action) ? 'stopped' : 'current';
     case 'issued':

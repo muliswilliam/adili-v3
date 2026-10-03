@@ -26,6 +26,11 @@ export function acknowledgedAt(ack: PayrollAck | null): string | null {
   return ack !== null && payrollState(ack) === 'acknowledged' ? ack.receivedAt : null;
 }
 
+/** Approved but not issued yet: waiting for payroll (a stoppage) or for its letter. */
+export function isApproved(action: AdministrativeAction): boolean {
+  return action.status === 'approved' || action.status === 'approved-pending-payroll';
+}
+
 /** A salary stoppage payroll acknowledged and has not reinstated: the salary is stopped now. */
 export function salaryStopped(action: AdministrativeAction): boolean {
   return (
@@ -33,7 +38,7 @@ export function salaryStopped(action: AdministrativeAction): boolean {
     acknowledgedAt(action.payrollStop) !== null &&
     acknowledgedAt(action.payrollResume) === null &&
     // Acknowledged but its letter not yet issued (`approved`), or issued.
-    (action.status === 'approved' || action.status === 'issued' || action.status === 'responded')
+    (isApproved(action) || action.status === 'issued' || action.status === 'responded')
   );
 }
 
