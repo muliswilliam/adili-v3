@@ -1,0 +1,186 @@
+import { z } from 'zod';
+
+import type { DocumentsClient } from './documents/client';
+import type { ReportingClient } from './reporting/client.server';
+import type {
+  Narrative,
+  NationalAggregates,
+  NationalReport,
+  ReportingProblem,
+} from './reporting/types';
+import { callService, type ServiceResult } from './service-call';
+
+/**
+ * EACC's national consolidated report (spec 09 NCR, #233) through the reporting service, as the
+ * signed-in EACC analyst or supervisor: read the year's report with how many Commissions have
+ * reported, build or rebuild it, save its narrative, approve it, and download its PDF.
+ */
+
+export type NationalReportResult<T> = ServiceResult<T, ReportingProblem>;
+
+/** The national report page's data for a financial year. */
+export interface NationalReportPage {
+  fy: number;
+  /** Null until the year's report is first built. */
+  report: NationalReport | null;
+  /** Commissions whose Form M for the year EACC has received, now (a build may predate some). */
+  reported: number;
+  notReported: number;
+}
+
+const section = z.object({
+  expected: z.number(),
+  declared: z.number(),
+  notDeclared: z.number(),
+  rate: z.number().nullable(),
+});
+const access = z.object({ received: z.number(), granted: z.number(), declined: z.number() });
+
+/** reporting.yaml leaves `aggregates` open; the service builds this shape. */
+const nationalAggregatesSchema: z.ZodType<NationalAggregates> = z.object({
+  fy: z.number(),
+  reporting: z.object({
+    commissions: z.number(),
+    reported: z.number(),
+    onTime: z.number(),
+    late: z.number(),
+    notReported: z.number(),
+    rate: z.number().nullable(),
+  }),
+  national: z.object({
+    initial: section,
+    biennial: section,
+    final: section,
+    all: section,
+    clarifications: z.number(),
+    accessRequests: access,
+  }),
+  byCommission: z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      status: z.enum(['not-reported', 'submitted-on-time', 'submitted-late']),
+      reportId: z.string().nullable(),
+      reference: z.string().nullable(),
+      submittedAt: z.string().nullable(),
+      initial: section.nullable(),
+      biennial: section.extend({ noCycleInPeriod: z.boolean() }).nullable(),
+      final: section.nullable(),
+      clarifications: z.number().nullable(),
+      accessRequests: access.nullable(),
+    }),
+  ),
+});
+
+type RawReport = Omit<NationalReport, 'aggregates'> & { aggregates: Record<string, unknown> };
+
+/** The report with its aggregates read, or a failed load when they are not what was built. */
+function readReport(raw: RawReport): NationalReportResult<NationalReport> {
+  const aggregates = nationalAggregatesSchema.safeParse(raw.aggregates);
+  if (!aggregates.success) {
+    return {
+      ok: false,
+      error: { kind: 'unavailable', detail: 'The report figures could not be read.' },
+    };
+  }
+  return { ok: true, data: { ...raw, aggregates: aggregates.data } };
+}
+
+function readReportResult(
+  result: NationalReportResult<RawReport>,
+): NationalReportResult<NationalReport> {
+  return result.ok ? readReport(result.data) : result;
+}
+
+/**
+ * The year's report (null before the first build) and how many Commissions have reported, from
+ * the intake: the empty state says so, and a draft built before later reports arrived says how
+ * many a rebuild would add.
+ */
+export async function loadNationalReportPage(
+  client: ReportingClient,
+  fy: number,
+): Promise<NationalReportResult<NationalReportPage>> {
+  const [report, intake] = await Promise.all([
+    callService<RawReport, ReportingProblem>(() =>
+      client.GET('/v1/eacc/national-reports/{fy}', { params: { path: { fy } } }),
+    ),
+    callService(() => client.GET('/v1/eacc/compliance-reports', { params: { query: { fy } } })),
+  ]);
+  const notBuilt =
+    !report.ok && report.error.kind === 'problem' && report.error.problem.status === 404;
+  if (!report.ok && !notBuilt) return report;
+  if (!intake.ok) return intake;
+  const read = report.ok ? readReport(report.data) : null;
+  if (read && !read.ok) return read;
+  const { onTime, late, notReported } = intake.data.totals;
+  return {
+    ok: true,
+    data: { fy, report: read?.data ?? null, reported: onTime + late, notReported },
+  };
+}
+
+/** Builds the year's report, or rebuilds its draft keeping the narrative. */
+export async function buildNationalReport(
+  client: ReportingClient,
+  fy: number,
+): Promise<NationalReportResult<NationalReport>> {
+  return readReportResult(
+    await callService<RawReport, ReportingProblem>(() =>
+      client.POST('/v1/eacc/national-reports/{fy}/build', { params: { path: { fy } } }),
+    ),
+  );
+}
+
+/** Saves every section's text, paragraphs separated by a blank line. */
+export async function saveNationalReportNarrative(
+  client: ReportingClient,
+  fy: number,
+  narrative: Narrative,
+): Promise<NationalReportResult<NationalReport>> {
+  return readReportResult(
+    await callService<RawReport, ReportingProblem>(() =>
+      client.PATCH('/v1/eacc/national-reports/{fy}/narrative', {
+        params: { path: { fy } },
+        body: narrative,
+      }),
+    ),
+  );
+}
+
+/** An EACC supervisor who did not write it approves the report; a retry reuses the key. */
+export async function approveNationalReport(
+  client: ReportingClient,
+  fy: number,
+  idempotencyKey: string,
+): Promise<NationalReportResult<NationalReport>> {
+  return readReportResult(
+    await callService<RawReport, ReportingProblem>(() =>
+      client.POST('/v1/eacc/national-reports/{fy}/approve', {
+        params: { path: { fy }, header: { 'Idempotency-Key': idempotencyKey } },
+      }),
+    ),
+  );
+}
+
+/** A short-lived link to the approved report's Restricted PDF. */
+export interface NationalReportPdf {
+  downloadUrl: string;
+  expiresAt: string;
+}
+
+/**
+ * `GET /v1/documents/{documentId}/download` with the officer's own token: documents lets EACC
+ * analysts and supervisors download the NCR and audits it.
+ */
+export async function nationalReportPdf(
+  documents: DocumentsClient,
+  documentId: string,
+): Promise<ServiceResult<NationalReportPdf>> {
+  const result = await callService(() =>
+    documents.GET('/v1/documents/{documentId}/download', { params: { path: { documentId } } }),
+  );
+  if (!result.ok) return result;
+  const { downloadUrl, expiresAt } = result.data;
+  return { ok: true, data: { downloadUrl, expiresAt } };
+}
