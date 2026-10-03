@@ -22,8 +22,8 @@ export function reportingTimeoutMs(method: string, path: string): number {
 
 /**
  * Typed client for the reporting service, generated from `packages/schemas/internal/reporting.yaml`,
- * called as the signed-in user. With REPORTING_MOCK set in development it talks to the in-memory
- * mock instead (`mock.server.ts`).
+ * called as the signed-in user: a Commission officer in the Form M workspace, or EACC staff.
+ * With REPORTING_MOCK set in development it talks to the in-memory mock instead (`mock.server.ts`).
  */
 export function reportingClient(accessToken: string) {
   const config = env();

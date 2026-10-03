@@ -28,12 +28,17 @@ export const envSchema = bffEnvSchema.extend({
    */
   ACCESS_MOCK: z.stringbool().default(false),
   /**
-   * Serve the reporting service's EACC referrals intake (spec 09) and the evidence packages'
-   * downloads from in-memory fixtures, for screens without the reporting service and its
-   * upstreams running. Honoured in `vite dev` and tests only; production builds do not contain
-   * the mock.
+   * Serve a Commission's Form M periods and reports and EACC's referrals intake with its evidence
+   * package downloads (spec 09) from in-memory fixtures, for screens without the reporting service
+   * and its upstreams running. Honoured in `vite dev` and tests only; production builds do not
+   * contain the mock.
    */
   REPORTING_MOCK: z.stringbool().default(false),
+  /**
+   * With REPORTING_MOCK: the day (`YYYY-MM-DD`) the mock and the Form M workspace take as today,
+   * to show the preview window (from 1 April) without waiting for it. Today by default.
+   */
+  REPORTING_MOCK_TODAY: z.iso.date().optional(),
   /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.
