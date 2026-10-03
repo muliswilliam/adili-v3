@@ -6,26 +6,27 @@ import { formatNumber } from '../lib/format-number';
 import { Icon } from './icon';
 
 /**
- * Why an open-data figure is not shown.
+ * Why an open-data figure is not shown: suppression, or a gap in the data.
  *
  * - `suppressed`: the contract's suppressed cell (`null` with the marker), shown "‹10". It may
  *   count fewer officers than the threshold, or be a complementary cell over 10 or more hidden
  *   so that one cannot be worked out from a total: the contract does not tell the two apart, so
  *   its words are true of both.
- * - `complementary`: a cell known to be complementary, "Hidden", for when the contract does.
+ * - `complementary`: a cell known to be complementary, "Hidden". Ready for when the contract
+ *   tells complementary cells apart; until then nothing maps to it.
  * - `not-reported`: the Commission has not reported for the year (its figures are `null`,
  *   unsuppressed: a gap, not suppression).
  * - `not-collected`: a figure nobody collects yet (the table's `notCollected`, such as access
  *   requests until spec 10 projects them): `null` for want of data, not suppression.
  */
-export type SuppressionKind = 'suppressed' | 'complementary' | 'not-reported' | 'not-collected';
-
-export const SUPPRESSION_KINDS: readonly SuppressionKind[] = [
+export const UNSHOWN_FIGURE_KINDS = [
   'suppressed',
   'complementary',
   'not-reported',
   'not-collected',
-];
+] as const;
+
+export type UnshownFigureKind = (typeof UNSHOWN_FIGURE_KINDS)[number];
 
 /** Figures over fewer officers than this are suppressed (ADR 0009, spec 09b). */
 export const DEFAULT_SUPPRESSION_THRESHOLD = 10;
@@ -40,11 +41,11 @@ export interface SuppressionMarkerCopy {
   title: (threshold: number) => string;
 }
 
-export type SuppressionMarkerMessages = Record<SuppressionKind, SuppressionMarkerCopy>;
+export type SuppressionMarkerMessages = Record<UnshownFigureKind, SuppressionMarkerCopy>;
 
 /** Replaces any string of any kind; the rest stay the default. */
 export type SuppressionMarkerMessagesOverride = Partial<
-  Record<SuppressionKind, Partial<SuppressionMarkerCopy>>
+  Record<UnshownFigureKind, Partial<SuppressionMarkerCopy>>
 >;
 
 export const SUPPRESSION_MARKER_MESSAGES: SuppressionMarkerMessages = {
@@ -72,14 +73,14 @@ export const SUPPRESSION_MARKER_MESSAGES: SuppressionMarkerMessages = {
 };
 
 function markerCopy(
-  kind: SuppressionKind,
+  kind: UnshownFigureKind,
   messages: SuppressionMarkerMessagesOverride | undefined,
 ): SuppressionMarkerCopy {
   return { ...SUPPRESSION_MARKER_MESSAGES[kind], ...messages?.[kind] };
 }
 
 /** Suppression is hatched; a gap in the data (not reported, not collected) is a plain chip. */
-const KIND_CLASS: Record<SuppressionKind, string> = {
+const KIND_CLASS: Record<UnshownFigureKind, string> = {
   suppressed: 'bg-stripes-muted font-semibold text-secondary-foreground',
   complementary: 'bg-stripes-muted font-medium text-secondary-foreground',
   'not-reported': 'bg-muted font-medium text-muted-foreground',
@@ -95,19 +96,19 @@ function KeyChip({
   threshold,
   messages,
 }: {
-  kind: SuppressionKind;
+  kind: UnshownFigureKind;
   threshold: number;
   messages?: SuppressionMarkerMessagesOverride;
 }) {
   return (
-    <span aria-hidden="true" data-suppression={kind} className={cn(CHIP, KIND_CLASS[kind])}>
+    <span aria-hidden="true" data-unshown={kind} className={cn(CHIP, KIND_CLASS[kind])}>
       {markerCopy(kind, messages).short(threshold)}
     </span>
   );
 }
 
 export type SuppressionMarkerProps = Omit<ComponentProps<'span'>, 'children'> & {
-  kind?: SuppressionKind;
+  kind?: UnshownFigureKind;
   /** The release's suppression threshold (the table's `suppression.threshold`). */
   threshold?: number;
   /** Replaces any string of any kind, e.g. the Swahili ones on the portal. */
@@ -132,7 +133,7 @@ export function SuppressionMarker({
   const copy = markerCopy(kind, messages);
   return (
     <span
-      data-suppression={kind}
+      data-unshown={kind}
       title={copy.title(threshold)}
       className={cn(CHIP, KIND_CLASS[kind], 'cursor-help', className)}
       {...props}
@@ -149,7 +150,7 @@ export interface SuppressionLegendMessages {
   /** How many cells the table hides, beside the sentence. */
   cellsSuppressed: (count: number) => string;
   /** The key word beside each kind's chip. */
-  keys: Record<SuppressionKind, (threshold: number) => string>;
+  keys: Record<UnshownFigureKind, (threshold: number) => string>;
 }
 
 export type SuppressionLegendMessagesOverride = Partial<Omit<SuppressionLegendMessages, 'keys'>> & {
@@ -175,9 +176,9 @@ export type SuppressionLegendProps = Omit<ComponentProps<'div'>, 'children'> & {
    * The table's `suppression.cellsSuppressed`: figures hidden by suppression (figures not
    * collected are not counted). Left out when not given.
    */
-  cellsSuppressed?: number | null;
+  cellsSuppressed?: number;
   /** The kinds to explain with a chip and a key word, in order; none by default. */
-  keys?: readonly SuppressionKind[];
+  keys?: readonly UnshownFigureKind[];
   messages?: SuppressionLegendMessagesOverride;
   /** The words of the key's chips. */
   markerMessages?: SuppressionMarkerMessagesOverride;
@@ -215,7 +216,7 @@ export function SuppressionLegend({
       <Icon icon={ViewOffSlashIcon} className="size-[15px] text-muted-foreground" />
       <span className="min-w-0 flex-[1_1_260px]">
         {copy.sentence(threshold)}
-        {cellsSuppressed != null && (
+        {cellsSuppressed !== undefined && (
           <span className="text-[12.5px] whitespace-nowrap text-muted-foreground tabular-nums">
             {' '}
             {copy.cellsSuppressed(cellsSuppressed)}

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 import { formatNumber } from '../lib/format-number';
-import { SUPPRESSION_KINDS, SuppressionLegend, SuppressionMarker } from './suppression-marker';
+import { UNSHOWN_FIGURE_KINDS, SuppressionLegend, SuppressionMarker } from './suppression-marker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
 
 const meta = {
@@ -31,7 +31,7 @@ const KIND_NOTES = {
 export const EveryKind: Story = {
   render: () => (
     <div className="grid gap-2.5 text-sm text-muted-foreground">
-      {SUPPRESSION_KINDS.map((kind) => (
+      {UNSHOWN_FIGURE_KINDS.map((kind) => (
         <div key={kind} className="flex items-center gap-2.5">
           <SuppressionMarker kind={kind} />
           {KIND_NOTES[kind]}
