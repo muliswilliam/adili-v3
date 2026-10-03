@@ -411,29 +411,29 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
   const rawRules = Array.isArray(input.rules) ? input.rules : [];
   const rules: GateRuleInput[] = [];
   if (rawRules.length < 1 || rawRules.length > 6) {
-    errors.push({ path: '/rules', message: 'Send 1 to 6 rules' });
+    errors.push({ path: 'rules', message: 'Send 1 to 6 rules' });
   }
   rawRules.forEach((raw: unknown, index) => {
     const rule = isRecord(raw) ? raw : {};
     const dataClass = DATA_CLASSES.find((each) => each === rule.dataClass);
     const providerClass = PROVIDER_CLASSES.find((each) => each === rule.providerClass);
     if (!dataClass)
-      errors.push({ path: `/rules/${String(index)}/dataClass`, message: 'Unknown data class' });
+      errors.push({ path: `rules.${String(index)}.dataClass`, message: 'Unknown data class' });
     if (!providerClass) {
       errors.push({
-        path: `/rules/${String(index)}/providerClass`,
+        path: `rules.${String(index)}.providerClass`,
         message: 'Unknown provider class',
       });
     }
     if (typeof rule.allowed !== 'boolean') {
-      errors.push({ path: `/rules/${String(index)}/allowed`, message: 'Must be true or false' });
+      errors.push({ path: `rules.${String(index)}.allowed`, message: 'Must be true or false' });
     }
     if (dataClass && providerClass) {
       if (
         rules.some((each) => each.dataClass === dataClass && each.providerClass === providerClass)
       ) {
         errors.push({
-          path: '/rules',
+          path: 'rules',
           message: 'At most one rule per data class and provider class',
         });
       }
@@ -443,12 +443,12 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
         const named = rule.tasks as unknown[];
         tasks = TASK_NAMES.filter((task) => named.includes(task));
         if (named.length === 0 || tasks.length !== named.length) {
-          errors.push({ path: `/rules/${String(index)}/tasks`, message: 'Unknown task' });
+          errors.push({ path: `rules.${String(index)}.tasks`, message: 'Unknown task' });
         }
       } else if (rule.tasks === null) {
         tasks = null;
       } else if (rule.tasks !== undefined) {
-        errors.push({ path: `/rules/${String(index)}/tasks`, message: 'Must be a list of tasks' });
+        errors.push({ path: `rules.${String(index)}.tasks`, message: 'Must be a list of tasks' });
       }
       // A rule for some tasks only is widened on purpose (`tasks: null`), never silently.
       const before = tenantOf(slug).rules.find(
@@ -456,7 +456,7 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
       );
       if (before?.tasks && tasks === undefined) {
         errors.push({
-          path: `/rules/${String(index)}/tasks`,
+          path: `rules.${String(index)}.tasks`,
           message: 'The rule is for some tasks only: send tasks, or null for every task',
         });
       }
@@ -464,7 +464,7 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
     }
   });
   if (approvalRef.length < 1 || approvalRef.length > 200) {
-    errors.push({ path: '/approvalRef', message: 'Enter the approval reference' });
+    errors.push({ path: 'approvalRef', message: 'Enter the approval reference' });
   }
   if (errors.length > 0) return validation(errors);
 

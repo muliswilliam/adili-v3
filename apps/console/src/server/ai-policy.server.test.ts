@@ -276,7 +276,11 @@ describe('S16 saveGatePolicy', () => {
       [{ dataClass: 'highly-confidential', providerClass: 'external', allowed: true }],
       'EACC/AI/2026/033',
     );
-    expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+    // The field path as the gateway writes it.
+    expect(result).toMatchObject({
+      ok: false,
+      error: { problem: { status: 400, errors: [{ path: 'rules.0.tasks' }] } },
+    });
   });
 
   it('stores none of the changes when one is invalid', async () => {
