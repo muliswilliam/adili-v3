@@ -6,7 +6,8 @@ import type { Copilot } from '../../../server/copilot.server';
 import type { CaseDetail } from '../../../server/review/types';
 import type { CopilotAccess } from './copilot-view';
 import { CopilotLauncher, CopilotPanel, type CopilotPanelProps } from './copilot-panel';
-import { highlightInDeclaration, type ResolvedRef, sourceRefResolver } from './source-refs';
+import { highlightTarget } from '../../highlight-target';
+import { type ResolvedRef, sourceRefResolver } from './source-refs';
 import { type CopilotApi, useCaseCopilot } from './use-case-copilot';
 
 /** The server functions, as the hook calls them. */
@@ -63,7 +64,7 @@ export function CaseCopilot({
   onOpenChange,
   explain,
   onOpenSource = (resolved) => {
-    highlightInDeclaration(resolved.anchorId);
+    highlightTarget(resolved.anchorId);
   },
   selection,
   initial,

@@ -9,6 +9,9 @@ import type { NationalAggregates, SectionAggregate } from './types';
  * Rates are fractions to four places, null where nobody was expected.
  */
 
+/** `PatternCandidate.subject` for the nation as a whole (any other subject is a Commission slug). */
+export const NATIONAL_SUBJECT = 'national';
+
 /** National figures, by name. */
 export const NATIONAL_FIGURES = [
   'commissions',

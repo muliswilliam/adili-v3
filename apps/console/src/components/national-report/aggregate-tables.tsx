@@ -54,11 +54,17 @@ export function CardHeading({
   );
 }
 
+/** The index of the first item on `page` (from 1), `perPage` to a page. */
+const firstOnPage = (page: number, perPage: number) => (page - 1) * perPage;
+
+/** The page (from 1) the item at `index` is on, `perPage` to a page: `pageOf`'s pages. */
+export const pageContaining = (index: number, perPage: number) => Math.floor(index / perPage) + 1;
+
 /** The page of `items` shown, `perPage` to a page, `page` kept within the pages there are. */
 export function pageOf<T>(items: readonly T[], page: number, perPage: number) {
   const pages = Math.max(1, Math.ceil(items.length / perPage));
   const current = Math.min(Math.max(1, page), pages);
-  const from = (current - 1) * perPage;
+  const from = firstOnPage(current, perPage);
   return { pages, current, from, shown: items.slice(from, from + perPage) };
 }
 

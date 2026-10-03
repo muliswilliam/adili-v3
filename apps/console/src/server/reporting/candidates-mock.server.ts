@@ -29,6 +29,7 @@ import {
   commissionFigures,
   nationalFigures,
   rateOf,
+  NATIONAL_SUBJECT,
 } from './aggregate-keys';
 import { type Env, envSchema } from '../env.server';
 import { json, mockCallerOf, problem } from '../mock-http';
@@ -87,8 +88,6 @@ const PRIOR: Record<number, Record<string, PriorRow>> = {
 
 /** The nation's non-filer rate in the years before, by start year. */
 const PRIOR_NATIONAL_NON_FILER_RATE: Record<number, number> = { 2024: 0.0294, 2023: 0.0311 };
-
-const NATIONAL = 'national';
 
 let seed: CandidatesMockSeed | null = null;
 
@@ -171,7 +170,7 @@ function patternCandidates(aggregates: NationalAggregates): PatternCandidate[] {
   // The nation's non-filer rate and each Commission's, with the year before's and their keys.
   const nonFilerRates = [
     {
-      subject: NATIONAL,
+      subject: NATIONAL_SUBJECT,
       rate: national.nonFilerRate,
       before: PRIOR_NATIONAL_NON_FILER_RATE[fy - 1] ?? null,
       keyOf: (year: number) =>
@@ -314,7 +313,8 @@ function patternCandidates(aggregates: NationalAggregates): PatternCandidate[] {
         kinds.indexOf(a.candidate.kind) - kinds.indexOf(b.candidate.kind) ||
         b.magnitude - a.magnitude ||
         // The nation before Commissions on a tie, then by slug.
-        Number(b.candidate.subject === NATIONAL) - Number(a.candidate.subject === NATIONAL) ||
+        Number(b.candidate.subject === NATIONAL_SUBJECT) -
+          Number(a.candidate.subject === NATIONAL_SUBJECT) ||
         (a.candidate.subject < b.candidate.subject ? -1 : 1),
     )
     .map(({ candidate }) => candidate);

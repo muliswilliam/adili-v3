@@ -22,12 +22,13 @@ import type {
   NationalReport,
   PatternCandidate,
 } from '../../server/reporting/types';
-import { highlightTarget as highlight } from '../highlight-target';
+import { highlightTarget } from '../highlight-target';
 import {
   CardHeading,
   CardPager,
   COMMISSIONS_PER_PAGE,
   commissionRows,
+  pageContaining,
   pageOf,
 } from './aggregate-tables';
 import { messages as m } from './messages';
@@ -152,7 +153,7 @@ function useShowFigure({ report, page, onPageChange }: NcrPatternsOptions) {
     if (pending?.page !== page) return;
     // The page's rows render after the address changes; look for the row once they have.
     const frame = requestAnimationFrame(() => {
-      highlight(pending.anchor);
+      highlightTarget(pending.anchor);
       setPending(null);
     });
     return () => {
@@ -165,14 +166,14 @@ function useShowFigure({ report, page, onPageChange }: NcrPatternsOptions) {
       const target = report ? figureTarget(aggregateKey, report.aggregates.fy) : null;
       if (!target || !report) return;
       if ('national' in target) {
-        highlight(`ncr-total-${target.national}`);
+        highlightTarget(`ncr-total-${target.national}`);
         return;
       }
       const index = commissionRows(report.aggregates).findIndex(
         (row) => row.slug === target.commission,
       );
       if (index < 0) return;
-      const rowPage = Math.floor(index / COMMISSIONS_PER_PAGE) + 1;
+      const rowPage = pageContaining(index, COMMISSIONS_PER_PAGE);
       if (rowPage !== page) onPageChange(rowPage);
       setPending({ anchor: `ncr-row-${target.commission}`, page: rowPage });
     },
