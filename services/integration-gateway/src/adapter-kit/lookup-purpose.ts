@@ -27,22 +27,22 @@ type PurposeRequest = AuthenticatedRequest & { lookupPurpose?: LookupPurpose };
 type LookupClient = 'review' | 'declarations';
 
 /**
- * The legal bases a caller may name in `X-Legal-Basis`, each with the one service whose work it
- * is: review cross-checks and verifies declarations; the declarations service looks up on the
+ * The legal bases a caller may name in `X-Legal-Basis` (`HEADER_LEGAL_BASES`), each with the one
+ * service whose work it is: review cross-checks and verifies declarations; the declarations service looks up on the
  * declarant's own request (spec 05b story 17: no lookup beyond the legal basis). Both hold the
  * `registry` scope, so neither may borrow the other's basis. Onboarding's `adr-014-onboarding` is
  * not named in a header: the IPRS route records it itself.
  */
-const HEADER_LEGAL_BASES = {
+const CLIENT_OF_BASIS = {
   'regs-r20-1-b': 'review',
   'act-s35-5': 'review',
   'declarant-request': 'declarations',
 } as const satisfies Partial<Record<LegalBasis, LookupClient>>;
-type HeaderLegalBasis = keyof typeof HEADER_LEGAL_BASES;
-const HEADER_BASES = Object.keys(HEADER_LEGAL_BASES) as HeaderLegalBasis[];
+type HeaderLegalBasis = keyof typeof CLIENT_OF_BASIS;
+const HEADER_LEGAL_BASES = Object.keys(CLIENT_OF_BASIS) as HeaderLegalBasis[];
 
 function isHeaderLegalBasis(value: string): value is HeaderLegalBasis {
-  return Object.hasOwn(HEADER_LEGAL_BASES, value);
+  return Object.hasOwn(CLIENT_OF_BASIS, value);
 }
 
 export interface LookupPurposeOptions {
@@ -61,7 +61,10 @@ export function parseLookupPurpose(
 ): LookupPurpose & { legalBasis: HeaderLegalBasis } {
   const legalBasis = single(headers[LEGAL_BASIS_HEADER]);
   if (!legalBasis || !isHeaderLegalBasis(legalBasis)) {
-    throw invalid('X-Legal-Basis', `Must name the legal basis: one of ${HEADER_BASES.join(', ')}`);
+    throw invalid(
+      'X-Legal-Basis',
+      `Must name the legal basis: one of ${HEADER_LEGAL_BASES.join(', ')}`,
+    );
   }
   const caseRef = single(headers[CASE_REF_HEADER]);
   if (caseRef === undefined && options.caseRef === 'required') {
@@ -88,7 +91,7 @@ class LookupPurposeGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<PurposeRequest>();
     const purpose = parseLookupPurpose(request.headers, this.options);
-    if (request.principal?.clientId !== HEADER_LEGAL_BASES[purpose.legalBasis]) {
+    if (request.principal?.clientId !== CLIENT_OF_BASIS[purpose.legalBasis]) {
       throw new ProblemException({
         type: 'about:blank',
         title: 'Forbidden',
@@ -109,7 +112,7 @@ class CaseLookupPurposeGuard extends LookupPurposeGuard {
 /**
  * Requires a lookup route's caller to declare why it looks (ADR-008: legal basis on every
  * lookup), which `@Purpose()` reads, and with `caseRef: 'required'` the case it looks for. A
- * basis is accepted only from the service whose work it is (`HEADER_LEGAL_BASES`), else 403.
+ * basis is accepted only from the service whose work it is (`CLIENT_OF_BASIS`), else 403.
  * Documents the headers and the 400 (the route's `InternalApi` documents its 403).
  *
  * @example
@@ -125,7 +128,7 @@ export const LookupPurposeHeaders = (options: LookupPurposeOptions = {}) =>
       required: true,
       description:
         "Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403",
-      schema: { type: 'string', enum: HEADER_BASES },
+      schema: { type: 'string', enum: HEADER_LEGAL_BASES },
     }),
     ApiHeader({
       name: 'X-Case-Ref',
