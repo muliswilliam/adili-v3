@@ -41,6 +41,46 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('ActionsList', () => {
+  it('reads Salary stopped for a stoppage payroll acknowledged before its letter (F18)', async () => {
+    const result = await page();
+    if (!result.ok) throw new Error('no ladders');
+    const items = result.data.items.map((ladder) =>
+      ladder.id === L.payrollPending
+        ? {
+            ...ladder,
+            steps: ladder.steps.map((step) =>
+              step.step === 'salary-stoppage'
+                ? {
+                    ...step,
+                    status: 'approved' as const,
+                    payrollStop: {
+                      instructionReference: step.reference ?? '',
+                      action: 'stop_salary' as const,
+                      status: 'accepted',
+                      payrollReference: 'PAY-ACK-2026-0099999',
+                      receivedAt: NOW,
+                    },
+                  }
+                : step,
+            ),
+          }
+        : ladder,
+    );
+    render(
+      <ActionsList
+        result={{ ok: true, data: { ...result.data, items } }}
+        filter="all"
+        onFilter={vi.fn()}
+        now={NOW}
+      />,
+    );
+    const row = within(screen.getByRole('table')).getByRole('row', {
+      name: /Hellen Atieno Ochieng/,
+    });
+    expect(within(row).getByText('Salary stopped')).toBeTruthy();
+    expect(within(row).queryByText(/Approved, issuing/)).toBeNull();
+  });
+
   it('lists each ladder with its subject, declarant, current step and window', async () => {
     render(<ActionsList result={await page()} filter="all" onFilter={vi.fn()} now={NOW} />);
     const table = screen.getByRole('table');

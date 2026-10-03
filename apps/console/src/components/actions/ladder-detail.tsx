@@ -46,13 +46,12 @@ import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { closingCauseLabel, en as m, ladderStatusLabel, stepLabel } from './messages';
 import { ActionStatusBadge } from './status-badge';
+import { reinstatedAtOf, salaryStopped } from '../../actions/payroll';
 import {
   PayrollInstruction,
   payrollInstructionsOf,
   payrollLine,
-  reinstatedAtOf,
   SalaryStoppedBadge,
-  salaryStopped,
 } from './payroll-instruction';
 import { stepsBefore } from './prior-steps';
 import { ApproveStepDialog, DeclineStepDialog, RestartLadderDialog } from './step-dialogs';
@@ -243,19 +242,19 @@ function stepperStep({ step, status, action }: LadderStepView): LadderStepperSte
     ...(payroll ? { payroll } : {}),
   };
   if (!action) return base;
+  // Approved: waiting for payroll, or for its letter to be issued (the payroll line says which).
+  if (
+    (action.status === 'approved' || action.status === 'approved-pending-payroll') &&
+    action.approvedAt
+  ) {
+    return { ...base, detail: m.stepDetail.approved(formatDate(action.approvedAt)) };
+  }
   const running = status === 'current' || status === 'stopped';
   const responded = action.response
     ? { response: m.stepDetail.respondedOn(formatDate(action.response.submittedAt)) }
     : {};
   switch (status) {
     case 'awaiting':
-      // Approved: waiting for payroll, or for its letter (the payroll line says which).
-      if (
-        (action.status === 'approved-pending-payroll' || action.status === 'approved') &&
-        action.approvedAt
-      ) {
-        return { ...base, detail: stoppage.stepper.approved(action.approvedAt) };
-      }
       return {
         ...base,
         detail: (

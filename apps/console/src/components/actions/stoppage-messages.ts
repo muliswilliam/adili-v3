@@ -28,7 +28,6 @@ export const stoppageCopy = {
     },
   },
   stepper: {
-    approved: (date: string) => `Approved ${formatDate(date)}`,
     stopAcknowledged: (date: string) => `Payroll acknowledged ${formatDate(date)}`,
     resumeAcknowledged: (date: string) => `Reinstatement acknowledged ${formatDate(date)}`,
     waiting: 'Waiting for payroll',

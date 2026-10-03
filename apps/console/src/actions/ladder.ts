@@ -1,5 +1,7 @@
 import type { LadderStepStatus } from '@adili/ui';
 
+import { salaryStopped } from './payroll';
+
 import type {
   ActionStep,
   AdministrativeAction,
@@ -60,9 +62,12 @@ export function stepStatusOf(
 ): LadderStepStatus {
   switch (action.status) {
     case 'proposed':
+      return ladderStatus === 'active' ? 'awaiting' : 'skipped';
     case 'approved':
     case 'approved-pending-payroll':
-      return ladderStatus === 'active' ? 'awaiting' : 'skipped';
+      // Decided, not waiting for approval: a stoppage payroll acknowledged has stopped the salary.
+      if (ladderStatus !== 'active') return 'skipped';
+      return salaryStopped(action) ? 'stopped' : 'current';
     case 'issued':
     case 'responded':
       if (passed) return 'done';

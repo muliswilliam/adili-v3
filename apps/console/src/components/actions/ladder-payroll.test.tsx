@@ -154,6 +154,30 @@ describe('a stoppage payroll acknowledged, its letter not yet issued (F11)', () 
     expect(within(card).getByText('Salary stopped')).toBeTruthy();
     expect(within(card).queryByText('Approved, issuing')).toBeNull();
     expect(within(stoppageStep()).getByText(`Payroll acknowledged ${formatDate(at)}`)).toBeTruthy();
+    // The stepper says the salary is stopped, in its marker and to screen readers (F16).
+    expect(stoppageStep().dataset.status).toBe('stopped');
+    expect(within(stoppageStep()).getByText(/Status: Salary stopped\./)).toBeTruthy();
+  });
+
+  it('says a stoppage waiting for payroll is approved, not awaiting approval (F16)', async () => {
+    await show(L.payrollPending);
+    expect(stoppageStep().dataset.status).toBe('current');
+    expect(within(stoppageStep()).queryByText(/Awaiting approval/)).toBeNull();
+    expect(within(stoppageStep()).getByText(/Status: In progress\./)).toBeTruthy();
+  });
+
+  it('says an approved notice whose letter is being issued is approved (F17)', async () => {
+    const issuing = await ladder(L.noticeProposed);
+    const approvedAt = new Date(NOW_MS - DAY).toISOString();
+    await show(L.noticeProposed, {
+      steps: issuing.steps.map((step) => ({ ...step, status: 'approved' as const, approvedAt })),
+    });
+    const notice = within(
+      screen.getByRole('list', { name: 'Administrative action ladder' }),
+    ).getAllByRole('listitem')[0];
+    if (!notice) throw new Error('no notice step');
+    expect(notice.dataset.status).toBe('current');
+    expect(within(notice).getByText(`Approved ${formatDate(approvedAt)}`)).toBeTruthy();
   });
 });
 

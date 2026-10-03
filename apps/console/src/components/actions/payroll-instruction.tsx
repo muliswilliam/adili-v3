@@ -9,24 +9,10 @@ import {
 import type { ReactNode } from 'react';
 
 import type { AdministrativeAction } from '../../server/actions.server';
+import { acknowledgedAt, type PayrollAck, payrollState } from '../../actions/payroll';
 import { stoppageCopy as c } from './stoppage-messages';
 
-type PayrollAck = NonNullable<AdministrativeAction['payrollStop']>;
 type PayrollAction = PayrollAck['action'];
-
-/** Where an instruction stands with payroll. */
-export type PayrollState = 'acknowledged' | 'waiting' | 'failed';
-
-/**
- * From its acknowledgement: `accepted` with a receipt is acknowledged, `failed` was refused;
- * anything else, or no acknowledgement yet, waits. The payroll system only answers `accepted`
- * today.
- */
-export function payrollState(ack: PayrollAck | null): PayrollState {
-  if (ack === null) return 'waiting';
-  if (ack.status === 'failed') return 'failed';
-  return ack.status === 'accepted' && ack.receivedAt !== null ? 'acknowledged' : 'waiting';
-}
 
 /**
  * The payroll instructions a salary stoppage has: the stop-salary one once sent (approved and
@@ -50,11 +36,6 @@ export function payrollInstructionsOf(
   return [...stop, ...resume];
 }
 
-/** When payroll acknowledged `ack`, or null while it has not (waiting or refused). */
-export function acknowledgedAt(ack: PayrollAck | null): string | null {
-  return ack !== null && payrollState(ack) === 'acknowledged' ? ack.receivedAt : null;
-}
-
 /** The stepper's payroll line for a salary stoppage, or undefined for none. */
 export function payrollLine(action: AdministrativeAction): string | undefined {
   if (action.step !== 'salary-stoppage') return undefined;
@@ -68,26 +49,6 @@ export function payrollLine(action: AdministrativeAction): string | undefined {
   return action.status === 'approved-pending-payroll' || action.payrollStop !== null
     ? c.stepper.waiting
     : undefined;
-}
-
-/** A salary stoppage payroll acknowledged and has not reinstated: the salary is stopped now. */
-export function salaryStopped(action: AdministrativeAction): boolean {
-  return (
-    action.step === 'salary-stoppage' &&
-    acknowledgedAt(action.payrollStop) !== null &&
-    acknowledgedAt(action.payrollResume) === null &&
-    // Acknowledged but its letter not yet issued (`approved`), or issued.
-    (action.status === 'approved' || action.status === 'issued' || action.status === 'responded')
-  );
-}
-
-/** When payroll acknowledged the ladder's latest reinstatement, or null. */
-export function reinstatedAtOf(steps: readonly AdministrativeAction[]): string | null {
-  for (const step of [...steps].reverse()) {
-    const at = acknowledgedAt(step.payrollResume);
-    if (at) return at;
-  }
-  return null;
 }
 
 /** "Salary stopped", in red, for a stoppage in force (the prototype's step badge). */

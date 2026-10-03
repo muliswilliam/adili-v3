@@ -118,6 +118,7 @@ export const en = {
   fileNumberLine: (n: string) => `Personnel file ${n}`,
   stepDetail: {
     drafted: (date: string) => `drafted ${date}`,
+    approved: (date: string) => `Approved ${date}`,
     issued: (date: string) => `Issued ${date}`,
     declined: (date: string) => `Declined ${date}`,
     complied: (date: string) => `Complied ${date}`,
