@@ -26,7 +26,7 @@ import {
 } from '../referrals/decision-dialogs';
 import { messages as referrals } from '../referrals/messages';
 import { useReferralDecisions } from '../referrals/use-referral-decisions';
-import { decisionNotice, proposerName, ReassignActions } from './approval-parts';
+import { decisionNotice, proposerName, ReassignActions, type RefusedCopy } from './approval-parts';
 import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
 import { messages as inbox } from './messages';
 import { messages as t } from './referral-messages';
@@ -89,6 +89,7 @@ export function ReferralApproval({
   async function settle(
     result: DecisionResult,
     success: (data: Referral) => string,
+    refusedCopy: RefusedCopy,
   ): Promise<FailureText | null> {
     if (result.ok) {
       setDialog(null);
@@ -97,18 +98,22 @@ export function ReferralApproval({
     }
     if (result.refusal) {
       setDialog(null);
-      await onSettled({ kind: 'notice', notice: referralNoticeOf(result.refusal) });
+      await onSettled({ kind: 'notice', notice: referralNoticeOf(result.refusal, refusedCopy) });
       return null;
     }
     return failureOf(result.error);
   }
 
   async function approve(): Promise<FailureText | null> {
-    return settle(await decisions.approve(), (data) => referrals.toasts.approved(data.reference));
+    return settle(
+      await decisions.approve(),
+      (data) => referrals.toasts.approved(data.reference),
+      t.refused,
+    );
   }
 
   async function decline(_: ReferralSubject, note: string): Promise<FailureText | null> {
-    return settle(await decisions.decline(note), () => referrals.toasts.declined);
+    return settle(await decisions.decline(note), () => referrals.toasts.declined, t.declineRefused);
   }
 
   return (
@@ -198,9 +203,9 @@ export function ReferralApproval({
   );
 }
 
-/** What a refusal of approve or decline means for the supervisor (403, 409). */
-export function referralNoticeOf(refusal: DecisionRefusal): ApprovalNotice {
-  return decisionNotice(refusal, referralRefusalProblem(refusal), t.refused);
+/** What a refusal of approve or decline means for the supervisor (403, 409), in its words. */
+export function referralNoticeOf(refusal: DecisionRefusal, copy: RefusedCopy): ApprovalNotice {
+  return decisionNotice(refusal, referralRefusalProblem(refusal), copy);
 }
 
 /** A failed call, in the open dialog. */

@@ -179,11 +179,9 @@ export const messages = {
     cancel: 'Cancel',
     confirm: 'Decline referral',
   },
+  /** On the referral page after review refused a decision (approve or decline). */
   refused: {
-    'reviewer-of-record': 'You cannot approve this: you reviewed this case.',
-    proposer: 'You cannot approve this: you proposed it.',
-    role: 'Only a supervisor can approve a referral to EACC.',
-    after: 'Another supervisor must decide it.',
+    'reviewer-of-record': 'You reviewed this case, so another supervisor must decide it.',
   },
   toasts: {
     approved: (reference: string | null) =>

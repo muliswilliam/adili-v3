@@ -112,6 +112,20 @@ export type CodedRefusal<K extends string> = K extends 'separation-of-duties'
   ? { kind: K; reason: 'proposer' | 'reviewer-of-record' }
   : { kind: K };
 
+/** The refusals of deciding an approval, of any kind (approve, return, decline). */
+export type DecisionRefusal = CodedRefusal<
+  'separation-of-duties' | 'supervisor-required' | 'not-proposed'
+>;
+
+/** Whether a kind's refusal is one of deciding an approval. */
+export function isDecisionRefusal(refusal: { kind: string }): refusal is DecisionRefusal {
+  return (
+    refusal.kind === 'separation-of-duties' ||
+    refusal.kind === 'supervisor-required' ||
+    refusal.kind === 'not-proposed'
+  );
+}
+
 /** A call whose refusals the screens explain: its data, a refusal, or any other failure. */
 export type RefusalResult<T, R> =
   | { ok: true; data: T }
@@ -132,11 +146,14 @@ export function refusalOf<K extends string>(
   const known = (value: unknown): value is K =>
     typeof value === 'string' && Object.hasOwn(statuses, value);
   const code = known(problem.code) ? problem.code : problem.type;
-  if (!known(code)) return null;
+  // A known code under another status than the contract gives it is not that refusal.
+  if (!known(code) || statuses[code] !== problem.status) return null;
   const refusal =
     code === 'separation-of-duties'
       ? { kind: code, reason: problem.reason === 'proposer' ? 'proposer' : 'reviewer-of-record' }
       : { kind: code };
+  // TypeScript cannot resolve `CodedRefusal<K>` for a generic `K`; the branch above builds its
+  // two shapes: `reason` exactly for `separation-of-duties`.
   return refusal as CodedRefusal<K>;
 }
 

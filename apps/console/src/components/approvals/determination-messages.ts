@@ -43,6 +43,16 @@ export const messages = {
       'You proposed it or held the case after this page loaded, so another supervisor must approve it.',
     roleAfter: 'Your account is not a supervisor of this Commission any more.',
   },
+  /** 403 from return. */
+  returnRefused: {
+    title: 'You cannot return this',
+    'reviewer-of-record': 'You cannot return this: you reviewed this case.',
+    proposer: 'You proposed this.',
+    role: 'Only a supervisor can return this.',
+    separationAfter:
+      'You proposed it or held the case after this page loaded, so another supervisor must decide it.',
+    roleAfter: 'Your account is not a supervisor of this Commission any more.',
+  },
   toasts: {
     approved: (reference: string | null) =>
       reference ? `Approved. ${reference} allocated.` : 'Approved',

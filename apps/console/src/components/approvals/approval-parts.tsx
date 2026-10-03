@@ -3,7 +3,7 @@ import { ArrowDataTransferHorizontalIcon } from '@hugeicons/core-free-icons';
 
 import type { InboxItem } from '../../server/approvals.server';
 import type { Assignee } from '../../server/review/types';
-import { problemLabel } from '../../server/service-call';
+import { type DecisionRefusal, problemLabel } from '../../server/service-call';
 import type { ApprovalNotice } from './kind';
 import { messages as m } from './messages';
 
@@ -65,17 +65,18 @@ export interface RefusedCopy {
 
 /**
  * What a refused decision means for the supervisor, for any kind: separation of duties (with
- * Reassign), supervisor required, or decided already. `problem` is the status and code printed.
+ * Reassign), supervisor required, or decided already. `problem` is the status and code printed;
+ * `copy` is in the words of the decision that was refused (approve, return, decline).
  */
 export function decisionNotice(
-  refusal: { kind: string; reason?: 'proposer' | 'reviewer-of-record' },
+  refusal: DecisionRefusal,
   problem: string,
   copy: RefusedCopy,
 ): ApprovalNotice {
   if (refusal.kind === 'separation-of-duties') {
     return {
       title: copy.title,
-      failure: { title: copy[refusal.reason ?? 'reviewer-of-record'], problem },
+      failure: { title: copy[refusal.reason], problem },
       after: copy.separationAfter,
       offerReassign: true,
     };
