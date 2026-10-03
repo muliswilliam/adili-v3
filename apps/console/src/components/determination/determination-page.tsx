@@ -67,7 +67,7 @@ import { Page } from '../page';
 import { ReferAction } from '../referrals/refer-action';
 import { CaseStatusBadge } from '../review/case/case-header';
 import { TONES } from '../review/status-badge';
-import type { FailureText } from './dialog-parts';
+import type { FailureText } from '../dialog-parts';
 import { messages as t } from './messages';
 import { ProposeDialog } from './propose-dialog';
 
@@ -188,7 +188,7 @@ export function DeterminationPage({
             reasons: state.current.reasons,
             note: state.current.furtherActionNote ?? '',
           },
-          returnedBy: state.current.returnedBy?.name ?? 'The supervisor',
+          returnedBy: state.current.returnedBy?.name ?? t.aSupervisor,
           reason: state.current.returnReason ?? '',
         }
       : null;
@@ -208,8 +208,8 @@ export function DeterminationPage({
         <p className="flex flex-wrap gap-x-[18px] gap-y-1 text-sm text-muted-foreground">
           <Meta icon={File01Icon}>{item.personnelFileNumber}</Meta>
           {reportingEntity ? <Meta icon={Building03Icon}>{reportingEntity}</Meta> : null}
-          <Meta icon={Calendar03Icon}>{`Received ${formatDate(item.receivedAt)}`}</Meta>
-          <Meta icon={UserIcon}>{item.assignee?.name ?? 'Unassigned'}</Meta>
+          <Meta icon={Calendar03Icon}>{t.received(item.receivedAt)}</Meta>
+          <Meta icon={UserIcon}>{item.assignee?.name ?? t.unassigned}</Meta>
         </p>
         <div className="flex flex-wrap gap-2">
           {state.kind === 'none' && state.propose === 'allowed' ? (
@@ -295,7 +295,7 @@ export function DeterminationPage({
       </div>
       <p className="mt-[22px] flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
         <Icon icon={SquareLock02Icon} className="size-3.5" />
-        Every view of this case is recorded.
+        {t.audit}
       </p>
 
       {proposing ? (
@@ -389,7 +389,7 @@ function Banner({
       <BannerFrame
         variant="info"
         icon={Clock01Icon}
-        title={t.banner.proposed(current.proposer?.name ?? 'the system', current.proposedAt)}
+        title={t.banner.proposed(current.proposer?.name ?? t.system, current.proposedAt)}
       >
         {state.withdraw || state.openInApprovals ? (
           <div className="flex flex-wrap gap-2">
@@ -418,7 +418,7 @@ function Banner({
         variant="warning"
         icon={ArrowTurnBackwardIcon}
         title={t.banner.returned(
-          current.returnedBy?.name ?? 'A supervisor',
+          current.returnedBy?.name ?? t.aSupervisor,
           current.returnedAt ?? current.proposedAt,
         )}
       >
@@ -436,7 +436,7 @@ function Banner({
     );
   }
   const further = current.outcome === 'further-action';
-  const approver = current.approver?.name ?? 'a supervisor';
+  const approver = current.approver?.name ?? t.aSupervisor;
   const approvedAt = current.approvedAt ?? current.proposedAt;
   return (
     <BannerFrame
@@ -588,7 +588,7 @@ function DeterminationCard({
             )}
           </Fact>
           <Fact term={t.card.proposed}>
-            {current.proposer?.name ?? 'The system'}
+            {current.proposer?.name ?? t.system}
             <span className="text-muted-foreground"> · {formatDate(current.proposedAt)}</span>
           </Fact>
           <Fact term={t.card.approver}>

@@ -12,6 +12,7 @@ import {
   resetReviewMock,
 } from '../../server/review/mock.server';
 import type { Assignee } from '../../server/review/types';
+import { proposeCaseDetermination, withdrawCaseDetermination } from '../../server/determinations';
 import { DeterminationPage } from './determination-page';
 
 const ME: Assignee = { subject: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'Faith Achieng' };
@@ -157,7 +158,9 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Propose for approval' }));
 
-    expect(await screen.findByText(/Awaiting approval · proposed by Faith Achieng/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Determination proposed by Faith Achieng on .*, awaiting approval/),
+    ).toBeTruthy();
     expect(screen.getByText('Proposed by Faith Achieng: Further action')).toBeTruthy();
     expect(screen.getByText('Refer to EACC.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Propose determination' })).toBeNull();
@@ -215,7 +218,9 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
       target: { value: 'The valuation report VR-2291 explains the 41% change.' },
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Propose for approval' }));
-    expect(await screen.findByText(/Awaiting approval · proposed by Faith Achieng/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Determination proposed by Faith Achieng on .*, awaiting approval/),
+    ).toBeTruthy();
   });
 
   it('shows the approved determination with its CMP reference and the decision letter', async () => {
@@ -239,10 +244,52 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
 
   it('offers a supervisor the proposal in Approvals', async () => {
     await open(CASES.peters, { officer: SUP, supervisor: true });
-    expect(screen.getByText(/Awaiting approval · proposed by Peter Mwangi/)).toBeTruthy();
+    expect(
+      screen.getByText(/Determination proposed by Peter Mwangi on .*, awaiting approval/),
+    ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open in Approvals' }).getAttribute('href')).toBe(
       '/approvals',
     );
     expect(screen.queryByRole('button', { name: 'Withdraw' })).toBeNull();
   });
+
+  it.each([
+    [{ kind: 'not-the-proposer' } as const, 'Only the reviewer who proposed it can withdraw it'],
+    [{ kind: 'not-proposed' } as const, 'This proposal was decided already'],
+  ])('says why a withdrawal was refused (%o)', async (refusal, text) => {
+    await proposeOnReady();
+    vi.mocked(withdrawCaseDetermination).mockResolvedValueOnce({ ok: false, refusal });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Withdraw proposal' }));
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('keeps the text when the session has ended', async () => {
+    await open(CASES.ready);
+    vi.mocked(proposeCaseDetermination).mockResolvedValueOnce({
+      ok: false,
+      refusal: null,
+      error: { kind: 'unauthenticated' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Propose determination' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Compliant' }));
+    fireEvent.change(within(dialog).getByLabelText('Reasons'), { target: { value: 'Seen.' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Propose for approval' }));
+    expect(await within(dialog).findByText('Your session has ended. Sign in again.')).toBeTruthy();
+    expect(within(dialog).getByLabelText<HTMLTextAreaElement>('Reasons').value).toBe('Seen.');
+  });
 });
+
+/** Opens the ready case with a proposal of the viewer's awaiting approval. */
+async function proposeOnReady() {
+  const { proposeDetermination } = await import('../../server/determinations.server');
+  await proposeDetermination(
+    mockReviewClient(ME.subject, ME.name),
+    CASES.ready,
+    { outcome: 'compliant', reasons: 'All flags reviewed.' },
+    crypto.randomUUID(),
+  );
+  await open(CASES.ready);
+}

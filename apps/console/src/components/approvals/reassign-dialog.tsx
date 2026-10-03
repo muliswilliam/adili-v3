@@ -17,13 +17,13 @@ import { AlertCircleIcon, ArrowDataTransferHorizontalIcon } from '@hugeicons/cor
 import { useEffect, useId, useState } from 'react';
 
 import type { ServiceResult } from '../../server/service-call';
-import type { Assignee } from '../../server/review/types';
-import { DialogFailure, DialogHeading, type FailureText } from '../determination/dialog-parts';
+import type { ApprovalKind, Assignee } from '../../server/review/types';
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 import { messages as t } from './messages';
 
 /** An approval to reassign, of any kind: what it is called and who proposed it. */
 export interface ReassignTarget {
-  kind: 'determination' | 'action' | 'referral';
+  kind: ApprovalKind;
   subjectId: string;
   /** "DCB-TSC-2026-0030559-8 · Esther Moraa Onyango". */
   subject: string;

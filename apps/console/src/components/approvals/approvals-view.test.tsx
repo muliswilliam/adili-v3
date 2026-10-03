@@ -15,6 +15,8 @@ import {
   resetReviewMock,
 } from '../../server/review/mock.server';
 import type { Assignee } from '../../server/review/types';
+import { approveCaseDetermination } from '../../server/determinations';
+import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
 import { ApprovalsView } from './approvals-view';
 
 const ME: Assignee = { subject: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'Faith Achieng' };
@@ -126,7 +128,7 @@ beforeEach(() => {
 describe('ApprovalsView (spec 08 FE-3, S14)', () => {
   it('lists the proposals with counts by kind and age, oldest first', async () => {
     await open();
-    expect(screen.getByText('4 awaiting approval · oldest 35 days')).toBeTruthy();
+    expect(screen.getByText('4 awaiting approval')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Determinations\s*4/ })).toBeTruthy();
     const bands = screen.getByLabelText('Waiting');
     expect(bands.textContent).toBe('WaitingUnder 7 days17 to 30 days2Over 30 days1');
@@ -255,5 +257,115 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
       </ToastProvider>,
     );
     expect(screen.getByText('Could not load approvals')).toBeTruthy();
+  });
+
+  it('shows skeleton cards while the first page loads', () => {
+    render(
+      <ToastProvider>
+        <ApprovalsView kind="determination" load={null} viewer={ME} slug="tsc" paging={null} />
+      </ToastProvider>,
+    );
+    expect(document.querySelector('[aria-busy="true"]')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Determinations' })).toBeTruthy();
+  });
+
+  it('explains a supervisor-required refusal without offering Reassign (403)', async () => {
+    await open();
+    vi.mocked(approveCaseDetermination).mockResolvedValueOnce({
+      ok: false,
+      refusal: { kind: 'supervisor-required' },
+    });
+    fireEvent.click(within(card('Mary Achieng')).getByRole('button', { name: 'Approve' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Approve determination' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve determination' }));
+    const notice = await screen.findByRole('dialog', { name: 'You cannot approve this' });
+    expect(within(notice).getByText('Only a supervisor can approve this.')).toBeTruthy();
+    expect(within(notice).getByText('403 supervisor-required')).toBeTruthy();
+    expect(
+      within(notice).getByText('Your account is not a supervisor of this Commission any more.'),
+    ).toBeTruthy();
+    expect(
+      within(notice).queryByRole('button', { name: 'Reassign to another supervisor' }),
+    ).toBeNull();
+  });
+
+  it('keeps the approve dialog open when the session has ended', async () => {
+    await open();
+    vi.mocked(approveCaseDetermination).mockResolvedValueOnce({
+      ok: false,
+      refusal: null,
+      error: { kind: 'unauthenticated' },
+    });
+    fireEvent.click(within(card('Mary Achieng')).getByRole('button', { name: 'Approve' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Approve determination' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve determination' }));
+    expect(await within(dialog).findByText('Your session has ended. Sign in again.')).toBeTruthy();
+  });
+
+  it('says when it was decided before the reassignment (409 not-proposed)', async () => {
+    await open();
+    // Its proposer withdraws it meanwhile.
+    const { withdrawDetermination } = await import('../../server/determinations.server');
+    await withdrawDetermination(
+      mockReviewClient(MOCK_OFFICERS.mercy.subject, MOCK_OFFICERS.mercy.name),
+      D.awaitingOfRecord,
+    );
+    fireEvent.click(
+      within(card('Esther Moraa Onyango')).getByRole('button', {
+        name: 'Reassign to another supervisor',
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Reassign to another supervisor' });
+    fireEvent.click(await within(dialog).findByRole('radio', { name: 'Lucy Wambui' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reassign' }));
+    const notice = await screen.findByRole('dialog', { name: 'Already decided' });
+    expect(within(notice).getByText('409 not-proposed')).toBeTruthy();
+  });
+
+  it('says when the supervisors could not be loaded, or there is no other one', async () => {
+    await open();
+    const reassignOf = () =>
+      within(card('Esther Moraa Onyango')).getByRole('button', {
+        name: 'Reassign to another supervisor',
+      });
+    vi.mocked(getSupervisors).mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'unavailable', detail: null },
+    });
+    fireEvent.click(reassignOf());
+    let dialog = await screen.findByRole('dialog', { name: 'Reassign to another supervisor' });
+    expect(
+      await within(dialog).findByText('The list of supervisors could not be loaded.'),
+    ).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Reassign' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+    vi.mocked(getSupervisors).mockResolvedValueOnce({ ok: true, data: [] });
+    fireEvent.click(reassignOf());
+    dialog = await screen.findByRole('dialog', { name: 'Reassign to another supervisor' });
+    expect(
+      await within(dialog).findByText('Your Commission has no other supervisor.'),
+    ).toBeTruthy();
+  });
+
+  it('keeps the reassign dialog open when reassigning fails', async () => {
+    await open();
+    vi.mocked(reassignToSupervisor).mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'unavailable', detail: null },
+    });
+    fireEvent.click(
+      within(card('Esther Moraa Onyango')).getByRole('button', {
+        name: 'Reassign to another supervisor',
+      }),
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'Reassign to another supervisor' });
+    fireEvent.click(await within(dialog).findByRole('radio', { name: 'Lucy Wambui' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Reassign' }));
+    expect(
+      await within(dialog).findByText('That did not work. Try again in a moment.'),
+    ).toBeTruthy();
   });
 });

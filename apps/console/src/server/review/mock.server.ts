@@ -66,7 +66,9 @@ import {
   mockFlags,
   resetCopilotMock,
 } from './copilot-mock.server';
+import { approvalsRoute, resetApprovalsMock } from './approvals-mock.server';
 import {
+  determinationApprovals,
   determinationsOf,
   determinationsRoute,
   MOCK_CALLER,
@@ -881,6 +883,16 @@ function seedDeterminationCases(now: number) {
       }),
     );
   }
+  // First: the determinations seed their reassignments into it.
+  resetApprovalsMock({
+    sources: [determinationApprovals],
+    staff: [
+      { ...PETER, supervisor: false },
+      { ...MERCY, supervisor: false },
+      { ...LUCY, supervisor: true },
+      { ...MOCK_OFFICERS.joseph, supervisor: true },
+    ],
+  });
   resetDeterminationsMock(
     [
       {
@@ -946,15 +958,7 @@ function seedDeterminationCases(now: number) {
         decidedAt: at(now, -9),
       },
     ],
-    {
-      issuer: 'TSC',
-      staff: [
-        { ...PETER, supervisor: false },
-        { ...MERCY, supervisor: false },
-        { ...LUCY, supervisor: true },
-        { ...MOCK_OFFICERS.joseph, supervisor: true },
-      ],
-    },
+    { issuer: 'TSC' },
   );
 }
 
@@ -1219,7 +1223,10 @@ async function route(request: Request): Promise<Response> {
   }
 
   const { roles } = mockCallerOf(request);
-  const decided = await determinationsRoute(request, { ...caller, roles }, mockCases(caller));
+  const approver = { ...caller, roles };
+  const decided =
+    (await determinationsRoute(request, approver, mockCases(caller))) ??
+    (await approvalsRoute(request, approver, mockCases(caller)));
   if (decided) return decided;
 
   const referred = await referralsRoute(request, { ...caller, roles }, referralCases(caller));

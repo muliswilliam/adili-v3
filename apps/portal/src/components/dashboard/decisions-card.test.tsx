@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { ToastProvider } from '@adili/ui';
-import { fireEvent, render as renderInto, screen, within } from '@testing-library/react';
+import { act, fireEvent, render as renderInto, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { MyDecisionsLoad } from '../../server/decisions';
 import { decisionLetter, loadMyDecisions } from '../../server/decisions.server';
 import {
   failNextDecisionLetter,
@@ -13,7 +14,7 @@ import {
 } from '../../server/review/mock.server';
 import type { paths } from '../../server/review/schema.gen';
 import type { DeclarantDecision } from '../../server/review/types';
-import { DecisionsCard } from './decisions-card';
+import { DecisionsCard, DecisionsSection } from './decisions-card';
 
 const render = (ui: ReactNode) => renderInto(<ToastProvider>{ui}</ToastProvider>);
 
@@ -95,5 +96,40 @@ describe('DecisionsCard (spec 08 FE-7, S17)', () => {
     await vi.waitFor(() => {
       expect(download).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('asks the declarant to sign in again when the session has ended', async () => {
+    render(
+      <DecisionsCard
+        decisions={await decisions()}
+        loadLetter={() => Promise.resolve({ status: 'unauthenticated' })}
+      />,
+    );
+    const nonCompliant = row('CMP-TSC-2024-0004102-U');
+    fireEvent.click(
+      within(nonCompliant).getByRole('button', {
+        name: 'Download decision letter CMP-TSC-2024-0004102-U',
+      }),
+    );
+    expect(
+      await within(nonCompliant).findByText(
+        'Your session has ended. Sign in again to download your letter.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it.each<[string, MyDecisionsLoad]>([
+    ['no decisions yet', { status: 'ok', decisions: [] }],
+    ['the list could not load', { status: 'unavailable' }],
+    ['signed out', { status: 'unauthenticated' }],
+  ])('shows nothing on Home when %s', async (_, load) => {
+    const { container } = render(
+      <DecisionsSection decisions={Promise.resolve(load)} loadLetter={loadLetter} />,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByText('Decisions')).toBeNull();
+    expect(container.querySelector('section')).toBeNull();
   });
 });

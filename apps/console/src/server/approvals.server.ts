@@ -1,6 +1,10 @@
-import type { z } from 'zod';
-
-import { isInboxKind, type InboxKind, SUMMARIES } from '../approvals/kinds';
+import {
+  APPROVAL_KINDS,
+  isInboxKind,
+  type InboxKind,
+  SUMMARIES,
+  type Summaries,
+} from '../approvals/kinds';
 import type { ReviewClient } from './review/client.server';
 import type { ApprovalItem, ApprovalKind, Assignee } from './review/types';
 import { callService, type ServiceResult } from './service-call';
@@ -15,13 +19,14 @@ import { callService, type ServiceResult } from './service-call';
  * kind's schema in `approvals/kinds.ts`.
  */
 
-/** One approval as the inbox shows it: the contract's item with its summary typed by kind. */
-export type InboxItem = {
-  [K in InboxKind]: Omit<ApprovalItem, 'kind' | 'summary'> & {
-    kind: K;
-    summary: z.infer<(typeof SUMMARIES)[K]>;
-  };
-}[InboxKind];
+/** An approval of kind `K` as the inbox shows it: the contract's item, its summary typed. */
+export type InboxItemOf<K extends InboxKind> = Omit<ApprovalItem, 'kind' | 'summary'> & {
+  kind: K;
+  summary: Summaries[K];
+};
+
+/** One approval as the inbox shows it, of any kind it shows. */
+export type InboxItem = { [K in InboxKind]: InboxItemOf<K> }[InboxKind];
 
 /** The pending approvals by kind (every kind, shown or not) and by how long they have waited. */
 export interface ApprovalCounts {
@@ -45,11 +50,10 @@ export interface ApprovalsQuery {
 function countsOf(counts: Record<string, number>): ApprovalCounts {
   const count = (key: string) => counts[key] ?? 0;
   return {
-    byKind: {
-      determination: count('determination'),
-      action: count('action'),
-      referral: count('referral'),
-    },
+    byKind: Object.fromEntries(APPROVAL_KINDS.map((kind) => [kind, count(kind)])) as Record<
+      ApprovalKind,
+      number
+    >,
     byAge: {
       under7Days: count('under-7-days'),
       from7To30Days: count('7-to-30-days'),
@@ -61,9 +65,16 @@ function countsOf(counts: Record<string, number>): ApprovalCounts {
 /** The item with its summary read by its kind's schema; null when it does not fit. */
 function inboxItem(item: ApprovalItem): InboxItem | null {
   if (!isInboxKind(item.kind)) return null;
-  const summary = SUMMARIES[item.kind].safeParse(item.summary);
-  if (!summary.success) return null;
-  return { ...item, kind: item.kind, summary: summary.data };
+  // The one cast: an item of kind `item.kind` read by that kind's schema is that kind's member
+  // of the union, which TypeScript cannot see through the generic. With one kind it is a no-op.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- needed from two kinds
+  return itemOfKind(item.kind, item) as InboxItem | null;
+}
+
+/** `item` as an item of `kind`, its summary read by that kind's schema; null when it does not fit. */
+function itemOfKind<K extends InboxKind>(kind: K, item: ApprovalItem): InboxItemOf<K> | null {
+  const summary = SUMMARIES[kind].safeParse(item.summary);
+  return summary.success ? { ...item, kind, summary: summary.data } : null;
 }
 
 /**

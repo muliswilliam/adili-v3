@@ -1,6 +1,5 @@
-import { OUTCOME_BADGE_MESSAGES } from '@adili/ui';
-
 import type { Assignee, CaseListItem, Determination } from '../server/review/types';
+import { DETERMINATION_COPY as c } from './copy';
 
 /**
  * What the case's Determination page shows and offers (spec 08 FE-2, S1 and S2), from the case
@@ -95,7 +94,7 @@ export interface HistoryEntry {
   at: string;
 }
 
-const who = (officer: Assignee | null) => officer?.name ?? 'the system';
+const who = (officer: Assignee | null) => officer?.name ?? c.system;
 
 /** Every proposal of the case and what became of it, newest first. */
 export function determinationHistory(determinations: readonly Determination[]): HistoryEntry[] {
@@ -104,14 +103,14 @@ export function determinationHistory(determinations: readonly Determination[]): 
     entries.push({
       key: `${each.id}:proposed`,
       kind: 'proposed',
-      title: `Proposed by ${who(each.proposer)}: ${OUTCOME_BADGE_MESSAGES[each.outcome]}`,
+      title: c.history.proposed(who(each.proposer), each.outcome),
       at: each.proposedAt,
     });
     if (each.status === 'returned' && each.returnedAt) {
       entries.push({
         key: `${each.id}:returned`,
         kind: 'returned',
-        title: `Returned by ${who(each.returnedBy)}`,
+        title: c.history.returned(who(each.returnedBy)),
         at: each.returnedAt,
       });
     }
@@ -119,7 +118,7 @@ export function determinationHistory(determinations: readonly Determination[]): 
       entries.push({
         key: `${each.id}:approved`,
         kind: 'approved',
-        title: `Approved by ${who(each.approver)}${each.reference ? ` · ${each.reference}` : ''}`,
+        title: c.history.approved(who(each.approver), each.reference),
         at: each.approvedAt,
       });
     }
@@ -127,7 +126,7 @@ export function determinationHistory(determinations: readonly Determination[]): 
       entries.push({
         key: `${each.id}:withdrawn`,
         kind: 'withdrawn',
-        title: `Withdrawn by ${who(each.proposer)}`,
+        title: c.history.withdrawn(who(each.proposer)),
         // The contract keeps no withdrawal time: the entry sits with its proposal.
         at: each.proposedAt,
       });
@@ -158,15 +157,15 @@ export type ProposalErrors = Partial<Record<'outcome' | 'reasons' | 'note', stri
 /** What is wrong with the proposal, by field; empty when it can be sent. */
 export function proposalErrors(form: ProposalForm): ProposalErrors {
   const errors: ProposalErrors = {};
-  if (form.outcome === null) errors.outcome = 'Choose a determination.';
-  if (!form.reasons.trim()) errors.reasons = 'Enter your reasons.';
+  if (form.outcome === null) errors.outcome = c.errors.outcome;
+  if (!form.reasons.trim()) errors.reasons = c.errors.reasons;
   else if (form.reasons.length > REASONS_MAX_LENGTH) {
-    errors.reasons = 'Reasons can be up to 4,000 characters.';
+    errors.reasons = c.errors.reasonsTooLong(REASONS_MAX_LENGTH);
   }
   if (form.outcome === 'further-action') {
-    if (!form.note.trim()) errors.note = 'Say what further action is needed.';
+    if (!form.note.trim()) errors.note = c.errors.note;
     else if (form.note.length > NOTE_MAX_LENGTH) {
-      errors.note = 'The further action can be up to 2,000 characters.';
+      errors.note = c.errors.noteTooLong(NOTE_MAX_LENGTH);
     }
   }
   return errors;

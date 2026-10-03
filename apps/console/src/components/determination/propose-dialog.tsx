@@ -28,7 +28,7 @@ import {
   REASONS_MAX_LENGTH,
 } from '../../determination/view';
 import type { DeterminationInput } from '../../server/review/types';
-import { DialogFailure, DialogHeading, type FailureText } from './dialog-parts';
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 import { messages as t } from './messages';
 
 /** The outcomes a reviewer proposes (`compliant-no-issues` is the system's), in the badge's words. */

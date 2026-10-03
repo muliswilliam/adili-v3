@@ -7,50 +7,36 @@ import {
   DialogFooter,
   EmptyState,
   Icon,
-  type IconProps,
   Skeleton,
   TabsCount,
   TabsLink,
   TabsNav,
-  daysBetween,
   useToast,
 } from '@adili/ui';
-import { JusticeScale01Icon, LockIcon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { LockIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
+import { APPROVAL_KINDS, INBOX_KINDS, type InboxKind } from '../../approvals/kinds';
 import type { ApprovalsLoad } from '../../server/approvals';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
-import { INBOX_KINDS, type InboxKind } from '../../approvals/kinds';
 import type { ApprovalCounts, InboxItem } from '../../server/approvals.server';
-import { approveCaseDetermination, returnCaseDetermination } from '../../server/determinations';
-import type { DeterminationRefusal, DeterminationResult } from '../../server/determinations.server';
-import type { Assignee, Determination } from '../../server/review/types';
+import type { Assignee } from '../../server/review/types';
 import { CursorPager } from '../cursor-pager';
-import { DialogFailure, DialogHeading, type FailureText } from '../determination/dialog-parts';
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 import { LoadError } from '../load-error';
 import { Page, PageHead } from '../page';
-import {
-  ApproveDeterminationDialog,
-  DeterminationApproval,
-  type DeterminationApprovalItem,
-  ReturnDeterminationDialog,
-} from './determination-approval';
+import type { ApprovalNotice, Settled } from './kind';
+import { KindApproval, KINDS, kindOf } from './kinds';
 import { messages as t } from './messages';
 import { ReassignDialog, type ReassignTarget } from './reassign-dialog';
 
 /**
  * The supervisors' approvals inbox (spec 08 FE-3; S1, S14): a tab per kind of approval with its
- * count, how long the approvals have waited, and each kind's cards, oldest first. Each kind is an
- * entry of `KINDS` and a case of `ApprovalItemCard`: the ladder's actions (#205) and referrals
- * (#211) arrive as two more. Approve, return and reassign answer in place; a separation-of-duties
- * refusal or a decision someone else made first opens a dialog that says so.
+ * count, how many approvals have waited how long, and the tab's cards, oldest first. Each kind's
+ * card decides it with its own dialogs (`kinds.tsx`); the inbox reloads after each, shows the
+ * kind's toast or refusal, and reassigns any kind to another supervisor.
  */
-
-/** Each kind's tab. */
-const KINDS: Record<InboxKind, { label: string; icon: IconProps['icon'] }> = {
-  determination: { label: t.tabs.determination, icon: JusticeScale01Icon },
-};
 
 export interface ApprovalsPaging {
   range: { from: number; to: number } | null;
@@ -66,43 +52,29 @@ export interface ApprovalsViewProps {
   viewer: Assignee;
   slug: string;
   paging: ApprovalsPaging | null;
-  /** A fresh Idempotency-Key per approval; tests fix it. */
+  /** A fresh Idempotency-Key per decision; tests fix it. */
   newKey?: () => string;
 }
 
-/** An open refusal or conflict dialog. */
-type Notice =
-  | { kind: 'refused'; reason: 'proposer' | 'reviewer-of-record' | 'role'; target: ReassignTarget }
-  | { kind: 'decided' };
-
-/**
- * Runs the handler for the item's kind. With one kind shown, TypeScript reads `use[item.kind]`
- * as that kind's handler; each kind added makes it a union, and the call needs a cast to
- * `(item: InboxItem) => R` here.
- */
-function byKind<R>(
-  item: InboxItem,
-  use: { [K in InboxKind]: (item: Extract<InboxItem, { kind: K }>) => R },
-): R {
-  return use[item.kind](item);
-}
-
-/** What an approval is about, in a dialog's subtitle, by its kind. */
-function subjectOf(item: InboxItem): string {
-  return byKind(item, {
-    determination: (each) => `${each.summary.caseReference} · ${each.summary.declarantName}`,
-  });
+/** An open refusal or conflict dialog, and the approval it is about. */
+interface OpenNotice {
+  notice: ApprovalNotice;
+  target: ReassignTarget;
 }
 
 function reassignTarget(item: InboxItem): ReassignTarget {
   return {
     kind: item.kind,
     subjectId: item.subjectId,
-    subject: subjectOf(item),
+    subject: kindOf(item).subject(item),
     proposer: item.proposer,
     current: item.reassignedTo,
   };
 }
+
+const reassignFailure = (error: { kind: string }): FailureText => ({
+  title: error.kind === 'unauthenticated' ? t.toasts.sessionEnded : t.toasts.failed,
+});
 
 export function ApprovalsView({
   kind,
@@ -114,74 +86,20 @@ export function ApprovalsView({
 }: ApprovalsViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [approving, setApproving] = useState<DeterminationApprovalItem | null>(null);
-  const [returning, setReturning] = useState<DeterminationApprovalItem | null>(null);
   const [reassigning, setReassigning] = useState<ReassignTarget | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const approvalKey = useRef<{ subjectId: string; key: string } | null>(null);
+  const [notice, setNotice] = useState<OpenNotice | null>(null);
 
-  // A string, so comparing tabs with it stays a comparison once there is more than one kind.
-  const shownKind: string = kind;
   const page = load?.ok ? load.data : null;
   const counts = page?.counts ?? null;
-  const now = load ? Date.parse(load.now) : null;
-  const total = counts ? INBOX_KINDS.reduce((sum, each) => sum + counts.byKind[each], 0) : null;
-  // The inbox is oldest first: the first page's first card has waited longest.
-  const oldest =
-    page && now !== null && !paging?.hasPrevious && page.items[0]
-      ? daysBetween(page.items[0].proposedAt, new Date(now).toISOString())
-      : null;
+  // Every kind, as the age bands count them (review counts ages across kinds).
+  const total = counts ? APPROVAL_KINDS.reduce((sum, each) => sum + counts.byKind[each], 0) : null;
 
   const loadSupervisors = useCallback(() => getSupervisors({ data: { slug } }), [slug]);
 
-  /**
-   * Settles a decision: a refusal by the rule opens the dialog that explains it, a decision made
-   * first by someone else opens "Already decided"; either refreshes the list. Resolves to a
-   * failure to show in the open dialog, or null when handled.
-   */
-  async function settle(
-    item: DeterminationApprovalItem,
-    result: DeterminationResult<Determination>,
-    success: (data: Determination) => string,
-  ): Promise<FailureText | null> {
-    if (result.ok) {
-      setApproving(null);
-      setReturning(null);
-      toast({ title: success(result.data) });
-      await router.invalidate();
-      return null;
-    }
-    if (result.refusal) {
-      setApproving(null);
-      setReturning(null);
-      setNotice(noticeOf(result.refusal, item));
-      await router.invalidate();
-      return null;
-    }
-    if (result.error.kind === 'unauthenticated') return { title: t.toasts.sessionEnded };
-    return { title: t.toasts.failed };
-  }
-
-  async function approve(item: DeterminationApprovalItem): Promise<FailureText | null> {
-    // One key per approval, reused on retry after a failure, so a retry cannot approve twice.
-    if (approvalKey.current?.subjectId !== item.subjectId) {
-      approvalKey.current = { subjectId: item.subjectId, key: newKey() };
-    }
-    const result = await approveCaseDetermination({
-      data: { determinationId: item.subjectId, idempotencyKey: approvalKey.current.key },
-    });
-    if (result.ok || result.refusal) approvalKey.current = null;
-    return settle(item, result, (data) => t.toasts.approved(data.reference));
-  }
-
-  async function returnTo(
-    item: DeterminationApprovalItem,
-    reason: string,
-  ): Promise<FailureText | null> {
-    const result = await returnCaseDetermination({
-      data: { determinationId: item.subjectId, reason },
-    });
-    return settle(item, result, () => t.toasts.returned);
+  async function settled(item: InboxItem, outcome: Settled) {
+    if (outcome.kind === 'decided') toast({ title: outcome.toast });
+    else setNotice({ notice: outcome.notice, target: reassignTarget(item) });
+    await router.invalidate();
   }
 
   async function reassign(target: ReassignTarget, to: Assignee): Promise<FailureText | null> {
@@ -194,34 +112,49 @@ export function ApprovalsView({
       await router.invalidate();
       return null;
     }
-    if (result.error.kind === 'problem' && result.error.problem.status === 409) {
+    if (result.error.kind === 'problem' && result.error.problem.type === 'not-proposed') {
       setReassigning(null);
-      setNotice({ kind: 'decided' });
+      setNotice({
+        notice: {
+          title: t.decided.title,
+          failure: { title: t.decided.body, problem: t.decided.problem },
+          after: t.decided.after,
+          offerReassign: false,
+        },
+        target,
+      });
       await router.invalidate();
       return null;
     }
-    if (result.error.kind === 'unauthenticated') return { title: t.toasts.sessionEnded };
-    return { title: t.toasts.failed };
+    return reassignFailure(result.error);
   }
 
   return (
     <Page>
       <PageHead title={t.title}>
         {total !== null ? (
-          <p className="mt-1 text-sm text-muted-foreground">{t.summary(total, oldest)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t.summary(total)}</p>
         ) : null}
       </PageHead>
 
       <TabsNav aria-label={t.tabsLabel} className="mb-4">
-        {INBOX_KINDS.map((each) => (
-          <TabsLink key={each} asChild current={each === shownKind}>
-            <Link to="/approvals" search={{ kind: each }}>
-              <Icon icon={KINDS[each].icon} className="size-4" />
-              {KINDS[each].label}
-              {counts ? <TabsCount>{counts.byKind[each]}</TabsCount> : null}
-            </Link>
-          </TabsLink>
-        ))}
+        {INBOX_KINDS.map((each) => {
+          const { label, icon } = KINDS[each];
+          return (
+            <TabsLink key={each} asChild>
+              <Link
+                to="/approvals"
+                search={{ kind: each }}
+                activeOptions={{ includeSearch: true }}
+                activeProps={{ 'aria-current': 'page' }}
+              >
+                <Icon icon={icon} className="size-4" />
+                {label}
+                {counts ? <TabsCount>{counts.byKind[each]}</TabsCount> : null}
+              </Link>
+            </TabsLink>
+          );
+        })}
       </TabsNav>
 
       {counts && total ? <AgeBands counts={counts} /> : null}
@@ -249,19 +182,15 @@ export function ApprovalsView({
           <ul className="grid gap-3" aria-label={KINDS[kind].label}>
             {load.data.items.map((item) => (
               <li key={item.subjectId}>
-                <ApprovalItemCard
+                <KindApproval
                   item={item}
                   viewer={viewer}
                   now={Date.parse(load.now)}
-                  onApprove={() => {
-                    setApproving(item);
-                  }}
-                  onReturn={() => {
-                    setReturning(item);
-                  }}
+                  newKey={newKey}
                   onReassign={() => {
                     setReassigning(reassignTarget(item));
                   }}
+                  onSettled={(outcome) => settled(item, outcome)}
                 />
               </li>
             ))}
@@ -282,20 +211,6 @@ export function ApprovalsView({
         </div>
       )}
 
-      <ApproveDeterminationDialog
-        item={approving}
-        onOpenChange={(open) => {
-          if (!open) setApproving(null);
-        }}
-        onConfirm={approve}
-      />
-      <ReturnDeterminationDialog
-        item={returning}
-        onOpenChange={(open) => {
-          if (!open) setReturning(null);
-        }}
-        onConfirm={returnTo}
-      />
       <ReassignDialog
         key={reassigning?.subjectId ?? 'closed'}
         target={reassigning}
@@ -306,7 +221,7 @@ export function ApprovalsView({
         onConfirm={reassign}
       />
       <NoticeDialog
-        notice={notice}
+        open={notice}
         onClose={() => {
           setNotice(null);
         }}
@@ -317,46 +232,6 @@ export function ApprovalsView({
       />
     </Page>
   );
-}
-
-function noticeOf(refusal: DeterminationRefusal, item: InboxItem): Notice {
-  if (refusal.kind === 'separation-of-duties') {
-    return { kind: 'refused', reason: refusal.reason, target: reassignTarget(item) };
-  }
-  if (refusal.kind === 'supervisor-required') {
-    return { kind: 'refused', reason: 'role', target: reassignTarget(item) };
-  }
-  return { kind: 'decided' };
-}
-
-/** One approval's card, by its kind. */
-function ApprovalItemCard({
-  item,
-  viewer,
-  now,
-  onApprove,
-  onReturn,
-  onReassign,
-}: {
-  item: InboxItem;
-  viewer: Assignee;
-  now: number;
-  onApprove: () => void;
-  onReturn: () => void;
-  onReassign: () => void;
-}) {
-  return byKind(item, {
-    determination: (each) => (
-      <DeterminationApproval
-        item={each}
-        viewer={viewer}
-        now={now}
-        onApprove={onApprove}
-        onReturn={onReturn}
-        onReassign={onReassign}
-      />
-    ),
-  });
 }
 
 /** How long the approvals have waited, across every kind (the service counts them so). */
@@ -410,62 +285,44 @@ function ApprovalsSkeleton() {
   );
 }
 
-/** "You cannot approve this" (403) with Reassign, or "Already decided" (409). */
+/** A kind's refusal or conflict, with Reassign when the kind offers it. */
 function NoticeDialog({
-  notice,
+  open,
   onClose,
   onReassign,
 }: {
-  notice: Notice | null;
+  open: OpenNotice | null;
   onClose: () => void;
   onReassign: (target: ReassignTarget) => void;
 }) {
   return (
     <Dialog
-      open={notice !== null}
-      onOpenChange={(open) => {
-        if (!open) onClose();
+      open={open !== null}
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
     >
-      {notice ? (
+      {open ? (
         <DialogContent className="sm:max-w-[560px]">
-          <DialogHeading
-            icon={LockIcon}
-            tone="destructive"
-            title={notice.kind === 'refused' ? t.refused.title : t.decided.title}
-          />
+          <DialogHeading icon={LockIcon} tone="destructive" title={open.notice.title} />
           <DialogBody className="gap-4">
-            <DialogFailure
-              failure={
-                notice.kind === 'refused'
-                  ? {
-                      title: t.refused[notice.reason],
-                      problem:
-                        notice.reason === 'role'
-                          ? '403 supervisor-required'
-                          : '403 separation-of-duties',
-                    }
-                  : { title: t.decided.body, problem: '409 not-proposed' }
-              }
-            />
-            <p className="text-sm text-secondary-foreground">
-              {notice.kind === 'refused' ? t.refused.after : t.decided.after}
-            </p>
+            <DialogFailure failure={open.notice.failure} />
+            {open.notice.after ? (
+              <p className="text-sm text-secondary-foreground">{open.notice.after}</p>
+            ) : null}
           </DialogBody>
           <DialogFooter>
-            {notice.kind === 'refused' && notice.reason !== 'role' ? (
+            {open.notice.offerReassign ? (
               <Button
                 variant="secondary"
                 onClick={() => {
-                  onReassign(notice.target);
+                  onReassign(open.target);
                 }}
               >
                 {t.reassign}
               </Button>
             ) : null}
-            <Button onClick={onClose}>
-              {notice.kind === 'refused' ? t.refused.ok : t.decided.ok}
-            </Button>
+            <Button onClick={onClose}>{t.notice.ok}</Button>
           </DialogFooter>
         </DialogContent>
       ) : null}
