@@ -4,2500 +4,2670 @@
  */
 
 export interface paths {
-    "/v1/eacc/ai-usage/{fy}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * AI-assisted cases and reviewer ratings per Commission for a financial year (EACC)
-         * @description Spec 07c story 19: how much the AI reviewer copilot is used and how reviewers rate it, per Commission, without content. A case is AI-assisted in the year its copilot first had outputs to show (`review.copilot.updated.v1` `ready`); a rating counts in the year it was last given (`ai.feedback.recorded.v1`, the latest per rating). Counts only: no case, reviewer, output or note. Commissions with neither in the year are left out. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403.
-         */
-        get: operations["getAiUsage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/v1/eacc/ai-usage/{fy}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Report periods for the Commission with status per financial year
-         * @description The current and previous financial year, every year with a report, and every year the projections hold obligations or clarifications for, from 2025, the latest first. A year without a report is `not-started`.
-         */
-        get: operations["listComplianceReports"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * AI-assisted cases and reviewer ratings per Commission for a financial year (EACC)
+     * @description Spec 07c story 19: how much the AI reviewer copilot is used and how reviewers rate it, per Commission, without content. A case is AI-assisted in the year its copilot first had outputs to show (`review.copilot.updated.v1` `ready`); a rating counts in the year it was last given (`ai.feedback.recorded.v1`, the latest per rating). Counts only: no case, reviewer, output or note. Commissions with neither in the year are left out. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403.
+     */
+    get: operations['getAiUsage'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports/{fy}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The report for a financial year (draft or submitted) with its document
-         * @description Each read is audited (`audit.read.v1`, action `compliance-report.viewed`, under the Commission's tenant).
-         */
-        get: operations["getComplianceReport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Report periods for the Commission with status per financial year
+     * @description The current and previous financial year, every year with a report, and every year the projections hold obligations or clarifications for, from 2025, the latest first. A year without a report is `not-started`.
+     */
+    get: operations['listComplianceReports'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports/{fy}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports/{fy}/compile": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Compile a preview (from 1 April) or recompile a draft (supervisor)
-         * @description Marks the report `compiling` (creating it for a year that has none) and starts or signals the year's `ComplianceReportWorkflow`, which compiles from the projections as they are now. Remarks and manual fields are kept. Read the report with getComplianceReport until it leaves `compiling`.
-         */
-        post: operations["compileComplianceReport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * The report for a financial year (draft or submitted) with its document
+     * @description Each read is audited (`audit.read.v1`, action `compliance-report.viewed`, under the Commission's tenant).
+     */
+    get: operations['getComplianceReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports/{fy}/compile': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports/{fy}/remarks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Edit remarks on non-filer rows (supervisor)
-         * @description Remarks by obligation id, kept across recompiles. A blank remark returns the row to its default, the label of the latest action step taken.
-         */
-        patch: operations["updateReportRemarks"];
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Compile a preview (from 1 April) or recompile a draft (supervisor)
+     * @description Marks the report `compiling` (creating it for a year that has none) and starts or signals the year's `ComplianceReportWorkflow`, which compiles from the projections as they are now. Remarks and manual fields are kept. Read the report with getComplianceReport until it leaves `compiling`.
+     */
+    post: operations['compileComplianceReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports/{fy}/remarks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports/{fy}/manual": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Edit Part I contact details and Part B complaints (commission-admin)
-         * @description Each field given replaces the draft's; null clears it; fields left out are kept. Kept across recompiles. Part I contact details the commission-admin has not entered carry over from the Commission's previous submitted report.
-         */
-        patch: operations["updateReportManualFields"];
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Edit remarks on non-filer rows (supervisor)
+     * @description Remarks by obligation id, kept across recompiles. A blank remark returns the row to its default, the label of the latest action step taken.
+     */
+    patch: operations['updateReportRemarks'];
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports/{fy}/manual': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports/{fy}/reviewed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Supervisor marks the draft reviewed (records Part III compiled-by)
-         * @description Part III "Compiled by" names the supervisor (their name from the token, the designation given) with today's date. A recompile returns the report to `draft` for review again.
-         */
-        post: operations["markReportReviewed"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Edit Part I contact details and Part B complaints (commission-admin)
+     * @description Each field given replaces the draft's; null clears it; fields left out are kept. Kept across recompiles. Part I contact details the commission-admin has not entered carry over from the Commission's previous submitted report.
+     */
+    patch: operations['updateReportManualFields'];
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports/{fy}/reviewed': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/compliance-reports/{fy}/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Commission-admin confirms and submits to EACC (step-up token required)
-         * @description Needs a token from the step-up re-authentication (`acr` `step-up`, `auth_time` at most 5 minutes old) and an Idempotency-Key. Part III "Confirmed by" names the commission-admin; the document must then be complete against form-m.v1. Allocates `RPT-<ISSUER>-<FY end>-<seq>-<check>`, freezes the document with its canonical SHA-256, marks the report `submitted` (`late` after 31 July) and records EACC's receipt. The Restricted Form M PDF and the signed receipt are issued through documents right after, and both officers are told: `formMDocumentId` and `receiptDocumentId` are null until then. The answer, kept for replays of the key, leaves `document` null: names live only in the encrypted report; read the report as filed with getComplianceReport.
-         */
-        post: operations["confirmComplianceReport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Supervisor marks the draft reviewed (records Part III compiled-by)
+     * @description Part III "Compiled by" names the supervisor (their name from the token, the designation given) with today's date. A recompile returns the report to `draft` for review again.
+     */
+    post: operations['markReportReviewed'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/compliance-reports/{fy}/confirm': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/compliance-reports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Federated Commission submits a form-m.v1 document (reports:submit scope)
-         * @description For a Commission running its own system: a client-credentials token with scope `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The document is validated against form-m.v1 (`invalid-document`), must name the token's Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June, open for reports (from 1 April of its last half); per section declared plus not declared is expected and the non-filers listed are as many as not declared; access requests granted plus declined are at most received and the decline reasons add up to declined; Part III names who compiled and who confirmed, with dates. The report is then submitted as a hosted confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M PDF, the signed receipt and the officers' emails (`formMDocumentId` and `receiptDocumentId` are null until then). A draft compiled on the platform for the year is superseded. The answer, kept for replays of the key, leaves `document` null.
-         */
-        post: operations["submitComplianceReport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Commission-admin confirms and submits to EACC (step-up token required)
+     * @description Needs a token from the step-up re-authentication (`acr` `step-up`, `auth_time` at most 5 minutes old) and an Idempotency-Key. Part III "Confirmed by" names the commission-admin; the document must then be complete against form-m.v1. Allocates `RPT-<ISSUER>-<FY end>-<seq>-<check>`, freezes the document with its canonical SHA-256, marks the report `submitted` (`late` after 31 July) and records EACC's receipt. The Restricted Form M PDF and the signed receipt are issued through documents right after, and both officers are told: `formMDocumentId` and `receiptDocumentId` are null until then. The answer, kept for replays of the key, leaves `document` null: names live only in the encrypted report; read the report as filed with getComplianceReport.
+     */
+    post: operations['confirmComplianceReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/compliance-reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/compliance-reports": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Per-Commission report status, rates and outliers for a financial year (EACC roles)
-         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Every active Commission the directory lists (and any other that filed), by name: `not-reported`, or submitted on time or late (after 31 July) from EACC's receipt, with the report's reference, the ids of its Form M PDF and receipt once issued, declared / expected per section from the report's counts, outliers, and how often and when it was last chased. Outliers: `low-<section>-rate` when officers were expected and the declared rate is below the section's configured threshold (`INTAKE_MIN_<SECTION>_RATE`, 0.8 by default); `section-missing` when a section's counts are absent, or no officer in service is expected in a year with a biennial cycle. The totals cover the year whatever the filters; `nationalDeclaredRate` is declared over expected across the submitted reports' sections.
-         */
-        get: operations["getEaccIntake"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Federated Commission submits a form-m.v1 document (reports:submit scope)
+     * @description For a Commission running its own system: a client-credentials token with scope `reports:submit` whose `tenant` claim is the Commission, and an Idempotency-Key. The document is validated against form-m.v1 (`invalid-document`), must name the token's Commission in Part I `issuerCode` (`tenant-mismatch`) and keep the business rules (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June, open for reports (from 1 April of its last half); per section declared plus not declared is expected and the non-filers listed are as many as not declared; access requests granted plus declined are at most received and the decline reasons add up to declined; Part III names who compiled and who confirmed, with dates. The report is then submitted as a hosted confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M PDF, the signed receipt and the officers' emails (`formMDocumentId` and `receiptDocumentId` are null until then). A draft compiled on the platform for the year is superseded. The answer, kept for replays of the key, leaves `document` null.
+     */
+    post: operations['submitComplianceReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/compliance-reports': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/compliance-reports/{reportId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A submitted report as filed, with its PDF and receipt ids (report viewer)
-         * @description eacc-analyst and eacc-supervisor (tenant `eacc`) read every Commission's submitted report; a Commission's supervisor, commission-admin and reporting officer, and its own system (`reports:submit`), read their own. Anyone else, another Commission's report, a report not submitted and an unknown id are 404. The document is the frozen `form-m.v1` as filed; the PDF and receipt download through documents by `formMDocumentId` and `receiptDocumentId` (null until issued). Each read is audited (`audit.read.v1`, action `compliance-report.viewed`) under the tenant of the Commission whose report it is.
-         */
-        get: operations["getSubmittedReport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Per-Commission report status, rates and outliers for a financial year (EACC roles)
+     * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Every active Commission the directory lists (and any other that filed), by name: `not-reported`, or submitted on time or late (after 31 July) from EACC's receipt, with the report's reference, the ids of its Form M PDF and receipt once issued, declared / expected per section from the report's counts, outliers, and how often and when it was last chased. Outliers: `low-<section>-rate` when officers were expected and the declared rate is below the section's configured threshold (`INTAKE_MIN_<SECTION>_RATE`, 0.8 by default); `section-missing` when a section's counts are absent, or no officer in service is expected in a year with a biennial cycle. The totals cover the year whatever the filters; `nationalDeclaredRate` is declared over expected across the submitted reports' sections.
+     */
+    get: operations['getEaccIntake'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/compliance-reports/{reportId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/national-reports/{fy}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The national consolidated report for a financial year
-         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's report is first built. `aggregates` holds counts and rates only: `reporting` (Commissions reported on time, late, not reported), `national` (per section expected, declared, not declared and rate, the three together as `all`, clarifications, access requests) and `byCommission` (per Commission slug: name, status, report id and reference, and its numbers once reported). Narrative paragraphs cite figures in `aggregateRefs` by aggregate key in the ai-gateway scheme, as `PatternCandidate.aggregateKeys` does, not by dot path into `aggregates`.
-         */
-        get: operations["getNationalReport"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * A submitted report as filed, with its PDF and receipt ids (report viewer)
+     * @description eacc-analyst and eacc-supervisor (tenant `eacc`) read every Commission's submitted report; a Commission's supervisor, commission-admin and reporting officer, and its own system (`reports:submit`), read their own. Anyone else, another Commission's report, a report not submitted and an unknown id are 404. The document is the frozen `form-m.v1` as filed; the PDF and receipt download through documents by `formMDocumentId` and `receiptDocumentId` (null until issued). Each read is audited (`audit.read.v1`, action `compliance-report.viewed`) under the tenant of the Commission whose report it is.
+     */
+    get: operations['getSubmittedReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/national-reports/{fy}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/national-reports/{fy}/build": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Build or rebuild aggregates from submitted reports (analyst); narrative preserved
-         * @description eacc-analyst and eacc-supervisor; anyone else 403. Recomputes the aggregates from the Commissions' submitted reports as filed and every active Commission the directory lists; the narrative is kept. The first build makes the caller the author. Every build and narrative save raises `version` and adds the caller to the report's contributors, who cannot approve it. Emits `ncr.drafted.v1` (ids, year, version, status, reports included).
-         */
-        post: operations["buildNationalReport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * The national consolidated report for a financial year
+     * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's report is first built. `aggregates` holds counts and rates only: `reporting` (Commissions reported on time, late, not reported), `national` (per section expected, declared, not declared and rate, the three together as `all`, clarifications, access requests) and `byCommission` (per Commission slug: name, status, report id and reference, and its numbers once reported). Narrative paragraphs cite figures in `aggregateRefs` by aggregate key in the ai-gateway scheme, as `PatternCandidate.aggregateKeys` does, not by dot path into `aggregates`.
+     */
+    get: operations['getNationalReport'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/national-reports/{fy}/build': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/national-reports/{fy}/narrative": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Save narrative sections (analyst)
-         * @description eacc-analyst and eacc-supervisor; anyone else 403. Every section's full text, paragraphs separated by a blank line; stored as `narrativeParagraphs`. A paragraph whose text is unchanged keeps its id and labels; an edited one keeps its id and loses `aiDraft`; the rest are new. The caller becomes a contributor. 404 before the first build.
-         */
-        patch: operations["updateNationalReportNarrative"];
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Build or rebuild aggregates from submitted reports (analyst); narrative preserved
+     * @description eacc-analyst and eacc-supervisor; anyone else 403. Recomputes the aggregates from the Commissions' submitted reports as filed and every active Commission the directory lists; the narrative is kept. The first build makes the caller the author. Every build and narrative save raises `version` and adds the caller to the report's contributors, who cannot approve it. Emits `ncr.drafted.v1` (ids, year, version, status, reports included).
+     */
+    post: operations['buildNationalReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/national-reports/{fy}/narrative': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/national-reports/{fy}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * EACC supervisor (not the author) approves; allocates NCR and issues the PDF
-         * @description eacc-supervisor only; eacc-analyst and anyone else 403. The author, or anyone who built the report or saved its narrative, gets 403 `separation-of-duties`. Allocates `NCR-EACC-<FY end>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year, version, reference). The Restricted PDF follows (`documentId`, polled on the report), and the year's chase of non-reporting Commissions ends. A retry with the same Idempotency-Key replays the approval; another approval of an approved report is 409 `ncr-approved` and allocates nothing.
-         */
-        post: operations["approveNationalReport"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Save narrative sections (analyst)
+     * @description eacc-analyst and eacc-supervisor; anyone else 403. Every section's full text, paragraphs separated by a blank line; stored as `narrativeParagraphs`. A paragraph whose text is unchanged keeps its id and labels; an edited one keeps its id and loses `aiDraft`; the rest are new. The caller becomes a contributor. 404 before the first build.
+     */
+    patch: operations['updateNationalReportNarrative'];
+    trace?: never;
+  };
+  '/v1/eacc/national-reports/{fy}/approve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/referrals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Referrals sent by Commissions with ICMS status (EACC roles)
-         * @description EACC's intake of the referrals Commissions sent (`referral.sent.v1`), the latest sent first, with the Confidential evidence package's document id (downloaded from the documents service) and where the hand-off to ICMS stands. EACC analysts and supervisors only.
-         */
-        get: operations["listReferralIntake"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * EACC supervisor (not the author) approves; allocates NCR and issues the PDF
+     * @description eacc-supervisor only; eacc-analyst and anyone else 403. The author, or anyone who built the report or saved its narrative, gets 403 `separation-of-duties`. Allocates `NCR-EACC-<FY end>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year, version, reference). The Restricted PDF follows (`documentId`, polled on the report), and the year's chase of non-reporting Commissions ends. A retry with the same Idempotency-Key replays the approval; another approval of an approved report is 409 `ncr-approved` and allocates nothing.
+     */
+    post: operations['approveNationalReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/referrals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/referrals/{referralId}/push": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Push a referral to ICMS and store the case number (analyst)
-         * @description EACC analysts and supervisors. Pulls the referral's ICMS payload from review (national ID, full name, grounds, details) and registers it through the integration-gateway's ICMS adapter (`submitIcmsReferral`), idempotent by the `RFL` reference; ICMS is retried with backoff while unreachable. A case number is stored (`registered`) and `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and followed to its case number. A retry with the same Idempotency-Key replays the answer; a registered referral is answered as it is and never sent again.
-         */
-        post: operations["pushReferralToIcms"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /**
+     * Referrals sent by Commissions with ICMS status (EACC roles)
+     * @description EACC's intake of the referrals Commissions sent (`referral.sent.v1`), the latest sent first, with the Confidential evidence package's document id (downloaded from the documents service) and where the hand-off to ICMS stands. EACC analysts and supervisors only.
+     */
+    get: operations['listReferralIntake'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/referrals/{referralId}/push': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/national-reports/{fy}/candidates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        /** Deterministic pattern candidates computed from this and prior years' aggregates (analyst) */
-        get: operations["getNationalReportCandidates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * Push a referral to ICMS and store the case number (analyst)
+     * @description EACC analysts and supervisors. Pulls the referral's ICMS payload from review (national ID, full name, grounds, details) and registers it through the integration-gateway's ICMS adapter (`submitIcmsReferral`), idempotent by the `RFL` reference; ICMS is retried with backoff while unreachable. A case number is stored (`registered`) and `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and followed to its case number. A retry with the same Idempotency-Key replays the answer; a registered referral is answered as it is and never sent again.
+     */
+    post: operations['pushReferralToIcms'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/national-reports/{fy}/candidates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+      };
+      cookie?: never;
     };
-    "/v1/eacc/national-reports/{fy}/narrative/draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits */
-        post: operations["draftNationalReportNarrative"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Deterministic pattern candidates computed from this and prior years' aggregates (analyst) */
+    get: operations['getNationalReportCandidates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/national-reports/{fy}/narrative/draft': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+      };
+      cookie?: never;
     };
-    "/v1/eacc/open-data/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** All releases including previews and withdrawn (EACC) */
-        get: operations["listOpenDataReleasesEacc"];
-        put?: never;
-        /** Build a snapshot release for a financial year as a preview (EACC analyst or supervisor) */
-        post: operations["buildOpenDataSnapshot"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /**
+     * AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits
+     * @description eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's
+     *     `narrate-compliance-report` task gets the year's figures (national totals and rates, the
+     *     per-Commission table, prior years) and pattern candidates only, data class `restricted`,
+     *     and the request waits up to 20 s for it. Ready by then: its paragraphs are inserted with
+     *     `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with
+     *     `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job
+     *     has ended. In each section drafted, the new paragraphs replace those still marked as AI
+     *     drafts (where the first of them stood), and paragraphs the analyst edited or typed stay;
+     *     `replaceAll` replaces the whole section. Editing a paragraph through
+     *     `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor
+     *     (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section,
+     *     job id; no figures). A new request replaces a draft still being written, whose job is then
+     *     never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry
+     *     with the same Idempotency-Key reads the same job, and inserts it once.
+     */
+    post: operations['draftNationalReportNarrative'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/open-data/releases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/v1/eacc/open-data/releases/{releaseId}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Publish a preview release (EACC supervisor) */
-        post: operations["publishOpenDataRelease"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** All releases including previews and withdrawn (EACC) */
+    get: operations['listOpenDataReleasesEacc'];
+    put?: never;
+    /** Build a snapshot release for a financial year as a preview (EACC analyst or supervisor) */
+    post: operations['buildOpenDataSnapshot'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/open-data/releases/{releaseId}/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        releaseId: components['parameters']['ReleaseId'];
+      };
+      cookie?: never;
     };
-    "/v1/eacc/open-data/releases/{releaseId}/withdraw": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Withdraw a published release with a public reason (EACC supervisor) */
-        post: operations["withdrawOpenDataRelease"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Publish a preview release (EACC supervisor) */
+    post: operations['publishOpenDataRelease'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/eacc/open-data/releases/{releaseId}/withdraw': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        releaseId: components['parameters']['ReleaseId'];
+      };
+      cookie?: never;
     };
-    "/v1/commissions/{slug}/open-data/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** The Commission's own rows of the latest preview or release, suppression applied (commission-admin) */
-        get: operations["getCommissionOpenDataPreview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Withdraw a published release with a public reason (EACC supervisor) */
+    post: operations['withdrawOpenDataRelease'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/v1/commissions/{slug}/open-data/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
     };
-    "/open-data/v1/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Published and withdrawn releases (public; cached; rate-limited) */
-        get: operations["listOpenDataReleases"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** The Commission's own rows of the latest preview or release, suppression applied (commission-admin) */
+    get: operations['getCommissionOpenDataPreview'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/open-data/v1/releases': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/open-data/v1/releases/{fy}/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-            };
-            cookie?: never;
-        };
-        /** A release with its tables' metadata, hashes and verification link (public) */
-        get: operations["getOpenDataRelease"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Published and withdrawn releases (public; cached; rate-limited) */
+    get: operations['listOpenDataReleases'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/open-data/v1/releases/{fy}/{version}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+        version: number;
+      };
+      cookie?: never;
     };
-    "/open-data/v1/releases/{fy}/{version}/tables/{table}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-                table: components["schemas"]["OpenDataTable"];
-            };
-            cookie?: never;
-        };
-        /** A table as JSON rows or CSV (Accept header or `.csv` suffix); suppressed cells are null with a marker (public) */
-        get: operations["getOpenDataTable"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** A release with its tables' metadata, hashes and verification link (public) */
+    get: operations['getOpenDataRelease'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/open-data/v1/releases/{fy}/{version}/tables/{table}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+        version: number;
+        table: components['schemas']['OpenDataTable'];
+      };
+      cookie?: never;
     };
+    /** A table as JSON rows or CSV (Accept header or `.csv` suffix); suppressed cells are null with a marker (public) */
+    get: operations['getOpenDataTable'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** @description Who reviewed, confirmed, wrote, approved or pushed */
-        Officer: {
-            /** @description Keycloak subject */
-            subject: string;
-            /** @description Display name; the subject when the token had none */
+  schemas: {
+    /** @description Who reviewed, confirmed, wrote, approved or pushed */
+    Officer: {
+      /** @description Keycloak subject */
+      subject: string;
+      /** @description Display name; the subject when the token had none */
+      name: string;
+    };
+    /** @enum {string} */
+    ReportStatus: 'not-started' | 'compiling' | 'draft' | 'reviewed' | 'submitted';
+    /**
+     * @description Compiled and confirmed on the platform, or submitted by a federated Commission
+     * @enum {string}
+     */
+    ReportSource: 'hosted' | 'federated';
+    /** @description Headline counts per Form M section, for lists and the intake */
+    ReportCounts: {
+      initial: {
+        expected: number;
+        declared: number;
+        notDeclared: number;
+      };
+      biennial: {
+        expected: number;
+        declared: number;
+        notDeclared: number;
+        noCycleInPeriod: boolean;
+      };
+      final: {
+        expected: number;
+        declared: number;
+        notDeclared: number;
+      };
+      clarifications: number;
+      accessRequests: {
+        received: number;
+        granted: number;
+        declined: number;
+      };
+    };
+    /** @description A form-m.v1 document (packages/schemas/forms/form-m.v1.json, also published for federated Commissions) */
+    FormMDocument: {
+      /** @constant */
+      schemaVersion: 'form-m.v1';
+      partI: {
+        [key: string]: unknown;
+      };
+      partII: {
+        [key: string]: unknown;
+      };
+      partIII: {
+        [key: string]: unknown;
+      };
+      meta?: {
+        [key: string]: unknown;
+      };
+    };
+    ComplianceReportSummary: {
+      /** @description Financial year start year */
+      fy: number;
+      status: components['schemas']['ReportStatus'];
+      /**
+       * Format: date
+       * @description 31 July after the financial year
+       */
+      dueDate: string;
+      reference: string | null;
+      submittedAt: string | null;
+      late: boolean | null;
+      /** @description A supervisor may compile the year now (from 1 April of its last half) */
+      previewAvailable: boolean;
+    };
+    ComplianceReport: {
+      /** Format: uuid */
+      id: string;
+      commission: {
+        slug: string;
+        issuerCode: string;
+        name: string;
+      };
+      /** @description Financial year start year */
+      fy: number;
+      status: components['schemas']['ReportStatus'];
+      source: components['schemas']['ReportSource'];
+      compiledAt: string | null;
+      reviewedBy: components['schemas']['Officer'] | null;
+      confirmedBy: components['schemas']['Officer'] | null;
+      submittedAt: string | null;
+      late: boolean | null;
+      /** @description `RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation */
+      reference: string | null;
+      /** Format: date */
+      dueDate: string;
+      /** @description The form-m.v1 document (draft or frozen); null while compiling, and in the answers to confirmComplianceReport and submitComplianceReport */
+      document: components['schemas']['FormMDocument'] | null;
+      /** @description Empty until the first compile */
+      counts: components['schemas']['ReportCounts'] | Record<string, never>;
+      /** @description The Restricted Form M PDF, once issued */
+      formMDocumentId: string | null;
+      /** @description The signed acknowledgement receipt, once issued */
+      receiptDocumentId: string | null;
+      /** @description Form M section 5 holds no access request data for the year (zeros with a note) */
+      accessDataUnavailable: boolean;
+    };
+    SubmittedComplianceReport: {
+      /** Format: uuid */
+      id: string;
+      commission: {
+        slug: string;
+        issuerCode: string;
+        name: string;
+      };
+      /** @description Financial year start year */
+      fy: number;
+      status: components['schemas']['ReportStatus'];
+      source: components['schemas']['ReportSource'];
+      compiledAt: string | null;
+      reviewedBy: components['schemas']['Officer'] | null;
+      confirmedBy: components['schemas']['Officer'] | null;
+      submittedAt: string | null;
+      late: boolean | null;
+      /** @description `RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation */
+      reference: string | null;
+      /** Format: date */
+      dueDate: string;
+      /** @description The form-m.v1 document as filed, frozen at submission */
+      document: components['schemas']['FormM'];
+      /** @description Empty until the first compile */
+      counts: components['schemas']['ReportCounts'] | Record<string, never>;
+      /** @description The Restricted Form M PDF, once issued */
+      formMDocumentId: string | null;
+      /** @description The signed acknowledgement receipt, once issued */
+      receiptDocumentId: string | null;
+      /** @description Form M section 5 holds no access request data for the year (zeros with a note) */
+      accessDataUnavailable: boolean;
+    };
+    FormM: {
+      /** @constant */
+      schemaVersion: 'form-m.v1';
+      partI: {
+        commissionName: string;
+        issuerCode: string;
+        contactDetails: string;
+        physicalAddress: string;
+        /** Format: email */
+        emailAddress: string;
+        period: {
+          /** Format: date */
+          from: string;
+          /** Format: date */
+          to: string;
+          financialYearStart: number;
+        };
+      };
+      partII: {
+        initial: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          nonFilers: {
             name: string;
-        };
-        /** @enum {string} */
-        ReportStatus: "not-started" | "compiling" | "draft" | "reviewed" | "submitted";
-        /**
-         * @description Compiled and confirmed on the platform, or submitted by a federated Commission
-         * @enum {string}
-         */
-        ReportSource: "hosted" | "federated";
-        /** @description Headline counts per Form M section, for lists and the intake */
-        ReportCounts: {
-            initial: {
-                expected: number;
-                declared: number;
-                notDeclared: number;
-            };
-            biennial: {
-                expected: number;
-                declared: number;
-                notDeclared: number;
-                noCycleInPeriod: boolean;
-            };
-            final: {
-                expected: number;
-                declared: number;
-                notDeclared: number;
-            };
-            clarifications: number;
-            accessRequests: {
-                received: number;
-                granted: number;
-                declined: number;
-            };
-        };
-        /** @description A form-m.v1 document (packages/schemas/forms/form-m.v1.json, also published for federated Commissions) */
-        FormMDocument: {
-            /** @constant */
-            schemaVersion: "form-m.v1";
-            partI: {
-                [key: string]: unknown;
-            };
-            partII: {
-                [key: string]: unknown;
-            };
-            partIII: {
-                [key: string]: unknown;
-            };
-            meta?: {
-                [key: string]: unknown;
-            };
-        };
-        ComplianceReportSummary: {
-            /** @description Financial year start year */
-            fy: number;
-            status: components["schemas"]["ReportStatus"];
-            /**
-             * Format: date
-             * @description 31 July after the financial year
-             */
-            dueDate: string;
-            reference: string | null;
-            submittedAt: string | null;
-            late: boolean | null;
-            /** @description A supervisor may compile the year now (from 1 April of its last half) */
-            previewAvailable: boolean;
-        };
-        ComplianceReport: {
-            /** Format: uuid */
-            id: string;
-            commission: {
-                slug: string;
-                issuerCode: string;
-                name: string;
-            };
-            /** @description Financial year start year */
-            fy: number;
-            status: components["schemas"]["ReportStatus"];
-            source: components["schemas"]["ReportSource"];
-            compiledAt: string | null;
-            reviewedBy: components["schemas"]["Officer"] | null;
-            confirmedBy: components["schemas"]["Officer"] | null;
-            submittedAt: string | null;
-            late: boolean | null;
-            /** @description `RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation */
-            reference: string | null;
+            designation: string;
+            identifier: string;
             /** Format: date */
-            dueDate: string;
-            /** @description The form-m.v1 document (draft or frozen); null while compiling, and in the answers to confirmComplianceReport and submitComplianceReport */
-            document: components["schemas"]["FormMDocument"] | null;
-            /** @description Empty until the first compile */
-            counts: components["schemas"]["ReportCounts"] | Record<string, never>;
-            /** @description The Restricted Form M PDF, once issued */
-            formMDocumentId: string | null;
-            /** @description The signed acknowledgement receipt, once issued */
-            receiptDocumentId: string | null;
-            /** @description Form M section 5 holds no access request data for the year (zeros with a note) */
-            accessDataUnavailable: boolean;
-        };
-        SubmittedComplianceReport: {
+            date: string;
+            /** @enum {string} */
+            actionTaken:
+              | 'none'
+              | 'notice-to-comply'
+              | 'warning'
+              | 'salary-stoppage'
+              | 'disciplinary-referral'
+              | 'referred-to-eacc';
+            /** @enum {string} */
+            complied: 'yes' | 'no' | 'pending';
+            remarks?: string;
             /** Format: uuid */
-            id: string;
-            commission: {
-                slug: string;
-                issuerCode: string;
-                name: string;
-            };
-            /** @description Financial year start year */
-            fy: number;
-            status: components["schemas"]["ReportStatus"];
-            source: components["schemas"]["ReportSource"];
-            compiledAt: string | null;
-            reviewedBy: components["schemas"]["Officer"] | null;
-            confirmedBy: components["schemas"]["Officer"] | null;
-            submittedAt: string | null;
-            late: boolean | null;
-            /** @description `RPT-<ISSUER>-<FY end>-<seq>-<check>`, allocated at confirmation */
-            reference: string | null;
+            obligationId?: string;
+          }[];
+          noCycleInPeriod?: boolean;
+        };
+        biennial: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          nonFilers: {
+            name: string;
+            designation: string;
+            identifier: string;
             /** Format: date */
-            dueDate: string;
-            /** @description The form-m.v1 document as filed, frozen at submission */
-            document: components["schemas"]["FormM"];
-            /** @description Empty until the first compile */
-            counts: components["schemas"]["ReportCounts"] | Record<string, never>;
-            /** @description The Restricted Form M PDF, once issued */
-            formMDocumentId: string | null;
-            /** @description The signed acknowledgement receipt, once issued */
-            receiptDocumentId: string | null;
-            /** @description Form M section 5 holds no access request data for the year (zeros with a note) */
-            accessDataUnavailable: boolean;
-        };
-        FormM: {
-            /** @constant */
-            schemaVersion: "form-m.v1";
-            partI: {
-                commissionName: string;
-                issuerCode: string;
-                contactDetails: string;
-                physicalAddress: string;
-                /** Format: email */
-                emailAddress: string;
-                period: {
-                    /** Format: date */
-                    from: string;
-                    /** Format: date */
-                    to: string;
-                    financialYearStart: number;
-                };
-            };
-            partII: {
-                initial: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    nonFilers: {
-                        name: string;
-                        designation: string;
-                        identifier: string;
-                        /** Format: date */
-                        date: string;
-                        /** @enum {string} */
-                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
-                        /** @enum {string} */
-                        complied: "yes" | "no" | "pending";
-                        remarks?: string;
-                        /** Format: uuid */
-                        obligationId?: string;
-                    }[];
-                    noCycleInPeriod?: boolean;
-                };
-                biennial: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    nonFilers: {
-                        name: string;
-                        designation: string;
-                        identifier: string;
-                        /** Format: date */
-                        date: string;
-                        /** @enum {string} */
-                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
-                        /** @enum {string} */
-                        complied: "yes" | "no" | "pending";
-                        remarks?: string;
-                        /** Format: uuid */
-                        obligationId?: string;
-                    }[];
-                    noCycleInPeriod?: boolean;
-                };
-                final: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    nonFilers: {
-                        name: string;
-                        designation: string;
-                        identifier: string;
-                        /** Format: date */
-                        date: string;
-                        /** @enum {string} */
-                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
-                        /** @enum {string} */
-                        complied: "yes" | "no" | "pending";
-                        remarks?: string;
-                        /** Format: uuid */
-                        obligationId?: string;
-                    }[];
-                    noCycleInPeriod?: boolean;
-                };
-                clarifications: {
-                    items: {
-                        name: string;
-                        designation: string;
-                        identifier: string;
-                        natureInGeneralTerms: string;
-                        /** @enum {string} */
-                        statusOfCompliance: "responded" | "resolved" | "pending" | "overdue" | "withdrawn";
-                        clarificationReference?: string;
-                    }[];
-                };
-                accessRequests: {
-                    received: number;
-                    granted: number;
-                    declined: number;
-                    declineReasons: {
-                        /** @enum {string} */
-                        reason: "public-interest" | "prejudice-proceeding" | "frivolous-vexatious" | "not-objectives" | "other";
-                        count: number;
-                    }[];
-                    dataUnavailable: boolean;
-                };
-                complaints: {
-                    registerMaintained: boolean | null;
-                    items: {
-                        name: string;
-                        designation: string;
-                        identifier: string;
-                        nature: string;
-                        status: string;
-                    }[];
-                };
-            };
-            partIII: {
-                compiledBy: {
-                    name: string | null;
-                    designation: string | null;
-                    date: string | null;
-                };
-                confirmedBy: {
-                    name: string | null;
-                    designation: string | null;
-                    date: string | null;
-                };
-            };
-            meta?: {
-                /** Format: date-time */
-                compiledAt?: string;
-                reference?: string;
-                /** @enum {string} */
-                source?: "hosted" | "federated";
-            };
-        };
-        ManualFields: {
-            contactDetails?: string | null;
-            physicalAddress?: string | null;
-            emailAddress?: string | null;
-            complaintsRegisterMaintained?: boolean | null;
-            complaints?: {
-                name: string;
-                designation: string;
-                identifier: string;
-                nature: string;
-                status: string;
-            }[];
-        };
-        /** @default {} */
-        ConfirmReport: {
-            designation?: string;
-        };
-        /**
-         * @description Not reported, or submitted on time or late (after 31 July) by EACC's receipt
-         * @enum {string}
-         */
-        IntakeStatus: "not-reported" | "submitted-on-time" | "submitted-late";
-        Intake: {
-            fy: number;
-            /** @description The whole year, whatever the filters */
-            totals: {
-                onTime: number;
-                late: number;
-                notReported: number;
-                nationalDeclaredRate: number | null;
-            };
-            commissions: {
-                commission: {
-                    slug: string;
-                    name: string;
-                };
-                status: components["schemas"]["IntakeStatus"];
-                reportId: string | null;
-                reference: string | null;
-                submittedAt: string | null;
-                /** @description Per section from the report as filed; empty when not reported */
-                rates: {
-                    initial?: {
-                        expected: number;
-                        declared: number;
-                        /** @description declared / expected to four decimals; null when none expected */
-                        rate: number | null;
-                    };
-                    biennial?: {
-                        expected: number;
-                        declared: number;
-                        /** @description declared / expected to four decimals; null when none expected */
-                        rate: number | null;
-                    };
-                    final?: {
-                        expected: number;
-                        declared: number;
-                        /** @description declared / expected to four decimals; null when none expected */
-                        rate: number | null;
-                    };
-                };
-                outliers: ("low-initial-rate" | "low-biennial-rate" | "low-final-rate" | "section-missing")[];
-                /** @description EACC's weekly chases from 1 August while not reported */
-                chases: {
-                    count: number;
-                    lastAt: string | null;
-                };
-                /** @description The Restricted Form M PDF as filed, once issued */
-                formMDocumentId: string | null;
-                /** @description The signed acknowledgement receipt, once issued */
-                receiptDocumentId: string | null;
-            }[];
-        };
-        Narrative: {
-            overview: string;
-            findings: string;
-            recommendations: string;
-        };
-        NarrativeParagraph: {
-            /** Format: uuid */
-            id: string;
+            date: string;
             /** @enum {string} */
-            section: "overview" | "findings" | "recommendations";
-            position: number;
-            text: string;
-            /** @description True until the analyst edits the paragraph */
-            aiDraft: boolean;
-            /** @description Aggregate keys the paragraph cites, in the ai-gateway scheme (`national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year); empty for what an analyst types */
-            aggregateRefs: string[];
-            candidateIds: string[];
-        };
-        /** @description Counts and rates only, never an officer */
-        NationalAggregates: {
-            fy: number;
-            reporting: {
-                commissions: number;
-                reported: number;
-                onTime: number;
-                late: number;
-                notReported: number;
-                /** @description Reported over Commissions; null when there are none */
-                rate: number | null;
-            };
-            national: {
-                initial: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    /** @description declared / expected; null when none expected */
-                    rate: number | null;
-                };
-                biennial: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    /** @description declared / expected; null when none expected */
-                    rate: number | null;
-                };
-                final: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    /** @description declared / expected; null when none expected */
-                    rate: number | null;
-                };
-                /** @description The three sections together */
-                all: {
-                    expected: number;
-                    declared: number;
-                    notDeclared: number;
-                    /** @description declared / expected; null when none expected */
-                    rate: number | null;
-                };
-                clarifications: number;
-                accessRequests: {
-                    received: number;
-                    granted: number;
-                    declined: number;
-                };
-            };
-            /** @description Per Commission slug; its numbers are null until it reports */
-            byCommission: {
-                [key: string]: {
-                    name: string;
-                    status: components["schemas"]["IntakeStatus"];
-                    reportId: string | null;
-                    reference: string | null;
-                    submittedAt: string | null;
-                    initial: {
-                        expected: number;
-                        declared: number;
-                        notDeclared: number;
-                        /** @description declared / expected; null when none expected */
-                        rate: number | null;
-                    } | null;
-                    biennial: {
-                        expected: number;
-                        declared: number;
-                        notDeclared: number;
-                        /** @description declared / expected; null when none expected */
-                        rate: number | null;
-                        noCycleInPeriod: boolean;
-                    } | null;
-                    final: {
-                        expected: number;
-                        declared: number;
-                        notDeclared: number;
-                        /** @description declared / expected; null when none expected */
-                        rate: number | null;
-                    } | null;
-                    clarifications: number | null;
-                    accessRequests: {
-                        received: number;
-                        granted: number;
-                        declined: number;
-                    } | null;
-                };
-            };
-        };
-        NationalReport: {
-            /** Format: uuid */
-            id: string;
-            fy: number;
-            /** @description The report's revision; goes up with every build, narrative save and the approval */
-            version: number;
+            actionTaken:
+              | 'none'
+              | 'notice-to-comply'
+              | 'warning'
+              | 'salary-stoppage'
+              | 'disciplinary-referral'
+              | 'referred-to-eacc';
             /** @enum {string} */
-            status: "draft" | "approved";
-            builtAt: string | null;
-            reportsIncluded: number;
-            /** @description Empty until the first build */
-            aggregates: components["schemas"]["NationalAggregates"] | Record<string, never>;
-            narrative: components["schemas"]["Narrative"];
-            /** @description The paragraphs behind the narrative sections, per section in position order; AI drafts (spec 09b) labelled until edited */
-            narrativeParagraphs: components["schemas"]["NarrativeParagraph"][];
-            author: components["schemas"]["Officer"] | null;
-            approver: components["schemas"]["Officer"] | null;
-            approvedAt: string | null;
-            /** @description `NCR-EACC-<FY end>-<seq>-<check>`, allocated at approval */
-            reference: string | null;
-            /** @description The Restricted NCR PDF, once issued */
-            documentId: string | null;
+            complied: 'yes' | 'no' | 'pending';
+            remarks?: string;
+            /** Format: uuid */
+            obligationId?: string;
+          }[];
+          noCycleInPeriod?: boolean;
         };
+        final: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          nonFilers: {
+            name: string;
+            designation: string;
+            identifier: string;
+            /** Format: date */
+            date: string;
+            /** @enum {string} */
+            actionTaken:
+              | 'none'
+              | 'notice-to-comply'
+              | 'warning'
+              | 'salary-stoppage'
+              | 'disciplinary-referral'
+              | 'referred-to-eacc';
+            /** @enum {string} */
+            complied: 'yes' | 'no' | 'pending';
+            remarks?: string;
+            /** Format: uuid */
+            obligationId?: string;
+          }[];
+          noCycleInPeriod?: boolean;
+        };
+        clarifications: {
+          items: {
+            name: string;
+            designation: string;
+            identifier: string;
+            natureInGeneralTerms: string;
+            /** @enum {string} */
+            statusOfCompliance: 'responded' | 'resolved' | 'pending' | 'overdue' | 'withdrawn';
+            clarificationReference?: string;
+          }[];
+        };
+        accessRequests: {
+          received: number;
+          granted: number;
+          declined: number;
+          declineReasons: {
+            /** @enum {string} */
+            reason:
+              | 'public-interest'
+              | 'prejudice-proceeding'
+              | 'frivolous-vexatious'
+              | 'not-objectives'
+              | 'other';
+            count: number;
+          }[];
+          dataUnavailable: boolean;
+        };
+        complaints: {
+          registerMaintained: boolean | null;
+          items: {
+            name: string;
+            designation: string;
+            identifier: string;
+            nature: string;
+            status: string;
+          }[];
+        };
+      };
+      partIII: {
+        compiledBy: {
+          name: string | null;
+          designation: string | null;
+          date: string | null;
+        };
+        confirmedBy: {
+          name: string | null;
+          designation: string | null;
+          date: string | null;
+        };
+      };
+      meta?: {
+        /** Format: date-time */
+        compiledAt?: string;
+        reference?: string;
         /** @enum {string} */
-        ReferralGrounds: "undeclared-assets" | "unexplained-assets" | "two-missed-cycles" | "unanswered-clarification";
-        /**
-         * @description not-pushed until EACC pushes it; pushed once ICMS accepted it without a case number yet; registered with the case number; push-failed when the push could not be completed (push again to retry)
-         * @enum {string}
-         */
-        IcmsStatus: "not-pushed" | "pushed" | "registered" | "push-failed";
-        /**
-         * @description Why the last push failed
-         * @enum {string}
-         */
-        IcmsPushError: "review-unavailable" | "payload-not-found" | "payload-refused" | "icms-unavailable" | "icms-rejected" | "icms-failed" | "icms-registration-timeout";
-        ReferralIntakeItem: {
-            /** Format: uuid */
-            referralId: string;
-            commission: {
-                slug: string;
-                name: string;
-            };
-            /** @description The RFL reference */
-            reference: string;
-            grounds: components["schemas"]["ReferralGrounds"];
-            /** @description The declaration cycle the referral is about */
-            cycleYear: number;
-            /** Format: date-time */
-            sentAt: string;
-            /**
-             * Format: uuid
-             * @description The Confidential referral-package document (documents service)
-             */
-            packageDocumentId: string;
-            icmsStatus: components["schemas"]["IcmsStatus"];
-            icmsCaseNumber: string | null;
-            icmsRegisteredAt: string | null;
-            pushedAt: string | null;
-            /** @description Who last pushed it */
-            pushedBy: components["schemas"]["Officer"] | null;
-            error: components["schemas"]["IcmsPushError"] | null;
-        };
-        ReferralIntakePage: {
-            items: components["schemas"]["ReferralIntakeItem"][];
-            /** @description Pass as `cursor` for the next page; null on the last */
-            nextCursor: string | null;
-        };
-        AiUsageReport: {
-            /** @description Financial year start year */
-            fy: number;
-            /** @description Commissions with an AI-assisted case or a rating in the year, in slug order */
-            commissions: components["schemas"]["AiUsageCommission"][];
-        };
-        AiUsageCommission: {
-            /** @description Commission slug */
-            tenant: string;
-            /** @description Cases whose copilot first had outputs to show in the year */
-            aiAssistedCases: number;
-            /** @description Ratings last given in the year, per AI task, in task order */
-            ratings: components["schemas"]["AiTaskRatings"][];
-        };
-        AiTaskRatings: {
-            /** @description The ai-gateway task whose outputs were rated, e.g. `summarize-declaration` */
-            task: string;
-            helpful: number;
-            notHelpful: number;
-            /** @description Ratings by the reason the reviewer gave; a rating without one counts in none */
-            reasons: {
-                inaccurate: number;
-                "missed-something": number;
-                unclear: number;
-                "too-long": number;
-                other: number;
-            };
-        };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            /**
-             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
-             * @enum {string}
-             */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed";
-            detail?: string;
-            instance?: string;
-            /** @description Field-level errors; `path` is the dotted request field */
-            errors?: {
-                path: string;
-                message: string;
-            }[];
-        };
-        PatternCandidate: {
-            id: string;
-            /** @enum {string} */
-            kind: "rate-change" | "threshold-breach" | "chronic-late-reporting" | "clarification-ratio-outlier" | "size-band-outlier" | "non-reporting";
-            /** @description Commission slug, entity type, or `national` */
-            subject: string;
-            /** @description The figures the candidate rests on, by name: numbers, strings or null, no nested values, as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state (a change, a count of years) is carried here. */
-            values: {
-                [key: string]: number | string | null;
-            };
-            /** @description Keys of the figures the candidate rests on, in the ai-gateway scheme (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year */
-            aggregateKeys: string[];
-        };
-        /** @enum {string} */
-        OpenDataTable: "filing-by-commission" | "compliance-by-commission" | "by-entity-type" | "by-cycle" | "access-requests" | "national-totals";
-        OpenDataRelease: {
-            /** Format: uuid */
-            id: string;
-            fy: number;
-            /** @enum {string} */
-            kind: "annual" | "snapshot";
-            version: number;
-            /** @enum {string} */
-            status: "preview" | "published" | "withdrawn";
-            /** Format: date-time */
-            builtAt: string;
-            /** Format: date-time */
-            publishedAt: string | null;
-            /** Format: date-time */
-            withdrawnAt: string | null;
-            withdrawnReason: string | null;
-            /** @description Verification code of the Public manifest document */
-            manifestVerificationId: string | null;
-            tables: {
-                table: components["schemas"]["OpenDataTable"];
-                rows: number;
-                sha256Json: string;
-                sha256Csv: string;
-            }[];
-        };
+        source?: 'hosted' | 'federated';
+      };
     };
-    responses: {
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role or scope */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
+    ManualFields: {
+      contactDetails?: string | null;
+      physicalAddress?: string | null;
+      emailAddress?: string | null;
+      complaintsRegisterMaintained?: boolean | null;
+      complaints?: {
+        name: string;
+        designation: string;
+        identifier: string;
+        nature: string;
+        status: string;
+      }[];
     };
-    parameters: {
-        Slug: string;
-        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-        FinancialYear: number;
-        ReleaseId: string;
-        IdempotencyKey: string;
+    /** @default {} */
+    ConfirmReport: {
+      designation?: string;
     };
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /**
+     * @description Not reported, or submitted on time or late (after 31 July) by EACC's receipt
+     * @enum {string}
+     */
+    IntakeStatus: 'not-reported' | 'submitted-on-time' | 'submitted-late';
+    Intake: {
+      fy: number;
+      /** @description The whole year, whatever the filters */
+      totals: {
+        onTime: number;
+        late: number;
+        notReported: number;
+        nationalDeclaredRate: number | null;
+      };
+      commissions: {
+        commission: {
+          slug: string;
+          name: string;
+        };
+        status: components['schemas']['IntakeStatus'];
+        reportId: string | null;
+        reference: string | null;
+        submittedAt: string | null;
+        /** @description Per section from the report as filed; empty when not reported */
+        rates: {
+          initial?: {
+            expected: number;
+            declared: number;
+            /** @description declared / expected to four decimals; null when none expected */
+            rate: number | null;
+          };
+          biennial?: {
+            expected: number;
+            declared: number;
+            /** @description declared / expected to four decimals; null when none expected */
+            rate: number | null;
+          };
+          final?: {
+            expected: number;
+            declared: number;
+            /** @description declared / expected to four decimals; null when none expected */
+            rate: number | null;
+          };
+        };
+        outliers: (
+          'low-initial-rate' | 'low-biennial-rate' | 'low-final-rate' | 'section-missing'
+        )[];
+        /** @description EACC's weekly chases from 1 August while not reported */
+        chases: {
+          count: number;
+          lastAt: string | null;
+        };
+        /** @description The Restricted Form M PDF as filed, once issued */
+        formMDocumentId: string | null;
+        /** @description The signed acknowledgement receipt, once issued */
+        receiptDocumentId: string | null;
+      }[];
+    };
+    Narrative: {
+      overview: string;
+      findings: string;
+      recommendations: string;
+    };
+    NarrativeParagraph: {
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      section: 'overview' | 'findings' | 'recommendations';
+      position: number;
+      text: string;
+      /** @description True until the analyst edits the paragraph */
+      aiDraft: boolean;
+      /** @description Aggregate keys the paragraph cites, in the ai-gateway scheme (`national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year); empty for what an analyst types */
+      aggregateRefs: string[];
+      candidateIds: string[];
+    };
+    /** @description Counts and rates only, never an officer */
+    NationalAggregates: {
+      fy: number;
+      reporting: {
+        commissions: number;
+        reported: number;
+        onTime: number;
+        late: number;
+        notReported: number;
+        /** @description Reported over Commissions; null when there are none */
+        rate: number | null;
+      };
+      national: {
+        initial: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          /** @description declared / expected; null when none expected */
+          rate: number | null;
+        };
+        biennial: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          /** @description declared / expected; null when none expected */
+          rate: number | null;
+        };
+        final: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          /** @description declared / expected; null when none expected */
+          rate: number | null;
+        };
+        /** @description The three sections together */
+        all: {
+          expected: number;
+          declared: number;
+          notDeclared: number;
+          /** @description declared / expected; null when none expected */
+          rate: number | null;
+        };
+        clarifications: number;
+        accessRequests: {
+          received: number;
+          granted: number;
+          declined: number;
+        };
+      };
+      /** @description Per Commission slug; its numbers are null until it reports */
+      byCommission: {
+        [key: string]: {
+          name: string;
+          status: components['schemas']['IntakeStatus'];
+          reportId: string | null;
+          reference: string | null;
+          submittedAt: string | null;
+          initial: {
+            expected: number;
+            declared: number;
+            notDeclared: number;
+            /** @description declared / expected; null when none expected */
+            rate: number | null;
+          } | null;
+          biennial: {
+            expected: number;
+            declared: number;
+            notDeclared: number;
+            /** @description declared / expected; null when none expected */
+            rate: number | null;
+            noCycleInPeriod: boolean;
+          } | null;
+          final: {
+            expected: number;
+            declared: number;
+            notDeclared: number;
+            /** @description declared / expected; null when none expected */
+            rate: number | null;
+          } | null;
+          clarifications: number | null;
+          accessRequests: {
+            received: number;
+            granted: number;
+            declined: number;
+          } | null;
+        };
+      };
+    };
+    NationalReport: {
+      /** Format: uuid */
+      id: string;
+      fy: number;
+      /** @description The report's revision; goes up with every build, narrative save and the approval */
+      version: number;
+      /** @enum {string} */
+      status: 'draft' | 'approved';
+      builtAt: string | null;
+      reportsIncluded: number;
+      /** @description Empty until the first build */
+      aggregates: components['schemas']['NationalAggregates'] | Record<string, never>;
+      narrative: components['schemas']['Narrative'];
+      /** @description The paragraphs behind the narrative sections, per section in position order; AI drafts (spec 09b) labelled until edited */
+      narrativeParagraphs: components['schemas']['NarrativeParagraph'][];
+      author: components['schemas']['Officer'] | null;
+      approver: components['schemas']['Officer'] | null;
+      approvedAt: string | null;
+      /** @description `NCR-EACC-<FY end>-<seq>-<check>`, allocated at approval */
+      reference: string | null;
+      /** @description The Restricted NCR PDF, once issued */
+      documentId: string | null;
+    };
+    /** @enum {string} */
+    ReferralGrounds:
+      'undeclared-assets' | 'unexplained-assets' | 'two-missed-cycles' | 'unanswered-clarification';
+    /**
+     * @description not-pushed until EACC pushes it; pushed once ICMS accepted it without a case number yet; registered with the case number; push-failed when the push could not be completed (push again to retry)
+     * @enum {string}
+     */
+    IcmsStatus: 'not-pushed' | 'pushed' | 'registered' | 'push-failed';
+    /**
+     * @description Why the last push failed
+     * @enum {string}
+     */
+    IcmsPushError:
+      | 'review-unavailable'
+      | 'payload-not-found'
+      | 'payload-refused'
+      | 'icms-unavailable'
+      | 'icms-rejected'
+      | 'icms-failed'
+      | 'icms-registration-timeout';
+    ReferralIntakeItem: {
+      /** Format: uuid */
+      referralId: string;
+      commission: {
+        slug: string;
+        name: string;
+      };
+      /** @description The RFL reference */
+      reference: string;
+      grounds: components['schemas']['ReferralGrounds'];
+      /** @description The declaration cycle the referral is about */
+      cycleYear: number;
+      /** Format: date-time */
+      sentAt: string;
+      /**
+       * Format: uuid
+       * @description The Confidential referral-package document (documents service)
+       */
+      packageDocumentId: string;
+      icmsStatus: components['schemas']['IcmsStatus'];
+      icmsCaseNumber: string | null;
+      icmsRegisteredAt: string | null;
+      pushedAt: string | null;
+      /** @description Who last pushed it */
+      pushedBy: components['schemas']['Officer'] | null;
+      error: components['schemas']['IcmsPushError'] | null;
+    };
+    ReferralIntakePage: {
+      items: components['schemas']['ReferralIntakeItem'][];
+      /** @description Pass as `cursor` for the next page; null on the last */
+      nextCursor: string | null;
+    };
+    AiUsageReport: {
+      /** @description Financial year start year */
+      fy: number;
+      /** @description Commissions with an AI-assisted case or a rating in the year, in slug order */
+      commissions: components['schemas']['AiUsageCommission'][];
+    };
+    AiUsageCommission: {
+      /** @description Commission slug */
+      tenant: string;
+      /** @description Cases whose copilot first had outputs to show in the year */
+      aiAssistedCases: number;
+      /** @description Ratings last given in the year, per AI task, in task order */
+      ratings: components['schemas']['AiTaskRatings'][];
+    };
+    AiTaskRatings: {
+      /** @description The ai-gateway task whose outputs were rated, e.g. `summarize-declaration` */
+      task: string;
+      helpful: number;
+      notHelpful: number;
+      /** @description Ratings by the reason the reviewer gave; a rating without one counts in none */
+      reasons: {
+        inaccurate: number;
+        'missed-something': number;
+        unclear: number;
+        'too-long': number;
+        other: number;
+      };
+    };
+    ProblemDetails: {
+      type: string;
+      title: string;
+      status: number;
+      /**
+       * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+       * @enum {string}
+       */
+      code?:
+        | 'database-unavailable'
+        | 'rate-limit-exceeded'
+        | 'no-match'
+        | 'already-onboarded'
+        | 'no-roster'
+        | 'otp-invalid'
+        | 'otp-expired'
+        | 'resend-cooldown'
+        | 'otp-send-failed'
+        | 'wrong-step'
+        | 'session-expired'
+        | 'iprs-unavailable'
+        | 'identity-unavailable'
+        | 'email-in-use'
+        | 'identity-mismatch'
+        | 'step-up-required'
+        | 'incomplete'
+        | 'before-statement-date'
+        | 'amendment-window-closed'
+        | 'not-a-draft'
+        | 'not-submitted'
+        | 'obligation-cancelled'
+        | 'acknowledgement-issued'
+        | 'acknowledgement-in-progress'
+        | 'consent-required'
+        | 'no-id'
+        | 'not-new'
+        | 'no-applicant-record'
+        | 'request-decided'
+        | 'request-closed'
+        | 'officer-resolved'
+        | 'not-under-decision'
+        | 'not-pending-verification'
+        | 'lea-account-inactive'
+        | 'declarant-notified'
+        | 'representations-closed'
+        | 'download-window-closed'
+        | 'scope-exceeds-request'
+        | 'grounds-required'
+        | 'separation-of-duties'
+        | 'report-submitted'
+        | 'report-compiling'
+        | 'preview-not-available'
+        | 'not-reviewed'
+        | 'invalid-remarks'
+        | 'invalid-document'
+        | 'inconsistent-document'
+        | 'tenant-mismatch'
+        | 'ncr-approved'
+        | 'no-submitted-reports'
+        | 'icms-push-failed';
+      detail?: string;
+      instance?: string;
+      /** @description Field-level errors; `path` is the dotted request field */
+      errors?: {
+        path: string;
+        message: string;
+      }[];
+    };
+    PatternCandidate: {
+      id: string;
+      /** @enum {string} */
+      kind:
+        | 'rate-change'
+        | 'threshold-breach'
+        | 'chronic-late-reporting'
+        | 'clarification-ratio-outlier'
+        | 'size-band-outlier'
+        | 'non-reporting';
+      /** @description Commission slug, entity type, or `national` */
+      subject: string;
+      /** @description The figures the candidate rests on, by name: numbers, strings or null, no nested values, as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state (a change, a count of years) is carried here. */
+      values: {
+        [key: string]: number | string | null;
+      };
+      /** @description Keys of the figures the candidate rests on, in the ai-gateway scheme (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year */
+      aggregateKeys: string[];
+    };
+    NarrativeDraft: {
+      /**
+       * Format: uuid
+       * @description The ai-gateway job writing the draft
+       */
+      jobId: string;
+      /** @enum {string} */
+      section: 'overview' | 'findings' | 'recommendations' | 'all';
+      replaceAll: boolean;
+      /**
+       * @description `drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted
+       * @enum {string}
+       */
+      status: 'drafting' | 'inserted' | 'failed';
+      /** @description Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`, `budget`, `provider`, ...), or `missing` (the gateway no longer has the job), `invalid-output`, `aggregates-rebuilt` or `ncr-approved` */
+      failureReason: string | null;
+      /** Format: date-time */
+      requestedAt: string;
+      /** Format: date-time */
+      finishedAt: string | null;
+    };
+    /** @enum {string} */
+    OpenDataTable:
+      | 'filing-by-commission'
+      | 'compliance-by-commission'
+      | 'by-entity-type'
+      | 'by-cycle'
+      | 'access-requests'
+      | 'national-totals';
+    OpenDataRelease: {
+      /** Format: uuid */
+      id: string;
+      fy: number;
+      /** @enum {string} */
+      kind: 'annual' | 'snapshot';
+      version: number;
+      /** @enum {string} */
+      status: 'preview' | 'published' | 'withdrawn';
+      /** Format: date-time */
+      builtAt: string;
+      /** Format: date-time */
+      publishedAt: string | null;
+      /** Format: date-time */
+      withdrawnAt: string | null;
+      withdrawnReason: string | null;
+      /** @description Verification code of the Public manifest document */
+      manifestVerificationId: string | null;
+      tables: {
+        table: components['schemas']['OpenDataTable'];
+        rows: number;
+        sha256Json: string;
+        sha256Csv: string;
+      }[];
+    };
+  };
+  responses: {
+    /** @description Not found, or not visible to the caller */
+    NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+    /** @description Caller lacks the required role or scope */
+    Forbidden: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetails'];
+      };
+    };
+  };
+  parameters: {
+    Slug: string;
+    /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+    FinancialYear: number;
+    ReleaseId: string;
+    IdempotencyKey: string;
+  };
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getAiUsage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Counts */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AiUsageReport"];
-                };
-            };
-            /** @description fy is not a financial year */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  getAiUsage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    listComplianceReports: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Counts */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Periods */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReportSummary"][];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['AiUsageReport'];
         };
+      };
+      /** @description fy is not a financial year */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getComplianceReport: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Report */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
-                };
-            };
-            /** @description The financial year is not one reports exist for */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem type `directory-unavailable`: the Commission could not be named; try again */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  listComplianceReports: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+      };
+      cookie?: never;
     };
-    compileComplianceReport: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Periods */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Compilation started */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The financial year is not one reports exist for */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only a supervisor compiles */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `report-submitted`, or `preview-not-available` before 1 April after the year */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ComplianceReportSummary'][];
         };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    updateReportRemarks: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    remarks: {
-                        /** Format: uuid */
-                        obligationId: string;
-                        remark: string;
-                    }[];
-                };
-            };
-        };
-        responses: {
-            /** @description Updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
-                };
-            };
-            /** @description Validation failed, or an obligation the draft does not list (paths in errors) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only a supervisor edits remarks */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  getComplianceReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    updateReportManualFields: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Report */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ManualFields"];
-            };
+        content: {
+          'application/json': components['schemas']['ComplianceReport'];
         };
-        responses: {
-            /** @description Updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only a commission-admin enters Part I and Part B */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+      };
+      /** @description The financial year is not one reports exist for */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem type `directory-unavailable`: the Commission could not be named; try again */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    markReportReviewed: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    designation: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Reviewed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
-                };
-            };
-            /** @description Validation failed */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only a supervisor marks the draft reviewed */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  compileComplianceReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    confirmComplianceReport: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
-            };
-            path: {
-                slug: string;
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Compilation started */
+      202: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ConfirmReport"];
-            };
+        content?: never;
+      };
+      /** @description The financial year is not one reports exist for */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
-        responses: {
-            /** @description Submitted with its reference; the PDF and receipt follow */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
-                };
-            };
-            /** @description Problem code `not-reviewed`, or `incomplete` with the paths in errors; or the Idempotency-Key is missing */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Role, or problem code `step-up-required` */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The Commission directory or the workflow engine could not be reached; nothing submitted */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
         };
+      };
+      /** @description Only a supervisor compiles */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `report-submitted`, or `preview-not-available` before 1 April after the year */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    submitComplianceReport: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FormM"];
-            };
-        };
-        responses: {
-            /** @description Submitted with its reference; the PDF and receipt follow */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ComplianceReport"];
-                };
-            };
-            /** @description Problem code `invalid-document` (schema) or `inconsistent-document` (business rules), paths in errors; or the Idempotency-Key is missing */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /**
-             * @description Scope `reports:submit` missing, the token names no Commission, or problem code `tenant-mismatch` (the document names another Commission)
-             *
-             *     Requires one of the scopes: reports:submit
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `report-submitted`: the Commission's report for this financial year is submitted already */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The Commission directory or the workflow engine could not be reached; nothing submitted */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  updateReportRemarks: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    getEaccIntake: {
-        parameters: {
-            query: {
-                outliersOnly?: boolean;
-                status?: components["schemas"]["IntakeStatus"];
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          remarks: {
+            /** Format: uuid */
+            obligationId: string;
+            remark: string;
+          }[];
         };
-        requestBody?: never;
-        responses: {
-            /** @description Intake */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Intake"];
-                };
-            };
-            /** @description Query failed validation (a year reports do not exist for, an unknown status) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The Commission directory could not be reached */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+      };
     };
-    getSubmittedReport: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                reportId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Report */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SubmittedComplianceReport"];
-                };
-            };
-            /** @description reportId is not a UUID */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not found, not submitted, or not visible to the caller */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The Commission directory could not be reached */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ComplianceReport'];
         };
+      };
+      /** @description Validation failed, or an obligation the draft does not list (paths in errors) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only a supervisor edits remarks */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getNationalReport: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description NCR */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description fy is not a financial year */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not built yet */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  updateReportManualFields: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    buildNationalReport: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Built */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description fy is not a financial year */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `no-submitted-reports` or `ncr-approved` */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The Commission directory could not be reached */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ManualFields'];
+      };
     };
-    updateNationalReportNarrative: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Narrative"];
-            };
+        content: {
+          'application/json': components['schemas']['ComplianceReport'];
         };
-        responses: {
-            /** @description Saved */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description Body failed validation, or fy is not a financial year */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not built yet */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `ncr-approved`: the report no longer changes */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+      };
+      /** @description Validation failed */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only a commission-admin enters Part I and Part B */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    approveNationalReport: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
-            };
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Approved with its reference; the PDF follows */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description Idempotency-Key missing, or fy is not a financial year */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Role, or problem code `separation-of-duties` */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not built yet */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `ncr-approved`: the report no longer changes */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The workflow engine could not be reached; nothing was approved */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+  };
+  markReportReviewed: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: string;
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    listReferralIntake: {
-        parameters: {
-            query?: {
-                icmsStatus?: "not-pushed" | "pushed" | "registered" | "push-failed";
-                /** @description The previous page's `nextCursor` */
-                cursor?: string;
-                limit?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          designation: string;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Page */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReferralIntakePage"];
-                };
-            };
-            /** @description Query failed validation, or a cursor this list did not give */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+      };
     };
-    pushReferralToIcms: {
-        parameters: {
-            query?: never;
-            header: {
-                /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": string;
-            };
-            path: {
-                referralId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Reviewed */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Registered (or already registered), or pushed and awaiting the case number */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReferralIntakeItem"];
-                };
-            };
-            /** @description Idempotency-Key missing, or referralId is not a UUID */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Only EACC analysts and supervisors */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Not in the intake */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `icms-push-failed` with `error` (an `IcmsPushError`): the referral is left push-failed; push it again to retry */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description ICMS accepted the referral but the workflow following its case number could not be started; push it again shortly */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ComplianceReport'];
         };
+      };
+      /** @description Validation failed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only a supervisor marks the draft reviewed */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getNationalReportCandidates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Candidates */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PatternCandidate"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  confirmComplianceReport: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': string;
+      };
+      path: {
+        slug: string;
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
     };
-    draftNationalReportNarrative: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    section: "overview" | "findings" | "recommendations" | "all";
-                    /** @description Replace every paragraph of the section; default replaces only paragraphs still marked as AI draft */
-                    replaceAll: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Draft inserted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description Still drafting; poll the report */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description Already approved, or draft failed validation (`narrative-validation`) and was discarded */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['ConfirmReport'];
+      };
     };
-    listOpenDataReleasesEacc: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    responses: {
+      /** @description Submitted with its reference; the PDF and receipt follow */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Releases */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
+        content: {
+          'application/json': components['schemas']['ComplianceReport'];
         };
+      };
+      /** @description Problem code `not-reviewed`, or `incomplete` with the paths in errors; or the Idempotency-Key is missing */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Role, or problem code `step-up-required` */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `report-compiling` while a compile runs, or `report-submitted` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The Commission directory or the workflow engine could not be reached; nothing submitted */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    buildOpenDataSnapshot: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    fy: number;
-                };
-            };
-        };
-        responses: {
-            /** @description Building */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
+  };
+  submitComplianceReport: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': string;
+      };
+      path?: never;
+      cookie?: never;
     };
-    publishOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Published */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description Not in preview, or reconciliation failed */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FormM'];
+      };
     };
-    withdrawOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
+    responses: {
+      /** @description Submitted with its reference; the PDF and receipt follow */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": {
-                    reason: string;
-                };
-            };
+        content: {
+          'application/json': components['schemas']['ComplianceReport'];
         };
-        responses: {
-            /** @description Withdrawn */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description Not published */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
+      };
+      /** @description Problem code `invalid-document` (schema) or `inconsistent-document` (business rules), paths in errors; or the Idempotency-Key is missing */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /**
+       * @description Scope `reports:submit` missing, the token names no Commission, or problem code `tenant-mismatch` (the document names another Commission)
+       *
+       *     Requires one of the scopes: reports:submit
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `report-submitted`: the Commission's report for this financial year is submitted already */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The Commission directory or the workflow engine could not be reached; nothing submitted */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getCommissionOpenDataPreview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Rows per table */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: {
-                            [key: string]: unknown;
-                        }[];
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
+  };
+  getEaccIntake: {
+    parameters: {
+      query: {
+        outliersOnly?: boolean;
+        status?: components['schemas']['IntakeStatus'];
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    listOpenDataReleases: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Intake */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Releases */
-            200: {
-                headers: {
-                    ETag?: string;
-                    "Cache-Control"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"][];
-                };
-            };
-            /** @description Rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+        content: {
+          'application/json': components['schemas']['Intake'];
         };
+      };
+      /** @description Query failed validation (a year reports do not exist for, an unknown status) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The Commission directory could not be reached */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
-    getOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Release */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
+  };
+  getSubmittedReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        reportId: string;
+      };
+      cookie?: never;
     };
-    getOpenDataTable: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-                table: components["schemas"]["OpenDataTable"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Report */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Table */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        table: components["schemas"]["OpenDataTable"];
-                        columns: string[];
-                        rows: {
-                            [key: string]: unknown;
-                        }[];
-                        suppression: {
-                            threshold: number;
-                            cellsSuppressed: number;
-                        };
-                    };
-                    "text/csv": string;
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
+        content: {
+          'application/json': components['schemas']['SubmittedComplianceReport'];
         };
+      };
+      /** @description reportId is not a UUID */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not found, not submitted, or not visible to the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The Commission directory could not be reached */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
     };
+  };
+  getNationalReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description NCR */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NationalReport'];
+        };
+      };
+      /** @description fy is not a financial year */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not built yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  buildNationalReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Built */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NationalReport'];
+        };
+      };
+      /** @description fy is not a financial year */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `no-submitted-reports` or `ncr-approved` */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The Commission directory could not be reached */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  updateNationalReportNarrative: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Narrative'];
+      };
+    };
+    responses: {
+      /** @description Saved */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NationalReport'];
+        };
+      };
+      /** @description Body failed validation, or fy is not a financial year */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not built yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `ncr-approved`: the report no longer changes */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  approveNationalReport: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': string;
+      };
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Approved with its reference; the PDF follows */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NationalReport'];
+        };
+      };
+      /** @description Idempotency-Key missing, or fy is not a financial year */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Role, or problem code `separation-of-duties` */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not built yet */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `ncr-approved`: the report no longer changes */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The workflow engine could not be reached; nothing was approved */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listReferralIntake: {
+    parameters: {
+      query?: {
+        icmsStatus?: 'not-pushed' | 'pushed' | 'registered' | 'push-failed';
+        /** @description The previous page's `nextCursor` */
+        cursor?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Page */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReferralIntakePage'];
+        };
+      };
+      /** @description Query failed validation, or a cursor this list did not give */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  pushReferralToIcms: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Client-generated UUID, unique per logical request; reuse on retry */
+        'Idempotency-Key': string;
+      };
+      path: {
+        referralId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registered (or already registered), or pushed and awaiting the case number */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReferralIntakeItem'];
+        };
+      };
+      /** @description Idempotency-Key missing, or referralId is not a UUID */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Only EACC analysts and supervisors */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Not in the intake */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `icms-push-failed` with `error` (an `IcmsPushError`): the referral is left push-failed; push it again to retry */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description ICMS accepted the referral but the workflow following its case number could not be started; push it again shortly */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getNationalReportCandidates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Candidates */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PatternCandidate'][];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  draftNationalReportNarrative: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          section: 'overview' | 'findings' | 'recommendations' | 'all';
+          /** @description Replace every paragraph of the section; default replaces only paragraphs still marked as AI draft */
+          replaceAll: boolean;
+        };
+      };
+    };
+    responses: {
+      /** @description Draft inserted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NationalReport'];
+        };
+      };
+      /** @description Still drafting; poll the report */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['NationalReport'];
+        };
+      };
+      /** @description Body failed validation, or Idempotency-Key missing */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      /** @description Nothing inserted. Problem code `ncr-approved` (the report no longer changes), `narrative-validation` (the draft cited a figure not in the input and was discarded), `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent), `no-pattern-candidates` (findings, or all, with no candidate to narrate) or `aggregates-rebuilt` (the report was rebuilt while the draft was written) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Idempotency-Key reused with a different request body */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description Problem code `narrative-draft-failed`: the ai-gateway refused the request or the job failed (`reason`: the job's reason, e.g. `provider`, `budget`, `timeout`); nothing inserted */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+      /** @description The ai-gateway could not be reached; nothing was asked of it */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  listOpenDataReleasesEacc: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Releases */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpenDataRelease'][];
+        };
+      };
+      403: components['responses']['Forbidden'];
+    };
+  };
+  buildOpenDataSnapshot: {
+    parameters: {
+      query?: never;
+      header: {
+        'Idempotency-Key': components['parameters']['IdempotencyKey'];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          fy: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Building */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpenDataRelease'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+    };
+  };
+  publishOpenDataRelease: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        releaseId: components['parameters']['ReleaseId'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Published */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpenDataRelease'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      /** @description Not in preview, or reconciliation failed */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  withdrawOpenDataRelease: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        releaseId: components['parameters']['ReleaseId'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          reason: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Withdrawn */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpenDataRelease'];
+        };
+      };
+      403: components['responses']['Forbidden'];
+      /** @description Not published */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['ProblemDetails'];
+        };
+      };
+    };
+  };
+  getCommissionOpenDataPreview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        slug: components['parameters']['Slug'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Rows per table */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            [key: string]: {
+              [key: string]: unknown;
+            }[];
+          };
+        };
+      };
+      404: components['responses']['NotFound'];
+    };
+  };
+  listOpenDataReleases: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Releases */
+      200: {
+        headers: {
+          ETag?: string;
+          'Cache-Control'?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpenDataRelease'][];
+        };
+      };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getOpenDataRelease: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+        version: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Release */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['OpenDataRelease'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  getOpenDataTable: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+        fy: components['parameters']['FinancialYear'];
+        version: number;
+        table: components['schemas']['OpenDataTable'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Table */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            table: components['schemas']['OpenDataTable'];
+            columns: string[];
+            rows: {
+              [key: string]: unknown;
+            }[];
+            suppression: {
+              threshold: number;
+              cellsSuppressed: number;
+            };
+          };
+          'text/csv': string;
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
 }
