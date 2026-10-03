@@ -9,7 +9,7 @@ import { getViewer } from '../../server/viewer';
 
 /**
  * The Actions workspace (spec 08 FE-5): the Commission's reviewers and supervisors follow the
- * enforcement ladders, approve or decline the steps drafted for them and, as supervisors, restart
+ * administrative action ladders, approve or decline the steps drafted for them and, as supervisors, restart
  * a declined ladder. Anyone else is told they have no access to the list, but a ladder reads as
  * missing for them: that page's loader answers 404 without the workspace.
  */

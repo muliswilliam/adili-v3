@@ -46,7 +46,7 @@ export interface ActionsListProps {
 }
 
 /**
- * The Commission's enforcement ladders (spec 08 FE-5): a filter by the current step's status,
+ * The Commission's administrative action ladders (spec 08 FE-5): a filter by the current step's status,
  * then per ladder what it is about (an overdue declaration or an unanswered clarification), the
  * declarant, the current step with its status and when its window ends, and Review for a step
  * waiting for a decision (Open otherwise).

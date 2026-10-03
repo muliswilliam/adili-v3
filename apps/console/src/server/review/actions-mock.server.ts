@@ -1,5 +1,5 @@
 /**
- * In-memory stand-in for the review service's enforcement ladder endpoints (review.yaml
+ * In-memory stand-in for the review service's administrative action ladder endpoints (review.yaml
  * `listEnforcementLadders`, `getLadder`, `approveAction`, `declineAction`, `restartLadder`), part
  * of the review mock (REVIEW_MOCK). The Teachers Service Commission's ladders, dated relative to
  * when the store was seeded:
@@ -30,6 +30,7 @@
  */
 import { REVIEWER, SUPERVISOR } from '@adili/roles';
 
+import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
 import { isRecord, json, type MockCaller, problem, readJson } from '../mock-http';
 import type { components } from './api.gen';
 import type { MockApprovalSource } from './approvals-mock.server';
@@ -117,13 +118,6 @@ const STEP_TITLES: Record<Step, string> = {
   'disciplinary-referral': 'Disciplinary referral',
 };
 
-const WINDOW_DAYS: Record<Step, number | null> = {
-  'notice-to-comply': 14,
-  warning: 14,
-  'salary-stoppage': 30,
-  'disciplinary-referral': null,
-};
-
 function blank(id: string, ladderId: string, step: Step, proposedAt: number): Action {
   return {
     id,
@@ -160,7 +154,7 @@ function issued(
 ): Action {
   const reference = nextReference();
   const issuedAt = base - issuedDaysAgo * DAY;
-  const window = WINDOW_DAYS[step];
+  const window = LADDER_WINDOW_DAYS[step];
   return {
     ...blank(id, ladderId, step, base - proposedDaysAgo * DAY),
     status: 'issued',
@@ -576,9 +570,9 @@ function cannotApprove(
   if (action.proposer?.subject === caller.subject) return 'proposer';
   const record = stored.reviewersOfRecord.map((each) => (each === CALLER ? caller.subject : each));
   if (record.includes(caller.subject)) return 'reviewer-of-record';
-  const supervisorOnly =
-    action.step === 'salary-stoppage' || action.step === 'disciplinary-referral';
-  const admitted = supervisorOnly ? caller.roles.includes(SUPERVISOR) : isReviewStaff(caller);
+  const admitted = isGraveStep(action.step)
+    ? caller.roles.includes(SUPERVISOR)
+    : isReviewStaff(caller);
   return admitted ? null : 'role';
 }
 
@@ -697,7 +691,7 @@ function approve(caller: MockCaller, id: string): Response {
     return problem(409, 'This step is not waiting for a decision', 'not-proposed');
   const at = now();
   const reference = nextReference();
-  const window = WINDOW_DAYS[action.step];
+  const window = LADDER_WINDOW_DAYS[action.step];
   const approved: Action = {
     ...action,
     status: 'issued',

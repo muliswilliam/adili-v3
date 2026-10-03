@@ -32,6 +32,7 @@ import { useId, useState } from 'react';
 
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
 
+import { isGraveStep, LADDER_WINDOW_DAYS } from '../../actions/ladder';
 import type { ActionStep } from '../../server/actions.server';
 import { en as m } from './messages';
 
@@ -42,13 +43,6 @@ import { en as m } from './messages';
  */
 
 const NOTE_MAX = 2000;
-
-/** Days each step gives the declarant to act, by tenant policy (`ladder.*WindowDays`). */
-const WINDOW_DAYS: Partial<Record<ActionStep, number>> = {
-  'notice-to-comply': 14,
-  warning: 14,
-  'salary-stoppage': 30,
-};
 
 function useSubmit(onSubmit: () => Promise<FailureText | null>) {
   const [busy, setBusy] = useState(false);
@@ -75,8 +69,8 @@ export function consequencesOf(
   declarantName: string,
   now: string,
 ): ApprovalConsequence[] {
-  const days = WINDOW_DAYS[step];
-  const grave = step === 'salary-stoppage' || step === 'disciplinary-referral';
+  const days = LADDER_WINDOW_DAYS[step];
+  const grave = isGraveStep(step);
   return [
     { icon: HashtagIcon, title: m.consequences.reference },
     {
@@ -85,7 +79,7 @@ export function consequencesOf(
       detail: m.consequences.letterDetail,
       grave,
     },
-    ...(days === undefined
+    ...(days === null
       ? []
       : [
           {

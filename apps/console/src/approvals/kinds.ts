@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { LADDER_STEPS } from '../actions/ladder';
 import type { ApprovalKind } from '../server/review/types';
 
 /**
@@ -34,12 +35,7 @@ const determinationSummary = z.object({
 });
 export type DeterminationSummary = z.infer<typeof determinationSummary>;
 
-const actionStep = z.enum([
-  'notice-to-comply',
-  'warning',
-  'salary-stoppage',
-  'disciplinary-referral',
-]);
+const actionStep = z.enum(LADDER_STEPS);
 
 /**
  * A drafted ladder step's summary (review's `ActionApprovals`): the step, what the ladder is

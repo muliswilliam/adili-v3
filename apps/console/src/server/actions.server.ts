@@ -3,7 +3,7 @@ import type { ReviewClient } from './review/client.server';
 import { callService, type ServiceResult } from './service-call';
 
 /**
- * The review service's enforcement ladder endpoints for the Commission's review staff (spec 08
+ * The review service's administrative action ladder endpoints for the Commission's review staff (spec 08
  * FE-5, S5 to S11), folded into results the Actions screens switch on. Pure: the caller injects
  * the client (`actions.ts` makes it for the signed-in reviewer or supervisor).
  */

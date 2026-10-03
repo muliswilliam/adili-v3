@@ -1,7 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { LADDER_STEPS } from '../actions/ladder';
 import {
+  type ActionStatus,
   type AdministrativeAction,
   approveStep,
   declineStep,
@@ -34,20 +36,14 @@ const ACTION_STATUSES = [
   'complied',
   'reinstated',
   'cancelled',
-] as const;
-const ACTION_STEPS = [
-  'notice-to-comply',
-  'warning',
-  'salary-stoppage',
-  'disciplinary-referral',
-] as const;
+] as const satisfies readonly ActionStatus[];
 
 export const getLadders = createServerFn({ method: 'GET' })
   .validator(
     z.object({
       slug: z.string().regex(SLUG_PATTERN),
       status: z.enum(ACTION_STATUSES).optional(),
-      step: z.enum(ACTION_STEPS).optional(),
+      step: z.enum(LADDER_STEPS).optional(),
       cursor: z.string().max(500).optional(),
       limit: z.number().int().min(1).max(100),
     }),

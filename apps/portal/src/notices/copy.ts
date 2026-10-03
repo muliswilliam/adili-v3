@@ -138,8 +138,8 @@ export const COPY = {
   compliedBanner: 'You have complied. No further action will be taken.',
   salaryStopped:
     'Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.',
-  salaryReinstated: (date: string, reference: string) =>
-    `Your salary reinstatement was sent to payroll on ${date} (reference ${reference}).`,
+  salaryReinstated: (date: string) => `Your salary reinstatement was sent to payroll on ${date}.`,
+  salaryStoppedBadge: 'Salary stopped',
   closedBanner: 'This notice is closed. You do not need to act on it.',
   windowLeft: (n: number) => (n < 0 ? 'Window ended' : n === 0 ? 'Last day' : `${days(n)} left`),
   windowLine: (date: string, day: number, of: number) =>

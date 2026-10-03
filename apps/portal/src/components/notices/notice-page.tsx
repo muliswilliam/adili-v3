@@ -151,9 +151,7 @@ function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
     return (
       <Alert variant="success" role="status">
         <Icon icon={Tick02Icon} />
-        <AlertTitle>
-          {COPY.salaryReinstated(formatDate(notice.salaryReinstatedAt), `${notice.reference}-R`)}
-        </AlertTitle>
+        <AlertTitle>{COPY.salaryReinstated(formatDate(notice.salaryReinstatedAt))}</AlertTitle>
       </Alert>
     );
   }
@@ -193,10 +191,10 @@ function Banner({ notice, now }: { notice: DeclarantNotice; now: string }) {
     );
   }
   const window = windowOf(notice, now);
-  const grave = notice.step !== 'notice-to-comply';
+  const afterNotice = notice.step !== 'notice-to-comply';
   return (
-    <Alert variant={grave ? 'destructive' : 'warning'} role="status">
-      <Icon icon={grave ? AlertCircleIcon : Notification01Icon} />
+    <Alert variant={afterNotice ? 'destructive' : 'warning'} role="status">
+      <Icon icon={afterNotice ? AlertCircleIcon : Notification01Icon} />
       <AlertTitle className="font-normal">
         {window && notice.actBy ? (
           <span className="font-semibold">

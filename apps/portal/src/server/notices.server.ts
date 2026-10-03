@@ -37,9 +37,10 @@ export type NoticeRespondResult =
   | NotFound
   | Unavailable;
 
-function conflictOf(error: unknown): NoticeConflict {
-  const code = (error as { code?: unknown; type?: unknown } | undefined)?.code;
-  return CONFLICTS.find((each) => each === code) ?? 'already-responded';
+/** The 409's code, or null for one the contract does not name. */
+function conflictOf(error: unknown): NoticeConflict | null {
+  const code = (error as { code?: unknown } | undefined)?.code;
+  return CONFLICTS.find((each) => each === code) ?? null;
 }
 
 /**
@@ -64,8 +65,11 @@ export function respondToNotice(
         return { status: 'invalid' };
       case 404:
         return notFound;
-      case 409:
-        return { status: 'conflict', reason: conflictOf(error) };
+      case 409: {
+        // An unnamed conflict is not told apart as "already responded": nothing was recorded.
+        const reason = conflictOf(error);
+        return reason ? { status: 'conflict', reason } : unavailable;
+      }
       default:
         return unavailable;
     }

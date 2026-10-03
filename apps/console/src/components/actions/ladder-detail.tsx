@@ -141,7 +141,10 @@ export function LadderDetailView({
             <AlertTitle>
               {m.compliedTitle(
                 formatDate(ladder.endedAt),
-                ladder.closingCause ? CLOSING_CAUSES[ladder.closingCause] : CLOSING_CAUSES.filed,
+                CLOSING_CAUSES[
+                  ladder.closingCause ??
+                    (ladder.subjectKind === 'obligation' ? 'filed' : 'clarification-resolved')
+                ],
               )}
             </AlertTitle>
             <AlertDescription>{m.compliedBody}</AlertDescription>

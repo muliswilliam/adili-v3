@@ -12,7 +12,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 
-import { subjectOf } from '../../actions/ladder';
+import { isGraveStep, subjectOf } from '../../actions/ladder';
 import { decisionRefusal } from '../../actions/refusal';
 import type { ActionStep, AdministrativeAction } from '../../server/actions.server';
 import { approveLadderStep, declineLadderStep } from '../../server/actions';
@@ -33,8 +33,6 @@ const STEP_ICONS: Record<ActionStep, typeof Notification01Icon> = {
   'salary-stoppage': BanIcon,
   'disciplinary-referral': UserWarning01Icon,
 };
-
-const GRAVE: ReadonlySet<ActionStep> = new Set(['salary-stoppage', 'disciplinary-referral']);
 
 /** The steps issued before this one, with the declarant's responses, read before deciding (S9). */
 function PriorSteps({ item }: { item: ActionApprovalItem }) {
@@ -62,7 +60,7 @@ function PriorSteps({ item }: { item: ActionApprovalItem }) {
 }
 
 /**
- * A drafted step of an enforcement ladder in the approvals inbox (spec 08 FE-3, FE-5; S5, S9,
+ * A drafted step of an administrative action ladder in the approvals inbox (spec 08 FE-3, FE-5; S5, S9,
  * S14): the declarant, the step, what the ladder is about and the file number, who drafted it and
  * how long it has waited, the steps issued before it with any response, what approving does, and
  * Approve and Decline when the viewer may decide it; else why not. Reassign and Open ladder either
@@ -127,10 +125,10 @@ export function ActionApproval({
       <ApprovalCard
         kind="action"
         icon={STEP_ICONS[summary.step]}
-        tone={GRAVE.has(summary.step) ? 'destructive' : 'default'}
+        tone={isGraveStep(summary.step) ? 'destructive' : 'default'}
         title={summary.declarantName}
         badge={
-          <Badge variant={GRAVE.has(summary.step) ? 'destructive' : 'warning'}>
+          <Badge variant={isGraveStep(summary.step) ? 'destructive' : 'warning'}>
             {STEP_LABELS[summary.step]}
           </Badge>
         }

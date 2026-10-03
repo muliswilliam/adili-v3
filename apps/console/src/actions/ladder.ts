@@ -8,16 +8,33 @@ import type {
 } from '../server/actions.server';
 
 /**
- * The enforcement ladder as the Actions screens read it (spec 08 FE-5): where each of the four
+ * The administrative action ladder as the Actions screens read it (spec 08 FE-5): where each of the four
  * steps stands, what the ladder is about, and who may decide a drafted step. Pure.
  */
 
-export const LADDER_STEPS: readonly ActionStep[] = [
+export const LADDER_STEPS = [
   'notice-to-comply',
   'warning',
   'salary-stoppage',
   'disciplinary-referral',
-];
+] as const satisfies readonly ActionStep[];
+
+/**
+ * Days each step gives the declarant to act. Tenant policy (`ladder.*WindowDays`) sets them; the
+ * contract does not expose it yet, so these are its defaults (spec 08). The disciplinary
+ * referral sets no deadline.
+ */
+export const LADDER_WINDOW_DAYS: Record<ActionStep, number | null> = {
+  'notice-to-comply': 14,
+  warning: 14,
+  'salary-stoppage': 30,
+  'disciplinary-referral': null,
+};
+
+/** The salary stoppage and the disciplinary referral: supervisors alone decide them, shown red. */
+export function isGraveStep(step: ActionStep): boolean {
+  return step === 'salary-stoppage' || step === 'disciplinary-referral';
+}
 
 export interface LadderStepView {
   step: ActionStep;
@@ -91,7 +108,7 @@ export function currentAction(ladder: Ladder): AdministrativeAction | null {
  * table). The service applies the separation-of-duties rule on top.
  */
 export function canDecideAs(step: ActionStep, supervisor: boolean): boolean {
-  return supervisor || step === 'notice-to-comply' || step === 'warning';
+  return supervisor || !isGraveStep(step);
 }
 
 export interface LadderSubject {

@@ -39,7 +39,7 @@ interface ActionsLoad {
   now: string;
 }
 
-/** The Commission's enforcement ladders (spec 08 FE-5), filtered and paged in the URL. */
+/** The Commission's administrative action ladders (spec 08 FE-5), filtered and paged in the URL. */
 export const Route = createFileRoute('/actions/')({
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => search,
