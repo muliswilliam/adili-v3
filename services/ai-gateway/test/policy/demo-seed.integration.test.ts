@@ -3,7 +3,11 @@ import { eq, sql } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords } from '../../src/db/schema.js';
-import { DEMO_GATE_CHANGE, seedDemoGatePolicies } from '../../src/policy/demo-seed.js';
+import {
+  DEMO_DOCUMENT_GATE_CHANGE,
+  DEMO_GATE_CHANGE,
+  seedDemoGatePolicies,
+} from '../../src/policy/demo-seed.js';
 import { GatePolicies } from '../../src/policy/gate-policies.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -80,5 +84,22 @@ describe('demo gate seed', () => {
     expect(await seedDemoGatePolicies(gate, ['closeddemo'])).toEqual([]);
 
     expect(await gate.admits('closeddemo', 'synthetic', 'external')).toBe(false);
+  });
+
+  it('lets the demo tenant read its synthetic documents into the form (spec 05b)', async () => {
+    expect(await seedDemoGatePolicies(gate, ['docdemo'], DEMO_DOCUMENT_GATE_CHANGE)).toEqual([
+      'docdemo',
+    ]);
+
+    expect(await gate.admits('docdemo', 'highly-confidential', 'external')).toBe(true);
+    expect(await gate.admits('docdemo', 'restricted', 'external')).toBe(false);
+    expect(await gate.rules('docdemo')).toMatchObject([
+      {
+        dataClass: 'highly-confidential',
+        providerClass: 'external',
+        approvalRef: DEMO_DOCUMENT_GATE_CHANGE.approvalRef,
+      },
+    ]);
+    expect(await seedDemoGatePolicies(gate, ['docdemo'], DEMO_DOCUMENT_GATE_CHANGE)).toEqual([]);
   });
 });

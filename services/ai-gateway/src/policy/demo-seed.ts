@@ -13,29 +13,40 @@ export const DEMO_GATE_CHANGE: GateChange = {
   approvalRef: 'Demo set-up: synthetic declarations only (spec 07c)',
 };
 
+/**
+ * The demo's approval for reading documents into the form (spec 05b): `extract-document` sends
+ * a document as `highly-confidential`, since nothing minimises an image, and the demo tenant's
+ * documents are synthetic. Its reviewer tasks still send `synthetic`, so this opens nothing else.
+ */
+export const DEMO_DOCUMENT_GATE_CHANGE: GateChange = {
+  rules: [{ dataClass: 'highly-confidential', providerClass: 'external', allowed: true }],
+  approvalRef: 'Demo set-up: synthetic documents read into the form only (spec 05b)',
+};
+
 const SEEDED_BY = { subject: 'system:demo-seed', name: 'Demo seed' };
 
 /**
- * Records the demo tenants' external-on-synthetic rule through the gate, so it is audited and
- * announced like a platform admin's change. Idempotent: a tenant with a rule for the pair already
+ * Records the demo tenants' rules (external on synthetic data, or `change`) through the gate, so
+ * they are audited and announced like a platform admin's change. Idempotent: a tenant with a rule for the pair already
  * (seeded, or changed since by a platform admin) is left as it is, so it is safe to run on every
  * `pnpm db:seed`. Returns the tenants it changed.
  */
 export async function seedDemoGatePolicies(
   gate: GatePolicies,
   tenants: readonly string[] = DEMO_TENANTS,
+  change: GateChange = DEMO_GATE_CHANGE,
 ): Promise<string[]> {
   const changed: string[] = [];
   for (const tenant of tenants) {
     const rules = await gate.rules(tenant);
-    const missing = DEMO_GATE_CHANGE.rules.filter(
+    const missing = change.rules.filter(
       (cell) =>
         !rules.some(
           (rule) => rule.dataClass === cell.dataClass && rule.providerClass === cell.providerClass,
         ),
     );
     if (missing.length === 0) continue;
-    await gate.set(tenant, { ...DEMO_GATE_CHANGE, rules: missing }, SEEDED_BY);
+    await gate.set(tenant, { ...change, rules: missing }, SEEDED_BY);
     changed.push(tenant);
   }
   return changed;

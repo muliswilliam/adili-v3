@@ -237,7 +237,7 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+        TaskName: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question" | "extract-document";
         /** @enum {string} */
         DataClass: "synthetic" | "restricted" | "highly-confidential";
         /** @enum {string} */
@@ -261,7 +261,7 @@ export interface components {
             /** @default 0 */
             waitSeconds: number;
             /** @description The task's input; its `kind` is the task name */
-            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"] | components["schemas"]["NarrateComplianceReportInput"] | components["schemas"]["AnswerDeclarantQuestionInput"];
+            input: components["schemas"]["SummarizeDeclarationInput"] | components["schemas"]["ExplainFlagsInput"] | components["schemas"]["DraftClarificationInput"] | components["schemas"]["NarrateComplianceReportInput"] | components["schemas"]["AnswerDeclarantQuestionInput"] | components["schemas"]["ExtractDocumentInput"];
         };
         Job: {
             /** Format: uuid */
@@ -284,7 +284,7 @@ export interface components {
                 latencyMs: number;
             };
             /** @description The task's output; null until the job succeeded, or once purged */
-            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | components["schemas"]["NarrateComplianceReportOutput"] | components["schemas"]["AnswerDeclarantQuestionOutput"] | null;
+            output: components["schemas"]["SummarizeDeclarationOutput"] | components["schemas"]["ExplainFlagsOutput"] | components["schemas"]["DraftClarificationOutput"] | components["schemas"]["NarrateComplianceReportOutput"] | components["schemas"]["AnswerDeclarantQuestionOutput"] | components["schemas"]["ExtractDocumentOutput"] | null;
             /** Format: date-time */
             createdAt: string;
             finishedAt: string | null;
@@ -556,6 +556,59 @@ export interface components {
             }[];
             followUps: string[];
         };
+        ExtractDocumentInput: {
+            /** @constant */
+            kind: "extract-document";
+            /** @enum {string} */
+            documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
+            /** @description The declaration.v1 statement item the fields must fit: its section and Second Schedule item type */
+            target: {
+                /** @constant */
+                section: "assets";
+                /** @enum {string} */
+                itemType: "land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "other";
+            } | {
+                /** @constant */
+                section: "income";
+                /** @enum {string} */
+                itemType: "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy" | "other";
+            } | {
+                /** @constant */
+                section: "liabilities";
+                /** @enum {string} */
+                itemType: "mortgage" | "loan" | "guarantee" | "other";
+            };
+            attachment: {
+                /**
+                 * Format: uri
+                 * @description Short-lived internal URL from the documents service; the gateway fetches it, and never sends it to a provider
+                 */
+                downloadUrl: string;
+                /** @enum {string} */
+                contentType: "application/pdf" | "image/jpeg" | "image/png" | "image/webp";
+                /** @description The file must hash to it; with the rest of the input, the cache key */
+                sha256: string;
+            };
+            /** @enum {string} */
+            language: "en" | "sw";
+        };
+        ExtractDocumentOutput: {
+            label: components["schemas"]["AiLabel"];
+            /** @enum {string} */
+            detectedKind: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
+            fields: {
+                /** @description Field path within the target item type */
+                name: string;
+                /** @description Typed as declaration.v1 types the field: text, a number or a boolean */
+                value: string | number | boolean;
+                /** @description How sure the reading is: 1 printed and clear, below 0.5 a guess */
+                confidence: number;
+                /** @description The page the value is on; null when it is on none (worked out) */
+                page: number | null;
+            }[];
+            /** @description What the declarant should know about the reading (an unreadable page, a document that is not the item's), in the request's language */
+            warnings: string[];
+        };
         FeedbackInput: {
             /** @description The reviewer rating the output, as the calling service knows them (token `sub`) */
             reviewerSubject: string;
@@ -698,38 +751,6 @@ export interface components {
                 path: string;
                 message: string;
             }[];
-        };
-        ExtractDocumentInput: {
-            /** @constant */
-            kind: "extract-document";
-            /** @enum {string} */
-            documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
-            /** @description Second Schedule item type from declaration.v1 the fields must fit */
-            targetItemType: string;
-            attachment: {
-                /**
-                 * Format: uri
-                 * @description Short-lived internal URL from the documents service
-                 */
-                downloadUrl: string;
-                contentType: string;
-                sha256: string;
-            };
-            /** @enum {string} */
-            language: "en" | "sw";
-        };
-        ExtractDocumentOutput: {
-            label: components["schemas"]["AiLabel"];
-            detectedKind: string;
-            fields: {
-                /** @description Field path within the target item type */
-                name: string;
-                /** @description Typed per field; strings, numbers or dates */
-                value: unknown;
-                confidence: number;
-                page: number | null;
-            }[];
-            warnings: string[];
         };
     };
     responses: never;
@@ -1129,7 +1150,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question" | "extract-document";
             };
             cookie?: never;
         };
@@ -1176,7 +1197,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question" | "extract-document";
             };
             cookie?: never;
         };
@@ -1224,7 +1245,7 @@ export interface operations {
             header?: never;
             path: {
                 tenant: string;
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question" | "extract-document";
             };
             cookie?: never;
         };
@@ -1272,7 +1293,7 @@ export interface operations {
             header?: never;
             path: {
                 tenant: string;
-                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question";
+                task: "summarize-declaration" | "explain-flags" | "draft-clarification" | "narrate-compliance-report" | "answer-declarant-question" | "extract-document";
             };
             cookie?: never;
         };

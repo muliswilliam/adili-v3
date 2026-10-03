@@ -1,3 +1,4 @@
+import type { ReadDocument } from '../documents/read-document.js';
 import type { GenerateRequest, StructuredRequest } from '../providers/port.js';
 import { buildProviderRequest, type CallParams } from '../tasks/provider-request.js';
 import type { TaskDefinition } from '../tasks/task.js';
@@ -12,9 +13,10 @@ export interface PreparedPrompt {
 }
 
 /**
- * The provider request a job makes for `input`: identifiers minimised, then the prompt built
- * with the input as untrusted data. Replay fixtures and evals key on this request, so anything
- * that must match what a job sends goes through here.
+ * The provider request a job makes for `input`: the input as the model sees it (with the
+ * `document`'s text layer, for a task that reads one), identifiers minimised, then the prompt
+ * built with the input as untrusted data and the document's other pages attached. Replay fixtures
+ * and evals key on this request, so anything that must match what a job sends goes through here.
  */
 export function preparePrompt(
   task: TaskDefinition,
@@ -22,10 +24,23 @@ export function preparePrompt(
   input: unknown,
   model: string,
   params: CallParams = {},
+  document?: ReadDocument,
 ): PreparedPrompt {
-  const minimised = minimise(input);
+  if (task.document && !document) {
+    throw new Error(`Task ${task.name} reads a document, and none was given`);
+  }
+  const sent = task.modelInput ? task.modelInput(input as never, document) : input;
+  const minimised = minimise(sent);
   return {
-    request: buildProviderRequest(task, promptVersion, minimised.input, model, params),
+    request: buildProviderRequest(
+      task,
+      promptVersion,
+      minimised.input,
+      model,
+      params,
+      input,
+      document?.visual ?? null,
+    ),
     restore: minimised.restore,
     counts: minimised.counts,
   };

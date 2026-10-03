@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { z } from 'zod';
 
+import type { DocumentContentType, ReadDocument } from '../documents/read-document.js';
 import type { DataClass } from '../jobs/task-request.js';
 import type { JsonSchema } from '../providers/port.js';
 import type { Language } from './common.js';
@@ -13,6 +14,7 @@ export const TASK_NAMES = [
   'draft-clarification',
   'narrate-compliance-report',
   'answer-declarant-question',
+  'extract-document',
 ] as const;
 export type TaskName = (typeof TASK_NAMES)[number];
 export const taskNameSchema = z.enum(TASK_NAMES);
@@ -39,11 +41,19 @@ export const COMMISSION_TASKS = TASK_NAMES.filter(
 export const DECLARANT_TASKS = ['answer-declarant-question'] as const satisfies readonly TaskName[];
 
 /**
+ * Tasks that read a declarant's document into the form (spec 05b): on the declarant's request,
+ * under the Commission's gate, but not its officers' review assistance.
+ */
+export const DOCUMENT_TASKS = ['extract-document'] as const satisfies readonly TaskName[];
+
+/**
  * The Commission tasks its officers call to review declarations. A Commission's AI status reads
  * only these routes.
  */
 export const REVIEWER_TASKS = COMMISSION_TASKS.filter(
-  (task) => !(DECLARANT_TASKS as readonly TaskName[]).includes(task),
+  (task) =>
+    !(DECLARANT_TASKS as readonly TaskName[]).includes(task) &&
+    !(DOCUMENT_TASKS as readonly TaskName[]).includes(task),
 );
 
 /** Contract `AiLabel`: present on every job output. */
@@ -108,8 +118,18 @@ export const VIOLATION_KINDS = [
   'truncated',
   'unknown-token',
   'invalid-output',
+  // extract-document's checks
+  'duplicate-field',
+  'account-number',
 ] as const;
 export type ViolationKind = (typeof VIOLATION_KINDS)[number];
+
+/** A document a task reads: where to fetch it, and what it must be. */
+export interface DocumentRef {
+  downloadUrl: string;
+  contentType: DocumentContentType;
+  sha256: string;
+}
 
 interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   name: TaskName;
@@ -117,6 +137,25 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   input: TInput;
   /** What the model must return. The gateway adds the `label` to form the job output. */
   output: TOutput;
+  /**
+   * What the model must return for this input, when narrower than `output` (extract-document's
+   * fields are the target item type's): sent as the output schema and checked like `output`.
+   */
+  outputFor?: (input: z.infer<TInput>) => TOutput;
+  /**
+   * What identifies the input for the cache and the Idempotency-Key, when not all of it:
+   * extract-document's download link changes with every request, its document's SHA-256 does not.
+   */
+  identity?: (input: z.infer<TInput>) => unknown;
+  /**
+   * The document the input names, which the gateway fetches and reads before the call (spec 05b).
+   */
+  document?: (input: z.infer<TInput>) => DocumentRef;
+  /**
+   * The input as the model sees it, when not all of it: extract-document's without the download
+   * link, with the document's text layer. Minimised like any input.
+   */
+  modelInput?: (input: z.infer<TInput>, document: ReadDocument | undefined) => unknown;
   /** Prompt versions with a file `prompts/<task>/v<N>.md`; the last one is current. */
   promptVersions: readonly [number, ...number[]];
   /** Output limit of every call for this task, or of a call for this input. */
@@ -173,9 +212,7 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
       readFileSync(new URL(`${spec.name}/v${version}.md`, PROMPTS_DIR), 'utf8'),
     ]),
   );
-  const outputJsonSchema: JsonSchema = z.toJSONSchema(spec.output, { target: 'draft-2020-12' });
-  // The dialect marker means nothing to providers; the schema is sent without it.
-  delete outputJsonSchema.$schema;
+  const outputJsonSchema = toJsonSchema(spec.output);
   return {
     ...spec,
     currentPromptVersion: Math.max(...spec.promptVersions),
@@ -189,6 +226,38 @@ export function defineTask<TInput extends z.ZodObject, TOutput extends z.ZodObje
       return prompt;
     },
   };
+}
+
+/** JSON Schemas of the narrower output schemas (`outputFor`), which tasks build once each. */
+const outputSchemas = new WeakMap<z.ZodObject, JsonSchema>();
+
+/** The output schema of a call for `input`, the job's input as the task validated it. */
+export function outputSchemaOf(task: TaskDefinition, input: unknown): z.ZodObject {
+  return task.outputFor ? task.outputFor(input as z.infer<z.ZodObject>) : task.output;
+}
+
+/** `outputSchemaOf` as JSON Schema, for the provider; computed once per schema. */
+export function outputJsonSchemaOf(task: TaskDefinition, input: unknown): JsonSchema {
+  const schema = outputSchemaOf(task, input);
+  if (schema === task.output) return task.outputJsonSchema;
+  let json = outputSchemas.get(schema);
+  if (!json) {
+    json = toJsonSchema(schema);
+    outputSchemas.set(schema, json);
+  }
+  return json;
+}
+
+/** What identifies `input` for the cache and the Idempotency-Key. */
+export function inputIdentity(task: TaskDefinition, input: unknown): unknown {
+  return task.identity ? task.identity(input as z.infer<z.ZodObject>) : input;
+}
+
+function toJsonSchema(schema: z.ZodObject): JsonSchema {
+  const json: JsonSchema = z.toJSONSchema(schema, { target: 'draft-2020-12' });
+  // The dialect marker means nothing to providers; the schema is sent without it.
+  delete json.$schema;
+  return json;
 }
 
 /**

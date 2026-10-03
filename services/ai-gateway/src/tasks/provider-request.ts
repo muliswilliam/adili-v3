@@ -1,7 +1,8 @@
 import { canonicalJson } from '@adili/api-kit';
 
-import type { Effort, StructuredRequest } from '../providers/port.js';
-import { outputLimit, type TaskDefinition } from './task.js';
+import type { VisualPages } from '../documents/read-document.js';
+import type { ContentPart, Effort, StructuredRequest } from '../providers/port.js';
+import { outputJsonSchemaOf, outputLimit, type TaskDefinition } from './task.js';
 
 /** Call parameters a route may set; anything unset falls back to the task's own. */
 export interface CallParams {
@@ -23,7 +24,8 @@ export const GATEWAY_RULES = `## Input handling (every task)
  * (cached) system prompt, the task input as the user message wrapped as untrusted data, and the
  * output schema for structured output. The input is serialised canonically with `<`, `>` and `&`
  * escaped (still the same JSON), so no text in it can close the wrapper, and equal jobs make
- * equal requests that replay fixtures match.
+ * equal requests that replay fixtures match. A document's pages read from their image follow the
+ * input, wrapped as an untrusted document naming the pages they are.
  */
 export function buildProviderRequest(
   task: TaskDefinition,
@@ -33,20 +35,30 @@ export function buildProviderRequest(
   /** Decided by the routing table. */
   model: string,
   params: CallParams = {},
+  /** The task input as the task validated it, which decides the output schema and limit. */
+  taskInput: unknown = input,
+  /** A document's pages the model sees as images. */
+  visual: VisualPages | null = null,
 ): StructuredRequest {
+  const text = `<untrusted-input>\n${escapeMarkup(canonicalJson(input))}\n</untrusted-input>`;
   return {
     model,
     system: `${task.prompt(promptVersion).trimEnd()}\n\n${GATEWAY_RULES}\n`,
-    messages: [
-      {
-        role: 'user',
-        content: `<untrusted-input>\n${escapeMarkup(canonicalJson(input))}\n</untrusted-input>`,
-      },
-    ],
-    maxOutputTokens: params.maxOutputTokens ?? outputLimit(task, input),
+    messages: [{ role: 'user', content: visual ? withDocument(text, visual) : text }],
+    maxOutputTokens: params.maxOutputTokens ?? outputLimit(task, taskInput),
     ...(params.effort && { effort: params.effort }),
-    schema: task.outputJsonSchema,
+    schema: outputJsonSchemaOf(task, taskInput),
   };
+}
+
+/** The input, then the pages as one attachment between the untrusted-document tags. */
+function withDocument(text: string, { pages, ...attachment }: VisualPages): ContentPart[] {
+  return [
+    { type: 'text', text },
+    { type: 'text', text: `<untrusted-document pages="${pages.join(', ')}">` },
+    { type: 'attachment', attachment },
+    { type: 'text', text: '</untrusted-document>' },
+  ];
 }
 
 /** JSON with `<`, `>` and `&` as `\u` escapes: the same value, with no markup characters. */

@@ -7,6 +7,7 @@ export const TASK_NAMES = [
   'draft-clarification',
   'narrate-compliance-report',
   'answer-declarant-question',
+  'extract-document',
 ] as const satisfies readonly TaskName[];
 
 /** Compile-time check that every contract task is listed above (the reverse of `satisfies`). */
@@ -38,7 +39,18 @@ export function isCommissionTask(task: TaskName): boolean {
  */
 export const DECLARANT_TASKS = ['answer-declarant-question'] as const satisfies readonly TaskName[];
 
+/**
+ * Tasks that read a declarant's document into the form (spec 05b): under the Commission's gate,
+ * but not its officers' review assistance, so its AI status leaves them out too. Copies the
+ * gateway's `DOCUMENT_TASKS`.
+ */
+export const DOCUMENT_TASKS = ['extract-document'] as const satisfies readonly TaskName[];
+
 /** Whether `task` is one a Commission's officers call to review, which its AI status reads. */
 export function isReviewerTask(task: TaskName): boolean {
-  return isCommissionTask(task) && !(DECLARANT_TASKS as readonly TaskName[]).includes(task);
+  return (
+    isCommissionTask(task) &&
+    !(DECLARANT_TASKS as readonly TaskName[]).includes(task) &&
+    !(DOCUMENT_TASKS as readonly TaskName[]).includes(task)
+  );
 }

@@ -27,6 +27,10 @@ export function isTerminal(status: JobStatus): status is TerminalStatus {
  *   failure that ends a job without a result (the contract has no internal reason yet).
  * - `timeout`: the provider kept timing out.
  * - `cancelled`: the caller went away before a streamed job ended (ADR-019).
+ * - `document-unavailable`: the document a task reads could not be fetched (its link expired,
+ *   the store did not answer); a new request with a fresh link may succeed.
+ * - `document-unreadable`: the document is not the file named (size, type, SHA-256), is damaged,
+ *   or has more pages or bytes than a reading takes.
  * - `policy`, `budget`, `provider-unavailable`: set by the policy layer.
  */
 export const JOB_REASONS = [
@@ -38,6 +42,8 @@ export const JOB_REASONS = [
   'provider-unavailable',
   'timeout',
   'cancelled',
+  'document-unavailable',
+  'document-unreadable',
 ] as const;
 export type JobReason = (typeof JOB_REASONS)[number];
 export const jobReasonSchema = z

@@ -19,6 +19,7 @@ import { answerDeclarantQuestion } from './tasks/answer-declarant-question.js';
 import { changeInput, flagInput, registryStatusInput, sourceRef } from './tasks/common.js';
 import { draftClarification } from './tasks/draft-clarification.js';
 import { explainFlags } from './tasks/explain-flags.js';
+import { extractDocument } from './tasks/extract-document.js';
 import { narrateComplianceReport } from './tasks/narrate-compliance-report.js';
 import { summarizeDeclaration } from './tasks/summarize-declaration.js';
 import { aiLabelSchema, taskNameSchema } from './tasks/task.js';
@@ -52,6 +53,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   NarrateComplianceReportOutput: narrateComplianceReport.jobOutput,
   AnswerDeclarantQuestionInput: answerDeclarantQuestion.input,
   AnswerDeclarantQuestionOutput: answerDeclarantQuestion.jobOutput,
+  ExtractDocumentInput: extractDocument.input,
+  ExtractDocumentOutput: extractDocument.jobOutput,
   FeedbackInput: feedbackInputSchema,
   Feedback: feedbackViewSchema,
   TenantAiStatus: tenantAiStatusSchema,

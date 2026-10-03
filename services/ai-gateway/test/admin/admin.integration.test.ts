@@ -487,6 +487,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['draft-clarification', null],
         ['narrate-compliance-report', null],
         ['answer-declarant-question', null],
+        ['extract-document', null],
         ['retired-task', null],
       ]);
     });
@@ -540,6 +541,7 @@ describe('admin API', { timeout: 90_000 }, () => {
         ['draft-clarification', null],
         ['narrate-compliance-report', null],
         ['answer-declarant-question', null],
+        ['extract-document', null],
       ]);
       expect(table).toContainEqual(
         expect.objectContaining({ tenant: 'rcomm', model: 'claude-sonnet-5' }),

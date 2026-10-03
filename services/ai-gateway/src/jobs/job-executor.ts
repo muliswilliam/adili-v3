@@ -6,6 +6,8 @@ import { EventPublisher } from '@adili/events';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { asPlatform, asTenant, type GatewayDatabase } from '../db/context.js';
+import { DocumentFetcher } from '../documents/document-fetcher.js';
+import { DocumentError, readDocument, type ReadDocument } from '../documents/read-document.js';
 import { type Job, jobs } from '../db/schema.js';
 import { hashJson } from '../hashing.js';
 import { CircuitBreaker } from '../policy/circuit-breaker.js';
@@ -24,7 +26,13 @@ import {
 import { ProviderRegistry } from '../providers/providers.module.js';
 import { inputLanguage } from '../tasks/common.js';
 import { findTask } from '../tasks/registry.js';
-import { type AiLabel, aiLabel, type OutputViolation, type TaskDefinition } from '../tasks/task.js';
+import {
+  type AiLabel,
+  aiLabel,
+  type OutputViolation,
+  outputSchemaOf,
+  type TaskDefinition,
+} from '../tasks/task.js';
 import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { type JobReason, LIVE_STATUSES } from './job-states.js';
@@ -131,6 +139,7 @@ export class JobExecutor {
     private readonly breaker: CircuitBreaker,
     private readonly telemetry: GenAiTelemetry,
     private readonly events: EventPublisher,
+    private readonly documents: DocumentFetcher,
   ) {}
 
   /**
@@ -151,6 +160,9 @@ export class JobExecutor {
       await this.finish(job, refusal, NO_CALL);
       return;
     }
+    // Fetched only once the gate admits the job: a refused job never touches the document.
+    const document = await this.read(job, task);
+    if (document === 'failed') return;
     const provider = this.providers.get(job.provider);
     if (!provider) throw new Error(`Job ${jobId}: provider ${job.provider} vanished`);
     if (!this.breaker.tryAcquire(provider.name)) {
@@ -163,7 +175,7 @@ export class JobExecutor {
     try {
       params = parseParams(job.params, `job ${job.id}`);
       // The token map lives in `prompt` for this attempt only, and is never stored or logged.
-      prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params);
+      prompt = preparePrompt(task, job.promptVersion, job.input, job.model, params, document);
       this.telemetry.identifiersMinimised(job, prompt.counts);
     } catch (error) {
       // No call was made: a probe this attempt claimed must not keep the breaker half-open.
@@ -185,6 +197,28 @@ export class JobExecutor {
     await retryWrite(job.id, deadline, async () => {
       await this.finish(job, outcome, metrics);
     });
+  }
+
+  /**
+   * The document the job's task reads, fetched and read; undefined for a task that reads none,
+   * `failed` once the job has been finished as failed because the document could not be read.
+   */
+  private async read(job: Job, task: TaskDefinition): Promise<ReadDocument | undefined | 'failed'> {
+    if (!task.document) return undefined;
+    const ref = task.document(task.input.parse(job.input));
+    try {
+      return await readDocument(await this.documents.fetch(ref), ref.contentType);
+    } catch (error) {
+      if (!(error instanceof DocumentError)) throw error;
+      // The kind and message name no content and no link.
+      this.logger.warn(
+        { jobId: job.id, task: job.task, kind: error.kind, message: error.message },
+        'The document the job reads could not be read',
+      );
+      const reason = error.kind === 'unavailable' ? 'document-unavailable' : 'document-unreadable';
+      await this.finish(job, { status: 'failed', reason }, NO_CALL);
+      return 'failed';
+    }
   }
 
   /** Records a job whose execution could not succeed (retries exhausted, permanent error). */
@@ -259,7 +293,8 @@ export class JobExecutor {
     if (result.status === 'refused') return { status: 'failed', reason: 'refused' };
     // A cut-off structured output is absent: nothing valid to keep.
     if (result.status === 'truncated') return { status: 'failed', reason: 'validation' };
-    const parsed = task.output.safeParse(result.output);
+    const schema = outputSchemaOf(task, task.input.parse(job.input));
+    const parsed = schema.safeParse(result.output);
     if (!parsed.success) {
       // Issue paths and codes only: messages can quote the output.
       this.logger.warn(
@@ -292,7 +327,7 @@ export class JobExecutor {
       );
       return { status: 'failed', reason: 'validation' };
     }
-    const restored = task.output.safeParse(unminimised);
+    const restored = schema.safeParse(unminimised);
     if (!restored.success) {
       this.logger.warn(
         {
