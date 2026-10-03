@@ -1,4 +1,4 @@
-import { documentIdentifiers, recurrenceOf } from './document-identifiers.js';
+import { addressesAt, documentIdentifiers, recurrenceOf } from './document-identifiers.js';
 
 /**
  * Minimisation (spec 07c, ADR-007): personal identifiers in a task input are replaced by stable
@@ -318,8 +318,11 @@ export function minimise<T>(input: T): Minimised<T> {
       : text;
   const replaceWritten = (text: string): string =>
     writtenPattern
-      ? text.replace(writtenPattern, (match) => {
+      ? text.replace(writtenPattern, (match: string, offset: number) => {
           const cls = written.get(match);
+          if (addressesAt(match, text.slice(offset + match.length, offset + match.length + 8))) {
+            return match;
+          }
           return cls ? tokenFor(cls, match) : match;
         })
       : text;

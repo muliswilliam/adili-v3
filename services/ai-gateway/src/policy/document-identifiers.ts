@@ -281,13 +281,15 @@ const PLACES = new Set([
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
   ...['kenya', 'uganda', 'tanzania', 'rwanda', 'nyali', 'westlands', 'kilimani'],
 ]);
-/** A document's headings and vehicle makes, which a list's unmarked line may hold. */
+/** A document's headings and vehicle makes and models, which a list's unmarked line may hold. */
 const HEADING_WORDS = new Set([
   ...['assets', 'liabilities', 'security', 'offered', 'share', 'capital', 'schedule'],
   ...['registered', 'office', 'terms', 'conditions', 'particulars', 'details', 'summary'],
   ...['toyota', 'nissan', 'isuzu', 'mitsubishi', 'mazda', 'subaru', 'honda', 'mercedes'],
   ...['volkswagen', 'suzuki', 'land', 'county', 'collateral', 'vehicles', 'vehicle', 'motor'],
   ...['properties', 'property', 'shareholding', 'shareholdings', 'freehold', 'leasehold'],
+  ...['premio', 'axio', 'fielder', 'vitz', 'probox', 'demio', 'allion', 'corolla', 'hilux'],
+  ...['prado', 'belta', 'passo', 'ractis', 'sienta', 'wingroad', 'tiida'],
 ]);
 /** Words that, before a colon, end a name's span: another field, an organisation, place, office. */
 const BOUNDARY_WORDS: ReadonlySet<string> = new Set([
@@ -318,7 +320,18 @@ const WRITTEN_ONLY: ReadonlySet<string> = new Set([
 export function recurrenceOf(word: string): 'any' | 'written' | 'exact' {
   const text = word.toLowerCase();
   if (COMMON_WORDS.has(text)) return 'written';
-  return WRITTEN_ONLY.has(text) ? 'exact' : 'any';
+  return WRITTEN_ONLY.has(text) || ADDRESS_WORDS.has(text) ? 'exact' : 'any';
+}
+
+/** Words of an address that are also names ("Peter Box"): matched only as written. */
+const ADDRESS_WORDS: ReadonlySet<string> = new Set(['box']);
+
+/**
+ * Whether a name word found again, with `rest` the text after it, is an address's word
+ * instead: "Box" before a number ("Postal: Box 99") is not the name "Box".
+ */
+export function addressesAt(word: string, rest: string): boolean {
+  return ADDRESS_WORDS.has(word.toLowerCase()) && /^[ \t]*\p{N}/u.test(rest);
 }
 
 const lower = (word: string) => word.toLowerCase();
@@ -443,7 +456,7 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
       if (!PARTICLES.has(word)) nextParty();
       continue;
     }
-    if (startsLabel(tokens, at) || labelsAField(tokens, at)) break;
+    if (startsLabel(tokens, at) || labelsAField(tokens, at) || isBox(tokens, at)) break;
     if (JOINER_WORDS.has(lower(word))) {
       nextParty();
       continue;
@@ -569,25 +582,46 @@ function markerOf(tokens: readonly Token[]): Marker | null {
   return null;
 }
 
-/** Field words that follow a person's name on a list line ("Akinyi ID 12345678", "Otieno Tel"). */
-const PERSON_FIELDS = new Set([
-  'id',
-  'pin',
-  'tel',
-  'telephone',
-  'phone',
-  'mobile',
-  'email',
-  'simu',
-]);
+/**
+ * Field words that name an item, not a person, after one word on a list line ("Ordinary Shares",
+ * "Freehold Tenure", "Residential Plot", "Current Account"); company words do so too ("Equity Bank").
+ */
+const ITEM_FIELDS = new Set(['shares', 'tenure', 'plot', 'account']);
 
-/** Whether the word at `at` is "Box" in an address: after "P.O." or before a number ("Box 123"). */
-function isBox(tokens: readonly Token[], at: number, names: readonly string[]): boolean {
-  const token = tokens[at];
-  if (token?.kind !== 'word' || lower(token.text) !== 'box') return false;
+/** The token before `at`, past spaces. */
+function tokenBefore(
+  tokens: readonly Token[],
+  at: number,
+): { token: Token | undefined; at: number } {
+  let before = at - 1;
+  while (tokens[before]?.kind === 'space') before--;
+  return { token: tokens[before], at: before };
+}
+
+const isWordToken = (token: Token | undefined, text: string) =>
+  token?.kind === 'word' && lower(token.text) === text;
+const isMark = (token: Token | undefined, text: string) =>
+  token?.kind === 'other' && token.text === text;
+
+/**
+ * Whether the word at `at` is "Box" in an address: before a number ("Box 123"), or after "P.O." or
+ * "Post Office". A name's span ends there.
+ */
+function isBox(tokens: readonly Token[], at: number): boolean {
+  if (!isWordToken(tokens[at], 'box')) return false;
   let next = at + 1;
   while (tokens[next]?.kind === 'space') next++;
-  return tokens[next]?.kind === 'number' || names.join('.').toLowerCase().endsWith('p.o');
+  if (tokens[next]?.kind === 'number') return true;
+  const one = tokenBefore(tokens, at);
+  if (isWordToken(one.token, 'office'))
+    return isWordToken(tokenBefore(tokens, one.at).token, 'post');
+  // "P.O.": P, ".", O, "." (or "P.O" without the last dot).
+  const dotted = isMark(one.token, '.') ? one.at - 1 : one.at + 1;
+  return (
+    isWordToken(tokens[dotted], 'o') &&
+    isMark(tokens[dotted - 1], '.') &&
+    isWordToken(tokens[dotted - 2], 'p')
+  );
 }
 
 /**
@@ -596,9 +630,9 @@ function isBox(tokens: readonly Token[], at: number, names: readonly string[]): 
  * Wanjiru"), none a place, heading or common word, up to the first field word, currency,
  * uncapitalised word, number, joiner, dash or other mark ("John Kamau ID 12345678", "Mary Wanjiru
  * - 40%"). A company word after them makes the line an organisation ("Equity Bank"), not a name.
- * One word is a name only when the line ends there, or a person's field or a mark follows it
- * ("Akinyi ID 12345678", "Otieno, Nakuru"); before another field word, a currency or a number it is
- * an item ("Freehold Tenure", "Premio Year 2015", "Preference Shares 200").
+ * One word is an item, not a name, only before a field word that names an item ("Ordinary Shares",
+ * "Freehold Tenure"); before anything else it is a name ("Achieng 40%", "Achieng KES 500",
+ * "Otieno Year 2015", "Achieng Box 12").
  * `name` when nothing follows the name; `name-office` when a comma, dash or colon and only offices
  * or field words follow ("Mary Wanjiru, Secretary"); `name-led` when anything else follows;
  * `other` when the leading words are not a name. `names` are the name's words.
@@ -606,22 +640,21 @@ function isBox(tokens: readonly Token[], at: number, names: readonly string[]): 
 function listLine(tokens: readonly Token[], from: number): ListLine {
   const other: ListLine = { reading: 'other', names: [] };
   const names: string[] = [];
-  // Whether the name stops at a field word, currency or number other than a person's field.
+  // Whether the name stops at a field word that names an item.
   let atItemField = false;
   let at = from;
   for (; at < tokens.length; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
     if (token?.kind === 'other' && token.text === '.' && names.length > 0) continue;
-    if (token?.kind === 'number') atItemField = true;
     if (token?.kind !== 'word') break;
     if (PARTICLES.has(token.text)) continue;
     const word = lower(token.text);
     // An office before the name, wherever the list puts it ("Chairman John Kamau").
     if (names.length === 0 && (ROLE_WORDS.has(word) || qualifiesOffice(token.text))) continue;
     if (names.length > 0 && isOrganisationWord(word)) return other;
-    if (FIELD_WORDS.has(word) || CURRENCIES.has(word) || isBox(tokens, at, names)) {
-      atItemField = !PERSON_FIELDS.has(word);
+    if (FIELD_WORDS.has(word) || CURRENCIES.has(word) || isBox(tokens, at)) {
+      atItemField = ITEM_FIELDS.has(word);
       break;
     }
     // A word after the name ends it ("Peter Otieno born 1990").
@@ -690,11 +723,11 @@ function listParties(
   first: number,
 ): string[][] {
   const parties: string[][] = [];
-  // The first marker within a few lines after `row` that `wanted` accepts.
+  // The first marker within a few lines after `row` that `wanted` accepts (any, by default).
   const markerAhead = (
     row: number,
     read: (at: number) => Marker | null,
-    wanted: (marker: Marker) => boolean,
+    wanted: (marker: Marker) => boolean = () => true,
   ) => {
     for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
       const marker = read(at);
@@ -706,11 +739,7 @@ function listParties(
   const markerAt = (row: number): Marker | null => {
     const marker = markerOf(tokensAt(row));
     if (marker?.kind !== 'letter' || marker.value !== 9) return marker;
-    const next = markerAhead(
-      row,
-      (at) => markerOf(tokensAt(at)),
-      () => true,
-    );
+    const next = markerAhead(row, (at) => markerOf(tokensAt(at)));
     const roman = next?.kind === 'roman' && next.value === 2 && next.indent === marker.indent;
     return roman ? { ...marker, kind: 'roman', value: 1 } : marker;
   };
