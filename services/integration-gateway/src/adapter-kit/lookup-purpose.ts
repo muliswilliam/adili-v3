@@ -28,10 +28,10 @@ type LookupClient = 'review' | 'declarations';
 
 /**
  * The legal bases a caller may name in `X-Legal-Basis` (`HEADER_LEGAL_BASES`), each with the one
- * service whose work it is: review cross-checks and verifies declarations; the declarations service looks up on the
- * declarant's own request (spec 05b story 17: no lookup beyond the legal basis). Both hold the
- * `registry` scope, so neither may borrow the other's basis. Onboarding's `adr-014-onboarding` is
- * not named in a header: the IPRS route records it itself.
+ * service whose work it is: review cross-checks and verifies declarations; the declarations service
+ * looks up on the declarant's own request (spec 05b story 17: no lookup beyond the legal basis).
+ * Both hold the `registry` scope, so neither may borrow the other's basis. Onboarding's
+ * `adr-014-onboarding` is not named in a header: the IPRS route records it itself.
  */
 const CLIENT_OF_BASIS = {
   'regs-r20-1-b': 'review',

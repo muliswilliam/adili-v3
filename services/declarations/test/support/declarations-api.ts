@@ -281,10 +281,12 @@ export interface DeclarationsApi {
 /**
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
- * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are recorded (see
- * `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay in the outbox
- * for assertions). The service's Temporal worker polls the suite's own task queue. The test role owns the tables, so
- * FORCE row-level security applies to it as to the service's role.
+ * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the
+ * integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are
+ * recorded (see `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay
+ * in the outbox for assertions). The service's Temporal worker polls the suite's own task queue.
+ * The test role owns the tables, so FORCE row-level security applies to it as to the service's
+ * role.
  */
 export async function startDeclarationsApi({
   workflows: mode = 'recording',

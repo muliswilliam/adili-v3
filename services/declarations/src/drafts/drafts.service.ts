@@ -316,9 +316,10 @@ export class DraftsService {
 
   /**
    * Discards the draft (S15): its sections, attachment rows and registry suggestions (spec 05b S7)
-   * are deleted, with an unlink event per attachment (the files are left to the documents orphan sweep), and the declaration is
-   * marked `discarded`. The obligation is untouched, so a new start makes a fresh draft. 404 when
-   * the draft is not the caller's or already discarded, 409 when it is no longer a draft.
+   * are deleted, with an unlink event per attachment (the files are left to the documents orphan
+   * sweep), and the declaration is marked `discarded`. The obligation is untouched, so a new start
+   * makes a fresh draft. 404 when the draft is not the caller's or already discarded, 409 when it
+   * is no longer a draft.
    */
   async discard(principal: Principal, declarationId: string): Promise<void> {
     const person = personOf(principal);

@@ -50,7 +50,9 @@ const suggestionsQuery = z.object({
 
 /**
  * Registry suggestions on a draft (spec 05b). Declarant only, by the `person_id` claim; any other
- * caller gets 404.
+ * caller gets 404. Every answer holding a suggestion is an audited read (ADR-008), although the
+ * declarant reads their own draft: it carries what registries hold about their spouse and
+ * children too, as the draft's section reads do.
  */
 @ApiTags('suggestions')
 @Controller('v1/declarations/:declarationId/suggestions')

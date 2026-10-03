@@ -227,13 +227,13 @@ export class SuggestionsService {
   /**
    * Accepts a `new` suggestion (S4): the section read-modify-write of the section save, with
    * `If-Match`, adding the item with the suggestion as its `source` or filling the item it is
-   * applied to (`acceptance.ts`), whose source names the registry's verification result only
-   * when the item holds what the registry said. In the save's transaction the suggestion becomes
-   * `accepted` with the item, re-checked under a row lock, and `declaration.suggestion-accepted.v1` is recorded
-   * beside the save's own `declaration.section-saved.v1`. 409 `not-new` when it was decided or
-   * superseded already, 409 `draft-version-mismatch` when the draft changed since `If-Match`
-   * (428 without it), 400 for fields the item cannot take or a suggestion with no place in
-   * declaration.v1, 404 when it is not the caller's.
+   * applied to (`acceptance.ts`), whose source names the registry's verification result only when
+   * the item holds what the registry said. In the save's transaction the suggestion becomes
+   * `accepted` with the item, re-checked under a row lock, and `declaration.suggestion-accepted.v1`
+   * is recorded beside the save's own `declaration.section-saved.v1`. 409 `not-new` when it was
+   * decided or superseded already, 409 `draft-version-mismatch` when the draft changed since
+   * `If-Match` (428 without it), 400 for fields the item cannot take or a suggestion with no place
+   * in declaration.v1, 404 when it is not the caller's.
    */
   async accept(
     principal: Principal,

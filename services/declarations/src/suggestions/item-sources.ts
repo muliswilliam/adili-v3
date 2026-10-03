@@ -109,7 +109,8 @@ function mapSectionItems(
 ): SectionContents {
   const mapped = (list: unknown) =>
     Array.isArray(list)
-      ? (list as unknown[]).map((each) => (isRecord(each) ? edit(each) : each))
+      ? // Array.isArray narrows to any[].
+        (list as unknown[]).map((each) => (isRecord(each) ? edit(each) : each))
       : list;
   if (sectionKey.startsWith('statement:')) {
     return {

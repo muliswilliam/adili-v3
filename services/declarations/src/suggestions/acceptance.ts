@@ -22,10 +22,10 @@ import { companyKeys, type MatchKey, matchKeysOfItem } from './match-keys.js';
  *
  * A new item carries the suggestion as its `source`. Applied to an existing item, a suggestion
  * fills only the fields the item leaves empty unless `overwrite` is set, and marks the item with
- * its `source` if it has none (or takes this one with `overwrite`). The source names the
- * registry's verification result only while the item holds what the registry said (`sourcing`). Values (`value`, `amount`) are never
- * written: valuing is the declarant's call. A spouse in Household has no `source` in
- * declaration.v1, so a PIN carries none.
+ * its `source` if it has none (or takes this one with `overwrite`). The source names the registry's
+ * verification result only while the item holds what the registry said (`sourcing`). Values
+ * (`value`, `amount`) are never written: valuing is the declarant's call. A spouse in Household has
+ * no `source` in declaration.v1, so a PIN carries none.
  */
 
 export interface AcceptedFields {
