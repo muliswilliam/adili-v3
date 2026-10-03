@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router';
 
 import { messages as m } from '../../components/form-m/messages';
+import { formMCapabilities } from '../../components/form-m/capabilities';
 import { signInRedirect } from '../../components/sign-in-redirect';
 import { WorkspaceLayout } from '../../components/workspace-layout';
 import { workspaceFor } from '../../components/workspaces';
@@ -24,11 +25,13 @@ export const Route = createFileRoute('/form-m')({
     if (!viewer) throw signInRedirect(location.href);
     const principal = viewer.directory.ok ? viewer.directory.principal : null;
     const roles = principal?.roles ?? [];
+    const workspace = workspaceFor(roles, 'form-m') ?? null;
     return {
       viewer,
       roles,
       tenant: principal?.tenant ?? null,
-      workspace: workspaceFor(roles, 'form-m') ?? null,
+      workspace,
+      capabilities: formMCapabilities(roles, workspace),
     };
   },
   staticData: {
