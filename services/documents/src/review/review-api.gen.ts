@@ -5191,7 +5191,6 @@ export interface operations {
                 reportingEntityId?: string;
             };
             header: {
-                "idempotency-key": string;
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
                 "Idempotency-Key": string;
             };
