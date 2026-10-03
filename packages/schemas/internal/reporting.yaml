@@ -629,6 +629,15 @@ paths:
       tags: [ncr]
       operationId: getNationalReportCandidates
       summary: Deterministic pattern candidates computed from this and prior years' aggregates (analyst)
+      description: >-
+        Computed from the year's aggregates as last built and those of the prior years built, at
+        the configured thresholds (`CANDIDATE_*`), ordered by kind then subject (`national`
+        first). Values by kind: `rate-change` {from, to, change, factor} of a non-filer rate year
+        on year; `threshold-breach` {nonFilerRate, threshold}; `chronic-late-reporting` {years}
+        of reports submitted late running; `clarification-ratio-outlier` {clarificationRatio,
+        nationalRatio, factor}; `size-band-outlier` {nonFilerRate, peerNonFilerRate, peers,
+        bandFrom, bandTo} against the other Commissions with as many officers expected;
+        `non-reporting` {years} without a report running. EACC analysts and supervisors only.
       responses:
         '200':
           description: Candidates

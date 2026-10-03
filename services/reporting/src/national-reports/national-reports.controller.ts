@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 
 import { FIRST_FINANCIAL_YEAR } from '../financial-year.js';
+import type { PatternCandidate } from './candidates.js';
 import type { Narrative } from './narrative.js';
 import { NationalReportsService } from './national-reports.service.js';
 import type { NationalReportView } from './representation.js';
@@ -35,9 +36,9 @@ const EACC_ONLY = 'Only EACC analysts and supervisors';
 const APPROVED = 'Problem code `ncr-approved`: the report no longer changes';
 
 /**
- * EACC's national consolidated report (spec 09 NCR): read, build from the submitted reports,
- * save the narrative (EACC analysts and supervisors; everyone else 403), and approve (an EACC
- * supervisor who did not write it).
+ * EACC's national consolidated report (spec 09 NCR): read, its pattern candidates (spec 09b),
+ * build from the submitted reports, save the narrative (EACC analysts and supervisors; everyone
+ * else 403), and approve (an EACC supervisor who did not write it).
  */
 @ApiTags('ncr')
 @Controller('v1/eacc/national-reports')
@@ -58,6 +59,23 @@ export class NationalReportsController {
     @Param('fy', new ZodValidationPipe(financialYear)) fy: number,
   ): Promise<NationalReportView> {
     return this.reports.get(principal, fy);
+  }
+
+  @Get(':fy/candidates')
+  @ApiFinancialYearParam()
+  @ApiOperation({
+    operationId: 'getNationalReportCandidates',
+    summary:
+      "Deterministic pattern candidates computed from this and prior years' aggregates (analyst)",
+  })
+  @ApiOkResponse({ description: 'Candidates' })
+  @ApiProblemResponse(403, EACC_ONLY)
+  @ApiProblemResponse(404, 'Not built yet')
+  candidates(
+    @CurrentPrincipal() principal: Principal,
+    @Param('fy', new ZodValidationPipe(financialYear)) fy: number,
+  ): Promise<PatternCandidate[]> {
+    return this.reports.candidates(principal, fy);
   }
 
   @Post(':fy/build')

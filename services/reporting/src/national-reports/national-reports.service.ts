@@ -4,11 +4,12 @@ import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { allocateReference, NCR } from '@adili/numbering';
 import { EACC_TENANT } from '@adili/roles';
-import { eq } from 'drizzle-orm';
+import { between, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import { requireEacc, requireEaccSupervisor } from '../access.js';
 import { Clock } from '../clock.js';
+import { config } from '../config.js';
 import type { ReportingTransaction } from '../compliance-reports/reports.js';
 import { reportReceipts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
@@ -18,10 +19,17 @@ import { referencePeriodOf } from '../financial-year.js';
 import { officerOf } from '../officer.js';
 import { conflict, forbidden, notFound, workflowUnavailable } from '../problems.js';
 import { buildAggregates } from './aggregates.js';
+import {
+  type CandidateThresholds,
+  historyYears,
+  type PatternCandidate,
+  patternCandidates,
+} from './candidates.js';
 import { eaccContext } from '../system-context.js';
 import { NCR_ISSUER } from './contract.js';
 import { NCR_APPROVED, NCR_DRAFTED, type NcrApprovedData, type NcrDraftedData } from './events.js';
 import { type Narrative, type Paragraph, saveSection } from './narrative.js';
+import { type NarrativeFigures, narrativeFigures } from './narrative-input.js';
 import { NationalReportWorkflows } from './national-report-workflows.js';
 import {
   type NationalReportRow,
@@ -35,6 +43,17 @@ import {
   nationalReportParagraphs,
   nationalReports,
 } from './schema.js';
+
+/** The configured thresholds of the pattern candidates. */
+export const CANDIDATE_THRESHOLDS: CandidateThresholds = {
+  minPoints: config.CANDIDATE_MIN_POINTS,
+  rateChangeFactor: config.CANDIDATE_RATE_CHANGE_FACTOR,
+  maxNonFilerRate: config.CANDIDATE_MAX_NON_FILER_RATE,
+  chronicLateYears: config.CANDIDATE_CHRONIC_LATE_YEARS,
+  clarificationRatioFactor: config.CANDIDATE_CLARIFICATION_RATIO_FACTOR,
+  sizeBands: config.CANDIDATE_SIZE_BANDS,
+  sizeBandFactor: config.CANDIDATE_SIZE_BAND_FACTOR,
+};
 
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
@@ -131,6 +150,18 @@ export class NationalReportsService {
   }
 
   /**
+   * The year's pattern candidates (spec 09b, EACC roles; anyone else 403), computed from its
+   * aggregates as last built and the prior years'; 404 until first built.
+   */
+  async candidates(principal: Principal, fy: number): Promise<PatternCandidate[]> {
+    requireEacc(principal, EACC_ONLY);
+    return withTenant(this.db, eaccContext(principal.subject), async (tx) => {
+      const { candidates } = await this.narrativeInputOf(tx, fy);
+      return candidates;
+    });
+  }
+
+  /**
    * Saves the narrative's sections (EACC roles). Paragraphs whose text is unchanged keep their id
    * and labels; an edited paragraph loses its AI-draft label. The caller becomes a contributor,
    * who cannot approve. 404 before the first build; 409 `ncr-approved` once approved.
@@ -217,6 +248,27 @@ export class NationalReportsService {
       await this.startApproval(approved.id, fy);
       return this.viewOf(tx, approved);
     });
+  }
+
+  /**
+   * The year's figures in the ai-gateway's shape, with the prior years the candidates look back
+   * on, and its pattern candidates: what a narrative draft is written from. 404 until built.
+   */
+  private async narrativeInputOf(
+    tx: ReportingTransaction,
+    fy: number,
+  ): Promise<{ figures: NarrativeFigures; candidates: PatternCandidate[] }> {
+    const rows = await tx
+      .select({ fy: nationalReportAggregates.fy, aggregates: nationalReportAggregates.aggregates })
+      .from(nationalReportAggregates)
+      .where(between(nationalReportAggregates.fy, fy - historyYears(CANDIDATE_THRESHOLDS), fy));
+    const current = rows.find((row) => row.fy === fy);
+    if (!current) throw notFound(NOT_BUILT);
+    const figures = narrativeFigures(
+      current.aggregates,
+      rows.filter((row) => row.fy !== fy).map((row) => row.aggregates),
+    );
+    return { figures, candidates: patternCandidates(figures, CANDIDATE_THRESHOLDS) };
   }
 
   private async viewOf(

@@ -21,7 +21,7 @@ import {
  * `byCommission.psc.final.declared`; see `aggregatePaths`). Spec 09b's narrative paragraphs
  * (`aggregateRefs`) and pattern candidates (`aggregateKeys`) do not cite these paths: they cite
  * aggregate keys in the ai-gateway scheme (`national.<name>`, `commission.<code>.<name>`,
- * prefixed `fy<fy>.`), built from these aggregates by #326 and #334.
+ * prefixed `fy<fy>.`), built from these aggregates by `narrative-input.ts`.
  */
 
 /** A Form M section's counts with its declared rate (declared / expected; null for none). */
@@ -172,7 +172,7 @@ export function buildAggregates(input: {
  * Every number's dot path in `aggregates`, sorted (`national.initial.rate`,
  * `byCommission.psc.final.declared`...). A rate that is null (nothing expected) is still a path.
  * These are not aggregate keys, which narrative paragraphs and pattern candidates cite: those
- * are in the ai-gateway scheme, and building them is #326 and #334's work.
+ * are in the ai-gateway scheme (`narrative-input.ts`).
  */
 export function aggregatePaths(aggregates: NationalAggregates): string[] {
   const paths: string[] = [];

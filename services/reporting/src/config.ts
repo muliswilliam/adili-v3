@@ -49,6 +49,43 @@ export const envSchema = baseEnvSchema.extend({
   INTAKE_MIN_INITIAL_RATE: z.coerce.number().min(0).max(1).default(0.8),
   INTAKE_MIN_BIENNIAL_RATE: z.coerce.number().min(0).max(1).default(0.8),
   INTAKE_MIN_FINAL_RATE: z.coerce.number().min(0).max(1).default(0.8),
+  /**
+   * NCR pattern candidates (spec 09b): what makes a pattern notable. Rates and points are
+   * fractions (0.02 is 2 points). A difference of rates under `CANDIDATE_MIN_POINTS` is never a
+   * pattern. `rate-change`: a non-filer rate that moved by at least `CANDIDATE_RATE_CHANGE_FACTOR`
+   * (2: doubled or halved) from the year before. `threshold-breach`: a non-filer rate above
+   * `CANDIDATE_MAX_NON_FILER_RATE`. `chronic-late-reporting`: a report late in each of the last
+   * `CANDIDATE_CHRONIC_LATE_YEARS` years. `clarification-ratio-outlier`: clarifications per
+   * declaration filed at least `CANDIDATE_CLARIFICATION_RATIO_FACTOR` times the national ratio.
+   * `size-band-outlier`: a non-filer rate at least `CANDIDATE_SIZE_BAND_FACTOR` times that of the
+   * other Commissions of its size band; `CANDIDATE_SIZE_BANDS` lists the officers expected at
+   * which each band above the smallest starts (`100,1000`: under 100, 100 to 999, 1000 and over).
+   */
+  CANDIDATE_MIN_POINTS: z.coerce.number().min(0).max(1).default(0.02),
+  CANDIDATE_RATE_CHANGE_FACTOR: z.coerce.number().min(1).default(2),
+  CANDIDATE_MAX_NON_FILER_RATE: z.coerce.number().min(0).max(1).default(0.1),
+  CANDIDATE_CHRONIC_LATE_YEARS: z.coerce.number().int().min(2).max(10).default(3),
+  CANDIDATE_CLARIFICATION_RATIO_FACTOR: z.coerce.number().min(1).default(2),
+  CANDIDATE_SIZE_BANDS: z
+    .string()
+    .default('100,1000')
+    .transform((value, context) => {
+      const bands = value
+        .split(',')
+        .map((each) => each.trim())
+        .filter((each) => each !== '')
+        .map(Number);
+      const ascending = bands.every((band, at) => at === 0 || band > (bands[at - 1] ?? 0));
+      if (!bands.every((band) => Number.isInteger(band) && band > 0) || !ascending) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Comma-separated positive whole numbers, ascending',
+        });
+        return z.NEVER;
+      }
+      return bands;
+    }),
+  CANDIDATE_SIZE_BAND_FACTOR: z.coerce.number().min(1).default(2),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('reporting'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
