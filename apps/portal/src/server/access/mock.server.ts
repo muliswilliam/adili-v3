@@ -45,7 +45,7 @@
  * (`failNextAccessCall`).
  */
 import { validateFormK, type FormKV1 } from '@adili/forms';
-import { addDays, DECIDED_ACCESS_STATUSES } from '@adili/ui';
+import { addDays, DECIDED_ACCESS_STATUSES, startOfNairobiDay } from '@adili/ui';
 import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
@@ -610,11 +610,10 @@ export const MOCK_ACCESS_REQUEST_IDS = Object.fromEntries(
 function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
   const commission = commissionOf(seed.commission);
   if (!commission) throw new Error(`No mock Commission ${seed.commission}`);
-  const ago = (days: number, hour = 9) => {
-    const at = new Date(now - days * DAY);
-    at.setUTCHours(hour - 3, 12, 0, 0);
-    return at.toISOString();
-  };
+  const today = startOfNairobiDay(new Date(now).toISOString());
+  /** `hour`:12 in Nairobi, `days` Kenyan calendar days before today. */
+  const ago = (days: number, hour = 9) =>
+    new Date(Date.parse(addDays(today, -days)) + (hour * 60 + 12) * 60_000).toISOString();
   const submittedAt =
     seed.submittedDaysAgo === 0 ? new Date(now).toISOString() : ago(seed.submittedDaysAgo);
   const reference = nextReference(commission, new Date(submittedAt));
