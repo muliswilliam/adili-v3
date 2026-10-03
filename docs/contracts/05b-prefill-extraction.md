@@ -38,7 +38,7 @@ Operations changed:
   - The body is the named `AcceptSuggestionRequest`, the answer `SuggestionAcceptance`, with the new draft version also in the `ETag` header.
   - A stale `If-Match` is 409 `draft-version-mismatch` (the draft had 412), while section saves keep 412. A missing one is 428 `if-match-required`. 409 also for `not-new` (the draft's "not `new`"), `declaration-not-draft` and `section-archived`.
   - No `Idempotency-Key` (ADR-013 §8.13): the replay store keeps no `ETag`, and accept is safe to retry under the suggestion's row lock.
-  - Registry suggestions never set a value field; a document's reading does write its amounts, at their declaration.v1 paths within the item, since the declarant reviews each one (#315).
+  - Registry suggestions never set a value field; a document's reading does write its amounts, at their declaration.v1 paths within the item, since the declarant reviews each one (#315). `AcceptSuggestionRequest.fields` says so: a document's fields come by path, values included, typed as read (an amount may come as text), and a field it did not read is 400.
   - Where each type lands is documented: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household`. The declarant's own `bio-tax` has no field yet: 400 (#474).
   - `ItemSource.verificationResultId` is named only when the item ends up holding what the registry gave.
 - `acceptSuggestion` and `dismissSuggestion` are audited reads of the suggestion (`declaration.suggestion.read`).
@@ -48,8 +48,9 @@ Operations changed:
   - `Idempotency-Key` is required.
   - Not enabled is a `not-enabled` set (202), not the draft's 409 `not-enabled`: the gateway decides by policy when the job is created and records a `blocked` job in its audit, so there is no pre-check.
   - Problems: 400 for an unknown kind or language, or an attached item with no type; 409 `upload-not-clean`, `declaration-not-draft`; 422 for a reused key; 503 `documents-unavailable` or `ai-gateway-unavailable`, with no reading recorded.
-  - Asking again for the same attachment, kind and item type while a reading is pending, or offered and not decided on, answers that reading. A reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones.
+  - One reading is pending per attachment, kind, section and item type (declarations migrations 0022 and 0023). Asking again for the same attachment, kind and item type while a reading is pending, or offered and not decided on, answers that reading. A reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones.
   - A file a reading does not take (HEIC) fails at once as `document-unreadable`, without being sent (#505).
+  - A `DocumentReadingWorkflow` on the declarations worker settles the set. It carries the requesting declarant's person id and subject from their token, so no tenant-wide read finds whose draft it is. A reading not settled within 15 minutes fails as `unavailable`, and the declarant can ask again.
   - An audited read.
 
 Schemas changed:
@@ -77,6 +78,7 @@ Schemas changed:
   - `attachment.contentType` is an enum (`application/pdf`, `image/jpeg`, `image/png`, `image/webp`), `sha256` a hex pattern. The link is never sent to the provider, and the cache and Idempotency-Key ignore it, so a fresh link to the same file is the same request.
   - `ExtractDocumentOutput.detectedKind` is the kind enum; `fields` at most 30, each `value` a string, number or boolean (no dates: declaration.v1 has none in these items), `page` 1 or more or null; `warnings` at most 10 sentences in the request's language.
   - The data class is `highly-confidential` only.
+  - Not in the contract: a text layer is minimised by shape and by label before it reaches a provider. Labelled member and payroll numbers are their own token kind (`MEMBER_NUMBER`), and organisations named after a party label are tokenised as `ORGANISATION`. Names printed with no label are #504.
 - `JobReason` gains `document-unavailable` (the link expired or the store did not answer: ask again with a fresh link) and `document-unreadable` (wrong SHA-256 or type, damaged, too many pages or bytes).
 - `GateRuleInput.tasks` and `GateRule.tasks` (#314): a gate rule may name the tasks it is for; any other task follows the default for the pair. `tasks: null` widens a scoped rule to every task; a change that leaves `tasks` out over a scoped rule is refused. The demo tenant's rule names `extract-document` (ADR-007 amendment). `TenantAiStatus` ignores a rule that does not cover every reviewer task, so it says nothing about document reading (#515).
 - Story 18 (a commission-admin sees whether document reading is enabled, "via 07c status") is not in the contract: #515.
@@ -105,7 +107,7 @@ Built as the spec lists them, identifiers only, in `services/declarations/src/su
 | `declaration.suggestion-dismissed.v1` | ids | `setId`, `source` (the reason stays with the suggestion) |
 | `declaration.extraction-requested.v1` | declaration, attachment, job | `setId`; `aiJobId` null when the file was not one a reading takes |
 
-Declarations consumes the ai-gateway's `ai.job.completed|failed|blocked.v1` for `extract-document` jobs whose subject is a declaration (#315).
+Declarations consumes the ai-gateway's `ai.job.completed|failed|blocked.v1` for `extract-document` jobs whose subject is a declaration (#315). The consumer only signals the reading's `DocumentReadingWorkflow`, which pulls the job and settles the set.
 
 ## Open after convergence
 
