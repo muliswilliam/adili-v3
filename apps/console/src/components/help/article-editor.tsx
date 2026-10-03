@@ -23,6 +23,7 @@ import {
   Input,
   SegmentedChoice,
   Spinner,
+  Switch,
   Textarea,
   useIdempotencyKey,
   useToast,
@@ -40,6 +41,7 @@ import type { HelpArticle, HelpTag } from '../../server/declarations/client';
 import { ITEM_TYPE_TAGS, SECTION_TAGS, TOPIC_TAGS } from '../../server/declarations/help-tags';
 import type { HelpResult, HelpScope } from '../../server/help.server';
 import { InfoTip } from '../info-tip';
+import { NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { messages as m } from './messages';
 import {
@@ -54,7 +56,7 @@ import {
   TITLE_MAX,
   validateArticle,
 } from './model';
-import { ArticleStatusBadge, inEffect, ReadOnlyBadge } from './parts';
+import { ArticleStatusBadge, inEffect, ReadOnlyBadge, TagChip } from './parts';
 import { type HelpWorkspace, useHelpSession } from './scope';
 
 /** Saves an article; the page passes the server function. */
@@ -115,7 +117,27 @@ const TOPIC_SET: ReadonlySet<HelpTag> = new Set(TOPIC_TAGS);
  * the publish switch. Checks the form before saving and shows the service's own refusals on the
  * fields; asks before leaving with unsaved changes. Reporting officers get the article to read.
  */
-export function ArticleEditor({
+export function ArticleEditor(props: ArticleEditorProps) {
+  // Reporting officers read articles; there is nothing to read in a new one.
+  if (props.workspace.readOnly && props.article === null) {
+    return (
+      <Page narrow>
+        <PageHead title={m.newArticle} />
+        <NoAccess
+          text={m.newForbidden}
+          action={
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/help">{m.backToArticles}</Link>
+            </Button>
+          }
+        />
+      </Page>
+    );
+  }
+  return <ArticleForm {...props} />;
+}
+
+function ArticleForm({
   workspace,
   article,
   initial,
@@ -629,37 +651,20 @@ function PublishSwitch({
   scope: HelpScope;
   onChange: (published: boolean) => void;
 }) {
-  const hintId = useId();
   return (
-    <label className="flex cursor-pointer items-start gap-3">
-      <input
-        type="checkbox"
-        role="switch"
-        checked={published}
-        aria-label={m.published}
-        aria-describedby={hintId}
-        className="peer sr-only"
-        onChange={(event) => {
-          onChange(event.target.checked);
-        }}
-      />
-      <span
-        aria-hidden="true"
-        className="relative mt-px h-6 w-10 flex-none rounded-full bg-input transition-colors peer-checked:bg-success peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-solid peer-focus-visible:outline-ring after:absolute after:top-[3px] after:left-[3px] after:size-[18px] after:rounded-full after:bg-card after:shadow-control after:transition-transform peer-checked:after:translate-x-4"
-      />
-      <span>
-        <span className="text-[14.5px] font-medium">
-          {published ? m.published : m.notPublished}
-        </span>
-        <span id={hintId} className="mt-0.5 block text-[13px] text-muted-foreground">
-          {published
-            ? scope.kind === 'platform'
-              ? m.publishedHintPlatform
-              : m.publishedHintCommission
-            : m.notPublishedHint}
-        </span>
-      </span>
-    </label>
+    <Switch
+      checked={published}
+      onCheckedChange={onChange}
+      label={m.published}
+      text={published ? m.published : m.notPublished}
+      hint={
+        published
+          ? scope.kind === 'platform'
+            ? m.publishedHintPlatform
+            : m.publishedHintCommission
+          : m.notPublishedHint
+      }
+    />
   );
 }
 
@@ -704,7 +709,9 @@ function TagPicker({
   error: string | undefined;
   onChange: (tags: HelpTag[]) => void;
 }) {
-  const [showTopics, setShowTopics] = useState(false);
+  const topicsId = useId();
+  // Open when a topic is chosen already, so no chosen tag is out of sight.
+  const [showTopics, setShowTopics] = useState(() => tags.some((tag) => TOPIC_SET.has(tag)));
   if (readOnly) {
     if (tags.length === 0) return <p className="text-[13px] text-muted-foreground">{m.noTags}</p>;
     return (
@@ -715,9 +722,7 @@ function TagPicker({
               .filter((tag) => tags.includes(tag))
               .map((tag) => (
                 <li key={tag}>
-                  <span className="inline-flex h-7 items-center rounded-full bg-foreground px-2.5 text-[13px] font-medium text-background">
-                    {m.tag[tag]}
-                  </span>
+                  <TagChip tag={tag} />
                 </li>
               ))}
           </TagGroup>
@@ -726,54 +731,62 @@ function TagPicker({
     );
   }
   const full = tags.length >= MAX_TAGS;
-  const topicsShown = showTopics || tags.some((tag) => TOPIC_SET.has(tag));
+  const chosenTopics = tags.filter((tag) => TOPIC_SET.has(tag)).length;
   return (
     <div id={id} tabIndex={-1} className="grid gap-3 outline-none">
-      {TAG_GROUPS.filter((group) => topicsShown || group.tags !== TOPIC_TAGS).map((group) => (
-        <TagGroup key={group.label} label={group.label}>
-          {group.tags.map((tag) => {
-            const on = tags.includes(tag);
-            return (
-              <li key={tag}>
-                <FilterChip
-                  pressed={on}
-                  disabled={!on && full}
-                  icon={on ? Tick02Icon : undefined}
-                  className="h-7 px-2.5 text-[13px]"
-                  onPressedChange={(pressed) => {
-                    onChange(pressed ? [...tags, tag] : tags.filter((each) => each !== tag));
-                  }}
-                >
-                  {m.tag[tag]}
-                </FilterChip>
-              </li>
-            );
-          })}
-        </TagGroup>
-      ))}
-      {topicsShown ? null : (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="justify-self-start"
-          aria-expanded={false}
-          onClick={() => {
-            setShowTopics(true);
-          }}
-        >
-          {m.showTopics(TOPIC_TAGS.length)}
-        </Button>
-      )}
+      {TAG_GROUPS.map((group) => {
+        const topics = group.tags === TOPIC_TAGS;
+        const toggle = topics ? (
+          <Button
+            key="toggle"
+            variant="ghost"
+            size="sm"
+            className="justify-self-start"
+            aria-expanded={showTopics}
+            aria-controls={topicsId}
+            onClick={() => {
+              setShowTopics((shown) => !shown);
+            }}
+          >
+            {showTopics ? m.hideTopics : m.showTopics(TOPIC_TAGS.length, chosenTopics)}
+          </Button>
+        ) : null;
+        // The same element list either way, so the toggle stays mounted (and keeps focus).
+        if (topics && !showTopics) return [toggle];
+        return [
+          toggle,
+          <TagGroup key={group.label} id={topics ? topicsId : undefined} label={group.label}>
+            {group.tags.map((tag) => {
+              const on = tags.includes(tag);
+              return (
+                <li key={tag}>
+                  <FilterChip
+                    pressed={on}
+                    disabled={!on && full}
+                    icon={on ? Tick02Icon : undefined}
+                    className="h-7 px-2.5 text-[13px]"
+                    onPressedChange={(pressed) => {
+                      onChange(pressed ? [...tags, tag] : tags.filter((each) => each !== tag));
+                    }}
+                  >
+                    {m.tag[tag]}
+                  </FilterChip>
+                </li>
+              );
+            })}
+          </TagGroup>,
+        ];
+      })}
       {full ? <FieldHint>{m.tagsMax}</FieldHint> : null}
       {error ? <FieldError>{error}</FieldError> : null}
     </div>
   );
 }
 
-function TagGroup({ label, children }: { label: string; children: ReactNode }) {
+function TagGroup({ id, label, children }: { id?: string; label: string; children: ReactNode }) {
   const labelId = useId();
   return (
-    <div>
+    <div id={id}>
       <p
         id={labelId}
         className="mb-2 text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase"

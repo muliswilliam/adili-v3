@@ -53,6 +53,13 @@ describe('navFor', () => {
     ]);
   });
 
+  it('lists Help articles once for a platform admin who also holds a Commission role (spec 11)', () => {
+    const groups = navFor(['platform-admin', 'commission-admin']);
+    const help = groups.flatMap((group) => group.items).filter((item) => item.to === '/help');
+    expect(help).toHaveLength(1);
+    expect(groups[0]?.items.at(-1)?.to).toBe('/help');
+  });
+
   it('shows commission admins the Roster but not API access, which they cannot open', () => {
     expect(labels(['commission-admin'])).toEqual([
       ['Commission', ['Roster', 'Obligations', 'Help articles']],

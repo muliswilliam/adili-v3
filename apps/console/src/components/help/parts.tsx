@@ -12,6 +12,7 @@ import {
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import type { HelpTag } from '../../server/declarations/client';
 import { PageHead } from '../page';
 import { messages as m } from './messages';
 import { type ArticleStatus } from './model';
@@ -149,6 +150,15 @@ export function CitationTag({ citation, help = false }: { citation: string; help
     >
       <Icon icon={help ? File01Icon : JusticeScale01Icon} className="size-3" strokeWidth={2} />
       {citation}
+    </span>
+  );
+}
+
+/** A chosen tag, as the article's read view and a corpus passage show it. */
+export function TagChip({ tag }: { tag: HelpTag }) {
+  return (
+    <span className="inline-flex h-7 items-center rounded-full bg-foreground px-2.5 text-[13px] font-medium text-background">
+      {m.tag[tag]}
     </span>
   );
 }

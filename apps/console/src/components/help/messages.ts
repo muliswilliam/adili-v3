@@ -206,7 +206,9 @@ export const messages = {
   tagGroupSections: 'Sections',
   tagGroupItems: 'Item types',
   tagGroupTopics: 'Topics',
-  showTopics: (count: number) => `Show topics (${String(count)})`,
+  showTopics: (count: number, chosen: number) =>
+    chosen > 0 ? `Show topics (${String(chosen)} chosen)` : `Show topics (${String(count)})`,
+  hideTopics: 'Hide topics',
   tagsMax: 'Choose up to 20 tags.',
   fixErrors: (count: number) =>
     count === 1 ? 'Fix this before saving' : `Fix these ${String(count)} before saving`,
@@ -214,6 +216,7 @@ export const messages = {
   saveFailedTitle: 'Could not save',
   saveFailedDetail: 'Check your connection and try again. Your changes are still here.',
   forbiddenSave: "Only the Commission's administrators edit its help articles.",
+  newForbidden: "Only your Commission's administrators write help articles.",
   articleNotFound: 'Article not found',
   articleNotFoundText: 'It may have been removed, or it belongs to another Commission.',
   backToArticles: 'Back to articles',

@@ -138,6 +138,29 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     expect(document.activeElement).toBe(titleBox());
   });
 
+  it('shows the corpus topics on request, keeping the toggle and its focus', () => {
+    renderEditor();
+    const toggle = screen.getByRole('button', { name: 'Show topics (34)' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Material change' })).toBeNull();
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.textContent).toBe('Hide topics');
+    expect(document.activeElement).toBe(toggle);
+    expect(screen.getByRole('button', { name: 'Material change', pressed: false })).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('button', { name: 'Material change' })).toBeNull();
+  });
+
+  it('opens with the topics shown when one is chosen', () => {
+    renderEditor({ article: { ...FILE_NUMBERS, tags: ['bio', 'employment'] } });
+    expect(screen.getByRole('button', { name: 'Hide topics' }).getAttribute('aria-expanded')).toBe(
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Employment', pressed: true })).toBeTruthy();
+  });
+
   it('starts an article for a question theme with its name and tag', () => {
     renderEditor({ article: null, initial: { title: 'Vehicles', tags: ['vehicle'] } });
     expect((titleBox() as HTMLInputElement).value).toBe('Vehicles');
@@ -237,6 +260,19 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     expect(router.blocker.reset).toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }));
     expect(router.blocker.proceed).toHaveBeenCalled();
+  });
+
+  it('refuses reporting officers a new article, with the way back', () => {
+    const { save } = renderEditor({ workspace: { ...ADMIN, readOnly: true }, article: null });
+    expect(
+      screen.getByText("Only your Commission's administrators write help articles."),
+    ).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Back to articles' }).getAttribute('href')).toBe(
+      '/help',
+    );
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(save).not.toHaveBeenCalled();
   });
 
   it('gives reporting officers the article to read, without a form', () => {

@@ -13,13 +13,14 @@ import type { HelpResult } from '../../server/help.server';
 
 /** Question themes of the viewer's own Commission: its administrators and reporting officers. */
 export const Route = createFileRoute('/help/themes')({
-  // Every month is read at once; the month shown applies in the browser.
+  // One month is read at a time (the contract's `month`), this one by default.
   validateSearch: themesSearch,
-  shouldReload: ({ cause }) => cause !== 'stay',
-  loader: async ({ context, location }): Promise<HelpResult<QuestionThemeCount[]> | null> => {
+  loaderDeps: ({ search }) => ({ month: search.month }),
+  loader: async ({ context, deps, location }): Promise<HelpResult<QuestionThemeCount[]> | null> => {
     const scope = context.help?.scope;
     if (scope?.kind !== 'commission') return null;
-    const result = await getQuestionThemes({ data: { slug: scope.slug } });
+    const month = deps.month ?? formatCalendarDate(Date.now()).slice(0, 7);
+    const result = await getQuestionThemes({ data: { slug: scope.slug, month } });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
   },

@@ -193,9 +193,12 @@ describe('question themes', () => {
     { month: '2026-07', theme: 'land', count: 5, unanswered: 0 },
   ];
 
-  it('offers this month and every month counted, newest first', () => {
-    expect(themeMonths(counts, '2026-10')).toEqual(['2026-10', '2026-09', '2026-07']);
-    expect(themeMonths([], '2026-10')).toEqual(['2026-10']);
+  it('offers this month and the eleven before it, newest first', () => {
+    const months = themeMonths('2026-02');
+    expect(months).toHaveLength(12);
+    expect(months.slice(0, 3)).toEqual(['2026-02', '2026-01', '2025-12']);
+    expect(months.at(-1)).toBe('2025-03');
+    expect(themeMonths('2026-02', '2024-06').at(-1)).toBe('2024-06');
   });
 
   it("sums a month's questions and unanswered ones and names the most unanswered theme", () => {

@@ -193,6 +193,10 @@ describe('test help search (S9: a published article is found in the same session
     });
     fireEvent.click(within(drawer).getByRole('button', { name: 'Search' }));
     expect(await within(drawer).findByText('Just published')).toBeTruthy();
+    // One live region, mounted with the drawer, announces the count only.
+    const status = within(drawer).getByRole('status');
+    expect(status.textContent).toBe('2 results');
+    expect(drawer.querySelectorAll('[aria-live], [role="status"]')).toHaveLength(1);
     expect(searchAsDeclarants).toHaveBeenCalledWith({
       scope: { kind: 'commission', slug: 'psc' },
       q: 'acting appointment',

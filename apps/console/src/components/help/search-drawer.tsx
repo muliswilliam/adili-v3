@@ -136,11 +136,26 @@ export function HelpSearchDrawer({
             </div>
             {tooShort ? <FieldError id={`${id}-short`}>{m.searchTooShort}</FieldError> : null}
           </form>
+          {/* The one live region: mounted with the drawer, so each outcome is announced. */}
+          <p role="status" className="sr-only">
+            {announcement(outcome)}
+          </p>
           <SearchOutcome outcome={outcome} scope={scope} justPublished={justPublished} />
         </DrawerBody>
       </DrawerContent>
     </Drawer>
   );
+}
+
+/** What the live region says of an outcome; a failure is announced by its alert. */
+function announcement(outcome: Outcome): string {
+  if (outcome.kind === 'searching') return m.searching;
+  if (outcome.kind === 'done') {
+    return outcome.passages.length === 0
+      ? m.searchNoResults
+      : m.resultCount(outcome.passages.length);
+  }
+  return '';
 }
 
 function SearchOutcome({
@@ -160,11 +175,7 @@ function SearchOutcome({
     );
   }
   if (outcome.kind === 'searching') {
-    return (
-      <p role="status" className="text-[13px] text-muted-foreground">
-        {m.searching}
-      </p>
-    );
+    return <p className="text-[13px] text-muted-foreground">{m.searching}</p>;
   }
   if (outcome.kind === 'failed') {
     return (
@@ -176,7 +187,7 @@ function SearchOutcome({
   }
   if (outcome.passages.length === 0) {
     return (
-      <div role="status">
+      <div>
         <EmptyState
           icon={<Icon icon={Search01Icon} />}
           title={m.searchNoResults}
@@ -186,8 +197,7 @@ function SearchOutcome({
     );
   }
   return (
-    <div aria-live="polite">
-      <p className="sr-only">{m.resultCount(outcome.passages.length)}</p>
+    <div>
       <ol className="flex flex-col">
         {outcome.passages.map((passage) => {
           const fresh = passage.source === 'help' && passage.id === justPublished;

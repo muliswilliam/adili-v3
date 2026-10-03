@@ -100,7 +100,9 @@ export const importCorpus = createServerFn({ method: 'POST' }).handler(
 );
 
 export const getQuestionThemes = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: commissionSlug }))
+  .validator(
+    z.object({ slug: commissionSlug, month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/) }),
+  )
   .handler(({ data }): Promise<HelpResult<QuestionThemeCount[]>> =>
-    asHelpViewer((client) => loadQuestionThemes(client, data.slug)),
+    asHelpViewer((client) => loadQuestionThemes(client, data.slug, data.month)),
   );

@@ -14,6 +14,17 @@ export interface BaseProblem {
   detail?: string;
 }
 
+/** One field a service's validation refused, by dotted path, as problem details' `errors` list it. */
+export interface FieldProblem {
+  path: string;
+  message: string;
+}
+
+/** A validation problem (400): the shared fields and the fields at fault. */
+export interface ValidationProblem extends BaseProblem {
+  errors?: FieldProblem[];
+}
+
 /** Why a service call gave no data. */
 export type ServiceError<Problem extends BaseProblem = BaseProblem> =
   /** No console session, or the service refused the token (401): sign in again. */

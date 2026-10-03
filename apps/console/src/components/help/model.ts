@@ -263,9 +263,19 @@ export const themesSearch = z.object({
 
 export type ThemesSearch = z.infer<typeof themesSearch>;
 
-/** The months to offer: this one (counting to date) and every month with counts, newest first. */
-export function themeMonths(counts: readonly QuestionThemeCount[], thisMonth: string): string[] {
-  return [...new Set([thisMonth, ...counts.map((each) => each.month)])].sort().reverse();
+export const THEME_MONTHS = 12;
+
+/**
+ * The months to offer, newest first: this one (counting to date) and the eleven before it, plus
+ * `shown` when it is older (a link to it).
+ */
+export function themeMonths(thisMonth: string, shown: string = thisMonth): string[] {
+  const index = Number(thisMonth.slice(0, 4)) * 12 + Number(thisMonth.slice(5, 7)) - 1;
+  const months = Array.from({ length: THEME_MONTHS }, (_, back) => {
+    const at = index - back;
+    return `${String(Math.floor(at / 12))}-${String((at % 12) + 1).padStart(2, '0')}`;
+  });
+  return months.includes(shown) || shown > thisMonth ? months : [...months, shown];
 }
 
 export interface MonthSummary {

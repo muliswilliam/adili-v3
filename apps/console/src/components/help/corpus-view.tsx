@@ -64,7 +64,7 @@ import {
   filterCorpus,
   isSuperseded,
 } from './model';
-import { CitationTag, HelpHeader, inEffect } from './parts';
+import { CitationTag, HelpHeader, inEffect, TagChip } from './parts';
 import type { HelpWorkspace } from './scope';
 import { HelpSearchButton } from './help-search-button';
 
@@ -446,11 +446,8 @@ function PassageDrawer({
               {passage.tags.length ? (
                 <ul className="flex flex-wrap gap-1.5">
                   {passage.tags.map((tag) => (
-                    <li
-                      key={tag}
-                      className="inline-flex h-7 items-center rounded-full bg-foreground px-2.5 text-[13px] font-medium text-background"
-                    >
-                      {m.tag[tag]}
+                    <li key={tag}>
+                      <TagChip tag={tag} />
                     </li>
                   ))}
                 </ul>

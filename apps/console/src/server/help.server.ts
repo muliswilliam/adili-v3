@@ -9,7 +9,7 @@ import type {
   HelpPassage,
   QuestionThemeCount,
 } from './declarations/client';
-import { type BaseProblem, callService, type ServiceResult } from './service-call';
+import { callService, type ServiceResult, type ValidationProblem } from './service-call';
 
 /**
  * The help pages' reads and writes against the declarations service (spec 11 FE-4): help
@@ -21,10 +21,8 @@ import { type BaseProblem, callService, type ServiceResult } from './service-cal
 /** Whose articles: one Commission's (its administrators and reporting officers) or the platform's. */
 export type HelpScope = { kind: 'commission'; slug: string } | { kind: 'platform' };
 
-/** The declarations service's validation problem: the fields that failed, by path. */
-export interface HelpProblem extends BaseProblem {
-  errors?: { path: string; message: string }[];
-}
+/** The declarations service's problems: a 400 lists the fields that failed. */
+export type HelpProblem = ValidationProblem;
 
 export type HelpResult<T> = ServiceResult<T, HelpProblem>;
 
@@ -120,12 +118,15 @@ export function importStatutoryCorpus(
   return callService(() => client.POST('/v1/help/corpus/import'));
 }
 
-/** `GET /v1/commissions/{slug}/help/themes`: every month's counts, newest first. */
+/** `GET /v1/commissions/{slug}/help/themes?month`: one month's counts, the most asked first. */
 export function loadQuestionThemes(
   client: DeclarationsClient,
   slug: string,
+  month: string,
 ): Promise<HelpResult<QuestionThemeCount[]>> {
   return callService(() =>
-    client.GET('/v1/commissions/{slug}/help/themes', { params: { path: { slug } } }),
+    client.GET('/v1/commissions/{slug}/help/themes', {
+      params: { path: { slug }, query: { month } },
+    }),
   );
 }

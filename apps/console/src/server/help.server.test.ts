@@ -256,22 +256,21 @@ describe('platform help articles and the corpus (S9)', () => {
 });
 
 describe('question themes (S8)', () => {
-  it("reads the Commission's monthly counts, newest month first, then the most asked", async () => {
+  it("reads one month of the Commission's counts, the most asked first", async () => {
     recordMockQuestions('psc', [
       { month: '2026-09', theme: 'land', count: 12, unanswered: 3 },
       { month: '2026-09', theme: 'vehicles', count: 20, unanswered: 1 },
       { month: '2026-08', theme: 'land', count: 5, unanswered: 0 },
     ]);
-    const result = await loadQuestionThemes(officer(), 'psc');
+    const result = await loadQuestionThemes(officer(), 'psc', '2026-09');
     expect(result).toEqual({
       ok: true,
       data: [
         { month: '2026-09', theme: 'vehicles', count: 20, unanswered: 1 },
         { month: '2026-09', theme: 'land', count: 12, unanswered: 3 },
-        { month: '2026-08', theme: 'land', count: 5, unanswered: 0 },
       ],
     });
-    expect(await loadQuestionThemes(platformAdmin(), 'psc')).toMatchObject({
+    expect(await loadQuestionThemes(platformAdmin(), 'psc', '2026-09')).toMatchObject({
       ok: false,
       error: { problem: { status: 404 } },
     });

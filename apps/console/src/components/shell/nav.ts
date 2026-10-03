@@ -106,16 +106,22 @@ export function navFor(roles: readonly string[]): NavGroup[] {
       workspace.href ? [[workspace.id, { ...workspace, href: workspace.href }] as const] : [],
     ),
   );
+  // A page two workspaces share (Help articles, for a platform admin who also holds a Commission
+  // role) is listed once, in the first group that has it.
+  const listed = new Set<string>();
   return NAV.flatMap((group) => {
     const items = group.items.flatMap(
       ({ workspace, icon, label, to, writeOnly, section }): NavItem[] => {
         const entry = open.get(workspace);
         if (!entry || (writeOnly && entry.readOnly)) return [];
+        const href = to ?? entry.href;
+        if (listed.has(href)) return [];
+        listed.add(href);
         return [
           {
             label: label ?? entry.title,
             icon,
-            to: to ?? entry.href,
+            to: href,
             ...(section ? { section } : {}),
           },
         ];

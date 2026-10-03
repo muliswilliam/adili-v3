@@ -65,8 +65,7 @@ export function ThemesView({
   const id = useId();
   const counts = result?.ok ? result.data : null;
   const month = search.month ?? thisMonth;
-  const months = themeMonths(counts ?? [], thisMonth);
-  if (!months.includes(month)) months.push(month);
+  const months = themeMonths(thisMonth, month);
   const summary = counts ? monthSummary(counts, month) : null;
   const canWrite = !workspace.readOnly;
   const label = (each: string) =>
