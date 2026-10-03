@@ -127,12 +127,13 @@ export function ThemesView({
               label={m.tileQuestions}
               value={summary.total}
               marker={<Icon icon={Message01Icon} />}
+              description={m.questionsHint}
             />
             <StatTile
               label={m.tileUnanswered}
               value={summary.unanswered}
               marker={<Icon icon={HelpCircleIcon} />}
-              description={`${String(percent(summary.unanswered, summary.total))}%`}
+              description={m.unansweredShare(percent(summary.unanswered, summary.total))}
             />
             <StatTile
               label={m.tileMostUnanswered}

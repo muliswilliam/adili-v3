@@ -252,7 +252,8 @@ function snippetOf(text: string, query: string[]): string {
     ...query.map((word) => lower.indexOf(word)).filter((index) => index >= 0),
     text.length,
   );
-  const start = at === text.length || at < 60 ? 0 : at - 60;
+  // From a word's start, about 60 characters before the match.
+  const start = at === text.length || at < 60 ? 0 : text.indexOf(' ', at - 60) + 1;
   const slice = text.slice(start, start + 200);
   return `${start > 0 ? '…' : ''}${slice}${start + 200 < text.length ? '…' : ''}`;
 }

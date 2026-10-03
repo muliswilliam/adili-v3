@@ -107,6 +107,8 @@ const TAG_GROUPS: { label: string; tags: readonly HelpTag[] }[] = [
 
 const MAX_TAGS = 20;
 
+const TOPIC_SET: ReadonlySet<HelpTag> = new Set(TOPIC_TAGS);
+
 /**
  * The help article editor (spec 11 FE-4, S9): title, body in English and Kiswahili with a
  * preview, tags from the section kinds, item types and corpus topics, the period in force and
@@ -373,7 +375,7 @@ export function ArticleEditor({
                     change({ published });
                   }}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3">
                   <DateField
                     id={fieldId(base, 'effectiveFrom')}
                     label={m.inEffectFromLabel}
@@ -635,6 +637,7 @@ function PublishSwitch({
         type="checkbox"
         role="switch"
         checked={published}
+        aria-label={m.published}
         aria-describedby={hintId}
         className="peer sr-only"
         onChange={(event) => {
@@ -702,6 +705,7 @@ function TagPicker({
   error: string | undefined;
   onChange: (tags: HelpTag[]) => void;
 }) {
+  const [showTopics, setShowTopics] = useState(false);
   if (readOnly) {
     if (tags.length === 0) return <p className="text-[13px] text-muted-foreground">{m.noTags}</p>;
     return (
@@ -723,9 +727,10 @@ function TagPicker({
     );
   }
   const full = tags.length >= MAX_TAGS;
+  const topicsShown = showTopics || tags.some((tag) => TOPIC_SET.has(tag));
   return (
     <div id={id} tabIndex={-1} className="grid gap-3 outline-none">
-      {TAG_GROUPS.map((group) => (
+      {TAG_GROUPS.filter((group) => topicsShown || group.tags !== TOPIC_TAGS).map((group) => (
         <TagGroup key={group.label} label={group.label}>
           {group.tags.map((tag) => {
             const on = tags.includes(tag);
@@ -747,6 +752,19 @@ function TagPicker({
           })}
         </TagGroup>
       ))}
+      {topicsShown ? null : (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="justify-self-start"
+          aria-expanded={false}
+          onClick={() => {
+            setShowTopics(true);
+          }}
+        >
+          {m.showTopics(TOPIC_TAGS.length)}
+        </Button>
+      )}
       {full ? <FieldHint>{m.tagsMax}</FieldHint> : null}
       {error ? <FieldError>{error}</FieldError> : null}
     </div>

@@ -45,7 +45,7 @@ describe('question themes (spec 11 FE-4, S8)', () => {
     const tiles = screen.getByRole('group', { name: 'September 2026 in numbers' });
     expect(within(tiles).getByText('981')).toBeTruthy();
     expect(within(tiles).getByText('87')).toBeTruthy();
-    expect(within(tiles).getByText('9%')).toBeTruthy();
+    expect(within(tiles).getByText('9% of questions')).toBeTruthy();
     expect(within(tiles).getByText('Land and buildings · 44 of 355')).toBeTruthy();
     expect(
       screen.getByText(

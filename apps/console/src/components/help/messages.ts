@@ -206,6 +206,7 @@ export const messages = {
   tagGroupSections: 'Sections',
   tagGroupItems: 'Item types',
   tagGroupTopics: 'Topics',
+  showTopics: (count: number) => `Show topics (${String(count)})`,
   tagsMax: 'Choose up to 20 tags.',
   fixErrors: (count: number) =>
     count === 1 ? 'Fix this before saving' : `Fix these ${String(count)} before saving`,
@@ -293,6 +294,8 @@ export const messages = {
   themesLoadError: 'Question themes could not be loaded.',
   tilesLabel: (month: string) => `${month} in numbers`,
   tileQuestions: 'Questions',
+  questionsHint: 'Answered or declined by Ask Adili',
+  unansweredShare: (pct: number) => `${String(pct)}% of questions`,
   tileUnanswered: 'Unanswered',
   tileMostUnanswered: 'Most unanswered',
   ofCount: (part: string, total: string) => `${part} of ${total}`,
