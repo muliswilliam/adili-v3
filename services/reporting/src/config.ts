@@ -86,6 +86,15 @@ export const envSchema = baseEnvSchema.extend({
       return bands;
     }),
   CANDIDATE_SIZE_BAND_FACTOR: z.coerce.number().min(1).default(2),
+  /**
+   * S3-compatible object storage (ADR-002) and the bucket of the open-data releases' dataset
+   * files (JSON and CSV per table, the release JSON).
+   */
+  S3_ENDPOINT: z.url(),
+  S3_REGION: z.string().min(1),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_BUCKET_OPEN_DATA: z.string().min(1).default('open-data'),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('reporting'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

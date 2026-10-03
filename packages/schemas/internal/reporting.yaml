@@ -700,6 +700,9 @@ paths:
       tags: [open-data]
       operationId: listOpenDataReleasesEacc
       summary: All releases including previews and withdrawn (EACC)
+      description: >-
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. The latest financial
+        year first, then by kind, the latest version first.
       responses:
         '200':
           description: Releases
@@ -715,6 +718,17 @@ paths:
       tags: [open-data]
       operationId: buildOpenDataSnapshot
       summary: Build a snapshot release for a financial year as a preview (EACC analyst or supervisor)
+      description: >-
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables
+        from the year's national consolidated report (draft or approved) and the projection facts,
+        suppresses every figure over fewer than 10 officers (with complementary suppression), and
+        reconciles the national totals with the NCR's: a report submitted or changed since the
+        NCR was built fails with 409 `reconciliation-failed` (`mismatches` lists the totals that
+        differ) and builds nothing. The files (JSON and CSV per table, the release JSON) are
+        written to object storage with their SHA-256, and the release is recorded as `preview`,
+        the next version of the year's snapshots. Emits `open-data.release.built.v1` (release
+        id, year, kind, version; no figures). A retry with the same Idempotency-Key replays the
+        build.
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
@@ -724,18 +738,39 @@ paths:
             schema:
               type: object
               required: [fy]
+              additionalProperties: false
               properties:
                 fy:
                   type: integer
+                  minimum: 2025
+                  description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
       responses:
         '202':
-          description: Building
+          description: Built as a preview
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
+        '400':
+          description: Body failed validation, or Idempotency-Key missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 'The year has no national consolidated report (`ncr-not-built`), or the release does not reconcile with it (`reconciliation-failed`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Object storage could not be reached (`storage-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
   /v1/eacc/open-data/releases/{releaseId}/publish:
     parameters:
       - $ref: '#/components/parameters/ReleaseId'

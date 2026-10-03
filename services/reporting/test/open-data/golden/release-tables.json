@@ -1,0 +1,593 @@
+{
+  "filing-by-commission": {
+    "table": "filing-by-commission",
+    "columns": [
+      "commission",
+      "commissionName",
+      "reportStatus",
+      "cycle",
+      "expected",
+      "filed",
+      "nonFilers",
+      "filingRate",
+      "suppressed"
+    ],
+    "rows": [
+      {
+        "commission": "jsc",
+        "commissionName": "JSC",
+        "reportStatus": "not-reported",
+        "cycle": "initial",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": false
+      },
+      {
+        "commission": "jsc",
+        "commissionName": "JSC",
+        "reportStatus": "not-reported",
+        "cycle": "biennial",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": false
+      },
+      {
+        "commission": "jsc",
+        "commissionName": "JSC",
+        "reportStatus": "not-reported",
+        "cycle": "final",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": false
+      },
+      {
+        "commission": "jsc",
+        "commissionName": "JSC",
+        "reportStatus": "not-reported",
+        "cycle": "all",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": false
+      },
+      {
+        "commission": "nlc",
+        "commissionName": "NLC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "initial",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "nlc",
+        "commissionName": "NLC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "biennial",
+        "expected": 0,
+        "filed": 0,
+        "nonFilers": 0,
+        "filingRate": null,
+        "suppressed": false
+      },
+      {
+        "commission": "nlc",
+        "commissionName": "NLC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "final",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "nlc",
+        "commissionName": "NLC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "all",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "psc",
+        "commissionName": "PSC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "initial",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "psc",
+        "commissionName": "PSC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "biennial",
+        "expected": 100,
+        "filed": 95,
+        "nonFilers": 5,
+        "filingRate": 0.95,
+        "suppressed": false
+      },
+      {
+        "commission": "psc",
+        "commissionName": "PSC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "final",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "psc",
+        "commissionName": "PSC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "all",
+        "expected": 116,
+        "filed": 109,
+        "nonFilers": 7,
+        "filingRate": 0.9397,
+        "suppressed": false
+      },
+      {
+        "commission": "tsc",
+        "commissionName": "TSC",
+        "reportStatus": "submitted-late",
+        "cycle": "initial",
+        "expected": 20,
+        "filed": 20,
+        "nonFilers": 0,
+        "filingRate": 1,
+        "suppressed": false
+      },
+      {
+        "commission": "tsc",
+        "commissionName": "TSC",
+        "reportStatus": "submitted-late",
+        "cycle": "biennial",
+        "expected": 200,
+        "filed": 150,
+        "nonFilers": 50,
+        "filingRate": 0.75,
+        "suppressed": false
+      },
+      {
+        "commission": "tsc",
+        "commissionName": "TSC",
+        "reportStatus": "submitted-late",
+        "cycle": "final",
+        "expected": 15,
+        "filed": 12,
+        "nonFilers": 3,
+        "filingRate": 0.8,
+        "suppressed": false
+      },
+      {
+        "commission": "tsc",
+        "commissionName": "TSC",
+        "reportStatus": "submitted-late",
+        "cycle": "all",
+        "expected": 235,
+        "filed": 182,
+        "nonFilers": 53,
+        "filingRate": 0.7745,
+        "suppressed": false
+      },
+      {
+        "commission": "wrc",
+        "commissionName": "WRC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "initial",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "wrc",
+        "commissionName": "WRC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "biennial",
+        "expected": 0,
+        "filed": 0,
+        "nonFilers": 0,
+        "filingRate": null,
+        "suppressed": false
+      },
+      {
+        "commission": "wrc",
+        "commissionName": "WRC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "final",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      },
+      {
+        "commission": "wrc",
+        "commissionName": "WRC",
+        "reportStatus": "submitted-on-time",
+        "cycle": "all",
+        "expected": null,
+        "filed": null,
+        "nonFilers": null,
+        "filingRate": null,
+        "suppressed": true
+      }
+    ],
+    "suppression": {
+      "threshold": 10,
+      "cellsSuppressed": 32
+    }
+  },
+  "compliance-by-commission": {
+    "table": "compliance-by-commission",
+    "columns": [
+      "commission",
+      "commissionName",
+      "determinationsCompliant",
+      "determinationsNonCompliant",
+      "determinationsFurtherAction",
+      "clarificationsIssued",
+      "clarificationsResolved",
+      "actionsNoticeToComply",
+      "actionsWarning",
+      "actionsSalaryStoppage",
+      "actionsDisciplinaryReferral",
+      "referrals",
+      "suppressed"
+    ],
+    "rows": [
+      {
+        "commission": "jsc",
+        "commissionName": "JSC",
+        "determinationsCompliant": null,
+        "determinationsNonCompliant": null,
+        "determinationsFurtherAction": null,
+        "clarificationsIssued": null,
+        "clarificationsResolved": null,
+        "actionsNoticeToComply": null,
+        "actionsWarning": null,
+        "actionsSalaryStoppage": null,
+        "actionsDisciplinaryReferral": null,
+        "referrals": null,
+        "suppressed": false
+      },
+      {
+        "commission": "nlc",
+        "commissionName": "NLC",
+        "determinationsCompliant": null,
+        "determinationsNonCompliant": null,
+        "determinationsFurtherAction": null,
+        "clarificationsIssued": null,
+        "clarificationsResolved": null,
+        "actionsNoticeToComply": null,
+        "actionsWarning": null,
+        "actionsSalaryStoppage": null,
+        "actionsDisciplinaryReferral": null,
+        "referrals": null,
+        "suppressed": true
+      },
+      {
+        "commission": "psc",
+        "commissionName": "PSC",
+        "determinationsCompliant": 2,
+        "determinationsNonCompliant": 1,
+        "determinationsFurtherAction": 0,
+        "clarificationsIssued": 6,
+        "clarificationsResolved": 1,
+        "actionsNoticeToComply": 2,
+        "actionsWarning": 1,
+        "actionsSalaryStoppage": 0,
+        "actionsDisciplinaryReferral": 0,
+        "referrals": 1,
+        "suppressed": false
+      },
+      {
+        "commission": "tsc",
+        "commissionName": "TSC",
+        "determinationsCompliant": 1,
+        "determinationsNonCompliant": 0,
+        "determinationsFurtherAction": 1,
+        "clarificationsIssued": 3,
+        "clarificationsResolved": 0,
+        "actionsNoticeToComply": 1,
+        "actionsWarning": 0,
+        "actionsSalaryStoppage": 0,
+        "actionsDisciplinaryReferral": 0,
+        "referrals": 0,
+        "suppressed": false
+      },
+      {
+        "commission": "wrc",
+        "commissionName": "WRC",
+        "determinationsCompliant": null,
+        "determinationsNonCompliant": null,
+        "determinationsFurtherAction": null,
+        "clarificationsIssued": null,
+        "clarificationsResolved": null,
+        "actionsNoticeToComply": null,
+        "actionsWarning": null,
+        "actionsSalaryStoppage": null,
+        "actionsDisciplinaryReferral": null,
+        "referrals": null,
+        "suppressed": true
+      }
+    ],
+    "suppression": {
+      "threshold": 10,
+      "cellsSuppressed": 20
+    }
+  },
+  "by-entity-type": {
+    "table": "by-entity-type",
+    "columns": [
+      "entityType",
+      "cycle",
+      "expected",
+      "filed",
+      "nonFilers",
+      "filingRate",
+      "suppressed"
+    ],
+    "rows": [],
+    "suppression": {
+      "threshold": 10,
+      "cellsSuppressed": 0
+    }
+  },
+  "by-cycle": {
+    "table": "by-cycle",
+    "columns": [
+      "cycle",
+      "expected",
+      "filed",
+      "nonFilers",
+      "filingRate",
+      "suppressed"
+    ],
+    "rows": [
+      {
+        "cycle": "initial",
+        "expected": 43,
+        "filed": 40,
+        "nonFilers": 3,
+        "filingRate": 0.9302,
+        "suppressed": false
+      },
+      {
+        "cycle": "biennial",
+        "expected": 300,
+        "filed": 245,
+        "nonFilers": 55,
+        "filingRate": 0.8167,
+        "suppressed": false
+      },
+      {
+        "cycle": "final",
+        "expected": 26,
+        "filed": 22,
+        "nonFilers": 4,
+        "filingRate": 0.8462,
+        "suppressed": false
+      },
+      {
+        "cycle": "all",
+        "expected": 369,
+        "filed": 307,
+        "nonFilers": 62,
+        "filingRate": 0.832,
+        "suppressed": false
+      }
+    ],
+    "suppression": {
+      "threshold": 10,
+      "cellsSuppressed": 0
+    }
+  },
+  "access-requests": {
+    "table": "access-requests",
+    "columns": [
+      "commission",
+      "commissionName",
+      "received",
+      "granted",
+      "declined",
+      "suppressed"
+    ],
+    "rows": [
+      {
+        "commission": "jsc",
+        "commissionName": "JSC",
+        "received": null,
+        "granted": null,
+        "declined": null,
+        "suppressed": false
+      },
+      {
+        "commission": "nlc",
+        "commissionName": "NLC",
+        "received": null,
+        "granted": null,
+        "declined": null,
+        "suppressed": true
+      },
+      {
+        "commission": "psc",
+        "commissionName": "PSC",
+        "received": 3,
+        "granted": 2,
+        "declined": 1,
+        "suppressed": false
+      },
+      {
+        "commission": "tsc",
+        "commissionName": "TSC",
+        "received": 1,
+        "granted": 1,
+        "declined": 0,
+        "suppressed": false
+      },
+      {
+        "commission": "wrc",
+        "commissionName": "WRC",
+        "received": null,
+        "granted": null,
+        "declined": null,
+        "suppressed": true
+      }
+    ],
+    "suppression": {
+      "threshold": 10,
+      "cellsSuppressed": 6
+    }
+  },
+  "national-totals": {
+    "table": "national-totals",
+    "columns": [
+      "measure",
+      "value",
+      "suppressed"
+    ],
+    "rows": [
+      {
+        "measure": "commissions",
+        "value": 5,
+        "suppressed": false
+      },
+      {
+        "measure": "commissionsReported",
+        "value": 4,
+        "suppressed": false
+      },
+      {
+        "measure": "commissionsReportedOnTime",
+        "value": 3,
+        "suppressed": false
+      },
+      {
+        "measure": "commissionsReportedLate",
+        "value": 1,
+        "suppressed": false
+      },
+      {
+        "measure": "commissionsNotReported",
+        "value": 1,
+        "suppressed": false
+      },
+      {
+        "measure": "reportingRate",
+        "value": 0.8,
+        "suppressed": false
+      },
+      {
+        "measure": "expected",
+        "value": 369,
+        "suppressed": false
+      },
+      {
+        "measure": "filed",
+        "value": 307,
+        "suppressed": false
+      },
+      {
+        "measure": "nonFilers",
+        "value": 62,
+        "suppressed": false
+      },
+      {
+        "measure": "filingRate",
+        "value": 0.832,
+        "suppressed": false
+      },
+      {
+        "measure": "clarificationsIssued",
+        "value": 12,
+        "suppressed": false
+      },
+      {
+        "measure": "clarificationsResolved",
+        "value": 2,
+        "suppressed": false
+      },
+      {
+        "measure": "determinationsCompliant",
+        "value": 4,
+        "suppressed": false
+      },
+      {
+        "measure": "determinationsNonCompliant",
+        "value": 2,
+        "suppressed": false
+      },
+      {
+        "measure": "determinationsFurtherAction",
+        "value": 1,
+        "suppressed": false
+      },
+      {
+        "measure": "actionsNoticeToComply",
+        "value": 4,
+        "suppressed": false
+      },
+      {
+        "measure": "actionsWarning",
+        "value": 1,
+        "suppressed": false
+      },
+      {
+        "measure": "actionsSalaryStoppage",
+        "value": 1,
+        "suppressed": false
+      },
+      {
+        "measure": "actionsDisciplinaryReferral",
+        "value": 0,
+        "suppressed": false
+      },
+      {
+        "measure": "referrals",
+        "value": 1,
+        "suppressed": false
+      },
+      {
+        "measure": "accessRequestsReceived",
+        "value": 5,
+        "suppressed": false
+      },
+      {
+        "measure": "accessRequestsGranted",
+        "value": 3,
+        "suppressed": false
+      },
+      {
+        "measure": "accessRequestsDeclined",
+        "value": 2,
+        "suppressed": false
+      }
+    ],
+    "suppression": {
+      "threshold": 10,
+      "cellsSuppressed": 0
+    }
+  }
+}

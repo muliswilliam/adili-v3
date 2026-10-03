@@ -30,6 +30,11 @@ import {
 } from '../../src/integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
 import {
+  OpenDataFileMissing,
+  OpenDataFiles,
+  OpenDataStorageUnavailable,
+} from '../../src/open-data/open-data-files.js';
+import {
   type ClarificationDetails,
   type ReferralIcmsPayload,
   ReviewClient,
@@ -367,5 +372,39 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     }
     const found = this.registrations.get(referralReference);
     return Promise.resolve(found ? { ...found } : null);
+  }
+}
+
+/**
+ * The open-data bucket in memory: objects by key with their content type; `failCalls(n)` makes
+ * the next writes fail as an unreachable storage would.
+ */
+export class FakeOpenDataFiles extends OpenDataFiles {
+  readonly objects = new Map<string, { body: Buffer; contentType: string }>();
+  private failures = 0;
+
+  reset(): void {
+    this.objects.clear();
+    this.failures = 0;
+  }
+
+  failCalls(count: number): void {
+    this.failures = count;
+  }
+
+  put(file: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new OpenDataStorageUnavailable('Unreachable'));
+    }
+    this.objects.set(file.key, { body: Buffer.from(file.body), contentType: file.contentType });
+    return Promise.resolve();
+  }
+
+  get(key: string): Promise<Uint8Array> {
+    const object = this.objects.get(key);
+    return object
+      ? Promise.resolve(new Uint8Array(object.body))
+      : Promise.reject(new OpenDataFileMissing(`No object ${key}`));
   }
 }
