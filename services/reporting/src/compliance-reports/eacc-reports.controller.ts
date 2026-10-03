@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { FIRST_FINANCIAL_YEAR } from '../financial-year.js';
 import { EaccReportsService } from './eacc-reports.service.js';
 import { INTAKE_STATUSES, type IntakeFilters, type IntakeView } from './intake.js';
-import type { ComplianceReportView } from './representation.js';
+import type { SubmittedReportView } from './representation.js';
 
 const intakeQuery = z.object({
   fy: z.coerce.number().int().min(FIRST_FINANCIAL_YEAR),
@@ -87,7 +87,7 @@ export class EaccReportsController {
     @CurrentPrincipal() principal: Principal,
     @Param('reportId', new ZodValidationPipe(z.uuid())) reportId: string,
     @CurrentReadAudit() audit: ReadAudit,
-  ): Promise<ComplianceReportView> {
+  ): Promise<SubmittedReportView> {
     return this.reports.submittedReport(principal, reportId, audit);
   }
 }

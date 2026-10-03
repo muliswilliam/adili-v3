@@ -55,18 +55,28 @@ Schemas changed:
 `getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataSnapshot`, `publishOpenDataRelease`, `withdrawOpenDataRelease`, `getCommissionOpenDataPreview` and the public `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable` moved unchanged into `drafts/reporting.yaml`, with `PatternCandidate`, `OpenDataTable`, `OpenDataRelease` and the parameters and responses they use.
 The export marks them `x-draft: true`.
 
-PR #491 (spec 09b backend) edits `internal/reporting.yaml` by hand. Once #238 merges, that file is generated, so #491's rebase conflicts on it. Taking the generated file as is would undo #491's contract changes. Instead:
+PR #491 (spec 09b backend) edits `internal/reporting.yaml` and `internal/documents.yaml` by hand. Once #238 merges, both files are generated, so #491's rebase conflicts on them. Taking the generated files as they are would drop #491's contract. The rule for the rebase:
 
-1. **The five operations it implements** (`getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataSnapshot`, `getCommissionOpenDataPreview`):
-   - document them on its controllers (`@ApiOperation`, `@ApiBody`, `schemaRef`);
-   - delete them from `drafts/reporting.yaml`, because the export refuses an operation both define.
-2. **The components they use** (`PatternCandidate`, `OpenDataRelease`, `OpenDataTable`) become Zod schemas in `OPENAPI_SCHEMAS`, each with a `Conforms` check, and leave the draft. The export also refuses a component the draft and the code both define (`withDraft` in api-kit `contract.ts`). The five operations still drafted (`publishOpenDataRelease`, `withdrawOpenDataRelease`, the public `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable`) keep `$ref`-ing them, which works because a draft may reference implemented components.
-3. **Its changes to operations already converged here:**
-   - `NationalReport.narrativeDraft` and the new `NarrativeDraft` schema go into `nationalReportSchema` (with `Conforms`) and `OPENAPI_SCHEMAS`.
-   - The new `getNationalReport` description (the `drafting` narrative draft looked up at the ai-gateway) goes on `national-reports.controller.ts`.
-   - None of these can stay in the draft.
-4. **Its problem codes** are registered in `PROBLEM_CODES`: `ai-not-enabled`, `narrative-validation`, `no-pattern-candidates`, `aggregates-rebuilt`, `narrative-draft-failed`, `ncr-not-built`, `reconciliation-failed`. Reporting's problem helpers take a `ProblemCode`, so #491's calls do not compile until they are registered. Its `conflict(code, ...)` calls become `problem(code, ...)`, the single coded helper, now built on `ProblemException.fromCode`.
-5. Run `pnpm --filter @adili/reporting contracts`, then `pnpm contracts:drift`, and regenerate the clients: the `ProblemDetails.code` enum grows in every contract.
+- **Into code:** every operation, component and problem code #491 adds or changes. Operations are documented on its controllers, components are Zod schemas in `OPENAPI_SCHEMAS` with a `Conforms` check, and codes are registered in `PROBLEM_CODES`.
+- **In the drafts:** `drafts/reporting.yaml` keeps only what is still unimplemented. The export refuses an operation or component that the draft and the code both define (`withDraft` in api-kit `contract.ts`). A draft may `$ref` implemented components.
+- **Never hand-edited:** the generated files. Run `pnpm --filter <service> contracts` for reporting and documents, then `pnpm contracts:drift`, and regenerate the clients.
+
+Known specifics as of #491's head `adc5e4b6` (3 October), as examples:
+
+- **Operations implemented:** 7, all to move out of the draft: `getNationalReportCandidates`, `draftNationalReportNarrative`, `listOpenDataReleasesEacc`, `buildOpenDataRelease` (the draft's `buildOpenDataSnapshot`, renamed), `publishOpenDataRelease`, `withdrawOpenDataRelease`, `getCommissionOpenDataPreview`. Only the public `listOpenDataReleases`, `getOpenDataRelease` and `getOpenDataTable` stay drafted.
+- **Components:** `PatternCandidate`, `OpenDataRelease` and `OpenDataTable` become Zod schemas, because the public drafts still reference them.
+- **Changes to converged operations:**
+  - `NationalReport.narrativeDraft` and the new `NarrativeDraft` schema go into `nationalReportSchema`.
+  - The new `getNationalReport` description goes on `national-reports.controller.ts`.
+- **Problem codes to register:**
+  - `ai-not-enabled`, `narrative-validation`, `no-pattern-candidates`, `aggregates-rebuilt`, `narrative-draft-failed`, `ncr-not-built`, `ncr-not-approved`
+  - `reconciliation-failed`, `release-not-preview`, `release-not-published`, `annual-release-published`, `manifest-revocation-refused`
+- **Problem helpers:**
+  - #491 calls `conflict(code, ...)` and `badGateway(code, ...)`, which #238 replaced with `problem(code, ...)` (`ProblemException.fromCode`).
+  - Its raw `new ProblemException({...}, { code })` sites go through `problem` as well. Its `aiGatewayUnavailable()` (a `type` with no code) stays as it is, like `directoryUnavailable()`.
+- **Documents:**
+  - #491's documents changes (the `open-data-manifest` type, `OpenDataManifestPayload`, the download and issue descriptions) go into documents' code.
+  - Its hand-edited `documents.yaml` collides with #238's `FormMPayload` fix, so take #238's file and re-export it from the code.
 
 #238 adds no migrations, so #491's 0009 and 0010 do not conflict with it.
 
@@ -74,7 +84,7 @@ PR #491 (spec 09b backend) edits `internal/reporting.yaml` by hand. Once #238 me
 
 #493 changes section 5 while this PR is open, and is not merged into it:
 
-- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)". #493 is ready and will likely merge first, so #238 already carries the new sentence, in `federated-reports.controller.ts`. The export keeps it either way. Until #493 lands, the contract states #493's rule, while this branch's `federated-submission.ts` still enforces the stricter "add up to declined".
+- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)", next to the looser rule in `federated-submission.ts`. On this branch, the contract states the rule this branch enforces ("add up to declined"), so a Commission that follows it is never refused. Whichever of #493 and #238 merges second carries both the rule and the sentence. The sentence then lives in `federated-reports.controller.ts`, and the file is re-exported, never edited by hand.
 - Its other changes (the `access_request_facts` projection, migration 0009, `form-m.ts` compiling section 5, `dataUnavailable` false for hosted reports) touch no HTTP contract. `ComplianceReport.accessDataUnavailable` and `ReportCounts.accessRequests` keep their shape.
 - It updates `docs/contracts/10-access-requests.md`, which this PR does not touch.
 

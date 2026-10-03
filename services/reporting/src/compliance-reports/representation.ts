@@ -149,12 +149,14 @@ true satisfies Conforms<ComplianceReportView, typeof complianceReportSchema>;
  * (`FormM`, packages/schemas/forms/form-m.v1.json), complete and with its `meta.reference`.
  */
 export const submittedComplianceReportSchema = complianceReportSchema.extend({
-  document: FormMSchema.nullable().meta({
-    description:
-      'The form-m.v1 document as filed, frozen at submission (a submitted report always has one)',
+  document: FormMSchema.meta({
+    description: 'The form-m.v1 document as filed, frozen at submission',
   }),
 });
-true satisfies Conforms<ComplianceReportView, typeof submittedComplianceReportSchema>;
+
+/** reporting.yaml `SubmittedComplianceReport`. */
+export type SubmittedReportView = ComplianceReportView & { document: FormMV1 };
+true satisfies Conforms<SubmittedReportView, typeof submittedComplianceReportSchema>;
 true satisfies Conforms<ComplianceReportSummary, typeof complianceReportSummarySchema>;
 
 export function reportSummary(
