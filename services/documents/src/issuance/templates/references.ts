@@ -58,10 +58,21 @@ export function numberedBy(
   return !isReferenceOf(reference, [scheme]) || parse(reference, [scheme]).issuer === issuerCode;
 }
 
+/** A Commission's issuer code, as in its reference numbers, e.g. `PSC`. */
+export const issuerCodeSchema = z.string().regex(/^[A-Z0-9]{2,20}$/);
+
+/** A Commission's name as a document prints it. */
+export const commissionNameSchema = z.string().trim().min(1).max(200);
+
 /** The issuing Commission as the declarations service names it (`CommissionRef`). */
 export const commissionRefSchema = z.strictObject({
   slug: z.string().min(1).max(20),
-  /** As in the reference numbers, e.g. `PSC`. */
-  issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
-  name: z.string().trim().min(1).max(200),
+  issuerCode: issuerCodeSchema,
+  name: commissionNameSchema,
+});
+
+/** The issuing Commission as the review service names it in a letter or package payload. */
+export const letterCommissionSchema = z.object({
+  name: commissionNameSchema,
+  issuerCode: issuerCodeSchema,
 });

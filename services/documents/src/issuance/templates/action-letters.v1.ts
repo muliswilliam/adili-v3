@@ -13,7 +13,6 @@ import {
   facts,
   LETTER_STYLES,
   letterClose,
-  letterCommissionSchema,
   letterMeta,
   portalLink,
   portalUrlSchema,
@@ -21,7 +20,13 @@ import {
   subjectLine,
 } from './letter.js';
 import { esc, formatDate, htmlDocument, letterhead } from './page.js';
-import { DECLARATION_TYPES, isReferenceOf, numberedBy, referenceOf } from './references.js';
+import {
+  DECLARATION_TYPES,
+  isReferenceOf,
+  letterCommissionSchema,
+  numberedBy,
+  referenceOf,
+} from './references.js';
 import type { DocumentTemplate } from './template.js';
 
 /** The steps of the administrative action ladder, each issued as its own letter type. */

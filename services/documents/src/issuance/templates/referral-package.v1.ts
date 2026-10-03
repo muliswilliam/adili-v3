@@ -4,7 +4,6 @@ import { DeclarationSchema } from '@adili/forms';
 import { z } from 'zod';
 
 import { attestation, CONTENT_STYLES, declarationContent } from './declaration-content.js';
-import { letterCommissionSchema } from './letter.js';
 import {
   DECLARATION_DOCUMENT_STYLES,
   esc,
@@ -23,6 +22,7 @@ import {
 import {
   DECLARATION_TYPES,
   isDeclarationReference,
+  letterCommissionSchema,
   numberedBy,
   referenceOf,
 } from './references.js';

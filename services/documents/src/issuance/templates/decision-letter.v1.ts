@@ -6,7 +6,6 @@ import {
   facts,
   LETTER_STYLES,
   letterClose,
-  letterCommissionSchema,
   letterMeta,
   portalLink,
   portalUrlSchema,
@@ -17,6 +16,7 @@ import { esc, formatDate, htmlDocument, letterhead } from './page.js';
 import {
   declarationSchemeOf,
   isDeclarationReference,
+  letterCommissionSchema,
   numberedBy,
   referenceOf,
 } from './references.js';

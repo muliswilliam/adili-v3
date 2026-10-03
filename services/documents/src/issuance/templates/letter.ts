@@ -18,15 +18,6 @@ import {
  * note.
  */
 
-const ISSUER_CODE = /^[A-Z0-9]{2,20}$/;
-
-/** The issuing Commission as the review service names it in a letter payload. */
-export const letterCommissionSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  /** The Commission's issuer code, as in the reference numbers (`PSC`). */
-  issuerCode: z.string().regex(ISSUER_CODE),
-});
-
 /**
  * A portal link printed in a letter: https, or http in development and test, where the portal
  * runs on plain http locally. The template names it in `links`, and issuance refuses an http one

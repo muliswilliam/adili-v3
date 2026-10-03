@@ -5,7 +5,6 @@ import { z } from 'zod';
 import {
   LETTER_STYLES,
   letterClose,
-  letterCommissionSchema,
   letterMeta,
   portalLink,
   portalUrlSchema,
@@ -16,6 +15,7 @@ import { esc, formatDate, htmlDocument, INK, letterhead, LINE } from './page.js'
 import {
   declarationSchemeOf,
   isDeclarationReference,
+  letterCommissionSchema,
   numberedBy,
   referenceOf,
 } from './references.js';

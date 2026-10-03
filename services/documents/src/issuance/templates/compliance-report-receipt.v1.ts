@@ -17,7 +17,7 @@ import {
   signatureNote,
   twoLineHash,
 } from './page.js';
-import { numberedBy, referenceOf } from './references.js';
+import { commissionNameSchema, issuerCodeSchema, numberedBy, referenceOf } from './references.js';
 import { sha256Schema } from '../sha256.js';
 import type { DocumentTemplate } from './template.js';
 
@@ -39,9 +39,8 @@ export const complianceReportReceiptPayload = z
     reference: referenceOf(RPT),
     sha256: sha256Schema,
     submittedAt: z.iso.datetime({ offset: true }),
-    commissionName: z.string().trim().min(1).max(200),
-    /** The Commission's issuer code, as in the reference numbers (`PSC`). */
-    issuerCode: z.string().regex(/^[A-Z0-9]{2,20}$/),
+    commissionName: commissionNameSchema,
+    issuerCode: issuerCodeSchema,
     /** `2027/2028`. */
     financialYear: z
       .string()
