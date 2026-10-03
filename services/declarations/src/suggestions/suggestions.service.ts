@@ -18,7 +18,7 @@ import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { etag } from '../http.js';
-import { placementOf } from './acceptance.js';
+import { editsRegistryFields, placementOf } from './acceptance.js';
 import {
   declarationLookupRequested,
   declarationSuggestionAccepted,
@@ -225,7 +225,8 @@ export class SuggestionsService {
   /**
    * Accepts a `new` suggestion (S4): the section read-modify-write of the section save, with
    * `If-Match`, adding the item with the suggestion as its `source` or filling the item it is
-   * applied to (`acceptance.ts`). In the save's transaction the suggestion becomes `accepted` with
+   * applied to (`acceptance.ts`). The source names the registry's verification result only when
+   * the declarant accepted the fields as the registry gave them. In the save's transaction the suggestion becomes `accepted` with
    * the item, re-checked under a row lock, and `declaration.suggestion-accepted.v1` is recorded
    * beside the save's own `declaration.section-saved.v1`. 409 `not-new` when it was decided or
    * superseded already, 409 `draft-version-mismatch` when the draft changed since `If-Match`
@@ -244,7 +245,10 @@ export class SuggestionsService {
     const parsed = acceptSuggestionRequestSchema.safeParse(body);
     if (!parsed.success) throw validationProblem(fieldErrors(parsed.error.issues));
     const accepted = { ...parsed.data, overwrite: parsed.data.overwrite === true };
-    const verificationResultId = row.verificationResultId ?? set.verificationResultId;
+    const offered = await this.cipher.open(declaration.tenant, declaration.id, row.id, row);
+    const verificationResultId = editsRegistryFields(offered.fields, accepted.fields)
+      ? null
+      : (row.verificationResultId ?? set.verificationResultId);
     const source = {
       kind: set.source,
       suggestionId: row.id,
@@ -295,10 +299,7 @@ export class SuggestionsService {
     }
     if (!decided) throw new Error(`Suggestion ${row.id} was not marked accepted`);
     return {
-      suggestion: suggestionView(
-        decided,
-        await this.cipher.open(declaration.tenant, declaration.id, decided.id, decided),
-      ),
+      suggestion: suggestionView(decided, offered),
       itemId,
       etag: etag(saved.draftVersion),
     };

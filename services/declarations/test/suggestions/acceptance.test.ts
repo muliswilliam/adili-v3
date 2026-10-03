@@ -1,7 +1,11 @@
 import type { ItemSource } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
-import { type AcceptedFields, placementOf } from '../../src/suggestions/acceptance.js';
+import {
+  type AcceptedFields,
+  editsRegistryFields,
+  placementOf,
+} from '../../src/suggestions/acceptance.js';
 
 const SOURCE: ItemSource = {
   kind: 'ntsa',
@@ -257,5 +261,29 @@ describe('accepting outside the statements', () => {
     expect(() => placementOf(suggestion, asNew({}), SOURCE, NEW_ID)).toThrow(
       expect.objectContaining({ problem: expect.objectContaining({ status: 400 }) as unknown }),
     );
+  });
+});
+
+describe('whether the declarant edited what the registry said', () => {
+  const ntsa = {
+    description: 'Toyota Fielder',
+    registration: 'KCA 123A',
+    make: 'Toyota',
+    year: 2016,
+  };
+
+  it('is not an edit to accept the fields as they came, or to reword the description', () => {
+    expect(editsRegistryFields(ntsa, { ...ntsa })).toBe(false);
+    expect(editsRegistryFields(ntsa, { ...ntsa, description: 'The school-run car' })).toBe(false);
+    expect(editsRegistryFields(ntsa, { ...ntsa, year: '2016', make: ' Toyota ' })).toBe(false);
+  });
+
+  it.each([
+    ['a changed field', { ...ntsa, year: 2017 }],
+    ['a cleared field', { ...ntsa, registration: '' }],
+    ['a field left out', { description: ntsa.description, make: 'Toyota', year: 2016 }],
+    ['a field the registry did not give', { ...ntsa, model: 'Fielder' }],
+  ])('is an edit: %s', (_, accepted) => {
+    expect(editsRegistryFields(ntsa, accepted)).toBe(true);
   });
 });

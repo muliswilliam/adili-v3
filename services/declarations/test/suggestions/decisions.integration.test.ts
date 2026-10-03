@@ -330,6 +330,26 @@ describe('accepting a suggestion (S4)', () => {
       description: 'The school-run car',
       details: { registration: 'KCA 123A', makeModel: 'Toyota Fielder, 2017' },
     });
+    // NTSA did not say 2017: the item came from NTSA, but NTSA's result no longer vouches for it.
+    expect(item?.source).toEqual({
+      kind: 'ntsa',
+      suggestionId: fielder.id,
+      at: expect.stringMatching(ISO) as unknown,
+    });
+  });
+
+  it("keeps NTSA's result on an item whose description alone the declarant reworded", async () => {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+
+    await accepted(draft.id, fielder, {
+      fields: { ...fielder.fields, description: 'The school-run car' },
+    });
+
+    const [item] = itemsOf(await section(draft.id, 'statement:officer'), 'assets');
+    expect(item?.source).toMatchObject({ verificationResultId: ntsa.found.resultId });
   });
 
   it('fills only the empty fields of the item it matches, keeping what the declarant typed', async () => {

@@ -18,7 +18,8 @@ import type { SectionContents } from '../drafts/sections.js';
  * - `bio-tax` for a spouse: the spouse's KRA PIN in Household. The declarant's has no field in
  *   declaration.v1, so it cannot be accepted.
  *
- * A new item carries the suggestion as its `source`. Applied to an existing item, a suggestion
+ * A new item carries the suggestion as its `source`, with the registry's verification result
+ * unless the declarant edited what the registry said (`editsRegistryFields`). Applied to an existing item, a suggestion
  * fills only the fields the item leaves empty unless `overwrite` is set, and marks the item with
  * its `source` if it has none. Values (`value`, `amount`) are never written: valuing is the
  * declarant's call. A spouse in Household has no `source` in declaration.v1, so a PIN carries
@@ -213,6 +214,21 @@ export function placementOf(
           : `A ${suggestion.itemType} suggestion cannot be added to the declaration`,
     },
   ]);
+}
+
+/**
+ * Whether the declarant changed what the registry said before accepting: any field but the
+ * description (the mapping's wording, not the registry's), compared as text. The item they add
+ * keeps its `source`, but not the registry's verification result, which no longer vouches for it
+ * (spec 05b story 16: a reviewer relies on it not to flag a registry-sourced item).
+ */
+export function editsRegistryFields(
+  registry: Record<string, unknown>,
+  accepted: Record<string, unknown>,
+): boolean {
+  const keys = new Set([...Object.keys(registry), ...Object.keys(accepted)]);
+  keys.delete('description');
+  return [...keys].some((key) => text(registry[key]) !== text(accepted[key]));
 }
 
 /** The item with `id` in `items`, of `type` when given; a 400 otherwise. */
