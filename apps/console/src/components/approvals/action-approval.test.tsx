@@ -63,6 +63,9 @@ vi.mock('../../server/actions', async () => {
       ({ data }: Data<{ actionId: string; note: string; idempotencyKey: string }>) =>
         server.declineStep(client(), data.actionId, data.note, data.idempotencyKey),
     ),
+    getLadder: vi.fn(({ data }: Data<{ ladderId: string }>) =>
+      server.loadLadder(client(), data.ladderId),
+    ),
   };
 });
 // The determinations tab's calls are server functions too; this file tests actions.
@@ -128,7 +131,7 @@ beforeEach(() => {
 describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
   it('lists the drafted ladder steps with what the ladder is about', async () => {
     await open();
-    expect(screen.getByRole('link', { name: /Actions\s*9/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Actions\s*10/ })).toBeTruthy();
     const notice = card('Nancy Wairimu Muriuki');
     expect(within(notice).getByText('Notice to comply')).toBeTruthy();
     expect(within(notice).getByText('Initial declaration')).toBeTruthy();

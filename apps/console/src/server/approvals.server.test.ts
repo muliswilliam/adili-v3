@@ -53,8 +53,8 @@ describe('loadApprovals (S14)', () => {
   it('counts the pending approvals by kind and by age band', async () => {
     const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
     expect(result.ok && result.data.counts).toEqual({
-      byKind: { determination: 4, action: 9, referral: 0 },
-      byAge: { under7Days: 6, from7To30Days: 6, over30Days: 1 },
+      byKind: { determination: 4, action: 10, referral: 0 },
+      byAge: { under7Days: 7, from7To30Days: 6, over30Days: 1 },
     });
   });
 

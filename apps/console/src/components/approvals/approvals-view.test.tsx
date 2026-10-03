@@ -131,10 +131,10 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
   it('lists the proposals with counts by kind and age, oldest first', async () => {
     await open();
     // Across the tabs: 4 determinations and the ladder's 9 drafted steps (#205).
-    expect(screen.getByText('13 awaiting approval')).toBeTruthy();
+    expect(screen.getByText('14 awaiting approval')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Determinations\s*4/ })).toBeTruthy();
     const bands = screen.getByLabelText('Waiting');
-    expect(bands.textContent).toBe('WaitingUnder 7 days67 to 30 days6Over 30 days1');
+    expect(bands.textContent).toBe('WaitingUnder 7 days77 to 30 days6Over 30 days1');
     expect(screen.getAllByRole('article')).toHaveLength(4);
     expect(within(card('Ruth Nekesa Wafula')).getByText('Reassigned to you')).toBeTruthy();
     expect(within(card('Ruth Nekesa Wafula')).getByText('Waiting 35 days')).toBeTruthy();

@@ -31,6 +31,7 @@ import { type ReactNode, useId, useState } from 'react';
 
 import {
   canDecideAs,
+  isGraveStep,
   LADDER_STEPS,
   ladderSteps,
   type LadderStepView,
@@ -45,7 +46,10 @@ import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { CLOSING_CAUSES, en as m, LADDER_STATUS_LABELS, STEP_LABELS } from './messages';
 import { ActionStatusBadge } from './status-badge';
+import { PayrollInstruction, payrollInstructionsOf, payrollLine } from './payroll-instruction';
+import { stepsBefore } from './prior-steps';
 import { ApproveStepDialog, DeclineStepDialog, RestartLadderDialog } from './step-dialogs';
+import { stoppageCopy as stoppage } from './stoppage-messages';
 
 /** The decisions on a ladder, as the route makes them for the signed-in officer. */
 export interface LadderDecisions {
@@ -103,6 +107,9 @@ export function LadderDetailView({
 }: LadderDetailProps) {
   const subject = subjectOf(ladder);
   const steps = ladderSteps(ladder);
+  const reinstatedAt =
+    ladder.steps.findLast((action) => action.payrollResume?.receivedAt)?.payrollResume
+      ?.receivedAt ?? null;
   const declined =
     ladder.status === 'declined'
       ? (ladder.steps.findLast((action) => action.status === 'declined') ?? null)
@@ -147,7 +154,12 @@ export function LadderDetailView({
                 ],
               )}
             </AlertTitle>
-            <AlertDescription>{m.compliedBody}</AlertDescription>
+            <AlertDescription>
+              {m.compliedBody}
+              {reinstatedAt ? (
+                <span className="block">{stoppage.reinstatementAcknowledged(reinstatedAt)}</span>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
         {ladder.status === 'ended' && ladder.endedAt ? (
@@ -209,7 +221,13 @@ function LadderStatusBadge({ status }: { status: Ladder['status'] }) {
 
 /** The stepper's line for a step: its date, the window, the response. */
 function stepperStep({ step, status, action }: LadderStepView): LadderStepperStep {
-  const base: LadderStepperStep = { id: step, label: STEP_LABELS[step], status };
+  const payroll = action ? payrollLine(action) : undefined;
+  const base: LadderStepperStep = {
+    id: step,
+    label: STEP_LABELS[step],
+    status,
+    ...(payroll ? { payroll } : {}),
+  };
   if (!action) return base;
   const running = status === 'current' || status === 'stopped';
   const responded = action.response
@@ -360,6 +378,12 @@ function StepCard({
         <p className="px-5 pb-4 text-sm text-muted-foreground">{m.issuingLetter}</p>
       ) : null}
 
+      {payrollInstructionsOf(action).map((instruction) => (
+        <div key={instruction.action} className="px-5 pb-4">
+          <PayrollInstruction {...instruction} />
+        </div>
+      ))}
+
       {action.response ? (
         <div className="px-5 pb-5">
           <Response response={action.response} />
@@ -487,12 +511,16 @@ function Decision({
         step={action.step}
         declarantName={ladder.declarantName}
         subjectTitle={subjectOf(ladder).title}
+        personnelFileNumber={ladder.personnelFileNumber}
         now={now}
+        {...(isGraveStep(action.step)
+          ? { earlier: { state: 'ok' as const, steps: stepsBefore(ladder, action.id) } }
+          : {})}
         onSubmit={async () =>
           settle(await decisions.approve(action.id, approveKey.keyFor(action.id)), (approved) => {
             toast({
               title: m.approved(approved.step, approved.reference),
-              description: m.approvedDetail,
+              description: stoppage.approvedDetail[approved.step] ?? m.approvedDetail,
             });
           })
         }
@@ -508,7 +536,10 @@ function Decision({
           settle(
             await decisions.decline(action.id, note, declineKey.keyFor({ id: action.id, note })),
             (declined) => {
-              toast({ title: m.declined(declined.step), description: m.declinedDetail });
+              toast({
+                title: m.declined(declined.step),
+                description: stoppage.declinedDetail[declined.step] ?? m.declinedDetail,
+              });
             },
           )
         }

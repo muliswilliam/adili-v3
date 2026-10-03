@@ -1,0 +1,81 @@
+import { formatDate, formatDateTime } from '@adili/ui';
+
+import type { ActionStep } from '../../server/actions.server';
+
+/**
+ * Copy for the ladder's salary stoppage and disciplinary referral (spec 08 FE-3, FE-5; #208; S6,
+ * S7, S10, S15): payroll instructions and their acknowledgements, what came before a step, and
+ * what approving or declining a grave step does. English only.
+ */
+export const stoppageCopy = {
+  payroll: {
+    stop: 'Stop-salary instruction',
+    resume: 'Reinstatement instruction',
+    acknowledged: 'Acknowledged',
+    waiting: 'Waiting for payroll',
+    failed: 'Refused by payroll',
+    instructionReference: 'Instruction reference',
+    action: 'Action',
+    payrollReference: 'Payroll reference',
+    notYet: 'Not yet',
+    receivedAt: 'Received at',
+    receivedAtValue: (iso: string) => formatDateTime(iso),
+    waitingNote: {
+      stop_salary:
+        'Payroll has not acknowledged it yet; review retries until it does. The salary is not stopped and no letter is issued until then.',
+      resume_salary:
+        'Payroll has not acknowledged it yet; review retries until it does. The salary stays stopped until then.',
+    },
+  },
+  stepper: {
+    stopAcknowledged: (date: string) => `Payroll acknowledged ${formatDate(date)}`,
+    resumeAcknowledged: (date: string) => `Reinstatement acknowledged ${formatDate(date)}`,
+    waiting: 'Waiting for payroll',
+  },
+  reinstatementAcknowledged: (date: string) =>
+    `Salary reinstatement acknowledged ${formatDate(date)}.`,
+  before: {
+    title: 'What came before',
+    firstStep: 'No earlier steps. This is the first step of the ladder.',
+    issued: (date: string) => `Issued ${formatDate(date)}`,
+    approvedBy: (name: string) => `approved by ${name}`,
+    actBy: (date: string) => `act by ${formatDate(date)}`,
+    stoppageWindowEnds: (date: string) => `stoppage window ends ${formatDate(date)}`,
+    response: (date: string) => `Response ${formatDate(date)}:`,
+    noResponse: 'No response from the declarant',
+    loading: 'Loading the earlier steps',
+    failed: 'The earlier steps could not be loaded.',
+    retry: 'Try again',
+  },
+  approve: {
+    payrollCallout: (name: string) =>
+      `Approving sends a stop-salary instruction to payroll for ${name}.`,
+    adm: 'An ADM number is allocated in your name',
+    admPayroll: 'It is also the payroll instruction reference',
+    payroll: 'Payroll receives a stop_salary instruction',
+    payrollDetail: (file: string) =>
+      `With the employer code, personal number ${file} and ID number from the roster record`,
+    stoppageLetter: 'The salary stoppage letter is issued when payroll acknowledges',
+    letterDetail: 'Restricted, with a QR code',
+    disciplinaryLetter: 'A disciplinary referral letter is issued to the declarant',
+    employer: 'The reporting entity is told to start disciplinary proceedings',
+    employerDetail: 'The ladder then waits for compliance',
+    notified: (name: string) => `${name} is notified`,
+    reinstatedDetail: 'Salary is reinstated automatically when they comply',
+    notifiedDetail: 'By email, SMS and in the portal',
+    read: 'I have read the notice, the warning and any responses',
+    confirmStoppage: 'Approve and stop salary',
+  },
+  approvedDetail: {
+    'salary-stoppage':
+      'The stop-salary instruction goes to payroll; the letter is issued once payroll acknowledges it.',
+    'disciplinary-referral':
+      'The letter is issued, the declarant notified and the reporting entity told to act.',
+  } as Partial<Record<ActionStep, string>>,
+  declineWarning: {
+    'disciplinary-referral': 'The salary stays stopped and the ladder waits for compliance.',
+  } as Partial<Record<ActionStep, string>>,
+  declinedDetail: {
+    'disciplinary-referral': 'The ladder waits for compliance.',
+  } as Partial<Record<ActionStep, string>>,
+} as const;

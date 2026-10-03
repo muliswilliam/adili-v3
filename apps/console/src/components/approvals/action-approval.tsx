@@ -10,14 +10,15 @@ import {
   UserWarning01Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isGraveStep, subjectOf } from '../../actions/ladder';
 import { decisionRefusal } from '../../actions/refusal';
 import type { ActionStep, AdministrativeAction } from '../../server/actions.server';
-import { approveLadderStep, declineLadderStep } from '../../server/actions';
+import { approveLadderStep, declineLadderStep, getLadder } from '../../server/actions';
 import type { ServiceResult } from '../../server/service-call';
 import { STEP_LABELS } from '../actions/messages';
+import { type EarlierSteps, stepsBefore } from '../actions/prior-steps';
 import { ApproveStepDialog, consequencesOf, DeclineStepDialog } from '../actions/step-dialogs';
 import type { FailureText } from '../dialog-parts';
 import { messages as t } from './action-messages';
@@ -60,6 +61,44 @@ function PriorSteps({ item }: { item: ActionApprovalItem }) {
 }
 
 /**
+ * The steps before a grave step (salary stoppage, disciplinary referral), read from its ladder
+ * while its approve dialog is open, so the supervisor reads every response and the stoppage's
+ * payroll acknowledgement in full before deciding (#208, US 13); the card's summary has excerpts
+ * only. Undefined for a notice or warning, or while the dialog is closed.
+ */
+function useEarlierSteps(item: ActionApprovalItem, open: boolean): EarlierSteps | undefined {
+  const { ladderId, step } = item.summary;
+  const wanted = open && isGraveStep(step);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setAttempt((count) => count + 1);
+  }, []);
+  // What the last read answered, for the read it was (`key`); any other read is still loading.
+  const key = `${ladderId}:${String(attempt)}`;
+  const [answered, setAnswered] = useState<{ key: string; earlier: EarlierSteps } | null>(null);
+  useEffect(() => {
+    if (!wanted) return;
+    let live = true;
+    void getLadder({ data: { ladderId } })
+      .catch(() => ({ ok: false }) as const)
+      .then((result) => {
+        if (!live) return;
+        setAnswered({
+          key,
+          earlier: result.ok
+            ? { state: 'ok', steps: stepsBefore(result.data, item.subjectId) }
+            : { state: 'failed', retry },
+        });
+      });
+    return () => {
+      live = false;
+    };
+  }, [wanted, key, ladderId, item.subjectId, retry]);
+  const earlier: EarlierSteps = answered?.key === key ? answered.earlier : { state: 'loading' };
+  return wanted ? earlier : undefined;
+}
+
+/**
  * A drafted step of an administrative action ladder in the approvals inbox (spec 08 FE-3, FE-5; S5, S9,
  * S14): the declarant, the step, what the ladder is about and the file number, who drafted it and
  * how long it has waited, the steps issued before it with any response, what approving does, and
@@ -81,6 +120,7 @@ export function ActionApproval({
   const approvalKey = useRef<string | null>(null);
   const declineKey = useRef<{ note: string; key: string } | null>(null);
   const nowIso = new Date(now).toISOString();
+  const earlier = useEarlierSteps(item, dialog === 'approve');
 
   async function settle(
     result: ServiceResult<AdministrativeAction>,
@@ -146,7 +186,12 @@ export function ActionApproval({
         proposedAt={item.proposedAt}
         now={now}
         summary={<PriorSteps item={item} />}
-        consequences={consequencesOf(summary.step, summary.declarantName, nowIso)}
+        consequences={consequencesOf(
+          summary.step,
+          summary.declarantName,
+          nowIso,
+          summary.personnelFileNumber,
+        )}
         canApprove={item.canApprove}
         cannotApproveReason={item.cannotApproveReason}
         decision={
@@ -190,7 +235,9 @@ export function ActionApproval({
         step={summary.step}
         declarantName={summary.declarantName}
         subjectTitle={subject.title}
+        personnelFileNumber={summary.personnelFileNumber}
         now={nowIso}
+        {...(earlier ? { earlier } : {})}
         onSubmit={approve}
       />
       <DeclineStepDialog

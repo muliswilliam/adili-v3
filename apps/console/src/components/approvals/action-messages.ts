@@ -40,6 +40,8 @@ export const messages = {
         ? `${STEP_LABELS[step]} approved. ${reference} allocated.`
         : `${STEP_LABELS[step]} approved`,
     declined: (step: keyof typeof STEP_LABELS) =>
-      `${STEP_LABELS[step]} declined. The ladder has ended.`,
+      step === 'disciplinary-referral'
+        ? `${STEP_LABELS[step]} declined. The ladder waits for compliance.`
+        : `${STEP_LABELS[step]} declined. The ladder has ended.`,
   },
 } as const;
