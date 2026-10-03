@@ -15,6 +15,7 @@ import { AlertCircleIcon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useRef } from 'react';
 import { z } from 'zod';
 
+import { AskAdiliLauncher, AskAdiliProvider } from '../components/assistant/ask-adili';
 import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
 import { DashboardCards } from '../components/dashboard/dashboard-cards';
@@ -163,6 +164,26 @@ function Dashboard({
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
+  const main = (
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
+      <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
+      <div className="mt-8">
+        <DashboardCards
+          viewer={viewer}
+          declarations={declarations}
+          accessNotices={accessNotices}
+          clarifications={clarifications}
+          obligations={
+            <ObligationsSection
+              obligations={obligations}
+              reload={reloadObligations}
+              loadDetail={loadObligationDetail}
+            />
+          }
+        />
+      </div>
+    </main>
+  );
   return (
     <ToastProvider>
       {discarded ? <DiscardedToast /> : null}
@@ -176,25 +197,19 @@ function Dashboard({
           </>
         }
       />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
-        <div className="mt-8">
-          <DashboardCards
-            viewer={viewer}
-            declarations={declarations}
-            accessNotices={accessNotices}
-            clarifications={clarifications}
-            obligations={
-              <ObligationsSection
-                obligations={obligations}
-                reload={reloadObligations}
-                loadDetail={loadObligationDetail}
-              />
-            }
-          />
-        </div>
-      </main>
-      <SiteFooter />
+      {viewer.declarant.status === 'onboarded' ? (
+        // Ask Adili outside a draft (spec 11): for declarants, who have a Commission to ask about.
+        <AskAdiliProvider declarationId={null} step="home">
+          {main}
+          <SiteFooter />
+          <AskAdiliLauncher />
+        </AskAdiliProvider>
+      ) : (
+        <>
+          {main}
+          <SiteFooter />
+        </>
+      )}
     </ToastProvider>
   );
 }

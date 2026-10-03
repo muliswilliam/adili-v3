@@ -1,6 +1,9 @@
 import { bffEnvSchema, parseEnv } from '@adili/bff-auth';
 import { z } from 'zod';
 
+/** How the Ask Adili mock's gateway can behave (`./declarations/mock/assistant.ts`). */
+export const ASSISTANT_MOCK_MODES = ['ok', 'unavailable', 'fail-midway', 'rate-limited'] as const;
+
 export const envSchema = bffEnvSchema.extend({
   DIRECTORY_API_URL: z.url(),
   /**
@@ -32,6 +35,23 @@ export const envSchema = bffEnvSchema.extend({
    * service's obligations. Honoured in `vite dev` and tests only, like the other mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve Ask Adili (conversations, streamed answers, feedback) and help search from in-memory
+   * canned answers, to work on the panel without the declarations service's assistant and the
+   * ai-gateway. Works with real drafts too. Honoured in `vite dev` and tests only, like the
+   * other mocks.
+   */
+  ASSISTANT_MOCK: z.stringbool().default(false),
+  /**
+   * Show the rating control under Ask Adili answers. The declarations service builds the rating
+   * endpoint with #339; until then it is on only with ASSISTANT_MOCK, which answers it.
+   */
+  ASSISTANT_FEEDBACK: z.stringbool().default(false),
+  /**
+   * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
+   * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
+   */
+  ASSISTANT_MOCK_MODE: z.enum(ASSISTANT_MOCK_MODES).default('ok'),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service
