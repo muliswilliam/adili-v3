@@ -112,11 +112,13 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
     const marker = at(within(at(rows, 1)).getAllByText('‹10'), 0).parentElement;
     expect(marker?.getAttribute('data-unshown')).toBe('suppressed');
     expect(marker?.textContent).toBe('‹10Not shown to protect privacy');
+    // The total is hidden with it: less the initial cycle it would give the final away.
+    expect(within(at(rows, 2)).getAllByText('‹10')).toHaveLength(4);
     expect(
       cellsOf(within(region('Compliance')).getByRole('row', { name: /Referrals/ }))[0],
     ).toContain('‹10');
     const legend = screen.getByRole('note');
-    expect(legend.textContent).toContain('14 hidden');
+    expect(legend.textContent).toContain('18 hidden');
     expect(legend.textContent).toContain('Protects privacy');
   });
 

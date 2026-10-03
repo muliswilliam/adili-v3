@@ -1,4 +1,4 @@
-import { COMMISSION_ADMIN } from '@adili/roles';
+import { COMMISSION_ADMIN, FORM_M_ROLES } from '@adili/roles';
 import createClient from 'openapi-fetch';
 
 import { type Env, env } from '../env.server';
@@ -12,8 +12,9 @@ type OpenDataRelease = components['schemas']['OpenDataRelease'];
  * The reporting service's Commission open-data preview (spec 09b S6,
  * `getCommissionOpenDataPreview`), in memory: a release's Commission tables as the service stores
  * them, for three Commissions, filtered to the caller's as the service does. Its rules follow
- * #491: anyone not of the Commission 404, its other staff 403, 404 while no release is built, 503
- * when object storage is down. Which release it answers with is `REPORTING_MOCK_OPEN_DATA`.
+ * #491: 404 to anyone but the Commission's Form M roles (supervisor, commission-admin, reporting
+ * officer), 403 to those but its commission-admin, 404 while no release is built, 503 when object
+ * storage is down. Which release it answers with is `REPORTING_MOCK_OPEN_DATA`.
  */
 
 export type OpenDataMockScenario = Env['REPORTING_MOCK_OPEN_DATA'];
@@ -46,14 +47,15 @@ type Section = Exclude<Cycle, 'all'>;
 
 /**
  * One Commission's filing rows: each cycle's [expected, filed] (a cycle left out: nothing
- * expected), the `suppressed` cycles hidden, and the `all` total as a true sum of every cycle,
- * hidden ones included, as the service publishes it.
+ * expected) and the `all` total, a true sum of every cycle. `suppressed` names the rows hidden, as
+ * the service's suppression leaves them: a cycle under 10 officers never alone, since the total
+ * less the other cycles would give it away, so with it the next smallest line (here the total).
  */
 function filing(
   commission: string,
   reportStatus: 'not-reported' | 'submitted-on-time' | 'submitted-late',
   cycles: Partial<Record<Section, [number, number]>>,
-  suppressed: readonly Section[] = [],
+  suppressed: readonly Cycle[] = [],
 ): Row[] {
   const base = { commission, commissionName: NAMES[commission] ?? commission, reportStatus };
   const row = (cycle: Cycle, [expected, filed]: [number, number], hidden: boolean): Row =>
@@ -84,7 +86,7 @@ function filing(
     shown.reduce((sum, pair) => sum + pair[0], 0),
     shown.reduce((sum, pair) => sum + pair[1], 0),
   ];
-  return [...sections, row('all', total, false)];
+  return [...sections, row('all', total, suppressed.includes('all'))];
 }
 
 function compliance(commission: string, values: readonly number[] | 'suppressed' | null): Row {
@@ -123,11 +125,15 @@ function release(
     publishedAt: string | null;
   },
 ): OpenDataRelease {
+  const published = fields.status === 'published';
   return {
     version: 1,
+    publishedBy: published ? { subject: 'user-eacc-supervisor', name: 'Grace Achieng' } : null,
     withdrawnAt: null,
+    withdrawnBy: null,
+    manifestDocumentId: published ? '0190f3a2-0000-7000-8000-00000000d025' : null,
     withdrawnReason: null,
-    manifestVerificationId: fields.status === 'published' ? 'K7Q2-M9XD-4TPA' : null,
+    manifestVerificationId: published ? 'K7Q2-M9XD-4TPA' : null,
     tables: (
       [
         'filing-by-commission',
@@ -167,8 +173,8 @@ const PUBLISHED: MockRelease = {
           biennial: [301220, 290415],
           final: [7, 4],
         },
-        // A final cycle of fewer than 10 officers.
-        ['final'],
+        // A final cycle of fewer than 10 officers, and the total that would reveal it.
+        ['final', 'all'],
       ),
     ],
     'compliance-by-commission': [
@@ -193,8 +199,11 @@ const PREVIEW: MockRelease = {
     'filing-by-commission': [
       ...filing('jsc', 'not-reported', {}),
       // An even year: no biennial cycle, nothing expected of it.
-      // A final cycle of fewer than 10 officers.
-      ...filing('psc', 'submitted-on-time', { initial: [655, 596], final: [8, 6] }, ['final']),
+      // A final cycle of fewer than 10 officers, and the total that would reveal it.
+      ...filing('psc', 'submitted-on-time', { initial: [655, 596], final: [8, 6] }, [
+        'final',
+        'all',
+      ]),
       ...filing('tsc', 'submitted-on-time', { initial: [2210, 2105], final: [640, 601] }),
     ],
     'compliance-by-commission': [
@@ -213,7 +222,8 @@ export function mockOpenDataFetch(request: Request): Response | null {
   if (!match || request.method !== 'GET') return null;
   const slug = decodeURIComponent(match[1] ?? '');
   const caller = mockCallerOf(request);
-  if (caller.tenant !== slug) return problem(404, 'Not found');
+  const formM = caller.roles.some((role) => (FORM_M_ROLES as readonly string[]).includes(role));
+  if (caller.tenant !== slug || !formM) return problem(404, 'Not found');
   if (!caller.roles.includes(COMMISSION_ADMIN)) return problem(403, 'Forbidden');
   const answer = current();
   if (answer === 'none') return problem(404, 'Not found');

@@ -1,4 +1,10 @@
-import { COMMISSION_ADMIN, EACC_ANALYST, REPORTING_OFFICER } from '@adili/roles';
+import {
+  COMMISSION_ADMIN,
+  EACC_ANALYST,
+  REPORTING_OFFICER,
+  REVIEWER,
+  SUPERVISOR,
+} from '@adili/roles';
 import createClient from 'openapi-fetch';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -42,6 +48,10 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
     expect(data.release).toMatchObject({ fy: 2026, kind: 'snapshot', status: 'preview' });
     expect(data.release.publishedAt).toBeNull();
     expect(data.compliance).toMatchObject({ suppressed: true, determinationsCompliant: null });
+    expect(data.filing.filter((row) => row.suppressed).map((row) => row.cycle)).toEqual([
+      'final',
+      'all',
+    ]);
   });
 
   it('answers 404 while no release has been built', async () => {
@@ -53,11 +63,18 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
     });
   });
 
-  it("answers 403 to the Commission's other staff and 404 to anyone not of it", async () => {
-    const officer = mockOpenDataClient({ roles: [REPORTING_OFFICER], tenant: 'psc' });
-    expect(await loadCommissionOpenDataPreview(officer, 'psc')).toMatchObject({
+  it("answers 403 to the Commission's other Form M roles and 404 to anyone else", async () => {
+    for (const role of [REPORTING_OFFICER, SUPERVISOR]) {
+      const officer = mockOpenDataClient({ roles: [role], tenant: 'psc' });
+      expect(await loadCommissionOpenDataPreview(officer, 'psc')).toMatchObject({
+        ok: false,
+        error: { kind: 'problem', problem: { status: 403 } },
+      });
+    }
+    const reviewer = mockOpenDataClient({ roles: [REVIEWER], tenant: 'psc' });
+    expect(await loadCommissionOpenDataPreview(reviewer, 'psc')).toMatchObject({
       ok: false,
-      error: { kind: 'problem', problem: { status: 403 } },
+      error: { kind: 'problem', problem: { status: 404 } },
     });
     const otherAdmin = mockOpenDataClient({ roles: [COMMISSION_ADMIN], tenant: 'tsc' });
     const analyst = mockOpenDataClient({ roles: [EACC_ANALYST], tenant: 'eacc' });
