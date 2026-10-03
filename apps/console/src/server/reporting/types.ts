@@ -25,7 +25,7 @@ export interface ReportingProblem {
   status: number;
   detail?: string;
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available` or `report-submitted`. */
-  code?: string;
+  code?: Schemas['ProblemDetails']['code'];
 }
 
 /** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */

@@ -22,12 +22,11 @@ export const financialYear = z.int().min(2025).max(9999);
 
 /**
  * Today in Nairobi, the day the workspace counts days to the due date from; with the reporting
- * mock in development, REPORTING_MOCK_TODAY when set, so the page and the mock agree.
+ * mock in development, the mock's day, so the page and the mock agree.
  */
-export function today(): string {
-  const config = env();
-  if (import.meta.env.DEV && config.REPORTING_MOCK && config.REPORTING_MOCK_TODAY) {
-    return config.REPORTING_MOCK_TODAY;
+export async function today(): Promise<string> {
+  if (import.meta.env.DEV && env().REPORTING_MOCK) {
+    return (await import('./reporting/mock.server')).mockReportingToday();
   }
   return nairobiToday();
 }
@@ -35,8 +34,8 @@ export function today(): string {
 export const getFormMWorkspace = createServerFn({ method: 'GET' })
   .validator(z.object({ slug: commissionSlug, fy: financialYear.optional() }))
   .handler(({ data }): Promise<FormMResult<FormMWorkspace>> =>
-    asReportingViewer((client) =>
-      loadWorkspace(client, data.slug, { fy: data.fy, today: today() }),
+    asReportingViewer(async (client) =>
+      loadWorkspace(client, data.slug, { fy: data.fy, today: await today() }),
     ),
   );
 

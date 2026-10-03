@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ComplianceReport, ReportPeriod } from '../../server/reporting/types';
-import { dueLine, isPreview, partIMissing, periodLine, signOffSteps } from './form-m-view';
+import {
+  dueLine,
+  isPreview,
+  manualMissing,
+  partIMissing,
+  periodLine,
+  signOffSteps,
+} from './form-m-view';
 
 const period = (over: Partial<ReportPeriod>): ReportPeriod => ({
   fy: 2025,
@@ -22,6 +29,14 @@ describe('the period line under each financial year', () => {
     expect(
       periodLine(period({ fy: 2026, dueDate: '2027-07-31', previewAvailable: true }), '2027-04-10'),
     ).toBe('Preview available · Due 31 Jul 2027');
+  });
+
+  it('reads a past year that never got a report as due or overdue, not as a preview', () => {
+    // The service still says previewAvailable: compiling is open from 1 April with no end.
+    const past = period({ previewAvailable: true });
+    expect(periodLine(past, '2026-10-03')).toBe('Was due 31 Jul 2026 · 64 days overdue');
+    expect(periodLine(past, '2026-07-10')).toBe('Due 31 Jul 2026 · 21 days left');
+    expect(periodLine(past, '2026-06-30')).toBe('Preview available · Due 31 Jul 2026');
   });
 
   it('counts the days left, or overdue, for a report in progress', () => {
@@ -56,7 +71,7 @@ describe('the footer due line', () => {
   it('names the due date in full with the days left or overdue', () => {
     expect(dueLine('2026-07-31', '2026-10-03')).toEqual({
       text: 'Due 31 July 2026 · 64 days overdue',
-      tone: 'danger',
+      tone: 'destructive',
     });
     expect(dueLine('2027-07-31', '2027-07-20')).toEqual({
       text: 'Due 31 July 2027 · 11 days left',
@@ -106,6 +121,22 @@ describe('Part I', () => {
     expect(partIMissing(partI('+254 20 222 3901', 'Harambee Avenue', 'form-m@psc.go.ke'))).toEqual(
       [],
     );
+  });
+});
+
+describe('what the commission-admin has still to fill', () => {
+  it('adds the unanswered Part B register question to the Part I fields', () => {
+    const document = (registerMaintained: boolean | null) =>
+      ({
+        partI: {
+          contactDetails: '+254 20 222 3901',
+          physicalAddress: 'Harambee Avenue',
+          emailAddress: 'form-m@psc.go.ke',
+        },
+        partII: { complaints: { registerMaintained, items: [] } },
+      }) as unknown as NonNullable<ComplianceReport['document']>;
+    expect(manualMissing(document(null))).toEqual(['Part B register answer']);
+    expect(manualMissing(document(false))).toEqual([]);
   });
 });
 
