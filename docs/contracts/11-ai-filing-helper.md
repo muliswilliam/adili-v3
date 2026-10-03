@@ -1,6 +1,6 @@
 # Spec 11 contract convergence: AI filing helper
 
-How the contracts drafted for spec 11 (#296, contract commit `bde37c16`) compare with what was built, after #417 (#324), #445 (#325), #473 (#332), #513 (#333), #526 (#335) and #536 (#339).
+How the contract drafted in `bde37c16` for spec 11 (#296) compares with what was built, after #417 (#324), #445 (#325), #473 (#332), #513 (#333), #526 (#335) and #536 (#339).
 Each difference below was decided in the ticket named; the generated contract in `packages/schemas/internal/<service>.yaml` is now the source of truth.
 ADR-019 records the streamed answer's tagged text; ADR-013 §2 and §8.14 the answer stream's timeouts and acting tenant; ADR-018 decision 8 the conversations' person-scoped writes.
 
@@ -38,7 +38,7 @@ Operations changed:
 - `searchHelp` (#325, #333):
   - Declarants only (by the `person_id` claim); anyone else 404. The draft said "signed-in users".
   - Gains `itemType` (a statement item type, boosted like the section) and `date` (the law in force on that day; today by default). `sectionKey` is a pattern string.
-  - Covers the platform's published articles and those of every Commission the declarant has filing obligations with. The assistant's retrieval reads only the platform's and the conversation's Commission's.
+  - Covers the platform's published articles and those of every Commission the declarant has filing obligations with. Ask Adili's retrieval reads only the platform's and the conversation's Commission's.
   - A Swahili question also searches Swahili article bodies and is expanded into the English of the law through a glossary (`src/help/glossary.ts`): there is no official Swahili text of the Act or Regulations.
   - 400 and 404 documented.
 - `listHelpArticles`: the Commission's administrators and reporting officers; anyone else 404. Last updated first.
@@ -53,7 +53,7 @@ Schemas changed:
 - New: `HelpLanguage`, `HelpTag`, `CorpusPassage`, `CorpusImportResult`.
 - Help articles have their own table, not rows of `corpus_passages` as the BE detail sketched: they have a tenant, row-level security, a publish flag and an author (#325).
 
-## Declarations: assistant (`internal/declarations.yaml`)
+## Declarations: Ask Adili (`internal/declarations.yaml`)
 
 Operations changed:
 
@@ -113,7 +113,7 @@ Still in `drafts/declarations.yaml`, unchanged. The panel shows curated question
   - Data class `synthetic` only.
   - `context.residuals` gain `sectionKey`, so a hint links to its field; `ruleId` and `fieldPath` have patterns (field names and indexes only); at most 20.
   - `declarationType` is an enum, `sectionKey` the section key pattern, `householdCounts` at least 0, `question` at least 1 character.
-  - `passages` at most 20, with length limits; `history` at most 10.
+  - `passages` at most 20, with length limits; `history` at most 10 as drafted, each turn's `text` now at most 4000 characters.
   - Amounts in the question and history are minimised to tokens before a provider sees them, like identifiers (not in the contract).
 - `AnswerDeclarantQuestionOutput`: as drafted, with `blocks` at most 20 and `sectionLink` as `anyOf` (code-first export). In answer mode each block cites at least one passage; in hints mode a block is its residual's hint.
 - `AiLabel.disclaimer` is fixed per task and language: for this task, not legal advice.

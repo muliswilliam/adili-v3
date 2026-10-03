@@ -10,8 +10,8 @@ import type {
 import { filingObligations, outbox, rosterSnapshots } from '../../src/db/schema.js';
 import type { Declaration } from '../../src/drafts/representation.js';
 import { assetItem, household, incomeItem } from '../fixtures/sections.js';
-import type { Caller, DeclarationsApi } from './declarations-api.js';
 import { contractErrors } from './contract.js';
+import type { Caller, DeclarationsApi } from './declarations-api.js';
 import { rosterRecord } from './fake-directory.js';
 
 /**
