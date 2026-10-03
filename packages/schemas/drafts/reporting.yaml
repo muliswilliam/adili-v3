@@ -214,6 +214,14 @@ paths:
         `publishedBy` the approver. The release was reconciled with the NCR when it was built. A
         year has one published annual release at a time: an annual preview is published only
         once the year's published one is withdrawn (409 `annual-release-published`).
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Published
@@ -232,7 +240,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`)
+          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -264,6 +278,14 @@ paths:
         (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's
         releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind,
         version; not the reason).
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -296,7 +318,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The release is a preview or withdrawn already (`release-not-published`)
+          description: The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
