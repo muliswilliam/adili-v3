@@ -647,8 +647,8 @@ export interface components {
             reference: string | null;
             /** Format: date */
             dueDate: string;
-            /** @description The form-m.v1 document as filed, frozen at submission (a submitted report always has one) */
-            document: components["schemas"]["FormM"] | null;
+            /** @description The form-m.v1 document as filed, frozen at submission */
+            document: components["schemas"]["FormM"];
             /** @description Empty until the first compile */
             counts: components["schemas"]["ReportCounts"] | Record<string, never>;
             /** @description The Restricted Form M PDF, once issued */

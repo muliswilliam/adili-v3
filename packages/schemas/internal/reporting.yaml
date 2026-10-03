@@ -1573,10 +1573,8 @@ components:
           type: string
           format: date
         document:
-          anyOf:
-            - $ref: '#/components/schemas/FormM'
-            - type: 'null'
-          description: The form-m.v1 document as filed, frozen at submission (a submitted report always has one)
+          description: The form-m.v1 document as filed, frozen at submission
+          $ref: '#/components/schemas/FormM'
         counts:
           anyOf:
             - $ref: '#/components/schemas/ReportCounts'
