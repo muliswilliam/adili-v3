@@ -5,7 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { AccessTransaction } from '../db/database.js';
-import { currentTransactionId, startWorkflow } from '../workflow-control.js';
+import { currentTransactionId, startWorkflow, type WorkflowStart } from '../workflow-control.js';
 import {
   CERTIFIED_COPY_WORKFLOW,
   type CertifiedCopyWorkflowInput,
@@ -51,22 +51,22 @@ export class CertifiedCopyIssuance {
   constructor(@InjectTemporalClient() private readonly temporal: Client) {}
 
   async order(tx: AccessTransaction, order: CertifiedCopyOrder): Promise<CertifiedCopyRow> {
-    const { copy, retried } = await this.record(tx, order);
+    const { copy, reopened } = await this.record(tx, order);
     if (copy.status === 'pending') {
       await this.start(
         { tenant: copy.tenant, copyId: copy.id, transactionId: await currentTransactionId(tx) },
         // The run that recorded it failed may not have closed yet: it is replaced, not kept.
-        retried,
+        reopened ? 'replace' : 'keep',
       );
     }
     return copy;
   }
 
-  /** The copy as ordered now, and whether it was a failed one, now tried again. */
+  /** The copy as ordered now, and whether it was reopened (a failed one, now tried again). */
   private async record(
     tx: AccessTransaction,
     order: CertifiedCopyOrder,
-  ): Promise<{ copy: CertifiedCopyRow; retried: boolean }> {
+  ): Promise<{ copy: CertifiedCopyRow; reopened: boolean }> {
     const asked = {
       requestedBy: order.requestedBy.subject,
       requestedByName: order.requestedBy.name,
@@ -108,24 +108,27 @@ export class CertifiedCopyIssuance {
       )
       .for('update');
     if (!found) throw new Error('The certified copy was not recorded');
-    if (found.status !== 'failed') return { copy: found, retried: false };
+    if (found.status !== 'failed') return { copy: found, reopened: false };
     // Asked again after declarations had no such version: try again, as asked now.
-    const [reopened] = await tx
+    const [pending] = await tx
       .update(certifiedCopies)
       .set({ status: 'pending', failedAt: null, commissionName: order.commissionName, ...asked })
       .where(eq(certifiedCopies.id, found.id))
       .returning();
-    if (!reopened) throw new Error('The certified copy was not recorded');
-    return { copy: reopened, retried: true };
+    if (!pending) throw new Error('The certified copy was not recorded');
+    return { copy: pending, reopened: true };
   }
 
-  private async start(input: CertifiedCopyWorkflowInput, replaceRunning: boolean): Promise<void> {
+  private async start(
+    input: CertifiedCopyWorkflowInput,
+    onRunning: WorkflowStart['onRunning'],
+  ): Promise<void> {
     await startWorkflow(this.temporal, {
       type: CERTIFIED_COPY_WORKFLOW,
       workflowId: certifiedCopyWorkflowId(input.copyId),
       args: [input],
       unavailable: 'The certified copy cannot be prepared right now. Try again shortly.',
-      replaceRunning,
+      onRunning,
     });
   }
 }

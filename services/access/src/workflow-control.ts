@@ -44,18 +44,20 @@ export interface WorkflowStart {
   /** The 503 `workflow-unavailable` detail when Temporal cannot be reached. */
   unavailable: string;
   /**
-   * The record was reopened from a state its last run left it in for good (a failed certified
-   * copy ordered again): a run still open under the id is that run, past its last write but not
-   * yet closed, so it is terminated and a new one started rather than kept. Kept, it would close
-   * without reading the record again, and leave it pending with no workflow behind it.
+   * What to do with a run already open under the id. `keep` (the default): it is the run that
+   * follows the record, so it is left as it is (a retried start, or a re-order of a record still
+   * in progress). `replace`: the record was reopened from a state its last run left it in for
+   * good (e.g. a failed certified copy ordered again), so the open run is that one, past its last
+   * write and about to close without reading the record again; it is terminated and a new run
+   * started. Kept, it would leave the record with no workflow behind it.
    */
-  replaceRunning?: boolean;
+  onRunning?: 'keep' | 'replace';
 }
 
 /**
  * Starts a workflow, idempotently: one running under the same id is left as it is (a retried
- * start, or a re-order of a record still in progress) unless `replaceRunning`; one that ended is
- * started afresh. Temporal unreachable is logged and thrown as 503 `workflow-unavailable`, which
+ * start, or a re-order of a record still in progress) unless `onRunning` is `replace`; one that
+ * ended is started afresh. Temporal unreachable is logged and thrown as 503 `workflow-unavailable`, which
  * rolls the caller's transaction back.
  */
 export async function startWorkflow(temporal: Client, start: WorkflowStart): Promise<void> {
@@ -65,7 +67,7 @@ export async function startWorkflow(temporal: Client, start: WorkflowStart): Pro
       workflowId: start.workflowId,
       args: start.args,
       workflowIdConflictPolicy:
-        start.replaceRunning === true ? 'TERMINATE_EXISTING' : 'USE_EXISTING',
+        start.onRunning === 'replace' ? 'TERMINATE_EXISTING' : 'USE_EXISTING',
       workflowIdReusePolicy: 'ALLOW_DUPLICATE',
     });
   } catch (error) {
