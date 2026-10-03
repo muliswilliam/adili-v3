@@ -8,445 +8,439 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as GetStartedRouteRouteImport } from './routes/get-started/route'
-import { Route as AccessIndexRouteImport } from './routes/access/index'
-import { Route as AccessCertifiedCopiesRouteImport } from './routes/access/certified-copies'
-import { Route as AccessGetStartedRouteRouteImport } from './routes/access/get-started/route'
-import { Route as AccessHistoryRouteImport } from './routes/access/history'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
-import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
-import { Route as AuthRecoverRouteImport } from './routes/auth/recover'
-import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
-import { Route as ClarificationsIndexRouteImport } from './routes/clarifications/index'
-import { Route as ClarificationsIdRouteImport } from './routes/clarifications/$id'
-import { Route as DeclarationsIndexRouteImport } from './routes/declarations/index'
-import { Route as DeclarationsIdRouteRouteImport } from './routes/declarations/$id/route'
-import { Route as GetStartedIndexRouteImport } from './routes/get-started/index'
-import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email'
-import { Route as GetStartedConfirmRouteImport } from './routes/get-started/confirm'
-import { Route as GetStartedDoneRouteImport } from './routes/get-started/done'
-import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/identify'
-import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
-import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
-import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
-import { Route as AccessGetStartedIndexRouteImport } from './routes/access/get-started/index'
-import { Route as AccessGetStartedCheckEmailRouteImport } from './routes/access/get-started/check-email'
-import { Route as AccessGetStartedCreateRouteImport } from './routes/access/get-started/create'
-import { Route as AccessGetStartedDetailsRouteImport } from './routes/access/get-started/details'
-import { Route as AccessGetStartedVerifyPhoneRouteImport } from './routes/access/get-started/verify-phone'
-import { Route as AccessNoticesIndexRouteImport } from './routes/access/notices/index'
-import { Route as AccessNoticesIdRouteImport } from './routes/access/notices/$id'
-import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index'
-import { Route as AccessRequestsIdRouteImport } from './routes/access/requests/$id'
-import { Route as AccessRequestsNewRouteImport } from './routes/access/requests/new'
-import { Route as ApiMockLettersIdRouteImport } from './routes/api/mock-letters.$id'
-import { Route as ApiMockPackagesDocumentIdRouteImport } from './routes/api/mock-packages.$documentId'
-import { Route as ApiMockSlipsDocumentIdRouteImport } from './routes/api/mock-slips.$documentId'
-import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id'
-import { Route as DeclarationsIdIndexRouteImport } from './routes/declarations/$id/index'
-import { Route as DeclarationsIdBioRouteImport } from './routes/declarations/$id/bio'
-import { Route as DeclarationsIdHouseholdRouteImport } from './routes/declarations/$id/household'
-import { Route as DeclarationsIdOtherRouteImport } from './routes/declarations/$id/other'
-import { Route as DeclarationsIdSummaryRouteImport } from './routes/declarations/$id/summary'
-import { Route as DeclarationsIdSubmittedRouteImport } from './routes/declarations/$id_.submitted'
-import { Route as AccessRequestsIdSubmittedRouteImport } from './routes/access/requests/$id_.submitted'
-import { Route as ApiDocumentsDocumentIdDownloadRouteImport } from './routes/api/documents.$documentId.download'
-import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
-import { Route as ApiAssistantConversationsConversationIdMessagesRouteImport } from './routes/api/assistant.conversations.$conversationId.messages'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as GetStartedRouteRouteImport } from './routes/get-started/route';
+import { Route as AccessIndexRouteImport } from './routes/access/index';
+import { Route as AccessCertifiedCopiesRouteImport } from './routes/access/certified-copies';
+import { Route as AccessGetStartedRouteRouteImport } from './routes/access/get-started/route';
+import { Route as AccessHistoryRouteImport } from './routes/access/history';
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback';
+import { Route as AuthLoginRouteImport } from './routes/auth/login';
+import { Route as AuthLogoutRouteImport } from './routes/auth/logout';
+import { Route as AuthRecoverRouteImport } from './routes/auth/recover';
+import { Route as AuthStepUpRouteImport } from './routes/auth/step-up';
+import { Route as ClarificationsIndexRouteImport } from './routes/clarifications/index';
+import { Route as ClarificationsIdRouteImport } from './routes/clarifications/$id';
+import { Route as DeclarationsIndexRouteImport } from './routes/declarations/index';
+import { Route as DeclarationsIdRouteRouteImport } from './routes/declarations/$id/route';
+import { Route as GetStartedIndexRouteImport } from './routes/get-started/index';
+import { Route as GetStartedCheckEmailRouteImport } from './routes/get-started/check-email';
+import { Route as GetStartedConfirmRouteImport } from './routes/get-started/confirm';
+import { Route as GetStartedDoneRouteImport } from './routes/get-started/done';
+import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/identify';
+import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified';
+import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email';
+import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone';
+import { Route as AccessGetStartedIndexRouteImport } from './routes/access/get-started/index';
+import { Route as AccessGetStartedCheckEmailRouteImport } from './routes/access/get-started/check-email';
+import { Route as AccessGetStartedCreateRouteImport } from './routes/access/get-started/create';
+import { Route as AccessGetStartedDetailsRouteImport } from './routes/access/get-started/details';
+import { Route as AccessGetStartedVerifyPhoneRouteImport } from './routes/access/get-started/verify-phone';
+import { Route as AccessNoticesIndexRouteImport } from './routes/access/notices/index';
+import { Route as AccessNoticesIdRouteImport } from './routes/access/notices/$id';
+import { Route as AccessRequestsIndexRouteImport } from './routes/access/requests/index';
+import { Route as AccessRequestsIdRouteImport } from './routes/access/requests/$id';
+import { Route as AccessRequestsNewRouteImport } from './routes/access/requests/new';
+import { Route as ApiMockLettersIdRouteImport } from './routes/api/mock-letters.$id';
+import { Route as ApiMockPackagesDocumentIdRouteImport } from './routes/api/mock-packages.$documentId';
+import { Route as ApiMockSlipsDocumentIdRouteImport } from './routes/api/mock-slips.$documentId';
+import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.$id';
+import { Route as DeclarationsIdIndexRouteImport } from './routes/declarations/$id/index';
+import { Route as DeclarationsIdBioRouteImport } from './routes/declarations/$id/bio';
+import { Route as DeclarationsIdHouseholdRouteImport } from './routes/declarations/$id/household';
+import { Route as DeclarationsIdOtherRouteImport } from './routes/declarations/$id/other';
+import { Route as DeclarationsIdSummaryRouteImport } from './routes/declarations/$id/summary';
+import { Route as DeclarationsIdSubmittedRouteImport } from './routes/declarations/$id_.submitted';
+import { Route as AccessRequestsIdSubmittedRouteImport } from './routes/access/requests/$id_.submitted';
+import { Route as ApiDocumentsDocumentIdDownloadRouteImport } from './routes/api/documents.$documentId.download';
+import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey';
+import { Route as ApiAssistantConversationsConversationIdMessagesRouteImport } from './routes/api/assistant.conversations.$conversationId.messages';
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const GetStartedRouteRoute = GetStartedRouteRouteImport.update({
   id: '/get-started',
   path: '/get-started',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessIndexRoute = AccessIndexRouteImport.update({
   id: '/access/',
   path: '/access/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessCertifiedCopiesRoute = AccessCertifiedCopiesRouteImport.update({
   id: '/access/certified-copies',
   path: '/access/certified-copies',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessGetStartedRouteRoute = AccessGetStartedRouteRouteImport.update({
   id: '/access/get-started',
   path: '/access/get-started',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessHistoryRoute = AccessHistoryRouteImport.update({
   id: '/access/history',
   path: '/access/history',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/auth/login',
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
   path: '/auth/logout',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthRecoverRoute = AuthRecoverRouteImport.update({
   id: '/auth/recover',
   path: '/auth/recover',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthStepUpRoute = AuthStepUpRouteImport.update({
   id: '/auth/step-up',
   path: '/auth/step-up',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ClarificationsIndexRoute = ClarificationsIndexRouteImport.update({
   id: '/clarifications/',
   path: '/clarifications/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ClarificationsIdRoute = ClarificationsIdRouteImport.update({
   id: '/clarifications/$id',
   path: '/clarifications/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const DeclarationsIndexRoute = DeclarationsIndexRouteImport.update({
   id: '/declarations/',
   path: '/declarations/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const DeclarationsIdRouteRoute = DeclarationsIdRouteRouteImport.update({
   id: '/declarations/$id',
   path: '/declarations/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const GetStartedIndexRoute = GetStartedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedCheckEmailRoute = GetStartedCheckEmailRouteImport.update({
   id: '/check-email',
   path: '/check-email',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedConfirmRoute = GetStartedConfirmRouteImport.update({
   id: '/confirm',
   path: '/confirm',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedDoneRoute = GetStartedDoneRouteImport.update({
   id: '/done',
   path: '/done',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedIdentifyRoute = GetStartedIdentifyRouteImport.update({
   id: '/identify',
   path: '/identify',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedNotVerifiedRoute = GetStartedNotVerifiedRouteImport.update({
   id: '/not-verified',
   path: '/not-verified',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedVerifyEmailRoute = GetStartedVerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const GetStartedVerifyPhoneRoute = GetStartedVerifyPhoneRouteImport.update({
   id: '/verify-phone',
   path: '/verify-phone',
   getParentRoute: () => GetStartedRouteRoute,
-} as any)
+} as any);
 const AccessGetStartedIndexRoute = AccessGetStartedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccessGetStartedRouteRoute,
-} as any)
-const AccessGetStartedCheckEmailRoute =
-  AccessGetStartedCheckEmailRouteImport.update({
-    id: '/check-email',
-    path: '/check-email',
-    getParentRoute: () => AccessGetStartedRouteRoute,
-  } as any)
+} as any);
+const AccessGetStartedCheckEmailRoute = AccessGetStartedCheckEmailRouteImport.update({
+  id: '/check-email',
+  path: '/check-email',
+  getParentRoute: () => AccessGetStartedRouteRoute,
+} as any);
 const AccessGetStartedCreateRoute = AccessGetStartedCreateRouteImport.update({
   id: '/create',
   path: '/create',
   getParentRoute: () => AccessGetStartedRouteRoute,
-} as any)
+} as any);
 const AccessGetStartedDetailsRoute = AccessGetStartedDetailsRouteImport.update({
   id: '/details',
   path: '/details',
   getParentRoute: () => AccessGetStartedRouteRoute,
-} as any)
-const AccessGetStartedVerifyPhoneRoute =
-  AccessGetStartedVerifyPhoneRouteImport.update({
-    id: '/verify-phone',
-    path: '/verify-phone',
-    getParentRoute: () => AccessGetStartedRouteRoute,
-  } as any)
+} as any);
+const AccessGetStartedVerifyPhoneRoute = AccessGetStartedVerifyPhoneRouteImport.update({
+  id: '/verify-phone',
+  path: '/verify-phone',
+  getParentRoute: () => AccessGetStartedRouteRoute,
+} as any);
 const AccessNoticesIndexRoute = AccessNoticesIndexRouteImport.update({
   id: '/access/notices/',
   path: '/access/notices/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessNoticesIdRoute = AccessNoticesIdRouteImport.update({
   id: '/access/notices/$id',
   path: '/access/notices/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessRequestsIndexRoute = AccessRequestsIndexRouteImport.update({
   id: '/access/requests/',
   path: '/access/requests/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessRequestsIdRoute = AccessRequestsIdRouteImport.update({
   id: '/access/requests/$id',
   path: '/access/requests/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AccessRequestsNewRoute = AccessRequestsNewRouteImport.update({
   id: '/access/requests/new',
   path: '/access/requests/new',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiMockLettersIdRoute = ApiMockLettersIdRouteImport.update({
   id: '/api/mock-letters/$id',
   path: '/api/mock-letters/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMockPackagesDocumentIdRoute =
-  ApiMockPackagesDocumentIdRouteImport.update({
-    id: '/api/mock-packages/$documentId',
-    path: '/api/mock-packages/$documentId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+} as any);
+const ApiMockPackagesDocumentIdRoute = ApiMockPackagesDocumentIdRouteImport.update({
+  id: '/api/mock-packages/$documentId',
+  path: '/api/mock-packages/$documentId',
+  getParentRoute: () => rootRouteImport,
+} as any);
 const ApiMockSlipsDocumentIdRoute = ApiMockSlipsDocumentIdRouteImport.update({
   id: '/api/mock-slips/$documentId',
   path: '/api/mock-slips/$documentId',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiMockUploadsIdRoute = ApiMockUploadsIdRouteImport.update({
   id: '/api/mock-uploads/$id',
   path: '/api/mock-uploads/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const DeclarationsIdIndexRoute = DeclarationsIdIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DeclarationsIdRouteRoute,
-} as any)
+} as any);
 const DeclarationsIdBioRoute = DeclarationsIdBioRouteImport.update({
   id: '/bio',
   path: '/bio',
   getParentRoute: () => DeclarationsIdRouteRoute,
-} as any)
+} as any);
 const DeclarationsIdHouseholdRoute = DeclarationsIdHouseholdRouteImport.update({
   id: '/household',
   path: '/household',
   getParentRoute: () => DeclarationsIdRouteRoute,
-} as any)
+} as any);
 const DeclarationsIdOtherRoute = DeclarationsIdOtherRouteImport.update({
   id: '/other',
   path: '/other',
   getParentRoute: () => DeclarationsIdRouteRoute,
-} as any)
+} as any);
 const DeclarationsIdSummaryRoute = DeclarationsIdSummaryRouteImport.update({
   id: '/summary',
   path: '/summary',
   getParentRoute: () => DeclarationsIdRouteRoute,
-} as any)
+} as any);
 const DeclarationsIdSubmittedRoute = DeclarationsIdSubmittedRouteImport.update({
   id: '/declarations/$id_/submitted',
   path: '/declarations/$id/submitted',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AccessRequestsIdSubmittedRoute =
-  AccessRequestsIdSubmittedRouteImport.update({
-    id: '/access/requests/$id_/submitted',
-    path: '/access/requests/$id/submitted',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiDocumentsDocumentIdDownloadRoute =
-  ApiDocumentsDocumentIdDownloadRouteImport.update({
-    id: '/api/documents/$documentId/download',
-    path: '/api/documents/$documentId/download',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const DeclarationsIdStatementsPersonKeyRoute =
-  DeclarationsIdStatementsPersonKeyRouteImport.update({
-    id: '/statements/$personKey',
-    path: '/statements/$personKey',
-    getParentRoute: () => DeclarationsIdRouteRoute,
-  } as any)
+} as any);
+const AccessRequestsIdSubmittedRoute = AccessRequestsIdSubmittedRouteImport.update({
+  id: '/access/requests/$id_/submitted',
+  path: '/access/requests/$id/submitted',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const ApiDocumentsDocumentIdDownloadRoute = ApiDocumentsDocumentIdDownloadRouteImport.update({
+  id: '/api/documents/$documentId/download',
+  path: '/api/documents/$documentId/download',
+  getParentRoute: () => rootRouteImport,
+} as any);
+const DeclarationsIdStatementsPersonKeyRoute = DeclarationsIdStatementsPersonKeyRouteImport.update({
+  id: '/statements/$personKey',
+  path: '/statements/$personKey',
+  getParentRoute: () => DeclarationsIdRouteRoute,
+} as any);
 const ApiAssistantConversationsConversationIdMessagesRoute =
   ApiAssistantConversationsConversationIdMessagesRouteImport.update({
     id: '/api/assistant/conversations/$conversationId/messages',
     path: '/api/assistant/conversations/$conversationId/messages',
     getParentRoute: () => rootRouteImport,
-  } as any)
+  } as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/get-started': typeof GetStartedRouteRouteWithChildren
-  '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
-  '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
-  '/access/certified-copies': typeof AccessCertifiedCopiesRoute
-  '/access/history': typeof AccessHistoryRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/auth/recover': typeof AuthRecoverRoute
-  '/auth/step-up': typeof AuthStepUpRoute
-  '/clarifications/$id': typeof ClarificationsIdRoute
-  '/get-started/check-email': typeof GetStartedCheckEmailRoute
-  '/get-started/confirm': typeof GetStartedConfirmRoute
-  '/get-started/done': typeof GetStartedDoneRoute
-  '/get-started/identify': typeof GetStartedIdentifyRoute
-  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
-  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
-  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
-  '/access/': typeof AccessIndexRoute
-  '/clarifications/': typeof ClarificationsIndexRoute
-  '/declarations/': typeof DeclarationsIndexRoute
-  '/get-started/': typeof GetStartedIndexRoute
-  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
-  '/access/get-started/create': typeof AccessGetStartedCreateRoute
-  '/access/get-started/details': typeof AccessGetStartedDetailsRoute
-  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute
-  '/access/notices/$id': typeof AccessNoticesIdRoute
-  '/access/requests/$id': typeof AccessRequestsIdRoute
-  '/access/requests/new': typeof AccessRequestsNewRoute
-  '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
-  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute
-  '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
-  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
-  '/declarations/$id/bio': typeof DeclarationsIdBioRoute
-  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
-  '/declarations/$id/other': typeof DeclarationsIdOtherRoute
-  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
-  '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute
-  '/access/get-started/': typeof AccessGetStartedIndexRoute
-  '/access/notices/': typeof AccessNoticesIndexRoute
-  '/access/requests/': typeof AccessRequestsIndexRoute
-  '/declarations/$id/': typeof DeclarationsIdIndexRoute
-  '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
-  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
-  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
-  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
+  '/': typeof IndexRoute;
+  '/get-started': typeof GetStartedRouteRouteWithChildren;
+  '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren;
+  '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren;
+  '/access/certified-copies': typeof AccessCertifiedCopiesRoute;
+  '/access/history': typeof AccessHistoryRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/auth/recover': typeof AuthRecoverRoute;
+  '/auth/step-up': typeof AuthStepUpRoute;
+  '/clarifications/$id': typeof ClarificationsIdRoute;
+  '/get-started/check-email': typeof GetStartedCheckEmailRoute;
+  '/get-started/confirm': typeof GetStartedConfirmRoute;
+  '/get-started/done': typeof GetStartedDoneRoute;
+  '/get-started/identify': typeof GetStartedIdentifyRoute;
+  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute;
+  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute;
+  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute;
+  '/access/': typeof AccessIndexRoute;
+  '/clarifications/': typeof ClarificationsIndexRoute;
+  '/declarations/': typeof DeclarationsIndexRoute;
+  '/get-started/': typeof GetStartedIndexRoute;
+  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute;
+  '/access/get-started/create': typeof AccessGetStartedCreateRoute;
+  '/access/get-started/details': typeof AccessGetStartedDetailsRoute;
+  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute;
+  '/access/notices/$id': typeof AccessNoticesIdRoute;
+  '/access/requests/$id': typeof AccessRequestsIdRoute;
+  '/access/requests/new': typeof AccessRequestsNewRoute;
+  '/api/mock-letters/$id': typeof ApiMockLettersIdRoute;
+  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute;
+  '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute;
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute;
+  '/declarations/$id/bio': typeof DeclarationsIdBioRoute;
+  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute;
+  '/declarations/$id/other': typeof DeclarationsIdOtherRoute;
+  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute;
+  '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute;
+  '/access/get-started/': typeof AccessGetStartedIndexRoute;
+  '/access/notices/': typeof AccessNoticesIndexRoute;
+  '/access/requests/': typeof AccessRequestsIndexRoute;
+  '/declarations/$id/': typeof DeclarationsIdIndexRoute;
+  '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute;
+  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute;
+  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute;
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/access/certified-copies': typeof AccessCertifiedCopiesRoute
-  '/access/history': typeof AccessHistoryRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/auth/recover': typeof AuthRecoverRoute
-  '/auth/step-up': typeof AuthStepUpRoute
-  '/clarifications/$id': typeof ClarificationsIdRoute
-  '/get-started/check-email': typeof GetStartedCheckEmailRoute
-  '/get-started/confirm': typeof GetStartedConfirmRoute
-  '/get-started/done': typeof GetStartedDoneRoute
-  '/get-started/identify': typeof GetStartedIdentifyRoute
-  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
-  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
-  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
-  '/access': typeof AccessIndexRoute
-  '/clarifications': typeof ClarificationsIndexRoute
-  '/declarations': typeof DeclarationsIndexRoute
-  '/get-started': typeof GetStartedIndexRoute
-  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
-  '/access/get-started/create': typeof AccessGetStartedCreateRoute
-  '/access/get-started/details': typeof AccessGetStartedDetailsRoute
-  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute
-  '/access/notices/$id': typeof AccessNoticesIdRoute
-  '/access/requests/$id': typeof AccessRequestsIdRoute
-  '/access/requests/new': typeof AccessRequestsNewRoute
-  '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
-  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute
-  '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
-  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
-  '/declarations/$id/bio': typeof DeclarationsIdBioRoute
-  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
-  '/declarations/$id/other': typeof DeclarationsIdOtherRoute
-  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
-  '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute
-  '/access/get-started': typeof AccessGetStartedIndexRoute
-  '/access/notices': typeof AccessNoticesIndexRoute
-  '/access/requests': typeof AccessRequestsIndexRoute
-  '/declarations/$id': typeof DeclarationsIdIndexRoute
-  '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
-  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
-  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
-  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
+  '/': typeof IndexRoute;
+  '/access/certified-copies': typeof AccessCertifiedCopiesRoute;
+  '/access/history': typeof AccessHistoryRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/auth/recover': typeof AuthRecoverRoute;
+  '/auth/step-up': typeof AuthStepUpRoute;
+  '/clarifications/$id': typeof ClarificationsIdRoute;
+  '/get-started/check-email': typeof GetStartedCheckEmailRoute;
+  '/get-started/confirm': typeof GetStartedConfirmRoute;
+  '/get-started/done': typeof GetStartedDoneRoute;
+  '/get-started/identify': typeof GetStartedIdentifyRoute;
+  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute;
+  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute;
+  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute;
+  '/access': typeof AccessIndexRoute;
+  '/clarifications': typeof ClarificationsIndexRoute;
+  '/declarations': typeof DeclarationsIndexRoute;
+  '/get-started': typeof GetStartedIndexRoute;
+  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute;
+  '/access/get-started/create': typeof AccessGetStartedCreateRoute;
+  '/access/get-started/details': typeof AccessGetStartedDetailsRoute;
+  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute;
+  '/access/notices/$id': typeof AccessNoticesIdRoute;
+  '/access/requests/$id': typeof AccessRequestsIdRoute;
+  '/access/requests/new': typeof AccessRequestsNewRoute;
+  '/api/mock-letters/$id': typeof ApiMockLettersIdRoute;
+  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute;
+  '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute;
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute;
+  '/declarations/$id/bio': typeof DeclarationsIdBioRoute;
+  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute;
+  '/declarations/$id/other': typeof DeclarationsIdOtherRoute;
+  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute;
+  '/declarations/$id/submitted': typeof DeclarationsIdSubmittedRoute;
+  '/access/get-started': typeof AccessGetStartedIndexRoute;
+  '/access/notices': typeof AccessNoticesIndexRoute;
+  '/access/requests': typeof AccessRequestsIndexRoute;
+  '/declarations/$id': typeof DeclarationsIdIndexRoute;
+  '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute;
+  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute;
+  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute;
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/get-started': typeof GetStartedRouteRouteWithChildren
-  '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren
-  '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren
-  '/access/certified-copies': typeof AccessCertifiedCopiesRoute
-  '/access/history': typeof AccessHistoryRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/auth/login': typeof AuthLoginRoute
-  '/auth/logout': typeof AuthLogoutRoute
-  '/auth/recover': typeof AuthRecoverRoute
-  '/auth/step-up': typeof AuthStepUpRoute
-  '/clarifications/$id': typeof ClarificationsIdRoute
-  '/get-started/check-email': typeof GetStartedCheckEmailRoute
-  '/get-started/confirm': typeof GetStartedConfirmRoute
-  '/get-started/done': typeof GetStartedDoneRoute
-  '/get-started/identify': typeof GetStartedIdentifyRoute
-  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
-  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
-  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
-  '/access/': typeof AccessIndexRoute
-  '/clarifications/': typeof ClarificationsIndexRoute
-  '/declarations/': typeof DeclarationsIndexRoute
-  '/get-started/': typeof GetStartedIndexRoute
-  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
-  '/access/get-started/create': typeof AccessGetStartedCreateRoute
-  '/access/get-started/details': typeof AccessGetStartedDetailsRoute
-  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute
-  '/access/notices/$id': typeof AccessNoticesIdRoute
-  '/access/requests/$id': typeof AccessRequestsIdRoute
-  '/access/requests/new': typeof AccessRequestsNewRoute
-  '/api/mock-letters/$id': typeof ApiMockLettersIdRoute
-  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute
-  '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute
-  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
-  '/declarations/$id/bio': typeof DeclarationsIdBioRoute
-  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute
-  '/declarations/$id/other': typeof DeclarationsIdOtherRoute
-  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute
-  '/declarations/$id_/submitted': typeof DeclarationsIdSubmittedRoute
-  '/access/get-started/': typeof AccessGetStartedIndexRoute
-  '/access/notices/': typeof AccessNoticesIndexRoute
-  '/access/requests/': typeof AccessRequestsIndexRoute
-  '/declarations/$id/': typeof DeclarationsIdIndexRoute
-  '/access/requests/$id_/submitted': typeof AccessRequestsIdSubmittedRoute
-  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
-  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
-  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/get-started': typeof GetStartedRouteRouteWithChildren;
+  '/access/get-started': typeof AccessGetStartedRouteRouteWithChildren;
+  '/declarations/$id': typeof DeclarationsIdRouteRouteWithChildren;
+  '/access/certified-copies': typeof AccessCertifiedCopiesRoute;
+  '/access/history': typeof AccessHistoryRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/auth/login': typeof AuthLoginRoute;
+  '/auth/logout': typeof AuthLogoutRoute;
+  '/auth/recover': typeof AuthRecoverRoute;
+  '/auth/step-up': typeof AuthStepUpRoute;
+  '/clarifications/$id': typeof ClarificationsIdRoute;
+  '/get-started/check-email': typeof GetStartedCheckEmailRoute;
+  '/get-started/confirm': typeof GetStartedConfirmRoute;
+  '/get-started/done': typeof GetStartedDoneRoute;
+  '/get-started/identify': typeof GetStartedIdentifyRoute;
+  '/get-started/not-verified': typeof GetStartedNotVerifiedRoute;
+  '/get-started/verify-email': typeof GetStartedVerifyEmailRoute;
+  '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute;
+  '/access/': typeof AccessIndexRoute;
+  '/clarifications/': typeof ClarificationsIndexRoute;
+  '/declarations/': typeof DeclarationsIndexRoute;
+  '/get-started/': typeof GetStartedIndexRoute;
+  '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute;
+  '/access/get-started/create': typeof AccessGetStartedCreateRoute;
+  '/access/get-started/details': typeof AccessGetStartedDetailsRoute;
+  '/access/get-started/verify-phone': typeof AccessGetStartedVerifyPhoneRoute;
+  '/access/notices/$id': typeof AccessNoticesIdRoute;
+  '/access/requests/$id': typeof AccessRequestsIdRoute;
+  '/access/requests/new': typeof AccessRequestsNewRoute;
+  '/api/mock-letters/$id': typeof ApiMockLettersIdRoute;
+  '/api/mock-packages/$documentId': typeof ApiMockPackagesDocumentIdRoute;
+  '/api/mock-slips/$documentId': typeof ApiMockSlipsDocumentIdRoute;
+  '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute;
+  '/declarations/$id/bio': typeof DeclarationsIdBioRoute;
+  '/declarations/$id/household': typeof DeclarationsIdHouseholdRoute;
+  '/declarations/$id/other': typeof DeclarationsIdOtherRoute;
+  '/declarations/$id/summary': typeof DeclarationsIdSummaryRoute;
+  '/declarations/$id_/submitted': typeof DeclarationsIdSubmittedRoute;
+  '/access/get-started/': typeof AccessGetStartedIndexRoute;
+  '/access/notices/': typeof AccessNoticesIndexRoute;
+  '/access/requests/': typeof AccessRequestsIndexRoute;
+  '/declarations/$id/': typeof DeclarationsIdIndexRoute;
+  '/access/requests/$id_/submitted': typeof AccessRequestsIdSubmittedRoute;
+  '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute;
+  '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute;
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
     | '/get-started'
@@ -494,8 +488,8 @@ export interface FileRouteTypes {
     | '/access/requests/$id/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
-    | '/api/assistant/conversations/$conversationId/messages'
-  fileRoutesByTo: FileRoutesByTo
+    | '/api/assistant/conversations/$conversationId/messages';
+  fileRoutesByTo: FileRoutesByTo;
   to:
     | '/'
     | '/access/certified-copies'
@@ -540,7 +534,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
-    | '/api/assistant/conversations/$conversationId/messages'
+    | '/api/assistant/conversations/$conversationId/messages';
   id:
     | '__root__'
     | '/'
@@ -589,383 +583,383 @@ export interface FileRouteTypes {
     | '/access/requests/$id_/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
-    | '/api/assistant/conversations/$conversationId/messages'
-  fileRoutesById: FileRoutesById
+    | '/api/assistant/conversations/$conversationId/messages';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren
-  AccessGetStartedRouteRoute: typeof AccessGetStartedRouteRouteWithChildren
-  DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren
-  AccessCertifiedCopiesRoute: typeof AccessCertifiedCopiesRoute
-  AccessHistoryRoute: typeof AccessHistoryRoute
-  AuthCallbackRoute: typeof AuthCallbackRoute
-  AuthLoginRoute: typeof AuthLoginRoute
-  AuthLogoutRoute: typeof AuthLogoutRoute
-  AuthRecoverRoute: typeof AuthRecoverRoute
-  AuthStepUpRoute: typeof AuthStepUpRoute
-  ClarificationsIdRoute: typeof ClarificationsIdRoute
-  AccessIndexRoute: typeof AccessIndexRoute
-  ClarificationsIndexRoute: typeof ClarificationsIndexRoute
-  DeclarationsIndexRoute: typeof DeclarationsIndexRoute
-  AccessNoticesIdRoute: typeof AccessNoticesIdRoute
-  AccessRequestsIdRoute: typeof AccessRequestsIdRoute
-  AccessRequestsNewRoute: typeof AccessRequestsNewRoute
-  ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute
-  ApiMockPackagesDocumentIdRoute: typeof ApiMockPackagesDocumentIdRoute
-  ApiMockSlipsDocumentIdRoute: typeof ApiMockSlipsDocumentIdRoute
-  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
-  DeclarationsIdSubmittedRoute: typeof DeclarationsIdSubmittedRoute
-  AccessNoticesIndexRoute: typeof AccessNoticesIndexRoute
-  AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
-  AccessRequestsIdSubmittedRoute: typeof AccessRequestsIdSubmittedRoute
-  ApiDocumentsDocumentIdDownloadRoute: typeof ApiDocumentsDocumentIdDownloadRoute
-  ApiAssistantConversationsConversationIdMessagesRoute: typeof ApiAssistantConversationsConversationIdMessagesRoute
+  IndexRoute: typeof IndexRoute;
+  GetStartedRouteRoute: typeof GetStartedRouteRouteWithChildren;
+  AccessGetStartedRouteRoute: typeof AccessGetStartedRouteRouteWithChildren;
+  DeclarationsIdRouteRoute: typeof DeclarationsIdRouteRouteWithChildren;
+  AccessCertifiedCopiesRoute: typeof AccessCertifiedCopiesRoute;
+  AccessHistoryRoute: typeof AccessHistoryRoute;
+  AuthCallbackRoute: typeof AuthCallbackRoute;
+  AuthLoginRoute: typeof AuthLoginRoute;
+  AuthLogoutRoute: typeof AuthLogoutRoute;
+  AuthRecoverRoute: typeof AuthRecoverRoute;
+  AuthStepUpRoute: typeof AuthStepUpRoute;
+  ClarificationsIdRoute: typeof ClarificationsIdRoute;
+  AccessIndexRoute: typeof AccessIndexRoute;
+  ClarificationsIndexRoute: typeof ClarificationsIndexRoute;
+  DeclarationsIndexRoute: typeof DeclarationsIndexRoute;
+  AccessNoticesIdRoute: typeof AccessNoticesIdRoute;
+  AccessRequestsIdRoute: typeof AccessRequestsIdRoute;
+  AccessRequestsNewRoute: typeof AccessRequestsNewRoute;
+  ApiMockLettersIdRoute: typeof ApiMockLettersIdRoute;
+  ApiMockPackagesDocumentIdRoute: typeof ApiMockPackagesDocumentIdRoute;
+  ApiMockSlipsDocumentIdRoute: typeof ApiMockSlipsDocumentIdRoute;
+  ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute;
+  DeclarationsIdSubmittedRoute: typeof DeclarationsIdSubmittedRoute;
+  AccessNoticesIndexRoute: typeof AccessNoticesIndexRoute;
+  AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute;
+  AccessRequestsIdSubmittedRoute: typeof AccessRequestsIdSubmittedRoute;
+  ApiDocumentsDocumentIdDownloadRoute: typeof ApiDocumentsDocumentIdDownloadRoute;
+  ApiAssistantConversationsConversationIdMessagesRoute: typeof ApiAssistantConversationsConversationIdMessagesRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/get-started': {
-      id: '/get-started'
-      path: '/get-started'
-      fullPath: '/get-started'
-      preLoaderRoute: typeof GetStartedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/get-started';
+      path: '/get-started';
+      fullPath: '/get-started';
+      preLoaderRoute: typeof GetStartedRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/': {
-      id: '/access/'
-      path: '/access'
-      fullPath: '/access/'
-      preLoaderRoute: typeof AccessIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/';
+      path: '/access';
+      fullPath: '/access/';
+      preLoaderRoute: typeof AccessIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/certified-copies': {
-      id: '/access/certified-copies'
-      path: '/access/certified-copies'
-      fullPath: '/access/certified-copies'
-      preLoaderRoute: typeof AccessCertifiedCopiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/certified-copies';
+      path: '/access/certified-copies';
+      fullPath: '/access/certified-copies';
+      preLoaderRoute: typeof AccessCertifiedCopiesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/get-started': {
-      id: '/access/get-started'
-      path: '/access/get-started'
-      fullPath: '/access/get-started'
-      preLoaderRoute: typeof AccessGetStartedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/get-started';
+      path: '/access/get-started';
+      fullPath: '/access/get-started';
+      preLoaderRoute: typeof AccessGetStartedRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/history': {
-      id: '/access/history'
-      path: '/access/history'
-      fullPath: '/access/history'
-      preLoaderRoute: typeof AccessHistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/history';
+      path: '/access/history';
+      fullPath: '/access/history';
+      preLoaderRoute: typeof AccessHistoryRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/callback';
+      path: '/auth/callback';
+      fullPath: '/auth/callback';
+      preLoaderRoute: typeof AuthCallbackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/login': {
-      id: '/auth/login'
-      path: '/auth/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/login';
+      path: '/auth/login';
+      fullPath: '/auth/login';
+      preLoaderRoute: typeof AuthLoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/logout': {
-      id: '/auth/logout'
-      path: '/auth/logout'
-      fullPath: '/auth/logout'
-      preLoaderRoute: typeof AuthLogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/logout';
+      path: '/auth/logout';
+      fullPath: '/auth/logout';
+      preLoaderRoute: typeof AuthLogoutRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/recover': {
-      id: '/auth/recover'
-      path: '/auth/recover'
-      fullPath: '/auth/recover'
-      preLoaderRoute: typeof AuthRecoverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/recover';
+      path: '/auth/recover';
+      fullPath: '/auth/recover';
+      preLoaderRoute: typeof AuthRecoverRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/step-up': {
-      id: '/auth/step-up'
-      path: '/auth/step-up'
-      fullPath: '/auth/step-up'
-      preLoaderRoute: typeof AuthStepUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/step-up';
+      path: '/auth/step-up';
+      fullPath: '/auth/step-up';
+      preLoaderRoute: typeof AuthStepUpRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/clarifications/': {
-      id: '/clarifications/'
-      path: '/clarifications'
-      fullPath: '/clarifications/'
-      preLoaderRoute: typeof ClarificationsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/clarifications/';
+      path: '/clarifications';
+      fullPath: '/clarifications/';
+      preLoaderRoute: typeof ClarificationsIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/clarifications/$id': {
-      id: '/clarifications/$id'
-      path: '/clarifications/$id'
-      fullPath: '/clarifications/$id'
-      preLoaderRoute: typeof ClarificationsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/clarifications/$id';
+      path: '/clarifications/$id';
+      fullPath: '/clarifications/$id';
+      preLoaderRoute: typeof ClarificationsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/declarations/': {
-      id: '/declarations/'
-      path: '/declarations'
-      fullPath: '/declarations/'
-      preLoaderRoute: typeof DeclarationsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/declarations/';
+      path: '/declarations';
+      fullPath: '/declarations/';
+      preLoaderRoute: typeof DeclarationsIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/declarations/$id': {
-      id: '/declarations/$id'
-      path: '/declarations/$id'
-      fullPath: '/declarations/$id'
-      preLoaderRoute: typeof DeclarationsIdRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/declarations/$id';
+      path: '/declarations/$id';
+      fullPath: '/declarations/$id';
+      preLoaderRoute: typeof DeclarationsIdRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/get-started/': {
-      id: '/get-started/'
-      path: '/'
-      fullPath: '/get-started/'
-      preLoaderRoute: typeof GetStartedIndexRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/';
+      path: '/';
+      fullPath: '/get-started/';
+      preLoaderRoute: typeof GetStartedIndexRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/check-email': {
-      id: '/get-started/check-email'
-      path: '/check-email'
-      fullPath: '/get-started/check-email'
-      preLoaderRoute: typeof GetStartedCheckEmailRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/check-email';
+      path: '/check-email';
+      fullPath: '/get-started/check-email';
+      preLoaderRoute: typeof GetStartedCheckEmailRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/confirm': {
-      id: '/get-started/confirm'
-      path: '/confirm'
-      fullPath: '/get-started/confirm'
-      preLoaderRoute: typeof GetStartedConfirmRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/confirm';
+      path: '/confirm';
+      fullPath: '/get-started/confirm';
+      preLoaderRoute: typeof GetStartedConfirmRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/done': {
-      id: '/get-started/done'
-      path: '/done'
-      fullPath: '/get-started/done'
-      preLoaderRoute: typeof GetStartedDoneRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/done';
+      path: '/done';
+      fullPath: '/get-started/done';
+      preLoaderRoute: typeof GetStartedDoneRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/identify': {
-      id: '/get-started/identify'
-      path: '/identify'
-      fullPath: '/get-started/identify'
-      preLoaderRoute: typeof GetStartedIdentifyRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/identify';
+      path: '/identify';
+      fullPath: '/get-started/identify';
+      preLoaderRoute: typeof GetStartedIdentifyRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/not-verified': {
-      id: '/get-started/not-verified'
-      path: '/not-verified'
-      fullPath: '/get-started/not-verified'
-      preLoaderRoute: typeof GetStartedNotVerifiedRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/not-verified';
+      path: '/not-verified';
+      fullPath: '/get-started/not-verified';
+      preLoaderRoute: typeof GetStartedNotVerifiedRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/verify-email': {
-      id: '/get-started/verify-email'
-      path: '/verify-email'
-      fullPath: '/get-started/verify-email'
-      preLoaderRoute: typeof GetStartedVerifyEmailRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/verify-email';
+      path: '/verify-email';
+      fullPath: '/get-started/verify-email';
+      preLoaderRoute: typeof GetStartedVerifyEmailRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/get-started/verify-phone': {
-      id: '/get-started/verify-phone'
-      path: '/verify-phone'
-      fullPath: '/get-started/verify-phone'
-      preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport
-      parentRoute: typeof GetStartedRouteRoute
-    }
+      id: '/get-started/verify-phone';
+      path: '/verify-phone';
+      fullPath: '/get-started/verify-phone';
+      preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport;
+      parentRoute: typeof GetStartedRouteRoute;
+    };
     '/access/get-started/': {
-      id: '/access/get-started/'
-      path: '/'
-      fullPath: '/access/get-started/'
-      preLoaderRoute: typeof AccessGetStartedIndexRouteImport
-      parentRoute: typeof AccessGetStartedRouteRoute
-    }
+      id: '/access/get-started/';
+      path: '/';
+      fullPath: '/access/get-started/';
+      preLoaderRoute: typeof AccessGetStartedIndexRouteImport;
+      parentRoute: typeof AccessGetStartedRouteRoute;
+    };
     '/access/get-started/check-email': {
-      id: '/access/get-started/check-email'
-      path: '/check-email'
-      fullPath: '/access/get-started/check-email'
-      preLoaderRoute: typeof AccessGetStartedCheckEmailRouteImport
-      parentRoute: typeof AccessGetStartedRouteRoute
-    }
+      id: '/access/get-started/check-email';
+      path: '/check-email';
+      fullPath: '/access/get-started/check-email';
+      preLoaderRoute: typeof AccessGetStartedCheckEmailRouteImport;
+      parentRoute: typeof AccessGetStartedRouteRoute;
+    };
     '/access/get-started/create': {
-      id: '/access/get-started/create'
-      path: '/create'
-      fullPath: '/access/get-started/create'
-      preLoaderRoute: typeof AccessGetStartedCreateRouteImport
-      parentRoute: typeof AccessGetStartedRouteRoute
-    }
+      id: '/access/get-started/create';
+      path: '/create';
+      fullPath: '/access/get-started/create';
+      preLoaderRoute: typeof AccessGetStartedCreateRouteImport;
+      parentRoute: typeof AccessGetStartedRouteRoute;
+    };
     '/access/get-started/details': {
-      id: '/access/get-started/details'
-      path: '/details'
-      fullPath: '/access/get-started/details'
-      preLoaderRoute: typeof AccessGetStartedDetailsRouteImport
-      parentRoute: typeof AccessGetStartedRouteRoute
-    }
+      id: '/access/get-started/details';
+      path: '/details';
+      fullPath: '/access/get-started/details';
+      preLoaderRoute: typeof AccessGetStartedDetailsRouteImport;
+      parentRoute: typeof AccessGetStartedRouteRoute;
+    };
     '/access/get-started/verify-phone': {
-      id: '/access/get-started/verify-phone'
-      path: '/verify-phone'
-      fullPath: '/access/get-started/verify-phone'
-      preLoaderRoute: typeof AccessGetStartedVerifyPhoneRouteImport
-      parentRoute: typeof AccessGetStartedRouteRoute
-    }
+      id: '/access/get-started/verify-phone';
+      path: '/verify-phone';
+      fullPath: '/access/get-started/verify-phone';
+      preLoaderRoute: typeof AccessGetStartedVerifyPhoneRouteImport;
+      parentRoute: typeof AccessGetStartedRouteRoute;
+    };
     '/access/notices/': {
-      id: '/access/notices/'
-      path: '/access/notices'
-      fullPath: '/access/notices/'
-      preLoaderRoute: typeof AccessNoticesIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/notices/';
+      path: '/access/notices';
+      fullPath: '/access/notices/';
+      preLoaderRoute: typeof AccessNoticesIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/notices/$id': {
-      id: '/access/notices/$id'
-      path: '/access/notices/$id'
-      fullPath: '/access/notices/$id'
-      preLoaderRoute: typeof AccessNoticesIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/notices/$id';
+      path: '/access/notices/$id';
+      fullPath: '/access/notices/$id';
+      preLoaderRoute: typeof AccessNoticesIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/requests/': {
-      id: '/access/requests/'
-      path: '/access/requests'
-      fullPath: '/access/requests/'
-      preLoaderRoute: typeof AccessRequestsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/requests/';
+      path: '/access/requests';
+      fullPath: '/access/requests/';
+      preLoaderRoute: typeof AccessRequestsIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/requests/$id': {
-      id: '/access/requests/$id'
-      path: '/access/requests/$id'
-      fullPath: '/access/requests/$id'
-      preLoaderRoute: typeof AccessRequestsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/requests/$id';
+      path: '/access/requests/$id';
+      fullPath: '/access/requests/$id';
+      preLoaderRoute: typeof AccessRequestsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/requests/new': {
-      id: '/access/requests/new'
-      path: '/access/requests/new'
-      fullPath: '/access/requests/new'
-      preLoaderRoute: typeof AccessRequestsNewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/requests/new';
+      path: '/access/requests/new';
+      fullPath: '/access/requests/new';
+      preLoaderRoute: typeof AccessRequestsNewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/mock-letters/$id': {
-      id: '/api/mock-letters/$id'
-      path: '/api/mock-letters/$id'
-      fullPath: '/api/mock-letters/$id'
-      preLoaderRoute: typeof ApiMockLettersIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mock-letters/$id';
+      path: '/api/mock-letters/$id';
+      fullPath: '/api/mock-letters/$id';
+      preLoaderRoute: typeof ApiMockLettersIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/mock-packages/$documentId': {
-      id: '/api/mock-packages/$documentId'
-      path: '/api/mock-packages/$documentId'
-      fullPath: '/api/mock-packages/$documentId'
-      preLoaderRoute: typeof ApiMockPackagesDocumentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mock-packages/$documentId';
+      path: '/api/mock-packages/$documentId';
+      fullPath: '/api/mock-packages/$documentId';
+      preLoaderRoute: typeof ApiMockPackagesDocumentIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/mock-slips/$documentId': {
-      id: '/api/mock-slips/$documentId'
-      path: '/api/mock-slips/$documentId'
-      fullPath: '/api/mock-slips/$documentId'
-      preLoaderRoute: typeof ApiMockSlipsDocumentIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mock-slips/$documentId';
+      path: '/api/mock-slips/$documentId';
+      fullPath: '/api/mock-slips/$documentId';
+      preLoaderRoute: typeof ApiMockSlipsDocumentIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/mock-uploads/$id': {
-      id: '/api/mock-uploads/$id'
-      path: '/api/mock-uploads/$id'
-      fullPath: '/api/mock-uploads/$id'
-      preLoaderRoute: typeof ApiMockUploadsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/mock-uploads/$id';
+      path: '/api/mock-uploads/$id';
+      fullPath: '/api/mock-uploads/$id';
+      preLoaderRoute: typeof ApiMockUploadsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/declarations/$id/': {
-      id: '/declarations/$id/'
-      path: '/'
-      fullPath: '/declarations/$id/'
-      preLoaderRoute: typeof DeclarationsIdIndexRouteImport
-      parentRoute: typeof DeclarationsIdRouteRoute
-    }
+      id: '/declarations/$id/';
+      path: '/';
+      fullPath: '/declarations/$id/';
+      preLoaderRoute: typeof DeclarationsIdIndexRouteImport;
+      parentRoute: typeof DeclarationsIdRouteRoute;
+    };
     '/declarations/$id/bio': {
-      id: '/declarations/$id/bio'
-      path: '/bio'
-      fullPath: '/declarations/$id/bio'
-      preLoaderRoute: typeof DeclarationsIdBioRouteImport
-      parentRoute: typeof DeclarationsIdRouteRoute
-    }
+      id: '/declarations/$id/bio';
+      path: '/bio';
+      fullPath: '/declarations/$id/bio';
+      preLoaderRoute: typeof DeclarationsIdBioRouteImport;
+      parentRoute: typeof DeclarationsIdRouteRoute;
+    };
     '/declarations/$id/household': {
-      id: '/declarations/$id/household'
-      path: '/household'
-      fullPath: '/declarations/$id/household'
-      preLoaderRoute: typeof DeclarationsIdHouseholdRouteImport
-      parentRoute: typeof DeclarationsIdRouteRoute
-    }
+      id: '/declarations/$id/household';
+      path: '/household';
+      fullPath: '/declarations/$id/household';
+      preLoaderRoute: typeof DeclarationsIdHouseholdRouteImport;
+      parentRoute: typeof DeclarationsIdRouteRoute;
+    };
     '/declarations/$id/other': {
-      id: '/declarations/$id/other'
-      path: '/other'
-      fullPath: '/declarations/$id/other'
-      preLoaderRoute: typeof DeclarationsIdOtherRouteImport
-      parentRoute: typeof DeclarationsIdRouteRoute
-    }
+      id: '/declarations/$id/other';
+      path: '/other';
+      fullPath: '/declarations/$id/other';
+      preLoaderRoute: typeof DeclarationsIdOtherRouteImport;
+      parentRoute: typeof DeclarationsIdRouteRoute;
+    };
     '/declarations/$id/summary': {
-      id: '/declarations/$id/summary'
-      path: '/summary'
-      fullPath: '/declarations/$id/summary'
-      preLoaderRoute: typeof DeclarationsIdSummaryRouteImport
-      parentRoute: typeof DeclarationsIdRouteRoute
-    }
+      id: '/declarations/$id/summary';
+      path: '/summary';
+      fullPath: '/declarations/$id/summary';
+      preLoaderRoute: typeof DeclarationsIdSummaryRouteImport;
+      parentRoute: typeof DeclarationsIdRouteRoute;
+    };
     '/declarations/$id_/submitted': {
-      id: '/declarations/$id_/submitted'
-      path: '/declarations/$id/submitted'
-      fullPath: '/declarations/$id/submitted'
-      preLoaderRoute: typeof DeclarationsIdSubmittedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/declarations/$id_/submitted';
+      path: '/declarations/$id/submitted';
+      fullPath: '/declarations/$id/submitted';
+      preLoaderRoute: typeof DeclarationsIdSubmittedRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/access/requests/$id_/submitted': {
-      id: '/access/requests/$id_/submitted'
-      path: '/access/requests/$id/submitted'
-      fullPath: '/access/requests/$id/submitted'
-      preLoaderRoute: typeof AccessRequestsIdSubmittedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/access/requests/$id_/submitted';
+      path: '/access/requests/$id/submitted';
+      fullPath: '/access/requests/$id/submitted';
+      preLoaderRoute: typeof AccessRequestsIdSubmittedRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/api/documents/$documentId/download': {
-      id: '/api/documents/$documentId/download'
-      path: '/api/documents/$documentId/download'
-      fullPath: '/api/documents/$documentId/download'
-      preLoaderRoute: typeof ApiDocumentsDocumentIdDownloadRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/documents/$documentId/download';
+      path: '/api/documents/$documentId/download';
+      fullPath: '/api/documents/$documentId/download';
+      preLoaderRoute: typeof ApiDocumentsDocumentIdDownloadRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/declarations/$id/statements/$personKey': {
-      id: '/declarations/$id/statements/$personKey'
-      path: '/statements/$personKey'
-      fullPath: '/declarations/$id/statements/$personKey'
-      preLoaderRoute: typeof DeclarationsIdStatementsPersonKeyRouteImport
-      parentRoute: typeof DeclarationsIdRouteRoute
-    }
+      id: '/declarations/$id/statements/$personKey';
+      path: '/statements/$personKey';
+      fullPath: '/declarations/$id/statements/$personKey';
+      preLoaderRoute: typeof DeclarationsIdStatementsPersonKeyRouteImport;
+      parentRoute: typeof DeclarationsIdRouteRoute;
+    };
     '/api/assistant/conversations/$conversationId/messages': {
-      id: '/api/assistant/conversations/$conversationId/messages'
-      path: '/api/assistant/conversations/$conversationId/messages'
-      fullPath: '/api/assistant/conversations/$conversationId/messages'
-      preLoaderRoute: typeof ApiAssistantConversationsConversationIdMessagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/api/assistant/conversations/$conversationId/messages';
+      path: '/api/assistant/conversations/$conversationId/messages';
+      fullPath: '/api/assistant/conversations/$conversationId/messages';
+      preLoaderRoute: typeof ApiAssistantConversationsConversationIdMessagesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
 interface GetStartedRouteRouteChildren {
-  GetStartedCheckEmailRoute: typeof GetStartedCheckEmailRoute
-  GetStartedConfirmRoute: typeof GetStartedConfirmRoute
-  GetStartedDoneRoute: typeof GetStartedDoneRoute
-  GetStartedIdentifyRoute: typeof GetStartedIdentifyRoute
-  GetStartedNotVerifiedRoute: typeof GetStartedNotVerifiedRoute
-  GetStartedVerifyEmailRoute: typeof GetStartedVerifyEmailRoute
-  GetStartedVerifyPhoneRoute: typeof GetStartedVerifyPhoneRoute
-  GetStartedIndexRoute: typeof GetStartedIndexRoute
+  GetStartedCheckEmailRoute: typeof GetStartedCheckEmailRoute;
+  GetStartedConfirmRoute: typeof GetStartedConfirmRoute;
+  GetStartedDoneRoute: typeof GetStartedDoneRoute;
+  GetStartedIdentifyRoute: typeof GetStartedIdentifyRoute;
+  GetStartedNotVerifiedRoute: typeof GetStartedNotVerifiedRoute;
+  GetStartedVerifyEmailRoute: typeof GetStartedVerifyEmailRoute;
+  GetStartedVerifyPhoneRoute: typeof GetStartedVerifyPhoneRoute;
+  GetStartedIndexRoute: typeof GetStartedIndexRoute;
 }
 
 const GetStartedRouteRouteChildren: GetStartedRouteRouteChildren = {
@@ -977,18 +971,18 @@ const GetStartedRouteRouteChildren: GetStartedRouteRouteChildren = {
   GetStartedVerifyEmailRoute: GetStartedVerifyEmailRoute,
   GetStartedVerifyPhoneRoute: GetStartedVerifyPhoneRoute,
   GetStartedIndexRoute: GetStartedIndexRoute,
-}
+};
 
 const GetStartedRouteRouteWithChildren = GetStartedRouteRoute._addFileChildren(
   GetStartedRouteRouteChildren,
-)
+);
 
 interface AccessGetStartedRouteRouteChildren {
-  AccessGetStartedCheckEmailRoute: typeof AccessGetStartedCheckEmailRoute
-  AccessGetStartedCreateRoute: typeof AccessGetStartedCreateRoute
-  AccessGetStartedDetailsRoute: typeof AccessGetStartedDetailsRoute
-  AccessGetStartedVerifyPhoneRoute: typeof AccessGetStartedVerifyPhoneRoute
-  AccessGetStartedIndexRoute: typeof AccessGetStartedIndexRoute
+  AccessGetStartedCheckEmailRoute: typeof AccessGetStartedCheckEmailRoute;
+  AccessGetStartedCreateRoute: typeof AccessGetStartedCreateRoute;
+  AccessGetStartedDetailsRoute: typeof AccessGetStartedDetailsRoute;
+  AccessGetStartedVerifyPhoneRoute: typeof AccessGetStartedVerifyPhoneRoute;
+  AccessGetStartedIndexRoute: typeof AccessGetStartedIndexRoute;
 }
 
 const AccessGetStartedRouteRouteChildren: AccessGetStartedRouteRouteChildren = {
@@ -997,20 +991,19 @@ const AccessGetStartedRouteRouteChildren: AccessGetStartedRouteRouteChildren = {
   AccessGetStartedDetailsRoute: AccessGetStartedDetailsRoute,
   AccessGetStartedVerifyPhoneRoute: AccessGetStartedVerifyPhoneRoute,
   AccessGetStartedIndexRoute: AccessGetStartedIndexRoute,
-}
+};
 
-const AccessGetStartedRouteRouteWithChildren =
-  AccessGetStartedRouteRoute._addFileChildren(
-    AccessGetStartedRouteRouteChildren,
-  )
+const AccessGetStartedRouteRouteWithChildren = AccessGetStartedRouteRoute._addFileChildren(
+  AccessGetStartedRouteRouteChildren,
+);
 
 interface DeclarationsIdRouteRouteChildren {
-  DeclarationsIdBioRoute: typeof DeclarationsIdBioRoute
-  DeclarationsIdHouseholdRoute: typeof DeclarationsIdHouseholdRoute
-  DeclarationsIdOtherRoute: typeof DeclarationsIdOtherRoute
-  DeclarationsIdSummaryRoute: typeof DeclarationsIdSummaryRoute
-  DeclarationsIdIndexRoute: typeof DeclarationsIdIndexRoute
-  DeclarationsIdStatementsPersonKeyRoute: typeof DeclarationsIdStatementsPersonKeyRoute
+  DeclarationsIdBioRoute: typeof DeclarationsIdBioRoute;
+  DeclarationsIdHouseholdRoute: typeof DeclarationsIdHouseholdRoute;
+  DeclarationsIdOtherRoute: typeof DeclarationsIdOtherRoute;
+  DeclarationsIdSummaryRoute: typeof DeclarationsIdSummaryRoute;
+  DeclarationsIdIndexRoute: typeof DeclarationsIdIndexRoute;
+  DeclarationsIdStatementsPersonKeyRoute: typeof DeclarationsIdStatementsPersonKeyRoute;
 }
 
 const DeclarationsIdRouteRouteChildren: DeclarationsIdRouteRouteChildren = {
@@ -1019,12 +1012,12 @@ const DeclarationsIdRouteRouteChildren: DeclarationsIdRouteRouteChildren = {
   DeclarationsIdOtherRoute: DeclarationsIdOtherRoute,
   DeclarationsIdSummaryRoute: DeclarationsIdSummaryRoute,
   DeclarationsIdIndexRoute: DeclarationsIdIndexRoute,
-  DeclarationsIdStatementsPersonKeyRoute:
-    DeclarationsIdStatementsPersonKeyRoute,
-}
+  DeclarationsIdStatementsPersonKeyRoute: DeclarationsIdStatementsPersonKeyRoute,
+};
 
-const DeclarationsIdRouteRouteWithChildren =
-  DeclarationsIdRouteRoute._addFileChildren(DeclarationsIdRouteRouteChildren)
+const DeclarationsIdRouteRouteWithChildren = DeclarationsIdRouteRoute._addFileChildren(
+  DeclarationsIdRouteRouteChildren,
+);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -1056,16 +1049,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocumentsDocumentIdDownloadRoute: ApiDocumentsDocumentIdDownloadRoute,
   ApiAssistantConversationsConversationIdMessagesRoute:
     ApiAssistantConversationsConversationIdMessagesRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { getRouter } from './router.tsx';
+import type { createStart } from '@tanstack/react-start';
 declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
   }
 }

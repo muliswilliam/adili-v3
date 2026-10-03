@@ -1,4 +1,4 @@
-import { Button, cn, Icon, Tooltip } from '@adili/ui';
+import { Button, cn, focusRing, Icon, Tooltip } from '@adili/ui';
 import { SparklesIcon } from '@hugeicons/core-free-icons';
 import { createContext, type RefObject, useContext, useEffect } from 'react';
 
@@ -51,7 +51,8 @@ export function AskAdiliLauncher({ className }: { className?: string }) {
       hidden={isOpen}
       aria-expanded={isOpen}
       className={cn(
-        'fixed right-4 bottom-5 z-30 inline-flex [&[hidden]]:hidden size-[50px] cursor-pointer items-center justify-center gap-2 rounded-full bg-primary text-[14.5px] font-semibold text-primary-foreground shadow-[0_10px_28px_-8px_rgba(20,20,20,0.45)] outline-offset-2 hover:bg-black focus-visible:outline-2 focus-visible:outline-ring sm:right-7 sm:bottom-7 sm:h-[46px] sm:w-auto sm:pr-[18px] sm:pl-[15px] [&_svg]:size-[17px] [&_svg]:text-ai-subtle',
+        focusRing,
+        'fixed right-4 bottom-5 z-30 inline-flex [&[hidden]]:hidden size-[50px] cursor-pointer items-center justify-center gap-2 rounded-full bg-primary text-[14.5px] font-semibold text-primary-foreground shadow-pop hover:bg-primary/90 sm:right-7 sm:bottom-7 sm:h-[46px] sm:w-auto sm:pr-[18px] sm:pl-[15px] [&_svg]:size-[17px] [&_svg]:text-ai-subtle',
         className,
       )}
     >

@@ -153,12 +153,18 @@ export interface DeclarationsMockParts {
   assistantMode?: AssistantMode;
 }
 
+let appliedMode: AssistantMode | undefined;
+
 /** A client fetch answering `parts` in memory and passing the rest to the real service. */
 export function declarationsMock(
   parts: DeclarationsMockParts,
   realFetch: typeof fetch = fetch,
 ): (request: Request, init?: RequestInit) => Promise<Response> {
-  if (parts.assistantMode) setAssistantMode(parts.assistantMode);
+  // Once: the client builds this mock per request, and tests set the mode themselves.
+  if (parts.assistantMode && parts.assistantMode !== appliedMode) {
+    appliedMode = parts.assistantMode;
+    setAssistantMode(parts.assistantMode);
+  }
   return (request, init) => route(request, parts, (real) => realFetch(real, init));
 }
 

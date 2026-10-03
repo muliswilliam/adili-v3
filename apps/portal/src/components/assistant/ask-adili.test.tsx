@@ -155,6 +155,7 @@ function ask(text: string) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllGlobals();
   vi.stubGlobal('fetch', fetchMock);
   openMock.mockResolvedValue({ status: 'ok', conversation: conversation() });
   searchMock.mockResolvedValue({ status: 'ok', passages: [] });
@@ -414,6 +415,60 @@ describe('Ask Adili panel (S12)', () => {
     ).toBeTruthy();
   });
 
+  it('offers help search when the conversation cannot be opened', async () => {
+    openMock.mockResolvedValue({ status: 'unavailable' });
+    renderPanel();
+    const panel = await openPanel();
+    expect(
+      await within(panel).findByText('Answers are unavailable right now. Search the help instead.'),
+    ).toBeTruthy();
+    expect(within(panel).getByRole('searchbox', { name: 'Search the help' })).toBeTruthy();
+
+    openMock.mockResolvedValue({ status: 'ok', conversation: conversation() });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Ask Adili again' }));
+    expect(await within(panel).findByText('Suggested questions')).toBeTruthy();
+  });
+
+  it('keeps the language while an answer is on its way', async () => {
+    const stream = controlledStream();
+    fetchMock.mockResolvedValue(stream.response);
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask(QUESTION);
+    await within(panel).findAllByText('Adili is answering…');
+    expect(
+      within(panel).getByRole<HTMLButtonElement>('button', { name: 'Kiswahili' }).disabled,
+    ).toBe(true);
+    act(() => {
+      stream.send('final', { question, answer });
+      stream.close();
+    });
+    await within(panel).findByText(ANSWER_TEXT, { exact: false });
+    expect(
+      within(panel).getByRole<HTMLButtonElement>('button', { name: 'Kiswahili' }).disabled,
+    ).toBe(false);
+  });
+
+  it('labels the panel with the latest answer, not an older one', async () => {
+    const declined = msg({ text: 'I could not find this.', declined: true });
+    openMock.mockResolvedValue({
+      status: 'ok',
+      conversation: conversation({
+        messages: [question, answer, question, declined].map((m, i) => ({
+          ...m,
+          id: `${m.id}-${String(i)}`,
+        })),
+      }),
+    });
+    renderPanel();
+    const panel = await openPanel();
+    const label = await within(panel).findByRole('img', {
+      name: /^AI-assisted · not legal advice/,
+    });
+    expect(label.getAttribute('aria-label')).not.toContain('claude-opus-5');
+  });
+
   it('opens outside a draft on the dashboard, without section links', async () => {
     openMock.mockResolvedValue({
       status: 'ok',
@@ -429,6 +484,23 @@ describe('Ask Adili panel (S12)', () => {
       await within(panel).findByRole('button', { name: 'When is my declaration due?' }),
     ).toBeTruthy();
     expect(within(panel).getByText('On: Home')).toBeTruthy();
+  });
+
+  it('rises as a modal sheet on phones, keeping Tab inside it', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Ask Adili' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Ask Adili' });
+    expect(sheet.getAttribute('aria-modal')).toBe('true');
+    const send = await within(sheet).findByRole('button', { name: 'Send' });
+    send.focus();
+    fireEvent.keyDown(send, { key: 'Tab' });
+    expect(document.activeElement).toBe(within(sheet).getByRole('button', { name: /Kept with/ }));
   });
 
   it('closes with Escape and gives focus back to the launcher', async () => {

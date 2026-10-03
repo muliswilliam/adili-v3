@@ -13,9 +13,6 @@ import { attempt, type NotFound, notFound, type Unavailable, unavailable } from 
  * server functions, `routes/api/assistant...messages.ts` the stream).
  */
 
-/** A streamed answer may run past the service's 55 s gateway deadline before its last frame. */
-export const ANSWER_TIMEOUT_MS = 90_000;
-
 export type OpenResult =
   { status: 'ok'; conversation: AssistantConversation } | NotFound | Unavailable;
 

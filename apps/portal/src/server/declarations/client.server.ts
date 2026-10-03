@@ -1,6 +1,5 @@
 import { mockableClient } from '@adili/api-kit/client';
 
-import { ANSWER_TIMEOUT_MS } from '../assistant.server';
 import { env } from '../env.server';
 import type { paths } from './schema.gen';
 
@@ -10,6 +9,9 @@ import type { paths } from './schema.gen';
  * OBLIGATIONS_MOCK, DECLARATIONS_MOCK or ASSISTANT_MOCK set in development, the in-memory mock answers
  * that part (`mock.server.ts`) and the real service the rest.
  */
+/** A streamed Ask Adili answer may run past the service's 55 s gateway deadline. */
+const ANSWER_TIMEOUT_MS = 90_000;
+
 export function declarationsClient(accessToken: string) {
   const config = env();
   return mockableClient<paths>({

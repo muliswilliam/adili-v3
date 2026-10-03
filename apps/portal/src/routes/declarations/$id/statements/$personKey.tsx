@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { z } from 'zod';
 
 import type { Draft, PersonKey, PersonName } from '../../../../declaration/contents';
 import { REGISTRY_COPY } from '../../../../declaration/copy';
@@ -13,6 +12,10 @@ import {
   SectionUnavailable,
   statementKey,
 } from '../../../../components/declaration/route-helpers';
+import {
+  sectionSearch,
+  sectionSearchProps,
+} from '../../../../components/declaration/section-errors';
 import {
   AttachmentUploadsProvider,
   renderItemAttachments,
@@ -83,11 +86,7 @@ function registryPerson(
 }
 
 export const Route = createFileRoute('/declarations/$id/statements/$personKey')({
-  validateSearch: z.object({
-    errors: z.boolean().optional(),
-    // A field to focus, linked from an Ask Adili answer (a JSON pointer in the section).
-    field: z.string().startsWith('/').max(200).optional(),
-  }),
+  validateSearch: sectionSearch,
   loader: async ({ params, location }) => {
     const personKey = requirePersonKey(params.personKey);
     const load = await loadSectionFor(params.id, statementKey(personKey), location.href);
@@ -104,7 +103,7 @@ export const Route = createFileRoute('/declarations/$id/statements/$personKey')(
 
 function StatementRoute() {
   const { load, personKey, entry, sets } = Route.useLoaderData();
-  const { errors, field } = Route.useSearch();
+  const search = Route.useSearch();
   if (load.status === 'unavailable') return <SectionUnavailable />;
   const name = load.section.contents.personName as Draft<PersonName> | undefined;
   return (
@@ -114,8 +113,7 @@ function StatementRoute() {
         section={load.section}
         etag={load.etag}
         separated={relationOfPerson(personKey) === 'spouse' && entry?.separated === true}
-        showErrors={errors === true}
-        {...(field ? { focusField: field } : {})}
+        {...sectionSearchProps(search)}
         renderAttachments={renderItemAttachments}
         registries={{ person: registryPerson(personKey, name, entry), sets }}
       />

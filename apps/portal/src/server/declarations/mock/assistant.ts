@@ -11,12 +11,13 @@
  * 503 `assistant-unavailable` (the panel's help search mode), `fail-midway` stops part-way with an
  * `error` frame, `rate-limited` answers 429. `setAnswerPace(0)` streams at once.
  */
+import type { ASSISTANT_MOCK_MODES } from '../../env.server';
 import { problem, isRecord, json, readJson } from '../../mock-http';
 import type { AssistantConversation, AssistantMessage, HelpPassage } from '../types';
 import { CORPUS, type CorpusPassage, passage } from './corpus';
 import { store, type Stored } from './store';
 
-export type AssistantMode = 'ok' | 'unavailable' | 'fail-midway' | 'rate-limited';
+export type AssistantMode = (typeof ASSISTANT_MOCK_MODES)[number];
 
 type Language = 'en' | 'sw';
 type SectionLink = NonNullable<AssistantMessage['sectionLink']>;

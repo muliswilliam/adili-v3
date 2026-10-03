@@ -16,6 +16,7 @@ export interface PendingTurn {
 export type ConversationState =
   | { status: 'closed' }
   | { status: 'loading' }
+  /** It could not be opened (the service is down, or no Commission to ask about): help search. */
   | { status: 'failed' }
   | { status: 'ready'; id: string; messages: AssistantMessage[] };
 
@@ -58,6 +59,11 @@ export function useConversation({
     openAssistantConversation({ data: { declarationId, language } })
       .then((result) => {
         if (!current) return;
+        // The session has ended: reloading signs the declarant in again and comes back here.
+        if (result.status === 'unauthenticated') {
+          window.location.reload();
+          return;
+        }
         setLoaded({
           key: openKey,
           state:
@@ -115,6 +121,10 @@ export function useConversation({
           body: JSON.stringify({ text: question, sectionKey: context.sectionKey, itemType: null }),
           signal: controller.signal,
         });
+        if (response.status === 401) {
+          window.location.reload();
+          return;
+        }
         if (response.status === 429) {
           setPending({ question, status: 'rate-limited', text: '' });
           return;

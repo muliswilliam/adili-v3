@@ -1,6 +1,9 @@
 import { bffEnvSchema, parseEnv } from '@adili/bff-auth';
 import { z } from 'zod';
 
+/** How the Ask Adili mock's gateway can behave (`./declarations/mock/assistant.ts`). */
+export const ASSISTANT_MOCK_MODES = ['ok', 'unavailable', 'fail-midway', 'rate-limited'] as const;
+
 export const envSchema = bffEnvSchema.extend({
   DIRECTORY_API_URL: z.url(),
   /**
@@ -43,7 +46,7 @@ export const envSchema = bffEnvSchema.extend({
    * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
    * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
    */
-  ASSISTANT_MOCK_MODE: z.enum(['ok', 'unavailable', 'fail-midway', 'rate-limited']).default('ok'),
+  ASSISTANT_MOCK_MODE: z.enum(ASSISTANT_MOCK_MODES).default('ok'),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service

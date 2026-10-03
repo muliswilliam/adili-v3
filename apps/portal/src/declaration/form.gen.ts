@@ -40,8 +40,8 @@ export type PersonKey = string;
  * One declaration as submitted by a public officer: paragraphs 1-9 of the First Schedule. Amounts are integers in minor units (KES cents). Draft: spec 05.
  */
 export interface DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfInterestAct2025 {
-  schemaVersion: "declaration.v1";
-  type: "initial" | "biennial" | "final";
+  schemaVersion: 'declaration.v1';
+  type: 'initial' | 'biennial' | 'final';
   statementDate: string;
   incomePeriod: {
     from: string;
@@ -49,7 +49,7 @@ export interface DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfI
     /**
      * declared: previous statement date from an Adili declaration; assumed: no prior record on Adili, start derived from type
      */
-    fromSource: "declared" | "assumed";
+    fromSource: 'declared' | 'assumed';
   };
   /**
    * Paragraphs 1-5
@@ -60,7 +60,7 @@ export interface DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfI
       date: string;
       place: string;
     };
-    maritalStatus: "single" | "married" | "separated" | "divorced" | "widowed";
+    maritalStatus: 'single' | 'married' | 'separated' | 'divorced' | 'widowed';
     maritalStatusChange?: MaritalStatusChange;
     address: {
       postal: string;
@@ -69,7 +69,7 @@ export interface DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfI
     employment: {
       designation: string;
       employer: string;
-      nature: "permanent" | "temporary" | "contract" | "other";
+      nature: 'permanent' | 'temporary' | 'contract' | 'other';
       natureOther?: string;
       /**
        * Tenant key of the Responsible Commission
@@ -128,7 +128,7 @@ export interface DeclarationOfIncomeAssetsAndLiabilitiesFirstScheduleConflictOfI
     freeText: string;
   };
   attestation: {
-    text: "I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.";
+    text: 'I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete.';
     declaredAt?: string;
     /**
      * Reference number issued at submission (slice 06)
@@ -162,7 +162,7 @@ export interface Spouse {
   name: PersonName;
   nationalId?: string;
   kraPin?: string;
-  occupationSector?: "public" | "private" | "not-employed" | "unknown";
+  occupationSector?: 'public' | 'private' | 'not-employed' | 'unknown';
   separated: boolean;
   separationDate?: string;
 }
@@ -187,15 +187,15 @@ export interface Child {
 export interface IncomeItem {
   id: string;
   type:
-    | "salary-emoluments"
-    | "allowances"
-    | "business"
-    | "rent"
-    | "dividends-interest"
-    | "pension"
-    | "farming"
-    | "consultancy"
-    | "other";
+    | 'salary-emoluments'
+    | 'allowances'
+    | 'business'
+    | 'rent'
+    | 'dividends-interest'
+    | 'pension'
+    | 'farming'
+    | 'consultancy'
+    | 'other';
   description: string;
   amount: Money;
   location: Location;
@@ -244,7 +244,7 @@ export interface Location {
  */
 export interface ChangeFlag {
   changed: boolean;
-  kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
+  kind?: 'value-change' | 'acquisition' | 'disposal' | 'new-source' | 'source-ended' | 'settled';
   explanation?: string;
 }
 /**
@@ -254,7 +254,7 @@ export interface ChangeFlag {
  * via the `definition` "ItemSource".
  */
 export interface ItemSource {
-  kind: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+  kind: 'kra' | 'ntsa' | 'brs' | 'ardhisasa' | 'document';
   suggestionId: string;
   verificationResultId?: string;
   aiJobId?: string;
@@ -280,7 +280,15 @@ export interface Attachment {
 export interface AssetItem {
   id: string;
   type:
-    "land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "other";
+    | 'land'
+    | 'building'
+    | 'vehicle'
+    | 'securities'
+    | 'shareholding'
+    | 'bank-account'
+    | 'cash'
+    | 'receivable'
+    | 'other';
   description: string;
   /**
    * Type-specific identifiers; no account numbers
@@ -313,7 +321,7 @@ export interface AssetItem {
  */
 export interface LiabilityItem {
   id: string;
-  type: "mortgage" | "loan" | "guarantee" | "other";
+  type: 'mortgage' | 'loan' | 'guarantee' | 'other';
   description: string;
   creditor: string;
   outstanding: Money;
@@ -331,15 +339,15 @@ export interface MaterialChangeEntry {
   itemId?: string;
   itemDescription?: string;
   kind:
-    | "value-change"
-    | "acquisition"
-    | "disposal"
-    | "new-source"
-    | "source-ended"
-    | "settled"
-    | "marital-status"
-    | "directorship"
-    | "membership";
+    | 'value-change'
+    | 'acquisition'
+    | 'disposal'
+    | 'new-source'
+    | 'source-ended'
+    | 'settled'
+    | 'marital-status'
+    | 'directorship'
+    | 'membership';
   explanation: string;
 }
 /**
@@ -362,7 +370,7 @@ export interface RegistrableInterests {
   }[];
   memberships: {
     entity: string;
-    kind: "company" | "partnership" | "society" | "club" | "foundation" | "trust" | "other";
+    kind: 'company' | 'partnership' | 'society' | 'club' | 'foundation' | 'trust' | 'other';
     change?: ChangeFlag;
   }[];
   dualCitizenship: {

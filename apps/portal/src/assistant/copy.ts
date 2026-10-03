@@ -1,12 +1,15 @@
 import type { ChatMessageMessages, CitationMessages, FeedbackMessages } from '@adili/ui';
 
+import type { AssistantLanguage } from '../server/declarations/types';
+
 /**
  * Ask Adili's words in English and Kiswahili (spec 11 FE-2, i18n): the panel is the portal's
  * first Swahili screen, so every key it shows has both. The panel's language switch picks the
  * set; answers come back in the conversation's language.
  */
 
-export type AskLanguage = 'en' | 'sw';
+/** The panel's language, which is also the conversation's. */
+export type AskLanguage = AssistantLanguage;
 
 export interface AskCopy {
   title: string;
@@ -20,15 +23,12 @@ export interface AskCopy {
   keptOutside: string;
   idle: string;
   suggested: string;
-  followUps: string;
   on: string;
   placeholder: string;
   send: string;
   privacy: string;
   conversation: string;
   loading: string;
-  loadFailed: string;
-  retryLoad: string;
   unavailable: string;
   askAgain: string;
   search: string;
@@ -39,7 +39,6 @@ export interface AskCopy {
   missing: (count: number) => string;
   fix: string;
   more: (count: number) => string;
-  openSection: string;
   /** Called with the place to open: "Open Assets → value". */
   openPlace: (place: string) => string;
   sectionNames: {
@@ -75,7 +74,6 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     keptOutside: 'Kept for 30 days after your last question, then deleted.',
     idle: 'Ask in your own words, in English or Kiswahili.',
     suggested: 'Suggested questions',
-    followUps: 'Ask next',
     on: 'On',
     placeholder: 'Ask about this section…',
     send: 'Send',
@@ -83,8 +81,6 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
       'Adili does not read your amounts, names or ID numbers. It knows which section you are on and what is still missing.',
     conversation: 'Conversation',
     loading: 'Opening your conversation…',
-    loadFailed: 'Ask Adili could not open your conversation.',
-    retryLoad: 'Try again',
     unavailable: 'Answers are unavailable right now. Search the help instead.',
     askAgain: 'Ask Adili again',
     search: 'Search the help',
@@ -95,7 +91,6 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     missing: (count) => `Still missing (${String(count)})`,
     fix: 'Fix',
     more: (count) => `and ${String(count)} more`,
-    openSection: 'Open',
     openPlace: (place) => `Open ${place}`,
     sectionNames: {
       bio: 'Your details',
@@ -143,7 +138,6 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     keptOutside: 'Huhifadhiwa kwa siku 30 baada ya swali lako la mwisho, kisha hufutwa.',
     idle: 'Uliza kwa maneno yako, kwa Kiingereza au Kiswahili.',
     suggested: 'Maswali yanayopendekezwa',
-    followUps: 'Uliza kisha',
     on: 'Sehemu',
     placeholder: 'Uliza kuhusu sehemu hii…',
     send: 'Tuma',
@@ -151,8 +145,6 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
       'Adili haisomi kiasi, majina wala nambari zako za kitambulisho. Inajua uko sehemu gani na kinachokosekana.',
     conversation: 'Mazungumzo',
     loading: 'Inafungua mazungumzo yako…',
-    loadFailed: 'Uliza Adili haikuweza kufungua mazungumzo yako.',
-    retryLoad: 'Jaribu tena',
     unavailable: 'Majibu hayapatikani kwa sasa. Tafuta katika msaada badala yake.',
     askAgain: 'Uliza Adili tena',
     search: 'Tafuta katika msaada',
@@ -163,7 +155,6 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     missing: (count) => `Bado kinakosekana (${String(count)})`,
     fix: 'Rekebisha',
     more: (count) => `na ${String(count)} zaidi`,
-    openSection: 'Fungua',
     openPlace: (place) => `Fungua ${place}`,
     sectionNames: {
       bio: 'Maelezo yako',

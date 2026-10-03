@@ -1,13 +1,12 @@
 import {
   AiLabel,
-  Alert,
-  AlertDescription,
   AssistantMessage,
   Button,
   ChatComposer,
   ChatLog,
   ChatPanel,
   cn,
+  focusRing,
   type Feedback,
   FeedbackControl,
   Icon,
@@ -16,14 +15,10 @@ import {
   Tooltip,
   UserMessage,
 } from '@adili/ui';
-import {
-  AlertCircleIcon,
-  ArrowRight02Icon,
-  File01Icon,
-  InformationCircleIcon,
-} from '@hugeicons/core-free-icons';
+import { ArrowRight02Icon, File01Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 import { useNavigate } from '@tanstack/react-router';
 import {
+  type KeyboardEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -63,6 +58,9 @@ import { useConversation } from './use-conversation';
  */
 
 const DOCKED = '(min-width: 1200px)';
+/** The panel's width beside the page, and the room the page makes for it when docked. */
+const PANEL_WIDTH = 'w-[392px]';
+const PANEL_ROOM = 'pr-[392px]';
 const SIDE = '(min-width: 700px)';
 
 function useMedia(query: string): boolean {
@@ -138,7 +136,7 @@ export function AskAdiliProvider({
 
   return (
     <AskAdiliContext.Provider value={value}>
-      <div className={cn('flex flex-1 flex-col', isOpen && docked && 'pr-[392px]')}>{children}</div>
+      <div className={cn('flex flex-1 flex-col', isOpen && docked && PANEL_ROOM)}>{children}</div>
       {opened ? (
         <Panel
           hidden={!isOpen}
@@ -185,6 +183,9 @@ function Panel({
 
   const busy = pending?.status === 'thinking' || pending?.status === 'streaming';
   const ready = conversation.status === 'ready';
+  // Help search when answers are unavailable, or when the conversation could not be opened.
+  const helpMode = unavailable ?? (conversation.status === 'failed' ? { question: '' } : null);
+  const inHelpSearch = helpMode !== null;
 
   // Closing ends an answer on its way; what came stays, with Try again.
   useEffect(() => {
@@ -193,17 +194,18 @@ function Panel({
 
   // Opening puts the cursor in the question box (or the help search, which focuses itself).
   useEffect(() => {
-    if (hidden || !ready || unavailable) return;
+    if (hidden || !ready || inHelpSearch) return;
     // ...with the latest turn in view.
     const log = panelRef.current?.querySelector('[role="log"]');
     if (log) log.scrollTop = log.scrollHeight;
     panelRef.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
-  }, [hidden, ready, unavailable]);
+  }, [hidden, ready, inHelpSearch]);
 
   if (hidden) return null;
 
   const messages = conversation.status === 'ready' ? conversation.messages : [];
-  const latestLabel = [...messages].reverse().find((message) => message.label)?.label;
+  // The latest answer's: a decline made without the AI has none, and nor then does the header.
+  const latestLabel = messages.findLast((message) => message.role === 'assistant')?.label;
   const onSection = copy.sectionNames[topic];
 
   function send(question: string) {
@@ -245,6 +247,8 @@ function Panel({
           size="xs"
           variant={language === code ? 'secondary' : 'ghost'}
           aria-pressed={language === code}
+          // An answer on its way belongs to this language's conversation.
+          disabled={busy}
           lang={code}
           onClick={() => {
             switchLanguage(code);
@@ -272,23 +276,30 @@ function Panel({
         variant={side ? 'side' : 'sheet'}
         onClose={onClose}
         messages={{ close: copy.close }}
+        // On phones the sheet covers the page, so it is modal: Tab stays inside it.
+        {...(side ? {} : { 'aria-modal': true, role: 'dialog' })}
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.stopPropagation();
             onClose();
+          } else if (event.key === 'Tab' && !side) {
+            keepFocusInside(event.currentTarget, event);
           }
         }}
         className={cn(
           'fixed right-0 bottom-0 z-45',
           side
-            ? 'top-[61px] h-auto w-[392px] shadow-[-1px_0_0_var(--color-border),-12px_0_32px_-18px_rgba(20,20,20,0.25)] min-[1200px]:shadow-[-1px_0_0_var(--color-border)]'
+            ? `top-[61px] h-auto ${PANEL_WIDTH} border-l shadow-pop min-[1200px]:shadow-none`
             : 'left-0 h-[88dvh] max-h-[calc(100dvh-24px)]',
         )}
         headerActions={
           <Tooltip content={declarationId ? copy.kept : copy.keptOutside}>
             <button
               type="button"
-              className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring [&_svg]:size-4"
+              className={cn(
+                focusRing,
+                'grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground [&_svg]:size-4',
+              )}
             >
               <Icon icon={InformationCircleIcon} />
               <span className="sr-only">{declarationId ? copy.kept : copy.keptOutside}</span>
@@ -306,7 +317,7 @@ function Panel({
           </>
         }
         footer={
-          unavailable || !ready ? undefined : (
+          helpMode || !ready ? undefined : (
             <>
               <p className="inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground [&_svg]:size-[13px]">
                 <Icon icon={File01Icon} /> {copy.on}: {onSection}
@@ -323,27 +334,15 @@ function Panel({
           )
         }
       >
-        {conversation.status === 'failed' ? (
-          <div className="p-4">
-            <Alert variant="destructive">
-              <Icon icon={AlertCircleIcon} />
-              <AlertDescription className="grid justify-items-start gap-2">
-                {copy.loadFailed}
-                <Button type="button" variant="secondary" size="sm" onClick={reload}>
-                  {copy.retryLoad}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        ) : unavailable ? (
+        {helpMode ? (
           <HelpSearch
-            key={unavailable.question}
+            key={helpMode.question}
             copy={copy}
             language={language}
             sectionKey={sectionKey}
-            initialQuery={unavailable.question}
+            initialQuery={helpMode.question}
             sectionQuery={onSection}
-            onAskAgain={resume}
+            onAskAgain={conversation.status === 'failed' ? reload : resume}
             declarationId={declarationId}
             onFix={openPlace}
           />
@@ -411,6 +410,26 @@ function Panel({
       </ChatPanel>
     </>
   );
+}
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Wraps Tab from the last control to the first, and Shift+Tab the other way. */
+function keepFocusInside(container: HTMLElement, event: KeyboardEvent) {
+  const controls = [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (element) => !element.closest('[hidden]'),
+  );
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (!first || !last) return;
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
 }
 
 function Answer({
