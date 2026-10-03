@@ -184,7 +184,8 @@ export function DeclineStepDialog({
     >
       <DialogContent busy={state.busy}>
         <DialogHeading
-          icon={Cancel01Icon} tone="destructive"
+          icon={Cancel01Icon}
+          tone="destructive"
           title={m.declineTitle(step)}
           description={declarantName}
         />

@@ -16,9 +16,8 @@ const STEP_TITLES = {
 } as const;
 
 async function letter(id: string): Promise<Response> {
-  const { mockClarification, mockDecisionLetter, mockNotice } = await import(
-    '../../server/review/mock.server'
-  );
+  const { mockClarification, mockDecisionLetter, mockNotice } =
+    await import('../../server/review/mock.server');
   const { placeholderPdf } = await import('../../server/mock-pdf');
   const notice = mockNotice(id);
   if (notice) {
