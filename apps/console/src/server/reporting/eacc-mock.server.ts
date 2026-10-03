@@ -21,15 +21,18 @@
  * (anyone else, and a report not filed yet, 404).
  */
 import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
-import { addDays, INTAKE_STATUSES } from '@adili/ui';
+import { INTAKE_STATUSES } from '@adili/ui';
 
+import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
+import { documentDownloadIdOf, json, type MockCaller, mockCallerOf, problem } from '../mock-http';
 import {
-  dueDateOf,
-  FIRST_FINANCIAL_YEAR,
-  nairobiToday,
-} from '../../components/form-m/financial-year';
-import { json, type MockCaller, mockCallerOf, problem } from '../mock-http';
-import { mockDay, type StoredReport, storedReports } from './mock-store.server';
+  mockDay,
+  nairobiDayOf,
+  plusDays,
+  sixAm,
+  storedReport,
+  type StoredReport,
+} from './mock-store.server';
 import type { Intake, IntakeOutlier, IntakeRow, ReportSource, SubmittedReport } from './types';
 
 type FormM = SubmittedReport['document'];
@@ -194,16 +197,11 @@ export function setEaccIntakeMockLatency(factor: number) {
   latency = factor;
 }
 
-const delay = (ms: number) =>
+/** Waits `ms` scaled by the mocks' latency (0 in tests); the national report mock shares it. */
+export const mockDelay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms * latency);
   });
-
-/** The day `days` after `day` (`YYYY-MM-DD`). */
-const plusDays = (day: string, days: number) => addDays(day, days).slice(0, 10);
-
-/** 06:00 in Nairobi on `date`. */
-const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
 /** A report EACC has received. */
 interface Filing {
@@ -221,15 +219,14 @@ interface Filing {
 /** `commission`'s report for the year as EACC has it by today; null when it has not reported. */
 function filingOf(commission: Fixture, fy: number): Filing | null {
   if (commission.counts === null) {
-    mockDay(); // Seeds the store on the first read.
-    const stored = storedReports.get(fy);
+    const stored = storedReport(fy);
     if (stored?.status !== 'submitted') return null;
     const { submittedAt, late, reference, document } = stored;
     if (submittedAt === null || late === null || reference === null || document === null) {
       throw new Error(`The workspace mock's submitted report for ${String(fy)} lacks a field`);
     }
     return {
-      day: nairobiToday(new Date(submittedAt)),
+      day: nairobiDayOf(submittedAt),
       submittedAt,
       late,
       reference,
@@ -270,7 +267,7 @@ function chaseRounds(fy: number, filed: string | null): string[] {
 }
 
 /** Whether the year has a biennial declaration cycle (odd start years, as FY 2027 in spec 09). */
-const hasBiennialCycle = (fy: number) => fy % 2 === 1;
+export const hasBiennialCycle = (fy: number) => fy % 2 === 1;
 
 function sectionCounts(
   commission: Fixture,
@@ -580,9 +577,6 @@ export function mockEaccIntake(fy: number): Intake {
   return intake(fy);
 }
 
-/** Whether the year has a biennial declaration cycle in the mock. */
-export const mockHasBiennialCycle = (fy: number) => hasBiennialCycle(fy);
-
 export const isEacc = (caller: MockCaller) =>
   caller.tenant === EACC_TENANT &&
   caller.roles.some((role) => (EACC_ROLES as readonly string[]).includes(role));
@@ -600,7 +594,7 @@ function parseReportId(id: string): { index: number; fy: number } | null {
 
 /** Answers `/v1/eacc/compliance-reports` and `/v1/eacc/compliance-reports/{reportId}`. */
 export async function mockEaccIntakeFetch(input: Request): Promise<Response> {
-  await delay(300);
+  await mockDelay(300);
   const url = new URL(input.url);
   const caller = mockCallerOf(input);
   if (input.method !== 'GET') return problem(404, 'Not found');
@@ -656,10 +650,9 @@ export function mockReportingFileTitle(documentId: string): string | null {
  * 404.
  */
 export async function mockReportingDocumentsFetch(input: Request): Promise<Response> {
-  await delay(200);
-  const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
-  const id = match?.[1];
-  if (input.method !== 'GET' || !id || !mockReportingFileTitle(id)) {
+  await mockDelay(200);
+  const id = documentDownloadIdOf(input);
+  if (!id || !mockReportingFileTitle(id)) {
     return problem(404, 'Not found');
   }
   if (!isEacc(mockCallerOf(input))) return problem(404, 'Not found');
