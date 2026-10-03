@@ -124,6 +124,19 @@ const UNTOUCHED_FIELDS = new Set([
   'language',
 ]);
 
+/**
+ * A bank account number: a run of ten to sixteen digits, or three or four groups of four. An
+ * amount after a currency, or with separators or decimals, is not one, nor are a longer code's
+ * digits (a chassis number's).
+ */
+const ACCOUNT_NUMBER =
+  /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/u;
+
+/** Whether `text` holds a bank account number, as minimisation finds one. */
+export function holdsAccountNumber(text: string): boolean {
+  return ACCOUNT_NUMBER.test(text);
+}
+
 /** Shapes of identifiers anywhere in text. `L` and `N` boundaries keep them off longer codes. */
 const EDGE_BEFORE = String.raw`(?<![\p{L}\p{N}])`;
 const EDGE_AFTER = String.raw`(?![\p{L}\p{N}])`;
@@ -174,11 +187,7 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   },
   // Bank account numbers: a run of ten to sixteen digits, or three or four groups of four.
   // Amounts after a currency, or with separators or decimals, are left alone as below.
-  {
-    cls: 'ACCOUNT',
-    pattern:
-      /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/gu,
-  },
+  { cls: 'ACCOUNT', pattern: new RegExp(ACCOUNT_NUMBER.source, 'gu') },
   // A bare seven- or eight-digit number is shaped like a national ID. Amounts stay readable:
   // one after a currency, or with separators, decimals or a percent sign, is left alone, as is
   // a part of a longer code (a UUID's group).
