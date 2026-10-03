@@ -1,3 +1,5 @@
+import { documentIdentifiers, isCommonWord } from './document-identifiers.js';
+
 /**
  * Minimisation (spec 07c, ADR-007): personal identifiers in a task input are replaced by stable
  * per-job tokens such as `[[PERSON_1]]` or `[[ID_1]]` before the provider request is built, and
@@ -26,8 +28,6 @@
  * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
  * rather than storing a placeholder as if it were the record.
  */
-
-import { documentIdentifiers } from './document-identifiers.js';
 
 export const IDENTIFIER_CLASSES = [
   'PERSON',
@@ -259,10 +259,12 @@ export function minimise<T>(input: T): Minimised<T> {
   const documentTexts: string[] = [];
   collect(input, undefined, known, documentTexts);
   // A document's pages are read as one text, so a label at a page's foot finds its name on the
-  // next. The names a page gives are matched only in the cases a page writes them in.
+  // next. The names a page gives are matched in every case, except common words ("Grace",
+  // "Upendo"), matched only as written, capitalised or in capitals: a trade of a little privacy
+  // for prose that stays readable (#504).
   const written = new Map<string, IdentifierClass>();
   for (const { value, cls } of documentIdentifiers(documentTexts.join('\n'), SHAPES)) {
-    if (cls === 'PERSON' || cls === 'ORGANISATION') {
+    if (cls === 'PERSON' && isCommonWord(value)) {
       for (const form of writtenForms(value)) if (!written.has(form)) written.set(form, cls);
     } else if (!known.has(value)) {
       known.set(value, cls);
@@ -291,16 +293,17 @@ export function minimise<T>(input: T): Minimised<T> {
   const replaceText = (text: string, inQuestion: boolean): string => {
     let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
     if (inQuestion) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
-    if (writtenPattern) {
-      result = result.replace(writtenPattern, (match) => {
-        const cls = written.get(match);
-        return cls ? tokenFor(cls, match) : match;
-      });
-    }
     if (knownPattern) {
       result = result.replace(knownPattern, (match) => {
         const found = lookup(match);
         return found ? tokenFor(found.cls, found.value) : match;
+      });
+    }
+    // After the known values, so an organisation's whole name is one token before its words.
+    if (writtenPattern) {
+      result = result.replace(writtenPattern, (match) => {
+        const cls = written.get(match);
+        return cls ? tokenFor(cls, match) : match;
       });
     }
     for (const { cls, pattern, group } of PATTERNS) {

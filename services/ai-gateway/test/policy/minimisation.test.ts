@@ -525,6 +525,24 @@ describe('minimise a text layer: review probes', () => {
     ['Signed: Kevin Odera for and on behalf of Pwani Traders', 'Kevin Odera'],
     ['Witness: Mary Wanjiru, a duly authorised officer, Nairobi', 'Mary Wanjiru'],
     ['Proprietor: JOHN KAMAU AND MARY WANJIRU', 'JOHN KAMAU MARY WANJIRU'],
+    // A capitalised word before a colon is a name unless it labels a known field (F45).
+    ['Borrower: John Kamau: 50,000', 'John Kamau'],
+    ['Signatories:\nJohn Kamau: Chairman', 'John Kamau'],
+    // A stand-alone plural label lists its parties on the lines below (F47).
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n3) Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+    ],
+    ['Signatories:\n- John Kamau\n• Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietors:\nJohn Kamau\nMary Wanjiru\n\nThe land', 'John Kamau Mary Wanjiru'],
+    // A surname that is also a Swahili title (F49).
+    ['Mr. John Baba', 'John Baba'],
+    ['Proprietor: Grace Mama', 'Grace Mama'],
+    // Recurrences in any case (F48).
+    ['Proprietor: John Kamau\nsigned: john kamau', 'John Kamau john kamau'],
+    ['Proprietor: John Kamau\nJOHN kamau', 'John Kamau JOHN kamau'],
+    // Shapes are blanked line by line, whatever ends a line (F44).
+    ['Tel 0712 345 678\vMember No. AB12C\fProprietor: John Kamau', 'John Kamau AB12C'],
     // A name ending a sentence is the same name bare (F30).
     ['Proprietor: John Kamau.\nKamau signed the transfer.', 'John Kamau'],
   ])('sends no name word of %j', (line, names) => {
@@ -567,6 +585,8 @@ describe('minimise a text layer in linear time', () => {
     ['Address and line separators', `Address${' \u2028'.repeat(20_000)}`],
     ['Address and paragraph separators', `Address${' \u2029'.repeat(20_000)}`],
     ['a long address', `Physical address: ${'House 14, Riverside Drive, '.repeat(4_000)}`],
+    ['Make: A repeated', 'Make: A '.repeat(12_500)],
+    ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
   ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
     minimise({ textLayer: text });
@@ -575,6 +595,16 @@ describe('minimise a text layer in linear time', () => {
 });
 
 describe('minimise a text layer: what is no name', () => {
+  it('reads 1,000 pages quickly (F49)', () => {
+    const pages = Array.from({ length: 1_000 }, (_, page) => ({
+      page: page + 1,
+      textLayer: 'Proprietor: John Kamau\nMember No. AB12C\nPhysical address: House 14, Nakuru',
+    }));
+    const started = performance.now();
+    minimise({ document: { pages } });
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
   it('reads a label at the end of one page and its name at the start of the next (F38)', () => {
     const { input } = minimise({
       document: {
@@ -610,6 +640,36 @@ describe('minimise a text layer: what is no name', () => {
 
     for (const word of names.split(' ')) expect(input.textLayer).not.toContain(word);
     for (const word of fields.split(' ')) expect(input.textLayer).toContain(word);
+  });
+
+  it.each([
+    // A name label after an organisation or field word is that field's (F46).
+    ['Bank Name: Highlands Bank Kenya PLC Branch Name: Nyali', 'Highlands Nyali'],
+    ['Employer Name: Ministry of Health', 'Ministry Health'],
+    ['Business Name: Tumaini Traders', 'Tumaini Traders'],
+  ])('in %j keeps %j readable', (line, fields) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of fields.split(' ')) expect(input.textLayer).toContain(word);
+  });
+
+  it('reads a labelled account number as an account number (F49)', () => {
+    expect(minimise({ textLayer: 'Account Number: 0712 345 678 9' }).input.textLayer).toBe(
+      'Account Number: [[ACCOUNT_1]]',
+    );
+  });
+
+  it('keeps a page header readable after a label at the foot of the page before (F49)', () => {
+    const { input } = minimise({
+      document: {
+        pages: [
+          { page: 1, textLayer: 'Proprietor: John Kamau\nWitness:' },
+          { page: 2, textLayer: 'TITLE DEED\nPage 2' },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(input)).toContain('TITLE DEED');
   });
 
   it('matches a name a page gives only in the cases a page writes it in', () => {

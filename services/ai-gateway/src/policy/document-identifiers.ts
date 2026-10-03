@@ -1,3 +1,5 @@
+import { COUNTIES } from '@adili/forms';
+
 /**
  * The identifiers a document's text layer gives away by what introduces them, for minimisation
  * (spec 05b). A text layer has no fields to say what is a name, so this reads it as a page reads:
@@ -17,9 +19,8 @@
  * no introducer, a lowercase name, a table's header row) is #504.
  */
 
-import { COUNTIES } from '@adili/forms';
-
-export type DocumentIdentifierClass = 'PERSON' | 'ORGANISATION' | 'MEMBER_NUMBER' | 'ADDRESS';
+export type DocumentIdentifierClass =
+  'PERSON' | 'ORGANISATION' | 'MEMBER_NUMBER' | 'ACCOUNT' | 'ADDRESS';
 
 export interface DocumentIdentifier {
   value: string;
@@ -85,7 +86,15 @@ const RUN_INTRODUCERS: readonly RegExp[] = [
 ];
 
 /** Words that introduce a run themselves: titles and salutations. */
-const INTRODUCER_WORDS = new Set([...TITLES, 'dear', 'mpendwa', 'ndugu']);
+/**
+ * Short titles, which no one is named, and salutations: a run's span ends at one ("Dear Mr.").
+ * A Swahili title (Mama, Baba, Bibi, Bwana, Mzee) is also a surname, so inside a run it is one.
+ */
+const SHORT_TITLES = [
+  ...['mr', 'mrs', 'ms', 'mx', 'miss', 'dr', 'dkt', 'prof', 'hon', 'rev', 'revd', 'fr', 'sr'],
+  ...['capt', 'cpt', 'col', 'gen', 'maj', 'eng', 'cpa', 'bw'],
+];
+const INTRODUCER_WORDS = new Set([...SHORT_TITLES, 'dear', 'mpendwa', 'ndugu']);
 
 /** Every line terminator a text layer may hold, stray carriage returns and separators included. */
 const LINE_BREAK = /\r\n|[\n\r\v\f\u0085\u2028\u2029]/u;
@@ -182,9 +191,45 @@ const FIELD_LEADS = new Set([
 ]);
 /** Capitalised words no one is named ("Owner PIN", "Dear Sir", "the Late"). */
 const NOT_NAMES = new Set([
-  ...['pin', 'no', 'nos', 'number', 'id', 'kra', 'the', 'of', 'late', 'marehemu'],
-  ...TITLES,
+  ...['pin', 'no', 'nos', 'number', 'id', 'kra', 'the', 'of', 'late', 'marehemu', 'sir', 'madam'],
+  ...SHORT_TITLES,
+  // A document's own headings, which a label at a page's foot may run into ("TITLE DEED").
+  ...['title', 'deed', 'certificate', 'lease', 'republic', 'kenya', 'page', 'register'],
 ]);
+/**
+ * Words that label a field of their own on a form ("Make:", "Station:", "Balance:"): before a
+ * colon they end a name's span; any other capitalised word before a colon is part of the name
+ * ("John Kamau: Chairman").
+ */
+const FIELD_WORDS = new Set([
+  ...['make', 'model', 'colour', 'color', 'year', 'type', 'fuel', 'engine', 'body', 'chassis'],
+  ...['frame', 'rating', 'section', 'station', 'branch', 'district', 'county', 'location'],
+  ...['area', 'size', 'use', 'term', 'tenure', 'date', 'amount', 'balance', 'currency'],
+  ...['status', 'tel', 'telephone', 'phone', 'mobile', 'email', 'address', 'designation'],
+  ...['department', 'employer', 'institution', 'account', 'loan', 'ref', 'reference', 'pin'],
+  ...['id', 'signature', 'sahihi', 'tarehe', 'kiasi', 'salio', 'cheo', 'idara', 'simu'],
+]);
+/** Words before "Name" that make it another field's name ("Bank Name:", "Employer Name:"). */
+const NAMED_FIELDS = new Set([
+  ...['bank', 'branch', 'employer', 'business', 'company', 'trading', 'institution', 'school'],
+  ...['station', 'sacco', 'society', 'group', 'chama', 'project', 'product', 'file', 'street'],
+]);
+/**
+ * Common English and Swahili words that are also names ("Grace", "Upendo", "Make"): a name a page
+ * gives that is one of them is matched only as written, capitalised or in capitals, so the word in
+ * prose stays readable. Any other name is matched in every case, as privacy asks.
+ */
+const COMMON_WORDS = new Set([
+  ...['make', 'model', 'use', 'account', 'registration', 'grace', 'faith', 'hope', 'joy'],
+  ...['mercy', 'patience', 'rose', 'fresh', 'produce', 'women', 'youth', 'trading', 'farm'],
+  ...['farmers', 'general', 'united', 'new', 'star', 'best', 'green', 'golden', 'royal'],
+  ...['amani', 'imani', 'baraka', 'neema', 'upendo', 'tumaini', 'furaha', 'bahati', 'rehema'],
+]);
+
+/** Whether a name word is also a common word, matched only as a page writes it. */
+export function isCommonWord(word: string): boolean {
+  return COMMON_WORDS.has(word.toLowerCase());
+}
 /**
  * Places a line below a name may hold (a county or a large town), which the name does not wrap
  * onto: "John Kamau\nNakuru".
@@ -228,9 +273,10 @@ function colonAfter(tokens: readonly Token[], index: number): boolean {
  * label's first word before one more ("Account Type:", "Date of Registration:").
  */
 function labelsAField(tokens: readonly Token[], index: number): boolean {
-  if (colonAfter(tokens, index)) return true;
   const word = tokens[index];
-  if (word?.kind !== 'word' || !FIELD_LEADS.has(lower(word.text))) return false;
+  if (word?.kind !== 'word') return false;
+  if (FIELD_WORDS.has(lower(word.text)) && colonAfter(tokens, index)) return true;
+  if (!FIELD_LEADS.has(lower(word.text))) return false;
   // The field label's next word, past one space and an "of".
   for (let at = index + 1, seen = 0; at < tokens.length && seen < 2; at++) {
     const token = tokens[at];
@@ -331,25 +377,37 @@ function continuesName(tokens: readonly Token[]): boolean {
  * the name ends in a company word, and every capitalised word left a person's name.
  */
 function partyIdentifiers(words: readonly string[]): DocumentIdentifier[] {
-  const kept: string[] = [];
+  // The party as the page writes it, offices aside: an organisation's name keeps every word.
+  const named: string[] = [];
   for (const word of words) {
     if (ROLE_WORDS.has(lower(word))) {
-      while (qualifiesOffice(kept.at(-1))) kept.pop();
+      while (qualifiesOffice(named.at(-1))) named.pop();
       continue;
     }
-    if (NOT_NAMES.has(lower(word)) || word.length > MAX_WORD_LENGTH) continue;
-    kept.push(word);
+    if (word.length <= MAX_WORD_LENGTH) named.push(word);
   }
+  const kept = named.filter((word) => !NOT_NAMES.has(lower(word)));
   // Each part of a joined name on its own ("Mary-Jane"), so either is found bare.
   const names = kept
     .filter((word) => !isOrganisationWord(word))
     .flatMap((word) => [word, ...(/[-/]/u.test(word) ? word.split(/[-/]/u) : [])])
     .filter((word) => word.length >= 2)
     .map((value): DocumentIdentifier => ({ value, cls: 'PERSON' }));
-  const organisation = kept.join(' ');
-  return isOrganisationWord(kept.at(-1)) && organisation.length <= MAX_VALUE_LENGTH
+  const organisation = named.join(' ');
+  return isOrganisationWord(named.at(-1)) && organisation.length <= MAX_VALUE_LENGTH
     ? [{ value: organisation, cls: 'ORGANISATION' }, ...names]
     : names;
+}
+
+/**
+ * Whether a name label at `index` is another field's name: "Name" after a word that names what it
+ * is the name of ("Bank Name:", "Branch Name:", "Employer Name:").
+ */
+function namesAnotherField(tokens: readonly Token[], index: number, label: string): boolean {
+  if (!/^names?$/iu.test(label)) return false;
+  const before = tokenAt(tokens, index) - 1;
+  const previous = tokens[before]?.kind === 'space' ? tokens[before - 1] : tokens[before];
+  return previous?.kind === 'word' && NAMED_FIELDS.has(lower(previous.text));
 }
 
 /** Whether a label at `index` is one: capitalised, or followed by a colon or dash. */
@@ -387,6 +445,15 @@ const MEMBER_NUMBER = new RegExp(
   'gu',
 );
 const ORDINAL = /^\d+(?:st|nd|rd|th)$/iu;
+/** A number a page labels as an account's: whatever its shape, an account number. */
+const ACCOUNT_NUMBER = new RegExp(
+  String.raw`${EDGE}(?i:account[ \t]+(?:no\.?|number)|a\/c[ \t]*(?:no\.?)?|nambari[ \t]+ya[ \t]+akaunti)[ \t]*(?:[:\-][ \t]*)?(\d[\d -]{4,30}\d)`,
+  'gu',
+);
+/** A line that lists a party under a stand-alone label: numbered, bulleted. */
+const LIST_ENTRY = /^[ \t]*(?:\d{1,2}[.)]|[-*•–])[ \t]/u;
+/** List entries read under one label, at most. */
+const MAX_ENTRIES = 20;
 
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
 const ADDRESS_LABEL = new RegExp(
@@ -406,7 +473,8 @@ export function documentIdentifiers(
 ): DocumentIdentifier[] {
   const found: DocumentIdentifier[] = [];
   const blanked = shapes.reduce(
-    (current, shape) => current.replace(shape, (match) => match.replace(/[^\r\n]/gu, ' ')),
+    (current, shape) =>
+      current.replace(shape, (match) => match.replace(/[^\r\n\v\f\u0085\u2028\u2029]/gu, ' ')),
     text,
   );
   const lines = text.split(LINE_BREAK);
@@ -428,15 +496,28 @@ export function documentIdentifiers(
     for (const match of line.matchAll(LABEL)) {
       const end = match.index + match[0].length;
       if (!isLabel(line, match.index, end)) continue;
+      if (namesAnotherField(tokensAt(row), match.index, match[0])) continue;
       let at = row;
       const from = tokenAt(tokensAt(row), end);
-      let parties = labelParties(tokensAt(row), from);
+      const parties = labelParties(tokensAt(row), from);
       if (parties.length === 0) {
         if (!standsAlone(tokensAt(row), from)) continue;
-        // The value is on a line below the label, after blank lines at most.
+        // The value is on a line below the label, after blank lines at most, and the lines after
+        // it that list more parties, numbered, bulleted or a name each.
         at = nextLine(nameLines, row);
         if (at < 0) continue;
-        parties = labelParties(tokensAt(at), 0);
+        add(labelParties(tokensAt(at), 0));
+        for (
+          let entries = 1;
+          entries < MAX_ENTRIES &&
+          ((LIST_ENTRY.test(nameLines[at + 1] ?? '') && LIST_ENTRY.test(nameLines[at] ?? '')) ||
+            continuesName(tokensAt(at + 1)));
+          entries++
+        ) {
+          at++;
+          add(labelParties(tokensAt(at), 0));
+        }
+        continue;
       }
       add(parties);
       // A name may wrap onto the next line; an office or company it ends in may not.
@@ -453,6 +534,9 @@ export function documentIdentifiers(
       }
     }
     const original = lines[row] ?? '';
+    for (const match of original.matchAll(ACCOUNT_NUMBER)) {
+      if (match[1]) found.push({ value: match[1], cls: 'ACCOUNT' });
+    }
     for (const match of original.matchAll(MEMBER_NUMBER)) {
       const number = match[1] ?? '';
       if (/\p{L}/u.test(number) && /\d/u.test(number) && !ORDINAL.test(number)) {
