@@ -78,15 +78,22 @@ export function determinationState(
     };
   }
   const proposedByViewer = current.proposer?.subject === viewer.subject;
-  // The system's no-issues proposals are bulk closures: approved on their own page, not the inbox.
-  const bulkClosure =
-    current.proposerKind === 'system' && current.outcome === 'compliant-no-issues';
   return {
     kind: 'proposed',
     current,
     withdraw: proposedByViewer,
-    openInApprovals: viewer.supervisor && !proposedByViewer && !bulkClosure,
+    openInApprovals: viewer.supervisor && !proposedByViewer && !isBulkClosure(current),
   };
+}
+
+/**
+ * A bulk closure: the system's "compliant: no issues identified" proposal, approved in batches on
+ * its own page (#202), never in the approvals inbox (review's `notBulkClosure`).
+ */
+export function isBulkClosure(
+  determination: Pick<Determination, 'proposerKind' | 'outcome'>,
+): boolean {
+  return determination.proposerKind === 'system' && determination.outcome === 'compliant-no-issues';
 }
 
 /** One line of the determination's history. */
