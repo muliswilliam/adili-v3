@@ -331,10 +331,12 @@ export {
 export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export {
+  type MatchesNarrativeSections,
   NARRATIVE_EDITOR_MESSAGES,
   NARRATIVE_MAX_LENGTH,
   NARRATIVE_PARAGRAPH_SEPARATOR,
   NATIONAL_REPORT_NARRATIVE_SECTIONS,
+  type NationalReportNarrativeSectionId,
   type NarrativeChange,
   NarrativeEditor,
   type NarrativeEditorMessages,

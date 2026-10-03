@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AutosaveFailure, useAutosave } from './use-autosave';
+import { AutosaveFailure, AutosaveQueue, useAutosave } from './use-autosave';
 
 function deferred() {
   let resolve!: () => void;
@@ -441,5 +441,34 @@ describe('useAutosave', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledWith('v');
+  });
+
+  it('takes back a value parked at dispose when revived, so it never lands after a newer edit', async () => {
+    const first = deferred();
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const queue = new AutosaveQueue<string>();
+    queue.configure(save, 10);
+
+    queue.change('older');
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    queue.change('parked');
+    queue.dispose();
+    queue.revive(); // a development remount while 'older' is in flight
+    queue.change('newer');
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    first.resolve();
+    await settle();
+    await settle();
+
+    // 'newer' replaced 'parked'; nothing older lands after it.
+    expect(save.mock.calls.map(([value]) => value)).toEqual(['older', 'newer']);
+    expect(queue.getSnapshot().status).toBe('saved');
   });
 });

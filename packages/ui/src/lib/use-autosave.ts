@@ -70,8 +70,8 @@ interface Snapshot {
 
 type Timer = ReturnType<typeof setTimeout>;
 
-/** The timers and the one save in flight, outside React. */
-class AutosaveQueue<T> {
+/** The timers and the one save in flight, outside React. Exported for its tests only. */
+export class AutosaveQueue<T> {
   private save: (value: T) => Promise<void> = () => Promise.resolve();
   private delayMs = 1_500;
   private snapshot: Snapshot = { status: 'idle', savedAt: null, failure: null };
@@ -85,6 +85,10 @@ class AutosaveQueue<T> {
   private disposed = false;
   /** Set when `dispose` queued the waiting value behind the save in flight. */
   private sendOnSettle = false;
+  /** What `dispose` queued behind the save in flight, until it is sent or `revive` takes it back. */
+  private parked: { value: T } | null = null;
+  /** Bumped by `dispose` and `revive`; a send queued by an earlier `dispose` checks it. */
+  private disposal = 0;
   /** Set by a conflict until `reset`. */
   private conflicted = false;
   /** Bumped by `reset`; a save from an earlier generation is ignored when it settles. */
@@ -150,21 +154,36 @@ class AutosaveQueue<T> {
     this.clear('retry');
     const waiting = this.pending;
     this.pending = null;
+    this.disposal += 1;
     if (!waiting || this.conflicted) return;
-    const send = () => {
-      if (this.conflicted) return;
+    if (!this.inFlight) {
       this.save(waiting.value).catch(() => undefined);
-    };
-    if (this.inFlight) {
-      this.sendOnSettle = true;
-      void this.inFlight.then(send);
-    } else send();
+      return;
+    }
+    this.sendOnSettle = true;
+    this.parked = { value: waiting.value };
+    const disposal = this.disposal;
+    void this.inFlight.then(() => {
+      // Revived meanwhile (a remount): the queue sends it in turn instead.
+      if (disposal !== this.disposal || this.conflicted) return;
+      this.parked = null;
+      this.save(waiting.value).catch(() => undefined);
+    });
   }
 
-  /** Reverses `dispose`, for React's development remount. */
+  /**
+   * Reverses `dispose`, for React's development remount. A value `dispose` queued behind the
+   * save in flight goes back in the queue, so it is sent once, in order, with later edits.
+   */
   revive() {
     this.disposed = false;
     this.sendOnSettle = false;
+    this.disposal += 1;
+    if (this.parked !== null) {
+      this.pending ??= { value: this.parked.value, ready: true };
+      this.parked = null;
+    }
+    this.pump();
   }
 
   private markReady() {
