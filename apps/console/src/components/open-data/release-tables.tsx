@@ -2,6 +2,7 @@ import {
   cn,
   EmptyState,
   focusRing,
+  formatPercent,
   Icon,
   SegmentedChoice,
   SuppressionLegend,
@@ -12,6 +13,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  UNSHOWN_FIGURE_KINDS,
   type UnshownFigureKind,
 } from '@adili/ui';
 import {
@@ -55,6 +57,8 @@ interface Column<Row> {
   /** What the column sorts by; null sorts last. */
   sortValue: (row: Row) => number | string | null;
   cell: (row: Row) => ReactNode;
+  /** A figure column's reason for not showing a row's figure; null when it shows. */
+  gap?: (row: Row) => Gap;
 }
 
 interface TableModel<Row> {
@@ -64,8 +68,6 @@ interface TableModel<Row> {
   columns: Column<Row>[];
   /** A row whose figures are not there at all: one marker across them. */
   rowGap?: (row: Row) => Gap;
-  /** The kinds of marker the rows show, for the legend's keys. */
-  gaps: Gap[];
   key: (row: Row) => string;
   /** The order before any column is sorted: Commissions by name. */
   defaultSort?: Sort;
@@ -88,13 +90,8 @@ function Figure({
   return <>{format(value)}</>;
 }
 
-const RATE_FORMAT = new Intl.NumberFormat('en-KE', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
 /** A rate (0 to 1) as a percentage to one decimal, so a column of rates lines up: `90.0%`. */
-const rate = (value: number) => `${RATE_FORMAT.format(value * 100)}%`;
+const rate = (value: number) => formatPercent(value * 100, { fixed: true });
 
 /** A figure's gap: suppressed, or for want of data. */
 function gapOf(
@@ -124,6 +121,43 @@ interface FilingFigures {
   suppressed: boolean;
 }
 
+/** A column of figures: each cell its figure, or the marker saying why it is not shown. */
+function figureColumn<Row>(
+  {
+    id,
+    label,
+    group,
+    value,
+    gap,
+    format = (_row, figure) => formatNumber(figure),
+  }: {
+    id: string;
+    label: string;
+    group?: string;
+    value: (row: Row) => number | null;
+    gap: (row: Row) => Gap;
+    format?: (row: Row, value: number) => string;
+  },
+  threshold: number,
+): Column<Row> {
+  return {
+    id,
+    label,
+    group,
+    numeric: true,
+    sortValue: (row) => (gap(row) ? null : value(row)),
+    gap,
+    cell: (row) => (
+      <Figure
+        value={value(row)}
+        gap={gap(row)}
+        threshold={threshold}
+        format={(figure) => format(row, figure)}
+      />
+    ),
+  };
+}
+
 function filingColumns<Row extends FilingFigures>(threshold: number): Column<Row>[] {
   const labels: Record<(typeof FILING_FIGURES)[number], string> = {
     expected: m.columnExpected,
@@ -131,20 +165,18 @@ function filingColumns<Row extends FilingFigures>(threshold: number): Column<Row
     nonFilers: m.columnNotDeclared,
     filingRate: m.columnRate,
   };
-  return FILING_FIGURES.map((figure) => ({
-    id: figure,
-    label: labels[figure],
-    numeric: true,
-    sortValue: (row) => (row.suppressed ? null : row[figure]),
-    cell: (row) => (
-      <Figure
-        value={row[figure]}
-        gap={gapOf(row[figure], { suppressed: row.suppressed })}
-        threshold={threshold}
-        format={figure === 'filingRate' ? rate : formatNumber}
-      />
+  return FILING_FIGURES.map((figure) =>
+    figureColumn<Row>(
+      {
+        id: figure,
+        label: labels[figure],
+        value: (row) => row[figure],
+        gap: (row) => gapOf(row[figure], { suppressed: row.suppressed }),
+        format: figure === 'filingRate' ? (_row, value) => rate(value) : undefined,
+      },
+      threshold,
     ),
-  }));
+  );
 }
 
 function textColumn<Row>(id: string, label: string, text: (row: Row) => string): Column<Row> {
@@ -164,12 +196,23 @@ const COMPLIANCE_COLUMNS: Record<ComplianceFigure, { label: string; group?: stri
   referrals: { label: m.columnReferrals },
 };
 
-/** The table's rows and columns as the release page shows them. */
+/** A table's model as the page renders it, whatever its row type. */
 type AnyModel = TableModel<Record<string, unknown>>;
 
-/** One table's model, its row type erased so the page renders any of the six alike. */
-function erase<Row>(model: TableModel<Row>): AnyModel {
+/** One table's typed model, as the page renders any of the six alike. */
+function asAnyModel<Row>(model: TableModel<Row>): AnyModel {
   return model as unknown as AnyModel;
+}
+
+/**
+ * The markers a table shows (one per figure, or one across a row with no figures), for the
+ * legend: its keys, and how many figures suppression hides among the rows on show.
+ */
+function gapsOf(model: AnyModel): Gap[] {
+  return model.rows.flatMap((row) => {
+    const whole = model.rowGap?.(row) ?? null;
+    return whole ? [whole] : model.columns.map((column) => column.gap?.(row) ?? null);
+  });
 }
 
 function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): AnyModel {
@@ -179,69 +222,61 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
     case 'filing-by-commission': {
       const rows = tables[table].rows.filter((row) => row.cycle === cycle);
       type Row = (typeof rows)[number];
-      const notReported = (row: Row) =>
-        row.reportStatus === 'not-reported' && row.expected === null && !row.suppressed;
-      return erase({
+      return asAnyModel({
         rows,
         key: (row: Row) => row.commission,
         name: textColumn('commission', m.columnCommission, (row: Row) => row.commissionName),
         defaultSort: BY_NAME,
         columns: filingColumns<Row>(threshold),
-        rowGap: (row: Row) => (notReported(row) ? 'not-reported' : null),
-        gaps: rows.map((row) =>
-          row.suppressed ? 'suppressed' : notReported(row) ? 'not-reported' : null,
-        ),
+        rowGap: (row: Row) =>
+          row.reportStatus === 'not-reported' && row.expected === null && !row.suppressed
+            ? 'not-reported'
+            : null,
       });
     }
     case 'compliance-by-commission': {
       const { rows } = tables[table];
       type Row = (typeof rows)[number];
-      const notReported = (row: Row) =>
-        !row.suppressed && COMPLIANCE_FIGURES.every((figure) => row[figure] === null);
-      return erase({
+      return asAnyModel({
         rows,
         key: (row: Row) => row.commission,
         name: textColumn('commission', m.columnCommission, (row: Row) => row.commissionName),
         defaultSort: BY_NAME,
-        columns: COMPLIANCE_FIGURES.map((figure) => ({
-          id: figure,
-          ...COMPLIANCE_COLUMNS[figure],
-          numeric: true,
-          sortValue: (row: Row) => row[figure],
-          cell: (row: Row) => (
-            <Figure
-              value={row[figure]}
-              gap={gapOf(row[figure], { suppressed: row.suppressed })}
-              threshold={threshold}
-            />
+        columns: COMPLIANCE_FIGURES.map((figure) =>
+          figureColumn<Row>(
+            {
+              id: figure,
+              ...COMPLIANCE_COLUMNS[figure],
+              value: (row) => row[figure],
+              gap: (row) => gapOf(row[figure], { suppressed: row.suppressed }),
+            },
+            threshold,
           ),
-        })),
-        rowGap: (row: Row) => (notReported(row) ? 'not-reported' : null),
-        gaps: rows.map((row) =>
-          row.suppressed ? 'suppressed' : notReported(row) ? 'not-reported' : null,
         ),
+        rowGap: (row: Row) =>
+          !row.suppressed && COMPLIANCE_FIGURES.every((figure) => row[figure] === null)
+            ? 'not-reported'
+            : null,
       });
     }
     case 'by-entity-type': {
       const rows = tables[table].rows.filter((row) => row.cycle === 'all');
       type Row = (typeof rows)[number];
-      return erase({
+      return asAnyModel({
         rows,
         key: (row: Row) => row.entityType,
         name: textColumn('entityType', m.columnEntityType, (row: Row) => row.entityType),
         columns: filingColumns<Row>(threshold),
-        gaps: rows.map((row) => (row.suppressed ? 'suppressed' : null)),
       });
     }
     case 'by-cycle': {
       const { rows } = tables[table];
       type Row = (typeof rows)[number];
-      return erase({
+      return asAnyModel({
         rows,
         key: (row: Row) => row.cycle,
         name: textColumn('cycle', m.columnCycle, (row: Row) => m.cycles[row.cycle]),
         columns: filingColumns<Row>(threshold),
-        gaps: rows.map((row) => (row.suppressed ? 'suppressed' : null)),
       });
     }
     case 'access-requests': {
@@ -252,33 +287,24 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
         granted: m.columnGranted,
         declined: m.columnDeclined,
       };
-      return erase({
+      return asAnyModel({
         rows,
         key: (row: Row) => row.commission,
         name: textColumn('commission', m.columnCommission, (row: Row) => row.commissionName),
         defaultSort: BY_NAME,
-        columns: ACCESS_REQUEST_FIGURES.map((figure) => ({
-          id: figure,
-          label: labels[figure],
-          numeric: true,
-          sortValue: (row: Row) => row[figure],
-          cell: (row: Row) => (
-            <Figure
-              value={row[figure]}
-              gap={gapOf(row[figure], {
-                suppressed: row.suppressed,
-                notCollected: notCollected.has(figure),
-              })}
-              threshold={threshold}
-            />
-          ),
-        })),
-        gaps: rows.flatMap((row) =>
-          ACCESS_REQUEST_FIGURES.map((figure) =>
-            gapOf(row[figure], {
-              suppressed: row.suppressed,
-              notCollected: notCollected.has(figure),
-            }),
+        columns: ACCESS_REQUEST_FIGURES.map((figure) =>
+          figureColumn<Row>(
+            {
+              id: figure,
+              label: labels[figure],
+              value: (row) => row[figure],
+              gap: (row) =>
+                gapOf(row[figure], {
+                  suppressed: row.suppressed,
+                  notCollected: notCollected.has(figure),
+                }),
+            },
+            threshold,
           ),
         ),
       });
@@ -287,39 +313,30 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
       const { rows } = tables[table];
       type Row = (typeof rows)[number];
       const isRate = (row: Row) => row.measure === 'filingRate' || row.measure === 'reportingRate';
-      const gap = (row: Row) =>
-        gapOf(row.value, {
-          suppressed: row.suppressed,
-          notCollected: notCollected.has(row.measure),
-        });
-      return erase({
+      return asAnyModel({
         rows,
         key: (row: Row) => row.measure,
         name: textColumn('measure', m.columnMeasure, (row: Row) => m.measures[row.measure]),
         columns: [
-          {
-            id: 'value',
-            label: m.columnValue,
-            numeric: true,
-            sortValue: (row: Row) => row.value,
-            cell: (row: Row) => (
-              <Figure
-                value={row.value}
-                gap={gap(row)}
-                threshold={threshold}
-                format={isRate(row) ? rate : formatNumber}
-              />
-            ),
-          },
+          figureColumn<Row>(
+            {
+              id: 'value',
+              label: m.columnValue,
+              value: (row) => row.value,
+              gap: (row) =>
+                gapOf(row.value, {
+                  suppressed: row.suppressed,
+                  notCollected: notCollected.has(row.measure),
+                }),
+              format: (row, value) => (isRate(row) ? rate(value) : formatNumber(value)),
+            },
+            threshold,
+          ),
         ],
-        gaps: rows.map(gap),
       });
     }
   }
 }
-
-/** The legend's keys, in the kit's order, for the markers the table shows. */
-const LEGEND_KEYS: UnshownFigureKind[] = ['suppressed', 'not-reported', 'not-collected'];
 
 /** The cycles the release has figures for, All cycles first. */
 function cyclesOf(tables: ReadTables): Cycle[] {
@@ -340,8 +357,13 @@ export function ReleaseTable({ tables, table }: { tables: ReadTables; table: Ope
   const [sort, setSort] = useState<Sort>(null);
   const [page, setPage] = useState(1);
   const model = modelOf(tables, table, cycle);
-  const { threshold, cellsSuppressed } = tables[table].suppression;
-  const keys = LEGEND_KEYS.filter((kind) => model.gaps.includes(kind));
+  const { threshold } = tables[table].suppression;
+  const gaps = gapsOf(model);
+  // Counted among the rows on show, so the count follows the cycle filter; over the whole table
+  // it is the file's `suppression.cellsSuppressed`.
+  const cellsSuppressed = gaps.filter((gap) => gap === 'suppressed').length;
+  // The kit's order; `complementary` never shows (the contract does not tell those cells apart).
+  const keys = UNSHOWN_FIGURE_KINDS.filter((kind) => gaps.includes(kind));
   const all = [model.name, ...model.columns];
   const sorted = sortRows(model.rows, all, sort ?? model.defaultSort ?? null);
   // The national totals are one list of measures, read whole.
