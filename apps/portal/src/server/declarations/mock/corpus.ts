@@ -16,6 +16,8 @@ export interface CorpusPassage {
   text: readonly [en: string, sw: string | null];
   /** When the wording took effect; the Act's and Regulations' commencement unless set. */
   effectiveFrom?: string;
+  /** When a later wording replaced it (exclusive); none while in force. */
+  effectiveTo?: string;
   /** The Commission whose article it is (slug); the law and platform articles have none. */
   commission?: string;
 }

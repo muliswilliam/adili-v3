@@ -272,6 +272,12 @@ describe('help article (S12)', () => {
     expect(
       screen.getByText('Bado haipatikani kwa Kiswahili. Inaonyeshwa kwa Kiingereza.'),
     ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Sheria ya Mgongano wa Maslahi, 2025 · Inatumika tangu 1 Jan 2026 · Maandishi ya kisheria, ya kusoma tu',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: 'Njia ya ukurasa' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1 }).getAttribute('lang')).toBe('en');
     fireEvent.click(screen.getByRole('button', { name: 'English' }));
     expect(onLanguage).toHaveBeenCalledWith('en');

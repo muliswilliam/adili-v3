@@ -42,7 +42,7 @@ import type {
   AssistantMessage as Message,
   DeclarationSection,
 } from '../../server/declarations/types';
-import { stepLink } from '../declaration/steps';
+import { sectionLink, stepLink } from '../declaration/steps';
 
 export { AskAdiliBarButton, AskAdiliLauncher, useAskAdiliTab } from './context';
 import { AskAdiliContext } from './context';
@@ -255,10 +255,9 @@ function Panel({
   function openPlace(step: string, field: string | null) {
     if (!declarationId) return;
     if (!side) onClose();
-    void navigate({
-      ...stepLink(declarationId, step),
-      ...(field ? { search: { field } as never } : {}),
-    });
+    void navigate(
+      field ? sectionLink(declarationId, step, { field }) : stepLink(declarationId, step),
+    );
   }
 
   /** "Read in help": the passage's help page, in the panel's language. */

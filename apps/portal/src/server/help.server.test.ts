@@ -76,6 +76,18 @@ describe('help pages: one passage', () => {
     expect(result.passage.commission).toMatchObject({ issuerCode: 'TSC' });
   });
 
+  it('reads the wording in force on the day asked', async () => {
+    const read = (date: string) =>
+      declarant().GET('/v1/help/passages/{passageId}', {
+        params: { path: { passageId: 'help-file' }, query: { language: 'en', date } },
+      });
+    expect((await read('2026-06-30')).response.status).toBe(404);
+    expect((await read('2026-07-01')).data).toMatchObject({
+      effectiveFrom: '2026-07-01',
+      effectiveTo: null,
+    });
+  });
+
   it('is not found for an unknown passage', async () => {
     expect(
       await getHelpPassage(declarant(), { passageId: 'no-such-passage', language: 'en' }),

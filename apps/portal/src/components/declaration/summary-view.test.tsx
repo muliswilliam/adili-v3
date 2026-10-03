@@ -626,6 +626,7 @@ describe('S5: completeness hints on the summary', () => {
     const panel = renderBlocked();
 
     expect(await within(panel).findByText(HINT)).toBeTruthy();
+    expect(within(panel).getByRole('status').textContent).toBe('Hints ready');
     expect(hintsMock).toHaveBeenCalledWith({
       data: { declarationId: DECLARATION_ID, language: 'en' },
     });
@@ -672,7 +673,7 @@ describe('S5: completeness hints on the summary', () => {
     const panel = renderBlocked();
 
     await waitFor(() => {
-      expect(within(panel).queryByRole('status')).toBeNull();
+      expect(within(panel).getByRole('status').textContent).toBe('');
     });
     expect(within(panel).queryByRole('img', { name: /AI-assisted/ })).toBeNull();
     expect(within(panel).queryByRole('link', { name: /^Fix/ })).toBeNull();

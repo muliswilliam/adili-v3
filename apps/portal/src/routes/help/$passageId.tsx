@@ -8,13 +8,15 @@ import {
   HelpShell,
   HelpUnavailable,
 } from '../../components/help/help-pages';
+import { HELP_COPY } from '../../help/copy';
+import { langSearch, pageLanguage } from '../../help/language';
 import { topicOf, topicQuery } from '../../help/topics';
 import { readHelpPassage, searchHelpPages } from '../../server/help';
 
 /** How many related passages an article lists. */
 const RELATED = 3;
 
-const searchSchema = z.object({ lang: z.enum(['en', 'sw']).optional().catch(undefined) });
+const searchSchema = z.object({ lang: langSearch });
 
 /**
  * One passage of the law or one help article (spec 11 FE-3), with others on its topic. Opened
@@ -22,7 +24,7 @@ const searchSchema = z.object({ lang: z.enum(['en', 'sw']).optional().catch(unde
  */
 export const Route = createFileRoute('/help/$passageId')({
   validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({ language: search.lang ?? 'en' }),
+  loaderDeps: ({ search }) => ({ language: pageLanguage(search.lang) }),
   loader: async ({ params, deps, location }) => {
     const { language } = deps;
     const read = settleLoad(
@@ -40,23 +42,26 @@ export const Route = createFileRoute('/help/$passageId')({
         : null;
     return { status: 'ok' as const, passage, related };
   },
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title:
-          loaderData?.status === 'ok'
-            ? `${loaderData.passage.title} · Adili Online`
-            : 'Help · Adili Online',
-      },
-    ],
-  }),
+  head: ({ loaderData, match }) => {
+    const copy = HELP_COPY[pageLanguage(match.search.lang)];
+    return {
+      meta: [
+        {
+          title:
+            loaderData?.status === 'ok'
+              ? copy.articleTitle(loaderData.passage.title)
+              : copy.documentTitle,
+        },
+      ],
+    };
+  },
   component: HelpArticleRoute,
   notFoundComponent: NotFoundRoute,
 });
 
 function NotFoundRoute() {
   const { lang } = Route.useSearch();
-  const language = lang ?? 'en';
+  const language = pageLanguage(lang);
   return (
     <HelpShell language={language}>
       <HelpArticleNotFound language={language} />
@@ -68,7 +73,7 @@ function HelpArticleRoute() {
   const load = Route.useLoaderData();
   const { lang } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const language = lang ?? 'en';
+  const language = pageLanguage(lang);
   return (
     <HelpShell language={language}>
       {load.status === 'ok' ? (

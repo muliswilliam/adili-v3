@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { languageSchema } from '../help/language';
 import { type HelpSearchResult, searchHelp } from './assistant.server';
 import { asDeclarant } from './bff.server';
 import { declarationsClient } from './declarations/client.server';
@@ -9,7 +10,7 @@ import type { Unauthenticated } from './results';
 
 /** Server functions for the help pages (spec 11 FE-3): search and one passage. */
 
-const language = z.enum(['en', 'sw']);
+const language = languageSchema;
 
 /** How many passages a help page lists: the most the search endpoint gives. */
 export const HELP_PAGE_LIMIT = 20;

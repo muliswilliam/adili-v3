@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { ASSISTANT_NOTE_MAX_LENGTH } from '../assistant/limits';
+import { languageSchema } from '../help/language';
 import { isSectionKey } from '../declaration/section-key';
 import {
   getCompletenessHints,
@@ -20,7 +21,7 @@ import type { Unauthenticated } from './results';
 
 /** Server functions for the Ask Adili panel; the answer itself streams from an API route. */
 
-const language = z.enum(['en', 'sw']);
+const language = languageSchema;
 
 export const openAssistantConversation = createServerFn({ method: 'POST' })
   .validator(z.object({ declarationId: z.uuid().nullable(), language }))

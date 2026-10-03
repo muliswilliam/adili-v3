@@ -111,6 +111,30 @@ export type StepLink =
   | { to: '/declarations/$id/summary'; params: { id: string } }
   | { to: '/declarations/$id/statements/$personKey'; params: { id: string; personKey: string } };
 
+/**
+ * What the section screens read from their address (`sectionSearch`): `errors` shows every
+ * missing answer at once, `field` opens and focuses one field (a JSON pointer).
+ */
+export interface SectionSearch {
+  errors?: boolean;
+  field?: string;
+}
+
+type ScreenLink = Extract<StepLink, { to: '/declarations/$id' | '/declarations/$id/summary' }>;
+
+export type SectionLink = (Exclude<StepLink, ScreenLink> & { search: SectionSearch }) | ScreenLink;
+
+/**
+ * A link to a step that shows its errors or opens a field there; the overview and the summary
+ * read neither, so their links go without.
+ */
+export function sectionLink(declarationId: string, step: Step, search: SectionSearch): SectionLink {
+  const link = stepLink(declarationId, step);
+  return link.to === '/declarations/$id' || link.to === '/declarations/$id/summary'
+    ? link
+    : { ...link, search };
+}
+
 /** Where a step lives; a key that is not a section's opens the overview. */
 export function stepLink(declarationId: string, step: Step): StepLink {
   const params = { id: declarationId };

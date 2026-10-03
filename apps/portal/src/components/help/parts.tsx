@@ -1,4 +1,4 @@
-import { Button, cn, focusRing, Icon, Tooltip } from '@adili/ui';
+import { Badge, Button, cn, focusRing, Icon, Tooltip } from '@adili/ui';
 import { HelpCircleIcon, JusticeScale01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -11,8 +11,7 @@ import { SignOutButton } from '../sign-out-button';
 /** Pieces the help pages share (spec 11 FE-3), and the header link that opens them. */
 
 /** A card that lifts on hover: the help topics and passage rows. */
-export const liftOnHover =
-  'transition-shadow hover:shadow-[0_0_0_1px_var(--color-border),0_6px_18px_-10px_rgb(0_0_0/0.2)]';
+export const liftOnHover = 'transition-shadow hover:shadow-card-hover';
 
 /**
  * The question mark in the page header that opens the help pages, in the language the help is
@@ -108,17 +107,14 @@ export function PassageTag({
 }) {
   const help = source === 'help';
   return (
-    <span
-      className={cn(
-        'inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-md px-2 text-[12px] font-semibold whitespace-nowrap [&_svg]:size-3',
-        help
-          ? 'bg-brand-subtle text-brand-subtle-foreground'
-          : 'bg-muted text-secondary-foreground',
-      )}
+    // The kit's citation tag: a square-cornered badge.
+    <Badge
+      variant={help ? 'brand' : 'default'}
+      className="h-[22px] rounded-md px-2 text-[12px] font-semibold [&_svg]:size-3"
     >
       <Icon icon={help ? HelpCircleIcon : JusticeScale01Icon} />
       {help ? copy.helpTag(issuerCode) : citation}
-    </span>
+    </Badge>
   );
 }
 
@@ -128,7 +124,7 @@ export function Snippet({ text, query }: { text: string; query: string }) {
     <>
       {highlight(text, query).map((part, index) =>
         part.match ? (
-          <mark key={index} className="rounded-[3px] bg-highlight px-px text-inherit">
+          <mark key={index} className="rounded-xs bg-highlight px-px text-inherit">
             {part.text}
           </mark>
         ) : (
@@ -161,7 +157,7 @@ export function PassageRow({
         className={cn(
           focusRing,
           liftOnHover,
-          'grid gap-1.5 rounded-[14px] bg-card px-4 py-3.5 text-foreground shadow-card',
+          'grid gap-1.5 rounded-item bg-card px-4 py-3.5 text-foreground shadow-card',
         )}
       >
         <span className="flex flex-wrap items-center gap-2">

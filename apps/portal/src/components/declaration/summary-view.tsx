@@ -67,6 +67,7 @@ import {
   STATEMENTS_TITLE,
   STEP_TITLES,
   statementTitle,
+  sectionLink,
   stepLink,
   type Step,
 } from './steps';
@@ -122,10 +123,8 @@ function ErrorsLink({
   step: Step;
   children: ReactNode;
 }) {
-  // Every section route reads `?errors=true` to show all its missing answers at once.
-  const search = { errors: true } as never;
   return (
-    <Link {...stepLink(declarationId, step)} search={search} className={textLink}>
+    <Link {...sectionLink(declarationId, step, { errors: true })} className={textLink}>
       {children}
     </Link>
   );
@@ -148,12 +147,9 @@ function FixLink({
   issue: CompletenessIssue;
   text: string;
 }) {
-  // The section screens read `?field=` to open the item and focus the field.
-  const search = { field: issue.path } as never;
   return (
     <Link
-      {...stepLink(declarationId, issue.sectionKey)}
-      search={search}
+      {...sectionLink(declarationId, issue.sectionKey, { field: issue.path })}
       aria-label={`Fix: ${text}`}
       className={cn(textLink, 'font-semibold')}
     >
@@ -232,9 +228,17 @@ function BlockingPanel({
           <Icon icon={Alert02Icon} className="size-5 text-warning" />
           {blockingTitle(blocking.length)}
         </h2>
+        {/* One live region, so "Hints ready" is read where "Getting hints" was. */}
+        <span role="status" className="sr-only">
+          {hints.status === 'loading'
+            ? 'Getting hints…'
+            : hints.status === 'ready'
+              ? 'Hints ready'
+              : ''}
+        </span>
         {hints.status === 'loading' ? (
           <span
-            role="status"
+            aria-hidden="true"
             className="inline-flex items-center gap-1.5 text-[12.5px] font-medium"
           >
             <Spinner className="size-3.5" />

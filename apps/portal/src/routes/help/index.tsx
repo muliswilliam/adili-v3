@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { settleLoad } from '../../components/declaration/route-helpers';
 import { HelpHome, type HelpListing, HelpShell } from '../../components/help/help-pages';
 import { HELP_COPY } from '../../help/copy';
+import { langSearch, pageLanguage } from '../../help/language';
 import { TOPIC_KEYS, topicQuery } from '../../help/topics';
 import { searchHelpPages } from '../../server/help';
 
@@ -16,12 +17,12 @@ export const Route = createFileRoute('/help/')({
   validateSearch: z.object({
     q: z.string().max(200).optional().catch(undefined),
     topic: z.enum(TOPIC_KEYS).optional().catch(undefined),
-    lang: z.enum(['en', 'sw']).optional().catch(undefined),
+    lang: langSearch,
   }),
   loaderDeps: ({ search }) => ({
     q: search.q?.trim() ?? '',
     topic: search.topic,
-    language: search.lang ?? 'en',
+    language: pageLanguage(search.lang),
   }),
   loader: async ({ deps, location }): Promise<HelpListing> => {
     const { q, topic, language } = deps;
@@ -38,7 +39,7 @@ export const Route = createFileRoute('/help/')({
       : { kind: 'topic', topic: topic ?? 'start', passages };
   },
   head: ({ match }) => ({
-    meta: [{ title: HELP_COPY[match.search.lang ?? 'en'].documentTitle }],
+    meta: [{ title: HELP_COPY[pageLanguage(match.search.lang)].documentTitle }],
   }),
   component: HelpRoute,
 });
@@ -47,7 +48,7 @@ function HelpRoute() {
   const listing = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const language = search.lang ?? 'en';
+  const language = pageLanguage(search.lang);
   const onQuery = useCallback(
     (q: string) => {
       void navigate({

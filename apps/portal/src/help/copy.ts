@@ -7,8 +7,12 @@ export type HelpLanguage = AssistantLanguage;
 
 export interface HelpCopy {
   title: string;
-  /** The page's `<title>`. */
+  /** The help home's `<title>`. */
   documentTitle: string;
+  /** An article's `<title>`. */
+  articleTitle: (title: string) => string;
+  /** Names the trail back to the help home and the topic. */
+  breadcrumb: string;
   language: string;
   /** Read out after switching. */
   languageChanged: string;
@@ -39,6 +43,8 @@ export interface HelpCopy {
 const EN: HelpCopy = {
   title: 'Help',
   documentTitle: 'Help · Adili Online',
+  articleTitle: (title) => `${title} · Help · Adili Online`,
+  breadcrumb: 'Breadcrumb',
   language: 'Language',
   languageChanged: 'Help is now in English.',
   search: 'Search the help',
@@ -79,6 +85,8 @@ const EN: HelpCopy = {
 const SW: HelpCopy = {
   title: 'Msaada',
   documentTitle: 'Msaada · Adili Online',
+  articleTitle: (title) => `${title} · Msaada · Adili Online`,
+  breadcrumb: 'Njia ya ukurasa',
   language: 'Lugha',
   languageChanged: 'Msaada sasa uko kwa Kiswahili.',
   search: 'Tafuta katika msaada',
@@ -102,7 +110,7 @@ const SW: HelpCopy = {
   englishOnly: 'Kiingereza tu',
   notYetInSwahili: 'Bado haipatikani kwa Kiswahili. Inaonyeshwa kwa Kiingereza.',
   inForceFrom: (date) => `Inatumika tangu ${date}`,
-  statutory: 'Maandishi ya kisheria',
+  statutory: 'Maandishi ya kisheria, ya kusoma tu',
   sourceNames: {
     act: 'Sheria ya Mgongano wa Maslahi, 2025',
     regs: 'Kanuni za Mgongano wa Maslahi, 2026',

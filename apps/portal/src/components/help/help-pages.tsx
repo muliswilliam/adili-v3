@@ -198,10 +198,10 @@ function Listing({
               className={cn(
                 focusRing,
                 liftOnHover,
-                'flex h-full w-full cursor-pointer items-center gap-3.5 rounded-[14px] bg-card px-4 py-3.5 text-left shadow-card',
+                'flex h-full w-full cursor-pointer items-center gap-3.5 rounded-item bg-card px-4 py-3.5 text-left shadow-card',
               )}
             >
-              <span className="grid size-[38px] shrink-0 place-items-center rounded-[10px] bg-muted text-secondary-foreground [&_svg]:size-[18px]">
+              <span className="grid size-[38px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground [&_svg]:size-[18px]">
                 <Icon icon={TOPIC_ICONS[key]} />
               </span>
               <span className="grid min-w-0 flex-1">
@@ -307,7 +307,7 @@ export function HelpArticle({ language, passage, related, onLanguage }: HelpArti
 
   return (
     <>
-      <nav aria-label="Breadcrumb">
+      <nav aria-label={copy.breadcrumb}>
         <ol className="flex items-center gap-1.5 text-[13.5px] text-muted-foreground">
           <li>
             <Link

@@ -436,13 +436,22 @@ export function searchHelp(url: URL, caller: string | null) {
 /** The Act's and the Regulations' commencement, for passages that give no later date. */
 const COMMENCEMENT = '2026-01-01';
 
-/** `GET /v1/help/passages/{passageId}` (draft `getHelpPassage`): one passage, whole. */
+/**
+ * `GET /v1/help/passages/{passageId}` (draft `getHelpPassage`, #549): one passage, whole, if in
+ * force on `date` (today unless asked).
+ */
 export function getHelpPassage(url: URL, caller: string | null, passageId: string) {
   if (!caller) return notFound();
   const language = url.searchParams.get('language');
   if (!isLanguage(language)) return problem(400, 'Invalid request');
+  const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem(400, 'Invalid request');
   const item = CORPUS.find((candidate) => candidate.id === passageId);
-  if (!item) return notFound();
+  // Only a wording in force on `date`, as the service reads it.
+  const from = item?.effectiveFrom ?? COMMENCEMENT;
+  if (!item || from > date || (item.effectiveTo !== undefined && item.effectiveTo <= date)) {
+    return notFound();
+  }
   const swahili = language === 'sw' && item.text[1] !== null;
   return json(200, {
     id: item.id,
@@ -455,8 +464,8 @@ export function getHelpPassage(url: URL, caller: string | null, passageId: strin
     commission: item.commission
       ? (Object.values(COMMISSIONS).find(({ slug }) => slug === item.commission) ?? null)
       : null,
-    effectiveFrom: item.effectiveFrom ?? COMMENCEMENT,
-    effectiveTo: null,
+    effectiveFrom: from,
+    effectiveTo: item.effectiveTo ?? null,
   });
 }
 
