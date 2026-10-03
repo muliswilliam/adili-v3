@@ -4,9 +4,9 @@ import { useEffect, useMemo } from 'react';
 import { getCaseCopilot, rateCopilotOutput, refreshCaseCopilot } from '../../../server/copilot';
 import type { Copilot } from '../../../server/copilot.server';
 import type { CaseDetail } from '../../../server/review/types';
+import { highlightTarget } from '../../highlight-target';
 import type { CopilotAccess } from './copilot-view';
 import { CopilotLauncher, CopilotPanel, type CopilotPanelProps } from './copilot-panel';
-import { highlightTarget } from '../../highlight-target';
 import { type ResolvedRef, sourceRefResolver } from './source-refs';
 import { type CopilotApi, useCaseCopilot } from './use-case-copilot';
 
