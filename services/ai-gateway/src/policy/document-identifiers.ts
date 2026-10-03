@@ -453,19 +453,37 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     if ((parties.at(-1)?.length ?? 0) > 0) parties.push([]);
   };
   let words = 0;
+  // Whether a shape came last, past marks and spaces.
+  let afterShape = false;
   const end = Math.min(tokens.length, from + MAX_TOKENS);
   for (let at = from; at < end && words < MAX_WORDS && parties.length <= MAX_PARTIES; at++) {
     const token = tokens[at];
     if (token?.kind === 'joiner') nextParty();
-    // A shape after a name ends the span: an address, phone or email ("John Kamau P.O. Box 123
-    // Nakuru"); before it, it is skipped ("Proprietor: ID 12345678 John Kamau").
-    if (token?.kind === 'other' && token.text === BLANK && words > 0) break;
+    // A shape (an ID, phone, email or address) ends a party, as a joiner does ("John Kamau ID
+    // 12345678, Mary Wanjiru"); a place right after it is the address's, no name ("John Kamau
+    // P.O. Box 123 Nakuru").
+    if (token?.kind === 'other' && token.text === BLANK) {
+      nextParty();
+      afterShape = true;
+      continue;
+    }
     // Numbers and other data are skipped; a currency ends the span ("John Kamau KES 12,500,000").
     if (token?.kind !== 'word') continue;
     const word = token.text;
+    const placeAfterShape = afterShape && PLACES.has(lower(word));
+    afterShape = false;
+    if (placeAfterShape) continue;
     if (CURRENCIES.has(lower(word))) break;
     if (!isCapitalised(word)) {
       if (!PARTICLES.has(word)) nextParty();
+      continue;
+    }
+    // A field whose value is a shape ends a party, not the span ("John Kamau KRA PIN A123456789Z
+    // and Mary Wanjiru").
+    const shaped = shapedFieldEnd(tokens, at);
+    if (shaped > 0) {
+      nextParty();
+      at = shaped - 1;
       continue;
     }
     if (startsLabel(tokens, at) || labelsAField(tokens, at) || addressStarts(tokens, at)) break;
@@ -477,6 +495,27 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     words++;
   }
   return parties.filter((party) => party.length > 0);
+}
+
+/** Words a field's label may hold after its field words ("ID No.", "Account Number"). */
+const LABEL_TAILS = new Set(['no', 'number', 'nambari']);
+
+/**
+ * Where a shape starts after a field label at `at` ("KRA PIN A123...", "ID No. 12345678"): the
+ * label's field words, then spaces, dots and colons, then the blanked shape; -1 for none.
+ */
+function shapedFieldEnd(tokens: readonly Token[], at: number): number {
+  let next = at;
+  let fields = 0;
+  for (; next < tokens.length; next++) {
+    const token = tokens[next];
+    if (token?.kind === 'space' || token?.kind === 'colon' || isMark(token, '.')) continue;
+    if (token?.kind !== 'word') break;
+    const word = lower(token.text);
+    if (FIELD_LEADS.has(word)) fields++;
+    else if (!(fields > 0 && LABEL_TAILS.has(word))) break;
+  }
+  return fields > 0 && isMark(tokens[next], BLANK) ? next : -1;
 }
 
 /**
