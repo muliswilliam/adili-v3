@@ -106,6 +106,8 @@ export function resetAiGatewayMock() {
           ),
           dataClass: 'highly-confidential',
           tasks: ['extract-document'],
+          changedBy: 'system:demo-seed',
+          changedByName: 'Demo seed',
         },
       ],
       usage: counters(3_000_000, 120, 1_926_400, 24_180_000, 1_482, 0, 11),
