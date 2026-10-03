@@ -55,7 +55,8 @@ import type { DeclarantNotice } from '../../server/review/types';
 import { useResponseUploads } from '../response-uploads';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../declaration/attachments';
 import { loginHref } from '../sign-in';
-import { ComplyLink, LadderStrip, NoticeStatusBadge } from './notices-view';
+import { ComplyLink } from './comply-link';
+import { LadderStrip, NoticeStatusBadge } from './notices-view';
 import { SalaryBanner, SalaryCard } from './salary-parts';
 
 /**

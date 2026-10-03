@@ -4,7 +4,7 @@ import { BanknoteIcon, LegalHammerIcon, Tick02Icon } from '@hugeicons/core-free-
 import { SALARY_COPY as S } from '../../notices/salary-copy';
 import type { SalaryStanding } from '../../notices/salary';
 import type { DeclarantNotice } from '../../server/review/types';
-import { ComplyLink } from './notices-view';
+import { ComplyLink } from './comply-link';
 
 /** The Commission as letters short-name it ("TSC"). */
 const shortName = (notice: DeclarantNotice) => notice.commission.slug.toUpperCase();

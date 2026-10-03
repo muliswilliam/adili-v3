@@ -52,6 +52,7 @@ import { salaryOnTop } from '../../notices/salary';
 import type { MyNoticesResult } from '../../server/notices.server';
 import type { ActionStatus, DeclarantNotice } from '../../server/review/types';
 import { Pager } from '../my-declarations/pager';
+import { ComplyLink } from './comply-link';
 import { SalaryBanner } from './salary-parts';
 
 /**
@@ -256,24 +257,6 @@ export function LadderStrip({
         </li>
       ))}
     </ol>
-  );
-}
-
-/** Where to go to comply: the dashboard's obligations, or the clarifications. */
-export function ComplyLink({
-  notice,
-  variant = 'default',
-}: {
-  notice: DeclarantNotice;
-  variant?: 'default' | 'secondary';
-}) {
-  return (
-    <Button asChild size="sm" variant={variant}>
-      <Link to={notice.whatToDo === 'file-declaration' ? '/' : '/clarifications'}>
-        {COPY.cta[notice.whatToDo]}
-        <Icon icon={ArrowRight01Icon} />
-      </Link>
-    </Button>
   );
 }
 
