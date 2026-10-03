@@ -71,7 +71,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   {
     label: 'EACC',
     // The national report and, with #230, the intake all sit under /eacc/reports.
-    items: [{ workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' }],
+    items: [
+      { workspace: 'compliance', icon: InboxIcon, section: '/eacc/reports' },
+      { workspace: 'open-data', icon: ChartColumnIcon },
+    ],
   },
   {
     label: 'Law enforcement',

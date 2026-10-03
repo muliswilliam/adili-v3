@@ -10,9 +10,17 @@ describe('navFor', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([
         ['Platform', ['Commissions', 'National obligations']],
-        ['EACC', ['Compliance reports']],
+        ['EACC', ['Compliance reports', 'Open data']],
       ]);
     }
+  });
+
+  it('marks Open data on a release page too (#350)', () => {
+    const groups = navFor(['eacc-analyst']);
+    expect(groups[1]?.items[1]?.to).toBe('/eacc/open-data');
+    expect(activeNavHref(groups, '/eacc/open-data/0199c000-0000-7000-8000-000000000002')).toBe(
+      '/eacc/open-data',
+    );
   });
 
   it('marks Compliance reports on every page under /eacc/reports (spec 09)', () => {

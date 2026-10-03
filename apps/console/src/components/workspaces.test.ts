@@ -31,8 +31,20 @@ describe('workspacesFor', () => {
     }
   });
 
-  it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
-    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'national-obligations', 'compliance']);
+  it('gives EACC analysts Commissions, national obligations, compliance reports and open data but not the review queue', () => {
+    expect(ids(['eacc-analyst'])).toEqual([
+      'commissions',
+      'national-obligations',
+      'compliance',
+      'open-data',
+    ]);
+  });
+
+  it('opens Open data to EACC analysts and supervisors only (spec 09b, #350)', () => {
+    expect(workspaceFor(['eacc-supervisor'], 'open-data')?.href).toBe('/eacc/open-data');
+    for (const roles of [['platform-admin'], ['supervisor'], ['commission-admin']]) {
+      expect(workspaceFor(roles, 'open-data')).toBeUndefined();
+    }
   });
 
   it('gives declarants nothing in the console', () => {

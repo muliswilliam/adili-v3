@@ -37,7 +37,8 @@ export type WorkspaceHref =
   | '/platform/law-enforcement'
   | '/ai-policy'
   | '/form-m'
-  | '/eacc/reports';
+  | '/eacc/reports'
+  | '/eacc/open-data';
 
 interface WorkspaceDefinition {
   id: string;
@@ -194,6 +195,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
     href: '/eacc/reports',
+    roles: EACC_ROLES,
+  },
+  {
+    id: 'open-data',
+    title: 'Open data',
+    description: 'Build and preview the open-data releases, suppressed for privacy.',
+    href: '/eacc/open-data',
     roles: EACC_ROLES,
   },
   {
