@@ -794,6 +794,8 @@ const DETERMINATION_CASES = [
     holder: CALLER,
     history: [CALLER],
     receivedDays: -150,
+    band: 'low',
+    flagsReviewedBy: PETER,
   },
   {
     key: 'returned',
@@ -802,6 +804,8 @@ const DETERMINATION_CASES = [
     holder: CALLER,
     history: [CALLER],
     receivedDays: -160,
+    band: 'low',
+    flagsReviewedBy: PETER,
   },
   {
     key: 'determined',
@@ -810,6 +814,8 @@ const DETERMINATION_CASES = [
     holder: CALLER,
     history: [CALLER],
     receivedDays: -170,
+    band: 'low',
+    flagsReviewedBy: PETER,
   },
   {
     key: 'awaitingOld',
@@ -818,6 +824,8 @@ const DETERMINATION_CASES = [
     holder: MERCY,
     history: [MERCY],
     receivedDays: -175,
+    band: 'high',
+    flagsReviewedBy: MERCY,
   },
   {
     key: 'awaitingOfRecord',
@@ -826,6 +834,8 @@ const DETERMINATION_CASES = [
     holder: MERCY,
     history: [CALLER, MERCY],
     receivedDays: -140,
+    band: 'low',
+    flagsReviewedBy: MERCY,
   },
   {
     key: 'awaitingFurther',
@@ -834,6 +844,8 @@ const DETERMINATION_CASES = [
     holder: PETER,
     history: [PETER],
     receivedDays: -130,
+    band: 'low',
+    flagsReviewedBy: PETER,
   },
   {
     key: 'bulkClosure',
@@ -842,6 +854,9 @@ const DETERMINATION_CASES = [
     holder: null,
     history: [],
     receivedDays: -190,
+    band: 'low',
+    // None: the sweep proposes only cases with no open flags.
+    flagsReviewedBy: null,
   },
 ] as const satisfies readonly {
   key: keyof typeof MOCK_CASE_IDS;
@@ -850,6 +865,9 @@ const DETERMINATION_CASES = [
   holder: Officer | null;
   history: readonly Officer[];
   receivedDays: number;
+  band: CaseListItem['band'];
+  /** Who reviewed the case's flags (a colleague, for the caller's), or null for a case with none. */
+  flagsReviewedBy: Assignee | null;
 }[];
 
 /** The spec 08 cases and their determinations, with the Commission's staff for reassigning. */
@@ -867,26 +885,14 @@ function seedDeterminationCases(now: number) {
     const item: CaseListItem = {
       ...caseItem(C[seed.key], seed.reference, name, now, seed.receivedDays + 182),
       status: seed.key === 'determined' ? 'determined' : 'ready-for-determination',
-      band: seed.key === 'awaitingOld' ? 'high' : 'low',
+      band: seed.band,
     };
     cases.set(
       item.id,
       storedCase(item, {
         holder: seed.holder,
         history: [...seed.history],
-        // The bulk closure's case has none: the sweep proposes only cases with no open flags.
-        flags: (seed.key === 'bulkClosure' ? [] : mockFlags(item.id)).map((flag) =>
-          flag.reviewed
-            ? flag
-            : {
-                ...flag,
-                reviewed: {
-                  by: officerAt(seed.holder),
-                  at: at(now, -20),
-                  note: 'Explained by the documents on file.',
-                },
-              },
-        ),
+        flags: reviewedFlags(item.id, seed.flagsReviewedBy, now),
         document: declarationOf(seed.declarant),
         timeline: [entry('case-created', null, item.receivedAt, 'Case created from version 1')],
       }),
@@ -980,12 +986,17 @@ function seedDeterminationCases(now: number) {
   );
 }
 
-/**
- * Who reviewed a seeded case's flags: its holder, or Peter Mwangi for the caller's cases and for
- * one nobody holds.
- */
-function officerAt(value: Officer | null): Assignee {
-  return value === CALLER || value === null ? PETER : value;
+/** The mock's flags of a case, each reviewed by `by`; none when `by` is null. */
+function reviewedFlags(caseId: string, by: Assignee | null, now: number): Flag[] {
+  if (by === null) return [];
+  return mockFlags(caseId).map((flag) =>
+    flag.reviewed
+      ? flag
+      : {
+          ...flag,
+          reviewed: { by, at: at(now, -20), note: 'Explained by the documents on file.' },
+        },
+  );
 }
 
 /** The cases as the determinations mock reads and changes them, for `caller`. */

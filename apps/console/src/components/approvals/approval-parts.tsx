@@ -1,6 +1,7 @@
 import { Button, Icon } from '@adili/ui';
 import { ArrowDataTransferHorizontalIcon } from '@hugeicons/core-free-icons';
 
+import { SYSTEM_PROPOSER } from '../../review-case/labels';
 import type { InboxItem } from '../../server/approvals.server';
 import type { Assignee } from '../../server/review/types';
 import { problemLabel } from '../../server/service-call';
@@ -51,7 +52,7 @@ export function decidedNotice(): ApprovalNotice {
   };
 }
 
-/** Who proposed an approval, by name, or the system. */
+/** Who proposed an approval, by name, or "the system": always inside a sentence. */
 export function proposerName(item: InboxItem): string {
-  return item.proposer?.name ?? m.system;
+  return item.proposer?.name ?? SYSTEM_PROPOSER.inSentence;
 }

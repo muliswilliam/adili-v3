@@ -371,4 +371,32 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
       await within(dialog).findByText('That did not work. Try again in a moment.'),
     ).toBeTruthy();
   });
+
+  it('names a system proposer in a sentence: "Proposed by the system"', async () => {
+    const load = await inbox();
+    if (!load.ok) throw new Error('inbox');
+    const [first] = load.data.items;
+    if (!first) throw new Error('no item');
+    const system = { ...first, proposerKind: 'system' as const, proposer: null };
+    render(
+      <ToastProvider>
+        <ApprovalsView
+          kind="determination"
+          load={{ ...load, data: { ...load.data, items: [system] } }}
+          viewer={ME}
+          slug="tsc"
+          paging={null}
+        />
+      </ToastProvider>,
+    );
+    expect(screen.getByText('Proposed by the system')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Approve determination' });
+    expect(within(dialog).getByText(/^Proposed by the system on /)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Return' }));
+    const returning = await screen.findByRole('dialog', { name: 'Return to the reviewer' });
+    expect(within(returning).getByText(/· proposed by the system$/)).toBeTruthy();
+    expect(within(returning).getByText('Shown on the case.')).toBeTruthy();
+  });
 });
