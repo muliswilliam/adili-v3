@@ -387,7 +387,7 @@ function Banner({
       <BannerFrame
         variant="info"
         icon={Clock01Icon}
-        title={t.banner.proposed(current.proposer?.name ?? t.system, current.proposedAt)}
+        title={t.banner.proposed(current.proposer?.name ?? t.systemInSentence, current.proposedAt)}
       >
         {state.withdraw || state.openInApprovals ? (
           <div className="flex flex-wrap gap-2">

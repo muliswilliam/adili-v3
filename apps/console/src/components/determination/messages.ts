@@ -6,6 +6,8 @@ import type { DeterminationRefusal } from '../../determination/refusals';
 export const messages = {
   crumb: 'Determination',
   system: 'The system',
+  /** The system, inside a sentence ("proposed by the system"). */
+  systemInSentence: 'the system',
   aSupervisor: 'A supervisor',
   unassigned: 'Unassigned',
   received: (date: string) => `Received ${formatDate(date)}`,

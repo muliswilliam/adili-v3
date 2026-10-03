@@ -20,17 +20,8 @@
  *
  * - Case `mine` also has `draft`, saved with one item, which the composer continues.
  *
- * Spec 08 (determinations, `MOCK_DETERMINATION_IDS`), all ready for determination, flags reviewed:
- * - `ready`, held by the caller, nothing proposed: the caller proposes.
- * - `returned`, held by the caller: Lucy Wambui returned the caller's proposal with a reason.
- * - `determined`, held by the caller: Lucy Wambui approved the caller's proposal (CMP, letter).
- * - `peters`: Peter Mwangi proposed compliant 9 days ago.
- * - `awaitingOld`, held by Mercy Wambui: non-compliant proposed 35 days ago, reassigned to the
- *   caller.
- * - `awaitingOfRecord`, held by Mercy after the caller: the caller is a reviewer of record.
- * - `awaitingFurther`, held by Peter: further action proposed 3 days ago.
- * - `bulkClosure`, low band, nothing open, nobody holds it: the system's "no issues" proposal,
- *   a bulk closure, left out of the inbox (#202).
+ * - Spec 08's cases and their determinations (`ready` to `bulkClosure`, and a proposal on
+ *   `peters`): see the notes on `MOCK_CASE_IDS` and `MOCK_DETERMINATION_IDS`.
  *
  * As review.yaml has it: claim an unassigned case (409 `case-already-assigned` otherwise),
  * release your own (403 otherwise), reassign or unassign as a supervisor (the mock does not
@@ -114,14 +105,18 @@ export const MOCK_CASE_IDS = {
   awaitingOld: 'ca5e0000-0000-4000-8000-00000000000a',
   /** Held by Mercy Wambui after the caller: the caller is a reviewer of record. */
   awaitingOfRecord: 'ca5e0000-0000-4000-8000-00000000000b',
-  /** Held by Peter Mwangi, who proposed further action 12 days ago. */
+  /** Held by Peter Mwangi, who proposed further action 3 days ago. */
   awaitingFurther: 'ca5e0000-0000-4000-8000-00000000000c',
-  /** Low band, nothing open, nobody holds it: the system proposed "no issues" (a bulk closure). */
+  /**
+   * Low band, no flags, nothing open, nobody holds it: once its window closed (8 days ago) the
+   * system proposed "no issues" (a bulk closure, never in the inbox, #202).
+   */
   bulkClosure: 'ca5e0000-0000-4000-8000-00000000000d',
 } as const;
 
 /** The seeded determinations (spec 08). */
 export const MOCK_DETERMINATION_IDS = {
+  /** Peter Mwangi proposed compliant on his case 9 days ago. */
   peters: 'de7e0000-0000-4000-8000-000000000001',
   awaitingOld: 'de7e0000-0000-4000-8000-000000000002',
   awaitingOfRecord: 'de7e0000-0000-4000-8000-000000000003',
@@ -783,7 +778,7 @@ export function resetReviewMock(
   );
 }
 
-/** The spec 08 cases: ready for determination, each with its declarant and holders. */
+/** The spec 08 cases (see `MOCK_CASE_IDS`), each with its declarant, holder and who held it. */
 const DETERMINATION_CASES = [
   {
     key: 'ready',
@@ -872,7 +867,8 @@ function seedDeterminationCases(now: number) {
       storedCase(item, {
         holder: seed.holder,
         history: [...seed.history],
-        flags: mockFlags(item.id).map((flag) =>
+        // The bulk closure's case has none: the sweep proposes only cases with no open flags.
+        flags: (seed.key === 'bulkClosure' ? [] : mockFlags(item.id)).map((flag) =>
           flag.reviewed
             ? flag
             : {
@@ -944,7 +940,8 @@ function seedDeterminationCases(now: number) {
         outcome: 'compliant-no-issues',
         reasons: 'Low priority, no open flags or clarifications after the window.',
         proposer: null,
-        proposedAt: at(now, -40),
+        // The day after its window closed.
+        proposedAt: at(now, -7),
       },
       {
         id: D.returned,
