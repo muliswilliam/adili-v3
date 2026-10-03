@@ -248,7 +248,7 @@ export interface components {
          * @description Set when failed or blocked
          * @enum {string}
          */
-        JobReason: "policy" | "budget" | "validation" | "refused" | "provider" | "provider-unavailable" | "timeout" | "cancelled";
+        JobReason: "policy" | "budget" | "validation" | "refused" | "provider" | "provider-unavailable" | "timeout" | "cancelled" | "document-unavailable" | "document-unreadable";
         TaskRequest: {
             dataClass: components["schemas"]["DataClass"];
             /** @description Owning record, e.g. review-case:<uuid>; appears in audit and events */

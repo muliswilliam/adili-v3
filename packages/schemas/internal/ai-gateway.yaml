@@ -756,6 +756,8 @@ components:
         - provider-unavailable
         - timeout
         - cancelled
+        - document-unavailable
+        - document-unreadable
       description: Set when failed or blocked
     TaskRequest:
       type: object
