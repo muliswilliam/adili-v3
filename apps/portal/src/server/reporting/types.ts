@@ -1,4 +1,4 @@
-import type { components } from './schema';
+import type { components, operations } from './schema';
 
 type Schemas = components['schemas'];
 
@@ -6,6 +6,9 @@ export type OpenDataRelease = Schemas['PublicOpenDataRelease'];
 export type OpenDataTableName = Schemas['OpenDataTable'];
 export type ReleaseKind = OpenDataRelease['kind'];
 export type ProblemDetails = Schemas['ProblemDetails'];
+/** `getOpenDataTable` as JSON (inline in the contract). */
+export type OpenDataTableBody =
+  operations['getOpenDataTable']['responses'][200]['content']['application/json'];
 
 /** The six tables of a release, in the order the API and the page list them. */
 export const OPEN_DATA_TABLES = [
@@ -138,7 +141,7 @@ export interface ReleaseTables {
  * name than the one asked for.
  */
 export function readTable<Name extends OpenDataTableName>(
-  body: Schemas['OpenDataTableBody'],
+  body: OpenDataTableBody,
   name: Name,
 ): ReleaseTables[Name] {
   if (body.table !== name) throw new Error(`Asked for ${name}, read ${body.table}`);

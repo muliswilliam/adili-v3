@@ -28,9 +28,10 @@ async function download(params: Record<string, string>): Promise<Response> {
   if (file.status === 'ok') {
     return new Response(file.body, {
       headers: {
+        'cache-control': 'public, max-age=3600',
+        ...file.headers,
         'content-type': file.contentType,
         'content-disposition': `attachment; filename="${file.fileName}"`,
-        'cache-control': 'public, max-age=3600',
       },
     });
   }

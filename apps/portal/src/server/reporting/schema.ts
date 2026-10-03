@@ -85,22 +85,6 @@ export interface components {
         sha256Csv: string;
       }[];
     };
-    /** `getOpenDataTable` as JSON. */
-    OpenDataTableBody: {
-      table: OpenDataTableName;
-      columns: string[];
-      rows: Record<string, unknown>[];
-      suppression: {
-        threshold: number;
-        /** Figures hidden by suppression; figures not collected are not counted. */
-        cellsSuppressed: number;
-      };
-      /**
-       * Figures not collected yet: columns, or in `national-totals` measures, whose values are
-       * null for want of data, not suppression (`suppressed` stays false).
-       */
-      notCollected: string[];
-    };
     ProblemDetails: {
       type: string;
       title: string;
@@ -158,7 +142,22 @@ export interface operations {
     requestBody?: never;
     responses: {
       200: Ok<{
-        'application/json': components['schemas']['OpenDataTableBody'];
+        // Inline in the contract, as here.
+        'application/json': {
+          table: OpenDataTableName;
+          columns: string[];
+          rows: Record<string, unknown>[];
+          suppression: {
+            threshold: number;
+            /** Figures hidden by suppression; figures not collected are not counted. */
+            cellsSuppressed: number;
+          };
+          /**
+           * Figures not collected yet: columns, or in `national-totals` measures, whose values are
+           * null for want of data, not suppression (`suppressed` stays false).
+           */
+          notCollected: string[];
+        };
         'text/csv': string;
       }>;
       304: NotModified;

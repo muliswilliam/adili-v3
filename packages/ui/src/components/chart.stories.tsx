@@ -99,3 +99,4 @@ export const Counts: Story = {
 
 /** The data table assistive tech reads, on screen too. */
 export const WithTable: Story = { args: { showTable: true } };
+export const TableOnly: Story = { args: { tableOnly: true } };

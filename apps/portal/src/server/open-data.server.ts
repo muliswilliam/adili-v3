@@ -116,10 +116,15 @@ async function readTables(
 }
 
 /** The current version of a year and kind: its latest published one, else its latest. */
-function currentOf(releases: OpenDataRelease[], fy: number, kind: ReleaseKind) {
-  const versions = releases
+/** Every version of a year and kind, latest first. */
+function versionsOf(releases: OpenDataRelease[], fy: number, kind: ReleaseKind) {
+  return releases
     .filter((release) => release.fy === fy && release.kind === kind)
     .sort((a, b) => b.version - a.version);
+}
+
+function currentOf(releases: OpenDataRelease[], fy: number, kind: ReleaseKind) {
+  const versions = versionsOf(releases, fy, kind);
   return versions.find((release) => release.status === 'published') ?? versions[0];
 }
 
@@ -138,10 +143,7 @@ export function pickRelease(
       ? 'annual'
       : 'snapshot');
   if (selection.version === undefined) return currentOf(releases, fy, kind);
-  return releases.find(
-    (release) =>
-      release.fy === fy && release.kind === kind && release.version === selection.version,
-  );
+  return versionsOf(releases, fy, kind).find((release) => release.version === selection.version);
 }
 
 /** The Open data page: the releases, the one selected with its tables, and the trend. */
@@ -163,10 +165,10 @@ export async function loadOpenDataPage(
         choices.push({ fy, kind });
       }
     }
-    const versions = releases
-      .filter((each) => each.fy === release.fy && each.kind === release.kind)
-      .sort((a, b) => b.version - a.version)
-      .map(({ version, status }) => ({ version, status }));
+    const versions = versionsOf(releases, release.fy, release.kind).map(({ version, status }) => ({
+      version,
+      status,
+    }));
 
     // Each year's current annual release, up to the year shown, oldest first; the year shown
     // from the release shown (a withdrawn version too), so the trend agrees with its tables.
@@ -200,15 +202,27 @@ export interface OpenDataFileRef {
   file: string;
 }
 
+/** The upstream headers a download passes on, so browsers and caches revalidate it alike. */
+const FORWARDED = ['etag', 'last-modified', 'cache-control'] as const;
+
 export type OpenDataFileResult =
-  | { status: 'ok'; body: string; contentType: string; fileName: string }
+  | {
+      status: 'ok';
+      /** The file's bytes as the API served them: hashing them gives the published SHA-256. */
+      body: ArrayBuffer;
+      contentType: string;
+      fileName: string;
+      headers: Partial<Record<(typeof FORWARDED)[number], string>>;
+    }
   | NotFound
   | RateLimited
   | Unavailable;
 
 /**
- * A table's CSV byte for byte (its SHA-256 is the release's `sha256Csv`), or the release JSON
- * (what the manifest's verification code vouches for), named for the year, kind and version.
+ * A table's CSV byte for byte (its SHA-256 is the release's `sha256Csv`), or the public release
+ * record (`getOpenDataRelease`: the release with its tables' hashes and verification code; the
+ * manifest itself hashes the release file the service stores, which the public API does not serve
+ * yet, #546), named for the year, kind and version.
  */
 export async function loadOpenDataFile(
   client: OpenDataClient,
@@ -216,32 +230,39 @@ export async function loadOpenDataFile(
 ): Promise<OpenDataFileResult> {
   const path = { fy: ref.fy, kind: ref.kind, version: ref.version };
   const prefix = `adili-open-data-${String(ref.fy)}-${ref.kind}-v${String(ref.version)}`;
+  const file = (
+    body: ArrayBuffer,
+    response: Response,
+    contentType: string,
+    fileName: string,
+  ): OpenDataFileResult => ({
+    status: 'ok',
+    body,
+    contentType: response.headers.get('content-type') ?? contentType,
+    fileName,
+    headers: Object.fromEntries(
+      FORWARDED.flatMap((name) => {
+        const value = response.headers.get(name);
+        return value === null ? [] : [[name, value]];
+      }),
+    ),
+  });
   return settle(async (): Promise<OpenDataFileResult> => {
     if (ref.file === 'release.json') {
       const { data, response } = await client.GET('/open-data/v1/releases/{fy}/{kind}/{version}', {
         params: { path },
-        parseAs: 'text',
+        parseAs: 'arrayBuffer',
       });
       if (data === undefined) throw failure(response);
-      return {
-        status: 'ok',
-        body: data,
-        contentType: 'application/json; charset=utf-8',
-        fileName: `${prefix}-release.json`,
-      };
+      return file(data, response, 'application/json; charset=utf-8', `${prefix}-release.json`);
     }
     const table = ref.file.replace(/\.csv$/, '') as OpenDataTableName;
     if (!ref.file.endsWith('.csv') || !OPEN_DATA_TABLES.includes(table)) return notFound;
     const { data, response } = await client.GET(
       '/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}.csv',
-      { params: { path: { ...path, table } }, parseAs: 'text' },
+      { params: { path: { ...path, table } }, parseAs: 'arrayBuffer' },
     );
     if (data === undefined) throw failure(response);
-    return {
-      status: 'ok',
-      body: data,
-      contentType: response.headers.get('content-type') ?? 'text/csv; charset=utf-8',
-      fileName: `${prefix}-${table}.csv`,
-    };
+    return file(data, response, 'text/csv; charset=utf-8', `${prefix}-${table}.csv`);
   });
 }

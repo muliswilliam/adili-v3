@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { mockableClient } from '@adili/api-kit/client';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -134,7 +136,7 @@ describe('open-data downloads (S8)', () => {
     if (file.status !== 'ok') throw new Error(file.status);
     expect(file.contentType).toMatch(/^text\/csv/);
     expect(file.fileName).toBe('adili-open-data-2025-annual-v1-filing-by-commission.csv');
-    const lines = file.body.split('\r\n');
+    const lines = new TextDecoder().decode(file.body).split('\r\n');
     expect(lines[0]).toBe(
       'commission,commissionName,reportStatus,cycle,expected,filed,nonFilers,filingRate,_suppressed',
     );
@@ -154,9 +156,28 @@ describe('open-data downloads (S8)', () => {
 
     if (file.status !== 'ok') throw new Error(file.status);
     expect(file.fileName).toBe('adili-open-data-2024-annual-v1-release.json');
-    expect(JSON.parse(file.body)).toMatchObject({
+    expect(JSON.parse(new TextDecoder().decode(file.body))).toMatchObject({
       status: 'withdrawn',
       tables: expect.any(Array) as unknown[],
+    });
+  });
+
+  it('passes the bytes on unchanged, with the API’s cache headers', async () => {
+    const page = await loadOpenDataPage(client(), {});
+    const file = await loadOpenDataFile(client(), {
+      fy: 2025,
+      kind: 'annual',
+      version: 1,
+      file: 'by-cycle.csv',
+    });
+
+    if (file.status !== 'ok' || page.status !== 'ok') throw new Error('not ok');
+    const published = page.release.tables.find((each) => each.table === 'by-cycle')?.sha256Csv;
+    const digest = createHash('sha256').update(Buffer.from(file.body)).digest('hex');
+    expect(digest).toBe(published);
+    expect(file.headers).toEqual({
+      etag: `"${digest}"`,
+      'cache-control': 'public, max-age=3600',
     });
   });
 

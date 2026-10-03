@@ -110,7 +110,7 @@ describe('the Open data page (spec 09b S11)', () => {
 
     expect(within(chart).getByRole('button', { name: 'Chart', pressed: true })).toBeTruthy();
     expect(chart.querySelector('[data-chart-table]')?.className).not.toContain('sr-only');
-    expect(chart.querySelector('figure')?.className).toContain('[&_[data-chart-plot]]:hidden');
+    expect(chart.querySelector('[data-chart-plot]')).toBeNull();
   });
 
   it('draws the national trend over the published annual years', async () => {

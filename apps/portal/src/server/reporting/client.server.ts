@@ -4,9 +4,17 @@ import { env } from '../env.server';
 import { publicCache } from './public-cache';
 import type { paths } from './schema';
 
+/**
+ * The list of releases is trusted for a minute, not the API's hour, so a release EACC publishes
+ * or withdraws shows on the page within a minute; a release's own files only change by status.
+ */
+export const RELEASE_LIST_MAX_AGE_MS = 60_000;
+
 // One cache for the server's lifetime, shared by every visitor (see `publicCache`).
-const cachedFetch = publicCache((request, init) => fetch(request, init));
-let cachedMock: ReturnType<typeof publicCache> | undefined;
+const cachedFetch = publicCache((request, init) => fetch(request, init), {
+  maxAgeCapMs: (url) =>
+    new URL(url).pathname.endsWith('/open-data/v1/releases') ? RELEASE_LIST_MAX_AGE_MS : undefined,
+});
 
 /**
  * Typed client for the reporting service's public open-data API (spec 09b), called without a
@@ -23,9 +31,8 @@ export function openDataClient() {
     // Inline, so production builds drop the mock (see mockableClient).
     mock:
       import.meta.env.DEV && config.OPEN_DATA_MOCK
-        ? (cachedMock ??= publicCache(async (request) =>
-            (await import('./mock.server')).mockOpenDataFetch(request),
-          ))
+        ? // Not cached: the mock answers in memory, and its state changes in tests at once.
+          async (request) => (await import('./mock.server')).mockOpenDataFetch(request)
         : null,
   });
 }

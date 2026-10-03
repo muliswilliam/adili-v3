@@ -127,6 +127,73 @@ describe('public open-data cache', () => {
     expect(send).toHaveBeenCalledTimes(3);
   });
 
+  it('asks once for concurrent misses of the same copy, and shares the answer', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const send = vi.fn(async () => {
+      await gate;
+      return new Response('["v1"]', {
+        headers: { etag: '"a"', 'cache-control': 'public, max-age=3600' },
+      });
+    });
+    const cached = publicCache(send, { now: () => 0 });
+
+    const visitors = Array.from({ length: 8 }, () => cached(new Request(URL_A), {}));
+    release();
+    const answers = await Promise.all(visitors);
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(await Promise.all(answers.map((answer) => answer.text()))).toEqual(
+      Array.from({ length: 8 }, () => '["v1"]'),
+    );
+  });
+
+  it('revalidates a stale copy once for concurrent requests', async () => {
+    let now = 0;
+    const api = upstream();
+    const cached = publicCache(api.send, { now: () => now });
+
+    await cached(new Request(URL_A), {});
+    now = 3_601_000;
+    const answers = await Promise.all(
+      Array.from({ length: 5 }, () => cached(new Request(URL_A), {})),
+    );
+
+    expect(api.send).toHaveBeenCalledTimes(2);
+    expect(answers.map((answer) => answer.status)).toEqual([200, 200, 200, 200, 200]);
+  });
+
+  it('shares a failed miss with every waiter, then asks again', async () => {
+    const send = vi.fn(() => Promise.reject(new Error('down')));
+    const cached = publicCache(send, { now: () => 0 });
+
+    const answers = await Promise.allSettled([
+      cached(new Request(URL_A), {}),
+      cached(new Request(URL_A), {}),
+    ]);
+    await cached(new Request(URL_A), {}).catch(() => undefined);
+
+    expect(answers.map((answer) => answer.status)).toEqual(['rejected', 'rejected']);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a copy no longer than the cap for its URL, e.g. the list of releases', async () => {
+    let now = 0;
+    const api = upstream();
+    const cached = publicCache(api.send, {
+      now: () => now,
+      maxAgeCapMs: (url) => (url.endsWith('/releases') ? 60_000 : undefined),
+    });
+
+    await cached(new Request(URL_A), {});
+    now = 61_000;
+    await cached(new Request(URL_A), {});
+
+    expect(api.send).toHaveBeenCalledTimes(2);
+  });
+
   it('forgets the oldest copies beyond its size', async () => {
     const api = upstream();
     const cached = publicCache(api.send, { now: () => 0, maxEntries: 2 });
