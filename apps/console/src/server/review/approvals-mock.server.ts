@@ -10,15 +10,21 @@
  */
 import { SUPERVISOR } from '@adili/roles';
 
+import type { InboxKind } from '../../approvals/kinds';
 import { isRecord, json, problem, readJson } from '../mock-http';
-import type { MockApprover, MockCases } from './determinations-mock.server';
-import type { ApprovalItem, ApprovalKind, Assignee } from './types';
+import {
+  type MockApprover,
+  type MockCases,
+  mockProblem,
+  resolvedCaller,
+} from './mock-parts.server';
+import type { ApprovalItem, Assignee } from './types';
 
 /** A pending approval as a kind's source gives it: the item without what the inbox adds. */
 export type MockPendingApproval = Omit<ApprovalItem, 'kind' | 'canApprove' | 'reassignedTo'>;
 
-export interface MockApprovalSource {
-  kind: ApprovalKind;
+export interface MockApprovalSource<K extends InboxKind> {
+  kind: K;
   /** The kind's pending approvals, for `caller` (their proposer resolved, why they cannot). */
   pending: (caller: MockApprover, cases: MockCases) => MockPendingApproval[];
   /** One approval of the kind, pending or not; null when there is none. */
@@ -31,38 +37,26 @@ export type MockStaffMember = Assignee & { supervisor: boolean };
 const AGE_BANDS = ['under-7-days', '7-to-30-days', 'over-30-days'] as const;
 const DAY_MS = 86_400_000;
 
-let sources: readonly MockApprovalSource[] = [];
+/** One source per kind the inbox shows: a kind added to `INBOX_KINDS` fails here until it has one. */
+export type MockApprovalSources = { [K in InboxKind]: MockApprovalSource<K> };
+
+let sources: readonly MockApprovalSource<InboxKind>[] = [];
 let staff: MockStaffMember[] = [];
 const reassignments = new Map<string, Assignee>();
 
-/** Stands for "whoever is signed in" as a seeded reassignment's supervisor. */
-const CALLER_SUBJECT = '(caller)';
-
 /** Starts the inbox over with `sources`, one per kind, and the Commission's staff. */
 export function resetApprovalsMock(options: {
-  sources: readonly MockApprovalSource[];
+  sources: MockApprovalSources;
   staff: MockStaffMember[];
 }) {
-  sources = options.sources;
+  sources = Object.values(options.sources);
   staff = options.staff;
   reassignments.clear();
 }
 
-/** Seeds an approval as reassigned to `to` (`(caller)` for whoever is signed in). */
+/** Seeds an approval as reassigned to `to` (`MOCK_CALLER` for whoever is signed in). */
 export function seedReassignment(subjectId: string, to: Assignee) {
   reassignments.set(subjectId, to);
-}
-
-/** A problem with a `code`, as the service answers (`type` and `code` the same). */
-export function mockProblem(status: number, code: string, detail: string, extra: object = {}) {
-  return json(status, {
-    type: code,
-    title: status === 403 ? 'Forbidden' : status === 409 ? 'Conflict' : 'Error',
-    status,
-    detail,
-    code,
-    ...extra,
-  });
 }
 
 function ageBand(proposedAt: string, now: number): (typeof AGE_BANDS)[number] {
@@ -100,8 +94,7 @@ export async function approvalsRoute(
 }
 
 function reassignedTo(subjectId: string, caller: Assignee): Assignee | null {
-  const to = reassignments.get(subjectId) ?? null;
-  return to?.subject === CALLER_SUBJECT ? { subject: caller.subject, name: caller.name } : to;
+  return resolvedCaller(reassignments.get(subjectId) ?? null, caller);
 }
 
 function listApprovals(params: URLSearchParams, caller: MockApprover, cases: MockCases): Response {

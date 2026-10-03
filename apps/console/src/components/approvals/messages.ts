@@ -54,7 +54,6 @@ export const messages = {
     title: 'Already decided',
     body: 'Someone decided this while the page was open.',
     after: 'The list has been refreshed. Nothing was changed by you.',
-    problem: '409 not-proposed',
   },
   notice: { ok: 'OK' },
   toasts: {

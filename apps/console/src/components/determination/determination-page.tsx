@@ -58,7 +58,7 @@ import {
   proposeCaseDetermination,
   withdrawCaseDetermination,
 } from '../../server/determinations';
-import { type DeterminationRefusal, REFUSAL_STATUS } from '../../server/determinations.server';
+import { type DeterminationRefusal, refusalProblem } from '../../server/determinations.server';
 import type { CaseView } from '../../server/review-case.server';
 import type { Determination, DeterminationInput } from '../../server/review/types';
 import { downloadFrom } from '../download';
@@ -111,7 +111,7 @@ function proposeFailure(
 function refusalText(refusal: DeterminationRefusal): FailureText {
   return {
     ...t.refusals[refusal.kind],
-    problem: `${String(REFUSAL_STATUS[refusal.kind])} ${refusal.kind}`,
+    problem: refusalProblem(refusal),
   };
 }
 

@@ -586,7 +586,7 @@ function cannotApprove(
  * The action approval source of the inbox mock (review's `ActionApprovals`): drafted steps of
  * active ladders, with the steps issued before each and the declarant's responses.
  */
-export const actionApprovals: MockApprovalSource = {
+export const actionApprovals: MockApprovalSource<'action'> = {
   kind: 'action',
   pending: (caller) => {
     ensureSeeded();
