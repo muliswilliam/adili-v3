@@ -1,4 +1,4 @@
-import type { NationalAggregates, SectionAggregate } from '../../server/reporting/types';
+import type { NationalAggregates, SectionAggregate } from './types';
 
 /**
  * The NCR's figures by aggregate key, in the ai-gateway scheme pattern candidates and narrative

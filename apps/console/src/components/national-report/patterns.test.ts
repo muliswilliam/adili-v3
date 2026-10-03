@@ -187,6 +187,15 @@ describe('a pattern card from its candidate', () => {
     });
   });
 
+  it('says a figure the candidate lacks is not available, not 0', () => {
+    expect(
+      candidateCard(candidate({ values: { from: 0.0412, factor: null } }), AGGREGATES),
+    ).toMatchObject({ value: 'not available', comparison: 'from 4.1% in 2024/2025' });
+    expect(
+      candidateCard(candidate({ kind: 'non-reporting', values: {} }), AGGREGATES),
+    ).toMatchObject({ value: 'not available', comparison: '' });
+  });
+
   it('shows a slug it has no name for as it is', () => {
     expect(candidateCard(candidate({ subject: 'gone', values: {} }), AGGREGATES).subject).toBe(
       'gone',
@@ -267,14 +276,18 @@ describe('figures cited by aggregate key', () => {
     expect(format('nonsense')).toBeNull();
   });
 
-  it('points a figure at its table row', () => {
-    expect(figureTarget('commission.psc.nonFilerRate')).toEqual({ commission: 'psc' });
-    expect(figureTarget('fy2025.commission.psc.reportedLate')).toEqual({ commission: 'psc' });
-    expect(figureTarget('national.biennialFilingRate')).toEqual({ national: 'biennial' });
-    expect(figureTarget('national.nonFilerRate')).toEqual({ national: 'all' });
-    expect(figureTarget('national.commissionsLate')).toBeNull();
-    expect(figureTarget('national.clarificationRatio')).toBeNull();
-    expect(figureTarget('nonsense')).toBeNull();
+  it("points this year's figure at its table row", () => {
+    expect(figureTarget('commission.psc.nonFilerRate', 2025)).toEqual({ commission: 'psc' });
+    expect(figureTarget('national.biennialFilingRate', 2025)).toEqual({ national: 'biennial' });
+    expect(figureTarget('national.nonFilerRate', 2025)).toEqual({ national: 'all' });
+    expect(figureTarget('national.commissionsLate', 2025)).toBeNull();
+    expect(figureTarget('national.clarificationRatio', 2025)).toBeNull();
+    expect(figureTarget('nonsense', 2025)).toBeNull();
+  });
+
+  it("has no row on the page for a prior year's figure", () => {
+    expect(figureTarget('fy2025.commission.psc.reportedLate', 2025)).toBeNull();
+    expect(figureTarget('fy2025.national.nonFilerRate', 2025)).toBeNull();
   });
 });
 

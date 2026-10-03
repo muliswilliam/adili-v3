@@ -17,7 +17,7 @@ import {
   currentFigure,
   type NationalFigure,
   parseAggregateKey,
-} from './figures';
+} from '../../server/reporting/aggregate-keys';
 import { fyLabel } from './model';
 
 /**
@@ -70,6 +70,9 @@ export type CandidateCard = Pick<
   'kind' | 'subject' | 'value' | 'valueLabel' | 'comparison'
 > & { value: string; valueLabel: string; comparison: string };
 
+/** Said for a figure the candidate does not carry, rather than a misleading 0. */
+const NOT_AVAILABLE = 'not available';
+
 /** What a pattern card says of `candidate`, from its values (reporting.yaml, by kind). */
 export function candidateCard(
   candidate: PatternCandidate,
@@ -77,113 +80,145 @@ export function candidateCard(
 ): CandidateCard {
   const { kind, values } = candidate;
   const subject = subjectName(candidate.subject, aggregates);
-  const n = (name: string) => numberIn(values, name) ?? 0;
   const fy = aggregates.fy;
+  const shown = (name: string, format: (value: number) => string) => {
+    const value = numberIn(values, name);
+    return value === null ? NOT_AVAILABLE : format(value);
+  };
+  const pct = (name: string) => shown(name, percent);
+  const count = (name: string) => shown(name, formatNumber);
+  const run = () => {
+    const years = numberIn(values, 'years');
+    return {
+      value: years === null ? NOT_AVAILABLE : yearsOf(years),
+      comparison: years === null ? '' : yearsUpTo(fy, years),
+    };
+  };
   switch (kind) {
     case 'rate-change': {
       const factor = numberIn(values, 'factor');
       return {
         kind,
         subject,
-        value: percent(n('to')),
+        value: pct('to'),
         valueLabel: 'non-filer rate',
-        comparison: `from ${percent(n('from'))} in ${fyLabel(fy - 1)}${factor === null ? '' : `, ${factorOf(factor)}`}`,
+        comparison: `from ${pct('from')} in ${fyLabel(fy - 1)}${factor === null ? '' : `, ${factorOf(factor)}`}`,
       };
     }
     case 'threshold-breach':
       return {
         kind,
         subject,
-        value: percent(n('nonFilerRate')),
+        value: pct('nonFilerRate'),
         valueLabel: 'non-filer rate',
-        comparison: `threshold ${percent(n('threshold'))}`,
+        comparison: `threshold ${pct('threshold')}`,
       };
     case 'chronic-late-reporting':
+      return { kind, subject, ...run(), valueLabel: 'reported late running' };
+    case 'clarification-ratio-outlier': {
+      const factor = numberIn(values, 'factor');
       return {
         kind,
         subject,
-        value: yearsOf(n('years')),
-        valueLabel: 'reported late running',
-        comparison: yearsUpTo(fy, n('years')),
-      };
-    case 'clarification-ratio-outlier':
-      return {
-        kind,
-        subject,
-        value: perThousand(n('clarificationRatio')),
+        value: shown('clarificationRatio', perThousand),
         valueLabel: 'clarifications per 1,000 declarations',
-        comparison: `national ${perThousand(n('nationalRatio'))}, ${factorOf(n('factor'))}`,
+        comparison: `national ${shown('nationalRatio', perThousand)}${factor === null ? '' : `, ${factorOf(factor)}`}`,
       };
+    }
     case 'size-band-outlier': {
       const bandTo = numberIn(values, 'bandTo');
       const band =
         bandTo === null
-          ? `${formatNumber(n('bandFrom'))} officers or more`
-          : `${formatNumber(n('bandFrom'))} to ${formatNumber(bandTo)} officers`;
+          ? `${count('bandFrom')} officers or more`
+          : `${count('bandFrom')} to ${formatNumber(bandTo)} officers`;
       return {
         kind,
         subject,
-        value: percent(n('nonFilerRate')),
+        value: pct('nonFilerRate'),
         valueLabel: 'non-filer rate',
-        comparison: `${percent(n('peerNonFilerRate'))} for the ${formatNumber(n('peers'))} others with ${band}`,
+        comparison: `${pct('peerNonFilerRate')} for the ${count('peers')} others with ${band}`,
       };
     }
     case 'non-reporting':
-      return {
-        kind,
-        subject,
-        value: yearsOf(n('years')),
-        valueLabel: 'without a Form M',
-        comparison: yearsUpTo(fy, n('years')),
-      };
+      return { kind, subject, ...run(), valueLabel: 'without a Form M' };
   }
 }
 
-const SECTION_FIGURE_LABELS = {
-  Expected: 'declarations expected',
-  Filed: 'declarations filed',
-  NonFilers: 'non-filers',
-  FilingRate: 'filing rate',
-} as const;
+type FigureName = NationalFigure | CommissionFigure;
 
-const FIGURE_LABELS: Partial<Record<NationalFigure | CommissionFigure, string>> = {
-  expected: 'declarations expected',
-  filed: 'declarations filed',
-  nonFilers: 'non-filers',
-  filingRate: 'filing rate',
-  nonFilerRate: 'non-filer rate',
-  clarifications: 'clarifications',
-  clarificationRatio: 'clarifications per 1,000 declarations',
-  reported: 'reported',
-  reportedLate: 'reported late',
-  reportingRate: 'reporting rate',
-};
-
-/** National counts of Commissions, labelled on their own: "Commissions reported late". */
-const COMMISSION_COUNT_LABELS: Partial<Record<NationalFigure, string>> = {
-  commissions: 'Commissions',
-  commissionsReported: 'Commissions reported',
-  commissionsOnTime: 'Commissions reported on time',
-  commissionsLate: 'Commissions reported late',
-  commissionsNotReported: 'Commissions not reported',
-};
-
-/** "biennial declarations expected", "non-filer rate". */
-function figureLabel(name: NationalFigure | CommissionFigure): string {
-  const own = FIGURE_LABELS[name];
-  if (own) return own;
-  const section = /^(initial|biennial|final)(Expected|Filed|NonFilers|FilingRate)$/.exec(name);
-  if (section?.[1] && section[2]) {
-    return `${section[1]} ${SECTION_FIGURE_LABELS[section[2] as keyof typeof SECTION_FIGURE_LABELS]}`;
-  }
-  return name;
+interface FigureCopy {
+  /** What the figure is, after whose it is: "biennial filing rate". */
+  label: string;
+  format: 'count' | 'rate' | 'ratio' | 'flag';
+  /** The national totals' row a national figure is in; null for none on the page. */
+  row: 'initial' | 'biennial' | 'final' | 'all' | null;
+  /** A national count of Commissions, labelled on its own: "Commissions reported late". */
+  alone?: true;
 }
 
-function formatFigure(name: NationalFigure | CommissionFigure, value: number): string {
-  if (name === 'clarificationRatio') return perThousand(value);
-  if (name.endsWith('Rate')) return percent(value);
-  if (name === 'reported' || name === 'reportedLate') return value === 1 ? 'Yes' : 'No';
-  return formatNumber(value);
+const count = (label: string, row: FigureCopy['row'] = null): FigureCopy => ({
+  label,
+  format: 'count',
+  row,
+});
+const rate = (label: string, row: FigureCopy['row'] = null): FigureCopy => ({
+  label,
+  format: 'rate',
+  row,
+});
+const commissions = (label: string): FigureCopy => ({
+  label,
+  format: 'count',
+  row: null,
+  alone: true,
+});
+
+/** Every figure the gateway scheme names, national and per Commission: label, format and row. */
+const FIGURES: Record<FigureName, FigureCopy> = {
+  commissions: commissions('Commissions'),
+  commissionsReported: commissions('Commissions reported'),
+  commissionsOnTime: commissions('Commissions reported on time'),
+  commissionsLate: commissions('Commissions reported late'),
+  commissionsNotReported: commissions('Commissions not reported'),
+  reported: { label: 'reported', format: 'flag', row: null },
+  reportedLate: { label: 'reported late', format: 'flag', row: null },
+  expected: count('declarations expected', 'all'),
+  filed: count('declarations filed', 'all'),
+  nonFilers: count('non-filers', 'all'),
+  initialExpected: count('initial declarations expected', 'initial'),
+  initialFiled: count('initial declarations filed', 'initial'),
+  initialNonFilers: count('initial non-filers', 'initial'),
+  biennialExpected: count('biennial declarations expected', 'biennial'),
+  biennialFiled: count('biennial declarations filed', 'biennial'),
+  biennialNonFilers: count('biennial non-filers', 'biennial'),
+  finalExpected: count('final declarations expected', 'final'),
+  finalFiled: count('final declarations filed', 'final'),
+  finalNonFilers: count('final non-filers', 'final'),
+  clarifications: count('clarifications'),
+  reportingRate: rate('reporting rate'),
+  filingRate: rate('filing rate', 'all'),
+  nonFilerRate: rate('non-filer rate', 'all'),
+  initialFilingRate: rate('initial filing rate', 'initial'),
+  biennialFilingRate: rate('biennial filing rate', 'biennial'),
+  finalFilingRate: rate('final filing rate', 'final'),
+  clarificationRatio: {
+    label: 'clarifications per 1,000 declarations',
+    format: 'ratio',
+    row: null,
+  },
+};
+
+function formatFigure(name: FigureName, value: number): string {
+  switch (FIGURES[name].format) {
+    case 'ratio':
+      return perThousand(value);
+    case 'rate':
+      return percent(value);
+    case 'flag':
+      return value === 1 ? 'Yes' : 'No';
+    case 'count':
+      return formatNumber(value);
+  }
 }
 
 /**
@@ -234,35 +269,34 @@ export function figureFormatter(
 }
 
 function labelOf(key: AggregateKey, aggregates: NationalAggregates): string {
-  if (key.scope === 'commission') {
-    return `${subjectName(key.slug, aggregates)} ${figureLabel(key.name)}`;
-  }
-  return COMMISSION_COUNT_LABELS[key.name] ?? `National ${figureLabel(key.name)}`;
+  const copy = FIGURES[key.name];
+  if (key.scope === 'commission') return `${subjectName(key.slug, aggregates)} ${copy.label}`;
+  return copy.alone ? copy.label : `National ${copy.label}`;
 }
 
 /** Where a figure is shown: its Commission's row, or a row of the national totals. */
 export type FigureTarget =
   { commission: string } | { national: 'initial' | 'biennial' | 'final' | 'all' };
 
-export function figureTarget(aggregateKey: string): FigureTarget | null {
-  // The year does not matter for where the figure's row is.
-  const key = parseAggregateKey(aggregateKey, 0);
-  if (!key) return null;
+/**
+ * Where this year's figure is on the page: its Commission's row, or a row of the national totals;
+ * null for a prior year's (the page shows only the report's year) or one with no row.
+ */
+export function figureTarget(aggregateKey: string, fy: number): FigureTarget | null {
+  const key = parseAggregateKey(aggregateKey, fy);
+  if (key?.fy !== fy) return null;
   if (key.scope === 'commission') return { commission: key.slug };
-  const section = /^(initial|biennial|final)/.exec(key.name)?.[1];
-  if (section === 'initial' || section === 'biennial' || section === 'final') {
-    return { national: section };
-  }
-  // The national totals' All sections row: the three sections' counts and rates together.
-  const allSections: readonly string[] = [
-    'expected',
-    'filed',
-    'nonFilers',
-    'filingRate',
-    'nonFilerRate',
-  ];
-  // Commissions reporting and clarifications have no row of their own on the page.
-  return allSections.includes(key.name) ? { national: 'all' } : null;
+  const row = FIGURES[key.name].row;
+  return row ? { national: row } : null;
+}
+
+/**
+ * A cited pattern's paragraph as it starts, from its card's words, for the analyst to rewrite:
+ * "Teachers Service Commission: 3 years reported late running (2023/2024, 2024/2025 and
+ * 2025/2026)."
+ */
+export function citationText(card: CandidateCard): string {
+  return `${card.subject}: ${card.value} ${card.valueLabel} (${card.comparison}).`;
 }
 
 /** The candidates the narrative's paragraphs cite, by id. */

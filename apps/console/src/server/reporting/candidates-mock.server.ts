@@ -5,18 +5,22 @@
  * fixture of the two years before, at the service's default thresholds, by its rules
  * (`services/reporting/src/national-reports/candidates.ts`):
  *
- * - `rate-change`: a non-filer rate at least doubled or halved, and by 2 points, since last year;
- * - `threshold-breach`: a non-filer rate above 10%;
+ * - `rate-change`: the nation's or a Commission's non-filer rate at least doubled or halved, and by
+ *   2 points, since last year;
+ * - `threshold-breach`: the nation's or a Commission's non-filer rate above 10%;
  * - `chronic-late-reporting`: a report late in each of the last three years;
  * - `clarification-ratio-outlier`: clarifications per declaration twice the national ratio;
  * - `size-band-outlier`: a non-filer rate twice that of the other Commissions of its size band
  *   (under 100, 100 to 999, 1,000 officers expected and over), with two peers at least;
  * - `non-reporting`: no report this year, with the years before without one.
  *
- * Ordered by kind, the largest first, then the nation, then slug. For FY 2025/2026 that is ten:
- * Nairobi City's non-filer rate up from 15.2%, above the threshold and its size band; the TSC late
- * three years running; three clarification outliers; Mandera without a report two years, Kwale
- * and Turkana this year. EACC analysts and supervisors only (403), 404 before the year is built.
+ * Ordered by kind, the largest first, then the nation, then slug. For FY 2025/2026, on the intake
+ * mock's day (`mock.server.ts`), that is nine: the national non-filer rate up from 2.9% and
+ * Nairobi City's up from 15.2%; Nairobi City above the threshold and its size band; the TSC late
+ * three years running; the Judicial Service Commission without a report two years, Kisumu, Kisii
+ * and the Public Service Commission (its Form M still a draft) this year. The intake mock carries
+ * no clarification counts, so no clarification outlier. EACC analysts and supervisors only (403),
+ * 404 before the year is built.
  * REPORTING_MOCK_CANDIDATES `none` answers no candidates, `error` a 503.
  */
 import {
@@ -25,7 +29,7 @@ import {
   commissionFigures,
   nationalFigures,
   rateOf,
-} from '../../components/national-report/figures';
+} from './aggregate-keys';
 import { type Env, envSchema } from '../env.server';
 import { json, mockCallerOf, problem } from '../mock-http';
 import { ncrMockAggregates } from './ncr-mock.server';
@@ -56,30 +60,36 @@ const on = (nonFilerRate: number): PriorRow => ({ reported: true, late: false, n
 const late = (nonFilerRate: number): PriorRow => ({ reported: true, late: true, nonFilerRate });
 const NOT_REPORTED: PriorRow = { reported: false, late: false, nonFilerRate: null };
 
-/** The two years before FY 2025/2026, by start year and Commission slug. */
+/** The two years before FY 2025/2026, by start year and Commission slug (the intake mock's). */
 const PRIOR: Record<number, Record<string, PriorRow>> = {
   2024: {
-    tsc: late(0.0391),
-    psc: on(0.0312),
-    parlsc: on(0.0105),
+    cpsb001: on(0.0362),
+    cpsb012: on(0.0241),
+    cpsb020: late(0.0505),
+    cpsb022: on(0.0518),
+    cpsb027: on(0.0288),
+    cpsb032: on(0.0322),
+    cpsb039: on(0.0301),
+    cpsb042: on(0.061),
+    cpsb045: on(0.0734),
+    cpsb047: on(0.152),
+    jsc: NOT_REPORTED,
     npsc: on(0.0298),
-    jsc: on(0.0377),
-    cpsbnairobicity: on(0.152),
-    cpsbmombasa: on(0.0351),
-    cpsbnakuru: on(0.0322),
-    cpsbkiambu: on(0.0518),
-    cpsbmachakos: late(0.0402),
-    cpsbuasingishu: on(0.0288),
-    cpsbkwale: on(0.061),
-    cpsbmandera: NOT_REPORTED,
-    cpsbturkana: on(0.0734),
+    parlsc: on(0.0105),
+    psc: on(0.0312),
+    tsc: late(0.0391),
   },
   2023: {
+    cpsb047: on(0.1388),
+    jsc: on(0.0377),
     tsc: late(0.0425),
-    cpsbnairobicity: on(0.1388),
-    cpsbmandera: on(0.0912),
   },
 };
+
+/** The nation's non-filer rate in the years before, by start year. */
+const PRIOR_NATIONAL_NON_FILER_RATE: Record<number, number> = { 2024: 0.0294, 2023: 0.0311 };
+
+const NATIONAL = 'national';
 
 let seed: CandidatesMockSeed | null = null;
 
@@ -152,9 +162,24 @@ function patternCandidates(aggregates: NationalAggregates): PatternCandidate[] {
     });
   };
 
-  for (const { slug, figures } of rows) {
-    const from = PRIOR[fy - 1]?.[slug]?.nonFilerRate ?? null;
-    const to = figures.nonFilerRate;
+  // The nation's non-filer rate and each Commission's, with the year before's and their keys.
+  const nonFilerRates = [
+    {
+      subject: NATIONAL,
+      rate: national.nonFilerRate,
+      before: PRIOR_NATIONAL_NON_FILER_RATE[fy - 1] ?? null,
+      keyOf: (year: number) =>
+        aggregateKeyOf({ fy: year, scope: 'national', name: 'nonFilerRate' }, fy),
+    },
+    ...rows.map(({ slug, figures }) => ({
+      subject: slug,
+      rate: figures.nonFilerRate,
+      before: PRIOR[fy - 1]?.[slug]?.nonFilerRate ?? null,
+      keyOf: (year: number) => key(slug, 'nonFilerRate', year),
+    })),
+  ];
+
+  for (const { subject, rate: to, before: from, keyOf } of nonFilerRates) {
     if (from === null || to === null) continue;
     const change = round(to - from, 4);
     const [low, high] = from < to ? [from, to] : [to, from];
@@ -162,23 +187,22 @@ function patternCandidates(aggregates: NationalAggregates): PatternCandidate[] {
     if (low > 0 && high / low < THRESHOLDS.rateChangeFactor) continue;
     add(
       'rate-change',
-      slug,
+      subject,
       'nonFilerRate',
       { from, to, change, factor: from > 0 ? round(to / from, 2) : null },
-      [key(slug, 'nonFilerRate', fy - 1), key(slug, 'nonFilerRate')],
+      [keyOf(fy - 1), keyOf(fy)],
       Math.abs(change),
     );
   }
 
-  for (const { slug, figures } of rows) {
-    const rate = figures.nonFilerRate;
+  for (const { subject, rate, keyOf } of nonFilerRates) {
     if (rate === null || rate <= THRESHOLDS.maxNonFilerRate) continue;
     add(
       'threshold-breach',
-      slug,
+      subject,
       'nonFilerRate',
       { nonFilerRate: rate, threshold: THRESHOLDS.maxNonFilerRate },
-      [key(slug, 'nonFilerRate')],
+      [keyOf(fy)],
       rate,
     );
   }
@@ -283,6 +307,8 @@ function patternCandidates(aggregates: NationalAggregates): PatternCandidate[] {
       (a, b) =>
         kinds.indexOf(a.candidate.kind) - kinds.indexOf(b.candidate.kind) ||
         b.magnitude - a.magnitude ||
+        // The nation before Commissions on a tie, then by slug.
+        Number(b.candidate.subject === NATIONAL) - Number(a.candidate.subject === NATIONAL) ||
         (a.candidate.subject < b.candidate.subject ? -1 : 1),
     )
     .map(({ candidate }) => candidate);

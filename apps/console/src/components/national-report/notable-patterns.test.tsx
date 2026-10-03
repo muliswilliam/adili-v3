@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadNationalReportPage } from '../../server/national-report.server';
@@ -9,11 +10,18 @@ import {
   type CandidatesMockSeed,
   resetCandidatesMock,
 } from '../../server/reporting/candidates-mock.server';
-import { mockReportingClient } from '../../server/reporting/mock.server';
+import { setEaccIntakeMockLatency } from '../../server/reporting/eacc-mock.server';
+import {
+  mockReportingClient,
+  resetReportingMock,
+  setReportingMockLatency,
+} from '../../server/reporting/mock.server';
 import { type NcrMockSeed, resetNcrMock } from '../../server/reporting/ncr-mock.server';
 import type { NationalReport } from '../../server/reporting/types';
 import { NationalReportView } from './national-report-view';
 import { type PatternCandidatesLoad, useNcrPatterns } from './notable-patterns';
+
+type Props = ComponentProps<typeof NationalReportView>;
 
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate: vi.fn() }) }));
 
@@ -31,6 +39,10 @@ const loadFromMock: PatternCandidatesLoad = (fy) =>
   loadPatternCandidates(client(['eacc-analyst']), fy);
 
 async function pageOf(seed: NcrMockSeed) {
+  setReportingMockLatency(0);
+  setEaccIntakeMockLatency(0);
+  // FY 2025/2026's reports are in.
+  resetReportingMock('2026-10-03');
   resetNcrMock(seed, { pdfDelayMs: 0 });
   const page = await loadNationalReportPage(client(['eacc-analyst']), 2025);
   if (!page.ok) throw new Error('the mock did not load');
@@ -60,6 +72,9 @@ async function renderPage({
   const result = { ok: true as const, data: { ...loaded.data, report } };
   const onPageChange = vi.fn();
   const onUnauthenticated = vi.fn();
+  const saveNarrative = vi.fn<Props['saveNarrative']>(() =>
+    Promise.resolve({ ok: true, data: report } as never),
+  );
 
   function Page() {
     const extensions = useNcrPatterns({
@@ -73,14 +88,14 @@ async function renderPage({
     return (
       <NationalReportView
         fy={2025}
-        years={[2026, 2025]}
+        today="2026-10-03"
         onYearChange={vi.fn()}
         page={page}
         onPageChange={onPageChange}
         result={result}
         viewer={viewer}
         build={vi.fn()}
-        saveNarrative={vi.fn()}
+        saveNarrative={saveNarrative}
         approve={vi.fn()}
         pdfLink={vi.fn()}
         onUnauthenticated={onUnauthenticated}
@@ -96,7 +111,7 @@ async function renderPage({
       </ToastProvider>
     </TooltipProvider>,
   );
-  return { onPageChange, onUnauthenticated };
+  return { onPageChange, onUnauthenticated, saveNarrative };
 }
 
 const panel = () => screen.getByRole('region', { name: 'Notable patterns' });
@@ -117,12 +132,15 @@ describe('Notable patterns panel', () => {
     await waitFor(() => {
       expect(cards()).toHaveLength(6);
     });
-    expect(within(panel()).getByLabelText('10 patterns').textContent).toBe('10');
+    expect(within(panel()).getByText('9 notable patterns')).toBeDefined();
     const first = within(panel()).getByRole('article', {
       name: 'Rate change: Nairobi City County Public Service Board',
     });
     expect(first.textContent).toContain('34.4%');
     expect(first.textContent).toContain('from 15.2% in 2024/2025, 2.3 times');
+    expect(
+      within(panel()).getByRole('article', { name: 'Rate change: National' }).textContent,
+    ).toContain('from 2.9% in 2024/2025, 2.1 times');
     expect(
       within(panel()).getByRole('article', {
         name: 'Repeatedly late: Teachers Service Commission',
@@ -132,10 +150,9 @@ describe('Notable patterns panel', () => {
     fireEvent.click(within(panel()).getByRole('button', { name: 'Next page' }));
 
     expect(cards().map((card) => card.getAttribute('aria-label'))).toEqual([
-      'Size-band outlier: Nairobi City County Public Service Board',
-      'Did not report: Mandera County Public Service Board',
-      'Did not report: Kwale County Public Service Board',
-      'Did not report: Turkana County Public Service Board',
+      'Did not report: Kisumu County Public Service Board',
+      'Did not report: Kisii County Public Service Board',
+      'Did not report: Public Service Commission',
     ]);
   });
 
@@ -157,7 +174,7 @@ describe('Notable patterns panel', () => {
 
     expect(panel().getAttribute('aria-busy')).toBe('true');
     expect(cards()).toHaveLength(0);
-    expect(within(panel()).queryByLabelText(/^\d+ patterns$/)).toBeNull();
+    expect(within(panel()).queryByText(/notable patterns$/)).toBeNull();
   });
 
   it('says so when nothing crossed the thresholds', async () => {
@@ -169,15 +186,31 @@ describe('Notable patterns panel', () => {
     ).toBeDefined();
   });
 
-  it('offers a retry when the candidates could not be loaded', async () => {
+  it('offers a retry, then says what it found and keeps focus in the panel', async () => {
     await renderPage({ candidates: 'error' });
 
-    expect(await within(panel()).findByText('Patterns could not be loaded.')).toBeDefined();
+    expect(await within(panel()).findByText('Notable patterns could not be loaded.')).toBeDefined();
     resetCandidatesMock('computed');
     fireEvent.click(within(panel()).getByRole('button', { name: 'Retry' }));
 
+    expect(document.activeElement).toBe(
+      within(panel()).getByRole('heading', { name: 'Notable patterns' }),
+    );
     await waitFor(() => {
       expect(cards()).toHaveLength(6);
+    });
+    expect(within(panel()).getByRole('status').textContent).toBe('9 notable patterns');
+  });
+
+  it('says when a retry failed again', async () => {
+    await renderPage({ candidates: 'error' });
+
+    fireEvent.click(await within(panel()).findByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(within(panel()).getByRole('status').textContent).toBe(
+        'Notable patterns could not be loaded.',
+      );
     });
   });
 
@@ -236,6 +269,7 @@ describe('Cited in findings', () => {
           'fy2025.commission.tsc.reportedLate',
           'commission.tsc.reportedLate',
           'commission.nobody.filed',
+          'national.commissionsLate',
         ],
         candidateIds: ['chronic-late-reporting:tsc:reportedLate'],
       },
@@ -258,17 +292,32 @@ describe('Cited in findings', () => {
     const narrative = screen.getByRole('region', { name: 'Narrative' });
     expect(
       await within(narrative).findByRole('button', {
-        name: 'Figure Teachers Service Commission reported late 2024/2025: Yes. Show in table',
+        name: 'Figure Teachers Service Commission reported late 2025/2026: Yes. Show in table',
       }),
     ).toBeDefined();
     expect(within(narrative).getByText('Figure not found')).toBeDefined();
-    // The draft's AI paragraph keeps its label beside its figure.
-    expect(within(narrative).getByText('AI draft')).toBeDefined();
+    // The page labels the draft's AI paragraph once, beside its figure.
+    expect(within(narrative).getAllByText('AI draft')).toHaveLength(1);
     expect(
       within(narrative).getByRole('button', {
         name: 'Figure Nairobi City County Public Service Board biennial filing rate 2025/2026: 62%. Show in table',
       }),
     ).toBeDefined();
+  });
+
+  it("shows a prior year's figure, and one with no row, as plain chips", async () => {
+    await renderPage({ edit: citing });
+
+    const narrative = screen.getByRole('region', { name: 'Narrative' });
+    const prior = await within(narrative).findByText(
+      'Teachers Service Commission reported late 2024/2025:',
+      { exact: false },
+    );
+    expect(prior.closest('button')).toBeNull();
+    const late = within(narrative).getByText('Commissions reported late 2025/2026:', {
+      exact: false,
+    });
+    expect(late.closest('button')).toBeNull();
   });
 
   it("turns the table to a figure's Commission row and highlights it", async () => {
@@ -294,8 +343,63 @@ describe('Cited in findings', () => {
 
     await waitFor(() => {
       expect(
-        document.getElementById('ncr-row-cpsbnairobicity')?.hasAttribute('data-target-highlight'),
+        document.getElementById('ncr-row-cpsb047')?.hasAttribute('data-target-highlight'),
       ).toBe(true);
     });
+  });
+});
+
+describe('Cite in findings', () => {
+  it('appends a findings paragraph citing the figures, focuses it and says so', async () => {
+    const { saveNarrative } = await renderPage();
+
+    const card = await within(panel()).findByRole('article', {
+      name: 'Repeatedly late: Teachers Service Commission',
+    });
+    fireEvent.click(
+      within(card).getByRole('button', {
+        name: 'Cite in findings: Repeatedly late, Teachers Service Commission',
+      }),
+    );
+
+    const findings = screen.getByRole('group', { name: 'Findings' });
+    const field = within(findings).getByRole('textbox', { name: 'Findings, paragraph 3' });
+    expect((field as HTMLTextAreaElement).value).toBe(
+      'Teachers Service Commission: 3 years reported late running (2023/2024, 2024/2025 and 2025/2026).',
+    );
+    await waitFor(() => {
+      expect(document.activeElement).toBe(field);
+    });
+    expect(
+      within(findings).getByRole('button', {
+        name: 'Figure Teachers Service Commission reported late 2025/2026: Yes. Show in table',
+      }),
+    ).toBeDefined();
+    expect(card.getAttribute('data-cited')).toBe('true');
+    expect(
+      within(card).getByRole('button', {
+        name: 'Cited in findings: Repeatedly late, Teachers Service Commission',
+      }),
+    ).toBeDefined();
+    expect(
+      await screen.findByText('Cited in findings. Rewrite the paragraph in your words.'),
+    ).toBeDefined();
+    // Saved through the page's autosave, the cited text in the findings.
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(saveNarrative).toHaveBeenCalled();
+    });
+    expect(saveNarrative.mock.lastCall?.[1].findings).toContain(
+      'Teachers Service Commission: 3 years reported late running',
+    );
+  });
+
+  it('is not offered once the report is approved', async () => {
+    await renderPage({ seed: 'approved' });
+
+    await waitFor(() => {
+      expect(cards()).toHaveLength(6);
+    });
+    expect(within(panel()).queryByRole('button', { name: /Cite in findings/ })).toBeNull();
   });
 });
