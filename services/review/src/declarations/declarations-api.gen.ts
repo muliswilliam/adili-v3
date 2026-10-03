@@ -979,6 +979,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/help/passages/{passageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One passage of the corpus or one help article in full, for the portal's help pages
+         * @description Declarants (by the person_id claim), with the visibility of `searchHelp`: the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. The text is in `language` where the passage has it, else in English (`language` of the response says which). Deterministic: no AI. Anything else, and other callers, 404.
+         */
+        get: operations["getHelpPassage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2052,6 +2072,34 @@ export interface components {
                 path: string;
                 message: string;
             }[];
+        };
+        /** @description A passage of the corpus or a help article, whole, as the help pages show it */
+        HelpPassageDetail: {
+            id: string;
+            /** @enum {string} */
+            source: "act" | "regs" | "am" | "help";
+            /**
+             * @example Act s.31(4)
+             * @example Help: Joint assets
+             */
+            citation: string;
+            /** @description In `language` */
+            title: string;
+            /** @description The whole passage or article body, in `language`; statutory text as published */
+            text: string;
+            /** @description The language of the title and text; `en` when the passage has no Swahili text */
+            language: components["schemas"]["HelpLanguage"];
+            /** @description Section kinds, statement item types and topics it covers */
+            tags: components["schemas"]["HelpTag"][];
+            /** @description The Commission whose article it is; null for the law and platform articles */
+            commission: components["schemas"]["CommissionRef"] | null;
+            /** Format: date */
+            effectiveFrom: string;
+            /**
+             * Format: date
+             * @description Exclusive; null while in force
+             */
+            effectiveTo: string | null;
         };
     };
     responses: {
@@ -4700,6 +4748,35 @@ export interface operations {
                     "application/json": string[];
                 };
             };
+        };
+    };
+    getHelpPassage: {
+        parameters: {
+            query: {
+                language: components["schemas"]["HelpLanguage"];
+                /** @description Read the law in force on this day (`YYYY-MM-DD`); today by default */
+                date?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A `HelpPassage` id, as `searchHelp` and answer citations give it */
+                passageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The passage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpPassageDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            404: components["responses"]["NotFound"];
         };
     };
 }
