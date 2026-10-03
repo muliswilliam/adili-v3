@@ -820,6 +820,30 @@ describe('dismissing, and checking again (S5)', () => {
     });
   });
 
+  it("offers a spouse's KRA PIN again once the declarant has cleared it from Household", async () => {
+    const draft = await givenDraft();
+    const contents = household();
+    contents.spouses.items = [spouse({ nationalId: SPOUSE_NATIONAL_ID })];
+    await save(draft.id, 'household', contents);
+    api.gateway.given('kra', SPOUSE_NATIONAL_ID, kra.found, {
+      ...kra.found,
+      resultId: randomUUID(),
+    });
+    const [first] = await checked(draft.id, achieng, `spouse:${SPOUSE_ID}`, ['kra']);
+    await accepted(draft.id, suggestionOf(first, 'bio-tax'));
+    const saved = await section(draft.id, 'household');
+    const spouses = saved.contents.spouses as { items: Record<string, unknown>[] };
+    await save(draft.id, 'household', {
+      ...saved.contents,
+      spouses: { ...spouses, items: spouses.items.map((each) => ({ ...each, kraPin: undefined })) },
+    });
+
+    const sets = await checked(draft.id, achieng, `spouse:${SPOUSE_ID}`, ['kra']);
+
+    const later = sets.find((set) => set.id !== first?.id);
+    expect(suggestionOf(later, 'bio-tax').status).toBe('new');
+  });
+
   it('offers again, on a re-check, what the declarant accepted and then deleted', async () => {
     const draft = await givenDraft();
     api.gateway.given('ntsa', OFFICER_ID, ntsa.found, { ...ntsa.found, resultId: randomUUID() });

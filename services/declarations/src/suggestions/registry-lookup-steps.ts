@@ -1,3 +1,4 @@
+import type { DeclarationSectionKey } from '@adili/forms';
 import { Injectable, Logger } from '@nestjs/common';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
@@ -9,13 +10,16 @@ import { declarations } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import { DirectoryClient } from '../directory/directory-client.js';
+import { sectionsAre } from '../drafts/repository.js';
 import { declarationSections } from '../drafts/schema.js';
+import type { SectionContents } from '../drafts/sections.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import {
   DECLARANT_REQUEST,
   IntegrationGatewayClient,
   IntegrationGatewayUnavailable,
 } from '../integration-gateway/integration-gateway-client.js';
+import { decisionStands } from './decided.js';
 import { declarationSuggestionsReady } from './events.js';
 import { type Comparable, findMatchingItem, repeatsDecided } from './match-keys.js';
 import { savedHouseholdPerson } from './household.js';
@@ -135,13 +139,13 @@ export class RegistryLookupSteps {
   }
 
   /**
-   * What the declarant has decided on from this registry for the person, for the re-suggestion
-   * rule (`repeatsDecided`): their dismissed suggestions, and their accepted ones whose item is
-   * still in the draft. A suggestion whose item the declarant has since deleted is offered again.
+   * The declarant's decisions on this registry's suggestions for the person that still stand, for
+   * the re-suggestion rule (`repeatsDecided`): every dismissal, and each acceptance whose item is
+   * still in the draft with the suggestion's identifier (`decisionStands`).
    */
   private async decided(attempt: LookupAttempt): Promise<Comparable[]> {
-    const { rows, kept } = await withPerson(this.db, personContext(attempt), async (tx) => {
-      const rows = await tx
+    const rows = await withPerson(this.db, personContext(attempt), (tx) =>
+      tx
         .select({
           id: suggestions.id,
           itemType: suggestions.itemType,
@@ -160,48 +164,25 @@ export class RegistryLookupSteps {
             eq(suggestionSets.source, attempt.system),
             inArray(suggestions.status, ['accepted', 'dismissed']),
           ),
-        );
-      const acceptedIn = [
-        ...new Set(rows.filter((row) => row.status === 'accepted').map((row) => row.sectionKey)),
-      ];
-      const sections =
-        acceptedIn.length === 0
-          ? []
-          : await tx
-              .select()
-              .from(declarationSections)
-              .where(
-                and(
-                  eq(declarationSections.declarationId, attempt.declarationId),
-                  inArray(declarationSections.sectionKey, acceptedIn),
-                ),
-              );
-      return { rows, kept: sections };
-    });
-    const itemIdsBySection = new Map(
-      await Promise.all(
-        kept.map(
-          async (section) =>
-            [
-              section.sectionKey,
-              itemIds(await this.sections.open(attempt.tenant, section)),
-            ] as const,
         ),
-      ),
     );
-    const standing = rows.filter(
-      (row) =>
-        row.status === 'dismissed' ||
-        (row.acceptedItemId !== null &&
-          itemIdsBySection.get(row.sectionKey)?.has(row.acceptedItemId) === true),
+    const sections = await this.openSections(
+      attempt,
+      rows.filter((row) => row.status === 'accepted').map((row) => row.sectionKey),
     );
-    return Promise.all(
-      standing.map(async (row) => ({
+    const decisions = await Promise.all(
+      rows.map(async (row) => ({
         itemType: row.itemType,
         sectionKey: row.sectionKey,
+        // The query asked for these two only.
+        status: row.status === 'accepted' ? ('accepted' as const) : ('dismissed' as const),
+        acceptedItemId: row.acceptedItemId,
         matchKeys: (await this.cipher.open(attempt.tenant, attempt.declarationId, row.id, row))
           .matchKeys,
       })),
+    );
+    return decisions.filter((decision) =>
+      decisionStands(decision, sections.get(decision.sectionKey)),
     );
   }
 
@@ -216,33 +197,9 @@ export class RegistryLookupSteps {
     mapped: MappedSuggestion[],
     decided: readonly Comparable[],
   ): Promise<(typeof suggestions.$inferInsert)[]> {
-    const sectionKeys = [...new Set(mapped.map((each) => each.sectionKey))];
-    const statements = await withPerson(this.db, personContext(ref), (tx) =>
-      sectionKeys.length === 0
-        ? Promise.resolve([])
-        : tx
-            .select()
-            .from(declarationSections)
-            .where(
-              and(
-                eq(declarationSections.declarationId, ref.declarationId),
-                inArray(
-                  declarationSections.sectionKey,
-                  sectionKeys.filter((key) => key.startsWith('statement:')),
-                ),
-              ),
-            ),
-    );
-    const items = new Map(
-      await Promise.all(
-        statements.map(
-          async (section) =>
-            [
-              section.sectionKey,
-              statementItems(await this.sections.open(ref.tenant, section)),
-            ] as const,
-        ),
-      ),
+    const statements = await this.openSections(
+      ref,
+      mapped.map((each) => each.sectionKey).filter((key) => key.startsWith('statement:')),
     );
     const now = this.clock.now();
     return Promise.all(
@@ -253,6 +210,7 @@ export class RegistryLookupSteps {
           sourceRef: suggestion.sourceRef,
           matchKeys: suggestion.matchKeys,
         });
+        const statement = statements.get(suggestion.sectionKey);
         return {
           id,
           setId: ref.setId,
@@ -262,12 +220,31 @@ export class RegistryLookupSteps {
           itemType: suggestion.itemType,
           ciphertext: sealed.ciphertext,
           envelope: sealed.envelope,
-          matchItemId: findMatchingItem(suggestion, items.get(suggestion.sectionKey) ?? []),
+          matchItemId: findMatchingItem(suggestion, statement ? statementItems(statement) : []),
           status: repeatsDecided(suggestion, decided) ? ('superseded' as const) : ('new' as const),
           verificationResultId,
           createdAt: now,
         };
       }),
+    );
+  }
+
+  /** The draft's sections of these keys as saved now, decrypted, by key (those it has). */
+  private async openSections(
+    ref: LookupRef,
+    sectionKeys: readonly DeclarationSectionKey[],
+  ): Promise<Map<DeclarationSectionKey, SectionContents>> {
+    const keys = [...new Set(sectionKeys)];
+    if (keys.length === 0) return new Map();
+    const rows = await withPerson(this.db, personContext(ref), (tx) =>
+      tx.select().from(declarationSections).where(sectionsAre(ref.declarationId, keys)),
+    );
+    return new Map(
+      await Promise.all(
+        rows.map(
+          async (row) => [row.sectionKey, await this.sections.open(ref.tenant, row)] as const,
+        ),
+      ),
     );
   }
 
@@ -366,20 +343,4 @@ async function isPending(tx: Transaction, attempt: LookupAttempt): Promise<boole
       ),
     );
   return row?.status === 'pending';
-}
-
-/**
- * The ids of every item a section holds, at any depth (a statement's income, assets and
- * liabilities, paragraph 9's directorships, Household's spouses): where an accepted suggestion's
- * item is looked for.
- */
-function itemIds(contents: unknown, found = new Set<string>()): Set<string> {
-  if (Array.isArray(contents)) {
-    for (const each of contents) itemIds(each, found);
-  } else if (typeof contents === 'object' && contents !== null) {
-    const record = contents as Record<string, unknown>;
-    if (typeof record.id === 'string') found.add(record.id);
-    for (const value of Object.values(record)) itemIds(value, found);
-  }
-  return found;
 }

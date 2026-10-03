@@ -55,7 +55,7 @@ export function presentKeys(...candidates: (MatchKey | null | undefined)[]): Mat
  * `company`): usually its name, sometimes its registration number. Both keys are kept so either
  * way meets a BRS suggestion, which carries the company's name and number.
  */
-function companyKeys(company: string): MatchKey[] {
+export function companyKeys(company: string): MatchKey[] {
   return presentKeys(companyNameMatchKey(company), companyNumberMatchKey(company));
 }
 
@@ -125,11 +125,11 @@ export interface Comparable {
 /**
  * Whether a registry checked again is suggesting what the declarant has already decided on: an
  * earlier suggestion of the same registry and person, dismissed, or accepted with its item still
- * declared (the caller leaves out those whose item was deleted), of the same item type
- * and sharing a match key (the same car, parcel, company or PIN). A suggestion with no
- * identifier (KRA's income hint) repeats a decided one of its type in the same section. Such a
- * suggestion is stored `superseded` rather than `new`: the declarant's decision stands, and the
- * earlier card keeps showing it.
+ * holding the identifier (the caller keeps only the decisions that stand, `decisionStands`), of
+ * the same item type and sharing a match key (the same car, parcel, company or PIN). A
+ * suggestion with no identifier (KRA's income hint) repeats a decided one of its type in the same
+ * section. Such a suggestion is stored `superseded` rather than `new`: the declarant's decision
+ * stands, and the earlier card keeps showing it.
  */
 export function repeatsDecided(suggestion: Comparable, decided: readonly Comparable[]): boolean {
   const keys = new Set<string>(suggestion.matchKeys);
