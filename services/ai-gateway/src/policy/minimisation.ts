@@ -157,7 +157,7 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   // run of letters and dots takes linear time.
   {
     cls: 'EMAIL',
-    pattern: /(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@(?:[\p{L}\p{N}-]+\.)+\p{L}{2,}/gu,
+    pattern: /(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@(?:[\p{L}\p{N}-]*\.)+\p{L}{2,}/gu,
   },
   // A KRA PIN: A or P, nine digits, a letter.
   { cls: 'KRA_PIN', pattern: new RegExp(`${EDGE_BEFORE}[AP]\\d{9}[A-Z]${EDGE_AFTER}`, 'gu') },
@@ -215,6 +215,9 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   },
 ];
 
+/** The shapes' patterns: what a document's names are read around (`documentIdentifiers`). */
+const SHAPES = PATTERNS.map(({ pattern }) => pattern);
+
 /**
  * Fields holding what a declarant asks in their own words (Ask Adili's `question` and earlier
  * turns), where amounts are replaced as well as identifiers.
@@ -253,7 +256,18 @@ const AMOUNT = new RegExp(
 /** Replaces the identifiers in `input` with tokens; see the module comment. */
 export function minimise<T>(input: T): Minimised<T> {
   const known = new Map<string, IdentifierClass>();
-  collect(input, undefined, known);
+  const documentTexts: string[] = [];
+  collect(input, undefined, known, documentTexts);
+  // A document's pages are read as one text, so a label at a page's foot finds its name on the
+  // next. The names a page gives are matched only in the cases a page writes them in.
+  const written = new Map<string, IdentifierClass>();
+  for (const { value, cls } of documentIdentifiers(documentTexts.join('\n'), SHAPES)) {
+    if (cls === 'PERSON' || cls === 'ORGANISATION') {
+      for (const form of writtenForms(value)) if (!written.has(form)) written.set(form, cls);
+    } else if (!known.has(value)) {
+      known.set(value, cls);
+    }
+  }
 
   const tokens = new Map<string, string>();
   const values = new Map<string, string>();
@@ -273,9 +287,16 @@ export function minimise<T>(input: T): Minimised<T> {
 
   const lookup = knownLookup(known);
   const knownPattern = alternation(known);
+  const writtenPattern = writtenAlternation(written);
   const replaceText = (text: string, inQuestion: boolean): string => {
     let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
     if (inQuestion) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
+    if (writtenPattern) {
+      result = result.replace(writtenPattern, (match) => {
+        const cls = written.get(match);
+        return cls ? tokenFor(cls, match) : match;
+      });
+    }
     if (knownPattern) {
       result = result.replace(knownPattern, (match) => {
         const found = lookup(match);
@@ -316,6 +337,7 @@ function collect(
   value: unknown,
   key: string | undefined,
   known: Map<string, IdentifierClass>,
+  documentTexts: string[],
 ): void {
   if (key !== undefined && UNTOUCHED_FIELDS.has(key)) return;
   if (typeof value === 'string') {
@@ -323,19 +345,14 @@ function collect(
     if (cls === 'PERSON') {
       collectName(value, known);
     } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
-      for (const { value: found, cls: foundClass } of documentIdentifiers(
-        value,
-        PATTERNS.map(({ pattern }) => pattern),
-      )) {
-        if (!known.has(found)) known.set(found, foundClass);
-      }
+      documentTexts.push(value);
     } else if (cls !== undefined && value.trim().length >= 2) {
       known.set(value.trim(), cls);
     }
     return;
   }
   if (Array.isArray(value)) {
-    for (const each of value) collect(each, key, known);
+    for (const each of value) collect(each, key, known, documentTexts);
     return;
   }
   if (value !== null && typeof value === 'object') {
@@ -347,7 +364,7 @@ function collect(
       if (lineClass !== undefined && typeof child === 'string') {
         if (child.trim().length >= 2) known.set(child.trim(), lineClass);
       } else {
-        collect(child, childKey, known);
+        collect(child, childKey, known, documentTexts);
       }
     }
   }
@@ -441,10 +458,33 @@ function phoneAlternative(value: string): string {
  * One case-insensitive pattern matching any known value as a whole word, longest first so it
  * wins; a code also matches with spaces or dashes between its characters.
  */
+/** `text` as a pattern that matches it literally. */
+function escape(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** A name as a page writes it: as found, capitalised, and in capitals ("Kamau", "KAMAU"). */
+function writtenForms(value: string): string[] {
+  const capitalised = value.replace(
+    /(^|[\s-])(\p{L})(\p{L}*)/gu,
+    (_, before: string, first: string, rest: string) =>
+      `${before}${first.toUpperCase()}${rest.toLowerCase()}`,
+  );
+  return [...new Set([value, capitalised, value.toUpperCase()])];
+}
+
+/** One case-sensitive pattern matching any written form as a whole word, longest first. */
+function writtenAlternation(written: ReadonlyMap<string, IdentifierClass>): RegExp | undefined {
+  if (written.size === 0) return undefined;
+  const sorted = [...written.keys()].sort(
+    (a, b) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0),
+  );
+  return new RegExp(`${EDGE_BEFORE}(?:${sorted.map(escape).join('|')})${EDGE_AFTER}`, 'gu');
+}
+
 function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | undefined {
   if (known.size === 0) return undefined;
   const sorted = [...known].sort(([a], [b]) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0));
-  const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const alternatives = sorted.map(([value, cls]) =>
     // A phone field without digits ("none") is matched as written.
     cls === 'PHONE' && /\d/u.test(value)

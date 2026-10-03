@@ -538,7 +538,8 @@ describe('minimise a text layer: review probes', () => {
 
 /**
  * A text layer is untrusted input: no label, number or address pattern may take more than linear
- * time over it (#314 review F29). 10,000 spaces after each kind of introducer.
+ * time over it (#314 review F29, F36, F37): 10,000 characters after each kind of introducer,
+ * 100,000 of repeated introducers, and stray line terminators in an address line.
  */
 describe('minimise a text layer in linear time', () => {
   const SPACES = ' '.repeat(10_000);
@@ -555,10 +556,69 @@ describe('minimise a text layer in linear time', () => {
     ['certify that', `certify${SPACES}that${SPACES}\n`],
     ['blank lines', `Proprietor:${'\n'.repeat(10_000)}`],
     ['capitalised words', `Proprietor: ${'Kamau '.repeat(5_000)}\n`],
-  ])('reads %s and 10,000 more characters quickly', (_name, text) => {
+    // Repeated introducers, each followed by the rest of a 100,000-character line (F36).
+    ['Mr repeated', 'Mr '.repeat(33_000)],
+    ['Dear repeated', 'Dear '.repeat(20_000)],
+    ['Borrower repeated', 'Borrower '.repeat(11_000)],
+    ['Guarantor(s): repeated', 'Guarantor(s): '.repeat(7_000)],
+    ['Proprietor: and commas', `Proprietor: ${', '.repeat(50_000)}`],
+    // Stray line terminators inside an address line (F37).
+    ['Address and carriage returns', `Address${' \r'.repeat(20_000)}`],
+    ['Address and line separators', `Address${' \u2028'.repeat(20_000)}`],
+    ['Address and paragraph separators', `Address${' \u2029'.repeat(20_000)}`],
+    ['a long address', `Physical address: ${'House 14, Riverside Drive, '.repeat(4_000)}`],
+  ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
     minimise({ textLayer: text });
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('minimise a text layer: what is no name', () => {
+  it('reads a label at the end of one page and its name at the start of the next (F38)', () => {
+    const { input } = minimise({
+      document: {
+        pages: [
+          { page: 1, textLayer: 'TRANSFER OF LAND\nProprietor:' },
+          { page: 2, textLayer: 'John Kamau Mwangi\nof Nakuru' },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(input)).not.toMatch(/John|Kamau|Mwangi/u);
+  });
+
+  it.each([
+    // Another field on the same line ends the span: its value is the reading's (F39).
+    ['Registered Owner: BRIAN OUMA Make: TOYOTA Model: FIELDER', 'BRIAN OUMA', 'TOYOTA FIELDER'],
+    [
+      'Account Name: Mary Wanjiru Account Type: Savings Branch: Nyali',
+      'Mary Wanjiru',
+      'Savings Nyali',
+    ],
+    ['Proprietor: Peter Kamau Section: Njoro Station: Molo', 'Peter Kamau', 'Njoro Molo'],
+    // A place, office or company on the line below is no part of the name.
+    ['Proprietor: John Kamau\nNakuru', 'John Kamau', 'Nakuru'],
+    ['Signed: Kevin Odera\nBranch Manager', 'Kevin Odera', 'Branch Manager'],
+    [
+      'Lessee: Peter Kamau\nPwani Commercial Bank Limited',
+      'Peter Kamau',
+      'Pwani Commercial Bank Limited',
+    ],
+  ])('in %j minimises %j and leaves %j', (line, names, fields) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of names.split(' ')) expect(input.textLayer).not.toContain(word);
+    for (const word of fields.split(' ')) expect(input.textLayer).toContain(word);
+  });
+
+  it('matches a name a page gives only in the cases a page writes it in', () => {
+    const { input } = minimise({
+      textLayer: 'Borrower: Tumaini Fresh Produce Limited\nTUMAINI FRESH sells fresh produce.',
+    });
+
+    expect(input.textLayer).not.toMatch(/Tumaini|TUMAINI|Fresh|FRESH/u);
+    expect(input.textLayer).toContain('sells fresh produce.');
   });
 });
 
@@ -571,5 +631,9 @@ describe('minimise free text in linear time', () => {
     const { input } = minimise({ note: `${run} mail jane.doe@example.co.ke` });
     expect(performance.now() - started).toBeLessThan(100);
     expect(input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
+  });
+
+  it('finds an email whose domain an OCR pass broke ("jane@.example.co.ke")', () => {
+    expect(minimise({ note: 'mail jane@.example.co.ke' }).input.note).toBe('mail [[EMAIL_1]]');
   });
 });
