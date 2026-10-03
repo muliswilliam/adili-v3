@@ -7,7 +7,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "<untrusted-input>\n{\"document\":{\"pageCount\":1,\"pages\":[{\"page\":1,\"textLayer\":\"Bidii Wakulima SACCO Society Limited\\nJengo la Bidii, Barabara ya Kenyatta, Nyeri\\nTarehe: 3 Julai 2026\\nBARUA YA KUTHIBITISHA SALIO LA MKOPO\\nMwanachama [[PERSON_1]] [[PERSON_2]] [[PERSON_3]]\\nNambari ya uanachama BW-02214\\nAina ya mkopo Mkopo wa elimu\\nKiasi kilichotolewa KES 250,000.00 tarehe 10 Januari 2025\\nSalio kufikia 30/06/2026 KES 145,500.00\\nTunathibitisha kwamba salio lililotajwa hapo juu ni sahihi kulingana na kumbukumbu zetu. Barua hii\\nimetolewa kwa ombi la mwanachama.\\nKwa niaba ya: Meneja wa Mikopo\"}]},\"documentKindHint\":\"bank-letter\",\"kind\":\"extract-document\",\"language\":\"sw\",\"target\":{\"itemType\":\"loan\",\"section\":\"liabilities\"}}\n</untrusted-input>"
+        "content": "<untrusted-input>\n{\"document\":{\"pageCount\":1,\"pages\":[{\"page\":1,\"textLayer\":\"Ufanisi Walimu SACCO Society Limited\\nUfanisi Towers, Kisii\\n1st July 2026\\nLOAN STATEMENT SUMMARY\\nMember [[PERSON_1]] [[PERSON_2]] [[PERSON_3]]\\nMember No. [[FILE_NUMBER_1]]\\nLoan type Development loan\\nAmount disbursed KES 600,000.00 on 5th March 2024\\nBalance at 30/06/2026 KES 380,000.00\\nMonthly repayment KES 16,700.00\\nFor: Credit Manager\"}]},\"documentKindHint\":\"bank-letter\",\"kind\":\"extract-document\",\"language\":\"sw\",\"target\":{\"itemType\":\"loan\",\"section\":\"liabilities\"}}\n</untrusted-input>"
       }
     ],
     "maxOutputTokens": 4096,
@@ -332,8 +332,8 @@
   "response": {
     "model": "claude-opus-5-5",
     "usage": {
-      "inputTokens": 431,
-      "outputTokens": 622,
+      "inputTokens": 312,
+      "outputTokens": 363,
       "cacheReadTokens": 0,
       "cacheWriteTokens": 5319
     },
@@ -343,19 +343,19 @@
       "fields": [
         {
           "name": "description",
-          "value": "Mkopo wa elimu",
-          "confidence": 0.95,
+          "value": "Mkopo wa maendeleo (Development loan) kutoka SACCO",
+          "confidence": 0.85,
           "page": 1
         },
         {
           "name": "creditor",
-          "value": "Bidii Wakulima SACCO Society Limited",
-          "confidence": 0.97,
+          "value": "Ufanisi Walimu SACCO Society Limited",
+          "confidence": 0.95,
           "page": 1
         },
         {
           "name": "outstanding.kesCents",
-          "value": 14550000,
+          "value": 38000000,
           "confidence": 0.95,
           "page": 1
         },
@@ -367,20 +367,20 @@
         },
         {
           "name": "location.county",
-          "value": "019",
+          "value": "045",
           "confidence": 0.7,
           "page": 1
         },
         {
           "name": "location.detail",
-          "value": "Nyeri",
-          "confidence": 0.7,
+          "value": "Kisii",
+          "confidence": 0.8,
           "page": 1
         }
       ],
       "warnings": [
-        "Salio la KES 145,500.00 ni kufikia tarehe 30/06/2026; hakikisha tarehe hii inalingana na tarehe ya tamko lako.",
-        "Kaunti na mahali vimetokana na anwani ya SACCO (Nyeri), si mahali pa mkopo wenyewe; tafadhali thibitisha."
+        "Salio la KES 380,000.00 ni la tarehe 30/06/2026; hakikisha linalingana na tarehe ya mwisho ya kipindi cha tamko lako.",
+        "Kaunti ya Kisii imetokana na anwani ya SACCO (Ufanisi Towers, Kisii); tafadhali thibitisha."
       ]
     }
   }

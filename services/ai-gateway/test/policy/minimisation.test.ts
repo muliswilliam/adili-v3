@@ -371,6 +371,25 @@ describe('minimise a text layer', () => {
     expect(input.textLayer).toMatch(/\[\[ADDRESS_1\]\]$/u);
   });
 
+  it.each([
+    ['Member No. UW-00781', 'UW-00781'],
+    ['Nambari ya uanachama BW-02214', 'BW-02214'],
+    ['Payroll No.: KSM/0045123', 'KSM/0045123'],
+  ])('finds the labelled number in %j', (line, number) => {
+    expect(minimise({ textLayer: line }).input.textLayer).not.toContain(number);
+  });
+
+  it("keeps a company's words readable after a label: they are no one's name", () => {
+    const { input } = minimise({
+      textLayer:
+        'Borrower: Tumaini Fresh Produce Limited\nSigned: Kevin Otieno Odera, Branch Manager\nPwani Commercial Bank Limited',
+    });
+
+    expect(input.textLayer).toContain('Pwani Commercial Bank Limited');
+    expect(input.textLayer).toContain(', Branch Manager');
+    expect(input.textLayer).not.toContain('Otieno');
+  });
+
   it('keeps the words that join two names readable', () => {
     const { input } = minimise({
       textLayer: 'Proprietors: JOSEPH MWANGI and ESTHER WAIRIMU\nLand and buildings',
@@ -392,7 +411,6 @@ describe('minimise a text layer', () => {
       'Gross Pay 142,650.00',
       'Make: TOYOTA',
       'Model: FIELDER',
-      'Member No. UW-00781',
       'Owner PIN shown overleaf',
     ].join('\n');
 

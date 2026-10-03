@@ -7,7 +7,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "<untrusted-input>\n{\"document\":{\"pageCount\":1,\"pages\":[{\"page\":1,\"textLayer\":\"Pwani Commercial Bank [[PERSON_1]]\\nNyali [[PERSON_2]], Links Road, Mombasa\\n6th July 2026\\nDear [[PERSON_3]],\\nRE: GUARANTEE OF A BUSINESS LOAN\\nBorrower [[PERSON_4]] [[PERSON_5]] [[PERSON_6]] [[PERSON_1]]\\nGuarantor [[PERSON_3]] [[PERSON_7]] [[PERSON_8]]\\nPhysical address [[ADDRESS_1]]\\nAmount guaranteed KES 2,000,000.00\\nWe confirm that you guarantee the above loan to [[PERSON_4]] [[PERSON_5]] [[PERSON_6]] [[PERSON_1]] up to KES\\n2,000,000.00. The balance of the loan at 30th June 2026 was KES 1,640,000.00, for which you remain\\nliable as guarantor should the borrower default.\\nWitness [[PERSON_9]] [[PERSON_10]] [[PERSON_11]]\\nSigned [[PERSON_12]] [[PERSON_13]] [[PERSON_14]], [[PERSON_2]] [[PERSON_15]]\"}]},\"documentKindHint\":\"bank-letter\",\"kind\":\"extract-document\",\"language\":\"en\",\"target\":{\"itemType\":\"guarantee\",\"section\":\"liabilities\"}}\n</untrusted-input>"
+        "content": "<untrusted-input>\n{\"document\":{\"pageCount\":1,\"pages\":[{\"page\":1,\"textLayer\":\"Bidii Wakulima SACCO Society Limited\\nJengo la Bidii, Barabara ya Kenyatta, Nyeri\\nTarehe: 3 Julai 2026\\nBARUA YA KUTHIBITISHA SALIO LA MKOPO\\nMwanachama [[PERSON_1]] [[PERSON_2]] [[PERSON_3]]\\nNambari ya uanachama [[FILE_NUMBER_1]]\\nAina ya mkopo Mkopo wa elimu\\nKiasi kilichotolewa KES 250,000.00 tarehe 10 Januari 2025\\nSalio kufikia 30/06/2026 KES 145,500.00\\nTunathibitisha kwamba salio lililotajwa hapo juu ni sahihi kulingana na kumbukumbu zetu. Barua hii\\nimetolewa kwa ombi la mwanachama.\\nKwa niaba ya: Meneja wa Mikopo\"}]},\"documentKindHint\":\"bank-letter\",\"kind\":\"extract-document\",\"language\":\"sw\",\"target\":{\"itemType\":\"loan\",\"section\":\"liabilities\"}}\n</untrusted-input>"
       }
     ],
     "maxOutputTokens": 4096,
@@ -332,10 +332,10 @@
   "response": {
     "model": "claude-opus-5-5",
     "usage": {
-      "inputTokens": 538,
-      "outputTokens": 878,
-      "cacheReadTokens": 0,
-      "cacheWriteTokens": 5319
+      "inputTokens": 441,
+      "outputTokens": 642,
+      "cacheReadTokens": 5319,
+      "cacheWriteTokens": 0
     },
     "status": "completed",
     "output": {
@@ -343,45 +343,44 @@
       "fields": [
         {
           "name": "description",
-          "value": "Guarantee of a business loan",
+          "value": "Mkopo wa elimu",
           "confidence": 0.9,
           "page": 1
         },
         {
           "name": "creditor",
-          "value": "Pwani Commercial Bank",
-          "confidence": 0.8,
+          "value": "Bidii Wakulima SACCO Society Limited",
+          "confidence": 0.95,
           "page": 1
         },
         {
           "name": "outstanding.kesCents",
-          "value": 164000000,
-          "confidence": 0.7,
+          "value": 14550000,
+          "confidence": 0.95,
           "page": 1
         },
         {
           "name": "location.inKenya",
           "value": true,
-          "confidence": 0.9,
+          "confidence": 0.85,
           "page": 1
         },
         {
           "name": "location.county",
-          "value": "001",
-          "confidence": 0.75,
+          "value": "019",
+          "confidence": 0.7,
           "page": 1
         },
         {
           "name": "location.detail",
-          "value": "Nyali, Links Road, Mombasa",
+          "value": "Nyeri",
           "confidence": 0.7,
           "page": 1
         }
       ],
       "warnings": [
-        "The letter gives two figures: the amount guaranteed (KES 2,000,000.00) and the loan balance at 30th June 2026 (KES 1,640,000.00). The balance was used as the outstanding amount. Check which figure you should declare for this guarantee.",
-        "The location is that of the bank branch that issued the letter. Check that it is the right location for this item.",
-        "The lender's name appears as \"Pwani Commercial Bank\" followed by a redacted word. Check the full name of the creditor."
+        "Salio la KES 145,500.00 ni la tarehe 30/06/2026; hakikisha linalingana na tarehe ya mwisho ya kipindi cha tamko.",
+        "Mahali (Nyeri) kumetokana na anwani ya SACCO kwenye barua; tafadhali thibitisha."
       ]
     }
   }
