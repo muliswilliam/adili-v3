@@ -1,4 +1,9 @@
-import { DISCLOSURE_LEVELS, DOCUMENT_STATUSES, DOCUMENT_TYPES } from '@adili/events/contracts';
+import {
+  DISCLOSURE_LEVELS,
+  DOCUMENT_STATUSES,
+  DOCUMENT_TYPES,
+  REVOCATION_REASONS,
+} from '@adili/events/contracts';
 import { z } from 'zod';
 
 import {
@@ -120,6 +125,14 @@ export const supersedeDocumentBody = z.object({
   supersededBy: z.uuid().meta({ description: 'The newer document of the same type and tenant' }),
 });
 export type SupersedeDocumentBody = z.infer<typeof supersedeDocumentBody>;
+
+export const revocationReasonSchema = z.enum(REVOCATION_REASONS).meta({
+  description:
+    'Why the document is revoked, a category the verify page may show: issued-in-error (e.g. a clarification letter withdrawn as issued in error, spec 07a), withdrawn or other',
+});
+
+export const revokeDocumentBody = z.object({ reason: revocationReasonSchema });
+export type RevokeDocumentBody = z.infer<typeof revokeDocumentBody>;
 
 export const issuedDocumentSchema = z.object({
   id: z.uuid(),

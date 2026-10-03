@@ -30,6 +30,8 @@ import {
   type IssueDocumentRequest,
   issueDocumentRequest,
   type IssuedDocument,
+  type RevokeDocumentBody,
+  revokeDocumentBody,
   type SupersedeDocumentBody,
   supersedeDocumentBody,
 } from './representation.js';
@@ -233,7 +235,7 @@ export class InternalDocumentsController {
   @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
   @ApiProblemResponse(
     409,
-    'Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)',
+    'Problem type `document-not-valid` (superseded, revoked or expired already) or `superseding-document-invalid` (the newer document is not a valid document of the same type)',
   )
   @ApiProblemResponse(502, 'Problem type `signer-unavailable`: nothing changed; retry')
   supersede(
@@ -247,6 +249,38 @@ export class InternalDocumentsController {
       actor: principal.subject,
       documentId: id,
       supersededBy: body.supersededBy,
+    });
+  }
+
+  @Post(':documentId/revoke')
+  @HttpCode(HttpStatus.OK)
+  @AcceptIdempotencyKey()
+  @ApiDocumentIdParam()
+  @ApiOperation({
+    operationId: 'revokeDocument',
+    summary: 'Revoke an issued document (services)',
+    description:
+      'Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Sets the status to revoked with the reason (e.g. a clarification letter withdrawn as issued in error, spec 07a), re-signs the verification record and emits `document.revoked.v1`; the verify page then shows the document revoked.',
+  })
+  @ApiBody({ required: true, schema: schemaRef('RevokeDocument') })
+  @ApiOkResponse({ description: 'Revoked', schema: schemaRef('IssuedDocument') })
+  @ApiProblemResponse(404, "Not found, or not the acting tenant's document")
+  @ApiProblemResponse(
+    409,
+    'Problem type `document-revoked` (revoked already: a caller may treat its revoke as done) or `document-not-valid` (superseded or expired: not revoked)',
+  )
+  @ApiProblemResponse(502, 'Problem type `signer-unavailable`: nothing changed; retry')
+  revoke(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('documentId', documentId) id: string,
+    @Body(new ZodValidationPipe(revokeDocumentBody)) body: RevokeDocumentBody,
+  ): Promise<IssuedDocument> {
+    return this.issuance.revoke({
+      tenant,
+      actor: principal.subject,
+      documentId: id,
+      reason: body.reason,
     });
   }
 }

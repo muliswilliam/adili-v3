@@ -156,7 +156,8 @@ export class HttpDocumentsClient extends DocumentsClient {
       {
         status: 200,
         schema: issuedSchema,
-        // Already revoked: what was asked for is done.
+        // `document-revoked`: what was asked for is done. A letter is never superseded or expired,
+        // so its revoke is never refused with `document-not-valid`.
         otherwise: { 409: () => null, 400: rejectedBy('documents') },
       },
     );

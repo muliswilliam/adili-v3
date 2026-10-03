@@ -14,13 +14,16 @@ import { EventPublisher, type NewEvent } from '@adili/events';
 import {
   DOCUMENT_DOWNLOADED,
   DOCUMENT_ISSUED,
+  DOCUMENT_REVOKED,
   DOCUMENT_SUPERSEDED,
   type DocumentDownloadedData,
   type DocumentEventData,
   type DocumentIssuedData,
+  type DocumentRevokedData,
   type DocumentSupersededData,
   type DocumentType,
   newVerificationId,
+  type RevocationReason,
 } from '@adili/events/contracts';
 import { ACCESS_OFFICER, EACC_TENANT } from '@adili/roles';
 import { and, arrayContains, eq, inArray, isNull, ne, or } from 'drizzle-orm';
@@ -96,8 +99,8 @@ interface PullFrom {
   id: string;
 }
 
-/** Tries at a supersede whose records keep changing between signing and writing. */
-const MAX_SUPERSEDE_ATTEMPTS = 3;
+/** Tries at a status change whose records keep changing between signing and writing. */
+const MAX_STATUS_CHANGE_ATTEMPTS = 3;
 
 /**
  * A request to issue a document for a tenant (the issuing Commission): the fields the template
@@ -148,6 +151,13 @@ export interface SupersedeRequest {
   actor: string;
   documentId: string;
   supersededBy: string;
+}
+
+export interface RevokeRequest {
+  tenant: string;
+  actor: string;
+  documentId: string;
+  reason: RevocationReason;
 }
 
 /**
@@ -353,7 +363,7 @@ export class IssuanceService {
           { err: errorType(error), cause: error.message, dependency: error.dependency },
           'Issuing a document failed',
         );
-        throw dependencyProblem(error);
+        throw dependencyProblem(error, 'issue');
       }
       throw error;
     }
@@ -396,6 +406,7 @@ export class IssuanceService {
         );
         throw dependencyProblem(
           new IssuanceDependencyUnavailable('review', error.message, { cause: error }),
+          'issue',
         );
       }
       throw error;
@@ -435,57 +446,129 @@ export class IssuanceService {
       throw supersedingInvalid('A document cannot supersede itself.');
     }
     const context = { tenant: request.tenant, subject: request.actor };
+    return this.changeStatus(request.documentId, async () => {
+      const read = await withTenant(this.db, context, async (tx) => ({
+        current: await findRecord(tx, request.tenant, request.documentId),
+        newer: await findRecord(tx, request.tenant, request.supersededBy),
+      }));
+      const { current, newer } = supersedable(notFoundIfInvisible(read.current), read.newer);
+      const statusChangedAt = this.clock.now();
+      const signature = await this.records.sign({
+        ...signedRecordOf(current.record),
+        status: 'superseded',
+        supersededBy: newer.record.id,
+        statusChangedAt: statusChangedAt.toISOString(),
+      });
+
+      return withTenant(this.db, context, async (tx) => {
+        const locked = await lockedRecord(tx, request.tenant, current.document.id);
+        const lockedNewer = await lockedRecord(tx, request.tenant, newer.document.id);
+        if (!unchanged(locked, current) || !unchanged(lockedNewer, newer)) return null;
+        const [updated] = await tx
+          .update(verificationRecords)
+          .set({
+            status: 'superseded',
+            supersededBy: newer.document.id,
+            statusChangedAt,
+            recordSignature: signature.signature,
+            recordSigningKeyVersion: signature.keyVersion,
+          })
+          .where(eq(verificationRecords.id, current.record.id))
+          .returning();
+        if (!updated) throw new Error('verification record update returned nothing');
+        await this.events.record(tx, {
+          type: DOCUMENT_SUPERSEDED,
+          subject: current.document.id,
+          tenant: request.tenant,
+          data: {
+            ...this.eventData(current.document, updated),
+            supersededBy: newer.document.id,
+            supersededByVerificationId: newer.record.id,
+            statusChangedAt: statusChangedAt.toISOString(),
+          } satisfies DocumentSupersededData,
+        });
+        return this.toIssuedDocument(current.document, updated);
+      });
+    });
+  }
+
+  /**
+   * Revokes a valid document with the reason (a clarification letter withdrawn as issued in
+   * error), re-signs its record and emits `document.revoked.v1`, so the verify page shows it
+   * revoked. 404 when the document is not the tenant's; 409 `document-revoked` when it is
+   * revoked already (what was asked is done), `document-not-valid` when superseded or expired;
+   * 502 when the signer fails (nothing changes). Signed with no lock held, as a supersede is.
+   */
+  async revoke(request: RevokeRequest): Promise<IssuedDocument> {
+    const context = { tenant: request.tenant, subject: request.actor };
+    return this.changeStatus(request.documentId, async () => {
+      const current = revocable(
+        notFoundIfInvisible(
+          await withTenant(this.db, context, (tx) =>
+            findRecord(tx, request.tenant, request.documentId),
+          ),
+        ),
+      );
+      const statusChangedAt = this.clock.now();
+      const signature = await this.records.sign({
+        ...signedRecordOf(current.record),
+        status: 'revoked',
+        statusReasonCategory: request.reason,
+        statusChangedAt: statusChangedAt.toISOString(),
+      });
+
+      return withTenant(this.db, context, async (tx) => {
+        if (!unchanged(await lockedRecord(tx, request.tenant, current.document.id), current))
+          return null;
+        const [updated] = await tx
+          .update(verificationRecords)
+          .set({
+            status: 'revoked',
+            statusReasonCategory: request.reason,
+            statusChangedAt,
+            recordSignature: signature.signature,
+            recordSigningKeyVersion: signature.keyVersion,
+          })
+          .where(eq(verificationRecords.id, current.record.id))
+          .returning();
+        if (!updated) throw new Error('verification record update returned nothing');
+        await this.events.record(tx, {
+          type: DOCUMENT_REVOKED,
+          subject: current.document.id,
+          tenant: request.tenant,
+          data: {
+            ...this.eventData(current.document, updated),
+            reasonCategory: request.reason,
+            statusChangedAt: statusChangedAt.toISOString(),
+          } satisfies DocumentRevokedData,
+        });
+        return this.toIssuedDocument(current.document, updated);
+      });
+    });
+  }
+
+  /**
+   * Runs a status change until it lands: `tryOnce` reads and checks the records, signs the new
+   * record with no lock held, then writes it only if the records did not change meanwhile, else
+   * answers null and is made again (checked again, so the change that won may refuse it). A
+   * signer failure is 502.
+   */
+  private async changeStatus(
+    documentId: string,
+    tryOnce: () => Promise<IssuedDocument | null>,
+  ): Promise<IssuedDocument> {
     try {
       for (let attempt = 1; ; attempt++) {
-        const read = await withTenant(this.db, context, async (tx) => ({
-          current: await findRecord(tx, request.tenant, request.documentId),
-          newer: await findRecord(tx, request.tenant, request.supersededBy),
-        }));
-        const { current, newer } = supersedable(notFoundIfInvisible(read.current), read.newer);
-        const statusChangedAt = this.clock.now();
-        const signature = await this.records.sign({
-          ...signedRecordOf(current.record),
-          status: 'superseded',
-          supersededBy: newer.record.id,
-          statusChangedAt: statusChangedAt.toISOString(),
-        });
-
-        const superseded = await withTenant(this.db, context, async (tx) => {
-          const locked = await lockedRecord(tx, request.tenant, current.document.id);
-          const lockedNewer = await lockedRecord(tx, request.tenant, newer.document.id);
-          if (!unchanged(locked, current) || !unchanged(lockedNewer, newer)) return null;
-          const [updated] = await tx
-            .update(verificationRecords)
-            .set({
-              status: 'superseded',
-              supersededBy: newer.document.id,
-              statusChangedAt,
-              recordSignature: signature.signature,
-              recordSigningKeyVersion: signature.keyVersion,
-            })
-            .where(eq(verificationRecords.id, current.record.id))
-            .returning();
-          if (!updated) throw new Error('verification record update returned nothing');
-          await this.events.record(tx, {
-            type: DOCUMENT_SUPERSEDED,
-            subject: current.document.id,
-            tenant: request.tenant,
-            data: {
-              ...this.eventData(current.document, updated),
-              supersededBy: newer.document.id,
-              supersededByVerificationId: newer.record.id,
-              statusChangedAt: statusChangedAt.toISOString(),
-            } satisfies DocumentSupersededData,
-          });
-          return this.toIssuedDocument(current.document, updated);
-        });
-        if (superseded) return superseded;
-        if (attempt === MAX_SUPERSEDE_ATTEMPTS) {
-          throw new Error(`Document ${request.documentId} kept changing while it was superseded`);
+        const changed = await tryOnce();
+        if (changed) return changed;
+        if (attempt === MAX_STATUS_CHANGE_ATTEMPTS) {
+          throw new Error(`Document ${documentId} kept changing during its status change`);
         }
       }
     } catch (error) {
-      if (error instanceof IssuanceDependencyUnavailable) throw dependencyProblem(error);
+      if (error instanceof IssuanceDependencyUnavailable) {
+        throw dependencyProblem(error, 'statusChange');
+      }
       throw error;
     }
   }
@@ -855,6 +938,15 @@ function supersedable(
   current: DocumentWithRecord,
   newer: DocumentWithRecord | undefined,
 ): { current: DocumentWithRecord; newer: DocumentWithRecord } {
+  mustBeValid(current);
+  if (newer?.record.status !== 'valid' || newer.document.type !== current.document.type) {
+    throw supersedingInvalid('The newer document must be a valid document of the same type.');
+  }
+  return { current, newer };
+}
+
+/** The document, when valid; 409 `document-not-valid` when superseded, revoked or expired. */
+function mustBeValid(current: DocumentWithRecord): DocumentWithRecord {
   if (current.record.status !== 'valid') {
     throw new ProblemException({
       type: 'document-not-valid',
@@ -863,10 +955,23 @@ function supersedable(
       detail: `The document is ${current.record.status} already.`,
     });
   }
-  if (newer?.record.status !== 'valid' || newer.document.type !== current.document.type) {
-    throw supersedingInvalid('The newer document must be a valid document of the same type.');
+  return current;
+}
+
+/**
+ * The document, when it may be revoked: 409 `document-revoked` when it is revoked already (a
+ * caller may treat that as done), `document-not-valid` when superseded or expired.
+ */
+function revocable(current: DocumentWithRecord): DocumentWithRecord {
+  if (current.record.status === 'revoked') {
+    throw new ProblemException({
+      type: 'document-revoked',
+      title: 'Document is revoked already',
+      status: HttpStatus.CONFLICT,
+      detail: `The document was revoked as ${current.record.statusReasonCategory ?? 'unknown'}.`,
+    });
   }
-  return { current, newer };
+  return mustBeValid(current);
 }
 
 /** Whether a record, locked now, is as it was read: a status change re-signs it. */

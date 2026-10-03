@@ -26,12 +26,23 @@ const DETAIL: Record<IssuanceDependency, string> = {
   review: "The review service, which holds the document's fields, is unavailable.",
 };
 
-/** 502 for callers: the dependency by name, never its error. Nothing was issued; retry later. */
-export function dependencyProblem(error: IssuanceDependencyUnavailable): ProblemException {
+const OUTCOME = {
+  issue: { title: 'Document could not be issued', detail: 'Nothing was issued' },
+  statusChange: { title: 'Document status could not be changed', detail: 'Nothing changed' },
+} as const;
+
+/**
+ * 502 for callers: the dependency by name, never its error. Nothing was issued (or, for a
+ * supersede or revoke, changed); retry later.
+ */
+export function dependencyProblem(
+  error: IssuanceDependencyUnavailable,
+  during: keyof typeof OUTCOME,
+): ProblemException {
   return new ProblemException({
     type: `${error.dependency}-unavailable`,
-    title: 'Document could not be issued',
+    title: OUTCOME[during].title,
     status: HttpStatus.BAD_GATEWAY,
-    detail: `${DETAIL[error.dependency]} Nothing was issued; try again.`,
+    detail: `${DETAIL[error.dependency]} ${OUTCOME[during].detail}; try again.`,
   });
 }

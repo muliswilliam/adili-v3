@@ -267,23 +267,15 @@ export interface paths {
     "/internal/v1/documents/{documentId}/revoke": {
         parameters: {
             query?: never;
-            header: {
-                /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
-            };
-            path: {
-                documentId: components["parameters"]["DocumentId"];
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
         /**
          * Revoke an issued document (services)
-         * @description Sets `status` to revoked with the reason, e.g. a clarification letter withdrawn as issued
-         *     in error (spec 07a); the verify page then shows the document revoked. Service tokens with
-         *     scope documents:internal, acting in X-Acting-Tenant for the issuing tenant. A document
-         *     already revoked is refused with 409.
+         * @description Service tokens with scope documents:internal, acting for the tenant in X-Acting-Tenant. Sets the status to revoked with the reason (e.g. a clarification letter withdrawn as issued in error, spec 07a), re-signs the verification record and emits `document.revoked.v1`; the verify page then shows the document revoked.
          */
         post: operations["revokeDocument"];
         delete?: never;
@@ -424,6 +416,14 @@ export interface components {
              * @description The newer document of the same type and tenant
              */
             supersededBy: string;
+        };
+        /**
+         * @description Why the document is revoked, a category the verify page may show: issued-in-error (e.g. a clarification letter withdrawn as issued in error, spec 07a), withdrawn or other
+         * @enum {string}
+         */
+        RevocationReason: "issued-in-error" | "withdrawn" | "other";
+        RevokeDocument: {
+            reason: components["schemas"]["RevocationReason"];
         };
         IssuedDocument: {
             /** Format: uuid */
@@ -1238,15 +1238,9 @@ export interface components {
                 message: string;
             }[];
         };
-        /** @enum {string} */
-        RevocationReason: "issued-in-error";
     };
     responses: never;
-    parameters: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        ActingTenant: string;
-        DocumentId: string;
-    };
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -1941,7 +1935,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `document-not-valid` (superseded or revoked already) or `superseding-document-invalid` (the newer document is not a valid document of the same type) */
+            /** @description Problem type `document-not-valid` (superseded, revoked or expired already) or `superseding-document-invalid` (the newer document is not a valid document of the same type) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1975,18 +1969,18 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Tenant the calling service acts for; the resource must belong to it */
-                "X-Acting-Tenant": components["parameters"]["ActingTenant"];
+                "X-Acting-Tenant": string;
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
             };
             path: {
-                documentId: components["parameters"]["DocumentId"];
+                documentId: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    reason: components["schemas"]["RevocationReason"];
-                };
+                "application/json": components["schemas"]["RevokeDocument"];
             };
         };
         responses: {
@@ -1999,6 +1993,24 @@ export interface operations {
                     "application/json": components["schemas"]["IssuedDocument"];
                 };
             };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope documents:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Not found, or not the acting tenant's document */
             404: {
                 headers: {
@@ -2008,8 +2020,26 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Already revoked */
+            /** @description Problem type `document-revoked` (revoked already: a caller may treat its revoke as done) or `document-not-valid` (superseded or expired: not revoked) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `signer-unavailable`: nothing changed; retry */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
