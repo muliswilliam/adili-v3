@@ -503,7 +503,7 @@ describe('Idempotency-Key on publish and withdraw', () => {
       await withdrawOpenDataRelease(supervisor(), PUBLISHED_V2, 'Something else.', key),
     ).toMatchObject({
       ok: false,
-      error: { kind: 'problem', problem: { status: 422, code: 'idempotency-key-reused' } },
+      error: { kind: 'problem', problem: { status: 422, type: 'idempotency-key-reused' } },
     });
   });
 
@@ -519,7 +519,7 @@ describe('Idempotency-Key on publish and withdraw', () => {
     expect(first.ok).toBe(true);
     expect(second).toMatchObject({
       ok: false,
-      error: { kind: 'problem', problem: { status: 409, code: 'idempotency-key-in-use' } },
+      error: { kind: 'problem', problem: { status: 409, type: 'idempotency-key-in-use' } },
     });
   });
 

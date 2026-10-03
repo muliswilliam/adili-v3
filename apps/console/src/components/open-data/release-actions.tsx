@@ -34,10 +34,11 @@ import { type ReactNode, useId, useState } from 'react';
 import type { OpenDataReleaseView, ReleasesResult } from '../../server/open-data-releases.server';
 import type { OpenDataRelease } from '../../server/reporting/types';
 import { messages as m, mismatchLabel } from './messages';
+import { isProblem, mayBeRecorded, type ReleasesFailure } from './problems';
 import { releaseName } from './release-parts';
 
 type Result = ReleasesResult<OpenDataRelease>;
-type Failure = Extract<Result, { ok: false }>;
+type Failure = ReleasesFailure;
 
 export interface ReleaseActionsProps {
   view: OpenDataReleaseView;
@@ -131,18 +132,6 @@ function usePendingKey(): PendingKey {
   };
 }
 
-/**
- * Whether a failure leaves the action's outcome unknown, so its retry must send the same key: no
- * answer (network, timeout, 5xx), or the first request with the key still running.
- */
-function outcomeUnknown(failure: Failure): boolean {
-  const { error } = failure;
-  return (
-    error.kind === 'unavailable' ||
-    (error.kind === 'problem' && error.problem.code === 'idempotency-key-in-use')
-  );
-}
-
 /** How a dialog's action ended, when it did not succeed. */
 type Ending =
   /** Say why in the dialog. */
@@ -155,11 +144,14 @@ function common(failure: Failure): Ending | null {
   const { error } = failure;
   if (error.kind === 'unauthenticated') return { kind: 'unauthenticated' };
   if (error.kind !== 'problem') return null;
-  const { status, code } = error.problem;
-  if (code === 'idempotency-key-in-use') return { kind: 'error', message: m.stillProcessing };
-  // The key was used with another body: the earlier request was recorded.
-  if (status === 422) return { kind: 'reload', message: m.earlierRequestRecorded };
-  if (status === 404) return { kind: 'error', message: m.releaseGone };
+  if (isProblem(error.problem, 'idempotency-key-in-use')) {
+    return { kind: 'error', message: m.stillProcessing };
+  }
+  // The key was sent before with another reason: that earlier request was recorded.
+  if (isProblem(error.problem, 'idempotency-key-reused')) {
+    return { kind: 'reload', message: m.earlierRequestRecorded };
+  }
+  if (error.problem.status === 404) return { kind: 'error', message: m.releaseGone };
   return null;
 }
 
@@ -245,7 +237,7 @@ function useAction({
       await router.invalidate();
       return;
     }
-    if (!outcomeUnknown(result)) idempotencyKey.settle();
+    if (!mayBeRecorded(result)) idempotencyKey.settle();
     const end = ending(result);
     if (end.kind === 'unauthenticated') {
       onUnauthenticated();
@@ -498,7 +490,7 @@ function RebuildButton({ view, rebuild, onRebuilt, onUnauthenticated }: ReleaseA
       onUnauthenticated();
       return;
     }
-    if (!outcomeUnknown(result)) key.settle();
+    if (!mayBeRecorded(result)) key.settle();
     toast({
       title: m.rebuildStopped(next),
       description: rebuildFailure(result),
@@ -531,7 +523,7 @@ function rebuildFailure(failure: Failure): string {
     if (code === 'ncr-not-built') return m.ncrNotBuilt;
     if (code === 'ncr-not-approved') return m.ncrNotApproved;
     if (code === 'annual-release-published') return m.annualStillPublished;
-    if (code === 'idempotency-key-in-use') return m.stillProcessing;
+    if (isProblem(error.problem, 'idempotency-key-in-use')) return m.stillProcessing;
   }
   if (error.kind === 'unavailable' && error.problemType === 'storage-unavailable') {
     return m.storageUnavailable;

@@ -67,20 +67,20 @@ interface StoredRelease {
   tables: TableFiles;
 }
 
-/** A publish or withdraw Idempotency-Key: the request it was first sent with, and its answer. */
-interface KeyClaim {
-  request: string;
+/** A request under an Idempotency-Key: what was sent, and the answer once there is one. */
+interface KeyedRequest {
+  body: string;
   /** Null while the first request runs. */
-  answer: { status: number; body: unknown } | null;
+  response: Response | null;
 }
 
 interface Store {
   seed: ReleasesMockSeed;
   releases: StoredRelease[];
   /** Builds by caller and Idempotency-Key: the body sent, and the answer once there is one. */
-  builds: Map<string, { body: string; response: Response | null }>;
-  /** Publish and withdraw keys, by caller and key. */
-  commands: Map<string, KeyClaim>;
+  builds: Map<string, KeyedRequest>;
+  /** Publishes and withdrawals by caller and Idempotency-Key, as builds. */
+  commands: Map<string, KeyedRequest>;
   buildMs: number;
   /** How long a publish or withdraw takes outside tests. */
   commandMs: number;
@@ -251,20 +251,36 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
 async function build(data: Store, request: Request, officer: Officer): Promise<Response> {
   const key = request.headers.get('idempotency-key');
   if (!key) return problem(400, 'Idempotency-Key missing');
-  const scope = `${officer.subject}:${key}`;
   const text = await request.text();
-  const seen = data.builds.get(scope);
-  if (seen && seen.body !== text) {
+  return underKey(data.builds, `${officer.subject}:${key}`, text, () =>
+    buildOnce(data, text, officer),
+  );
+}
+
+/**
+ * api-kit's idempotency for one request under its key (`scope`, the caller's): the same key and
+ * `body` replays the stored answer (2xx and 4xx; a 5xx is not stored, so a retry runs again); the
+ * same key with another body is 422 `idempotency-key-reused`; the same key while the first
+ * request still runs is 409 `idempotency-key-in-use`.
+ */
+async function underKey(
+  keys: Map<string, KeyedRequest>,
+  scope: string,
+  body: string,
+  run: () => Promise<Response>,
+): Promise<Response> {
+  const seen = keys.get(scope);
+  if (seen && seen.body !== body) {
     return idempotencyProblem(422, 'idempotency-key-reused', 'Idempotency-Key reused');
   }
   if (seen && !seen.response) {
     return idempotencyProblem(409, 'idempotency-key-in-use', 'Request in progress');
   }
   if (seen?.response) return seen.response.clone();
-  data.builds.set(scope, { body: text, response: null });
-  const response = await buildOnce(data, text, officer);
-  if (response.status >= 500) data.builds.delete(scope);
-  else data.builds.set(scope, { body: text, response: response.clone() });
+  keys.set(scope, { body, response: null });
+  const response = await run();
+  if (response.status >= 500) keys.delete(scope);
+  else keys.set(scope, { body, response: response.clone() });
   return response;
 }
 
@@ -370,9 +386,8 @@ interface Answer {
 }
 
 /**
- * Runs a publish or withdraw under its Idempotency-Key, as api-kit's `AcceptIdempotencyKey`: no
- * key runs it unguarded; a key seen with another body is 422; a key whose first request still runs
- * is 409; a key with a stored answer (anything under 500) replays it.
+ * Runs a publish or withdraw under its Idempotency-Key as a build runs (`underKey`), but the key
+ * is optional, as api-kit's `AcceptIdempotencyKey`: without one it runs unguarded.
  */
 async function keyed(
   data: Store,
@@ -381,28 +396,16 @@ async function keyed(
   run: (body: unknown) => Promise<Answer>,
 ): Promise<Response> {
   const text = await request.text();
-  const body: unknown = text ? safeJson(text) : null;
+  const once = async () => reply(await run(text ? safeJson(text) : null));
   const key = request.headers.get('idempotency-key');
-  if (!key) return reply(await run(body));
+  if (!key) return once();
   if (!UUID.test(key)) return problem(400, 'Idempotency-Key is not a UUID');
-  const scope = `${officer.subject}:${key}`;
-  const fingerprint = `${request.method} ${new URL(request.url).pathname} ${text}`;
-  const claim = data.commands.get(scope);
-  if (claim) {
-    if (claim.request !== fingerprint) {
-      return reply(coded(422, 'idempotency-key-reused', 'Idempotency-Key reused'));
-    }
-    if (!claim.answer) {
-      return reply(coded(409, 'idempotency-key-in-use', 'Request in progress'));
-    }
-    return reply(claim.answer, { 'idempotent-replayed': 'true' });
-  }
-  const mine: KeyClaim = { request: fingerprint, answer: null };
-  data.commands.set(scope, mine);
-  const answer = await run(body);
-  if (answer.status < 500) mine.answer = answer;
-  else data.commands.delete(scope);
-  return reply(answer);
+  return underKey(
+    data.commands,
+    `${officer.subject}:${key}`,
+    `${new URL(request.url).pathname} ${text}`,
+    once,
+  );
 }
 
 async function publish(data: Store, releaseId: string, officer: Officer): Promise<Answer> {
@@ -479,8 +482,8 @@ function coded(status: number, code: string, title: string): Answer {
   return { status, body: { type: code, title, status, code } };
 }
 
-function reply({ status, body }: Answer, headers: Record<string, string> = {}): Response {
-  return json(status, body, headers);
+function reply({ status, body }: Answer): Response {
+  return json(status, body);
 }
 
 function safeJson(text: string): unknown {

@@ -47,6 +47,7 @@ import { CursorPager } from '../cursor-pager';
 import { NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
 import { messages as m, mismatchLabel } from './messages';
+import { isProblem, mayBeRecorded, type ReleasesFailure } from './problems';
 import { KindTag, releaseName } from './release-parts';
 
 /** Releases per page, as the prototype pages them. */
@@ -181,22 +182,7 @@ export function ReleasesView(props: ReleasesViewProps) {
   );
 }
 
-type BuildRefusal = Extract<ReleasesResult<unknown>, { ok: false }>;
-
-/** Whether a failed build may still have been, or be, recorded under its key. */
-function mayBeRecorded({ error }: BuildRefusal): boolean {
-  return (
-    error.kind === 'unavailable' ||
-    (error.kind === 'problem' && isProblem(error.problem, 'idempotency-key-in-use'))
-  );
-}
-
-/** api-kit names some problems by `type` (the idempotency ones), the service by `code`. */
-function isProblem(problem: { type: string; code?: string }, name: string): boolean {
-  return problem.code === name || problem.type === name;
-}
-
-function buildFailure(result: BuildRefusal): string {
+function buildFailure(result: ReleasesFailure): string {
   const { error } = result;
   if (error.kind === 'problem') {
     const { code, mismatches } = error.problem;
