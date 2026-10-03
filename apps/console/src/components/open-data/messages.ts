@@ -225,6 +225,7 @@ export const en = {
   // Side cards
   manifest: 'Manifest',
   manifestPublic: 'Public',
+  manifestRevoked: 'Revoked',
   manifestPending: 'Issued as a Public verifiable document when published.',
   manifestQr: (code: string) => `QR code to verify release manifest ${code}`,
   verify: 'Verify',

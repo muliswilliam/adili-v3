@@ -269,10 +269,18 @@ function ManifestCard({
       id="release-manifest"
       title={m.manifest}
       actions={
-        <Badge>
-          <Icon icon={GlobeIcon} className="size-3" />
-          {m.manifestPublic}
-        </Badge>
+        // Withdrawing revokes the manifest (`withdrawOpenDataRelease`): its verify page says so.
+        view.release.status === 'withdrawn' ? (
+          <Badge variant="destructive">
+            <Icon icon={BanIcon} className="size-3" />
+            {m.manifestRevoked}
+          </Badge>
+        ) : (
+          <Badge>
+            <Icon icon={GlobeIcon} className="size-3" />
+            {m.manifestPublic}
+          </Badge>
+        )
       }
     >
       <div className="flex items-center gap-3.5 px-4 py-3.5">
