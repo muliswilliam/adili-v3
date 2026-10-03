@@ -237,7 +237,7 @@ const FIELD_WORDS = new Set([
   ...['purpose', 'parcel', 'village', 'ward', 'plot'],
   ...['bank', 'company', 'business', 'sacco', 'group', 'vehicle', 'description'],
   ...['manufacturer', 'registry', 'residence', 'constituency', 'sub-county', 'ministry'],
-  ...['organisation', 'organization'],
+  ...['organisation', 'organization', 'ordinary', 'preference', 'redeemable', 'founder'],
   ...['facility', 'interest', 'rate', 'overdraft'],
 ]);
 /** Field words that are also names: they end a span only before a value ("Ward 5"). */
@@ -281,13 +281,19 @@ const PLACES = new Set([
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
   ...['kenya', 'uganda', 'tanzania', 'rwanda', 'nyali', 'westlands', 'kilimani'],
 ]);
-/** A document's headings and vehicle makes and models, which a list's unmarked line may hold. */
+/** A document's headings and vehicle makes, which a list's unmarked line may hold. */
 const HEADING_WORDS = new Set([
   ...['assets', 'liabilities', 'security', 'offered', 'share', 'capital', 'schedule'],
   ...['registered', 'office', 'terms', 'conditions', 'particulars', 'details', 'summary'],
   ...['toyota', 'nissan', 'isuzu', 'mitsubishi', 'mazda', 'subaru', 'honda', 'mercedes'],
   ...['volkswagen', 'suzuki', 'land', 'county', 'collateral', 'vehicles', 'vehicle', 'motor'],
   ...['properties', 'property', 'shareholding', 'shareholdings', 'freehold', 'leasehold'],
+]);
+/**
+ * Vehicle models, which are also surnames ("Prado", "Fielder"): an item when a list line starts
+ * with one ("(a) Premio Year 2015"), a name after a name word ("(a) Ana Prado").
+ */
+const VEHICLE_MODELS = new Set([
   ...['premio', 'axio', 'fielder', 'vitz', 'probox', 'demio', 'allion', 'corolla', 'hilux'],
   ...['prado', 'belta', 'passo', 'ractis', 'sienta', 'wingroad', 'tiida'],
 ]);
@@ -312,6 +318,9 @@ const WRITTEN_ONLY: ReadonlySet<string> = new Set([
   ...CURRENCIES,
 ]);
 
+/** Words of an address that are also names ("Peter Box"): matched only as written. */
+const ADDRESS_WORDS: ReadonlySet<string> = new Set(['box']);
+
 /**
  * How a name word the page gives recurs: `any` case; `written`, as written, capitalised or in
  * capitals (a common word that is also a name: "Grace"); or `exact`, only as written (a word known
@@ -323,16 +332,16 @@ export function recurrenceOf(word: string): 'any' | 'written' | 'exact' {
   return WRITTEN_ONLY.has(text) || ADDRESS_WORDS.has(text) ? 'exact' : 'any';
 }
 
-/** Words of an address that are also names ("Peter Box"): matched only as written. */
-const ADDRESS_WORDS: ReadonlySet<string> = new Set(['box']);
-
 /**
  * Whether a name word found again, with `rest` the text after it, is an address's word
  * instead: "Box" before a number ("Postal: Box 99") is not the name "Box".
  */
 export function addressesAt(word: string, rest: string): boolean {
-  return ADDRESS_WORDS.has(word.toLowerCase()) && /^[ \t]*\p{N}/u.test(rest);
+  return ADDRESS_WORDS.has(word.toLowerCase()) && ADDRESS_NUMBER.test(rest);
 }
+
+/** A number after spaces, as an address's box number follows "Box". */
+const ADDRESS_NUMBER = /^[ \t]*\p{N}/u;
 
 const lower = (word: string) => word.toLowerCase();
 const isOrganisationWord = (word: string | undefined) =>
@@ -448,6 +457,9 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
   for (let at = from; at < end && words < MAX_WORDS && parties.length <= MAX_PARTIES; at++) {
     const token = tokens[at];
     if (token?.kind === 'joiner') nextParty();
+    // A shape after a name ends the span: an address, phone or email ("John Kamau P.O. Box 123
+    // Nakuru"); before it, it is skipped ("Proprietor: ID 12345678 John Kamau").
+    if (token?.kind === 'other' && token.text === BLANK && words > 0) break;
     // Numbers and other data are skipped; a currency ends the span ("John Kamau KES 12,500,000").
     if (token?.kind !== 'word') continue;
     const word = token.text;
@@ -456,7 +468,7 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
       if (!PARTICLES.has(word)) nextParty();
       continue;
     }
-    if (startsLabel(tokens, at) || labelsAField(tokens, at) || isBox(tokens, at)) break;
+    if (startsLabel(tokens, at) || labelsAField(tokens, at) || addressStarts(tokens, at)) break;
     if (JOINER_WORDS.has(lower(word))) {
       nextParty();
       continue;
@@ -584,7 +596,8 @@ function markerOf(tokens: readonly Token[]): Marker | null {
 
 /**
  * Field words that name an item, not a person, after one word on a list line ("Ordinary Shares",
- * "Freehold Tenure", "Residential Plot", "Current Account"); company words do so too ("Equity Bank").
+ * "Freehold Tenure", "Residential Plot", "Current Account"). A company word after a name makes an
+ * organisation of it on its own ("Equity Bank"), so it is not here.
  */
 const ITEM_FIELDS = new Set(['shares', 'tenure', 'plot', 'account']);
 
@@ -603,24 +616,42 @@ const isWordToken = (token: Token | undefined, text: string) =>
 const isMark = (token: Token | undefined, text: string) =>
   token?.kind === 'other' && token.text === text;
 
-/**
- * Whether the word at `at` is "Box" in an address: before a number ("Box 123"), or after "P.O." or
- * "Post Office". A name's span ends there.
- */
-function isBox(tokens: readonly Token[], at: number): boolean {
-  if (!isWordToken(tokens[at], 'box')) return false;
+/** The index of the first token after `at` that is not a space. */
+function nextToken(tokens: readonly Token[], at: number): number {
   let next = at + 1;
   while (tokens[next]?.kind === 'space') next++;
-  if (tokens[next]?.kind === 'number') return true;
+  return next;
+}
+
+/**
+ * Whether a postal address starts at the word at `at`: "Box" before a number ("Box 123"), "PO Box",
+ * "P.O. Box", "P.O Box", "Post Office Box", or "Box" after one of those. A name's span ends there.
+ */
+function addressStarts(tokens: readonly Token[], at: number): boolean {
+  const token = tokens[at];
+  if (token?.kind !== 'word') return false;
+  const word = lower(token.text);
+  // The index of "Box" after the address's opening words, or -1.
+  let box = -1;
+  if (word === 'po') box = nextToken(tokens, at);
+  if (word === 'post' && isWordToken(tokens[nextToken(tokens, at)], 'office')) {
+    box = nextToken(tokens, nextToken(tokens, at));
+  }
+  if (word === 'p' && isMark(tokens[at + 1], '.') && isWordToken(tokens[at + 2], 'o')) {
+    box = nextToken(tokens, isMark(tokens[at + 3], '.') ? at + 3 : at + 2);
+  }
+  if (box >= 0) return isWordToken(tokens[box], 'box');
+  if (word !== 'box') return false;
+  if (tokens[nextToken(tokens, at)]?.kind === 'number') return true;
+  // "Box" after "PO", "P.O.", "P.O" or "Post Office".
   const one = tokenBefore(tokens, at);
-  if (isWordToken(one.token, 'office'))
+  if (isWordToken(one.token, 'po')) return true;
+  if (isWordToken(one.token, 'office')) {
     return isWordToken(tokenBefore(tokens, one.at).token, 'post');
-  // "P.O.": P, ".", O, "." (or "P.O" without the last dot).
-  const dotted = isMark(one.token, '.') ? one.at - 1 : one.at + 1;
+  }
+  const o = isMark(one.token, '.') ? one.at - 1 : one.at;
   return (
-    isWordToken(tokens[dotted], 'o') &&
-    isMark(tokens[dotted - 1], '.') &&
-    isWordToken(tokens[dotted - 2], 'p')
+    isWordToken(tokens[o], 'o') && isMark(tokens[o - 1], '.') && isWordToken(tokens[o - 2], 'p')
   );
 }
 
@@ -653,14 +684,16 @@ function listLine(tokens: readonly Token[], from: number): ListLine {
     // An office before the name, wherever the list puts it ("Chairman John Kamau").
     if (names.length === 0 && (ROLE_WORDS.has(word) || qualifiesOffice(token.text))) continue;
     if (names.length > 0 && isOrganisationWord(word)) return other;
-    if (FIELD_WORDS.has(word) || CURRENCIES.has(word) || isBox(tokens, at)) {
+    if (FIELD_WORDS.has(word) || CURRENCIES.has(word) || addressStarts(tokens, at)) {
       atItemField = ITEM_FIELDS.has(word);
       break;
     }
     // A word after the name ends it ("Peter Otieno born 1990").
     if (!isCapitalised(token.text) && names.length > 0) break;
     // A joined word is no name when a part of it is not ("Freehold/Leasehold").
-    const known = word.split(/[-/]/u).some((part) => WRITTEN_ONLY.has(part));
+    const known =
+      word.split(/[-/]/u).some((part) => WRITTEN_ONLY.has(part)) ||
+      (names.length === 0 && VEHICLE_MODELS.has(word));
     if (!isCapitalised(token.text) || known) return other;
     names.push(token.text);
   }

@@ -320,7 +320,9 @@ export function minimise<T>(input: T): Minimised<T> {
     writtenPattern
       ? text.replace(writtenPattern, (match: string, offset: number) => {
           const cls = written.get(match);
-          if (addressesAt(match, text.slice(offset + match.length, offset + match.length + 8))) {
+          // The text just after the match, as far as a box number may sit ("Box   99").
+          const after = text.slice(offset + match.length, offset + match.length + 8);
+          if (addressesAt(match, after)) {
             return match;
           }
           return cls ? tokenFor(cls, match) : match;
