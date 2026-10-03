@@ -77,8 +77,7 @@ async function renderRelease(
     buildOpenDataRelease(as(), fy, kind, key),
   );
   const onRebuilt = vi.fn();
-  const result = await loadOpenDataRelease(as(), releaseId);
-  render(
+  const page = (result: Awaited<ReturnType<typeof loadOpenDataRelease>>) => (
     <TooltipProvider>
       <ToastProvider>
         <ReleaseView
@@ -98,9 +97,14 @@ async function renderRelease(
           )}
         />
       </ToastProvider>
-    </TooltipProvider>,
+    </TooltipProvider>
   );
-  return { publish, withdraw, rebuild, onRebuilt };
+  const { rerender } = render(page(await loadOpenDataRelease(as(), releaseId)));
+  /** Follows a link to another release: the route keeps the page mounted, as TanStack does. */
+  const navigate = async (otherId: string) => {
+    rerender(page(await loadOpenDataRelease(as(), otherId)));
+  };
+  return { publish, withdraw, rebuild, onRebuilt, navigate };
 }
 
 /** The `index`th element, which the test needs to exist. */
@@ -246,6 +250,26 @@ describe('#353 S6 publish', () => {
     expect(publish.mock.calls[1]?.[1]).toBe(publish.mock.calls[0]?.[1]);
   });
 
+  it('sends another release a key of its own after no answer on the first', async () => {
+    const first = await preview2026();
+    const second = await preview2026();
+    resetReleasesMock('documents-unavailable', { keep: true });
+    const { publish, navigate } = await renderRelease(first);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+    await within(screen.getByRole('dialog')).findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    resetReleasesMock('history', { keep: true });
+    await navigate(second);
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+
+    expect(await screen.findByText('Published. It is public now.')).toBeTruthy();
+    expect(publish.mock.calls[1]?.[1]).not.toBe(publish.mock.calls[0]?.[1]);
+    expect((await statusOf(second))?.status).toBe('published');
+  });
+
   it('a refusal ends the key: the next opening sends a new one', async () => {
     const id = await preview2026();
     const { publish } = await renderRelease(id, { as: analyst, isSupervisor: true });
@@ -331,6 +355,59 @@ describe('#353 S7 withdraw', () => {
       withdrawnBy: { name: 'Esther Chebet' },
       withdrawnReason: 'The Nyeri board was left out.',
     });
+  });
+
+  it('keeps the reason with the kept key when the dialog opens again after no answer', async () => {
+    resetReleasesMock('documents-unavailable', { keep: true });
+    const { withdraw } = await renderRelease(PUBLISHED_V2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    fireEvent.change(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Reason' }), {
+      target: { value: 'Wrong totals.' },
+    });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Withdraw' }));
+    await within(screen.getByRole('dialog')).findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    resetReleasesMock('history', { keep: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole<HTMLTextAreaElement>('textbox', { name: 'Reason' }).value).toBe(
+      'Wrong totals.',
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
+
+    expect(await screen.findByText('Withdrawn. The reason is public.')).toBeTruthy();
+    expect(withdraw.mock.calls[1]?.[2]).toBe(withdraw.mock.calls[0]?.[2]);
+  });
+
+  it('sends another release a withdraw key of its own', async () => {
+    resetNcrMock('approved');
+    resetReleasesMock('history');
+    resetReleasesMock('documents-unavailable', { keep: true });
+    const { withdraw, navigate } = await renderRelease(PUBLISHED_V2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    fireEvent.change(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Reason' }), {
+      target: { value: 'Wrong totals.' },
+    });
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Withdraw' }));
+    await within(screen.getByRole('dialog')).findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    resetReleasesMock('history', { keep: true });
+    await navigate(ANNUAL_V1);
+    fireEvent.click(screen.getByRole('button', { name: 'Withdraw' }));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole<HTMLTextAreaElement>('textbox', { name: 'Reason' }).value).toBe(
+      '',
+    );
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Reason' }), {
+      target: { value: 'Wrong totals.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw' }));
+
+    expect(await screen.findByText('Withdrawn. The reason is public.')).toBeTruthy();
+    expect(withdraw.mock.calls[1]?.[2]).not.toBe(withdraw.mock.calls[0]?.[2]);
+    expect((await statusOf(ANNUAL_V1))?.status).toBe('withdrawn');
   });
 
   it('counts a reason of spaces as no reason', async () => {
