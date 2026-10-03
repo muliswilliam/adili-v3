@@ -191,6 +191,12 @@ export type NarrativeEditorProps<P extends NarrativeEditorParagraph = NarrativeE
       notice?: ReactNode;
       /** Under a paragraph, e.g. its AI label and figure citations. */
       paragraphMeta?: (paragraph: P, section: NarrativeSection) => ReactNode;
+      /**
+       * Shown in place of a section's paragraphs when it returns something, e.g. a skeleton while
+       * AI drafts the section. The section keeps its heading and count; its paragraphs cannot be
+       * edited until it returns null again.
+       */
+      sectionBody?: (section: NarrativeSection) => ReactNode;
       messages?: Partial<NarrativeEditorMessages>;
     };
 
@@ -213,6 +219,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   actions,
   notice,
   paragraphMeta,
+  sectionBody,
   createParagraph,
   messages,
   className,
@@ -287,6 +294,8 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
               ? paragraphs
               : [makeParagraph(startId(section.id), section)];
           const written = paragraphs.filter((paragraph) => paragraph.text.trim() !== '');
+          const replaced = sectionBody?.(section);
+          const hasReplacement = replaced !== null && replaced !== undefined && replaced !== false;
 
           return (
             <div
@@ -313,7 +322,9 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                   </span>
                 )}
               </div>
-              {readOnly ? (
+              {hasReplacement ? (
+                replaced
+              ) : readOnly ? (
                 <div className="flex flex-col gap-3">
                   {written.length > 0 ? (
                     written.map((paragraph) => (
