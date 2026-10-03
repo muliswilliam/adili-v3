@@ -162,7 +162,7 @@ describe('#350 build snapshot', () => {
     if (!alert) throw new Error('expected the build failure as an alert');
     expect(alert.textContent).toContain('Snapshot build stopped.');
     expect(alert.textContent).toContain(
-      'National totals did not match their source (declarations made, declarations made, final cycle). Nothing was written.',
+      'National totals did not match their source (declarations made in all cycles, declarations made in the final cycle). Nothing was written.',
     );
     expect(within(alert).getByRole('button', { name: 'Try again' })).toBeTruthy();
     fireEvent.click(within(alert).getByRole('button', { name: 'Dismiss' }));

@@ -17,7 +17,7 @@ import {
   TabsTrigger,
 } from '@adili/ui';
 import {
-  Cancel01Icon,
+  BanIcon,
   GlobeIcon,
   SecurityCheckIcon,
   SquareLock02Icon,
@@ -125,7 +125,7 @@ function Banner({ view }: { view: OpenDataReleaseView }) {
   if (release.status === 'withdrawn') {
     return (
       <Alert variant="destructive" className="mb-3.5">
-        <Icon icon={Cancel01Icon} />
+        <Icon icon={BanIcon} />
         <AlertDescription>
           <b>
             {m.withdrawnBanner(
@@ -284,18 +284,15 @@ function FilesCard({ view }: { view: OpenDataReleaseView }) {
           return (
             <li key={file.table} className="px-4 py-2 text-[13.5px]">
               <div className="truncate font-medium">{file.table}</div>
-              <div className="flex flex-wrap gap-x-1.5 text-[12.5px] text-muted-foreground">
-                <span>
-                  {m.fileRows(file.rows)}
-                  {hidden > 0 ? ` · ${m.fileHidden(hidden)}` : ''}
-                </span>
-                <span
-                  className="truncate font-mono"
-                  title={m.fileHash(file.sha256Json)}
-                  aria-label={m.fileHash(file.sha256Json)}
-                >
-                  {file.sha256Json.slice(0, 12)}…
-                </span>
+              <div className="text-[12.5px] text-muted-foreground">
+                {m.fileRows(file.rows)}
+                {hidden > 0 ? ` · ${m.fileHidden(hidden)}` : ''}
+              </div>
+              <div
+                className="truncate font-mono text-[11.5px] text-muted-foreground"
+                title={m.fileHash(file.sha256Json)}
+              >
+                {m.fileHash(file.sha256Json)}
               </div>
             </li>
           );

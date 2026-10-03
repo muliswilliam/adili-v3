@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Card,
+  cn,
   Dialog,
   DialogBody,
   DialogContent,
@@ -9,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   EmptyState,
+  focusRingInset,
   formatDate,
   formatDateTime,
   Icon,
@@ -202,52 +204,82 @@ function ReleasesTable({ releases }: { releases: OpenDataRelease[] }) {
   const shown = releases.slice(from, from + PER_PAGE);
   return (
     <Card className="overflow-hidden p-0 sm:p-0">
-      <Table caption={m.listCaption}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{m.columnYear}</TableHead>
-            <TableHead>{m.columnKind}</TableHead>
-            <TableHead className="text-right">{m.columnVersion}</TableHead>
-            <TableHead>{m.columnStatus}</TableHead>
-            <TableHead>{m.columnPublished}</TableHead>
-            <TableHead className="w-10">
-              <span className="sr-only">{m.release}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {shown.map((release) => (
-            <TableRow key={release.id} className="relative hover:bg-muted/40">
-              <TableHead scope="row" className="py-4 text-[14.5px] font-semibold text-foreground">
-                <TableRowLink asChild>
-                  <Link
-                    to="/eacc/open-data/$releaseId"
-                    params={{ releaseId: release.id }}
-                    aria-label={m.openRelease(releaseName(release))}
-                  >
-                    {m.year(release.fy)}
-                  </Link>
-                </TableRowLink>
+      {/* Phones get a list of the same releases; the table needs the width. */}
+      <ul className="divide-y min-[700px]:hidden">
+        {shown.map((release) => (
+          <li key={release.id}>
+            <Link
+              to="/eacc/open-data/$releaseId"
+              params={{ releaseId: release.id }}
+              aria-label={m.openRelease(releaseName(release))}
+              className={cn('flex items-center gap-2.5 px-4 py-3.5', focusRingInset)}
+            >
+              <div className="grid min-w-0 flex-1 gap-1.5">
+                <div className="flex flex-wrap items-center gap-2 font-semibold">
+                  {m.year(release.fy)}
+                  <KindTag>{m.kind[release.kind]}</KindTag>
+                  <span className="text-[13px] font-medium text-muted-foreground">
+                    {m.version(release.version)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+                  <ReleaseStatusBadge status={release.status} />
+                  <PublicationLine release={release} />
+                </div>
+              </div>
+              <Icon icon={ArrowRight01Icon} className="size-[17px] text-muted-foreground" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden min-[700px]:block">
+        <Table caption={m.listCaption}>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{m.columnYear}</TableHead>
+              <TableHead>{m.columnKind}</TableHead>
+              <TableHead className="text-right">{m.columnVersion}</TableHead>
+              <TableHead>{m.columnStatus}</TableHead>
+              <TableHead>{m.columnPublished}</TableHead>
+              <TableHead className="w-10">
+                <span className="sr-only">{m.release}</span>
               </TableHead>
-              <TableCell>
-                <KindTag>{m.kind[release.kind]}</KindTag>
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {m.version(release.version)}
-              </TableCell>
-              <TableCell>
-                <ReleaseStatusBadge status={release.status} />
-              </TableCell>
-              <TableCell>
-                <Publication release={release} />
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                <Icon icon={ArrowRight01Icon} className="size-[17px]" />
-              </TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {shown.map((release) => (
+              <TableRow key={release.id} className="relative hover:bg-muted/40">
+                <TableHead scope="row" className="py-4 text-[14.5px] font-semibold text-foreground">
+                  <TableRowLink asChild>
+                    <Link
+                      to="/eacc/open-data/$releaseId"
+                      params={{ releaseId: release.id }}
+                      aria-label={m.openRelease(releaseName(release))}
+                    >
+                      {m.year(release.fy)}
+                    </Link>
+                  </TableRowLink>
+                </TableHead>
+                <TableCell>
+                  <KindTag>{m.kind[release.kind]}</KindTag>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {m.version(release.version)}
+                </TableCell>
+                <TableCell>
+                  <ReleaseStatusBadge status={release.status} />
+                </TableCell>
+                <TableCell>
+                  <Publication release={release} />
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  <Icon icon={ArrowRight01Icon} className="size-[17px]" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
       <CursorPager
         labels={{
           pagination: m.pagination,
@@ -271,8 +303,13 @@ function ReleasesTable({ releases }: { releases: OpenDataRelease[] }) {
   );
 }
 
-/** When and by whom it was published; a preview is not, a withdrawn one says when. */
-function Publication({ release }: { release: OpenDataRelease }) {
+/** The phone list's line: when it was published, then who or since when it is withdrawn. */
+function PublicationLine({ release }: { release: OpenDataRelease }) {
+  const { main, sub } = publicationOf(release);
+  return <span>{[release.publishedAt ? main : null, sub].filter(Boolean).join(' · ')}</span>;
+}
+
+function publicationOf(release: OpenDataRelease): { main: string; sub: string | null } {
   const main = release.publishedAt ? formatDateTime(release.publishedAt) : m.notPublished;
   const sub =
     release.status === 'withdrawn' && release.withdrawnAt
@@ -280,6 +317,12 @@ function Publication({ release }: { release: OpenDataRelease }) {
       : release.status === 'preview'
         ? m.builtOn(formatDateTime(release.builtAt))
         : (release.publishedBy?.name ?? null);
+  return { main, sub };
+}
+
+/** When and by whom it was published; a preview is not, a withdrawn one says when. */
+function Publication({ release }: { release: OpenDataRelease }) {
+  const { main, sub } = publicationOf(release);
   return (
     <div className="min-w-0">
       <div className="text-[14px] text-foreground">{main}</div>

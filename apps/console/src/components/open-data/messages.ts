@@ -188,8 +188,8 @@ export function mismatchLabel(path: string): string {
       declared: 'declarations made',
       notDeclared: 'did not declare',
     };
-    const cycle = part === 'all' ? '' : `, ${part} cycle`;
-    return `${figures[figure] ?? figure}${cycle}`;
+    const cycle = part === 'all' ? 'in all cycles' : `in the ${part} cycle`;
+    return `${figures[figure] ?? figure} ${cycle}`;
   }
   return path;
 }

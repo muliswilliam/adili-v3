@@ -81,7 +81,8 @@ export function resetReleasesMock(
   store = { seed, releases: [], builds: new Map(), buildMs };
   if (seed === 'none') return;
   const midYear = midYearAggregates();
-  if (!midYear) return;
+  const firstMidYear = midYearAggregates({ kwaleCountedTwice: true });
+  if (!midYear || !firstMidYear) return;
   const source: Source = { kind: 'live-projections', nationalReportReference: null };
   store.releases.push(
     stored(
@@ -103,7 +104,7 @@ export function resetReleasesMock(
       },
       BRIAN,
       source,
-      midYear,
+      firstMidYear,
     ),
     stored(
       {
@@ -390,20 +391,53 @@ const section = (expected: number, declared: number): SectionAggregate => ({
   rate: expected > 0 ? Math.round((declared / expected) * 10_000) / 10_000 : null,
 });
 
-/** FY 2025/2026 as it stood in February 2026: every Commission's counts so far, none reported. */
-function midYearAggregates(): NationalAggregates | null {
+/**
+ * FY 2025/2026 as it stood in February 2026: every Commission's counts so far, none reported.
+ * The boards that had not reported for the year by the NCR's build count from their own
+ * rosters. `kwaleCountedTwice` is version 1's fault: the Kwale board's final declarations twice.
+ */
+function midYearAggregates({ kwaleCountedTwice = false } = {}): NationalAggregates | null {
   const year = mockNcrSourceOf(FIRST_YEAR)?.aggregates;
   if (!year) return null;
   const midYear = (counts: SectionAggregate | null) =>
     counts ? section(counts.expected, Math.round(counts.declared * 0.61)) : null;
+  const unreported: Record<string, LiveCounts> = {
+    cpsbkwale: {
+      initial: section(254, 151),
+      biennial: section(2822, 1702),
+      final: section(66, kwaleCountedTwice ? 64 : 32),
+      clarifications: 2,
+    },
+    cpsbmandera: {
+      initial: section(118, 64),
+      biennial: section(1610, 902),
+      final: section(7, 4),
+      clarifications: 1,
+    },
+    cpsbturkana: {
+      initial: section(96, 55),
+      biennial: section(1388, 840),
+      final: section(9, 6),
+      clarifications: 0,
+    },
+  };
   return aggregatesOf(
     FIRST_YEAR,
     Object.fromEntries(
       Object.entries(year.byCommission).map(([slug, row]) => {
-        const initial = midYear(row.initial) ?? section(42, 26);
-        const biennial = midYear(row.biennial) ?? section(380, 231);
-        const final = midYear(row.final) ?? section(6, 4);
-        return [slug, { initial, biennial, final, clarifications: row.clarifications ?? 2 }];
+        const own = unreported[slug];
+        const initial = midYear(row.initial);
+        const biennial = midYear(row.biennial);
+        const final = midYear(row.final);
+        return [
+          slug,
+          own ?? {
+            initial: initial ?? section(0, 0),
+            biennial: biennial ?? section(0, 0),
+            final: final ?? section(0, 0),
+            clarifications: row.clarifications ?? 0,
+          },
+        ];
       }),
     ),
   );

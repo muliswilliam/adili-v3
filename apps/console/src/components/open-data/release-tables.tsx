@@ -2,7 +2,6 @@ import {
   cn,
   EmptyState,
   focusRing,
-  formatPercent,
   Icon,
   SegmentedChoice,
   SuppressionLegend,
@@ -40,6 +39,10 @@ import { messages as m } from './messages';
 /** Rows per page of a release table, as the prototype pages them. */
 const PER_PAGE = 15;
 
+type Sort = { column: string; direction: 'asc' | 'desc' } | null;
+
+const BY_NAME: Sort = { column: 'commission', direction: 'asc' };
+
 /** Why a figure is not shown; null when it is. */
 type Gap = UnshownFigureKind | null;
 
@@ -64,6 +67,8 @@ interface TableModel<Row> {
   /** The kinds of marker the rows show, for the legend's keys. */
   gaps: Gap[];
   key: (row: Row) => string;
+  /** The order before any column is sorted: Commissions by name. */
+  defaultSort?: Sort;
 }
 
 /** A figure, or the marker saying why it is not shown. */
@@ -83,7 +88,13 @@ function Figure({
   return <>{format(value)}</>;
 }
 
-const rate = (value: number) => formatPercent(value * 100);
+const RATE_FORMAT = new Intl.NumberFormat('en-KE', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+/** A rate (0 to 1) as a percentage to one decimal, so a column of rates lines up: `90.0%`. */
+const rate = (value: number) => `${RATE_FORMAT.format(value * 100)}%`;
 
 /** A figure's gap: suppressed, or for want of data. */
 function gapOf(
@@ -174,6 +185,7 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
         rows,
         key: (row: Row) => row.commission,
         name: textColumn('commission', m.columnCommission, (row: Row) => row.commissionName),
+        defaultSort: BY_NAME,
         columns: filingColumns<Row>(threshold),
         rowGap: (row: Row) => (notReported(row) ? 'not-reported' : null),
         gaps: rows.map((row) =>
@@ -190,6 +202,7 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
         rows,
         key: (row: Row) => row.commission,
         name: textColumn('commission', m.columnCommission, (row: Row) => row.commissionName),
+        defaultSort: BY_NAME,
         columns: COMPLIANCE_FIGURES.map((figure) => ({
           id: figure,
           ...COMPLIANCE_COLUMNS[figure],
@@ -243,6 +256,7 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
         rows,
         key: (row: Row) => row.commission,
         name: textColumn('commission', m.columnCommission, (row: Row) => row.commissionName),
+        defaultSort: BY_NAME,
         columns: ACCESS_REQUEST_FIGURES.map((figure) => ({
           id: figure,
           label: labels[figure],
@@ -315,8 +329,6 @@ function cyclesOf(tables: ReadTables): Cycle[] {
   return ['all', ...CYCLES.filter((cycle) => present.includes(cycle))];
 }
 
-type Sort = { column: string; direction: 'asc' | 'desc' } | null;
-
 /**
  * One of a release's six tables (S4, S6): its legend with how many figures suppression hides,
  * the cycle filter on Declarations by Commission, the rows sortable by any column and paged.
@@ -331,11 +343,13 @@ export function ReleaseTable({ tables, table }: { tables: ReadTables; table: Ope
   const { threshold, cellsSuppressed } = tables[table].suppression;
   const keys = LEGEND_KEYS.filter((kind) => model.gaps.includes(kind));
   const all = [model.name, ...model.columns];
-  const sorted = sortRows(model.rows, all, sort);
-  const pages = Math.max(1, Math.ceil(sorted.length / PER_PAGE));
+  const sorted = sortRows(model.rows, all, sort ?? model.defaultSort ?? null);
+  // The national totals are one list of measures, read whole.
+  const perPage = table === 'national-totals' ? sorted.length || 1 : PER_PAGE;
+  const pages = Math.max(1, Math.ceil(sorted.length / perPage));
   const current = Math.min(page, pages);
-  const from = (current - 1) * PER_PAGE;
-  const shown = sorted.slice(from, from + PER_PAGE);
+  const from = (current - 1) * perPage;
+  const shown = sorted.slice(from, from + perPage);
   const grouped = model.columns.some((column) => column.group);
   const toggleSort = (column: string) => {
     setPage(1);
@@ -422,7 +436,7 @@ export function ReleaseTable({ tables, table }: { tables: ReadTables; table: Ope
                   <TableHead
                     scope="row"
                     className={cn(
-                      'min-w-[200px] py-2.5 text-[14px] font-medium whitespace-normal text-foreground',
+                      'min-w-[180px] py-2.5 text-[14px] font-medium whitespace-normal text-foreground min-[700px]:whitespace-nowrap',
                       gap && 'text-muted-foreground',
                     )}
                   >
