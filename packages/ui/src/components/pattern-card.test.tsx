@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { readFileSync } from 'node:fs';
@@ -7,7 +8,7 @@ import { createRequire } from 'node:module';
 
 import { parse } from 'yaml';
 
-import { PATTERN_KINDS, PatternCard, PatternCardSkeleton } from './pattern-card';
+import { PATTERN_CANDIDATE_KINDS, PatternCard, PatternCardSkeleton } from './pattern-card';
 
 describe('PatternCard', () => {
   it('names the card by its kind and subject, and shows its value and comparison', () => {
@@ -40,7 +41,7 @@ describe('PatternCard', () => {
   it('has a label for every kind of the contract, in its order', () => {
     render(
       <>
-        {PATTERN_KINDS.map((kind) => (
+        {PATTERN_CANDIDATE_KINDS.map((kind) => (
           <PatternCard key={kind} kind={kind} subject="National" value="1" />
         ))}
       </>,
@@ -64,7 +65,7 @@ describe('PatternCard', () => {
         schemas: { PatternCandidate: { properties: { kind: { enum: string[] } } } };
       };
     };
-    expect(PATTERN_KINDS).toEqual(
+    expect(PATTERN_CANDIDATE_KINDS).toEqual(
       contract.components.schemas.PatternCandidate.properties.kind.enum,
     );
   });
@@ -90,6 +91,42 @@ describe('PatternCard', () => {
     expect(screen.getByRole('button').textContent).toBe('Cite in findings');
   });
 
+  it('keeps focus on the action when the caller marks the pattern cited, and says so', async () => {
+    function Citable() {
+      const [cited, setCited] = useState(false);
+      return (
+        <PatternCard
+          kind="rate-change"
+          subject="National"
+          value="9.8%"
+          cited={cited}
+          onCite={() => {
+            setCited(true);
+          }}
+        />
+      );
+    }
+    render(<Citable />);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Cite in findings: Rate change, National' }),
+    );
+
+    const done = screen.getByRole('button', { name: 'Cited in findings: Rate change, National' });
+    expect(document.activeElement).toBe(done);
+    expect(done.getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('status').textContent).toBe('Cited in findings');
+  });
+
+  it('does nothing when the cited action is pressed again', async () => {
+    const onCite = vi.fn();
+    render(<PatternCard kind="rate-change" subject="National" value="1" cited onCite={onCite} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Cited in findings/ }));
+
+    expect(onCite).not.toHaveBeenCalled();
+  });
+
   it('says it is cited in findings instead of offering to cite it again', () => {
     render(
       <PatternCard
@@ -101,9 +138,15 @@ describe('PatternCard', () => {
       />,
     );
 
+    expect(screen.getByRole('button').textContent).toBe('Cited in findings');
+    expect(screen.getByRole('article').dataset.cited).toBe('true');
+  });
+
+  it('says it is cited without a button where the narrative is read only', () => {
+    render(<PatternCard kind="non-reporting" subject="National" value="2 of 47" cited />);
+
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Cited in findings')).toBeTruthy();
-    expect(screen.getByRole('article').dataset.cited).toBe('true');
   });
 
   it('has no action when it can be neither cited nor was cited (read only)', () => {

@@ -1,7 +1,7 @@
 import {
   BalanceScaleIcon,
   BanIcon,
-  ChartIncreaseIcon,
+  ChartLineData01Icon,
   Clock01Icon,
   DashboardSpeed01Icon,
   Message01Icon,
@@ -16,8 +16,8 @@ import { Button } from './button';
 import { Icon, type IconProps } from './icon';
 import { Skeleton } from './skeleton';
 
-/** A notable pattern's kind, as reporting.yaml `PatternCandidate.kind`, in the order candidates are listed. */
-export const PATTERN_KINDS = [
+/** reporting.yaml `PatternCandidate.kind`, in the order candidates are listed. */
+export const PATTERN_CANDIDATE_KINDS = [
   'rate-change',
   'threshold-breach',
   'chronic-late-reporting',
@@ -26,16 +26,16 @@ export const PATTERN_KINDS = [
   'non-reporting',
 ] as const;
 
-export type PatternKind = (typeof PATTERN_KINDS)[number];
+export type PatternCandidateKind = (typeof PATTERN_CANDIDATE_KINDS)[number];
 
-export interface PatternKindCopy {
+export interface PatternCandidateKindCopy {
   /** The badge's words. */
   label: string;
   /** What makes a pattern of this kind notable, in the badge's title. */
   description: string;
 }
 
-export const PATTERN_KIND_COPY: Record<PatternKind, PatternKindCopy> = {
+export const PATTERN_CANDIDATE_KIND_COPY: Record<PatternCandidateKind, PatternCandidateKindCopy> = {
   'rate-change': {
     label: 'Rate change',
     description: 'A non-filer rate that moved sharply since last year',
@@ -62,8 +62,9 @@ export const PATTERN_KIND_COPY: Record<PatternKind, PatternKindCopy> = {
   },
 };
 
-const KIND_ICONS: Record<PatternKind, IconProps['icon']> = {
-  'rate-change': ChartIncreaseIcon,
+const KIND_ICONS: Record<PatternCandidateKind, IconProps['icon']> = {
+  // A line, not an arrow: a rate change is either way (doubled or halved).
+  'rate-change': ChartLineData01Icon,
   'threshold-breach': DashboardSpeed01Icon,
   'chronic-late-reporting': Clock01Icon,
   'clarification-ratio-outlier': Message01Icon,
@@ -75,13 +76,15 @@ export interface PatternCardMessages {
   /** The card's accessible name. */
   name: (kindLabel: string, subject: string) => string;
   /** Replaces any kind's label or description. */
-  kinds: Partial<Record<PatternKind, PatternKindCopy>>;
+  kinds: Partial<Record<PatternCandidateKind, PatternCandidateKindCopy>>;
   /** The cite button's words. */
   cite: string;
   /** The cite button's accessible name, so each card's button says which pattern it cites. */
   citeName: (kindLabel: string, subject: string) => string;
-  /** Shown in place of the button once the pattern is cited. */
+  /** Shown once the pattern is cited, and announced when it becomes so. */
   cited: string;
+  /** The cited button's accessible name. */
+  citedName: (kindLabel: string, subject: string) => string;
 }
 
 export const PATTERN_CARD_MESSAGES: PatternCardMessages = {
@@ -90,13 +93,20 @@ export const PATTERN_CARD_MESSAGES: PatternCardMessages = {
   cite: 'Cite in findings',
   citeName: (kindLabel, subject) => `Cite in findings: ${kindLabel}, ${subject}`,
   cited: 'Cited in findings',
+  citedName: (kindLabel, subject) => `Cited in findings: ${kindLabel}, ${subject}`,
 };
 
 const cardClassName = 'flex min-w-0 flex-col gap-1.5 rounded-xl bg-card px-4 py-3.5';
 
+const citedClassName = 'text-[13px] font-medium text-success [&_svg]:size-3.5';
+
 export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
-  kind: PatternKind;
-  /** Who the pattern is about, by name: a Commission's name, or "National". Names the card. */
+  kind: PatternCandidateKind;
+  /**
+   * Who the pattern is about (`PatternCandidate.subject`: a Commission, an entity type, or
+   * `national`), by the name a reader knows: "Nairobi City County Public Service Board",
+   * "National". Names the card.
+   */
   subject: string;
   /** The main figure, formatted: "12.4%", "3 years", "2 of 47". */
   value: ReactNode;
@@ -106,7 +116,7 @@ export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
   comparison?: ReactNode;
   /** Offers "Cite in findings". Left out where the narrative cannot be edited. */
   onCite?: () => void;
-  /** The findings already cite it: "Cited in findings" in place of the button. */
+  /** The findings already cite it: "Cited in findings" in place of the offer. */
   cited?: boolean;
   /** Replaces the cite action with anything else. */
   action?: ReactNode;
@@ -117,7 +127,8 @@ export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
  * A notable pattern the reporting service computed (`PatternCandidate`): its kind as a badge (icon
  * and words, the kind explained in the title), the subject, the main figure in 22px with what it
  * is, the comparison, then the action: "Cite in findings", "Cited in findings" or the `action`
- * slot. The caller formats the figures from the candidate's `values`.
+ * slot. Citing keeps the same button, now `aria-disabled` and green, so focus stays on it, and a
+ * status announces it. The caller formats the figures from the candidate's `values`.
  */
 export function PatternCard({
   kind,
@@ -133,30 +144,41 @@ export function PatternCard({
   ...props
 }: PatternCardProps) {
   const copy = { ...PATTERN_CARD_MESSAGES, ...messages };
-  const kindCopy = copy.kinds[kind] ?? PATTERN_KIND_COPY[kind];
+  const kindCopy = copy.kinds[kind] ?? PATTERN_CANDIDATE_KIND_COPY[kind];
 
-  const act = action ?? citeAction();
+  const footer = action ?? citeAction();
 
   function citeAction() {
-    if (cited) {
+    if (onCite) {
       return (
-        <span className="inline-flex h-[34px] items-center gap-1.5 text-[13px] font-medium text-success [&_svg]:size-3.5">
-          <Icon icon={Tick02Icon} strokeWidth={2.4} />
-          {copy.cited}
-        </span>
+        <>
+          <Button
+            variant={cited ? 'ghost' : 'secondary'}
+            size="sm"
+            aria-disabled={cited || undefined}
+            aria-label={(cited ? copy.citedName : copy.citeName)(kindCopy.label, subject)}
+            onClick={cited ? undefined : onCite}
+            className={cn(
+              cited &&
+                `-ml-2 cursor-default px-2 hover:bg-transparent hover:text-success active:translate-y-0 ${citedClassName}`,
+            )}
+          >
+            <Icon icon={cited ? Tick02Icon : PlusSignIcon} strokeWidth={cited ? 2.4 : undefined} />
+            {cited ? copy.cited : copy.cite}
+          </Button>
+          <span role="status" className="sr-only">
+            {cited ? copy.cited : ''}
+          </span>
+        </>
       );
     }
-    if (!onCite) return null;
+    if (!cited) return null;
     return (
-      <Button
-        variant="secondary"
-        size="sm"
-        aria-label={copy.citeName(kindCopy.label, subject)}
-        onClick={onCite}
-      >
-        <Icon icon={PlusSignIcon} />
-        {copy.cite}
-      </Button>
+      // As tall as the button it stands for, so a card keeps its height read only.
+      <span className={cn('inline-flex h-[34px] items-center gap-1.5', citedClassName)}>
+        <Icon icon={Tick02Icon} strokeWidth={2.4} />
+        {copy.cited}
+      </span>
     );
   }
 
@@ -165,12 +187,7 @@ export function PatternCard({
       aria-label={copy.name(kindCopy.label, subject)}
       data-kind={kind}
       data-cited={cited || undefined}
-      className={cn(
-        cardClassName,
-        // The cited card's ring is a step darker, as the kit's `.pat.cited`.
-        cited ? 'shadow-[0_0_0_1px_var(--color-input)]' : 'shadow-card-flat',
-        className,
-      )}
+      className={cn(cardClassName, cited ? 'shadow-card-cited' : 'shadow-card-flat', className)}
       {...props}
     >
       <div>
@@ -191,7 +208,7 @@ export function PatternCard({
           {comparison}
         </div>
       ) : null}
-      {act ? <div className="mt-auto pt-2">{act}</div> : null}
+      {footer ? <div className="mt-auto pt-2">{footer}</div> : null}
     </article>
   );
 }

@@ -1,4 +1,5 @@
 import { AlertCircleIcon, HashtagIcon } from '@hugeicons/core-free-icons';
+import type { HTMLAttributes, Ref } from 'react';
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
@@ -31,7 +32,12 @@ export const FIGURE_CHIP_MESSAGES: FigureChipMessages = {
 const chipClassName =
   'inline-flex h-6 max-w-full items-center gap-[5px] overflow-hidden rounded-chip pr-[9px] pl-[7px] text-[12.5px] whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0';
 
-export interface FigureChipProps {
+/**
+ * Native attributes (`id`, `data-*`, `aria-*`) and `ref` reach whichever element renders: the
+ * button, or the span of a static or unresolved figure.
+ */
+export interface FigureChipProps extends Omit<HTMLAttributes<HTMLElement>, 'children' | 'onClick'> {
+  ref?: Ref<HTMLElement>;
   /** The aggregate key a narrative paragraph cites. */
   aggregateKey: string;
   format: FigureFormatter;
@@ -41,7 +47,6 @@ export interface FigureChipProps {
    */
   onShow?: (aggregateKey: string) => void;
   messages?: Partial<FigureChipMessages>;
-  className?: string;
 }
 
 /**
@@ -50,7 +55,15 @@ export interface FigureChipProps {
  * a key `format` cannot resolve reads "Figure not found" in amber, the key in its title for
  * whoever has to find out why.
  */
-export function FigureChip({ aggregateKey, format, onShow, messages, className }: FigureChipProps) {
+export function FigureChip({
+  aggregateKey,
+  format,
+  onShow,
+  messages,
+  className,
+  ref,
+  ...props
+}: FigureChipProps) {
   const copy = { ...FIGURE_CHIP_MESSAGES, ...messages };
   const figure = format(aggregateKey);
 
@@ -59,6 +72,8 @@ export function FigureChip({ aggregateKey, format, onShow, messages, className }
       <span
         title={aggregateKey}
         data-state="not-found"
+        {...props}
+        ref={ref}
         className={cn(
           chipClassName,
           'bg-warning-subtle text-warning-subtle-foreground [&_svg]:text-warning',
@@ -81,12 +96,21 @@ export function FigureChip({ aggregateKey, format, onShow, messages, className }
   );
   const tone = 'bg-muted text-secondary-foreground';
 
-  if (!onShow) return <span className={cn(chipClassName, tone, className)}>{inner}</span>;
+  if (!onShow) {
+    return (
+      <span {...props} ref={ref} className={cn(chipClassName, tone, className)}>
+        {inner}
+      </span>
+    );
+  }
 
   return (
     <button
       type="button"
       aria-label={copy.name(figure.label, figure.value)}
+      {...props}
+      // React only writes the element into the ref, and a button is an HTMLElement.
+      ref={ref as Ref<HTMLButtonElement>}
       onClick={() => {
         onShow(aggregateKey);
       }}

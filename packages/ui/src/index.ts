@@ -367,15 +367,15 @@ export {
   type OutcomeBadgeProps,
 } from './components/outcome-badge';
 export {
+  PATTERN_CANDIDATE_KIND_COPY,
+  PATTERN_CANDIDATE_KINDS,
   PATTERN_CARD_MESSAGES,
-  PATTERN_KIND_COPY,
-  PATTERN_KINDS,
+  type PatternCandidateKind,
+  type PatternCandidateKindCopy,
   PatternCard,
   type PatternCardMessages,
   type PatternCardProps,
   PatternCardSkeleton,
-  type PatternKind,
-  type PatternKindCopy,
 } from './components/pattern-card';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export {

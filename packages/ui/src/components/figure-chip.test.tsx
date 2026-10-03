@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { type FigureFormatter, FigureChip } from './figure-chip';
+import { type FigureFormatter, FigureChip, type ResolvedFigure } from './figure-chip';
 
-const figures: Record<string, { label: string; value: string }> = {
+const figures: Record<string, ResolvedFigure> = {
   'national.filingRate': { label: 'National filing rate 2027', value: '91.2%' },
   'fy2026.commission.cpsb047.nonFilerRate': {
     label: 'Nairobi non-filer rate 2026',
@@ -58,7 +59,7 @@ describe('FigureChip', () => {
     const chip = screen.getByText('Figure not found').parentElement;
     expect(screen.queryByRole('button')).toBeNull();
     expect(chip?.getAttribute('title')).toBe('commission.xyz.filingRate');
-    expect(chip?.className).toContain('bg-warning-subtle');
+    expect(chip?.dataset.state).toBe('not-found');
   });
 
   it('takes other wording', () => {
@@ -76,5 +77,27 @@ describe('FigureChip', () => {
         name: 'Takwimu National filing rate 2027: 91.2%. Onyesha jedwalini',
       }),
     ).toBeTruthy();
+  });
+
+  it('passes native attributes and the ref to whichever element renders', () => {
+    const button = createRef<HTMLElement>();
+    const span = createRef<HTMLElement>();
+    render(
+      <>
+        <FigureChip
+          aggregateKey="national.filingRate"
+          format={format}
+          onShow={() => undefined}
+          ref={button}
+          data-testid="pressable"
+          aria-describedby="note"
+        />
+        <FigureChip aggregateKey="nope" format={format} ref={span} id="missing" />
+      </>,
+    );
+
+    expect(button.current?.tagName).toBe('BUTTON');
+    expect(screen.getByTestId('pressable').getAttribute('aria-describedby')).toBe('note');
+    expect(span.current?.id).toBe('missing');
   });
 });

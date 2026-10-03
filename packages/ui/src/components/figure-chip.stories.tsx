@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
-import { type FigureFormatter, FigureChip } from './figure-chip';
+import { type FigureFormatter, FigureChip, type ResolvedFigure } from './figure-chip';
 
 // What the console's formatter would make of the NCR aggregates for FY 2026/27, by aggregate key.
-const FIGURES: Record<string, { label: string; value: string }> = {
+const FIGURES: Record<string, ResolvedFigure> = {
   'national.filingRate': { label: 'National filing rate 2026/27', value: '91.2%' },
   'national.reportedOnTime': { label: 'Commissions reported on time 2026/27', value: '38' },
   'commission.cpsb047.biennialRate': {
