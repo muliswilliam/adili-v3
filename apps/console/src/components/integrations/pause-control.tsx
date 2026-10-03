@@ -43,7 +43,12 @@ const unavailable = { ok: false, error: { kind: 'unavailable', detail: null } } 
 function pauseEffects(row: SystemCoverage): string[] {
   const system = systemInfo(row.system);
   if (isInstructed(system)) {
-    return [m.pauseNothingSent(system), m.pauseNothingQueued, system.retries, m.auditNote];
+    return [
+      m.pauseNothingSent(system),
+      m.pauseNothingQueued,
+      system.instructed.retries,
+      m.auditNote,
+    ];
   }
   const effects =
     row.system === 'iprs'
@@ -148,7 +153,7 @@ export function PauseControl({
                       ? m.resumeInstructionsText(system, row.rateLimitPerMinute)
                       : m.resumeText(system, row.rateLimitPerMinute)}
                   </p>
-                  {isInstructed(system) ? <p>{m.resumeNothingResent(system)}</p> : null}
+                  {isInstructed(system) ? <p>{system.instructed.resumed}</p> : null}
                   <p className="text-sm text-muted-foreground">{m.auditNote}</p>
                 </>
               )}

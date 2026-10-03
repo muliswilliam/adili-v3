@@ -514,8 +514,10 @@ describe('S15 Integrations page', () => {
       );
       dialog.getByText('Nothing is sent to Payroll (IPPD) while it is paused.');
       dialog.getByText('Adili does not queue them to send later.');
-      dialog.getByText('The review service decides whether to retry each one.');
-      expect(dialog.queryByText(/retried automatically|sent once/)).toBe(null);
+      dialog.getByText(
+        'The review service keeps retrying them (at most 5 minutes apart) and they are sent once payroll is resumed.',
+      );
+      expect(dialog.queryByText(/decides whether|sent on its own/)).toBe(null);
       dialog.getByText('Recorded in the audit trail with your name.');
       expect(dialog.queryByText(/Lookups|cache|Registry tab/)).toBe(null);
     });
@@ -548,6 +550,37 @@ describe('S15 Integrations page', () => {
         'Nothing refused while it was paused is sent on its own. Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
       );
       expect(dialog.queryByText(/Waiting/)).toBe(null);
+    });
+
+    it('says a paused payroll gets what it refused from the review service within minutes of resume', () => {
+      renderView({
+        result: ok([
+          coverage({
+            system: 'payroll',
+            cacheTtlSeconds: null,
+            paused: true,
+            pausedBy: 'Amina Wanjiru',
+            pausedAt: '2026-09-26T06:00:00Z',
+            rateLimitPerMinute: 60,
+          }),
+        ]),
+        setPaused: vi.fn(() => Promise.resolve({ ok: true, data: coverage() } as const)),
+      });
+
+      screen.getByText(
+        /Salary stoppages and reinstatements get "unavailable" until it is resumed; nothing is queued\. The review service keeps retrying them \(at most 5 minutes apart\) and they are sent once payroll is resumed\./,
+      );
+      fireEvent.click(
+        within(row('payroll')).getByRole('button', { name: 'Resume Payroll (IPPD)' }),
+      );
+      const dialog = within(screen.getByRole('dialog'));
+      dialog.getByText(
+        'Salary stoppages and reinstatements are sent to Payroll (IPPD) again, within its rate limit of 60 calls a minute.',
+      );
+      dialog.getByText(
+        'Those refused while it was paused are sent within about 5 minutes: the review service keeps retrying them.',
+      );
+      expect(dialog.queryByText(/sent on its own|decides whether/)).toBe(null);
     });
   });
 

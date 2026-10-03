@@ -130,16 +130,25 @@ describe('systemInfo', () => {
       name: 'Payroll (IPPD)',
       owner: 'State Department for Public Service',
       use: 'Salary stoppages and reinstatements of officers',
-      instructions: 'Salary stoppages and reinstatements',
-      retries: 'The review service decides whether to retry each one.',
+      instructed: {
+        instructions: 'Salary stoppages and reinstatements',
+        retries:
+          'The review service keeps retrying them (at most 5 minutes apart) and they are sent once payroll is resumed.',
+        resumed:
+          'Those refused while it was paused are sent within about 5 minutes: the review service keeps retrying them.',
+      },
     });
     expect(systemInfo('icms')).toEqual({
       name: 'EACC ICMS',
       owner: 'Ethics and Anti-Corruption Commission',
       use: "Commissions' referrals, registered as EACC cases",
-      instructions: 'Referrals',
-      retries:
-        'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
+      instructed: {
+        instructions: 'Referrals',
+        retries:
+          'Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
+        resumed:
+          'Nothing refused while it was paused is sent on its own. Pushes from EACC fail after a few quick retries; EACC must push those referrals again.',
+      },
     });
   });
 

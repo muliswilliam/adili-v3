@@ -60,7 +60,7 @@ import {
 import { messages as m } from './messages';
 import { PauseControl, type SetPaused } from './pause-control';
 
-const ICONS: Partial<Record<IntegrationSystem, IconProps['icon']>> = {
+const ICONS: Record<IntegrationSystem, IconProps['icon']> = {
   iprs: UserIcon,
   kra: BankIcon,
   ntsa: Car01Icon,
@@ -70,6 +70,10 @@ const ICONS: Partial<Record<IntegrationSystem, IconProps['icon']>> = {
   payroll: Money03Icon,
   icms: JusticeScale01Icon,
 };
+
+/** A system this build does not know (the coverage response is not validated) gets a plug. */
+const icon = (system: IntegrationSystem) =>
+  (ICONS as Partial<Record<string, IconProps['icon']>>)[system] ?? PlugSocketIcon;
 
 const TILES = 'grid grid-cols-2 gap-3 min-[980px]:grid-cols-4';
 
@@ -289,7 +293,7 @@ function SystemRow({ row, now, action }: { row: SystemCoverage; now: Date; actio
   return (
     <SystemStatusRow
       name={system.name}
-      icon={ICONS[row.system] ?? PlugSocketIcon}
+      icon={icon(row.system)}
       description={system.use ?? undefined}
       data-system={row.system}
       metrics={<Metrics row={row} now={now} />}
