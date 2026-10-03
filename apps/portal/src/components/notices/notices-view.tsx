@@ -92,7 +92,9 @@ function toneOf(notice: DeclarantNotice): 'warning' | 'destructive' | 'success' 
 }
 
 export function NoticeStatusBadge({ notice }: { notice: DeclarantNotice }) {
-  const stopped = notice.salaryStoppedAt !== null && notice.salaryReinstatedAt === null;
+  // Stopped until the declarant complies; once they have, the reinstatement is on its way.
+  const stopped =
+    notice.salaryStoppedAt !== null && notice.salaryReinstatedAt === null && !isClosed(notice);
   // An issued warning (or later step) reads red, as its row's icon does.
   const pastNotice = notice.status === 'issued' && notice.step !== 'notice-to-comply';
   const variant = stopped || pastNotice ? 'destructive' : STATUS_TONES[notice.status];

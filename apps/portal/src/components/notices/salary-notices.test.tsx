@@ -94,6 +94,8 @@ describe('a salary stoppage notice (S17, US 20)', () => {
     ).toBeTruthy();
     const salary = screen.getByRole('region', { name: 'Your salary' });
     expect(within(salary).getByText('Being sent to payroll')).toBeTruthy();
+    // Only the card's fact says the salary was stopped; the notice itself reads complied.
+    expect(screen.getAllByText('Salary stopped')).toHaveLength(1);
   });
 
   it('says when payroll confirmed the reinstatement (S7)', async () => {
