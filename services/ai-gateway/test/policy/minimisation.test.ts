@@ -1034,6 +1034,85 @@ describe('minimise a text layer: names out, fields readable', () => {
       'John Kamau Mary Wanjiru Peter Otieno',
       'Directors',
     ],
+    // A sub-item one word leads is an item, not a name; a company word marks an organisation (F83).
+    [
+      'Directors:\n1. John Kamau\n(a) Equity Bank, Nakuru Branch\n2. Mary Wanjiru\nBank: Equity Bank',
+      'John Kamau Mary Wanjiru',
+      'Equity Bank Nakuru Branch',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Freehold Tenure\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Freehold Tenure',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Barclays Bank\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Barclays Bank',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Unity Sacco\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Unity Sacco',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Co-operative Bank\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Co-operative Bank',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Ordinary Shares\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Ordinary Shares',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Preference Shares 200\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Preference Shares 200',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Freehold/Leasehold Nakuru/Njoro/123\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Freehold Leasehold Nakuru Njoro',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Residential Plot 4\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Residential Plot 4',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Current Account\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Current Account',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Premio Year 2015\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Premio Year 2015',
+    ],
+    [
+      'Directors:\n1. John Kamau\n- Equity Bank\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Equity Bank',
+    ],
+    // Box is a field word only in an address (F84).
+    ['Proprietor: John Box', 'John Box', 'Proprietor'],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Box Otieno\n2. Mary Wanjiru',
+      'John Kamau Peter Box Otieno Mary Wanjiru',
+      'Directors',
+    ],
+    ['Directors:\n1. John Kamau\n2. Peter Box', 'John Kamau Peter Box', 'Directors'],
+    [
+      'Directors:\n1. John Kamau\n(a) Wanjiru ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Wanjiru Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) J. Kamau ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'ID',
+    ],
     // "i." starts a roman list when "ii." comes next (F81).
     [
       'Directors:\ni. John Kamau\nID 12345678\nii. Mary Wanjiru\nID 23456789\niii. Peter Otieno',
