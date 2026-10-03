@@ -219,16 +219,15 @@ export function ArticleEditor({
       setErrors(fields);
       setRefusal({
         title: m.refusedTitle,
-        ...(Object.keys(fields).length === 0 && error.problem.detail
-          ? { detail: error.problem.detail }
-          : {}),
+        ...(Object.keys(fields).length === 0 ? { detail: m.refusedDetail } : {}),
       });
     } else if (error.kind === 'problem' && error.problem.status === 403) {
       setRefusal({ title: m.refusedTitle, detail: m.forbiddenSave });
     } else if (error.kind === 'problem' && error.problem.status === 404) {
       setRefusal({ title: m.articleNotFound, detail: m.articleNotFoundText });
     } else if (error.kind === 'problem') {
-      setRefusal({ title: m.refusedTitle, detail: error.problem.detail ?? error.problem.title });
+      // Problem titles and details are the service's words, not copy (ProblemDetails).
+      setRefusal({ title: m.refusedTitle, detail: m.refusedDetail });
     } else {
       setRefusal({ title: m.saveFailedTitle, detail: m.saveFailedDetail });
     }

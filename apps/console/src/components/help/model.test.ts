@@ -122,13 +122,15 @@ describe('article editor', () => {
         errors: [
           { path: 'title', message: 'Too big' },
           { path: 'effectiveTo', message: 'must be after effectiveFrom' },
+          { path: 'effectiveFrom', message: 'Invalid ISO date' },
           { path: 'tags.3', message: 'Invalid option' },
         ],
       }),
     ).toEqual({
-      title: 'The service refused this title: Too big.',
+      title: 'Adili did not accept this title. Check it and try again.',
       effectiveTo: 'The end date must be after the start date.',
-      tags: 'The service refused these tags: Invalid option.',
+      effectiveFrom: 'Adili did not accept this start date. Check it and try again.',
+      tags: 'Adili did not accept these tags. Check them and try again.',
     });
   });
 

@@ -212,6 +212,14 @@ describe('platform help articles and the corpus (S9)', () => {
     expect(psc.ok && psc.data.some((each) => saved.ok && each.id === saved.data.id)).toBe(true);
   });
 
+  it("refuses a platform admin searching as a Commission's declarants", async () => {
+    const result = await searchAsDeclarants(platformAdmin(), PSC, {
+      q: 'file number',
+      language: 'en',
+    });
+    expect(result).toMatchObject({ ok: false, error: { problem: { status: 404 } } });
+  });
+
   it('searches as every declarant would for a platform admin: the law and platform articles', async () => {
     const result = await searchAsDeclarants(platformAdmin(), PLATFORM, {
       q: 'file number payslip',

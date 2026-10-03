@@ -231,10 +231,11 @@ export const messages = {
   errorFromMissing: 'Enter the date the article takes effect.',
   errorDateInvalid: 'Enter a real date, like 01/07/2026.',
   errorToBeforeFrom: 'The end date must be after the start date.',
-  refused: (field: keyof typeof FIELD_NAMES, message: string) =>
+  refused: (field: keyof typeof FIELD_NAMES) =>
     field === 'tags'
-      ? `The service refused these tags: ${message}.`
-      : `The service refused this ${FIELD_NAMES[field]}: ${message}.`,
+      ? 'Adili did not accept these tags. Check them and try again.'
+      : `Adili did not accept this ${FIELD_NAMES[field]}. Check it and try again.`,
+  refusedDetail: 'Check the article and try again. Your changes are still here.',
 
   // Help search drawer
   searchDrawerTitle: 'Test help search',

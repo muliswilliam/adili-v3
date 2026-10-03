@@ -204,9 +204,7 @@ describe('article editor (spec 11 FE-4, S9)', () => {
 
     await screen.findByRole('alert', { name: 'The article was not saved' });
     expect(
-      screen.getAllByText(
-        'The service refused this title: Too big: expected string to have <=200 characters.',
-      ),
+      screen.getAllByText('Adili did not accept this title. Check it and try again.'),
     ).toHaveLength(2);
     expect(titleBox().getAttribute('aria-invalid')).toBe('true');
   });

@@ -273,9 +273,10 @@ function search(url: URL, caller: Caller): Response {
   if (q.trim().length < 2 || q.length > 200 || (language !== 'en' && language !== 'sw')) {
     return problem(400, 'Query failed validation');
   }
-  if (commission === null) {
-    if (!caller.roles.includes(PLATFORM_ADMIN)) return notFound();
-  } else if (!isHelpStaff(caller, commission) && !caller.roles.includes(PLATFORM_ADMIN)) {
+  // Platform admins search as every declarant (no Commission); a Commission's staff as its own.
+  if (
+    commission === null ? !caller.roles.includes(PLATFORM_ADMIN) : !isHelpStaff(caller, commission)
+  ) {
     return notFound();
   }
   if (commission) seedTenant(commission);

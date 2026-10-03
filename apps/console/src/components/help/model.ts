@@ -164,7 +164,7 @@ export function problemFieldErrors(problem: HelpProblem): ArticleErrors {
     errors[field] =
       field === 'effectiveTo' && message === 'must be after effectiveFrom'
         ? m.errorToBeforeFrom
-        : m.refused(field, message);
+        : m.refused(field);
   }
   return errors;
 }
