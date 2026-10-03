@@ -165,6 +165,30 @@ describe('useAutosave', () => {
     expect(save).toHaveBeenCalledWith('last words');
   });
 
+  it('sends the edit waiting at unmount only after the save in flight, so it lands last', async () => {
+    const first = deferred();
+    const save = vi
+      .fn<(value: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const { result, unmount } = renderHook(() => useAutosave(save, { delayMs: 10 }));
+
+    act(() => {
+      result.current.change('older');
+      vi.advanceTimersByTime(10);
+      result.current.change('newer');
+    });
+    unmount();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    first.resolve();
+    await settle();
+    await settle();
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith('newer');
+  });
+
   it('uses the latest save function', async () => {
     const first = vi.fn<(value: string) => Promise<void>>(() => Promise.resolve());
     const second = vi.fn<(value: string) => Promise<void>>(() => Promise.resolve());

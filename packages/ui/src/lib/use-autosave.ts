@@ -44,7 +44,8 @@ class AutosaveQueue<T> {
   private snapshot: Snapshot = { status: 'idle', savedAt: null };
   private readonly listeners = new Set<() => void>();
   private pending: { value: T; ready: boolean } | null = null;
-  private inFlight = false;
+  /** The save in flight, settled either way. */
+  private inFlight: Promise<void> | null = null;
   private failures = 0;
   private debounce: Timer | null = null;
   private retry: Timer | null = null;
@@ -91,7 +92,12 @@ class AutosaveQueue<T> {
     this.clear('retry');
     const waiting = this.pending;
     this.pending = null;
-    if (waiting) this.save(waiting.value).catch(() => undefined);
+    if (!waiting) return;
+    // After the save in flight, so the older value cannot land last. Nothing is left to show a
+    // failure to, so it is not retried.
+    const send = () => this.save(waiting.value).catch(() => undefined);
+    if (this.inFlight) void this.inFlight.then(send);
+    else void send();
   }
 
   /** Reverses `dispose`, for React's development remount. */
@@ -119,17 +125,16 @@ class AutosaveQueue<T> {
     const next = this.pending;
     if (this.disposed || this.inFlight || this.retry || !next?.ready) return;
     this.pending = null;
-    this.inFlight = true;
     this.set({ status: this.failures > 0 ? 'retrying' : 'saving' });
-    this.save(next.value).then(
+    this.inFlight = this.save(next.value).then(
       () => {
-        this.inFlight = false;
+        this.inFlight = null;
         this.failures = 0;
         this.set({ savedAt: new Date(), status: this.pending ? 'saving' : 'saved' });
         this.pump();
       },
       () => {
-        this.inFlight = false;
+        this.inFlight = null;
         this.failures += 1;
         // A newer edit replaces the value that failed.
         this.pending ??= { value: next.value, ready: true };
