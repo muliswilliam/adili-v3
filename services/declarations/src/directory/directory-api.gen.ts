@@ -980,6 +980,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/v1/persons/{personId}/national-id": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's national ID (declarations)
+         * @description Service tokens with scope directory:person-national-id (the declarations service only), acting for the Commission of the declaration; audited. The national ID verified at onboarding, for the declarant's own registry lookups. 404 when the person is unknown or not onboarded at that tenant.
+         */
+        get: operations["internalGetPersonNationalId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/applicant": {
         parameters: {
             query?: never;
@@ -1465,12 +1485,12 @@ export interface components {
                  * @description Template column it matched
                  * @enum {string}
                  */
-                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone" | "employer_code";
+                field: "personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "work_station" | "appointment_date" | "marital_status" | "email" | "phone" | "employer_code";
             }[];
             /** @description File headers that match no template column, or repeat one already matched */
             ignored: string[];
             /** @description Optional template columns not present */
-            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone" | "employer_code")[];
+            missing: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "work_station" | "appointment_date" | "marital_status" | "email" | "phone" | "employer_code")[];
         };
         ImportCounts: {
             /** @description Rows applied to the roster (created, updated or unchanged). Like every count, only rows processed: a failed import does not count the rows it did not reach (totalRows - processedRows) */
@@ -1572,10 +1592,20 @@ export interface components {
              */
             reportingEntity?: string | null;
             /**
+             * @description Up to 100 characters.
+             * @example Eldoret
+             */
+            workStation?: string | null;
+            /**
              * @description YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future.
              * @example 2019-01-07
              */
             appointmentDate?: string | null;
+            /**
+             * @description single, married, separated, divorced or widowed (any case).
+             * @example married
+             */
+            maritalStatus?: string | null;
             /**
              * @description Email address, up to 254 characters.
              * @example mary.otieno@example.go.ke
@@ -1607,7 +1637,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors */
@@ -1627,7 +1657,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1656,7 +1686,7 @@ export interface components {
             format: "csv" | "xlsx";
             mapping: components["schemas"]["ColumnMapping"];
             /** @description Required template columns the file lacks; the import would fail while any are */
-            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "appointment_date" | "email" | "phone" | "employer_code")[];
+            missingRequired: ("personnel_file_number" | "full_name" | "national_id" | "designation" | "job_group" | "reporting_entity" | "work_station" | "appointment_date" | "marital_status" | "email" | "phone" | "employer_code")[];
             /** @description Data rows: exact for smaller files, estimated from the file size for large CSV files, null for large XLSX files */
             estimatedRows: number | null;
         };
@@ -1671,7 +1701,7 @@ export interface components {
              * @description The roster field at fault
              * @enum {string}
              */
-            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone" | "employerCode";
+            field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "workStation" | "appointmentDate" | "maritalStatus" | "email" | "phone" | "employerCode";
             /** @enum {string} */
             code: "required" | "format" | "too-long" | "future-date" | "duplicate-in-file" | "identity-locked";
             /** @description What to fix, in English */
@@ -1690,7 +1720,9 @@ export interface components {
                 designation?: string | null;
                 jobGroup?: string | null;
                 reportingEntity?: string | null;
+                workStation?: string | null;
                 appointmentDate?: string | null;
+                maritalStatus?: string | null;
                 email?: string | null;
                 phone?: string | null;
                 employerCode?: string | null;
@@ -1703,7 +1735,7 @@ export interface components {
                  * @description The roster field the note is about
                  * @enum {string}
                  */
-                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "appointmentDate" | "email" | "phone" | "employerCode";
+                field: "personnelFileNumber" | "fullName" | "nationalId" | "designation" | "jobGroup" | "reportingEntity" | "workStation" | "appointmentDate" | "maritalStatus" | "email" | "phone" | "employerCode";
                 /**
                  * @description `national-id-on-another-roster`: the national ID is also on another Commission's roster (people move between Commissions); which one is not disclosed
                  * @enum {string}
@@ -1835,6 +1867,10 @@ export interface components {
             designation: string | null;
             jobGroup: string | null;
             reportingEntity: components["schemas"]["ReportingEntityRef"] | null;
+            /** @description Where the public officer works; null when the roster gives none */
+            workStation: string | null;
+            /** @description As `declaration.v1` names it; null when the roster gives none */
+            maritalStatus: ("single" | "married" | "separated" | "divorced" | "widowed") | null;
             /**
              * @description The HR and payroll systems' code for the employer, as the roster gives it; null when it gives none
              * @example KEMSA
@@ -2110,6 +2146,10 @@ export interface components {
             email: string | null;
             /** @description E.164, verified at onboarding; null when none */
             phone: string | null;
+        };
+        PersonNationalId: {
+            /** @description Digits only, as verified at onboarding */
+            nationalId: string;
         };
         VerifyOnboardingOtp: {
             /** @description The 6-digit code sent to the channel */
@@ -2390,7 +2430,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -5879,6 +5919,58 @@ export interface operations {
                 };
             };
             /** @description No person has this id, or a declarant not onboarded at the acting tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    internalGetPersonNationalId: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The national ID */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonNationalId"];
+                };
+            };
+            /** @description personId is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope directory:person-national-id */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No person has this id, or not one onboarded at the acting tenant */
             404: {
                 headers: {
                     [name: string]: unknown;

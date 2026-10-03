@@ -120,6 +120,14 @@ export function sectionIs(declarationId: string, sectionKey: DeclarationSectionK
   );
 }
 
+/** The declaration's sections of the given keys (at least one). */
+export function sectionsAre(declarationId: string, sectionKeys: readonly DeclarationSectionKey[]) {
+  return and(
+    eq(declarationSections.declarationId, declarationId),
+    inArray(declarationSections.sectionKey, [...sectionKeys]),
+  );
+}
+
 /**
  * A live declaration's section with its contents, and for bio and household the other of the
  * two (they are assessed together). Null when the caller cannot see it or it does not exist.

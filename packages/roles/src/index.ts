@@ -108,6 +108,13 @@ export const DIRECTORY_APPLICANTS_SCOPE = 'directory:applicants';
 export const DIRECTORY_ROSTER_NATIONAL_ID_SCOPE = 'directory:roster-national-id';
 
 /**
+ * A person's national ID in the directory, as verified at onboarding: personal data, so a scope
+ * of its own, held by the declarations client alone for the declarant's own registry lookups
+ * (spec 05b).
+ */
+export const DIRECTORY_PERSON_NATIONAL_ID_SCOPE = 'directory:person-national-id';
+
+/**
  * The declarations service's internal API, acting for the Commission: the fields of a submitted
  * version's acknowledgement slip, pulled by the documents service (spec 06), and a submitted
  * version's document and the version before it, read by the review service (spec 07a).

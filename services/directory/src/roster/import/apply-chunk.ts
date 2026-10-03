@@ -4,7 +4,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Transaction } from '../../commissions/commissions.service.js';
 import type { DirectorySchema } from '../../db/schema.js';
 import { fileNumberKey } from '../normalise.js';
-import type { NormalisedRosterRow, RowError, RowNote } from '../row-validation.js';
+import type { MaritalStatus, NormalisedRosterRow, RowError, RowNote } from '../row-validation.js';
 import {
   type ImportChannel,
   type ImportRowOutcome,
@@ -27,8 +27,10 @@ interface RecordValues {
   designation: string | null;
   jobGroup: string | null;
   reportingEntityId: string | null;
+  workStation: string | null;
   employerCode: string | null;
   appointmentDate: string | null;
+  maritalStatus: MaritalStatus | null;
   email: string | null;
   phone: string | null;
 }
@@ -269,8 +271,10 @@ const RECORD_FIELDS = [
   'designation',
   'jobGroup',
   'reportingEntityId',
+  'workStation',
   'employerCode',
   'appointmentDate',
+  'maritalStatus',
   'email',
   'phone',
 ] as const satisfies readonly (keyof RecordValues)[];
@@ -289,7 +293,10 @@ function recordValues(row: NormalisedRosterRow, reportingEntityId: string | null
     reportingEntityId,
     // Rows staged before the column existed have none.
     employerCode: row.employerCode ?? null,
+    // Rows staged before spec 05b have neither.
+    workStation: row.workStation ?? null,
     appointmentDate: row.appointmentDate,
+    maritalStatus: row.maritalStatus ?? null,
     email: row.email,
     phone: row.phone,
   };
@@ -402,8 +409,10 @@ async function recordsByFileNumber(
       designation: rosterRecords.designation,
       jobGroup: rosterRecords.jobGroup,
       reportingEntityId: rosterRecords.reportingEntityId,
+      workStation: rosterRecords.workStation,
       employerCode: rosterRecords.employerCode,
       appointmentDate: rosterRecords.appointmentDate,
+      maritalStatus: rosterRecords.maritalStatus,
       email: rosterRecords.email,
       phone: rosterRecords.phone,
       emailSource: rosterRecords.emailSource,
@@ -464,8 +473,10 @@ async function updateRecords(
     designation: values.designation,
     job_group: values.jobGroup,
     reporting_entity_id: values.reportingEntityId,
+    work_station: values.workStation,
     employer_code: values.employerCode,
     appointment_date: values.appointmentDate,
+    marital_status: values.maritalStatus,
     email: values.email,
     phone: values.phone,
   }));
@@ -477,8 +488,10 @@ async function updateRecords(
       designation = source.designation,
       job_group = source.job_group,
       reporting_entity_id = source.reporting_entity_id,
+      work_station = source.work_station,
       employer_code = source.employer_code,
       appointment_date = source.appointment_date,
+      marital_status = source.marital_status,
       email = source.email,
       phone = source.phone,
       state = case
@@ -498,8 +511,10 @@ async function updateRecords(
       designation text,
       job_group text,
       reporting_entity_id uuid,
+      work_station text,
       employer_code text,
       appointment_date date,
+      marital_status text,
       email text,
       phone text
     )

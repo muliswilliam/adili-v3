@@ -16,6 +16,7 @@ import {
   startDeclarationsApi,
 } from '../support/declarations-api.js';
 import { rosterRecord } from '../support/fake-directory.js';
+import { givenStoredSection } from '../support/stored-sections.js';
 
 /**
  * Spec 05 S11 and S12 over HTTP: the summary assembles the `declaration.v1` document from the
@@ -224,6 +225,12 @@ async function completeDraft(): Promise<Declaration> {
     liabilitiesNil: true,
     liabilities: [],
   });
+  // The sources are the service's (accepting suggestions sets them), not a save's.
+  await givenStoredSection(api, ACHIENG, draft.id, 'statement:officer', (contents) => ({
+    ...contents,
+    income: [salary()],
+    assets: [land()],
+  }));
   await statement(draft.id, `spouse:${GRACE}`, NIL);
   await save(draft.id, 'other', otherInformation());
   return draft;

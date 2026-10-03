@@ -1,4 +1,5 @@
 import { createServiceClient, type ServiceClient, type ServiceTokenClient } from '@adili/api-kit';
+import { MARITAL_STATUSES } from '@adili/forms';
 import { z } from 'zod';
 
 import type { paths } from './directory-api.gen.js';
@@ -21,7 +22,10 @@ export const DIRECTORY_PULL_TIMEOUT_MS = 10_000;
 export interface HttpDirectoryClientOptions {
   /** Base URL of the directory service, e.g. `http://localhost:4001`. */
   directoryUrl: string;
-  /** Client credentials tokens of the declarations service carrying `directory:internal`. */
+  /**
+   * Client credentials tokens of the declarations service carrying `directory:internal` and
+   * `directory:person-national-id`.
+   */
   tokens: Pick<ServiceTokenClient, 'token' | 'invalidate'>;
   /** Per attempt. Default `DIRECTORY_PULL_TIMEOUT_MS`. */
   timeoutMs?: number;
@@ -37,6 +41,9 @@ const rosterRecordSchema = z.object({
   personnelFileNumber: z.string(),
   fullName: z.string(),
   designation: z.string().nullable(),
+  jobGroup: z.string().nullable(),
+  workStation: z.string().nullable(),
+  maritalStatus: z.enum(MARITAL_STATUSES).nullable(),
   reportingEntity: z.object({ id: z.uuid(), name: z.string() }).nullable(),
   state: z.enum(['not_onboarded', 'onboarded', 'exited']),
   appointmentDate: civilDate.nullable(),
@@ -72,12 +79,14 @@ const commissionSchema = z.object({
 
 const commissionListSchema = z.object({ items: z.array(commissionSchema) });
 
+const personNationalIdSchema = z.object({ nationalId: z.string().min(1) });
+
 /**
  * The directory's internal API through the client generated from its contract
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client: the service's own token (client credentials, `directory:internal`,
- * one retry after a 401), the Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers
- * validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
+ * and `directory:person-national-id` for the declarant's national ID; one retry after a 401), the
+ * Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;
@@ -120,6 +129,17 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: rosterRecordSchema, otherwise: { 404: () => null } },
     );
+  }
+
+  async getPersonNationalId(slug: string, personId: string): Promise<string | null> {
+    const found = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/persons/{personId}/national-id', {
+          params: { path: { personId }, header: { 'X-Acting-Tenant': slug } },
+        }),
+      { status: 200, schema: personNationalIdSchema, otherwise: { 404: () => null } },
+    );
+    return found?.nationalId ?? null;
   }
 
   getPolicy(slug: string): Promise<PulledPolicy> {

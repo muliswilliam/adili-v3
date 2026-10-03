@@ -3,7 +3,7 @@
 // the adili-otp authenticator), staff provisioning setup (directory service client, SMTP, email
 // theme, user profile attributes), declarant accounts (multi-valued tenants), service clients and
 // scopes (messages, iprs, directory:internal, directory:person-contacts,
-// directory:roster-national-id and directory:applicants; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
+// directory:roster-national-id, directory:person-national-id and directory:applicants; the keycloak-extension, declarations and notifications clients) and API client setup (roster:write client scope; documents:internal and
 // the adili-api audience for the directory) specs 03, 04, 06, 10 and 27 require. Demo users are optional (#371 seeds them). Portal and console tokens carry the
 // person_id claim (spec 04). Applicant accounts carry the identityStatus attribute (spec 10). Every
 // scope a service's token client asks for is a default scope of its client.
@@ -235,6 +235,7 @@ for (const name of [
   'directory:person-contacts',
   'declarations:internal',
   'directory:roster-national-id',
+  'directory:person-national-id',
   'directory:applicants',
   'directory:law-enforcement',
   'declarations:disclosures',
@@ -288,13 +289,24 @@ if (directory) {
 }
 // Services pull from the directory's internal API (spec 04): declarations (roster records and
 // policy after roster events, reminders through notifications, and declaration attachments in
-// documents, spec 05) and notifications (a person's verified contacts).
+// documents, spec 05; the declarant's national ID for their registry lookups, spec 05b) and
+// notifications (a person's verified contacts).
 // The documents service pulls a submitted version's acknowledgement slip payload from
 // declarations (spec 06). The access service (spec 10) reads Commissions, applicants and
 // law-enforcement officers from the directory, asks declarations for disclosures, issues packages
 // and certified copies with documents and sends messages.
 for (const [id, needed] of [
-  ['declarations', ['directory:internal', 'messages', 'documents:internal']],
+  // Registry pre-fill (spec 05b): the declarant's national ID and the registry lookups.
+  [
+    'declarations',
+    [
+      'directory:internal',
+      'directory:person-national-id',
+      'messages',
+      'documents:internal',
+      'registry',
+    ],
+  ],
   // Form M (spec 09): Commissions and staff, officer and clarification details, its PDFs, emails.
   [
     'reporting',
@@ -344,13 +356,19 @@ for (const client of realm.clients ?? []) {
   if (client.clientId !== 'notifications' && scopesOf.includes('directory:person-contacts')) {
     fail(`${client.clientId} must not get directory:person-contacts (notifications only)`);
   }
-  // A national ID likewise: only review reads it, for payroll and the ICMS referral (spec 08).
+  // A national ID likewise: only review reads a roster record's, for payroll and the ICMS
+  // referral (spec 08), and only declarations a person's, for the declarant's own registry
+  // lookups (spec 05b).
   if (client.clientId !== 'review' && scopesOf.includes('directory:roster-national-id')) {
     fail(`${client.clientId} must not get directory:roster-national-id (review only)`);
   }
-  // Registry records on officers and their households: only review looks them up (spec 07b).
-  if (client.clientId !== 'review' && scopesOf.includes('registry')) {
-    fail(`${client.clientId} must not get registry (review only)`);
+  if (client.clientId !== 'declarations' && scopesOf.includes('directory:person-national-id')) {
+    fail(`${client.clientId} must not get directory:person-national-id (declarations only)`);
+  }
+  // Registry records on officers and their households: review looks them up (spec 07b), and
+  // declarations for a declarant's own lookups (spec 05b).
+  if (!['review', 'declarations'].includes(client.clientId) && scopesOf.includes('registry')) {
+    fail(`${client.clientId} must not get registry (review and declarations)`);
   }
   // Payroll instructions stop an officer's salary: only review sends them (spec 08).
   if (client.clientId !== 'review' && scopesOf.includes('payroll')) {

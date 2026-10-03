@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyLockedFields, shapeErrors, splitFullName } from '../../src/drafts/sections.js';
+import {
+  applyLockedFields,
+  keepPrefilledFields,
+  prefillBio,
+  shapeErrors,
+  splitFullName,
+} from '../../src/drafts/sections.js';
 import { bio, statement } from '../fixtures/sections.js';
 
 describe('splitFullName', () => {
@@ -77,5 +83,87 @@ describe('applyLockedFields', () => {
         locked,
       ).changed,
     ).toEqual(['/name/surname']);
+  });
+});
+
+describe('prefillBio', () => {
+  const facts = {
+    tenant: 'psc',
+    fullName: 'Achieng Otieno',
+    personnelFileNumber: 'PSC/1',
+    designation: 'Accountant',
+    employer: 'Ministry of Health',
+  };
+
+  it('fills the HR fields the roster has, editable, and lists them as pre-filled', () => {
+    const result = prefillBio({
+      ...facts,
+      jobGroup: 'K',
+      appointmentDate: '2015-01-05',
+      workStation: 'Afya House',
+      maritalStatus: 'widowed',
+    });
+
+    expect(result.contents).toEqual({
+      name: { firstName: 'Achieng', surname: 'Otieno' },
+      maritalStatus: 'widowed',
+      employment: {
+        responsibleCommission: 'psc',
+        personnelFileNumber: 'PSC/1',
+        designation: 'Accountant',
+        employer: 'Ministry of Health',
+        jobGroup: 'K',
+        appointmentDate: '2015-01-05',
+        workStation: 'Afya House',
+      },
+    });
+    expect(result.lockedFields).toEqual([
+      '/name/surname',
+      '/name/firstName',
+      '/employment/responsibleCommission',
+      '/employment/personnelFileNumber',
+      '/employment/designation',
+      '/employment/employer',
+    ]);
+    expect(result.prefilledFields).toEqual([
+      '/employment/jobGroup',
+      '/employment/appointmentDate',
+      '/employment/workStation',
+      '/maritalStatus',
+    ]);
+  });
+
+  it('leaves out what the roster lacks', () => {
+    const result = prefillBio({
+      ...facts,
+      jobGroup: null,
+      appointmentDate: null,
+      workStation: null,
+      maritalStatus: null,
+    });
+
+    expect(result.contents).not.toHaveProperty('maritalStatus');
+    expect(Object.keys(result.contents.employment as object)).toEqual([
+      'responsibleCommission',
+      'personnelFileNumber',
+      'designation',
+      'employer',
+    ]);
+    expect(result.prefilledFields).toEqual([]);
+  });
+});
+
+describe('keepPrefilledFields', () => {
+  it('keeps the fields a save leaves as they were, and drops those it changes or removes', () => {
+    const stored = { maritalStatus: 'married', employment: { jobGroup: 'K', workStation: 'Afya' } };
+    const saved = { maritalStatus: 'married', employment: { jobGroup: 'L' } };
+
+    expect(
+      keepPrefilledFields(
+        ['/maritalStatus', '/employment/jobGroup', '/employment/workStation'],
+        saved,
+        stored,
+      ),
+    ).toEqual(['/maritalStatus']);
   });
 });

@@ -8,8 +8,9 @@ import { givenOnboardedPerson, givenRoster } from '../support/onboarding.js';
 /**
  * Spec 04 end to end with the committed realm (Keycloak at TEST_KEYCLOAK_ISSUER_URL): the
  * declarations service's client credentials token carries `directory:internal` and pulls acting
- * for a tenant; the notifications service's carries `directory:person-contacts` alone and reads
- * contacts acting for the tenant it sends for.
+ * for a tenant, and `directory:person-national-id` for the declarant's registry lookups (spec
+ * 05b); the notifications service's carries `directory:person-contacts` alone and reads contacts
+ * acting for the tenant it sends for.
  */
 const ISSUER = process.env.TEST_KEYCLOAK_ISSUER_URL ?? '';
 
@@ -46,6 +47,7 @@ const internalGet = async (url: string, token: string, tenant?: string) =>
 describe('service tokens of the directory internal API', () => {
   it.each([
     ['declarations', 'directory:internal', 'directory:person-contacts', declarations],
+    ['declarations', 'directory:person-national-id', 'directory:roster-national-id', declarations],
     ['notifications', 'directory:person-contacts', 'directory:internal', notifications],
   ])(
     '%s carries %s and the adili-api audience, not %s, and no tenant',
@@ -84,5 +86,29 @@ describe('service tokens of the directory internal API', () => {
     expect(response.statusCode, response.body).toBe(200);
     expect(response.json()).toMatchObject({ email: 'mary@example.go.ke', phone: null });
     expect((await internalGet(url, await declarations.token(), 'psc')).statusCode).toBe(403);
+  });
+
+  it("lets declarations read a person's national ID, not a roster record's", async () => {
+    const ids = await givenRoster(api, 'psc', [
+      { personnelFileNumber: 'PSC/1', fullName: 'Mary Wambui', nationalId: '45678901' },
+    ]);
+    const [recordId] = [...ids.values()];
+    const person = await givenOnboardedPerson(api, { recordIds: [...ids.values()] });
+    const token = await declarations.token();
+
+    const response = await internalGet(
+      `/internal/v1/persons/${person.personId}/national-id`,
+      token,
+      'psc',
+    );
+    const roster = await internalGet(
+      `/internal/v1/commissions/psc/roster/records/${recordId}/national-id`,
+      token,
+      'psc',
+    );
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toEqual({ nationalId: '45678901' });
+    expect(roster.statusCode).toBe(403);
   });
 });

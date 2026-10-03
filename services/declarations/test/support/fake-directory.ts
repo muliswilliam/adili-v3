@@ -36,6 +36,9 @@ export function rosterRecord(
     personnelFileNumber: `${tenant.toUpperCase()}/${id.slice(0, 8)}`,
     fullName: 'Achieng Otieno',
     designation: 'Senior Accountant',
+    jobGroup: null,
+    workStation: null,
+    maritalStatus: null,
     reportingEntity: { id: '0192f1a0-5a11-7000-8000-00000000e001', name: 'Ministry of Health' },
     state: overrides.personId ? 'onboarded' : 'not_onboarded',
     appointmentDate: '2015-01-05',
@@ -62,6 +65,10 @@ export class FakeDirectory extends DirectoryClient {
   private readonly records = new Map<string, PulledRosterRecord>();
   private readonly selections = new Map<string, string[]>();
   private failures: { page: number; remaining: number } | undefined;
+  /** By `<slug> <personId>`: a person's national ID, where they are onboarded. */
+  private readonly nationalIds = new Map<string, string>();
+  /** Every national ID read, by person id: an audited read in the directory. */
+  readonly nationalIdReads: string[] = [];
 
   givenCommission(slug: string, name: string, policy: PulledPolicy = policyVersion()): void {
     this.commissions.set(slug, { slug, issuerCode: slug.toUpperCase(), name });
@@ -87,6 +94,11 @@ export class FakeDirectory extends DirectoryClient {
     for (const record of records) this.records.set(record.id, record);
   }
 
+  /** The national ID person `personId`, onboarded at Commission `slug`, was verified with. */
+  givenNationalId(slug: string, personId: string, nationalId: string): void {
+    this.nationalIds.set(`${slug} ${personId}`, nationalId);
+  }
+
   /** The next pull of page `page` (0-based) fails, once. */
   failPull(page: number): void {
     this.failures = { page, remaining: 1 };
@@ -100,6 +112,8 @@ export class FakeDirectory extends DirectoryClient {
     this.records.clear();
     this.selections.clear();
     this.failures = undefined;
+    this.nationalIds.clear();
+    this.nationalIdReads.length = 0;
   }
 
   listRosterRecords(
@@ -128,6 +142,11 @@ export class FakeDirectory extends DirectoryClient {
   getRosterRecord(slug: string, recordId: string): Promise<PulledRosterRecord | null> {
     const record = this.records.get(recordId);
     return Promise.resolve(record?.tenant === slug ? record : null);
+  }
+
+  getPersonNationalId(slug: string, personId: string): Promise<string | null> {
+    this.nationalIdReads.push(personId);
+    return Promise.resolve(this.nationalIds.get(`${slug} ${personId}`) ?? null);
   }
 
   getPolicy(slug: string): Promise<PulledPolicy> {

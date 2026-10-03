@@ -33,6 +33,8 @@ const record = (state: string, overrides: Record<string, unknown> = {}) => ({
   designation: 'Legal Officer',
   jobGroup: 'K',
   reportingEntity: null,
+  workStation: 'Ardhi House, Nairobi',
+  maritalStatus: 'married',
   employerCode: null,
   state,
   appointmentDate: '2018-01-08',
@@ -90,6 +92,12 @@ describe('HttpDirectoryClient', () => {
       'exited',
     ]);
     expect(result.nextCursor).toBe('abc');
+    // The HR fields bio pre-fill reads (spec 05b).
+    expect(result.items[0]).toMatchObject({
+      jobGroup: 'K',
+      workStation: 'Ardhi House, Nairobi',
+      maritalStatus: 'married',
+    });
     expect(requests[0]?.url.pathname).toBe('/internal/v1/commissions/psc/roster/records');
     expect(requests[0]?.url.searchParams.get('importId')).toBe('imp');
     expect(requests[0]?.actingTenant).toBe('psc');

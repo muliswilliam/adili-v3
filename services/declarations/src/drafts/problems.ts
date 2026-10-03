@@ -33,6 +33,16 @@ export function versionMismatch(): ProblemException {
   });
 }
 
+/** A schema's issues as the fields at fault of a validation problem: each at its dotted path. */
+export function fieldErrors(
+  issues: readonly { path: readonly PropertyKey[]; message: string }[],
+): { path: string; message: string }[] {
+  return issues.map((issue) => ({
+    path: issue.path.map(String).join('.'),
+    message: issue.message,
+  }));
+}
+
 /** 400 with the fields at fault. */
 export function validationProblem(errors: { path: string; message: string }[]): ProblemException {
   return new ProblemException({

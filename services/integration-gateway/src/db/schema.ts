@@ -44,7 +44,8 @@ export type UnavailableReason = (typeof UNAVAILABLE_REASONS)[number];
 
 /**
  * Why a registry may be consulted (ADR-008: every lookup records its legal basis). Callers name
- * it in `X-Legal-Basis`.
+ * it in `X-Legal-Basis` (`HEADER_LEGAL_BASES`), except onboarding's, which the IPRS route records
+ * itself.
  */
 export const LEGAL_BASES = [
   /** Regs r.20(1)(b): compare the declaration with other sources (review cross-checks). */
@@ -53,6 +54,11 @@ export const LEGAL_BASES = [
   'act-s35-5',
   /** ADR-014: confirm a declarant's identity against the roster at onboarding. */
   'adr-014-onboarding',
+  /**
+   * Spec 05b: the declarant asks, with their consent recorded, for registries to be checked about
+   * themselves or their household, to pre-fill their own declaration.
+   */
+  'declarant-request',
 ] as const;
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 

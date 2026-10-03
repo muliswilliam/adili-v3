@@ -3439,6 +3439,55 @@ paths:
       x-audited-read:
         action: person.contacts.read
         resource: person
+  /internal/v1/persons/{personId}/national-id:
+    get:
+      tags:
+        - internal
+      summary: A person's national ID (declarations)
+      description: Service tokens with scope directory:person-national-id (the declarations service only), acting for the Commission of the declaration; audited. The national ID verified at onboarding, for the declarant's own registry lookups. 404 when the person is unknown or not onboarded at that tenant.
+      operationId: internalGetPersonNationalId
+      parameters:
+        - name: X-Acting-Tenant
+          in: header
+          description: Tenant the calling service acts for; the resource must belong to it
+          required: true
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: personId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The national ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonNationalId'
+        '400':
+          description: personId is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: Requires a service token with scope directory:person-national-id
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: No person has this id, or not one onboarded at the acting tenant
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: person.national-id.read
+        resource: person
   /v1/me/applicant:
     get:
       tags:
@@ -4545,7 +4594,9 @@ components:
                   - designation
                   - job_group
                   - reporting_entity
+                  - work_station
                   - appointment_date
+                  - marital_status
                   - email
                   - phone
                   - employer_code
@@ -4570,7 +4621,9 @@ components:
               - designation
               - job_group
               - reporting_entity
+              - work_station
               - appointment_date
+              - marital_status
               - email
               - phone
               - employer_code
@@ -4784,10 +4837,24 @@ components:
           type:
             - string
             - 'null'
+        workStation:
+          description: Up to 100 characters.
+          examples:
+            - Eldoret
+          type:
+            - string
+            - 'null'
         appointmentDate:
           description: YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future.
           examples:
             - 2019-01-07
+          type:
+            - string
+            - 'null'
+        maritalStatus:
+          description: single, married, separated, divorced or widowed (any case).
+          examples:
+            - married
           type:
             - string
             - 'null'
@@ -4869,6 +4936,9 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
+            - not-new
             - no-applicant-record
             - request-decided
             - request-closed
@@ -4943,6 +5013,9 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
+            - not-new
             - no-applicant-record
             - request-decided
             - request-closed
@@ -5018,7 +5091,9 @@ components:
               - designation
               - job_group
               - reporting_entity
+              - work_station
               - appointment_date
+              - marital_status
               - email
               - phone
               - employer_code
@@ -5063,7 +5138,9 @@ components:
             - designation
             - jobGroup
             - reportingEntity
+            - workStation
             - appointmentDate
+            - maritalStatus
             - email
             - phone
             - employerCode
@@ -5122,7 +5199,15 @@ components:
               type:
                 - string
                 - 'null'
+            workStation:
+              type:
+                - string
+                - 'null'
             appointmentDate:
+              type:
+                - string
+                - 'null'
+            maritalStatus:
               type:
                 - string
                 - 'null'
@@ -5158,7 +5243,9 @@ components:
                   - designation
                   - jobGroup
                   - reportingEntity
+                  - workStation
                   - appointmentDate
+                  - maritalStatus
                   - email
                   - phone
                   - employerCode
@@ -5500,6 +5587,22 @@ components:
           anyOf:
             - $ref: '#/components/schemas/ReportingEntityRef'
             - type: 'null'
+        workStation:
+          description: Where the public officer works; null when the roster gives none
+          type:
+            - string
+            - 'null'
+        maritalStatus:
+          anyOf:
+            - type: string
+              enum:
+                - single
+                - married
+                - separated
+                - divorced
+                - widowed
+            - type: 'null'
+          description: As `declaration.v1` names it; null when the roster gives none
         employerCode:
           description: The HR and payroll systems' code for the employer, as the roster gives it; null when it gives none
           examples:
@@ -5549,6 +5652,8 @@ components:
         - designation
         - jobGroup
         - reportingEntity
+        - workStation
+        - maritalStatus
         - employerCode
         - state
         - appointmentDate
@@ -6169,6 +6274,14 @@ components:
         - personId
         - email
         - phone
+    PersonNationalId:
+      type: object
+      properties:
+        nationalId:
+          type: string
+          description: Digits only, as verified at onboarding
+      required:
+        - nationalId
     VerifyOnboardingOtp:
       type: object
       properties:
@@ -6843,6 +6956,9 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
+            - not-new
             - no-applicant-record
             - request-decided
             - request-closed

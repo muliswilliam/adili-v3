@@ -19,7 +19,13 @@ import { commissions } from '../commissions/schema.js';
 import { persons } from '../persons/schema.js';
 import type { ColumnMapping } from './header-mapping.js';
 import type { ImportCounts, ImportFailureCode } from './import/representation.js';
-import type { NormalisedRosterRow, RawRosterRow, RowError, RowNote } from './row-validation.js';
+import {
+  MARITAL_STATUSES,
+  type NormalisedRosterRow,
+  type RawRosterRow,
+  type RowError,
+  type RowNote,
+} from './row-validation.js';
 
 /**
  * The roster of each Commission (spec #27): its records, reporting entities, imports with their
@@ -60,6 +66,8 @@ export type ImportRowStatus = (typeof IMPORT_ROW_STATUSES)[number];
 
 export const IMPORT_ROW_OUTCOMES = ['created', 'updated', 'unchanged'] as const;
 export type ImportRowOutcome = (typeof IMPORT_ROW_OUTCOMES)[number];
+
+const maritalStatusList = sql.raw(MARITAL_STATUSES.map((status) => `'${status}'`).join(', '));
 
 /**
  * A school, ministry, department or station named in roster rows; created on first sight during
@@ -109,9 +117,13 @@ export const rosterRecords = pgTable(
     designation: text(),
     jobGroup: text(),
     reportingEntityId: uuid().references(() => reportingEntities.id),
+    /** Where the public officer works, as the roster gives it (spec 05b: pre-fills the bio). */
+    workStation: text(),
     /** The HR and payroll systems' code for the employer; review's supplier check takes it. */
     employerCode: text(),
     appointmentDate: date({ mode: 'string' }),
+    /** One of `declaration.v1`'s marital statuses (spec 05b: pre-fills the bio). */
+    maritalStatus: text({ enum: MARITAL_STATUSES }),
     email: text(),
     /** E.164. */
     phone: text(),
@@ -199,6 +211,10 @@ export const rosterRecords = pgTable(
       sql`${table.state} in ('not_onboarded', 'onboarded', 'exited')`,
     ),
     check('roster_records_source_check', sql`${table.source} in ('file', 'api')`),
+    check(
+      'roster_records_marital_status_check',
+      sql`${table.maritalStatus} is null or ${table.maritalStatus} in (${maritalStatusList})`,
+    ),
     check(
       'roster_records_exit_date_check',
       sql`${table.state} = 'exited' or ${table.exitDate} is null`,

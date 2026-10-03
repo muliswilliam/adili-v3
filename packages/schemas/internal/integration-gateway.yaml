@@ -87,14 +87,14 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
+              - declarant-request
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
@@ -159,14 +159,14 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
+              - declarant-request
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
@@ -231,14 +231,14 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
+              - declarant-request
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
@@ -303,14 +303,14 @@ paths:
             pattern: ^[a-z][a-z0-9]{1,19}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
+              - declarant-request
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
@@ -387,14 +387,14 @@ paths:
             pattern: ^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$
         - name: X-Legal-Basis
           in: header
-          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5 or adr-014-onboarding
+          description: Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403
           required: true
           schema:
             type: string
             enum:
               - regs-r20-1-b
               - act-s35-5
-              - adr-014-onboarding
+              - declarant-request
         - name: X-Case-Ref
           in: header
           description: Review case the lookup is for; recorded on the result and the audit event
@@ -1530,6 +1530,9 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
+            - not-new
             - no-applicant-record
             - request-decided
             - request-closed

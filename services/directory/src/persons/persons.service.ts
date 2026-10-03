@@ -3,8 +3,14 @@ import { notFoundIfInvisible, PLATFORM_TENANT } from '@adili/api-kit';
 import { type Database, InjectDatabase, type TenantContext, withTenant } from '@adili/data-access';
 import { and, asc, eq, exists, inArray, or } from 'drizzle-orm';
 
+import type { Transaction } from '../commissions/commissions.service.js';
 import { commissions, type DirectorySchema, persons, rosterRecords } from '../db/schema.js';
-import type { DeclarantProfile, PersonContacts, PersonSummary } from './representation.js';
+import type {
+  DeclarantProfile,
+  PersonContacts,
+  PersonNationalId,
+  PersonSummary,
+} from './representation.js';
 
 /**
  * Reading persons (spec 03): a declarant's own profile, found by the subject of their token, and
@@ -100,18 +106,7 @@ export class PersonsService {
             eq(persons.id, personId),
             or(
               inArray(persons.kind, ['law-enforcement', 'applicant']),
-              // Onboarded at the acting tenant: its roster records are the only ones RLS shows.
-              exists(
-                tx
-                  .select({ id: rosterRecords.id })
-                  .from(rosterRecords)
-                  .where(
-                    and(
-                      eq(rosterRecords.personId, persons.id),
-                      eq(rosterRecords.tenant, context.tenant),
-                    ),
-                  ),
-              ),
+              onboardedAt(tx, context.tenant),
             ),
           ),
         )
@@ -119,4 +114,36 @@ export class PersonsService {
     );
     return notFoundIfInvisible(person);
   }
+
+  /**
+   * The national ID a declarant was onboarded with; 404 if no declarant onboarded at the tenant
+   * has this id (law-enforcement officers and applicants are not looked up in registries).
+   */
+  async nationalId(context: TenantContext, personId: string): Promise<PersonNationalId> {
+    const [person] = await withTenant(this.db, context, (tx) =>
+      tx
+        .select({ nationalId: persons.nationalId })
+        .from(persons)
+        .where(
+          and(
+            eq(persons.id, personId),
+            eq(persons.kind, 'declarant'),
+            onboardedAt(tx, context.tenant),
+          ),
+        )
+        .limit(1),
+    );
+    // A declarant always has one; only an applicant may have a passport instead.
+    return notFoundIfInvisible(person?.nationalId ? { nationalId: person.nationalId } : null);
+  }
+}
+
+/** The person is onboarded at the acting tenant: its roster records are the only ones RLS shows. */
+function onboardedAt(tx: Transaction, tenant: string) {
+  return exists(
+    tx
+      .select({ id: rosterRecords.id })
+      .from(rosterRecords)
+      .where(and(eq(rosterRecords.personId, persons.id), eq(rosterRecords.tenant, tenant))),
+  );
 }

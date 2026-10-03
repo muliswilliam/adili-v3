@@ -1607,6 +1607,9 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
+            - not-new
             - no-applicant-record
             - request-decided
             - request-closed

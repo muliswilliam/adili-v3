@@ -2782,6 +2782,9 @@ components:
               items:
                 type: object
                 properties:
+                  id:
+                    type: string
+                    format: uuid
                   company:
                     type: string
                     maxLength: 200
@@ -2810,6 +2813,34 @@ components:
                         maxLength: 1000
                     required:
                       - changed
+                    additionalProperties: false
+                  source:
+                    type: object
+                    properties:
+                      kind:
+                        type: string
+                        enum:
+                          - kra
+                          - ntsa
+                          - brs
+                          - ardhisasa
+                          - document
+                      suggestionId:
+                        type: string
+                        format: uuid
+                      verificationResultId:
+                        type: string
+                        format: uuid
+                      aiJobId:
+                        type: string
+                        format: uuid
+                      at:
+                        type: string
+                        format: date-time
+                    required:
+                      - kind
+                      - suggestionId
+                      - at
                     additionalProperties: false
                 required:
                   - company
@@ -3498,6 +3529,9 @@ components:
             - obligation-cancelled
             - acknowledgement-issued
             - acknowledgement-in-progress
+            - consent-required
+            - no-id
+            - not-new
             - no-applicant-record
             - request-decided
             - request-closed

@@ -25,6 +25,7 @@ import { declarationAttachmentLinked } from './events.js';
 import {
   declarationNotDraft,
   documentsUnavailable,
+  fieldErrors,
   sectionArchived,
   uploadAlreadyLinked,
   uploadNotClean,
@@ -82,12 +83,7 @@ export class AttachmentsService {
     const person = personOf(principal);
     const parsed = attachmentLinkSchema.safeParse(body);
     if (!parsed.success) {
-      throw validationProblem(
-        parsed.error.issues.map((issue) => ({
-          path: issue.path.map(String).join('.'),
-          message: issue.message,
-        })),
-      );
+      throw validationProblem(fieldErrors(parsed.error.issues));
     }
     const { itemId, uploadId } = parsed.data;
     // Only a statement's items take attachments.

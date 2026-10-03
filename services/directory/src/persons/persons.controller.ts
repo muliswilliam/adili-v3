@@ -14,7 +14,13 @@ import {
   schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
-import { DECLARANT, DIRECTORY_PERSON_CONTACTS_SCOPE, HELPDESK, PLATFORM_ADMIN } from '@adili/roles';
+import {
+  DECLARANT,
+  DIRECTORY_PERSON_CONTACTS_SCOPE,
+  DIRECTORY_PERSON_NATIONAL_ID_SCOPE,
+  HELPDESK,
+  PLATFORM_ADMIN,
+} from '@adili/roles';
 
 import { z } from 'zod';
 
@@ -24,6 +30,7 @@ import {
   type FindPersonQuery,
   findPersonQuery,
   type PersonContacts,
+  type PersonNationalId,
   type PersonSummary,
 } from './representation.js';
 
@@ -121,5 +128,38 @@ export class InternalPersonsController {
     const contacts = await this.persons.contacts({ tenant, subject: principal.subject }, personId);
     audit.resource({ tenant, subjectPersonId: personId });
     return contacts;
+  }
+}
+
+/**
+ * Internal: not routed by the public entrypoint. A national ID is personal data: only the
+ * declarations service's token carries `directory:person-national-id`, for the declarant's own
+ * registry lookups (spec 05b), acting for the Commission of the declaration (ADR-013 §8.1); a
+ * person not onboarded there is 404.
+ */
+@ApiTags('internal')
+@Controller('internal/v1/persons')
+@InternalApi(DIRECTORY_PERSON_NATIONAL_ID_SCOPE)
+export class InternalPersonNationalIdController {
+  constructor(private readonly persons: PersonsService) {}
+
+  @Get(':personId/national-id')
+  @AuditedRead({ action: 'person.national-id.read', resource: 'person' })
+  @ApiParam({ name: 'personId', schema: { type: 'string', format: 'uuid' } })
+  @ApiOperation({
+    operationId: 'internalGetPersonNationalId',
+    summary: "A person's national ID (declarations)",
+    description:
+      "Service tokens with scope directory:person-national-id (the declarations service only), acting for the Commission of the declaration; audited. The national ID verified at onboarding, for the declarant's own registry lookups. 404 when the person is unknown or not onboarded at that tenant.",
+  })
+  @ApiOkResponse({ description: 'The national ID', schema: schemaRef('PersonNationalId') })
+  @ApiProblemResponse(400, 'personId is not a UUID')
+  @ApiProblemResponse(404, 'No person has this id, or not one onboarded at the acting tenant')
+  nationalId(
+    @CurrentPrincipal() principal: Principal,
+    @ActingTenant() tenant: string,
+    @Param('personId', new ZodValidationPipe(z.uuid())) personId: string,
+  ): Promise<PersonNationalId> {
+    return this.persons.nationalId({ tenant, subject: principal.subject }, personId);
   }
 }

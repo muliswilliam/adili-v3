@@ -51,6 +51,7 @@ import type { ObligationStatus } from '../obligations/engine.js';
 import { obligationStatusChanged } from '../obligations/events.js';
 import { filingObligations } from '../obligations/schema.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from '../obligations/workflows.js';
+import { deleteSuggestions } from '../suggestions/expiry.js';
 import { declarationSubmitted } from './events.js';
 import { type DerivedItem, deriveItems } from './items.js';
 import { incomplete, refused, stepUpRequired } from './problems.js';
@@ -106,11 +107,11 @@ interface Submitted {
  * while it is as prepared (else it is prepared again), and checks the obligation takes it today.
  * Then the reference is allocated (first version only, gapless: a rollback returns the number),
  * the immutable version and its items are written encrypted, the previous version is superseded,
- * the declaration is submitted, the obligation filed, and the events recorded. The obligation's
- * workflow is told after commit; a lost signal is healed by the workflow reading the row. The
- * `Idempotency-Key` store (api-kit) replays a retried request; the key's hash is also kept on the
- * version, so a retry whose stored answer was lost still gets the same submission back rather
- * than a conflict.
+ * the declaration is submitted, its registry suggestions deleted (spec 05b S7), the obligation
+ * filed, and the events recorded. The obligation's workflow is told after commit; a lost signal
+ * is healed by the workflow reading the row. The `Idempotency-Key` store (api-kit) replays a
+ * retried request; the key's hash is also kept on the version, so a retry whose stored answer was
+ * lost still gets the same submission back rather than a conflict.
  */
 @Injectable()
 export class SubmissionService {
@@ -350,6 +351,8 @@ export class SubmissionService {
       .where(eq(declarations.id, declaration.id));
     // No longer a draft in progress for the Commission's counts (#300).
     await tx.delete(obligationDrafts).where(eq(obligationDrafts.declarationId, declaration.id));
+    // Registry suggestions expire with the draft they were offered on (spec 05b S7).
+    await deleteSuggestions(tx, declaration.id);
 
     // An amendment keeps the obligation filed as it was (when, and whether late); only the
     // version in force moves on.

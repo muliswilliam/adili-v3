@@ -22,12 +22,7 @@ function submitted(type: DeclarationV1['type']): DeclarationV1 {
 }
 
 function contentsOf(document: DeclarationV1) {
-  return new Map(
-    sectionsOfVersion(document, { lockedFields: [] }).map((section) => [
-      section.key,
-      section.contents,
-    ]),
-  );
+  return new Map(sectionsOfVersion(document, {}).map((section) => [section.key, section.contents]));
 }
 
 describe('sectionsOfVersion', () => {

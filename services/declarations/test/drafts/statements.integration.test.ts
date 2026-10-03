@@ -212,7 +212,7 @@ function allItems() {
 }
 
 describe('statement items (S7)', () => {
-  it('round-trips income, land, vehicle, foreign shareholding, joint building and mortgage unchanged', async () => {
+  it('round-trips income, land, vehicle, foreign shareholding, joint building and mortgage, taking no source from the client', async () => {
     const draft = await started();
     const body = await statementWith(draft.id, allItems());
 
@@ -230,8 +230,14 @@ describe('statement items (S7)', () => {
     const read = await getSection(draft.id, 'statement:officer');
     expect(contractErrors(SECTION_BODY, read.json())).toEqual([]);
     const contents = read.json<SectionEnvelope>().contents;
-    expect(contents).toEqual(body);
-    // Exact integers, not floats or strings, and the 05b source kept as sent.
+    // Every item as sent, but for the land's source: the service sets sources, a client cannot.
+    const landAsTyped: Partial<AssetItem> = land();
+    delete landAsTyped.source;
+    expect(contents).toEqual({
+      ...body,
+      assets: [landAsTyped, ...(body.assets as AssetItem[]).slice(1)],
+    });
+    // Exact integers, not floats or strings.
     expect(
       (JSON.parse(read.body) as SectionEnvelope & { contents: { assets: AssetItem[] } }).contents
         .assets[2]?.value,
@@ -239,7 +245,7 @@ describe('statement items (S7)', () => {
       kesCents: 207_000_041,
       original: { currency: 'GBP', minorUnits: 1_250_053 },
     });
-    expect((contents.assets as AssetItem[])[0]?.source).toEqual(land().source);
+    expect((contents.assets as AssetItem[])[0]?.source).toBeUndefined();
   });
 
   it('counts the items by category in the draft header, never their values', async () => {

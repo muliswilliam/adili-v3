@@ -43,6 +43,7 @@ import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { type CorpusFile, loadCorpus } from '../../src/help/corpus.js';
 import { CorpusFiles } from '../../src/help/corpus-importer.js';
+import { IntegrationGatewayClient } from '../../src/integration-gateway/integration-gateway-client.js';
 import { NotificationsClient } from '../../src/notifications/notifications-client.js';
 import { DirectoryEventsConsumer } from '../../src/obligations/directory-events.consumer.js';
 import {
@@ -58,6 +59,7 @@ import {
 } from '../../src/obligations/workflows.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
+import { FakeIntegrationGateway } from './fake-integration-gateway.js';
 import { FakeNotifications } from './fake-notifications.js';
 import { FakeTemporal } from './fake-temporal.js';
 
@@ -234,6 +236,8 @@ export interface DeclarationsApi {
   /** The documents internal uploads API: attachments are verified and marked linked there. */
   documents: FakeDocuments;
   notifications: FakeNotifications;
+  /** The integration-gateway's registry lookups (spec 05b), run by the lookup workflow. */
+  gateway: FakeIntegrationGateway;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
   /** Starts and signals sent to Temporal (`fake` mode only). */
@@ -277,10 +281,12 @@ export interface DeclarationsApi {
 /**
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
- * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the field cipher `FakeCipher`, workflows are recorded (see
- * `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay in the outbox
- * for assertions). The service's Temporal worker polls the suite's own task queue. The test role owns the tables, so
- * FORCE row-level security applies to it as to the service's role.
+ * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the
+ * integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are
+ * recorded (see `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay
+ * in the outbox for assertions). The service's Temporal worker polls the suite's own task queue.
+ * The test role owns the tables, so FORCE row-level security applies to it as to the service's
+ * role.
  */
 export async function startDeclarationsApi({
   workflows: mode = 'recording',
@@ -311,6 +317,7 @@ export async function startDeclarationsApi({
   const workflows = new RecordingWorkflows();
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
+  const gateway = new FakeIntegrationGateway();
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
@@ -326,6 +333,8 @@ export async function startDeclarationsApi({
     .useValue(documents)
     .overrideProvider(NotificationsClient)
     .useValue(notifications)
+    .overrideProvider(IntegrationGatewayClient)
+    .useValue(gateway)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(FieldCipher)
@@ -378,6 +387,7 @@ export async function startDeclarationsApi({
     directory,
     documents,
     notifications,
+    gateway,
     workflows,
     temporal,
     cipher,
@@ -417,13 +427,14 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate help_articles, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
       documents.reset();
       notifications.reset();
+      gateway.reset();
       workflows.reset();
       temporal.reset();
       clock.reset();

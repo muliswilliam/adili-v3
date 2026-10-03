@@ -134,6 +134,20 @@
       "when": 1790879944819,
       "tag": "0019_roster_snapshot_designation",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790920502423,
+      "tag": "0020_registry_suggestions",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790920516590,
+      "tag": "0021_registry_suggestions_rls",
+      "breakpoints": true
     }
   ]
 }

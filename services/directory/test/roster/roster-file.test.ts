@@ -49,7 +49,8 @@ describe('parseRosterFile: CSV', () => {
         { source: 'phone', field: 'phone' },
       ],
       ignored: ['Station Code'],
-      missing: ['employer_code'],
+      // Columns the fixture predates: spec 05b's and the employer code.
+      missing: ['work_station', 'marital_status', 'employer_code'],
     });
 
     const rows = await parsed(file);
@@ -80,7 +81,9 @@ describe('parseRosterFile: CSV', () => {
       designation: null,
       jobGroup: null,
       reportingEntity: null,
+      workStation: null,
       appointmentDate: null,
+      maritalStatus: null,
       email: null,
       phone: null,
       employerCode: null,
@@ -109,6 +112,8 @@ describe('parseRosterFile: CSV', () => {
       'designation',
       'job_group',
       'reporting_entity',
+      'work_station',
+      'marital_status',
       'email',
       'employer_code',
     ]);
@@ -142,7 +147,9 @@ describe('parseRosterFile: CSV', () => {
         missing: [
           'job_group',
           'reporting_entity',
+          'work_station',
           'appointment_date',
+          'marital_status',
           'email',
           'phone',
           'employer_code',
@@ -305,20 +312,22 @@ describe('parseRosterFile: XLSX', () => {
         'Teacher',
         'C3',
         'Moi Girls',
+        'Eldoret',
         new Date(Date.UTC(2019, 0, 7)),
+        'Married',
         'A@B.CO.KE',
         712345678,
         'KEMSA',
         'Uasin Gishu',
       ]);
       zeros.getCell(1).numFmt = '000000';
-      zeros.getCell(7).numFmt = 'd-mmm-yy';
-      zeros.getCell(9).numFmt = '0000000000';
+      zeros.getCell(8).numFmt = 'd-mmm-yy';
+      zeros.getCell(11).numFmt = '0000000000';
       sheet.addRow([]);
       const text = sheet.addRow(['000456', 'Kiprono Kipchumba', '12345678']);
-      text.getCell(7).value = '07/01/2019';
+      text.getCell(8).value = '07/01/2019';
       const serial = sheet.addRow(['000457', 'Halima Abdi', 34567890]);
-      serial.getCell(7).value = 43472; // 2019-0107 as a serial in a General cell: not a date cell
+      serial.getCell(8).value = 43472; // 2019-0107 as a serial in a General cell: not a date cell
     });
 
     const parsedFile = await parseRosterFile(file, 'xlsx', { today: TODAY });
@@ -333,7 +342,9 @@ describe('parseRosterFile: XLSX', () => {
         personnelFileNumber: '000123',
         fullName: 'Achieng Otieno',
         nationalId: '23456789',
+        workStation: 'Eldoret',
         appointmentDate: '2019-01-07',
+        maritalStatus: 'married',
         email: 'a@b.co.ke',
         phone: '+254712345678',
       },

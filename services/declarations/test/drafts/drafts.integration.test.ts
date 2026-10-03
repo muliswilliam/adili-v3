@@ -23,6 +23,7 @@ import {
   type DeclarationsApi,
   startDeclarationsApi,
 } from '../support/declarations-api.js';
+import type { PulledRosterRecord } from '../../src/directory/directory-client.js';
 import { rosterRecord } from '../support/fake-directory.js';
 import { assetItem, incomeItem } from '../fixtures/sections.js';
 
@@ -60,6 +61,8 @@ interface ObligationSetup {
   statementDate?: string;
   status?: 'upcoming' | 'due' | 'overdue' | 'filed' | 'cancelled';
   appointmentDate?: string;
+  /** What else the roster record says (spec 05b HR fields). */
+  roster?: Partial<PulledRosterRecord>;
 }
 
 /** An onboarded PSC declarant's roster record (in the directory) and one obligation of theirs. */
@@ -69,6 +72,7 @@ async function givenObligation({
   statementDate = '2027-11-01',
   status = 'due',
   appointmentDate = '2015-01-05',
+  roster = {},
 }: ObligationSetup = {}): Promise<{ obligationId: string; rosterRecordId: string }> {
   const record = rosterRecord('psc', {
     personId,
@@ -78,6 +82,7 @@ async function givenObligation({
     designation: 'Senior Accountant',
     reportingEntity: { id: randomUUID(), name: 'Ministry of Health' },
     appointmentDate,
+    ...roster,
   });
   api.directory.givenRecords([record]);
   const obligationId = randomUUID();
@@ -224,9 +229,11 @@ describe('starting a draft (S1)', () => {
           employer: 'Ministry of Health',
           responsibleCommission: 'psc',
           personnelFileNumber: 'PSC/2015/0042',
+          appointmentDate: '2015-01-05',
         },
       },
       issues: [],
+      prefilledFields: ['/employment/appointmentDate'],
       draftVersion: 1,
     });
 
@@ -417,6 +424,129 @@ describe('who can start and read a draft (S3)', () => {
   });
 });
 
+describe('HR fields from the roster (spec 05b S8)', () => {
+  const HR_FIELDS = [
+    '/employment/jobGroup',
+    '/employment/appointmentDate',
+    '/employment/workStation',
+    '/maritalStatus',
+  ];
+  const LOCKED = [
+    '/name/surname',
+    '/name/firstName',
+    '/name/otherNames',
+    '/employment/responsibleCommission',
+    '/employment/personnelFileNumber',
+    '/employment/designation',
+    '/employment/employer',
+  ];
+
+  async function bioMetadata(id: string) {
+    const [row] = await api.asPerson(ACHIENG, (tx) =>
+      tx
+        .select({ metadata: declarationSections.metadata })
+        .from(declarationSections)
+        .where(eq(declarationSections.declarationId, id))
+        .orderBy(asc(declarationSections.sectionKey)),
+    );
+    return row?.metadata;
+  }
+
+  it('pre-fills job group, appointment date, work station and marital status, editable, with their source', async () => {
+    const draft = await started({
+      roster: { jobGroup: 'P', workStation: 'Afya House, Nairobi', maritalStatus: 'married' },
+    });
+
+    const bio = await getSection(draft.id, 'bio');
+
+    expect(contractErrors(SECTION_BODY, bio.json())).toEqual([]);
+    const envelope = bio.json<SectionEnvelope>();
+    expect(envelope.contents).toMatchObject({
+      maritalStatus: 'married',
+      employment: {
+        jobGroup: 'P',
+        appointmentDate: '2015-01-05',
+        workStation: 'Afya House, Nairobi',
+      },
+    });
+    expect(envelope.prefilledFields).toEqual(HR_FIELDS);
+    // Identity stays locked as before; the HR fields are not locked.
+    expect(await bioMetadata(draft.id)).toEqual({
+      lockedFields: LOCKED,
+      prefilledFields: HR_FIELDS,
+    });
+  });
+
+  it('lets the declarant change them, and then no longer calls the changed one pre-filled', async () => {
+    const draft = await started({
+      roster: { jobGroup: 'P', workStation: 'Afya House, Nairobi', maritalStatus: 'married' },
+    });
+    const bio = fullBio(await bioContents(draft.id));
+    const employment = bio.employment as Record<string, unknown>;
+
+    const response = await save(
+      draft.id,
+      'bio',
+      { ...bio, maritalStatus: 'married', employment: { ...employment, jobGroup: 'Q' } },
+      '"1"',
+    );
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(contractErrors(SAVE_BODY, response.json())).toEqual([]);
+    const remaining = ['/employment/appointmentDate', '/employment/workStation', '/maritalStatus'];
+    expect(response.json<SectionSaveResult>().prefilledFields).toEqual(remaining);
+    const read = (await getSection(draft.id, 'bio')).json<SectionEnvelope>();
+    expect(read.contents).toMatchObject({ employment: { jobGroup: 'Q' } });
+    expect(read.prefilledFields).toEqual(remaining);
+
+    // Typing the roster's value back does not make it the roster's again.
+    const again = await save(
+      draft.id,
+      'bio',
+      { ...bio, maritalStatus: 'married', employment: { ...employment, jobGroup: 'P' } },
+      '"2"',
+    );
+    expect(again.json<SectionSaveResult>().prefilledFields).toEqual(remaining);
+  });
+
+  it('leaves them empty when the roster has none', async () => {
+    const draft = await started({
+      roster: { jobGroup: null, workStation: null, maritalStatus: null, appointmentDate: null },
+    });
+
+    const envelope = (await getSection(draft.id, 'bio')).json<SectionEnvelope>();
+
+    expect(envelope.contents).not.toHaveProperty('maritalStatus');
+    expect(envelope.contents.employment).toEqual({
+      designation: 'Senior Accountant',
+      employer: 'Ministry of Health',
+      responsibleCommission: 'psc',
+      personnelFileNumber: 'PSC/2015/0042',
+    });
+    expect(envelope.prefilledFields).toEqual([]);
+    expect(await bioMetadata(draft.id)).toEqual({ lockedFields: LOCKED, prefilledFields: [] });
+  });
+
+  it('still refuses a change to a locked field', async () => {
+    const draft = await started({ roster: { jobGroup: 'P' } });
+    const bio = fullBio(await bioContents(draft.id));
+    const employment = bio.employment as Record<string, unknown>;
+
+    const response = await save(
+      draft.id,
+      'bio',
+      { ...bio, employment: { ...employment, designation: 'Accountant', jobGroup: 'Q' } },
+      '"1"',
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      type: 'identity-locked-field',
+      errors: [{ path: 'employment.designation' }],
+    });
+  });
+});
+
 describe('saving a section (S4)', () => {
   it('saves bio, bumps the version and reports completeness', async () => {
     const draft = await started();
@@ -433,6 +563,7 @@ describe('saving a section (S4)', () => {
       completeness: 'complete',
       draftVersion: 2,
       issues: [],
+      prefilledFields: ['/employment/appointmentDate'],
       sectionsChanged: [],
     });
     const read = await getSection(draft.id, 'bio');
@@ -681,6 +812,7 @@ describe('ciphertext opacity (S13)', () => {
         '/employment/designation',
         '/employment/employer',
       ],
+      prefilledFields: ['/employment/appointmentDate'],
     });
 
     const [declaration] = await api

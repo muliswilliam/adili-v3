@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { outbox } from '../../src/db/schema.js';
 import type { TenantPolicyVersion } from '../../src/commissions/policy-representation.js';
-import type { PersonContacts } from '../../src/persons/representation.js';
+import type { PersonContacts, PersonNationalId } from '../../src/persons/representation.js';
 import type { ExitsResult } from '../../src/roster/exits/representation.js';
 import type { RosterImport } from '../../src/roster/import/representation.js';
 import type {
@@ -168,6 +168,8 @@ describe('S18 records touched by an import', () => {
       designation: 'Officer',
       jobGroup: null,
       reportingEntity: null,
+      workStation: null,
+      maritalStatus: null,
       employerCode: null,
       state: 'not_onboarded',
       appointmentDate: '2025-03-10',
@@ -251,6 +253,37 @@ describe('S18 records touched by an import', () => {
         resource: expect.objectContaining({ ids: served }) as unknown,
       }),
     );
+  });
+});
+
+describe('S8 HR fields for bio pre-fill (spec 05b)', () => {
+  it('gives job group, appointment date, work station and marital status as the roster has them', async () => {
+    const imported = await importRoster(
+      [
+        'PSC/0001,Achieng Otieno,12345678,C3,07/01/2019,"Afya House, Nairobi",Married',
+        'PSC/0002,Kiprono Kipchumba,23456789,,,,',
+      ],
+      false,
+      'personnel_file_number,full_name,national_id,job_group,appointment_date,work_station,marital_status',
+    );
+
+    const items = (await pullAll(`importId=${imported.id}`, 10)).flatMap((page) => page.items);
+
+    expect(items[0]).toMatchObject({
+      personnelFileNumber: 'PSC/0001',
+      jobGroup: 'C3',
+      appointmentDate: '2019-01-07',
+      workStation: 'Afya House, Nairobi',
+      maritalStatus: 'married',
+    });
+    // Absent on the roster: null, never a guess.
+    expect(items[1]).toMatchObject({
+      personnelFileNumber: 'PSC/0002',
+      jobGroup: null,
+      appointmentDate: null,
+      workStation: null,
+      maritalStatus: null,
+    });
   });
 });
 
@@ -901,6 +934,94 @@ describe('S18 person contacts', () => {
 
     expect((await api.get(url, NOTIFICATIONS, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(404);
     expect((await api.get(url, NOTIFICATIONS)).statusCode).toBe(400);
+  });
+});
+
+describe("a person's national ID (spec 05b registry lookups)", () => {
+  /** The declarations service's token for the declarant's own registry lookups. */
+  const LOOKUPS: Caller = {
+    sub: 'service-account-declarations',
+    azp: 'declarations',
+    scope: 'profile directory:internal directory:person-national-id',
+  };
+
+  async function givenPerson() {
+    const ids = await givenRoster(api, 'psc', [
+      { personnelFileNumber: 'PSC/9', fullName: 'Mary Wambui', nationalId: '45678901' },
+    ]);
+    return givenOnboardedPerson(api, { recordIds: [...ids.values()] });
+  }
+
+  it('gives the national ID the person was onboarded with', async () => {
+    const person = await givenPerson();
+
+    const response = await api.get(
+      `/internal/v1/persons/${person.personId}/national-id`,
+      LOOKUPS,
+      ACTING_PSC,
+    );
+
+    expect(response.statusCode, response.body).toBe(200);
+    const found = response.json<PersonNationalId>();
+    expect(
+      contractErrors(okResponse('/internal/v1/persons/{personId}/national-id', 'get'), found),
+    ).toEqual([]);
+    expect(found).toEqual({ nationalId: '45678901' });
+  });
+
+  it('records the read in the audit trail as the calling service', async () => {
+    const person = await givenPerson();
+
+    await api.get(`/internal/v1/persons/${person.personId}/national-id`, LOOKUPS, ACTING_PSC);
+
+    expect(await auditReads()).toContainEqual(
+      expect.objectContaining({
+        action: 'person.national-id.read',
+        resource: expect.objectContaining({ params: { personId: person.personId } }) as unknown,
+        actor: expect.objectContaining({ clientId: 'declarations' }) as unknown,
+      }),
+    );
+  });
+
+  it('refuses the roster national-ID scope, directory:internal alone and user tokens', async () => {
+    const person = await givenPerson();
+    const url = `/internal/v1/persons/${person.personId}/national-id`;
+
+    expect((await api.get(url, REVIEW, ACTING_PSC)).statusCode).toBe(403);
+    expect((await api.get(url, DECLARATIONS, ACTING_PSC)).statusCode).toBe(403);
+    expect(
+      (
+        await api.get(
+          url,
+          { sub: 'helpdesk-1', tenant: 'platform', roles: ['helpdesk', 'platform-admin'] },
+          ACTING_PSC,
+        )
+      ).statusCode,
+    ).toBe(403);
+  });
+
+  it('answers 404 for a person not onboarded at the acting tenant or unknown, 400 for a bad id', async () => {
+    const person = await givenPerson();
+
+    const elsewhere = await api.get(
+      `/internal/v1/persons/${person.personId}/national-id`,
+      LOOKUPS,
+      { 'x-acting-tenant': 'tsc' },
+    );
+    const unknown = await api.get(
+      `/internal/v1/persons/${randomUUID()}/national-id`,
+      LOOKUPS,
+      ACTING_PSC,
+    );
+    const invalid = await api.get(
+      '/internal/v1/persons/not-a-uuid/national-id',
+      LOOKUPS,
+      ACTING_PSC,
+    );
+
+    expect(elsewhere.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+    expect(invalid.statusCode).toBe(400);
   });
 });
 

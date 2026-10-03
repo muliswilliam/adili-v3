@@ -68,6 +68,11 @@ export const personContactsSchema = z.object({
 });
 export type PersonContacts = z.infer<typeof personContactsSchema>;
 
+/** The national ID a person was onboarded with, for their own registry lookups (spec 05b). */
+export const personNationalIdSchema = z.object({
+  nationalId: z.string().meta({ description: 'Digits only, as verified at onboarding' }),
+});
+export type PersonNationalId = z.infer<typeof personNationalIdSchema>;
 /** An applicant's identity document as entered at onboarding (spec 10). */
 export const applicantIdentityDocumentSchema = z.object({
   kind: z.enum(IDENTITY_DOCUMENT_KINDS),

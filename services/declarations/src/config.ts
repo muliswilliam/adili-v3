@@ -21,11 +21,16 @@ export const envSchema = baseEnvSchema.extend({
   NOTIFICATIONS_API_URL: z.url(),
   /** The documents service, which holds declaration attachments and says whether they are clean. */
   DOCUMENTS_API_URL: z.url(),
+  /** The integration-gateway, the only way to the registries a declarant can check (spec 05b). */
+  INTEGRATION_GATEWAY_URL: z.url(),
   /** Where reminders send declarants to sign in (the portal). */
   PORTAL_URL: z.url(),
   /** Reminders are spread this many hours either side of midday (platform configuration). */
   REMINDER_JITTER_HOURS: z.coerce.number().min(0).max(12).default(6),
-  /** The service's confidential Keycloak client (client credentials, `directory:internal`, `messages`). */
+  /**
+   * The service's confidential Keycloak client (client credentials: `directory:internal`,
+   * `directory:person-national-id`, `messages`, `documents:internal` and the registry scopes).
+   */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('declarations'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });

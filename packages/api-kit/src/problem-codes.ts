@@ -84,6 +84,12 @@ export const PROBLEM_CODES = {
     status: HttpStatus.CONFLICT,
     title: 'Acknowledgement in progress',
   },
+  /** Registry lookups: the declarant did not say they request the check; nothing ran. */
+  'consent-required': { status: HttpStatus.BAD_REQUEST, title: 'Consent required' },
+  /** Registry lookups: the person has no national ID in Household to be looked up by. */
+  'no-id': { status: HttpStatus.BAD_REQUEST, title: 'No national ID' },
+  /** Registry suggestions: it was accepted, dismissed or superseded already; read the list again. */
+  'not-new': { status: HttpStatus.CONFLICT, title: 'Suggestion already decided' },
   /**
    * Access (spec 10): the applicant's account carries no person record, so a request cannot be
    * filed under it; the account must finish applicant onboarding.

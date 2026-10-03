@@ -13,14 +13,16 @@ const HEADERS = [
   'designation',
   'job_group',
   'reporting_entity',
+  'work_station',
   'appointment_date',
+  'marital_status',
   'email',
   'phone',
   'employer_code',
 ];
 
 describe('roster columns', () => {
-  it('are the nine spec 02 columns and the employer code, three of them required', () => {
+  it('are the nine spec 02 columns, the employer code and the two of spec 05b, three of them required', () => {
     expect(ROSTER_COLUMNS.map((column) => column.name)).toEqual(HEADERS);
     expect(ROSTER_COLUMNS.filter((column) => column.required).map((column) => column.name)).toEqual(
       ['personnel_file_number', 'full_name', 'national_id'],
@@ -89,7 +91,7 @@ describe('rosterTemplate', () => {
       expect(roster.getRow(2).getCell(index + 1).numFmt, column.name).toBe(numFmt);
       expect(roster.getColumn(index + 1).numFmt, column.name).toBe(numFmt);
     });
-    expect(roster.getCell('I2').value).toBe('0712345678');
+    expect(roster.getCell('K2').value).toBe('0712345678');
   });
 
   it('documents every column on the Notes sheet', async () => {

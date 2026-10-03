@@ -1,7 +1,8 @@
 /**
- * The ten roster template columns: the single source for the roster file parser (header
- * matching, validation limits) and the template generator (headers, sample row, notes sheet,
- * cell formats). Order is the template's column order.
+ * The roster template columns (spec 02's nine, the employer code, and spec 05b's work station and
+ * marital status, which pre-fill the declaration's bio): the single source for the roster file
+ * parser (header matching, validation limits) and the template generator (headers, sample row,
+ * notes sheet, cell formats). Order is the template's column order.
  */
 export const ROSTER_COLUMNS = [
   {
@@ -59,12 +60,30 @@ export const ROSTER_COLUMNS = [
     textCell: false,
   },
   {
+    name: 'work_station',
+    field: 'workStation',
+    required: false,
+    format: 'Up to 100 characters',
+    example: 'Eldoret',
+    note: 'Where the public officer works: office, building or town. Pre-filled in their declaration, where they can change it.',
+    textCell: false,
+  },
+  {
     name: 'appointment_date',
     field: 'appointmentDate',
     required: false,
     format: 'YYYY-MM-DD, DD/MM/YYYY or DD-MM-YYYY; not in the future',
     example: '2019-01-07',
     note: 'Date of appointment to the current office. Excel date cells are accepted.',
+    textCell: false,
+  },
+  {
+    name: 'marital_status',
+    field: 'maritalStatus',
+    required: false,
+    format: 'single, married, separated, divorced or widowed (any case)',
+    example: 'married',
+    note: "Pre-filled in the public officer's declaration, where they can change it.",
     textCell: false,
   },
   {

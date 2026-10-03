@@ -991,6 +991,8 @@ export interface components {
             }[];
             registrableInterests: {
                 directorships: {
+                    /** Format: uuid */
+                    id?: string;
                     company: string;
                     role: string;
                     remunerated: boolean;
@@ -999,6 +1001,18 @@ export interface components {
                         /** @enum {string} */
                         kind?: "value-change" | "acquisition" | "disposal" | "new-source" | "source-ended" | "settled";
                         explanation?: string;
+                    };
+                    source?: {
+                        /** @enum {string} */
+                        kind: "kra" | "ntsa" | "brs" | "ardhisasa" | "document";
+                        /** Format: uuid */
+                        suggestionId: string;
+                        /** Format: uuid */
+                        verificationResultId?: string;
+                        /** Format: uuid */
+                        aiJobId?: string;
+                        /** Format: date-time */
+                        at: string;
                     };
                 }[];
                 memberships: {
@@ -1215,7 +1229,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */

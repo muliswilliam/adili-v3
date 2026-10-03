@@ -19,6 +19,7 @@ import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { acknowledgementOf } from '../declaration/acknowledgement.js';
 import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
 import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
+import { keptSources } from '../suggestions/item-sources.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -71,6 +72,7 @@ import {
   emptyOther,
   emptyStatement,
   isSectionKey,
+  keepPrefilledFields,
   isStatementKey,
   nilConflicts,
   prefillBio,
@@ -82,6 +84,7 @@ import {
   statementKey,
   statementPersonKey,
 } from './sections.js';
+import { deleteSuggestions } from '../suggestions/expiry.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
 import { asDeclaredFor } from './since-last.js';
 import { reviewDraft } from './summary.js';
@@ -181,9 +184,17 @@ export class DraftsService {
       personnelFileNumber: record.personnelFileNumber,
       designation: record.designation,
       employer: record.reportingEntity?.name ?? null,
+      jobGroup: record.jobGroup,
+      appointmentDate: record.appointmentDate,
+      workStation: record.workStation,
+      maritalStatus: record.maritalStatus,
     });
     const initial: [DeclarationSectionKey, SectionContents, SectionMetadata][] = [
-      ['bio', bio.contents, { lockedFields: bio.lockedFields }],
+      [
+        'bio',
+        bio.contents,
+        { lockedFields: bio.lockedFields, prefilledFields: bio.prefilledFields },
+      ],
       ['household', emptyHousehold(), {}],
       [
         statementKey('officer'),
@@ -304,10 +315,11 @@ export class DraftsService {
   }
 
   /**
-   * Discards the draft (S15): its sections and attachment rows are deleted, with an unlink event
-   * per attachment (the files are left to the documents orphan sweep), and the declaration is
-   * marked `discarded`. The obligation is untouched, so a new start makes a fresh draft. 404 when
-   * the draft is not the caller's or already discarded, 409 when it is no longer a draft.
+   * Discards the draft (S15): its sections, attachment rows and registry suggestions (spec 05b S7)
+   * are deleted, with an unlink event per attachment (the files are left to the documents orphan
+   * sweep), and the declaration is marked `discarded`. The obligation is untouched, so a new start
+   * makes a fresh draft. 404 when the draft is not the caller's or already discarded, 409 when it
+   * is no longer a draft.
    */
   async discard(principal: Principal, declarationId: string): Promise<void> {
     const person = personOf(principal);
@@ -320,6 +332,8 @@ export class DraftsService {
       await tx
         .delete(declarationSections)
         .where(eq(declarationSections.declarationId, declaration.id));
+      // Registry suggestions go with the draft (spec 05b S7).
+      await deleteSuggestions(tx, declaration.id);
       await tx
         .update(declarations)
         .set({ status: 'discarded' })
@@ -492,6 +506,7 @@ export class DraftsService {
       contents,
       issues,
       ...(key === 'household' && { notIncluded: notIncludedOf(state.section.metadata) }),
+      ...(key === 'bio' && { prefilledFields: state.section.metadata.prefilledFields ?? [] }),
       draftVersion: state.declaration.draftVersion,
     };
   }
@@ -500,9 +515,10 @@ export class DraftsService {
    * Saves one section: `ifMatch` must be the draft version the client read (428 without it, 412
    * when another save came first). The body must be well formed for the section; missing fields
    * are completeness, not errors. Locked bio fields cannot change (400 `identity-locked-field`);
-   * a statement's person and dates are the service's. One transaction bumps the draft version,
-   * stores the encrypted section with its clear metadata and records the save (ADR-008: no
-   * change without its audit record), identifiers only.
+   * a statement's person and dates are the service's, and so is each item's `source`: kept as
+   * stored, without its verification result once the item changed where the registry spoke. One
+   * transaction bumps the draft version, stores the encrypted section with its clear metadata and
+   * records the save (ADR-008: no change without its audit record), identifiers only.
    */
   async saveSection(
     principal: Principal,
@@ -511,7 +527,38 @@ export class DraftsService {
     ifMatch: string | undefined,
     body: unknown,
   ): Promise<SectionSaveResult> {
-    const person = personOf(principal);
+    // An item's source is the service's: kept as stored, never as sent (spec 05b story 16).
+    return this.save(personOf(principal), declarationId, sectionKey, ifMatch, (stored) =>
+      keptSources(sectionKey, stored, body),
+    );
+  }
+
+  /**
+   * A read-modify-write of one section on the declarant's behalf (accepting a suggestion, spec
+   * 05b): `edit` turns the section as stored into the body to save, which then goes through
+   * everything a save does (`If-Match`, shape, the service's own fields, completeness, the
+   * `declaration.section-saved.v1` audit record). `within` runs in the save's transaction once
+   * the draft version is bumped, so what it records commits or rolls back with the section.
+   */
+  async editSection(
+    principal: Principal,
+    declarationId: string,
+    sectionKey: DeclarationSectionKey,
+    ifMatch: string | undefined,
+    edit: (stored: SectionContents) => SectionContents,
+    within: (tx: Transaction) => Promise<void>,
+  ): Promise<SectionSaveResult> {
+    return this.save(personOf(principal), declarationId, sectionKey, ifMatch, edit, within);
+  }
+
+  private async save(
+    person: PersonContext,
+    declarationId: string,
+    sectionKey: string,
+    ifMatch: string | undefined,
+    bodyFrom: (stored: SectionContents) => unknown,
+    within?: (tx: Transaction) => Promise<void>,
+  ): Promise<SectionSaveResult> {
     const key = sectionKeyOf(sectionKey);
     const expected = expectedVersion(ifMatch);
     const state = notFoundIfInvisible(
@@ -521,6 +568,8 @@ export class DraftsService {
     if (!isEditable(declaration.status)) throw declarationNotDraft('edited');
     if (declaration.draftVersion !== expected) throw versionMismatch();
     if (section.metadata.archived === true) throw sectionArchived();
+    const stored = await this.sections.open(declaration.tenant, section);
+    const body = bodyFrom(stored);
     if (!isRecord(body)) throw validationProblem([{ path: '', message: 'Expected an object' }]);
     const errors = shapeErrors(key, body);
     if (errors.length > 0) throw validationProblem(errors);
@@ -531,7 +580,6 @@ export class DraftsService {
       }
     }
 
-    const stored = await this.sections.open(declaration.tenant, section);
     const prepared = await this.prepare(
       person,
       declaration,
@@ -552,6 +600,9 @@ export class DraftsService {
       ...section.metadata,
       ...sectionMetadata(key, contents),
       ...(household && { notIncluded: household.notIncluded }),
+      ...(section.metadata.prefilledFields && {
+        prefilledFields: keepPrefilledFields(section.metadata.prefilledFields, contents, stored),
+      }),
     };
     // Saved at the version the conditional bump below produces, or not at all.
     const savedVersion = expected + 1;
@@ -600,6 +651,7 @@ export class DraftsService {
           sectionsChanged,
         }),
       );
+      await within?.(tx);
       return { draftVersion: bumped, unlinked };
     });
     await releaseUploads(this.documents, this.logger, declaration.tenant, unlinked);
@@ -625,6 +677,7 @@ export class DraftsService {
       draftVersion,
       issues: assessment.section.issues,
       ...(household && { notIncluded: household.notIncluded }),
+      ...(key === 'bio' && { prefilledFields: metadata.prefilledFields ?? [] }),
       sectionsChanged,
     };
   }

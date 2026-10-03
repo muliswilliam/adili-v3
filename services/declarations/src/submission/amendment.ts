@@ -32,11 +32,12 @@ export interface SectionFromVersion {
  * other the paragraph 9 information, as the declaration's type holds them (an initial's changes
  * since the last declaration left out). Each is assessed as a save would (a submitted document is
  * complete, unless a rule has changed since), with the clear metadata a save derives; the bio
- * keeps the fields the roster locked (`lockedFields`, from the draft that was submitted).
+ * keeps the fields the roster locked (`lockedFields`) and those it pre-filled that still hold its
+ * value (`prefilledFields`, spec 05b), from the draft that was submitted.
  */
 export function sectionsOfVersion(
   document: DeclarationV1,
-  { lockedFields }: { lockedFields: string[] },
+  { lockedFields = [], prefilledFields }: Pick<SectionMetadata, 'lockedFields' | 'prefilledFields'>,
 ): SectionFromVersion[] {
   // As the declaration's type holds them, as a save would store them.
   const declared = (key: string, contents: unknown) =>
@@ -63,7 +64,10 @@ export function sectionsOfVersion(
     metadata: { ...sectionMetadata(key, contents), ...metadata },
   });
   return [
-    section('bio', bio, lockedFields.length > 0 ? { lockedFields } : {}),
+    section('bio', bio, {
+      ...(lockedFields.length > 0 && { lockedFields }),
+      ...(prefilledFields && { prefilledFields }),
+    }),
     section('household', household, {
       notIncluded: householdPeople(household, document.statementDate).notIncluded,
     }),

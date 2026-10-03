@@ -185,7 +185,7 @@ export class DraftsController {
     operationId: 'saveDeclarationSection',
     summary: 'Save a section (autosave); requires If-Match with the current draft version',
     description:
-      'The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out.',
+      "The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out. Each item's `source` is the service's (set by `acceptSuggestion`): kept as stored whatever is sent, none on an item that had none, and without `verificationResultId` once the item changes where the registry spoke.",
   })
   @ApiHeader({
     name: 'If-Match',

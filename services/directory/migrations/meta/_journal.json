@@ -225,6 +225,13 @@
       "when": 1790966851965,
       "tag": "0031_roster_employer_code",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790970134691,
+      "tag": "0032_roster_hr_fields",
+      "breakpoints": true
     }
   ]
 }

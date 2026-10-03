@@ -6,6 +6,7 @@ import { filingObligations, rosterSnapshots } from '../../src/db/schema.js';
 import type { Declaration, SectionEnvelope } from '../../src/drafts/representation.js';
 import type { Caller, DeclarationsApi } from './declarations-api.js';
 import { rosterRecord } from './fake-directory.js';
+import { givenStoredSection } from './stored-sections.js';
 
 /**
  * Submitting through the HTTP API as a declarant would (spec 06): a PSC biennial obligation of
@@ -44,6 +45,20 @@ export const LIABILITY = {
   outstanding: { kesCents: 120_000_000, original: { currency: 'UGX', minorUnits: 3_400_000_000 } },
   location: { inKenya: false, country: 'UG' },
   change: { changed: true, kind: 'acquisition', explanation: 'Took the loan in 2026' },
+};
+
+/** Where the income and the plot were pre-filled from (05b `ItemSource`); the loan has none. */
+export const INCOME_SOURCE = {
+  kind: 'kra',
+  suggestionId: '0192f1a0-5a11-7000-8000-00000000b001',
+  aiJobId: '0192f1a0-5a11-7000-8000-00000000b003',
+  at: '2027-10-02T08:15:00.000Z',
+};
+export const ASSET_SOURCE = {
+  kind: 'ardhisasa',
+  suggestionId: '0192f1a0-5a11-7000-8000-00000000a001',
+  verificationResultId: '0192f1a0-5a11-7000-8000-00000000a002',
+  at: '2027-10-02T08:15:00.000Z',
 };
 
 export function submissionFixtures(api: () => DeclarationsApi) {
@@ -177,11 +192,35 @@ export function submissionFixtures(api: () => DeclarationsApi) {
     return draft;
   }
 
+  /**
+   * The draft's income and plot marked as pre-filled (with `source`), as accepting suggestions
+   * leaves them; the loan as typed. Written into the stored section, since a save keeps the
+   * sources the service set and takes none from the client.
+   */
+  async function sourceItems(personId: string, id: string): Promise<void> {
+    await givenStoredSection(api(), personId, id, 'statement:officer', (contents) => ({
+      ...contents,
+      income: [{ ...INCOME, source: INCOME_SOURCE }],
+      assets: [{ ...ASSET, source: ASSET_SOURCE }],
+      liabilities: [LIABILITY],
+    }));
+  }
+
   function submit(id: string, caller: Caller, key: string | null = randomUUID()) {
     return api().request('POST', `/v1/declarations/${id}/submit`, caller, {
       headers: key === null ? {} : { 'idempotency-key': key },
     });
   }
 
-  return { declarant, steppedUp, givenObligation, started, save, section, completeDraft, submit };
+  return {
+    declarant,
+    steppedUp,
+    givenObligation,
+    started,
+    save,
+    section,
+    completeDraft,
+    sourceItems,
+    submit,
+  };
 }

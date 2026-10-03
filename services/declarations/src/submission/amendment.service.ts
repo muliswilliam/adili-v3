@@ -52,6 +52,7 @@ import {
   sectionsOfVersion,
   type VersionAttachment,
 } from './amendment.js';
+import { deleteSuggestions } from '../suggestions/expiry.js';
 import { declarationAmendmentDiscarded, declarationAmendmentStarted } from './events.js';
 import { amendRefused } from './problems.js';
 
@@ -145,9 +146,10 @@ export class AmendmentService {
 
   /**
    * Discards the amendment in progress, recording `declaration.amendment-discarded.v1`: the
-   * declaration is `submitted` again, its sections as the version in force has them. A
-   * declaration with no amendment in progress is answered as it is; 409 `not-submitted` for a
-   * draft (which is discarded with `discardDeclaration`).
+   * declaration is `submitted` again, its sections as the version in force has them, and the
+   * amendment's registry suggestions are deleted. A declaration with no amendment in progress is
+   * answered as it is; 409 `not-submitted` for a draft (which is discarded with
+   * `discardDeclaration`).
    */
   async discard(principal: Principal, declarationId: string): Promise<Declaration> {
     const reset = await this.reset(principal, declarationId, (_tx, declaration) => {
@@ -261,9 +263,9 @@ export class AmendmentService {
     if (!found) return 'nothing';
     const { declaration, row, linked } = found;
     const document = await openSnapshot(this.cipher, row);
-    // Contents do not depend on the bio's locked fields, which only the metadata carries; the
-    // metadata is derived again under the lock.
-    const sections = sectionsOfVersion(document, { lockedFields: [] });
+    // Contents do not depend on the bio's locked or pre-filled fields, which only the metadata
+    // carries; the metadata is derived again under the lock.
+    const sections = sectionsOfVersion(document, {});
     const sealed = new Map(
       await Promise.all(
         sections.map(
@@ -310,8 +312,8 @@ export class AmendmentService {
   /**
    * In the transaction (the declaration row locked, and as prepared): replaces every section,
    * archived statements included, with the version in force's, sealed at the next draft
-   * version; brings the attachment links back to the ones its items hold; and sets the
-   * declaration's status.
+   * version; brings the attachment links back to the ones its items hold; deletes the draft's
+   * registry suggestions; and sets the declaration's status.
    */
   private async write(
     tx: Transaction,
@@ -324,7 +326,8 @@ export class AmendmentService {
       .from(declarationSections)
       .where(sectionIs(declaration.id, 'bio'));
     const sections = sectionsOfVersion(prepared.document, {
-      lockedFields: bio?.metadata.lockedFields ?? [],
+      lockedFields: bio?.metadata.lockedFields,
+      prefilledFields: bio?.metadata.prefilledFields,
     });
     const draftVersion = declaration.draftVersion + 1;
 
@@ -347,6 +350,9 @@ export class AmendmentService {
       }),
     );
     await this.relink(tx, declaration, prepared.attachments, prepared.sizes);
+    // Registry suggestions expire with the draft (spec 05b S7): a discarded amendment's go with
+    // it, and an amendment starts without any (the submit deleted them).
+    await deleteSuggestions(tx, declaration.id);
     await tx
       .update(declarations)
       .set({ ...set, draftVersion })

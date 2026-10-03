@@ -16,6 +16,7 @@ import type {
   DeclarationAttachment,
   DeclarationListItem,
   DeclarationSummary,
+  SectionEnvelope,
 } from '../../src/drafts/representation.js';
 import type {
   DeclarationVersion,
@@ -31,9 +32,11 @@ import {
 import { upload } from '../support/fake-documents.js';
 import {
   ASSET,
+  ASSET_SOURCE,
   DUE_DATE,
   DUE_DAY,
   INCOME,
+  INCOME_SOURCE,
   LIABILITY,
   STATEMENT_DATE,
   submissionFixtures,
@@ -58,7 +61,7 @@ const BARAKA = randomUUID();
 const REFERENCE = 'DCB-PSC-2027-0000001-1';
 
 let api: DeclarationsApi;
-const { declarant, steppedUp, givenObligation, completeDraft, save, section, submit } =
+const { declarant, steppedUp, givenObligation, completeDraft, save, section, sourceItems, submit } =
   submissionFixtures(() => api);
 
 beforeAll(async () => {
@@ -315,6 +318,43 @@ describe('amending before the due date (S7)', () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: 'not-submitted' });
     expect(contractErrors(responseBody(AMEND, 'post', 409), response.json())).toEqual([]);
+  });
+
+  it("keeps each item's source in the amendment and version 2, and none on an item typed in (05b)", async () => {
+    const draft = await completeDraft(ACHIENG);
+    await sourceItems(ACHIENG, draft.id);
+    expect((await submit(draft.id, steppedUp(ACHIENG))).statusCode).toBe(201);
+
+    expect((await amend(draft.id)).statusCode).toBe(200);
+
+    const officer = await section(ACHIENG, draft.id, 'statement:officer');
+    expect(officer.income).toEqual([{ ...INCOME, source: INCOME_SOURCE }]);
+    expect(officer.assets).toEqual([{ ...ASSET, source: ASSET_SOURCE }]);
+    expect(officer.liabilities).toEqual([LIABILITY]);
+    expect(await submit(draft.id, steppedUp(ACHIENG))).toMatchObject({ statusCode: 201 });
+    const read = (await version(draft.id, 2)).json<DeclarationVersionDetail>();
+    const [filed] = read.document.statements as {
+      income: unknown[];
+      assets: unknown[];
+      liabilities: unknown[];
+    }[];
+    expect(filed?.income).toEqual([{ ...INCOME, source: INCOME_SOURCE }]);
+    expect(filed?.assets).toEqual([{ ...ASSET, source: ASSET_SOURCE }]);
+    expect(filed?.liabilities).toEqual([LIABILITY]);
+  });
+
+  it('keeps the bio fields still as the roster pre-filled them marked in the amendment (05b)', async () => {
+    const draft = await completeDraft(ACHIENG);
+    const bio = async () =>
+      (
+        await api.request('GET', `/v1/declarations/${draft.id}/sections/bio`, declarant(ACHIENG))
+      ).json<SectionEnvelope>();
+    expect((await bio()).prefilledFields).toEqual(['/employment/appointmentDate']);
+    expect((await submit(draft.id, steppedUp(ACHIENG))).statusCode).toBe(201);
+
+    expect((await amend(draft.id)).statusCode).toBe(200);
+
+    expect((await bio()).prefilledFields).toEqual(['/employment/appointmentDate']);
   });
 
   it('carries attachments into the amendment and version 2', async () => {

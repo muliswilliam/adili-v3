@@ -1,3 +1,8 @@
+import type { MARITAL_STATUSES } from '@adili/forms';
+
+/** The marital statuses of `declaration.v1`, which the roster keeps to. */
+export type MaritalStatus = (typeof MARITAL_STATUSES)[number];
+
 /**
  * A roster record as the directory's internal pulls give it (`InternalRosterRecord`), the fields
  * the declarations service keeps.
@@ -9,6 +14,12 @@ export interface PulledRosterRecord {
   fullName: string;
   /** Pre-fills the declaration's bio (locked there); null when the roster gives none. */
   designation: string | null;
+  /** Pre-fills the bio (editable there, spec 05b); null when the roster gives none. */
+  jobGroup: string | null;
+  /** Pre-fills the bio (editable there, spec 05b); null when the roster gives none. */
+  workStation: string | null;
+  /** Pre-fills the bio (editable there, spec 05b); null when the roster gives none. */
+  maritalStatus: MaritalStatus | null;
   /** The declarant's reporting entity as the roster names it; null when the roster gives none. */
   reportingEntity: { id: string; name: string } | null;
   state: 'not_onboarded' | 'onboarded' | 'exited';
@@ -74,6 +85,13 @@ export abstract class DirectoryClient {
 
   /** One record; null when the Commission has no such record. */
   abstract getRosterRecord(slug: string, recordId: string): Promise<PulledRosterRecord | null>;
+
+  /**
+   * The person's national ID as verified at onboarding, the declarant's for a registry lookup they
+   * asked for (spec 05b; an audited read in the directory); null when no such person is onboarded
+   * at the Commission. Personal data: never logged, stored or put in an event or workflow history.
+   */
+  abstract getPersonNationalId(slug: string, personId: string): Promise<string | null>;
 
   /** The policy version in force for the Commission. */
   abstract getPolicy(slug: string): Promise<PulledPolicy>;

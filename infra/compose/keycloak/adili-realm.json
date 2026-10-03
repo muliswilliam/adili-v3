@@ -315,7 +315,7 @@
     {
       "clientId": "declarations",
       "name": "Declarations service",
-      "description": "Service account the declarations service uses to pull roster records and policy from the directory, to send reminders through notifications and to link declaration attachments in documents",
+      "description": "Service account the declarations service uses to pull roster records and policy (and a declarant's national ID) from the directory, to check registries, to send reminders and to link declaration attachments in documents",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -325,7 +325,14 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "defaultClientScopes": ["basic", "directory:internal", "messages", "documents:internal"],
+      "defaultClientScopes": [
+        "basic",
+        "directory:internal",
+        "directory:person-national-id",
+        "messages",
+        "documents:internal",
+        "registry"
+      ],
       "optionalClientScopes": []
     },
     {
@@ -1222,6 +1229,28 @@
       ]
     },
     {
+      "name": "directory:person-national-id",
+      "description": "Read a person's national ID, as verified at onboarding, from the directory: the declarations service only, for the declarant's own registry lookups (spec 05b)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "directory:applicants",
       "description": "Service tokens that may read applicants' particulars from the directory and record an access officer's verification of a passport applicant: the access service only (spec 10)",
       "protocol": "openid-connect",
@@ -1355,7 +1384,7 @@
     },
     {
       "name": "registry",
-      "description": "Registry lookups through the integration-gateway (KRA, NTSA, BRS, ArdhiSasa, the employer-supplier check) and stored result reads, acting for a tenant (spec 07b)",
+      "description": "Registry lookups through the integration-gateway (KRA, NTSA, BRS, ArdhiSasa, the employer-supplier check) and stored result reads, acting for a tenant: review (spec 07b) and declarations, for a declarant's own lookups (spec 05b)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

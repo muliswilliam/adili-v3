@@ -64,6 +64,7 @@ import {
   declarantProfileSchema,
   internalApplicantSchema,
   personContactsSchema,
+  personNationalIdSchema,
   personSummarySchema,
   verifyApplicantIdentityBody,
 } from './persons/representation.js';
@@ -185,6 +186,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   DeclarantProfile: declarantProfileSchema,
   PersonSummary: personSummarySchema,
   PersonContacts: personContactsSchema,
+  PersonNationalId: personNationalIdSchema,
   VerifyOnboardingOtp: verifyOnboardingOtpBody,
   ProvideOnboardingContact: provideOnboardingContactBody,
   AgencyCode: agencyCodeSchema,
