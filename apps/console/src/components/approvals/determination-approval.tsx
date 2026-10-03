@@ -18,7 +18,6 @@ import {
 } from '@adili/ui';
 import {
   Archive02Icon,
-  ArrowDataTransferHorizontalIcon,
   ArrowTurnBackwardIcon,
   File01Icon,
   HashtagIcon,
@@ -29,15 +28,24 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { RETURN_REASON_MAX_LENGTH } from '../../determination/view';
-import type { InboxItem } from '../../server/approvals.server';
-import type { Assignee } from '../../server/review/types';
-import { DialogFailure, DialogHeading, type FailureText } from '../determination/dialog-parts';
-import { messages as t } from './messages';
+import { approveCaseDetermination, returnCaseDetermination } from '../../server/determinations';
+import {
+  type DeterminationRefusal,
+  type DeterminationResult,
+  REFUSAL_STATUS,
+} from '../../server/determinations.server';
+import type { Determination } from '../../server/review/types';
+import type { ServiceError } from '../../server/service-call';
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
+import { proposerName, ReassignActions } from './approval-parts';
+import { messages as t } from './determination-messages';
+import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
+import { messages as m } from './messages';
 
-export type DeterminationApprovalItem = Extract<InboxItem, { kind: 'determination' }>;
+export type DeterminationApprovalItem = ItemOf<'determination'>;
 
 /** What approving a determination does, in text before the approver decides (S1). */
 export function determinationConsequences(item: DeterminationApprovalItem): ApprovalConsequence[] {
@@ -61,85 +69,164 @@ export function determinationConsequences(item: DeterminationApprovalItem): Appr
  * A proposed determination in the approvals inbox (spec 08 FE-3, S1, S14): the declarant, the
  * outcome, the case reference and file number, who proposed it and how long it has waited, the
  * reasons, and Approve and Return when the viewer may decide it; else why not. Reassign and
- * Open case either way.
+ * Open case either way. It owns its approve and return dialogs and their calls.
  */
 export function DeterminationApproval({
   item,
   viewer,
   now,
-  onApprove,
-  onReturn,
   onReassign,
-}: {
-  item: DeterminationApprovalItem;
-  viewer: Assignee;
-  /** The server's clock when the inbox loaded, for how long it has waited. */
-  now: number;
-  onApprove: () => void;
-  onReturn: () => void;
-  onReassign: () => void;
-}) {
+  onSettled,
+  newKey,
+}: KindApprovalProps<DeterminationApprovalItem>) {
   const { summary } = item;
-  const reassigned = item.reassignedTo;
+  const [dialog, setDialog] = useState<'approve' | 'return' | null>(null);
+  // One key per approval, reused on retry after a failure, so a retry cannot approve twice.
+  const approvalKey = useRef<string | null>(null);
+
+  /** Settles a call: a refusal or a decision made first becomes a notice. */
+  async function settle(
+    result: DeterminationResult<Determination>,
+    success: (data: Determination) => string,
+  ): Promise<FailureText | null> {
+    if (result.ok) {
+      setDialog(null);
+      await onSettled({ kind: 'decided', toast: success(result.data) });
+      return null;
+    }
+    if (result.refusal) {
+      setDialog(null);
+      await onSettled({ kind: 'notice', notice: noticeOf(result.refusal) });
+      return null;
+    }
+    return failureOf(result.error);
+  }
+
+  async function approve(): Promise<FailureText | null> {
+    approvalKey.current ??= newKey();
+    const result = await approveCaseDetermination({
+      data: { determinationId: item.subjectId, idempotencyKey: approvalKey.current },
+    });
+    if (result.ok || result.refusal) approvalKey.current = null;
+    return settle(result, (data) => t.toasts.approved(data.reference));
+  }
+
+  async function returnTo(reason: string): Promise<FailureText | null> {
+    const result = await returnCaseDetermination({
+      data: { determinationId: item.subjectId, reason },
+    });
+    return settle(result, () => t.toasts.returned);
+  }
+
   return (
-    <ApprovalCard
-      kind="determination"
-      icon={JusticeScale01Icon}
-      title={summary.declarantName}
-      badge={<OutcomeBadge outcome={summary.outcome} />}
-      details={[
-        <span key="reference" className="font-mono whitespace-nowrap">
-          {summary.caseReference}
-        </span>,
-        ...(summary.personnelFileNumber ? [summary.personnelFileNumber] : []),
-      ]}
-      proposer={item.proposer?.name ?? t.system}
-      proposedAt={item.proposedAt}
-      now={now}
-      summary={<p className="whitespace-pre-line">{summary.reasonsExcerpt}</p>}
-      canApprove={item.canApprove}
-      cannotApproveReason={item.cannotApproveReason}
-      decision={
-        <>
-          <Button size="sm" onClick={onApprove}>
-            <Icon icon={Tick02Icon} />
-            {t.approve}
-          </Button>
-          <Button size="sm" variant="secondary" onClick={onReturn}>
-            <Icon icon={ArrowTurnBackwardIcon} />
-            {t.return}
-          </Button>
-        </>
-      }
-      actions={
-        <>
-          {item.canApprove ? null : (
-            <Button size="sm" variant="secondary" onClick={onReassign}>
-              <Icon icon={ArrowDataTransferHorizontalIcon} />
-              {t.reassign}
+    <>
+      <ApprovalCard
+        kind="determination"
+        icon={JusticeScale01Icon}
+        title={summary.declarantName}
+        badge={<OutcomeBadge outcome={summary.outcome} />}
+        details={[
+          <span key="reference" className="font-mono whitespace-nowrap">
+            {summary.caseReference}
+          </span>,
+          ...(summary.personnelFileNumber ? [summary.personnelFileNumber] : []),
+        ]}
+        proposer={proposerName(item)}
+        proposedAt={item.proposedAt}
+        now={now}
+        summary={<p className="whitespace-pre-line">{summary.reasonsExcerpt}</p>}
+        canApprove={item.canApprove}
+        cannotApproveReason={item.cannotApproveReason}
+        decision={
+          <>
+            <Button
+              size="sm"
+              onClick={() => {
+                setDialog('approve');
+              }}
+            >
+              <Icon icon={Tick02Icon} />
+              {t.approve}
             </Button>
-          )}
-          {reassigned ? (
-            <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
-              <Icon icon={ArrowDataTransferHorizontalIcon} className="size-3.5" />
-              {reassigned.subject === viewer.subject
-                ? t.reassignedToYou
-                : t.reassignedTo(reassigned.name)}
-            </span>
-          ) : null}
-        </>
-      }
-      link={
-        <Button asChild size="sm" variant="ghost">
-          <Link to="/review/cases/$caseId/determination" params={{ caseId: summary.caseId }}>
-            <Icon icon={LinkSquare02Icon} />
-            {t.openCase}
-          </Link>
-        </Button>
-      }
-    />
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setDialog('return');
+              }}
+            >
+              <Icon icon={ArrowTurnBackwardIcon} />
+              {t.return}
+            </Button>
+          </>
+        }
+        actions={<ReassignActions item={item} viewer={viewer} onReassign={onReassign} />}
+        link={
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/review/cases/$caseId/determination" params={{ caseId: summary.caseId }}>
+              <Icon icon={LinkSquare02Icon} />
+              {t.openCase}
+            </Link>
+          </Button>
+        }
+      />
+      <ApproveDeterminationDialog
+        item={dialog === 'approve' ? item : null}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null);
+        }}
+        onConfirm={approve}
+      />
+      <ReturnDeterminationDialog
+        item={dialog === 'return' ? item : null}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null);
+        }}
+        onConfirm={returnTo}
+      />
+    </>
   );
 }
+
+/** What a refusal of approve or return means for the supervisor (403, 409). */
+export function noticeOf(refusal: DeterminationRefusal): ApprovalNotice {
+  const problem = `${String(REFUSAL_STATUS[refusal.kind])} ${refusal.kind}`;
+  if (refusal.kind === 'separation-of-duties') {
+    return {
+      title: t.refused.title,
+      failure: { title: t.refused[refusal.reason], problem },
+      after: t.refused.separationAfter,
+      offerReassign: true,
+    };
+  }
+  if (refusal.kind === 'supervisor-required') {
+    return {
+      title: t.refused.title,
+      failure: { title: t.refused.role, problem },
+      after: t.refused.roleAfter,
+      offerReassign: false,
+    };
+  }
+  return {
+    title: t.decided.title,
+    failure: { title: t.decided.body, problem },
+    after: t.decided.after,
+    offerReassign: false,
+  };
+}
+
+/** A failed call, in the open dialog. */
+function failureOf(error: ServiceError): FailureText {
+  return { title: error.kind === 'unauthenticated' ? m.toasts.sessionEnded : m.toasts.failed };
+}
+
+/** The determinations tab (spec 08 FE-3). */
+export const determinationKind: InboxKindView<'determination'> = {
+  label: t.tab,
+  icon: JusticeScale01Icon,
+  subject: (item) => `${item.summary.caseReference} · ${item.summary.declarantName}`,
+  Approval: DeterminationApproval,
+};
 
 /** Approve a determination, its consequences stated first (spec 08 FE-3, a11y). */
 export function ApproveDeterminationDialog({
@@ -150,7 +237,7 @@ export function ApproveDeterminationDialog({
   item: DeterminationApprovalItem | null;
   onOpenChange: (open: boolean) => void;
   /** Resolves to a failure to show in the dialog, or null once handled (the dialog closes). */
-  onConfirm: (item: DeterminationApprovalItem) => Promise<FailureText | null>;
+  onConfirm: () => Promise<FailureText | null>;
 }) {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<FailureText | null>(null);
@@ -174,7 +261,7 @@ export function ApproveDeterminationDialog({
             <DialogFailure failure={failure} />
             <div className="flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
               <OutcomeBadge outcome={item.summary.outcome} />
-              {t.approveDialog.proposedBy(item.proposer?.name ?? t.system, item.proposedAt)}
+              {t.approveDialog.proposedBy(proposerName(item), item.proposedAt)}
             </div>
             <div className="grid gap-1.5 rounded-lg bg-muted px-3.5 py-3 text-sm text-secondary-foreground">
               <div className="text-xs font-semibold tracking-[0.04em] text-muted-foreground uppercase">
@@ -197,7 +284,7 @@ export function ApproveDeterminationDialog({
               onClick={() => {
                 setBusy(true);
                 setFailure(null);
-                void onConfirm(item).then((failed) => {
+                void onConfirm().then((failed) => {
                   setBusy(false);
                   setFailure(failed);
                 });
@@ -228,14 +315,14 @@ export function ReturnDeterminationDialog({
 }: {
   item: DeterminationApprovalItem | null;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (item: DeterminationApprovalItem, reason: string) => Promise<FailureText | null>;
+  onConfirm: (reason: string) => Promise<FailureText | null>;
 }) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<FailureText | null>(null);
   const [busy, setBusy] = useState(false);
   const id = useId();
-  const proposer = item?.proposer?.name ?? t.system;
+  const proposer = item ? proposerName(item) : m.system;
   return (
     <Dialog
       open={item !== null}
@@ -265,7 +352,7 @@ export function ReturnDeterminationDialog({
               setError(problem);
               if (problem) return;
               setBusy(true);
-              void onConfirm(item, reason.trim()).then((failed) => {
+              void onConfirm(reason.trim()).then((failed) => {
                 setBusy(false);
                 setFailure(failed);
               });

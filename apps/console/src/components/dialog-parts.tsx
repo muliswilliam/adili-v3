@@ -13,6 +13,8 @@ import {
 import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
+export const DIALOG_PARTS_COPY = { problem: 'Problem:' } as const;
+
 /**
  * The header of a determination or approval dialog (the prototype's `.dlg-h`): an icon tile, the
  * title, and a muted line under it naming what it is about.
@@ -65,7 +67,7 @@ export function DialogFailure({ failure }: { failure: FailureText | null }) {
           {failure.detail ? <p>{failure.detail}</p> : null}
           {failure.problem ? (
             <p className="text-[13px]">
-              Problem:{' '}
+              {DIALOG_PARTS_COPY.problem}{' '}
               <code className="rounded bg-card/60 px-1 font-mono text-[12.5px]">
                 {failure.problem}
               </code>

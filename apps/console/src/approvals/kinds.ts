@@ -1,11 +1,27 @@
 import { z } from 'zod';
 
+import type { ApprovalKind } from '../server/review/types';
+
 /**
  * The kinds of approval the inbox shows (spec 08 FE-3) and how each one's summary reads.
- * review.yaml types `ApprovalItem.summary` as an open object, one shape per kind. A kind arrives
- * by adding its schema here, its tab and card in `components/approvals` (the ladder's actions,
- * #205; referrals, #211). Shared by the server functions and the inbox, so not a `.server` module.
+ * review.yaml types `ApprovalItem.summary` as an open object, one shape per kind. Shared by the
+ * server functions and the inbox, so not a `.server` module. Adding a kind: see
+ * `components/approvals/kinds.tsx`.
  */
+
+/** Every kind review.yaml's `ApprovalKind` has, shown or not, for counts and reassigning. */
+export const APPROVAL_KINDS = [
+  'determination',
+  'action',
+  'referral',
+] as const satisfies readonly ApprovalKind[];
+
+/** The kinds the inbox shows so far, in tab order; the first is the default tab. */
+export const INBOX_KINDS = ['determination'] as const satisfies readonly ApprovalKind[];
+
+export type InboxKind = (typeof INBOX_KINDS)[number];
+
+export const DEFAULT_INBOX_KIND: InboxKind = INBOX_KINDS[0];
 
 /** A determination's summary: the case, its declarant and the proposal's outcome and reasons. */
 const determinationSummary = z.object({
@@ -18,16 +34,16 @@ const determinationSummary = z.object({
 });
 export type DeterminationSummary = z.infer<typeof determinationSummary>;
 
+/** Each shown kind's summary, as its schema reads it. */
+export interface Summaries {
+  determination: DeterminationSummary;
+}
+
 /** The summary schema of each kind the inbox shows. */
-export const SUMMARIES = {
+export const SUMMARIES: { [K in InboxKind]: z.ZodType<Summaries[K]> } = {
   determination: determinationSummary,
-} as const;
-
-/** The kinds the inbox shows so far, in tab order. */
-export type InboxKind = keyof typeof SUMMARIES;
-
-export const INBOX_KINDS = Object.keys(SUMMARIES) as InboxKind[];
+};
 
 export function isInboxKind(kind: string): kind is InboxKind {
-  return kind in SUMMARIES;
+  return Object.hasOwn(SUMMARIES, kind);
 }

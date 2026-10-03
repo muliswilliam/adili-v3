@@ -12,19 +12,15 @@
  *   `not-proposed` once decided. Approval allocates a CMP reference, issues the letter and moves
  *   the case to `determined` (or `further-action`).
  * - Withdraw by the proposer while proposed (403 `not-the-proposer`, 409 `not-proposed`).
- * - The approvals inbox (supervisors only, 403 `supervisor-required`): proposed determinations,
- *   oldest first, with `canApprove` for the caller, counts by kind and age band, cursor paging;
- *   reassign records the supervisor it is pointed at.
- * - The Commission's reviewers and supervisors (`.../review/queue/reviewers`), for the reassign
- *   dialog.
+ * - The approvals inbox lists them through `determinationApprovals` (`approvals-mock.server.ts`).
  *
- * Only determinations are seeded: the inbox's actions and referrals (#205, #211) count 0 here.
  */
 import { randomUUID } from 'node:crypto';
 
 import { SUPERVISOR } from '@adili/roles';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { type MockApprovalSource, mockProblem, seedReassignment } from './approvals-mock.server';
 import type { Assignee, CaseListItem, CaseStatus, Determination } from './types';
 
 /** What the determinations mock reads and changes of a case, resolved for the caller. */
@@ -55,11 +51,6 @@ interface StoredDetermination extends Determination {
   letterDocumentId: string | null;
 }
 
-interface Reassignment {
-  to: Assignee;
-  at: string;
-}
-
 /**
  * Stands for "whoever is signed in" as a seeded proposer, so the caller's own proposals (returned,
  * approved) show for any account.
@@ -73,12 +64,10 @@ function resolved(who: Assignee | null, caller: Assignee): Assignee | null {
 }
 
 const determinations = new Map<string, StoredDetermination>();
-const reassignments = new Map<string, Reassignment>();
-let staff: (Assignee & { supervisor: boolean })[] = [];
 let issuer = 'TSC';
 let sequence = 0;
 
-const DAY_MS = 86_400_000;
+/** How much of the reasons the inbox card shows (the service's excerpt). */
 const REASONS_EXCERPT = 200;
 const OUTCOMES = ['compliant', 'non-compliant', 'further-action'] as const;
 const OUTCOME_LABELS: Record<Determination['outcome'], string> = {
@@ -102,17 +91,16 @@ export interface DeterminationSeed {
   decidedBy?: Assignee;
   decidedAt?: string;
   returnReason?: string;
+  /** Seeded as reassigned to this supervisor (`approvals-mock.server.ts`). */
   reassignedTo?: Assignee;
 }
 
-/** Empties the store and seeds `seeds`, with the Commission's staff for the reassign dialog. */
+/** Empties the store and seeds `seeds`; references carry the Commission's `issuer` code. */
 export function resetDeterminationsMock(
   seeds: readonly DeterminationSeed[],
-  options: { staff: (Assignee & { supervisor: boolean })[]; issuer: string },
+  options: { issuer: string },
 ) {
   determinations.clear();
-  reassignments.clear();
-  staff = options.staff;
   issuer = options.issuer;
   sequence = 3100;
   for (const seed of seeds) {
@@ -140,9 +128,7 @@ export function resetDeterminationsMock(
       letterAvailable: approved,
       letterDocumentId: approved ? randomUUID() : null,
     });
-    if (seed.reassignedTo) {
-      reassignments.set(id, { to: seed.reassignedTo, at: seed.proposedAt });
-    }
+    if (seed.reassignedTo) seedReassignment(id, seed.reassignedTo);
   }
 }
 
@@ -191,16 +177,7 @@ function cmpReference(): string {
   return `CMP-${issuer}-${String(year)}-${String(sequence).padStart(7, '0')}-${'KMPRTXUQ'[sequence % 8] ?? 'K'}`;
 }
 
-function coded(status: number, code: string, detail: string, extra: object = {}) {
-  return json(status, {
-    type: code,
-    title: status === 403 ? 'Forbidden' : status === 409 ? 'Conflict' : 'Error',
-    status,
-    detail,
-    code,
-    ...extra,
-  });
-}
+const coded = mockProblem;
 
 type CannotApprove = 'proposer' | 'reviewer-of-record' | 'role';
 
@@ -246,7 +223,7 @@ export async function determinationsRoute(
   caller: MockApprover,
   cases: MockCases,
 ): Promise<Response | null> {
-  const { pathname, searchParams } = new URL(request.url);
+  const { pathname } = new URL(request.url);
   const method = request.method;
 
   const propose = /^\/v1\/review\/cases\/([^/]+)\/determinations$/.exec(pathname);
@@ -287,24 +264,6 @@ export async function determinationsRoute(
     const reason = cannotApprove(found, cases.find(found.caseId), caller);
     if (reason) return refuse(reason);
     return verb === 'approve' ? approve(found, caller, cases) : returnTo(request, found, caller);
-  }
-
-  const inbox = /^\/v1\/commissions\/([^/]+)\/approvals$/.exec(pathname);
-  if (method === 'GET' && inbox?.[1]) return listApprovals(searchParams, caller, cases);
-
-  const reassign = /^\/v1\/review\/approvals\/([^/]+)\/([^/]+)\/reassign$/.exec(pathname);
-  if (method === 'POST' && reassign?.[1] && reassign[2]) {
-    return reassignTo(request, reassign[1], reassign[2], caller);
-  }
-
-  const reviewers = /^\/v1\/commissions\/([^/]+)\/review\/queue\/reviewers$/.exec(pathname);
-  if (method === 'GET' && reviewers?.[1]) {
-    if (!caller.roles.includes(SUPERVISOR)) {
-      return coded(403, 'supervisor-required', 'Supervisors see the Commission’s reviewers.');
-    }
-    return json(200, {
-      items: staff.map((member) => ({ ...member, openCases: 0 })),
-    });
   }
 
   return null;
@@ -383,7 +342,6 @@ function approve(stored: StoredDetermination, caller: MockApprover, cases: MockC
   stored.reference = cmpReference();
   stored.letterAvailable = true;
   stored.letterDocumentId = randomUUID();
-  reassignments.delete(stored.id);
   const further = stored.outcome === 'further-action';
   cases.setStatus(
     stored.caseId,
@@ -408,7 +366,6 @@ async function returnTo(
   stored.returnedBy = { subject: caller.subject, name: caller.name };
   stored.returnedAt = new Date().toISOString();
   stored.returnReason = reason;
-  reassignments.delete(stored.id);
   return json(200, view(stored, caller));
 }
 
@@ -418,7 +375,6 @@ function withdraw(stored: StoredDetermination, caller: MockApprover, cases: Mock
   }
   if (stored.status !== 'proposed') return notProposed(stored.status);
   stored.status = 'withdrawn';
-  reassignments.delete(stored.id);
   cases.record(
     stored.caseId,
     'determination-withdrawn',
@@ -429,85 +385,32 @@ function withdraw(stored: StoredDetermination, caller: MockApprover, cases: Mock
   return json(200, view(stored, caller));
 }
 
-const AGE_BANDS = ['under-7-days', '7-to-30-days', 'over-30-days'] as const;
-
-function ageBand(proposedAt: string, now: number): (typeof AGE_BANDS)[number] {
-  const days = (now - Date.parse(proposedAt)) / DAY_MS;
-  return days >= 30 ? 'over-30-days' : days >= 7 ? '7-to-30-days' : 'under-7-days';
-}
-
-function listApprovals(params: URLSearchParams, caller: MockApprover, cases: MockCases): Response {
-  if (!caller.roles.includes(SUPERVISOR)) {
-    return coded(403, 'supervisor-required', 'Approvals are for supervisors.');
-  }
-  const kind = params.get('kind');
-  const limit = Math.min(Math.max(Number(params.get('limit') ?? 50) || 50, 1), 100);
-  const cursor = params.get('cursor');
-  const pending = [...determinations.values()]
-    .filter((each) => each.status === 'proposed')
-    .sort((a, b) => a.proposedAt.localeCompare(b.proposedAt) || a.id.localeCompare(b.id));
-  const now = Date.now();
-  const counts: Record<string, number> = { determination: pending.length, action: 0, referral: 0 };
-  for (const band of AGE_BANDS) counts[band] = 0;
-  for (const each of pending) {
-    const band = ageBand(each.proposedAt, now);
-    counts[band] = (counts[band] ?? 0) + 1;
-  }
-  const listed = kind === null || kind === 'determination' ? pending : [];
-  let start = 0;
-  if (cursor !== null) {
-    start = listed.findIndex((each) => each.id === cursor) + 1;
-    if (start === 0) return problem(400, 'Unknown cursor');
-  }
-  const page = listed.slice(start, start + limit);
-  const last = page.at(-1);
-  return json(200, {
-    items: page.map((stored) => {
-      const found = cases.find(stored.caseId);
-      const reason = cannotApprove(stored, found, caller);
-      return {
-        kind: 'determination',
-        subjectId: stored.id,
-        proposedAt: stored.proposedAt,
-        proposerKind: stored.proposerKind,
-        proposer: resolved(stored.proposer, caller),
-        summary: {
-          caseId: stored.caseId,
-          caseReference: found?.item.reference ?? null,
-          declarantName: found?.item.declarantName ?? null,
-          personnelFileNumber: found?.item.personnelFileNumber ?? null,
-          outcome: stored.outcome,
-          reasonsExcerpt: stored.reasons.slice(0, REASONS_EXCERPT),
-        },
-        canApprove: reason === null,
-        cannotApproveReason: reason,
-        reassignedTo: resolved(reassignments.get(stored.id)?.to ?? null, caller),
-      };
-    }),
-    nextCursor: last && start + limit < listed.length ? last.id : null,
-    counts,
-  });
-}
-
-async function reassignTo(
-  request: Request,
-  kind: string,
-  subjectId: string,
-  caller: MockApprover,
-): Promise<Response> {
-  if (!caller.roles.includes(SUPERVISOR)) {
-    return coded(403, 'supervisor-required', 'Approvals are for supervisors.');
-  }
-  const found = kind === 'determination' ? determinations.get(subjectId) : undefined;
-  if (!found) return problem(404, 'Not found');
-  if (found.status !== 'proposed') return notProposed(found.status);
-  const body = await readJson(request);
-  const subject = isRecord(body) ? body.toSupervisor : null;
-  if (typeof subject !== 'string' || !subject.trim() || subject.length > 200) {
-    return problem(400, 'toSupervisor is required');
-  }
-  const to = staff.find((member) => member.subject === subject) ?? { subject, name: subject };
-  const reassignedTo = { subject: to.subject, name: to.name };
-  reassignments.set(subjectId, { to: reassignedTo, at: new Date().toISOString() });
-  return json(200, { kind, subjectId, reassignedTo });
-}
+/** The determination approval source of the inbox mock: proposed ones, oldest first. */
+export const determinationApprovals: MockApprovalSource = {
+  kind: 'determination',
+  pending: (caller, cases) =>
+    [...determinations.values()]
+      .filter((each) => each.status === 'proposed')
+      .map((stored) => {
+        const found = cases.find(stored.caseId);
+        return {
+          subjectId: stored.id,
+          proposedAt: stored.proposedAt,
+          proposerKind: stored.proposerKind,
+          proposer: resolved(stored.proposer, caller),
+          summary: {
+            caseId: stored.caseId,
+            caseReference: found?.item.reference ?? null,
+            declarantName: found?.item.declarantName ?? null,
+            personnelFileNumber: found?.item.personnelFileNumber ?? null,
+            outcome: stored.outcome,
+            reasonsExcerpt: stored.reasons.slice(0, REASONS_EXCERPT),
+          },
+          cannotApproveReason: cannotApprove(stored, found, caller),
+        };
+      }),
+  find: (subjectId) => {
+    const found = determinations.get(subjectId);
+    return found ? { pending: found.status === 'proposed', status: found.status } : null;
+  },
+};

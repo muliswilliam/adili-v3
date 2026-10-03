@@ -5,6 +5,11 @@ import type { DeterminationRefusal } from '../../server/determinations.server';
 /** Copy of the case's Determination page and its dialogs (spec 08 FE-2). */
 export const messages = {
   crumb: 'Determination',
+  system: 'The system',
+  aSupervisor: 'A supervisor',
+  unassigned: 'Unassigned',
+  received: (date: string) => `Received ${formatDate(date)}`,
+  audit: 'Every view of this case is recorded.',
   fullCase: 'Full case',
   propose: 'Propose determination',
   card: {
@@ -36,7 +41,7 @@ export const messages = {
     clarificationOpen: 'A clarification is still open',
     clarificationOpenNext: 'Resolve or withdraw it before you propose a determination.',
     proposed: (name: string, date: string) =>
-      `Awaiting approval · proposed by ${name} on ${formatDate(date)}`,
+      `Determination proposed by ${name} on ${formatDate(date)}, awaiting approval`,
     withdraw: 'Withdraw',
     openInApprovals: 'Open in Approvals',
     returned: (name: string, date: string) => `Returned by ${name} on ${formatDate(date)}`,
