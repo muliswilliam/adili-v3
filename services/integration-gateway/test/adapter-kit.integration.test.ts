@@ -433,10 +433,11 @@ describe('adapter kit', () => {
       // One a second, timed from the slots: the first slot falls after `queued`, the second a
       // second after it. The gap between the two calls is no measure: the first call can start
       // late after its slot (its reply waits on a busy event loop) while the second, timed on
-      // Valkey's clock, starts on its slot. Within 2 ms: Valkey's TIME floored to the millisecond
-      // and a Node timer firing up to a millisecond early.
+      // Valkey's clock, starts on its slot. Within 10 ms: Valkey's TIME floored to the
+      // millisecond, and the reservation's timer firing off libuv's cached loop time, which can
+      // trail performance.now() by a few milliseconds.
       const [, second = 0] = ntsa.callTimes;
-      expect(second - queued).toBeGreaterThanOrEqual(998);
+      expect(second - queued).toBeGreaterThanOrEqual(990);
     });
   });
 
@@ -481,8 +482,7 @@ describe('adapter kit', () => {
       brs.extraCalls = 0;
 
       // Five calls charged at one a second: the next two would wait five seconds less the time
-      // the first lookup took, well past 2.5 s however slow the run (three calls left only half
-      // a second, which a slow CI runner used up).
+      // the first lookup took, well past the 2.5 s max wait however slow the run.
       const result = await lookup('30000007', forCase, brs);
 
       expect(result).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
