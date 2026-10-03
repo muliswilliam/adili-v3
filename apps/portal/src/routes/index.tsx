@@ -23,6 +23,7 @@ import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
 import { getMyClarifications, type MyClarificationsLoad } from '../server/clarifications';
+import { getMyDecisionLetter, getMyDecisions, type MyDecisionsLoad } from '../server/decisions';
 import { getMyDeclarations } from '../server/declarations';
 import type { DeclarationListResult } from '../server/declarations.server';
 import { getMyAccessNotices, type NoticesLoad } from '../server/access-notices';
@@ -49,7 +50,8 @@ export const Route = createFileRoute('/')({
     const declarations = onboarded ? loadDeclarations() : null;
     const clarifications = onboarded ? loadClarifications() : null;
     const accessNotices = onboarded ? loadAccessNotices() : null;
-    return { viewer, obligations, declarations, clarifications, accessNotices };
+    const decisions = onboarded ? loadDecisions() : null;
+    return { viewer, obligations, declarations, clarifications, accessNotices, decisions };
   },
   component: Home,
 });
@@ -70,6 +72,15 @@ async function loadAccessNotices(): Promise<NoticesLoad> {
   return notices.status === 'unauthenticated' ? { status: 'unavailable', now } : notices;
 }
 
+/** The declarant's decisions; an ended session or a failed call reads as unavailable. */
+async function loadDecisions(): Promise<MyDecisionsLoad> {
+  const load = await getMyDecisions().catch(() => ({ status: 'unavailable' }) as const);
+  return load.status === 'unauthenticated' ? { status: 'unavailable' } : load;
+}
+
+const loadDecisionLetter = (determinationId: string) =>
+  getMyDecisionLetter({ data: { determinationId } });
+
 /** The declarant's clarifications; an ended session or a failed call reads as unavailable. */
 async function loadClarifications(): Promise<MyClarificationsLoad> {
   const load = await getMyClarifications().catch(
@@ -79,7 +90,7 @@ async function loadClarifications(): Promise<MyClarificationsLoad> {
 }
 
 function Home() {
-  const { viewer, obligations, declarations, clarifications, accessNotices } =
+  const { viewer, obligations, declarations, clarifications, accessNotices, decisions } =
     Route.useLoaderData();
   const { auth_error, discarded } = Route.useSearch();
   return viewer && obligations ? (
@@ -89,6 +100,7 @@ function Home() {
       declarations={declarations}
       accessNotices={accessNotices}
       clarifications={clarifications}
+      decisions={decisions}
       discarded={discarded === true}
     />
   ) : (
@@ -153,6 +165,7 @@ function Dashboard({
   declarations,
   accessNotices,
   clarifications,
+  decisions,
   discarded,
 }: {
   viewer: Viewer;
@@ -160,6 +173,7 @@ function Dashboard({
   declarations: Promise<DeclarationListResult> | null;
   accessNotices: Promise<NoticesLoad> | null;
   clarifications: Promise<MyClarificationsLoad> | null;
+  decisions: Promise<MyDecisionsLoad> | null;
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
@@ -184,6 +198,8 @@ function Dashboard({
             declarations={declarations}
             accessNotices={accessNotices}
             clarifications={clarifications}
+            decisions={decisions}
+            loadDecisionLetter={loadDecisionLetter}
             obligations={
               <ObligationsSection
                 obligations={obligations}

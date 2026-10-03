@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 
 import type { NoticesLoad } from '../../server/access-notices';
 import type { MyClarificationsLoad } from '../../server/clarifications';
+import type { MyDecisionsLoad } from '../../server/decisions';
 import type { DeclarationListResult } from '../../server/declarations.server';
 import type { Viewer } from '../../server/viewer';
 import { AccessNoticesSection } from '../access-notices/notices-card';
 import { IdentityCard } from '../identity-card';
 import { DeclarantCard, DeclarantUnavailableCard } from './account-card';
 import { ClarificationsSection } from './clarifications-card';
+import { type DeclarationLetterLoad, DecisionsSection } from './decisions-card';
 import { DeclarationsSection } from './declarations-card';
 import { DraftsProvider } from './drafts';
 
@@ -20,18 +22,25 @@ import { DraftsProvider } from './drafts';
  * declarations stream in (`ClarificationsSection`, `DeclarationsSection`), the declarations
  * reaching the obligations' Start buttons through `DraftsProvider`. Requests to see the
  * declaration (spec 10 FE-4) stream in too: on top while one waits for the declarant's response,
- * else under the obligations.
+ * else under the obligations. Decisions on their declarations (spec 08 FE-7) stream in under the
+ * clarifications once there are any.
  */
 export function DashboardCards({
   viewer,
   declarations,
   accessNotices = null,
   clarifications,
+  decisions = null,
+  loadDecisionLetter,
   obligations,
 }: {
   viewer: Viewer;
   /** An onboarded declarant's clarifications, on their way; null for anyone else. */
   clarifications?: Promise<MyClarificationsLoad> | null;
+  /** An onboarded declarant's decisions, on their way; null for anyone else. */
+  decisions?: Promise<MyDecisionsLoad> | null;
+  /** Fetches a decision letter's link (issuing it the first time for a bulk closure). */
+  loadDecisionLetter?: (determinationId: string) => Promise<DeclarationLetterLoad>;
   /** An onboarded declarant's declarations, on their way; null for anyone else. */
   declarations?: Promise<DeclarationListResult> | null;
   /** An onboarded declarant's access requests, on their way; null for anyone else. */
@@ -49,6 +58,9 @@ export function DashboardCards({
               <AccessNoticesSection notices={accessNotices} placement="first" />
             ) : null}
             {clarifications ? <ClarificationsSection clarifications={clarifications} /> : null}
+            {decisions && loadDecisionLetter ? (
+              <DecisionsSection decisions={decisions} loadLetter={loadDecisionLetter} />
+            ) : null}
             <DeclarationsSection declarations={declarations} />
             {obligations}
             {accessNotices ? (

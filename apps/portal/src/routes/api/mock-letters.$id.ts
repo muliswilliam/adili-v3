@@ -4,12 +4,28 @@ import { env } from '../../server/env.server';
 
 /**
  * Stands in for the documents service's presigned letter download while REVIEW_MOCK is on: the
- * review mock's `letterDownloadUrl` points here. Serves a one-page placeholder PDF naming the
- * clarification. Development and tests only; everywhere else it is a 404.
+ * review mock's `letterDownloadUrl` and decision letter links point here. Serves a one-page
+ * placeholder PDF naming the clarification or the decision. Development and tests only; everywhere else it is a 404.
  */
 async function letter(id: string): Promise<Response> {
-  const { mockClarification } = await import('../../server/review/mock.server');
+  const { mockClarification, mockDecisionLetter } = await import('../../server/review/mock.server');
   const { placeholderPdf } = await import('../../server/mock-pdf');
+  const decision = mockDecisionLetter(id);
+  if (decision) {
+    return new Response(
+      placeholderPdf([
+        `Decision letter ${decision.reference}`,
+        `${decision.commission.name} - declaration ${decision.declarationReference}`,
+        'Placeholder letter from the development mock.',
+      ]),
+      {
+        headers: {
+          'content-type': 'application/pdf',
+          'content-disposition': `attachment; filename="${decision.reference}.pdf"`,
+        },
+      },
+    );
+  }
   const clarification = mockClarification(id);
   if (!clarification?.reference) return new Response(null, { status: 404 });
   const lines = [
