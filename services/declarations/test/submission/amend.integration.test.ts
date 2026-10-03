@@ -16,6 +16,7 @@ import type {
   DeclarationAttachment,
   DeclarationListItem,
   DeclarationSummary,
+  SectionEnvelope,
 } from '../../src/drafts/representation.js';
 import type {
   DeclarationVersion,
@@ -340,6 +341,20 @@ describe('amending before the due date (S7)', () => {
     expect(filed?.income).toEqual([{ ...INCOME, source: INCOME_SOURCE }]);
     expect(filed?.assets).toEqual([{ ...ASSET, source: ASSET_SOURCE }]);
     expect(filed?.liabilities).toEqual([LIABILITY]);
+  });
+
+  it('keeps the bio fields still as the roster pre-filled them marked in the amendment (05b)', async () => {
+    const draft = await completeDraft(ACHIENG);
+    const bio = async () =>
+      (
+        await api.request('GET', `/v1/declarations/${draft.id}/sections/bio`, declarant(ACHIENG))
+      ).json<SectionEnvelope>();
+    expect((await bio()).prefilledFields).toEqual(['/employment/appointmentDate']);
+    expect((await submit(draft.id, steppedUp(ACHIENG))).statusCode).toBe(201);
+
+    expect((await amend(draft.id)).statusCode).toBe(200);
+
+    expect((await bio()).prefilledFields).toEqual(['/employment/appointmentDate']);
   });
 
   it('carries attachments into the amendment and version 2', async () => {

@@ -263,9 +263,9 @@ export class AmendmentService {
     if (!found) return 'nothing';
     const { declaration, row, linked } = found;
     const document = await openSnapshot(this.cipher, row);
-    // Contents do not depend on the bio's locked fields, which only the metadata carries; the
-    // metadata is derived again under the lock.
-    const sections = sectionsOfVersion(document, { lockedFields: [] });
+    // Contents do not depend on the bio's locked or pre-filled fields, which only the metadata
+    // carries; the metadata is derived again under the lock.
+    const sections = sectionsOfVersion(document, {});
     const sealed = new Map(
       await Promise.all(
         sections.map(
@@ -326,7 +326,8 @@ export class AmendmentService {
       .from(declarationSections)
       .where(sectionIs(declaration.id, 'bio'));
     const sections = sectionsOfVersion(prepared.document, {
-      lockedFields: bio?.metadata.lockedFields ?? [],
+      lockedFields: bio?.metadata.lockedFields,
+      prefilledFields: bio?.metadata.prefilledFields,
     });
     const draftVersion = declaration.draftVersion + 1;
 
