@@ -18,7 +18,6 @@ import {
   type NationalFigure,
   parseAggregateKey,
 } from '../../server/reporting/aggregate-keys';
-import { fyLabel } from './model';
 
 /**
  * The Notable patterns panel's reading of the reporting service's pattern candidates (spec 09b
@@ -27,6 +26,9 @@ import { fyLabel } from './model';
  */
 
 const NATIONAL = 'national';
+
+/** "2025/2026": a financial year by its start year, as figures and comparisons name it. */
+export const fyLabel = (fy: number) => `${String(fy)}/${String(fy + 1)}`;
 
 /** `0.0412` → `4.1%`. */
 const percent = (fraction: number) => formatPercent(fraction * 100);

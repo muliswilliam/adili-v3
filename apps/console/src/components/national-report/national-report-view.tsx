@@ -33,7 +33,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import type {
   NationalReportPage,
@@ -56,11 +56,11 @@ import { dueDateOf } from '../form-m/financial-year';
 import { usePollWhile } from '../use-poll-while';
 import { CommissionsTable, NationalTotals } from './aggregate-tables';
 import { type ApproveReport, ApproveDialog } from './approve-dialog';
+import { messages as intakeMessages } from '../eacc-intake/messages';
 import { messages as m } from './messages';
 import {
   approvalOf,
   editorValueOf,
-  fyLabel,
   type NarrativeEditorValue,
   narrativeTextOf,
   type NcrViewer,
@@ -83,11 +83,16 @@ export interface NcrExtensionContext {
    * Changes the narrative being edited and saves it, e.g. #331's "Cite in findings" with
    * `appendParagraph(value, 'findings', { text, aggregateRefs, candidateIds })`. Ignored unless
    * `canEdit`.
+   *
+   * Today a saved paragraph keeps only its text: `PATCH .../narrative` takes each section as text,
+   * so a new paragraph's `aggregateRefs` and `candidateIds` are dropped by the service (#500). Pass
+   * them anyway; they show until the next reload and survive once the contract carries them.
    */
   editNarrative: (edit: (value: NarrativeEditorValue) => NarrativeEditorValue) => void;
   /**
    * Takes a report the service answered with (#341's draft endpoint inserting or replacing AI-draft
    * paragraphs) as the narrative being edited, dropping edits not saved yet, and reloads the page.
+   * Ignored unless `canEdit`.
    */
   adoptReport: (report: NationalReport) => void;
 }
@@ -99,7 +104,8 @@ export interface NcrExtensionContext {
  * - `narrativeActions`: the Draft narrative menu (#341) in the narrative's header.
  * - `narrativeNotice`: above the sections, e.g. #341's drafting errors.
  * - `paragraphMeta`: under each paragraph after the "AI draft" label the page always shows on an
- *   AI-drafted paragraph, e.g. #331's figure chips and #341's "Edited" label.
+ *   AI-drafted paragraph, e.g. #331's figure chips and #341's "Edited" label (do not render
+ *   another AI-draft label).
  * - `sectionBody`: in place of a section's paragraphs when it returns something, e.g. #341's
  *   skeleton while AI drafts the section.
  */
@@ -243,7 +249,6 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
         <div role="status" className="flex flex-col items-center px-5 py-12 text-center">
           <Spinner className="mb-3.5 size-7" />
           <h3 className="text-[15px] font-semibold">{m.building(data.reported)}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{m.buildingText}</p>
         </div>
       </Card>
     );
@@ -257,7 +262,7 @@ function Loaded(props: NationalReportViewProps & { data: NationalReportPage }) {
           {data.reported === 0 ? (
             <EmptyState
               icon={<Icon icon={InboxIcon} />}
-              title={m.noReportsTitle(fyLabel(fy))}
+              title={m.noReportsTitle(intakeMessages.fyLabel(fy))}
               description={m.noReportsText(formatDate(dueDateOf(fy)))}
             />
           ) : (
@@ -556,7 +561,8 @@ interface NarrativeDraft {
  * The narrative being edited, kept above the editor so a rebuild leaves it be. It is saved through
  * one `useAutosave`. When the report changes on the server (another version than the editor took,
  * not one of its own saves: a rebuild, an approval, another analyst's edit) the editor takes the
- * server's narrative, unless edits are still waiting to be saved, which then win.
+ * server's narrative, unless edits are not saved yet (waiting, retrying or refused), which then
+ * win.
  */
 function useNarrativeDraft({
   report,
@@ -595,11 +601,19 @@ function useNarrativeDraft({
   });
   if (report.id !== basis.id || report.version !== basis.version) {
     setBasis({ id: report.id, version: report.version });
-    const waiting = autosave.status === 'saving' || autosave.status === 'retrying';
-    if (report.id !== basis.id || (!own.has(report.version) && !waiting)) {
+    // Edits not saved yet (waiting, being retried, or refused and still on screen) win, unless
+    // the narrative can no longer be edited (approved meanwhile): then the server's is the record.
+    const unsaved =
+      autosave.status === 'saving' || autosave.status === 'retrying' || autosave.status === 'error';
+    if (report.id !== basis.id || !canEdit || (!own.has(report.version) && !unsaved)) {
       setValue(editorValueOf(report.narrativeParagraphs));
     }
   }
+  // Nothing more is saved once the narrative cannot be edited; drop what was waiting.
+  const { reset } = autosave;
+  useEffect(() => {
+    if (!canEdit) reset();
+  }, [canEdit, reset]);
   return {
     value,
     autosave,
@@ -614,6 +628,7 @@ function useNarrativeDraft({
       autosave.change(narrativeTextOf(next));
     },
     adopt: (adopted) => {
+      if (!canEdit) return;
       hold(adopted.version);
       autosave.reset();
       setValue(editorValueOf(adopted.narrativeParagraphs));

@@ -6,16 +6,8 @@ import {
   approvalOf,
   editorValueOf,
   narrativeTextOf,
-  ncrSearchSchema,
   newReportsSince,
 } from './model';
-
-describe('page address', () => {
-  it('reads the year and page, dropping what is not a year reports exist for', () => {
-    expect(ncrSearchSchema.parse({ fy: 2025, page: 2 })).toEqual({ fy: 2025, page: 2 });
-    expect(ncrSearchSchema.parse({ fy: 2019, page: 0 })).toEqual({});
-  });
-});
 
 const para = (
   section: NarrativeParagraph['section'],

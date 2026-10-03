@@ -181,13 +181,14 @@ export function commissionFigures(
     final,
     all: sumOf(initial, biennial, final),
   });
-  const clarifications = row.clarifications ?? 0;
+  // A report that did not count clarifications has none to state, not 0.
+  const clarifications = row.clarifications;
   return {
     reported: 1,
     reportedLate: row.status === 'submitted-late' ? 1 : 0,
     ...sections,
     clarifications,
-    clarificationRatio: rateOf(clarifications, sections.filed),
+    clarificationRatio: clarifications === null ? null : rateOf(clarifications, sections.filed),
   };
 }
 

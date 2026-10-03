@@ -31,11 +31,12 @@ import {
   pageOf,
 } from './aggregate-tables';
 import { messages as m } from './messages';
-import { appendParagraph, fyLabel } from './model';
+import { appendParagraph } from './model';
 import type { NcrExtensionContext, NcrExtensions } from './national-report-view';
 import {
   candidateCard,
   citationText,
+  fyLabel,
   citedCandidateIds,
   figureFormatter,
   figureTarget,

@@ -4,29 +4,13 @@ import {
   type NarrativeValue,
 } from '@adili/ui';
 import { EACC_SUPERVISOR } from '@adili/roles';
-import { z } from 'zod';
 
-import { FIRST_FINANCIAL_YEAR } from '../form-m/financial-year';
 import {
   NARRATIVE_SECTION_IDS,
   type Narrative,
   type NarrativeParagraph,
   type NationalReport,
 } from '../../server/reporting/types';
-
-/** "2025/2026", as the national report's copy says it. */
-export function fyLabel(fy: number): string {
-  return `${String(fy)}/${String(fy + 1)}`;
-}
-
-/** The page's address: the year shown (else the last that ended) and the per-Commission page. */
-export const ncrSearchSchema = z.object({
-  // As `financialYear` (server/form-m), which a browser module cannot import.
-  fy: z.int().min(FIRST_FINANCIAL_YEAR).max(9999).optional().catch(undefined),
-  page: z.int().min(1).optional().catch(undefined),
-});
-
-export type NcrSearch = z.infer<typeof ncrSearchSchema>;
 
 export type NarrativeEditorValue = NarrativeValue<NarrativeParagraph>;
 
