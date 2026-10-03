@@ -1,19 +1,13 @@
 import { mockableClient } from '@adili/api-kit/client';
 
 import { env } from '../env.server';
+import { releaseStatusCap } from './cache-policy';
 import { publicCache } from './public-cache';
 import type { paths } from './schema';
 
-/**
- * The list of releases is trusted for a minute, not the API's hour, so a release EACC publishes
- * or withdraws shows on the page within a minute; a release's own files only change by status.
- */
-export const RELEASE_LIST_MAX_AGE_MS = 60_000;
-
 // One cache for the server's lifetime, shared by every visitor (see `publicCache`).
 const cachedFetch = publicCache((request, init) => fetch(request, init), {
-  maxAgeCapMs: (url) =>
-    new URL(url).pathname.endsWith('/open-data/v1/releases') ? RELEASE_LIST_MAX_AGE_MS : undefined,
+  maxAgeCapMs: releaseStatusCap,
 });
 
 /**

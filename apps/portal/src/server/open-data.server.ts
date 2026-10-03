@@ -1,3 +1,4 @@
+import { RELEASE_STATUS_MAX_AGE_MS } from './reporting/cache-policy';
 import type { OpenDataClient } from './reporting/client.server';
 import {
   type NationalTotalsRow,
@@ -235,7 +236,7 @@ export async function loadOpenDataFile(
     response: Response,
     contentType: string,
     fileName: string,
-  ): OpenDataFileResult => ({
+  ): Extract<OpenDataFileResult, { status: 'ok' }> => ({
     status: 'ok',
     body,
     contentType: response.headers.get('content-type') ?? contentType,
@@ -254,7 +255,20 @@ export async function loadOpenDataFile(
         parseAs: 'arrayBuffer',
       });
       if (data === undefined) throw failure(response);
-      return file(data, response, 'application/json; charset=utf-8', `${prefix}-release.json`);
+      const record = file(
+        data,
+        response,
+        'application/json; charset=utf-8',
+        `${prefix}-release.json`,
+      );
+      // Its status can change (withdrawn): browsers keep it as long as the portal does.
+      return {
+        ...record,
+        headers: {
+          ...record.headers,
+          'cache-control': `public, max-age=${String(RELEASE_STATUS_MAX_AGE_MS / 1000)}`,
+        },
+      };
     }
     const table = ref.file.replace(/\.csv$/, '') as OpenDataTableName;
     if (!ref.file.endsWith('.csv') || !OPEN_DATA_TABLES.includes(table)) return notFound;

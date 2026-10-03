@@ -156,6 +156,8 @@ describe('open-data downloads (S8)', () => {
 
     if (file.status !== 'ok') throw new Error(file.status);
     expect(file.fileName).toBe('adili-open-data-2024-annual-v1-release.json');
+    // Its status can change (withdrawn), so browsers keep it a minute, not the API's hour.
+    expect(file.headers['cache-control']).toBe('public, max-age=60');
     expect(JSON.parse(new TextDecoder().decode(file.body))).toMatchObject({
       status: 'withdrawn',
       tables: expect.any(Array) as unknown[],

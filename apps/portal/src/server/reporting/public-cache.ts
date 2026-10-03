@@ -105,6 +105,9 @@ export function publicCache(send: Send, options: PublicCacheOptions = {}): Send 
     }
     let pending = inFlight.get(key);
     if (!pending) {
+      // The shared request runs under the first caller's init, its deadline included: if that
+      // times out or aborts, every caller waiting on it gets the failure (or the stale copy),
+      // and the next request asks again. The portal gives every call the same deadline.
       pending = fetchOnce(key, request, init).finally(() => {
         inFlight.delete(key);
       });
