@@ -158,10 +158,15 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
     toast({ title: message, urgency: 'assertive' });
   };
 
-  // Approved meanwhile: the reloaded page shows it frozen; nothing failed.
-  const approvedMeanwhile = () => {
-    setState({ status: 'idle' });
-    void router.invalidate();
+  /**
+   * A draft that ended without one, for `reason` (a job's failure reason or a problem code).
+   * Approved meanwhile: the reloaded page shows the report frozen; nothing failed.
+   */
+  const discarded = (ask: NarrativeDraftRequest, reason: string | null | undefined) => {
+    if (reason === 'ncr-approved') {
+      setState({ status: 'idle' });
+      void router.invalidate();
+    } else fail(ask, reasonMessage(reason));
   };
 
   /** The report the service answered once the job ended: the draft inserted, or discarded. */
@@ -172,8 +177,7 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
   ) => {
     const outcome = answered.narrativeDraft;
     if (outcome?.status === 'failed') {
-      if (outcome.failureReason === 'ncr-approved') approvedMeanwhile();
-      else fail(ask, reasonMessage(outcome.failureReason));
+      discarded(ask, outcome.failureReason);
       return;
     }
     setDrafted((ids) => aiDraftIds(answered, ids));
@@ -195,11 +199,10 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
       fail(ask, m.draftUnavailable);
       return;
     }
-    // The contract's codes for drafts (#338) are not registered with api-kit yet.
+    // The contract's codes for drafts (#338) are not registered with api-kit yet (#566).
     const code: string | undefined = (error.problem as { code?: string }).code;
-    if (code === 'ncr-approved') approvedMeanwhile();
-    else if (error.problem.status === 403) fail(ask, m.draftForbidden);
-    else fail(ask, reasonMessage(code));
+    if (error.problem.status === 403) fail(ask, m.draftForbidden);
+    else discarded(ask, code);
   };
 
   const send = async (ask: NarrativeDraftRequest, context: NcrExtensionContext) => {

@@ -131,7 +131,7 @@ export const en = {
   draftUnreadable: 'The draft could not be read and was discarded. Try again.',
   draftUnsaved:
     'Your latest edits could not be saved, so nothing was drafted. Check them, then try again.',
-  draftForbidden: 'Only EACC analysts and supervisors draft the narrative.',
+  draftForbidden: 'Only EACC analysts draft the narrative.',
   draftSlow: 'The draft is taking longer than usual.',
   dismiss: 'Dismiss',
 

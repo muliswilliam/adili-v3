@@ -20,7 +20,11 @@ import {
 } from './national-report.server';
 import { loadPatternCandidates } from './pattern-candidates.server';
 import { reportingToday } from './reporting/today.server';
-import type { NationalReport, PatternCandidate } from './reporting/types';
+import {
+  NARRATIVE_DRAFT_SECTIONS,
+  type NationalReport,
+  type PatternCandidate,
+} from './reporting/types';
 import type { ServiceResult } from './service-call';
 
 /**
@@ -78,7 +82,7 @@ export const draftNationalReportNarrativeFn = createServerFn({ method: 'POST' })
   .validator(
     z.object({
       fy: financialYear,
-      section: z.enum(['overview', 'findings', 'recommendations', 'all']),
+      section: z.enum(NARRATIVE_DRAFT_SECTIONS),
       replaceAll: z.boolean(),
       idempotencyKey: z.uuid(),
     }),

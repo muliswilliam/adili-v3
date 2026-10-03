@@ -43,6 +43,7 @@ import {
   viewOf,
 } from './ncr-mock.server';
 import {
+  NARRATIVE_DRAFT_SECTIONS,
   NARRATIVE_SECTION_IDS,
   type NarrativeDraft,
   type NarrativeDraftSection,
@@ -96,10 +97,8 @@ export function isNarrativeDraftPath(pathname: string): boolean {
   return DRAFT_PATH.test(pathname);
 }
 
-const SECTIONS = ['overview', 'findings', 'recommendations', 'all'] as const;
-
 function isSection(value: unknown): value is NarrativeDraftSection {
-  return (SECTIONS as readonly unknown[]).includes(value);
+  return (NARRATIVE_DRAFT_SECTIONS as readonly unknown[]).includes(value);
 }
 
 export async function mockNarrativeDraftFetch(request: Request): Promise<Response> {

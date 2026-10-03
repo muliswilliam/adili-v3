@@ -37,6 +37,12 @@ export type NarrativeDraft = Schemas['NarrativeDraft'];
 /** What a narrative draft is asked for: one section or `all`. */
 export type NarrativeDraftSection = NarrativeDraft['section'];
 
+/** What a narrative draft may be asked for: each section, or `all`. */
+export const NARRATIVE_DRAFT_SECTIONS = [
+  ...NARRATIVE_SECTION_IDS,
+  'all',
+] as const satisfies readonly NarrativeDraftSection[];
+
 /** The sections a draft of `section` writes. */
 export function sectionsDrafted(section: NarrativeDraftSection): readonly NarrativeSectionId[] {
   return section === 'all' ? NARRATIVE_SECTION_IDS : [section];

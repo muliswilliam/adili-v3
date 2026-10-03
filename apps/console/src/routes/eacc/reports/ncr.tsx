@@ -103,7 +103,15 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
     // Its paragraphMeta renders the figure chips after the "Edited" label.
     figures: patterns.paragraphMeta,
   });
-  const extensions: NcrExtensions = { patterns: patterns.patterns, ...drafting };
+  const extensions: NcrExtensions = {
+    patterns: patterns.patterns,
+    narrativeActions: drafting.narrativeActions,
+    narrativeNotice: drafting.narrativeNotice,
+    narrativeBusy: drafting.narrativeBusy,
+    sectionBody: drafting.sectionBody,
+    // The figure chips through drafting's paragraphMeta, after its "Edited" label.
+    paragraphMeta: drafting.paragraphMeta,
+  };
   return (
     <NationalReportView
       fy={fy ?? 0}
