@@ -57,16 +57,16 @@ Schemas changed:
 
 Operations changed:
 
-- `openAssistantConversation` (#333): the body is the named `OpenAssistantConversationRequest`, as drafted. Opening in another language switches the conversation. A conversation outside a draft is opened at the Commission of the declarant's latest filing obligation and keeps it until it expires 30 days after its last message; a newer obligation elsewhere does not move it (note on #296). 404 also for a declarant with no filing obligation; 400 documented.
+- `openAssistantConversation` (#333): the inline body is now the named `OpenAssistantConversationRequest`, with the drafted fields. Opening in another language switches the conversation. A conversation outside a draft is opened at the Commission of the declarant's latest filing obligation and keeps it until it expires 30 days after its last message; a newer obligation elsewhere does not move it (note on #296). 404 also for a declarant with no filing obligation; 400 documented.
 - `askAssistant` (#333):
-  - The body is the named `AskAssistantRequest`, with an optional `itemType` (as in help search) added. `sectionKey` is ignored outside a draft.
+  - The inline body is now the named `AskAssistantRequest`, with an optional `itemType` (as in help search) added. `sectionKey` is ignored outside a draft.
   - SSE events: `delta` {text}, then `final` {question, answer} (`AssistantAnswer`, both turns as stored), or `error` {code: `assistant-unavailable`}; a `: ping` every 15 s. The draft named the events, not the final frame's shape.
   - **Both turns are stored together when the answer ends.** The spec's flow stored the question first. A gateway failure, a job error or a declarant who leaves stores nothing, so those questions reach neither the history nor the theme counts (notes on #296 and #339).
   - **Only citations decide a decline.** An answer is kept when every block cites passages retrieved for it; otherwise, or when the gateway declines, the stored answer is the decline with the reporting officer's contact. A section link that names no live section of the draft, or whose field path is not a pointer of field names and indexes, is **dropped** (`sectionLink: null`) rather than declining the answer, as the BE detail had it (note on #296).
   - **No AI call when retrieval finds nothing** (after retrying a follow-up with the previous question): the decline, with `label: null` and no job.
   - 429 `rate-limit-exceeded` with the RateLimit headers (per declarant, `assistant=20/60s`); 503 problem type `assistant-unavailable` before the stream opens, nothing stored; 400 documented.
 - `rateAssistantMessage` (#339):
-  - The body is the named `RateAssistantMessageRequest`, as drafted.
+  - The inline body is now the named `RateAssistantMessageRequest`, with the drafted fields.
   - Answers the rated `AssistantMessage` (the draft had no body).
   - Rating and reason are forwarded to the answer's gateway job (`recordFeedback`) first, then kept on the message; reason and note encrypted. The note is never sent on. A second rating replaces the first.
   - A decline made without the AI has no job and is kept only. A job the gateway does not know is kept with `forwarded: false` in the event.
@@ -75,8 +75,8 @@ Operations changed:
   - Answers the named `CompletenessHints` `{status, label, residuals[]}` instead of an array of `{ruleId, fieldPath, text, hint}`.
   - `residuals` are the summary's `blocking` (`CompletenessHint`: its `sectionKey`, `path`, `code` and `message`, the deterministic text), each with `hint`, so the portal joins them to the summary.
   - `status`: `ready`, `pending` (the job is still running after the 10 s wait; ask again) or `unavailable` (no AI now: text only). `label` is the hints' AI label.
-  - Only the first 20 residuals get a hint (the gateway's `residuals.maxItems`).
-  - Cached by (residual set hash, language, prompt version) and shared across declarants and Commissions: the key and the hints hold no tenant's data and nothing personal (migration 0025).
+  - Only the first 20 residuals that are rule ids and field paths get a hint (the gateway's `residuals.maxItems`).
+  - Cached by (residual set hash, language, prompt version) and shared across declarants and Commissions: the key and the hints hold no Commission's data and nothing personal (migration 0025).
   - 400 documented.
 
 Schemas changed:
@@ -103,7 +103,7 @@ Still in `drafts/declarations.yaml`, unchanged. The panel shows curated question
 
 - `streamAnswerDeclarantQuestion` (#332), at the drafted path:
   - Events as drafted: `delta` {text}, then `final` {job} or `error` {reason}; plus a `: ping` every 15 s.
-  - Runs an `answer`-mode input as a job, in the request. An answer that fails its checks (grammar, cut off, cites a passage the input does not hold, links where the context does not name, an unknown identifier token) arrives as `declined: true` with no blocks; the job succeeds and the violations go on the job and its audit record.
+  - Runs an `answer`-mode input as a job, in the request. An answer that fails its checks (grammar, cut off, no blocks, a block with no citation, cites a passage the input does not hold, links where the context does not name, an unknown identifier token) arrives as `declined: true` with no blocks; the job succeeds and the violations go on the job and its audit record.
   - A caller that disconnects fails the job with the new `JobReason` `cancelled`.
   - `X-Acting-Tenant` required (ADR-013 §8.8 and §8.14).
   - Problems: 400 (validation, data class other than `synthetic`, or a `hints` input: `task-not-streamed`), 403 (`task-blocked`, policy), 409 (`job-in-progress`), 422 (key reused), 429 (rate limit, or budget as `task-blocked`), 503 (no provider). The draft listed 400 and 429.
