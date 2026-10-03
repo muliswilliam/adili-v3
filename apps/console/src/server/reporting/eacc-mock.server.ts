@@ -21,15 +21,18 @@
  * (anyone else, and a report not filed yet, 404).
  */
 import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
-import { addDays, INTAKE_STATUSES } from '@adili/ui';
+import { INTAKE_STATUSES } from '@adili/ui';
 
-import {
-  dueDateOf,
-  FIRST_FINANCIAL_YEAR,
-  nairobiToday,
-} from '../../components/form-m/financial-year';
+import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
 import { documentDownloadIdOf, json, type MockCaller, mockCallerOf, problem } from '../mock-http';
-import { mockDay, type StoredReport, storedReports } from './mock-store.server';
+import {
+  mockDay,
+  nairobiDayOf,
+  plusDays,
+  sixAm,
+  storedReport,
+  type StoredReport,
+} from './mock-store.server';
 import type { Intake, IntakeOutlier, IntakeRow, ReportSource, SubmittedReport } from './types';
 
 type FormM = SubmittedReport['document'];
@@ -200,12 +203,6 @@ export const mockDelay = (ms: number) =>
     setTimeout(resolve, ms * latency);
   });
 
-/** The day `days` after `day` (`YYYY-MM-DD`). */
-const plusDays = (day: string, days: number) => addDays(day, days).slice(0, 10);
-
-/** 06:00 in Nairobi on `date`. */
-const sixAm = (date: string) => `${date}T03:00:00.000Z`;
-
 /** A report EACC has received. */
 interface Filing {
   /** The day it came in. */
@@ -222,15 +219,14 @@ interface Filing {
 /** `commission`'s report for the year as EACC has it by today; null when it has not reported. */
 function filingOf(commission: Fixture, fy: number): Filing | null {
   if (commission.counts === null) {
-    mockDay(); // Seeds the store on the first read.
-    const stored = storedReports.get(fy);
+    const stored = storedReport(fy);
     if (stored?.status !== 'submitted') return null;
     const { submittedAt, late, reference, document } = stored;
     if (submittedAt === null || late === null || reference === null || document === null) {
       throw new Error(`The workspace mock's submitted report for ${String(fy)} lacks a field`);
     }
     return {
-      day: nairobiToday(new Date(submittedAt)),
+      day: nairobiDayOf(submittedAt),
       submittedAt,
       late,
       reference,
