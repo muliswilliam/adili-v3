@@ -3,8 +3,10 @@ import { z } from 'zod';
 
 import type { paths } from './review-api.gen.js';
 import {
+  REVIEW_RECORDS,
   ReviewClient,
   type ReviewRecord,
+  type ReviewRoute,
   ReviewRecordNotFound,
   ReviewUnavailable,
 } from './review-client.js';
@@ -62,7 +64,6 @@ export class HttpReviewClient extends ReviewClient {
   }
 
   payload(record: ReviewRecord, tenant: string, id: string): Promise<unknown> {
-    const header = { 'X-Acting-Tenant': tenant };
     const options = {
       status: 200 as const,
       schema: payloadSchema,
@@ -72,39 +73,10 @@ export class HttpReviewClient extends ReviewClient {
         },
       },
     };
-    switch (record) {
-      case 'clarification':
-        return this.review.call(
-          (api) =>
-            api.GET('/internal/v1/review/clarifications/{clarificationId}/letter-payload', {
-              params: { path: { clarificationId: id }, header },
-            }),
-          options,
-        );
-      case 'determination':
-        return this.review.call(
-          (api) =>
-            api.GET('/internal/v1/review/determinations/{determinationId}/letter-payload', {
-              params: { path: { determinationId: id }, header },
-            }),
-          options,
-        );
-      case 'action':
-        return this.review.call(
-          (api) =>
-            api.GET('/internal/v1/review/actions/{actionId}/letter-payload', {
-              params: { path: { actionId: id }, header },
-            }),
-          options,
-        );
-      case 'referral':
-        return this.packages.call(
-          (api) =>
-            api.GET('/internal/v1/review/referrals/{referralId}/package-payload', {
-              params: { path: { referralId: id }, header },
-            }),
-          options,
-        );
-    }
+    const route: ReviewRoute = REVIEW_RECORDS[record];
+    return (route.budget === 'package' ? this.packages : this.review).call(
+      (api) => route.request(api, id, { 'X-Acting-Tenant': tenant }),
+      options,
+    );
   }
 }

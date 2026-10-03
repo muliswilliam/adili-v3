@@ -10,7 +10,7 @@ import {
 } from '@adili/events/contracts';
 import { z } from 'zod';
 
-import type { ReviewRecord } from '../review/review-client.js';
+import { REVIEW_RECORDS, type ReviewRecord } from '../review/review-client.js';
 
 /**
  * Documents whose fields another service holds (ADR-013: the issue request names the record, the
@@ -22,7 +22,7 @@ import type { ReviewRecord } from '../review/review-client.js';
 export interface PulledPayload {
   /** The review service's record the fields are pulled for. */
   record: ReviewRecord;
-  /** The payload's one property, e.g. `determinationId`. */
+  /** The payload's one property, e.g. `determinationId` (the record's `REVIEW_RECORDS` entry). */
   idField: string;
   /** The issue request's payload, as the contract names it (e.g. `DecisionLetterSource`). */
   source: z.ZodType<Record<string, string>>;
@@ -40,15 +40,15 @@ export interface PulledPayload {
 }
 
 /**
- * A pulled type of the review service's `record`: its payload names the record by `idField`
- * (`{ "<idField>": "<uuid>" }`), and its document is issued under `<record>:<id>`.
+ * A pulled type of the review service's `record`: its payload names the record by the record's
+ * `idField` (`{ "<idField>": "<uuid>" }`), and its document is issued under `<record>:<id>`.
  */
 function pulledFrom(
   record: ReviewRecord,
-  idField: string,
   description: string,
   owner: PulledPayload['owner'],
 ): PulledPayload {
+  const { idField } = REVIEW_RECORDS[record];
   return {
     record,
     idField,
@@ -60,25 +60,21 @@ function pulledFrom(
 
 const clarificationLetter = pulledFrom(
   'clarification',
-  'clarificationId',
   "A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint",
   'declarant',
 );
 const decisionLetter = pulledFrom(
   'determination',
-  'determinationId',
   "A decision-letter's payload: the approved determination whose letter this is; the fields are pulled from the review service (internalGetDeterminationLetterPayload)",
   'declarant',
 );
 const actionLetter = pulledFrom(
   'action',
-  'actionId',
   'The payload of a step letter (notice-to-comply, warning, salary-stoppage, disciplinary-referral): the approved administrative action whose letter this is; the fields are pulled from the review service (internalGetActionLetterPayload)',
   'declarant-if-onboarded',
 );
 const referralPackage = pulledFrom(
   'referral',
-  'referralId',
   "A referral-package's payload: the approved referral whose evidence package this is; the cover sheet, manifest and evidence are pulled from the review service (internalGetReferralPackagePayload)",
   'excluded-declarant',
 );

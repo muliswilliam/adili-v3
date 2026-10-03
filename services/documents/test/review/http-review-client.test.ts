@@ -13,6 +13,7 @@ import { decisionLetterPayload } from '../../src/issuance/templates/decision-let
 import { referralPackagePayload } from '../../src/issuance/templates/referral-package.v1.js';
 import { HttpReviewClient } from '../../src/review/http-review-client.js';
 import {
+  REVIEW_RECORDS,
   type ReviewRecord,
   ReviewRecordNotFound,
   ReviewUnavailable,
@@ -209,7 +210,7 @@ describe('HttpReviewClient', () => {
     },
   );
 
-  it.each(['clarification', 'determination', 'action', 'referral'] as ReviewRecord[])(
+  it.each(Object.keys(REVIEW_RECORDS) as ReviewRecord[])(
     'maps 404 on a %s to ReviewRecordNotFound',
     async (record) => {
       const { client } = clientAnswering(() => json({ type: 'about:blank', status: 404 }, 404));
