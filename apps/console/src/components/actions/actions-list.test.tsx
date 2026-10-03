@@ -81,6 +81,36 @@ describe('ActionsList', () => {
     expect(within(row).queryByText(/Approved, issuing/)).toBeNull();
   });
 
+  it('reads Salary stopped for an ended ladder whose salary is not reinstated yet (F23)', async () => {
+    const result = await page();
+    if (!result.ok) throw new Error('no ladders');
+    const items = result.data.items.map((ladder) =>
+      ladder.id === L.reinstated
+        ? {
+            ...ladder,
+            status: 'ended' as const,
+            steps: ladder.steps.map((step) =>
+              step.step === 'salary-stoppage'
+                ? { ...step, status: 'cancelled' as const, payrollResume: null }
+                : step,
+            ),
+          }
+        : ladder,
+    );
+    render(
+      <ActionsList
+        result={{ ok: true, data: { ...result.data, items } }}
+        filter="all"
+        onFilter={vi.fn()}
+        now={NOW}
+      />,
+    );
+    const row = within(screen.getByRole('table')).getByRole('row', {
+      name: /Grace Wanjiru Kariuki/,
+    });
+    expect(within(row).getByText('Salary stopped')).toBeTruthy();
+  });
+
   it('lists each ladder with its subject, declarant, current step and window', async () => {
     render(<ActionsList result={await page()} filter="all" onFilter={vi.fn()} now={NOW} />);
     const table = screen.getByRole('table');

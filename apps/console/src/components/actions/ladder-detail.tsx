@@ -30,6 +30,7 @@ import {
 import { type ReactNode, useId, useState } from 'react';
 
 import {
+  approvedNotIssued,
   canDecideAs,
   isGraveStep,
   LADDER_STEPS,
@@ -46,7 +47,7 @@ import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { closingCauseLabel, en as m, ladderStatusLabel, stepLabel } from './messages';
 import { ActionStatusBadge } from './status-badge';
-import { isApproved, reinstatedAtOf, salaryStopped } from '../../actions/payroll';
+import { reinstatedAtOf, salaryStopped } from '../../actions/payroll';
 import {
   PayrollInstruction,
   payrollInstructionsOf,
@@ -245,7 +246,7 @@ function stepperStep({ step, status, action }: LadderStepView): LadderStepperSte
   };
   if (!action) return base;
   // Approved: waiting for payroll, or for its letter to be issued (the payroll line says which).
-  if (isApproved(action) && action.approvedAt) {
+  if (approvedNotIssued(action) && action.approvedAt) {
     return { ...base, detail: m.stepDetail.approved(formatDate(action.approvedAt)) };
   }
   const running = status === 'current' || status === 'stopped';

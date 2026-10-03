@@ -54,21 +54,27 @@ export interface LadderStepView {
   action: AdministrativeAction | null;
 }
 
+/** Approved but not issued yet: waiting for payroll (a stoppage) or for its letter. */
+export function approvedNotIssued(action: AdministrativeAction): boolean {
+  return action.status === 'approved' || action.status === 'approved-pending-payroll';
+}
+
 /** Where one action stands; `passed` when a later step has been reached. */
 export function stepStatusOf(
   action: AdministrativeAction,
   passed: boolean,
   ladderStatus: Ladder['status'],
 ): LadderStepStatus {
+  // A salary payroll stopped stays stopped until payroll acknowledges its resume, whatever the
+  // step's status (a ladder that ended without compliance cancels it first).
+  if (salaryStopped(action)) return passed ? 'done' : 'stopped';
   switch (action.status) {
     case 'proposed':
       return ladderStatus === 'active' ? 'awaiting' : 'skipped';
     case 'approved':
     case 'approved-pending-payroll':
-      // Decided (`isApproved`), not waiting for approval: a stoppage payroll acknowledged has
-      // stopped the salary.
-      if (ladderStatus !== 'active') return 'skipped';
-      return salaryStopped(action) ? 'stopped' : 'current';
+      // Decided (`approvedNotIssued`), not waiting for approval.
+      return ladderStatus === 'active' ? 'current' : 'skipped';
     case 'issued':
     case 'responded':
       if (passed) return 'done';

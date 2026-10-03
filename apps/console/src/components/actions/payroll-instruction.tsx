@@ -9,7 +9,8 @@ import {
 import type { ReactNode } from 'react';
 
 import type { AdministrativeAction } from '../../server/actions.server';
-import { acknowledgedAt, isApproved, type PayrollAck, payrollState } from '../../actions/payroll';
+import { approvedNotIssued } from '../../actions/ladder';
+import { acknowledgedAt, type PayrollAck, payrollState } from '../../actions/payroll';
 import { stoppageCopy as c } from './stoppage-messages';
 
 type PayrollAction = PayrollAck['action'];
@@ -46,7 +47,7 @@ export function payrollLine(action: AdministrativeAction): string | undefined {
   if (action.payrollStop !== null && payrollState(action.payrollStop) === 'failed') {
     return c.payroll.failed;
   }
-  return isApproved(action) || action.payrollStop !== null ? c.stepper.waiting : undefined;
+  return approvedNotIssued(action) || action.payrollStop !== null ? c.stepper.waiting : undefined;
 }
 
 /** "Salary stopped", in red, for a stoppage in force (the prototype's step badge). */

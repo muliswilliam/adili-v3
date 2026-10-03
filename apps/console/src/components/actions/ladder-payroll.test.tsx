@@ -167,7 +167,7 @@ describe('a stoppage payroll acknowledged, its letter not yet issued (F11)', () 
   });
 
   it('says only Not needed for an approved stoppage the ladder ended before (F20)', async () => {
-    await show(L.payrollPending, { status: 'complied', closingCause: 'filed' });
+    await show(L.payrollPending, { status: 'ended', closingCause: 'obligation-cancelled' });
     expect(stoppageStep().dataset.status).toBe('skipped');
     expect(within(stoppageStep()).getByText('Not needed')).toBeTruthy();
     expect(within(stoppageStep()).queryByText(/^Approved /)).toBeNull();
@@ -186,6 +186,26 @@ describe('a stoppage payroll acknowledged, its letter not yet issued (F11)', () 
     if (!notice) throw new Error('no notice step');
     expect(notice.dataset.status).toBe('current');
     expect(within(notice).getByText(`Approved ${formatDate(approvedAt)}`)).toBeTruthy();
+  });
+});
+
+describe('a salary still stopped when the ladder ended without compliance (F23)', () => {
+  it('reads Salary stopped until payroll acknowledges the resume, whatever the status', async () => {
+    const stopped = await ladder(L.reinstated);
+    await show(L.reinstated, {
+      status: 'ended',
+      closingCause: 'obligation-cancelled',
+      steps: stopped.steps.map((step) =>
+        step.step === 'salary-stoppage'
+          ? { ...step, status: 'cancelled' as const, payrollResume: null }
+          : { ...step, status: 'cancelled' as const },
+      ),
+    });
+    expect(stoppageStep().dataset.status).toBe('stopped');
+    expect(within(stoppageStep()).getByText(/Status: Salary stopped\./)).toBeTruthy();
+    expect(within(stoppageStep()).getByText(/^Payroll acknowledged /)).toBeTruthy();
+    const card = screen.getByRole('region', { name: /Salary stoppage/ });
+    expect(within(card).getByText('Salary stopped')).toBeTruthy();
   });
 });
 
