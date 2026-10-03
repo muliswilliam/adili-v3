@@ -5,13 +5,13 @@
  * `getOpenDataReleaseEacc`), used when REPORTING_MOCK is set. It follows #491's rules
  * (`services/reporting/src/open-data`):
  *
- * - EACC analysts and supervisors only (403 for anyone else).
+ * - EACC analysts and supervisors of tenant `eacc` only (403 for anyone else).
  * - A build makes the year's next version of its kind, as a `preview`, from the year's national
  *   consolidated report as last built (the NCR part of the mock), or, before it is built, from the
  *   live projections; its tables are suppressed as the service suppresses them
  *   (`releases-mock-tables.server.ts`). `fy-not-started` for a year after the current one; an
  *   annual build needs the approved NCR (`ncr-not-built`, `ncr-not-approved`) and no published
- *   annual release (`annual-release-published`). A retry with the same Idempotency-Key replays.
+ *   annual release (`annual-release-published`). Idempotency as api-kit runs it (`build`).
  * - When the year's NCR is approved, its annual release is published by the approver, as the
  *   release workflow does on `ncr.approved.v1`.
  *
@@ -23,7 +23,8 @@
 import { createHash } from 'node:crypto';
 
 import { type Env, envSchema } from '../env.server';
-import { isRecord, json, mockCallerOf, problem, readJson } from '../mock-http';
+import { isRecord, json, mockCallerOf, problem } from '../mock-http';
+import { isEacc } from './eacc-mock.server';
 import { BRIAN, ESTHER, mockNcrCommissions, mockNcrSourceOf } from './ncr-mock.server';
 import {
   buildReleaseTables,
@@ -42,7 +43,6 @@ import type {
 
 export type ReleasesMockSeed = Env['REPORTING_MOCK_RELEASES'];
 
-const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'];
 const PATH = '/v1/eacc/open-data/releases';
 const FIRST_YEAR = 2025;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -59,7 +59,8 @@ interface StoredRelease {
 interface Store {
   seed: ReleasesMockSeed;
   releases: StoredRelease[];
-  builds: Map<string, Response>;
+  /** Builds by caller and Idempotency-Key: the body sent, and the answer once there is one. */
+  builds: Map<string, { body: string; response: Response | null }>;
   buildMs: number;
 }
 
@@ -73,9 +74,15 @@ export function isReleasesPath(pathname: string): boolean {
 /** Starts the store over at `seed`; `buildMs` is how long a build takes outside tests. */
 export function resetReleasesMock(
   seed: ReleasesMockSeed,
-  { buildMs = 2500 }: { buildMs?: number } = {},
+  { buildMs }: { buildMs?: number } = {},
 ): void {
-  store = { seed, releases: [], builds: new Map(), buildMs };
+  // Tests build at once unless they ask for a build that takes time (a retry while it runs).
+  store = {
+    seed,
+    releases: [],
+    builds: new Map(),
+    buildMs: buildMs ?? (process.env.VITEST ? 0 : 2500),
+  };
   if (seed === 'none') return;
   const midYear = midYearAggregates();
   const firstMidYear = midYearAggregates({ kirinyagaCountedTwice: true });
@@ -143,12 +150,12 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
   const data = ensureSeeded();
   const url = new URL(request.url);
   const caller = mockCallerOf(request);
-  if (!caller.roles.some((role) => EACC_ROLES.includes(role))) {
+  if (!isEacc(caller)) {
     return json(403, {
       type: 'about:blank',
       title: 'Forbidden',
       status: 403,
-      detail: 'Only EACC analysts and supervisors work on open-data releases.',
+      detail: 'Only EACC analysts and supervisors of EACC work on open-data releases.',
     });
   }
   if (data.seed === 'unavailable') return problem(503, 'The reporting service is unavailable');
@@ -182,12 +189,43 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
   return problem(404, 'Not found');
 }
 
+/**
+ * The build behind api-kit's idempotency (ADR-009), as the service runs it: a key is the
+ * caller's; the same key and body replays the stored answer (2xx and 4xx; a 5xx is not stored,
+ * so a retry builds); the same key with another body is 422 `idempotency-key-reused`; the same
+ * key while the first build still runs is 409 `idempotency-key-in-use`.
+ */
 async function build(data: Store, request: Request, officer: Officer): Promise<Response> {
   const key = request.headers.get('idempotency-key');
   if (!key) return problem(400, 'Idempotency-Key missing');
-  const replay = data.builds.get(key);
-  if (replay) return replay.clone();
-  const body = await readJson(request);
+  const scope = `${officer.subject}:${key}`;
+  const text = await request.text();
+  const seen = data.builds.get(scope);
+  if (seen && seen.body !== text) {
+    return idempotencyProblem(422, 'idempotency-key-reused', 'Idempotency-Key reused');
+  }
+  if (seen && !seen.response) {
+    return idempotencyProblem(409, 'idempotency-key-in-use', 'Request in progress');
+  }
+  if (seen?.response) return seen.response.clone();
+  data.builds.set(scope, { body: text, response: null });
+  const response = await buildOnce(data, text, officer);
+  if (response.status >= 500) data.builds.delete(scope);
+  else data.builds.set(scope, { body: text, response: response.clone() });
+  return response;
+}
+
+function idempotencyProblem(status: number, type: string, title: string): Response {
+  return json(status, { type, title, status });
+}
+
+async function buildOnce(data: Store, text: string, officer: Officer): Promise<Response> {
+  let body: unknown = null;
+  try {
+    body = JSON.parse(text) as unknown;
+  } catch {
+    // Not JSON: refused below.
+  }
   const fy = isRecord(body) ? body.fy : undefined;
   const kind = isRecord(body) ? (body.kind ?? 'snapshot') : undefined;
   if (
@@ -270,9 +308,7 @@ async function build(data: Store, request: Request, officer: Officer): Promise<R
     aggregates,
   );
   data.releases.push(release);
-  const response = json(202, release.release);
-  data.builds.set(key, response.clone());
-  return response;
+  return json(202, release.release);
 }
 
 /** The release workflow on `ncr.approved.v1`: the year's annual release, published. */
@@ -555,5 +591,5 @@ function conflict(code: string, detail: string) {
 }
 
 function delay(ms: number): Promise<void> {
-  return process.env.VITEST ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
+  return ms <= 0 ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -79,6 +79,9 @@ type BuildState =
 export function ReleasesView(props: ReleasesViewProps) {
   const { result, links } = props;
   const [build, setBuild] = useState<BuildState>({ kind: 'idle' });
+  // The key of a build that may have been recorded (no answer, or still running): every build
+  // started until it is settled reuses it, so the service replays it instead of building again.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
   if (problemStatus(result) === 403) {
     return (
       <Page narrow>
@@ -89,12 +92,13 @@ export function ReleasesView(props: ReleasesViewProps) {
   }
   const building = build.kind === 'building';
   const startBuild = () => {
-    setBuild({ kind: 'confirming', key: crypto.randomUUID() });
+    setBuild({ kind: 'confirming', key: pendingKey ?? crypto.randomUUID() });
   };
   const runBuild = async (key: string) => {
     setBuild({ kind: 'building', key });
     const built = await props.build(props.fy, key);
     if (built.ok) {
+      setPendingKey(null);
       setBuild({ kind: 'idle' });
       props.onBuilt(built.data);
       return;
@@ -103,9 +107,11 @@ export function ReleasesView(props: ReleasesViewProps) {
       props.onUnauthenticated();
       return;
     }
-    // A refusal (4xx) wrote nothing, so a retry is a new build. A build that timed out or failed
-    // on the way back may have been recorded: the retry keeps its key and replays it.
-    const retryKey = built.error.kind === 'unavailable' ? key : crypto.randomUUID();
+    // A refusal (4xx) wrote nothing, so a retry is a new build. A build that got no answer may
+    // have been recorded, and one still running (`idempotency-key-in-use`) will be: the retry, or
+    // the next Build snapshot, keeps its key and so replays it.
+    const retryKey = mayBeRecorded(built) ? key : crypto.randomUUID();
+    setPendingKey(mayBeRecorded(built) ? key : null);
     setBuild({ kind: 'failed', key: retryKey, message: buildFailure(built) });
   };
   return (
@@ -175,7 +181,22 @@ export function ReleasesView(props: ReleasesViewProps) {
   );
 }
 
-function buildFailure(result: Extract<ReleasesResult<unknown>, { ok: false }>): string {
+type BuildRefusal = Extract<ReleasesResult<unknown>, { ok: false }>;
+
+/** Whether a failed build may still have been, or be, recorded under its key. */
+function mayBeRecorded({ error }: BuildRefusal): boolean {
+  return (
+    error.kind === 'unavailable' ||
+    (error.kind === 'problem' && isProblem(error.problem, 'idempotency-key-in-use'))
+  );
+}
+
+/** api-kit names some problems by `type` (the idempotency ones), the service by `code`. */
+function isProblem(problem: { type: string; code?: string }, name: string): boolean {
+  return problem.code === name || problem.type === name;
+}
+
+function buildFailure(result: BuildRefusal): string {
   const { error } = result;
   if (error.kind === 'problem') {
     const { code, mismatches } = error.problem;
@@ -183,6 +204,7 @@ function buildFailure(result: Extract<ReleasesResult<unknown>, { ok: false }>): 
       return m.reconciliationFailed((mismatches ?? []).map(mismatchLabel).join(', '));
     }
     if (code === 'fy-not-started') return m.fyNotStarted;
+    if (isProblem(error.problem, 'idempotency-key-in-use')) return m.buildStillRunning;
   }
   if (error.kind === 'unavailable' && error.problemType === 'storage-unavailable') {
     return m.storageUnavailable;

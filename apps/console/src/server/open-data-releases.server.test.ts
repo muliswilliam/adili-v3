@@ -122,6 +122,58 @@ describe('S6 buildOpenDataSnapshot', () => {
     });
   });
 
+  it('answers a retry while the first build runs with 409 idempotency-key-in-use, then replays it', async () => {
+    resetReleasesMock('history', { buildMs: 30 });
+    const key = crypto.randomUUID();
+
+    const [first, second] = await Promise.all([
+      buildOpenDataSnapshot(analyst(), 2026, key),
+      buildOpenDataSnapshot(analyst(), 2026, key),
+    ]);
+    const third = await buildOpenDataSnapshot(analyst(), 2026, key);
+
+    expect(first).toMatchObject({ ok: true, data: { version: 1 } });
+    expect(second).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 409, type: 'idempotency-key-in-use' } },
+    });
+    expect(third.ok && first.ok && third.data.id).toBe(first.ok && first.data.id);
+  });
+
+  it('answers the same key with another body with 422 idempotency-key-reused', async () => {
+    const key = crypto.randomUUID();
+    await buildOpenDataSnapshot(analyst(), 2026, key);
+
+    expect(await buildOpenDataSnapshot(analyst(), 2025, key)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 422, type: 'idempotency-key-reused' } },
+    });
+  });
+
+  it('replays a refusal stored for its key', async () => {
+    resetReleasesMock('reconciliation-failed');
+    const key = crypto.randomUUID();
+    await buildOpenDataSnapshot(analyst(), 2026, key);
+
+    expect(await buildOpenDataSnapshot(analyst(), 2026, key)).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { code: 'reconciliation-failed' } },
+    });
+  });
+
+  it('answers 403 to EACC roles outside the eacc tenant', async () => {
+    const built = await buildOpenDataSnapshot(
+      mockReportingClient(['eacc-analyst'], { tenant: 'psc' }),
+      2026,
+      crypto.randomUUID(),
+    );
+
+    expect(built).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 403 } },
+    });
+  });
+
   it('refuses a year that has not started', async () => {
     const built = await buildOpenDataSnapshot(analyst(), 2099, crypto.randomUUID());
 

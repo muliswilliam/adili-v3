@@ -54,6 +54,7 @@ export const en = {
     `National totals did not match their source (${totals}). Nothing was written.`,
   buildFailed: 'The snapshot could not be built. Nothing was written.',
   fyNotStarted: 'The financial year has not started yet.',
+  buildStillRunning: 'The build is still running. Try again in a moment to see it.',
   storageUnavailable: 'File storage could not be reached. Nothing was written.',
   directoryUnavailable:
     'The directory could not be reached to count Commissions. Nothing was written.',
