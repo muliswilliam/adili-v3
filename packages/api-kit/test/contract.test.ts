@@ -8,7 +8,7 @@ import { Controller, Headers, HttpCode, Module, Post } from '@nestjs/common';
 import { ApiHeader, type OpenAPIObject } from '@nestjs/swagger';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { exportContract, withDraft } from '../src/contract.js';
+import { exportContract, repeatedParameters, withDraft } from '../src/contract.js';
 
 const implemented: OpenAPIObject = {
   openapi: '3.1.0',
@@ -87,19 +87,6 @@ class HeaderTwiceController {
 @Module({ controllers: [HeaderTwiceController] })
 class HeaderTwiceModule {}
 
-@Controller('v1/closures')
-class HeaderOnceController {
-  @Post()
-  @HttpCode(200)
-  @ApiHeader({ name: 'Idempotency-Key', required: true })
-  approve() {
-    return {};
-  }
-}
-
-@Module({ controllers: [HeaderOnceController] })
-class HeaderOnceModule {}
-
 describe('exportContract', () => {
   let scratch = '';
   beforeEach(() => {
@@ -120,14 +107,62 @@ describe('exportContract', () => {
       }),
     ).rejects.toThrow(/POST \/v1\/closures: header idempotency-key, Idempotency-Key/);
   });
+});
 
-  it('exports an operation that documents each header once', async () => {
-    await expect(
-      exportContract(HeaderOnceModule, {
-        name: 'test',
-        description: 'test',
-        outputFile: join(scratch, 'once.yaml'),
-      }),
-    ).resolves.toBeUndefined();
+describe('repeatedParameters', () => {
+  const ok = { '200': { description: 'Ok' } };
+  const documentWith = (paths: OpenAPIObject['paths'], parameters = {}): OpenAPIObject => ({
+    openapi: '3.1.0',
+    info: { title: 'test API', version: '1' },
+    paths,
+    components: { parameters },
+  });
+
+  it('finds a header the operation and its path document in different cases', () => {
+    const document = documentWith(
+      {
+        '/v1/closures': {
+          parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }],
+          post: {
+            parameters: [{ name: 'idempotency-key', in: 'header' }],
+            responses: ok,
+          },
+        },
+      },
+      { IdempotencyKey: { name: 'Idempotency-Key', in: 'header' } },
+    );
+
+    expect(repeatedParameters(document)).toEqual([
+      'POST /v1/closures: header idempotency-key, Idempotency-Key',
+    ]);
+  });
+
+  it('lets an operation replace its path parameter of the same name and location', () => {
+    const document = documentWith({
+      '/v1/cases/{caseId}': {
+        parameters: [{ name: 'caseId', in: 'path' }],
+        get: { parameters: [{ name: 'caseId', in: 'path', required: true }], responses: ok },
+      },
+    });
+
+    expect(repeatedParameters(document)).toEqual([]);
+  });
+
+  it('allows query and path names that differ only in case', () => {
+    const document = documentWith({
+      '/v1/cases/{caseId}/{CaseId}': {
+        get: {
+          parameters: [
+            { name: 'caseId', in: 'path' },
+            { name: 'CaseId', in: 'path' },
+            { name: 'page', in: 'query' },
+            { name: 'Page', in: 'query' },
+          ],
+          responses: ok,
+        },
+      },
+    });
+
+    expect(repeatedParameters(document)).toEqual([]);
   });
 });
