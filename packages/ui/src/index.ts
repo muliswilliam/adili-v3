@@ -261,7 +261,7 @@ export {
   type FigureChipMessages,
   type FigureChipProps,
   type FigureFormatter,
-  type FigureLabel,
+  type ResolvedFigure,
 } from './components/figure-chip';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';

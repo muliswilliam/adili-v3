@@ -2,6 +2,11 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+import { parse } from 'yaml';
+
 import { PATTERN_KINDS, PatternCard, PatternCardSkeleton } from './pattern-card';
 
 describe('PatternCard', () => {
@@ -32,7 +37,7 @@ describe('PatternCard', () => {
     expect(badge.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('has a label and an explanation for every kind of the contract', () => {
+  it('has a label for every kind of the contract, in its order', () => {
     render(
       <>
         {PATTERN_KINDS.map((kind) => (
@@ -49,14 +54,19 @@ describe('PatternCard', () => {
       'Size-band outlier: National',
       'Did not report: National',
     ]);
-    expect(PATTERN_KINDS).toEqual([
-      'rate-change',
-      'threshold-breach',
-      'chronic-late-reporting',
-      'clarification-ratio-outlier',
-      'size-band-outlier',
-      'non-reporting',
-    ]);
+    const contract = parse(
+      readFileSync(
+        createRequire(import.meta.url).resolve('@adili/schemas/internal/reporting.yaml'),
+        'utf8',
+      ),
+    ) as {
+      components: {
+        schemas: { PatternCandidate: { properties: { kind: { enum: string[] } } } };
+      };
+    };
+    expect(PATTERN_KINDS).toEqual(
+      contract.components.schemas.PatternCandidate.properties.kind.enum,
+    );
   });
 
   it('cites the pattern in findings, with a button naming which pattern', async () => {
@@ -126,6 +136,7 @@ describe('PatternCard', () => {
         value="1"
         onCite={() => undefined}
         messages={{
+          name: (kind, subject) => `${kind} (${subject})`,
           kinds: { 'rate-change': { label: 'Mabadiliko', description: 'Kiwango kimebadilika' } },
           cite: 'Taja',
           citeName: (kind, subject) => `Taja: ${kind}, ${subject}`,
@@ -133,7 +144,7 @@ describe('PatternCard', () => {
       />,
     );
 
-    expect(screen.getByRole('article', { name: 'Mabadiliko: Taifa' })).toBeTruthy();
+    expect(screen.getByRole('article', { name: 'Mabadiliko (Taifa)' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Taja: Mabadiliko, Taifa' }).textContent).toBe(
       'Taja',
     );

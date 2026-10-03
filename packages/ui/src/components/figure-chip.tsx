@@ -1,12 +1,10 @@
 import { AlertCircleIcon, HashtagIcon } from '@hugeicons/core-free-icons';
-import type { ComponentProps } from 'react';
-
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
 
 /** A figure as a reader sees it: "National filing rate 2027" and "91.2%". */
-export interface FigureLabel {
+export interface ResolvedFigure {
   label: string;
   value: string;
 }
@@ -16,7 +14,7 @@ export interface FigureLabel {
  * prefixed `fy<fy>.` for a prior year; reporting.yaml `NarrativeParagraph.aggregateRefs`) to its
  * label and formatted value, or null when the key names no figure the caller has.
  */
-export type FigureFormatter = (aggregateKey: string) => FigureLabel | null;
+export type FigureFormatter = (aggregateKey: string) => ResolvedFigure | null;
 
 export interface FigureChipMessages {
   /** The pressable chip's accessible name. */
@@ -33,7 +31,7 @@ export const FIGURE_CHIP_MESSAGES: FigureChipMessages = {
 const chipClassName =
   'inline-flex h-6 max-w-full items-center gap-[5px] overflow-hidden rounded-chip pr-[9px] pl-[7px] text-[12.5px] whitespace-nowrap [&_svg]:size-3 [&_svg]:shrink-0';
 
-export type FigureChipProps = Omit<ComponentProps<'button'>, 'children' | 'onClick'> & {
+export interface FigureChipProps {
   /** The aggregate key a narrative paragraph cites. */
   aggregateKey: string;
   format: FigureFormatter;
@@ -43,21 +41,16 @@ export type FigureChipProps = Omit<ComponentProps<'button'>, 'children' | 'onCli
    */
   onShow?: (aggregateKey: string) => void;
   messages?: Partial<FigureChipMessages>;
-};
+  className?: string;
+}
 
 /**
  * A figure a narrative cites, by its aggregate key rendered through `format` as "{label}: {value}"
  * with the value in bold. A button named "Figure {label}: {value}. Show in table" with `onShow`;
- * a key `format` cannot resolve reads "Figure not found" in amber, the key in its title.
+ * a key `format` cannot resolve reads "Figure not found" in amber, the key in its title for
+ * whoever has to find out why.
  */
-export function FigureChip({
-  aggregateKey,
-  format,
-  onShow,
-  messages,
-  className,
-  ...props
-}: FigureChipProps) {
+export function FigureChip({ aggregateKey, format, onShow, messages, className }: FigureChipProps) {
   const copy = { ...FIGURE_CHIP_MESSAGES, ...messages };
   const figure = format(aggregateKey);
 
@@ -93,9 +86,7 @@ export function FigureChip({
   return (
     <button
       type="button"
-      title={aggregateKey}
       aria-label={copy.name(figure.label, figure.value)}
-      {...props}
       onClick={() => {
         onShow(aggregateKey);
       }}

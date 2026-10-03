@@ -38,7 +38,7 @@ export interface PatternKindCopy {
 export const PATTERN_KIND_COPY: Record<PatternKind, PatternKindCopy> = {
   'rate-change': {
     label: 'Rate change',
-    description: 'A non-filer rate that doubled or halved since last year',
+    description: 'A non-filer rate that moved sharply since last year',
   },
   'threshold-breach': {
     label: 'Above threshold',
@@ -46,7 +46,7 @@ export const PATTERN_KIND_COPY: Record<PatternKind, PatternKindCopy> = {
   },
   'chronic-late-reporting': {
     label: 'Repeatedly late',
-    description: 'Form M submitted late in each of the last years',
+    description: 'Form M submitted late year after year, this year included',
   },
   'clarification-ratio-outlier': {
     label: 'High clarifications',
@@ -72,6 +72,8 @@ const KIND_ICONS: Record<PatternKind, IconProps['icon']> = {
 };
 
 export interface PatternCardMessages {
+  /** The card's accessible name. */
+  name: (kindLabel: string, subject: string) => string;
   /** Replaces any kind's label or description. */
   kinds: Partial<Record<PatternKind, PatternKindCopy>>;
   /** The cite button's words. */
@@ -83,14 +85,14 @@ export interface PatternCardMessages {
 }
 
 export const PATTERN_CARD_MESSAGES: PatternCardMessages = {
+  name: (kindLabel, subject) => `${kindLabel}: ${subject}`,
   kinds: {},
   cite: 'Cite in findings',
   citeName: (kindLabel, subject) => `Cite in findings: ${kindLabel}, ${subject}`,
   cited: 'Cited in findings',
 };
 
-const cardClassName =
-  'flex min-w-0 flex-col gap-1.5 rounded-xl bg-card px-4 py-3.5 shadow-card-flat';
+const cardClassName = 'flex min-w-0 flex-col gap-1.5 rounded-xl bg-card px-4 py-3.5';
 
 export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
   kind: PatternKind;
@@ -133,14 +135,19 @@ export function PatternCard({
   const copy = { ...PATTERN_CARD_MESSAGES, ...messages };
   const kindCopy = copy.kinds[kind] ?? PATTERN_KIND_COPY[kind];
 
-  const act =
-    action ??
-    (cited ? (
-      <span className="inline-flex h-[34px] items-center gap-1.5 text-[13px] font-medium text-success [&_svg]:size-3.5">
-        <Icon icon={Tick02Icon} strokeWidth={2.4} />
-        {copy.cited}
-      </span>
-    ) : onCite ? (
+  const act = action ?? citeAction();
+
+  function citeAction() {
+    if (cited) {
+      return (
+        <span className="inline-flex h-[34px] items-center gap-1.5 text-[13px] font-medium text-success [&_svg]:size-3.5">
+          <Icon icon={Tick02Icon} strokeWidth={2.4} />
+          {copy.cited}
+        </span>
+      );
+    }
+    if (!onCite) return null;
+    return (
       <Button
         variant="secondary"
         size="sm"
@@ -150,14 +157,20 @@ export function PatternCard({
         <Icon icon={PlusSignIcon} />
         {copy.cite}
       </Button>
-    ) : null);
+    );
+  }
 
   return (
     <article
-      aria-label={`${kindCopy.label}: ${subject}`}
+      aria-label={copy.name(kindCopy.label, subject)}
       data-kind={kind}
       data-cited={cited || undefined}
-      className={cn(cardClassName, cited && 'shadow-[0_0_0_1px_var(--color-input)]', className)}
+      className={cn(
+        cardClassName,
+        // The cited card's ring is a step darker, as the kit's `.pat.cited`.
+        cited ? 'shadow-[0_0_0_1px_var(--color-input)]' : 'shadow-card-flat',
+        className,
+      )}
       {...props}
     >
       <div>
@@ -186,7 +199,11 @@ export function PatternCard({
 /** A pattern card's shape while the candidates load. Mark the loading region `aria-busy`. */
 export function PatternCardSkeleton({ className, ...props }: ComponentProps<'div'>) {
   return (
-    <div aria-hidden="true" className={cn(cardClassName, 'min-h-[150px]', className)} {...props}>
+    <div
+      aria-hidden="true"
+      className={cn(cardClassName, 'min-h-[150px] shadow-card-flat', className)}
+      {...props}
+    >
       <Skeleton className="h-5 w-2/5 rounded-full" />
       <Skeleton className="mt-2 w-[70%]" />
       <Skeleton className="mt-1.5 h-[22px] w-[35%]" />
