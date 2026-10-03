@@ -30,13 +30,16 @@ export type NarrativeValue<P extends NarrativeEditorParagraph = NarrativeEditorP
 /** How the contract stores a section: its paragraphs' text, separated by a blank line. */
 export const NARRATIVE_PARAGRAPH_SEPARATOR = '\n\n';
 
-/** Every section's stored text, the body `PATCH .../narrative` takes. */
-export function narrativeSections(value: NarrativeValue): Record<string, string> {
+/**
+ * Every section's stored text, the body `PATCH .../narrative` takes: one entry per section in
+ * `sections`, '' for one with nothing written (the contract requires all of them).
+ */
+export function narrativeSections(
+  value: NarrativeValue,
+  sections: readonly Pick<NarrativeSection, 'id'>[],
+): Record<string, string> {
   return Object.fromEntries(
-    Object.entries(value).map(([section, paragraphs]) => [
-      section,
-      narrativeSectionText(paragraphs),
-    ]),
+    sections.map((section) => [section.id, narrativeSectionText(value[section.id] ?? [])]),
   );
 }
 
@@ -58,6 +61,24 @@ export interface NarrativeSection {
   /** The most characters the section's stored text may hold, as the contract limits it. */
   maxLength?: number;
 }
+
+/** The contract's `Narrative` limits per section (reporting.yaml). */
+export const NARRATIVE_MAX_LENGTH = {
+  overview: 20_000,
+  findings: 40_000,
+  recommendations: 20_000,
+} as const;
+
+/** The national report's sections, in order, with their limits. */
+export const NATIONAL_REPORT_NARRATIVE_SECTIONS: readonly NarrativeSection[] = [
+  { id: 'overview', label: 'Overview', maxLength: NARRATIVE_MAX_LENGTH.overview },
+  { id: 'findings', label: 'Findings', maxLength: NARRATIVE_MAX_LENGTH.findings },
+  {
+    id: 'recommendations',
+    label: 'Recommendations',
+    maxLength: NARRATIVE_MAX_LENGTH.recommendations,
+  },
+];
 
 export interface NarrativeEditorMessages {
   autosaves: string;
@@ -124,11 +145,11 @@ type CreateParagraphProp<P extends NarrativeEditorParagraph> = NarrativeEditorPa
 export type NarrativeEditorProps<P extends NarrativeEditorParagraph = NarrativeEditorParagraph> =
   Omit<ComponentProps<'section'>, 'children' | 'onChange'> &
     CreateParagraphProp<P> & {
-      sections: NarrativeSection[];
+      sections: readonly NarrativeSection[];
       value: NarrativeValue<P>;
       /**
        * Every edit, with the whole narrative. Required unless read-only. Save it through the
-       * `useAutosave` passed as `autosave`, e.g. `autosave.change(narrativeSections(next))`
+       * `useAutosave` passed as `autosave`, e.g. `autosave.change(narrativeSections(next, sections))`
        * when `change.textChanged`.
        */
       onChange?: (value: NarrativeValue<P>, change: NarrativeChange) => void;
@@ -183,29 +204,24 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   const makeParagraph =
     createParagraph ?? ((id: string) => ({ id, text: '' }) as NarrativeEditorParagraph as P);
 
-  // An empty section shows one field; typing in it creates the paragraph under this id, so the
-  // field keeps its focus. Only an empty section shows it, so it never clashes with a paragraph.
-  const [startIds, setStartIds] = useState<Record<string, string>>(() =>
-    Object.fromEntries(sections.map((section) => [section.id, crypto.randomUUID()])),
-  );
-  // Sections added later get theirs on the next render (state adjusted while rendering).
-  const missing = sections.filter((section) => !(section.id in startIds));
-  if (missing.length > 0) {
-    setStartIds((current) => ({
-      ...current,
-      ...Object.fromEntries(missing.map((section) => [section.id, crypto.randomUUID()])),
-    }));
-  }
-  const startId = (section: string) => startIds[section] ?? `${headingId}-${section}`;
+  // An empty section shows one field under a placeholder id (the same on server and browser).
+  // Typing in it creates the paragraph under a new UUID; the field keeps the placeholder as its
+  // React key, so it is not remounted and keeps its focus.
+  const startId = (section: string) => `${headingId}-${section}-start`;
+  const [fieldKeys, setFieldKeys] = useState<Record<string, string>>({});
 
   const focusNext = useRef<string | null>(null);
   useEffect(() => {
     const id = focusNext.current;
     if (!id) return;
     focusNext.current = null;
-    root.current
-      ?.querySelector<HTMLTextAreaElement>(`textarea[data-paragraph-id="${CSS.escape(id)}"]`)
-      ?.focus();
+    const field = root.current?.querySelector<HTMLTextAreaElement>(
+      `textarea[data-paragraph-id="${CSS.escape(id)}"]`,
+    );
+    if (!field) return;
+    field.focus();
+    // At the end, e.g. of the last paragraph a paste was split into.
+    field.setSelectionRange(field.value.length, field.value.length);
   });
 
   const update = (section: string, paragraphs: P[]) => {
@@ -304,7 +320,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                     const removable =
                       paragraphs.length > 1 || (paragraphs.length === 1 && paragraph.text !== '');
                     return (
-                      <div key={paragraph.id} className="group relative">
+                      <div key={fieldKeys[paragraph.id] ?? paragraph.id} className="group relative">
                         <Textarea
                           autoGrow
                           rows={2}
@@ -325,18 +341,24 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
                             // A blank line ends the paragraph: what follows becomes the next
                             // ones, as the contract would split it on save anyway.
                             const [first = '', ...more] = event.target.value.split(BLANK_LINE);
-                            const edited: P = {
-                              ...paragraph,
-                              text: first,
-                              ...(paragraph.aiDraft ? { aiDraft: false } : {}),
-                            };
+                            const starting = paragraphs.length === 0;
+                            const edited: P = starting
+                              ? { ...makeParagraph(crypto.randomUUID(), section), text: first }
+                              : {
+                                  ...paragraph,
+                                  text: first,
+                                  ...(paragraph.aiDraft ? { aiDraft: false } : {}),
+                                };
+                            if (starting) {
+                              setFieldKeys((keys) => ({ ...keys, [edited.id]: paragraph.id }));
+                            }
                             const split = more.map((text) => ({
                               ...makeParagraph(crypto.randomUUID(), section),
                               text,
                             }));
                             const last = split.at(-1);
                             if (last) focusNext.current = last.id;
-                            const current = paragraphs.length === 0 ? [paragraph] : paragraphs;
+                            const current = starting ? [paragraph] : paragraphs;
                             update(
                               section.id,
                               current.flatMap((each) =>

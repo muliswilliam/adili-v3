@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AutosaveFailure, useAutosave } from '../lib/use-autosave';
 import {
+  NATIONAL_REPORT_NARRATIVE_SECTIONS,
   NarrativeEditor,
+  narrativeSections,
+  narrativeSectionText,
   type NarrativeEditorProps,
   type NarrativeSection,
   type NarrativeValue,
@@ -57,6 +60,40 @@ async function settle() {
     await Promise.resolve();
   });
 }
+
+describe('narrativeSectionText', () => {
+  it('joins the written paragraphs with a blank line, as the contract stores a section', () => {
+    expect(
+      narrativeSectionText([
+        { id: 'a', text: ' First. ' },
+        { id: 'b', text: '' },
+        { id: 'c', text: '   ' },
+        { id: 'd', text: 'Second.' },
+      ]),
+    ).toBe('First.\n\nSecond.');
+  });
+
+  it('is empty for no paragraphs', () => {
+    expect(narrativeSectionText([])).toBe('');
+  });
+});
+
+describe('narrativeSections', () => {
+  it('gives every section, empty or missing ones as empty text', () => {
+    expect(
+      narrativeSections(
+        { overview: [{ id: 'a', text: 'Overview.' }], findings: [] },
+        NATIONAL_REPORT_NARRATIVE_SECTIONS,
+      ),
+    ).toEqual({ overview: 'Overview.', findings: '', recommendations: '' });
+  });
+
+  it('leaves out what is not a section', () => {
+    expect(narrativeSections({ stray: [{ id: 'x', text: 'x' }] }, [{ id: 'overview' }])).toEqual({
+      overview: '',
+    });
+  });
+});
 
 describe('NarrativeEditor', () => {
   beforeEach(() => {
@@ -193,6 +230,32 @@ describe('NarrativeEditor', () => {
     const added = screen.getByRole('textbox', { name: 'Recommendations, paragraph 2' });
     expect(added).toHaveProperty('value', '');
     expect(document.activeElement).toBe(added);
+  });
+
+  it('renders an empty section’s field the same on server and browser, keeping focus on typing', () => {
+    const { container } = render(<Editor />);
+    const field = screen.getByRole('textbox', { name: 'Findings, paragraph 1' });
+    expect(field.dataset.paragraphId).not.toMatch(/^[0-9a-f]{8}-/);
+    field.focus();
+
+    fireEvent.change(field, { target: { value: 'One finding.' } });
+
+    expect(container.contains(field)).toBe(true);
+    expect(document.activeElement).toBe(field);
+  });
+
+  it('puts the caret at the end of the last paragraph a paste was split into', () => {
+    render(<Editor />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' }), {
+      target: { value: 'Follow up.\n\nPublish the names.' },
+    });
+
+    const last = screen.getByRole<HTMLTextAreaElement>('textbox', {
+      name: 'Recommendations, paragraph 2',
+    });
+    expect(document.activeElement).toBe(last);
+    expect(last.selectionStart).toBe('Publish the names.'.length);
   });
 
   it('gives an empty section’s first paragraph a UUID', () => {

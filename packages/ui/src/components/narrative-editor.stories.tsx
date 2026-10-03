@@ -6,17 +6,13 @@ import { Alert, AlertDescription } from './alert';
 import { Button } from './button';
 import { AutosaveFailure, useAutosave } from '../lib/use-autosave';
 import {
+  NATIONAL_REPORT_NARRATIVE_SECTIONS,
   NarrativeEditor,
   narrativeSections,
-  type NarrativeSection,
   type NarrativeValue,
 } from './narrative-editor';
 
-const SECTIONS: NarrativeSection[] = [
-  { id: 'overview', label: 'Overview', maxLength: 20_000 },
-  { id: 'findings', label: 'Findings', maxLength: 40_000 },
-  { id: 'recommendations', label: 'Recommendations', maxLength: 20_000 },
-];
+const SECTIONS = NATIONAL_REPORT_NARRATIVE_SECTIONS;
 
 const DRAFT: NarrativeValue = {
   overview: [
@@ -58,7 +54,7 @@ function Editable(props: { initial?: NarrativeValue; fail?: boolean; refuse?: bo
       autosave={autosave}
       onChange={(next, change) => {
         setValue(next);
-        if (change.textChanged) autosave.change(narrativeSections(next));
+        if (change.textChanged) autosave.change(narrativeSections(next, SECTIONS));
       }}
       messages={{ error: 'This report was approved meanwhile: the narrative is frozen' }}
       paragraphMeta={(paragraph) =>
