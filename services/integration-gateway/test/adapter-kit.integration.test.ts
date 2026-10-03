@@ -476,15 +476,17 @@ describe('adapter kit', () => {
 
     it('refuses a lookup rate-limited before any of its calls when its slots are past the max wait, without tripping the breaker', async () => {
       brs.callsPerLookup = 2;
-      brs.extraCalls = 1;
+      brs.extraCalls = 3;
       await lookup('30000006', forCase, brs);
       brs.extraCalls = 0;
 
-      // Three calls charged at one a second: the next two would wait three seconds, past 2.5 s.
+      // Five calls charged at one a second: the next two would wait five seconds less the time
+      // the first lookup took, well past 2.5 s however slow the run (three calls left only half
+      // a second, which a slow CI runner used up).
       const result = await lookup('30000007', forCase, brs);
 
       expect(result).toMatchObject({ outcome: 'unavailable', reason: 'rate-limited' });
-      expect(brs.calls).toBe(3);
+      expect(brs.calls).toBe(5);
       // Our own limit is no registry failure.
       expect(breakerState()).toBe(CircuitState.Closed);
       const [, row] = await rows();
