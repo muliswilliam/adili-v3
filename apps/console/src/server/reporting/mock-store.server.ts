@@ -1,11 +1,12 @@
 import type { FormMV1 } from '@adili/forms';
-import { addDays } from '@adili/ui';
 
 import {
+  dayAfter,
   dueDateOf,
   finalCompileOf,
   FIRST_FINANCIAL_YEAR,
   financialYearOf,
+  nairobiDayOf,
   nairobiToday,
   previewFromOf,
 } from '../../components/form-m/financial-year';
@@ -103,10 +104,10 @@ function confirmed(document: FormMV1, reviewedOn: string, confirmedOn: string): 
 }
 
 /** The day `days` after `day` (`YYYY-MM-DD`). */
-export const plusDays = (on: string, days: number) => addDays(on, days).slice(0, 10);
+export const plusDays = dayAfter;
 
-/** The Nairobi day (`YYYY-MM-DD`) of an instant. */
-export const nairobiDayOf = (iso: string) => nairobiToday(new Date(iso));
+/** The Nairobi day (`YYYY-MM-DD`) of an instant (from `financial-year.ts`). */
+export { nairobiDayOf };
 
 /** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
 export const sixAm = (date: string) => `${date}T03:00:00.000Z`;
@@ -168,7 +169,7 @@ function submitted(fy: number, submittedAt: string): StoredReport {
   };
 }
 
-/** Submits the year's report on `day` at 11:20 in Nairobi (tests and the EACC intake demo). */
+/** Submits the year's report on `on` at 11:20 in Nairobi, as the commission-admin's confirmation would. */
 export function submitMockReport(fy: number, on: string) {
   saveStoredReport(submitted(fy, `${on}T08:20:00.000Z`));
 }

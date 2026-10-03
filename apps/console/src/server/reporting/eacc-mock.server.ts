@@ -33,11 +33,25 @@ import {
   storedReport,
   type StoredReport,
 } from './mock-store.server';
-import type { Intake, IntakeOutlier, IntakeRow, ReportSource, SubmittedReport } from './types';
+import type {
+  Intake,
+  IntakeOutlier,
+  IntakeRow,
+  IntakeStatus,
+  ReportSource,
+  SubmittedReport,
+} from './types';
 
 type FormM = SubmittedReport['document'];
 type SectionKey = 'initial' | 'biennial' | 'final';
 type NonFiler = FormM['partII']['initial']['nonFilers'][number];
+
+/** The intake total that counts each status. */
+const TOTAL_OF = {
+  'submitted-on-time': 'onTime',
+  'submitted-late': 'late',
+  'not-reported': 'notReported',
+} as const satisfies Record<IntakeStatus, keyof Intake['totals']>;
 
 /** The service's default `INTAKE_MIN_<SECTION>_RATE`. */
 const MIN_RATE = 0.8;
@@ -370,9 +384,12 @@ function intake(fy: number): Intake {
   return {
     fy,
     totals: {
-      onTime: commissions.filter((row) => row.status === 'submitted-on-time').length,
-      late: commissions.filter((row) => row.status === 'submitted-late').length,
-      notReported: commissions.filter((row) => row.status === 'not-reported').length,
+      ...(Object.fromEntries(
+        INTAKE_STATUSES.map((status) => [
+          TOTAL_OF[status],
+          commissions.filter((row) => row.status === status).length,
+        ]),
+      ) as Record<(typeof TOTAL_OF)[IntakeStatus], number>),
       nationalDeclaredRate: rateOf(declared, expected),
     },
     commissions,
