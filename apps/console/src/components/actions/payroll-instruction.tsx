@@ -76,7 +76,8 @@ export function salaryStopped(action: AdministrativeAction): boolean {
     action.step === 'salary-stoppage' &&
     acknowledgedAt(action.payrollStop) !== null &&
     acknowledgedAt(action.payrollResume) === null &&
-    (action.status === 'issued' || action.status === 'responded')
+    // Acknowledged but its letter not yet issued (`approved`), or issued.
+    (action.status === 'approved' || action.status === 'issued' || action.status === 'responded')
   );
 }
 

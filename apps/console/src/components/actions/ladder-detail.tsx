@@ -249,8 +249,11 @@ function stepperStep({ step, status, action }: LadderStepView): LadderStepperSte
     : {};
   switch (status) {
     case 'awaiting':
-      // Approved, its stop-salary instruction waiting for payroll (the payroll line says so).
-      if (action.status === 'approved-pending-payroll' && action.approvedAt) {
+      // Approved: waiting for payroll, or for its letter (the payroll line says which).
+      if (
+        (action.status === 'approved-pending-payroll' || action.status === 'approved') &&
+        action.approvedAt
+      ) {
         return { ...base, detail: stoppage.stepper.approved(action.approvedAt) };
       }
       return {

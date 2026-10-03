@@ -129,6 +129,34 @@ describe('payroll acknowledgements on the ladder (S6, S7, S15)', () => {
   });
 });
 
+describe('a stoppage payroll acknowledged, its letter not yet issued (F11)', () => {
+  it('reads Salary stopped, not Approved, issuing', async () => {
+    const pending = await ladder(L.payrollPending);
+    const at = new Date(NOW_MS - DAY).toISOString();
+    await show(L.payrollPending, {
+      steps: pending.steps.map((step) =>
+        step.step === 'salary-stoppage'
+          ? {
+              ...step,
+              status: 'approved' as const,
+              payrollStop: {
+                instructionReference: step.reference ?? '',
+                action: 'stop_salary' as const,
+                status: 'accepted',
+                payrollReference: 'PAY-ACK-2026-0099999',
+                receivedAt: at,
+              },
+            }
+          : step,
+      ),
+    });
+    const card = screen.getByRole('region', { name: /Salary stoppage/ });
+    expect(within(card).getByText('Salary stopped')).toBeTruthy();
+    expect(within(card).queryByText('Approved, issuing')).toBeNull();
+    expect(within(stoppageStep()).getByText(`Payroll acknowledged ${formatDate(at)}`)).toBeTruthy();
+  });
+});
+
 describe('a ladder that ended without compliance (S7)', () => {
   it('still says the reinstatement was acknowledged', async () => {
     await show(L.reinstated, { status: 'ended', closingCause: 'obligation-cancelled' });
