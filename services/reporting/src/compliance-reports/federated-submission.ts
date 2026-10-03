@@ -20,7 +20,7 @@ const SECTIONS = ['initial', 'biennial', 'final'] as const;
  * - per declaration section, declared and not declared add up to expected, and the non-filers
  *   listed are as many as not declared; a year without a biennial cycle expects none;
  * - access requests granted and declined are no more than received, and the decline reasons
- *   add up to declined;
+ *   count at least every decline (a denial citing several grounds counts under each, #239);
  * - Part III names who compiled and who confirmed the report, with the dates.
  */
 export function federatedRuleProblems(document: FormMV1, today: string): FormValidationError[] {
@@ -73,8 +73,8 @@ export function federatedRuleProblems(document: FormMV1, today: string): FormVal
     problem('partII.accessRequests.received', 'must be at least granted plus declined');
   }
   const reasons = access.declineReasons.reduce((sum, { count }) => sum + count, 0);
-  if (reasons !== access.declined) {
-    problem('partII.accessRequests.declineReasons', 'the counts must add up to declined');
+  if (reasons < access.declined) {
+    problem('partII.accessRequests.declineReasons', 'the counts must add up to at least declined');
   }
 
   for (const role of ['compiledBy', 'confirmedBy'] as const) {

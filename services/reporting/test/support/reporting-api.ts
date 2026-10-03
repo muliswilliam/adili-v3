@@ -136,6 +136,10 @@ const HANDLERS: Record<string, keyof ProjectionsConsumer> = {
   'referral.sent.v1': 'referralSent',
   'review.copilot.updated.v1': 'copilotUpdated',
   'ai.feedback.recorded.v1': 'aiFeedbackRecorded',
+  'access.request.received.v1': 'accessRequestReceived',
+  'access.request.decided.v1': 'accessRequestDecided',
+  'access.request.cannot-identify.v1': 'accessRequestCannotIdentify',
+  'access.request.withdrawn.v1': 'accessRequestWithdrawn',
 };
 
 /**
@@ -263,7 +267,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
       // compliance_reports before report_receipts, the order the submission activities lock
       // them in, so a straggling activity write waits instead of deadlocking.
       await db.execute(
-        sql`truncate referral_intake, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, compliance_reports, report_receipts, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, copilot_case_facts, ai_feedback_facts, numbering_counters, idempotency_keys, outbox, inbox`,
+        sql`truncate referral_intake, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, compliance_reports, report_receipts, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, copilot_case_facts, ai_feedback_facts, access_request_facts, numbering_counters, idempotency_keys, outbox, inbox`,
       );
       declarations.reset();
       review.reset();

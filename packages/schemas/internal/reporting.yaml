@@ -318,8 +318,9 @@ paths:
         (`inconsistent-document`): the period is the financial year it names, 1 July to 30 June,
         open for reports (from 1 April of its last half); per section declared plus not declared
         is expected and the non-filers listed are as many as not declared; access requests granted
-        plus declined are at most received and the decline reasons add up to declined; Part III
-        names who compiled and who confirmed, with dates. The report is then submitted as a hosted
+        plus declined are at most received and the decline reasons count at least every decline
+        (a denial citing several grounds counts under each); Part III names who compiled and who
+        confirmed, with dates. The report is then submitted as a hosted
         confirm submits it, with `source` `federated`: `RPT-<ISSUER>-<FY end>-<seq>-<check>`, the
         document frozen with its canonical SHA-256 (`meta.reference` and `meta.source` set by the
         platform), `late` after 31 July, EACC's receipt, and right after the Restricted Form M

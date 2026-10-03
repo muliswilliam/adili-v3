@@ -2,6 +2,18 @@ import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
+import {
+  ACCESS_REQUEST_CANNOT_IDENTIFY,
+  ACCESS_REQUEST_DECIDED,
+  ACCESS_REQUEST_RECEIVED,
+  ACCESS_REQUEST_WITHDRAWN,
+} from '@adili/events/contracts';
+import {
+  accessRegisterEventDataSchema,
+  accessRequestCannotIdentifyDataSchema,
+  accessRequestDecidedDataSchema,
+  accessRequestReceivedDataSchema,
+} from '@adili/events/contracts/schemas';
 import { type SQL, sql } from 'drizzle-orm';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 
@@ -40,6 +52,7 @@ import {
   referralSentData,
 } from './events.js';
 import {
+  accessRequestFacts,
   actionFacts,
   type ActionStatus,
   aiFeedbackFacts,
@@ -347,6 +360,76 @@ export class ProjectionsConsumer {
             recordedAt: sql`greatest(${aiFeedbackFacts.recordedAt}, excluded.recorded_at)`,
           },
         }),
+    );
+  }
+
+  /**
+   * A Form K request received (Act s.36(1)): it counts in the financial year it was received in,
+   * whenever it is decided. Law enforcement requests (`lea.request.*`) are not subscribed to:
+   * Form M section 5 counts applications by a person for purposes of section 36 (decided on #239).
+   */
+  @OnEvent(ACCESS_REQUEST_RECEIVED)
+  accessRequestReceived(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRequestReceivedDataSchema.parse(event.data);
+    const receivedAt = new Date(data.at);
+    const facts = { fy: financialYearAt(receivedAt), receivedAt };
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(accessRequestFacts)
+        .values({ requestId: data.subjectId, tenant, ...facts })
+        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
+    );
+  }
+
+  /** The access officer's final decision, with the Regulation 24 grounds it cites. */
+  @OnEvent(ACCESS_REQUEST_DECIDED)
+  accessRequestDecided(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRequestDecidedDataSchema.parse(event.data);
+    return this.closeAccessRequest(event, data.subjectId, {
+      outcome: data.outcome,
+      grounds: data.grounds,
+      closedAt: new Date(data.at),
+    });
+  }
+
+  /** The officer Form K names matches no roster record: the request closes, declined. */
+  @OnEvent(ACCESS_REQUEST_CANNOT_IDENTIFY)
+  accessRequestCannotIdentify(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRequestCannotIdentifyDataSchema.parse(event.data);
+    return this.closeAccessRequest(event, data.subjectId, {
+      outcome: 'cannot-identify',
+      grounds: [],
+      closedAt: new Date(data.at),
+    });
+  }
+
+  /** The applicant withdrew the request: it still counts as received. */
+  @OnEvent(ACCESS_REQUEST_WITHDRAWN)
+  accessRequestWithdrawn(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRegisterEventDataSchema.parse(event.data);
+    const facts = { withdrawnAt: new Date(data.at) };
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(accessRequestFacts)
+        .values({ requestId: data.subjectId, tenant, ...facts })
+        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
+    );
+  }
+
+  /**
+   * How a Form K request ended (final). Writes only those columns, so a decision that arrives
+   * before the receipt still lands in the year the receipt brings.
+   */
+  private closeAccessRequest(
+    event: EventEnvelope,
+    requestId: string,
+    facts: Pick<typeof accessRequestFacts.$inferInsert, 'outcome' | 'grounds' | 'closedAt'>,
+  ): Promise<boolean> {
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(accessRequestFacts)
+        .values({ requestId, tenant, ...facts })
+        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: facts }),
     );
   }
 

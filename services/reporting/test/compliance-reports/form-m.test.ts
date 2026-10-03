@@ -2,6 +2,7 @@ import { validateFormM } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
 import {
+  type AccessRequestFactRow,
   type ActionFactRow,
   aggregateFacts,
   assemble,
@@ -51,6 +52,7 @@ describe('aggregateFacts', () => {
         fact(6, { type: null }),
       ],
       [],
+      [],
     );
 
     expect(aggregate.counts.initial).toEqual({ expected: 3, declared: 1, notDeclared: 2 });
@@ -59,14 +61,14 @@ describe('aggregateFacts', () => {
   });
 
   it('S4: a year with no biennial obligation has no cycle in the period', () => {
-    expect(aggregateFacts([fact(1)], []).counts.biennial).toEqual({
+    expect(aggregateFacts([fact(1)], [], []).counts.biennial).toEqual({
       expected: 0,
       declared: 0,
       notDeclared: 0,
       noCycleInPeriod: true,
     });
     expect(
-      aggregateFacts([fact(1, { type: 'biennial' })], []).counts.biennial.noCycleInPeriod,
+      aggregateFacts([fact(1, { type: 'biennial' })], [], []).counts.biennial.noCycleInPeriod,
     ).toBe(false);
   });
 
@@ -77,10 +79,87 @@ describe('aggregateFacts', () => {
         { clarificationId: id(2), issuedAt: new Date('2027-12-02') },
         { clarificationId: id(1), issuedAt: new Date('2027-12-01') },
       ],
+      [],
     );
 
     expect(aggregate.clarificationIds).toEqual([id(1), id(2)]);
     expect(aggregate.counts.clarifications).toBe(2);
+  });
+});
+
+describe('aggregateFacts: section 5, access to information (Form K requests)', () => {
+  const request = (
+    n: number,
+    overrides: Partial<AccessRequestFactRow> = {},
+  ): AccessRequestFactRow => ({
+    requestId: id(n),
+    outcome: null,
+    grounds: [],
+    withdrawn: false,
+    ...overrides,
+  });
+  const section5 = (requests: AccessRequestFactRow[]) => {
+    const aggregate = aggregateFacts([], [], requests);
+    return { ...aggregate.counts.accessRequests, declineReasons: aggregate.declineReasons };
+  };
+
+  it('counts every request received in the year, still open ones included', () => {
+    expect(section5([request(1), request(2)])).toEqual({
+      received: 2,
+      granted: 0,
+      declined: 0,
+      declineReasons: [],
+    });
+  });
+
+  it('counts full and partial grants as granted; a partial grant cites its grounds as reasons', () => {
+    expect(
+      section5([
+        request(1, { outcome: 'grant' }),
+        request(2, { outcome: 'partial-grant', grounds: ['prejudice-proceeding'] }),
+      ]),
+    ).toEqual({
+      received: 2,
+      granted: 2,
+      declined: 0,
+      declineReasons: [{ reason: 'prejudice-proceeding', count: 1 }],
+    });
+  });
+
+  it('counts a denial citing several grounds once as declined and once under each ground', () => {
+    expect(
+      section5([
+        request(1, { outcome: 'deny', grounds: ['not-objectives', 'public-interest'] }),
+        request(2, { outcome: 'deny', grounds: ['public-interest'] }),
+      ]),
+    ).toEqual({
+      received: 2,
+      granted: 0,
+      declined: 2,
+      // In Regulation 24 order, reasons with no request left out.
+      declineReasons: [
+        { reason: 'public-interest', count: 2 },
+        { reason: 'not-objectives', count: 1 },
+      ],
+    });
+  });
+
+  it('counts a request closed because the officer cannot be identified as declined for reason other', () => {
+    expect(section5([request(1, { outcome: 'cannot-identify' })])).toEqual({
+      received: 1,
+      granted: 0,
+      declined: 1,
+      declineReasons: [{ reason: 'other', count: 1 }],
+    });
+  });
+
+  it('counts a withdrawn request as received only', () => {
+    expect(section5([request(1, { withdrawn: true })])).toEqual({
+      received: 1,
+      granted: 0,
+      declined: 0,
+      declineReasons: [],
+    });
   });
 });
 
@@ -90,7 +169,7 @@ describe('assemble', () => {
     actions: ActionFactRow[],
     obligation = fact(1, { status: 'overdue' }),
   ): AssembleInput => {
-    const aggregate = aggregateFacts([obligation], []);
+    const aggregate = aggregateFacts([obligation], [], []);
     return {
       fy: 2027,
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
