@@ -386,19 +386,25 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
 
 /**
  * The open-data bucket in memory: objects by key with their content type; `failCalls(n)` makes
- * the next writes fail as an unreachable storage would.
+ * the next writes fail as an unreachable storage would, `failReads(n)` the next reads.
  */
 export class FakeOpenDataFiles extends OpenDataFiles {
   readonly objects = new Map<string, { body: Buffer; contentType: string }>();
   private failures = 0;
+  private readFailures = 0;
 
   reset(): void {
     this.objects.clear();
     this.failures = 0;
+    this.readFailures = 0;
   }
 
   failCalls(count: number): void {
     this.failures = count;
+  }
+
+  failReads(count: number): void {
+    this.readFailures = count;
   }
 
   put(file: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
@@ -411,6 +417,10 @@ export class FakeOpenDataFiles extends OpenDataFiles {
   }
 
   get(key: string): Promise<Uint8Array> {
+    if (this.readFailures > 0) {
+      this.readFailures -= 1;
+      return Promise.reject(new OpenDataStorageUnavailable('Unreachable'));
+    }
     const object = this.objects.get(key);
     return object
       ? Promise.resolve(new Uint8Array(object.body))
