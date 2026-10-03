@@ -147,6 +147,10 @@ export function mockReportingClient(
 const notFound = () => problem(404, 'Not found');
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
+  // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
+    return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
+  }
   ensureSeeded();
   await delay(250);
   const url = new URL(input.url);

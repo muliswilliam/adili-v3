@@ -24,7 +24,7 @@ export const financialYear = z.int().min(2025).max(9999);
  * Today in Nairobi, the day the workspace counts days to the due date from; with the reporting
  * mock in development, REPORTING_MOCK_TODAY when set, so the page and the mock agree.
  */
-function today(): string {
+export function today(): string {
   const config = env();
   if (import.meta.env.DEV && config.REPORTING_MOCK && config.REPORTING_MOCK_TODAY) {
     return config.REPORTING_MOCK_TODAY;
