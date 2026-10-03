@@ -10,6 +10,7 @@ import {
   Shield01Icon,
   SquareLock02Icon,
   SparklesIcon,
+  StampIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -95,6 +96,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
     label: 'Review',
     items: [
       { workspace: 'review', icon: CheckListIcon },
+      { workspace: 'approvals', icon: StampIcon },
       { workspace: 'actions', icon: Legal01Icon },
     ],
   },

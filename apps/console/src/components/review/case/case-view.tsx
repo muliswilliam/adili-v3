@@ -17,13 +17,15 @@ import {
 import {
   Alert02Icon,
   Clock01Icon,
+  JusticeScale01Icon,
   RefreshIcon,
   SquareLock02Icon,
 } from '@hugeicons/core-free-icons';
-import { useRouter } from '@tanstack/react-router';
+import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useId, useMemo, useState } from 'react';
 
 import { newClarificationBlock } from '../../../clarification/list';
+import { determinationState } from '../../../determination/view';
 import { caseActions, versionLine } from '../../../review-case/case';
 import {
   parseDeclaration,
@@ -209,6 +211,11 @@ export function CaseView({
     refresh: () => router.invalidate(),
   });
   const recheck = recheckAccess(item, { subject: viewer.subject, supervisor });
+  const determination = determinationState(item, detail.determinations, {
+    subject: viewer.subject,
+    supervisor,
+  });
+  const proposeAllowed = determination.kind === 'none' && determination.propose === 'allowed';
 
   /** Shows how a call went; resolves to the error to show in place, or null. */
   async function settle<T>(
@@ -437,8 +444,9 @@ export function CaseView({
         supervisor={supervisor}
         now={nowMs}
         onAction={onAction}
-        extraActions={
-          recheck === 'hidden'
+        extraActions={[
+          <DeterminationLink key="determination" caseId={item.id} propose={proposeAllowed} />,
+          ...(recheck === 'hidden'
             ? []
             : [
                 <RecheckButton
@@ -451,8 +459,8 @@ export function CaseView({
                     registry.setConfirming(true);
                   }}
                 />,
-              ]
-        }
+              ]),
+        ]}
       />
       <SplitPane
         main={main}
@@ -522,5 +530,20 @@ function SideTab({
       {children}
       {count ? <TabsCount>{count}</TabsCount> : null}
     </TabsTrigger>
+  );
+}
+
+/**
+ * The way to the case's Determination page (spec 08 FE-2): "Propose determination" for the
+ * assignee while none is proposed, "Determination" for everyone else.
+ */
+function DeterminationLink({ caseId, propose }: { caseId: string; propose: boolean }) {
+  return (
+    <Button asChild size="sm" variant={propose ? 'default' : 'secondary'}>
+      <Link to="/review/cases/$caseId/determination" params={{ caseId }}>
+        <Icon icon={JusticeScale01Icon} />
+        {propose ? t.actions.proposeDetermination : t.actions.determination}
+      </Link>
+    </Button>
   );
 }

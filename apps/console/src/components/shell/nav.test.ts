@@ -63,7 +63,7 @@ describe('navFor', () => {
     expect(labels(['supervisor'])).toEqual([
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue', 'Actions']],
+      ['Review', ['Review queue', 'Approvals', 'Actions']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');
   });

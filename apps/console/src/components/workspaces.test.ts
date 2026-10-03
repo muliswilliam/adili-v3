@@ -12,8 +12,8 @@ describe('workspacesFor', () => {
   it('gives supervisors review, actions, approvals, access requests and obligations, once each', () => {
     expect(ids(['supervisor', 'reviewer'])).toEqual([
       'review',
-      'actions',
       'approvals',
+      'actions',
       'access',
       'obligations',
     ]);
@@ -65,8 +65,16 @@ describe('S18 Commissions workspace', () => {
   });
 
   it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['supervisor'], 'approvals')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['supervisor'], 'approvals')?.href).toBeUndefined();
+    expect(workspaceFor(['auditor'], 'audit')).toMatchObject({ readOnly: false });
+    expect(workspaceFor(['auditor'], 'audit')?.href).toBeUndefined();
+  });
+
+  it('opens Approvals for supervisors only (spec 08)', () => {
+    expect(workspaceFor(['supervisor'], 'approvals')).toMatchObject({
+      href: '/approvals',
+      readOnly: false,
+    });
+    expect(workspaceFor(['reviewer'], 'approvals')).toBeUndefined();
   });
 });
 
