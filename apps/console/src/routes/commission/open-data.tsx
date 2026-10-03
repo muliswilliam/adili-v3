@@ -15,7 +15,6 @@ import {
   getCommissionOpenDataPreview,
   type OpenDataPreviewLoad,
 } from '../../server/open-data-preview';
-import { SERVICE_UNAVAILABLE } from '../../server/service-call';
 import { getViewer } from '../../server/viewer';
 
 /**
@@ -33,15 +32,12 @@ export const Route = createFileRoute('/commission/open-data')({
     return {
       viewer,
       roles,
-      tenant: principal?.tenant ?? null,
       workspace: workspaceFor(roles, 'open-data-preview') ?? null,
     };
   },
   loader: async ({ context, location }): Promise<OpenDataPreviewLoad | null> => {
     if (!context.workspace) return null;
-    const slug = context.tenant;
-    if (!slug) return { preview: SERVICE_UNAVAILABLE, publicPageUrl: null };
-    const load = await getCommissionOpenDataPreview({ data: { slug } });
+    const load = await getCommissionOpenDataPreview();
     if (!load.preview.ok && load.preview.error.kind === 'unauthenticated') {
       throw signInRedirect(location.href);
     }
