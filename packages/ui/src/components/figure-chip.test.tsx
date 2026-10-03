@@ -100,4 +100,25 @@ describe('FigureChip', () => {
     expect(screen.getByTestId('pressable').getAttribute('aria-describedby')).toBe('note');
     expect(span.current?.id).toBe('missing');
   });
+
+  it('keeps its own name and state over attributes passed in', () => {
+    render(
+      <>
+        <FigureChip
+          aggregateKey="national.filingRate"
+          format={format}
+          onShow={() => undefined}
+          aria-label="Something else"
+        />
+        <FigureChip aggregateKey="nope" format={format} data-state="fine" />
+      </>,
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Figure National filing rate 2027: 91.2%. Show in table',
+      }),
+    ).toBeTruthy();
+    expect(screen.getByText('Figure not found').parentElement?.dataset.state).toBe('not-found');
+  });
 });

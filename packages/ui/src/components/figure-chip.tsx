@@ -1,5 +1,6 @@
 import { AlertCircleIcon, HashtagIcon } from '@hugeicons/core-free-icons';
 import type { HTMLAttributes, Ref } from 'react';
+
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
 import { Icon } from './icon';
@@ -70,10 +71,10 @@ export function FigureChip({
   if (!figure) {
     return (
       <span
-        title={aggregateKey}
-        data-state="not-found"
         {...props}
         ref={ref}
+        title={aggregateKey}
+        data-state="not-found"
         className={cn(
           chipClassName,
           'bg-warning-subtle text-warning-subtle-foreground [&_svg]:text-warning',
@@ -106,11 +107,11 @@ export function FigureChip({
 
   return (
     <button
-      type="button"
-      aria-label={copy.name(figure.label, figure.value)}
       {...props}
       // React only writes the element into the ref, and a button is an HTMLElement.
       ref={ref as Ref<HTMLButtonElement>}
+      type="button"
+      aria-label={copy.name(figure.label, figure.value)}
       onClick={() => {
         onShow(aggregateKey);
       }}

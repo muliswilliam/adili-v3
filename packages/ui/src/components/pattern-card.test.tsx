@@ -91,7 +91,7 @@ describe('PatternCard', () => {
     expect(screen.getByRole('button').textContent).toBe('Cite in findings');
   });
 
-  it('keeps focus on the action when the caller marks the pattern cited, and says so', async () => {
+  it('keeps focus on the action when the caller marks the pattern cited', async () => {
     function Citable() {
       const [cited, setCited] = useState(false);
       return (
@@ -115,7 +115,8 @@ describe('PatternCard', () => {
     const done = screen.getByRole('button', { name: 'Cited in findings: Rate change, National' });
     expect(document.activeElement).toBe(done);
     expect(done.getAttribute('aria-disabled')).toBe('true');
-    expect(screen.getByRole('status').textContent).toBe('Cited in findings');
+    // Announcing it is the page's job, once however many cards changed.
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('does nothing when the cited action is pressed again', async () => {

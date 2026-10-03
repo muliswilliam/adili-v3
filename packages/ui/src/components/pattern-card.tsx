@@ -81,7 +81,7 @@ export interface PatternCardMessages {
   cite: string;
   /** The cite button's accessible name, so each card's button says which pattern it cites. */
   citeName: (kindLabel: string, subject: string) => string;
-  /** Shown once the pattern is cited, and announced when it becomes so. */
+  /** Shown once the pattern is cited. */
   cited: string;
   /** The cited button's accessible name. */
   citedName: (kindLabel: string, subject: string) => string;
@@ -100,6 +100,11 @@ const cardClassName = 'flex min-w-0 flex-col gap-1.5 rounded-xl bg-card px-4 py-
 
 const citedClassName = 'text-[13px] font-medium text-success [&_svg]:size-3.5';
 
+// Once cited, the cite button stays (aria-disabled, presses ignored) so focus is not lost, and
+// looks like the read-only "Cited in findings": green words on no fill, aligned with the text.
+const citeButtonClassName =
+  'aria-disabled:-ml-2 aria-disabled:cursor-default aria-disabled:bg-transparent aria-disabled:px-2 aria-disabled:text-[13px] aria-disabled:text-success aria-disabled:shadow-none aria-disabled:active:translate-y-0 aria-disabled:[&_svg]:size-3.5';
+
 export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
   kind: PatternCandidateKind;
   /**
@@ -116,7 +121,11 @@ export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
   comparison?: ReactNode;
   /** Offers "Cite in findings". Left out where the narrative cannot be edited. */
   onCite?: () => void;
-  /** The findings already cite it: "Cited in findings" in place of the offer. */
+  /**
+   * The findings already cite it: "Cited in findings" in place of the offer. Set it in the same
+   * update as the citation (it is local: a paragraph added to the narrative), so the button never
+   * looks pressable while it is being cited.
+   */
   cited?: boolean;
   /** Replaces the cite action with anything else. */
   action?: ReactNode;
@@ -127,8 +136,10 @@ export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
  * A notable pattern the reporting service computed (`PatternCandidate`): its kind as a badge (icon
  * and words, the kind explained in the title), the subject, the main figure in 22px with what it
  * is, the comparison, then the action: "Cite in findings", "Cited in findings" or the `action`
- * slot. Citing keeps the same button, now `aria-disabled` and green, so focus stays on it, and a
- * status announces it. The caller formats the figures from the candidate's `values`.
+ * slot. Citing keeps the same button, now `aria-disabled`, green and named "Cited in findings:
+ * {kind}, {subject}", so focus stays on it. The card announces nothing: the page says what citing
+ * did, once (a toast or its own status), however many cards it touched. The caller formats the
+ * figures from the candidate's `values`.
  */
 export function PatternCard({
   kind,
@@ -151,25 +162,18 @@ export function PatternCard({
   function citeAction() {
     if (onCite) {
       return (
-        <>
-          <Button
-            variant={cited ? 'ghost' : 'secondary'}
-            size="sm"
-            aria-disabled={cited || undefined}
-            aria-label={(cited ? copy.citedName : copy.citeName)(kindCopy.label, subject)}
-            onClick={cited ? undefined : onCite}
-            className={cn(
-              cited &&
-                `-ml-2 cursor-default px-2 hover:bg-transparent hover:text-success active:translate-y-0 ${citedClassName}`,
-            )}
-          >
-            <Icon icon={cited ? Tick02Icon : PlusSignIcon} strokeWidth={cited ? 2.4 : undefined} />
-            {cited ? copy.cited : copy.cite}
-          </Button>
-          <span role="status" className="sr-only">
-            {cited ? copy.cited : ''}
-          </span>
-        </>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          aria-disabled={cited || undefined}
+          aria-label={(cited ? copy.citedName : copy.citeName)(kindCopy.label, subject)}
+          onClick={cited ? undefined : onCite}
+          className={citeButtonClassName}
+        >
+          <Icon icon={cited ? Tick02Icon : PlusSignIcon} strokeWidth={cited ? 2.4 : undefined} />
+          {cited ? copy.cited : copy.cite}
+        </Button>
       );
     }
     if (!cited) return null;
