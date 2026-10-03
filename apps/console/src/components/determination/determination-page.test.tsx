@@ -141,6 +141,7 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
   it('lets the assignee propose: validation first, then awaiting approval with Withdraw (S1)', async () => {
     await open(CASES.ready);
     expect(screen.getByText('No determination yet')).toBeTruthy();
+    expect(screen.getByText('You hold this case, so you propose it.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Propose determination' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Propose for approval' }));
@@ -239,6 +240,7 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
   it('tells anyone else who may propose: nobody until the case is claimed', async () => {
     await open(CASES.unassigned, { officer: SUP, supervisor: true });
     expect(screen.getByText('Nobody holds this case yet')).toBeTruthy();
+    expect(screen.getByText('The assigned reviewer proposes one.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Propose determination' })).toBeNull();
   });
 

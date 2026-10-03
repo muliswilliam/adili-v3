@@ -617,7 +617,11 @@ function DeterminationCard({
           className="py-12"
           icon={<Icon icon={JusticeScale01Icon} />}
           title={t.card.emptyTitle}
-          description={t.card.emptyBody}
+          description={
+            state.kind === 'none' && state.propose === 'allowed'
+              ? t.card.emptyBodyYours
+              : t.card.emptyBody
+          }
         />
       )}
       {history.length > 0 ? (

@@ -19,6 +19,7 @@ export const messages = {
     notProposed: 'Not proposed',
     emptyTitle: 'No determination yet',
     emptyBody: 'The assigned reviewer proposes one.',
+    emptyBodyYours: 'You hold this case, so you propose it.',
     outcome: 'Determination',
     reference: 'Reference',
     referencePending: 'Allocated on approval',
