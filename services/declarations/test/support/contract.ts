@@ -41,14 +41,3 @@ export function contractErrors(pointer: string, body: unknown): string[] {
   if (validate(body)) return [];
   return (validate.errors ?? []).map((error) => `${error.instancePath} ${error.message ?? ''}`);
 }
-
-/**
- * The validation errors of `body` against a component schema, e.g. `AssistantAnswer`, the
- * `final` frame of the assistant's server-sent events; empty when it conforms.
- */
-export function componentErrors(component: string, body: unknown): string[] {
-  const validate = ajv.getSchema(`declarations.yaml#/components/schemas/${component}`);
-  if (!validate) throw new Error(`No component schema ${component}`);
-  if (validate(body)) return [];
-  return (validate.errors ?? []).map((error) => `${error.instancePath} ${error.message ?? ''}`);
-}

@@ -11,7 +11,7 @@ import { filingObligations, outbox, rosterSnapshots } from '../../src/db/schema.
 import type { Declaration } from '../../src/drafts/representation.js';
 import { assetItem, household, incomeItem } from '../fixtures/sections.js';
 import type { Caller, DeclarationsApi } from './declarations-api.js';
-import { componentErrors } from './contract.js';
+import { contractErrors } from './contract.js';
 import { rosterRecord } from './fake-directory.js';
 
 /**
@@ -48,7 +48,7 @@ export function framesOf(body: string): Frame[] {
 export function finalOf(body: string): { question: AssistantMessage; answer: AssistantMessage } {
   const final = framesOf(body).find((frame) => frame.event === 'final');
   if (!final) throw new Error(`No final frame in ${body}`);
-  expect(componentErrors('AssistantAnswer', final.data)).toEqual([]);
+  expect(contractErrors('/components/schemas/AssistantAnswer', final.data)).toEqual([]);
   return final.data as { question: AssistantMessage; answer: AssistantMessage };
 }
 
