@@ -26,4 +26,6 @@ export interface ReportingProblem {
   detail?: string;
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available` or `report-submitted`. */
   code?: Schemas['ProblemDetails']['code'];
+  /** Field-level errors, e.g. the form-m.v1 paths an `incomplete` report has still to fill. */
+  errors?: Schemas['ProblemDetails']['errors'];
 }
