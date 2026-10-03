@@ -153,7 +153,7 @@ export interface paths {
         };
         /**
          * Metadata of an issued document (owner)
-         * @description The person the document is about; staff of the issuing Commission named among the document's additional downloaders; for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor. Anyone else gets 404.
+         * @description The person the document is about; staff of the issuing Commission named among the document's additional downloaders; for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr) and its open-data release manifests (open-data-manifest), an EACC analyst or supervisor. Anyone else gets 404.
          */
         get: operations["getDocument"];
         put?: never;
@@ -173,7 +173,7 @@ export interface paths {
         };
         /**
          * Short-lived presigned download of an issued PDF (owner)
-         * @description The document's subject person (the `person_id` of their token); an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor (spec 09 authorisation; no other document is theirs to download). Anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing tenant (the Commission, or EACC for its NCR) and recorded as `document.downloaded.v1`, which the access register reads.
+         * @description The document's subject person (the `person_id` of their token); an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr) and its open-data release manifests (open-data-manifest), an EACC analyst or supervisor (spec 09 authorisation; no other document is theirs to download). Anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing tenant (the Commission, or EACC for its NCR) and recorded as `document.downloaded.v1`, which the access register reads.
          */
         get: operations["getDocumentDownload"];
         put?: never;
@@ -195,7 +195,7 @@ export interface paths {
         put?: never;
         /**
          * Render, sign and register a document (services)
-         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person; the declarant the pulled package names is never its subject person, and an EACC analyst or supervisor it refers is refused it when their token names them (staff tokens do not yet, #486). The reporting service's documents carry their payload and have no subject person: a form-m the submitted form-m.v1 document with its RPT reference, a compliance-report-receipt the report's reference, SHA-256 and time of receipt, an ncr (issued for the EACC tenant) the approved national consolidated report's aggregates and narrative. A portal link a letter prints (`portalUrl`, `respondUrl`) must be https in production. One document per type and subject: issuing again returns it with 200.
+         * @description Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person; the declarant the pulled package names is never its subject person, and an EACC analyst or supervisor it refers is refused it when their token names them (staff tokens do not yet, #486). The reporting service's documents carry their payload and have no subject person: a form-m the submitted form-m.v1 document with its RPT reference, a compliance-report-receipt the report's reference, SHA-256 and time of receipt, an ncr (issued for the EACC tenant) the approved national consolidated report's aggregates and narrative, an open-data-manifest (issued for the EACC tenant, Public) a published open-data release's tables, rows and file hashes. A portal link a letter prints (`portalUrl`, `respondUrl`) must be https in production. One document per type and subject: issuing again returns it with 200.
          */
         post: operations["issueDocument"];
         delete?: never;
@@ -364,7 +364,7 @@ export interface components {
          * @description Document types with a template; later specs add theirs
          * @enum {string}
          */
-        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "access-package" | "access-nil-letter" | "certified-copy" | "form-m" | "compliance-report-receipt" | "ncr";
+        DocumentType: "acknowledgement-slip" | "clarification-letter" | "decision-letter" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referral-package" | "access-package" | "access-nil-letter" | "certified-copy" | "form-m" | "compliance-report-receipt" | "ncr" | "open-data-manifest";
         /**
          * @description What the public verify page shows: public (content), restricted (reference, type, Commission, date), confidential (validity only). Fixed by the document type's template
          * @enum {string}
@@ -380,7 +380,7 @@ export interface components {
              * @example declaration-version:0192f0c4-8a51-7cc2-9d1e-3b3f2a7e4c10
              */
             subjectRef: string;
-            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr */
+            /** @description The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt, an ncr and an open-data-manifest */
             subjectPersonId: string | null;
             watermark?: components["schemas"]["Watermark"];
             /** @description Days from issue during which the subject person may download the document; afterwards a download is refused with 410 `download-window-closed`. None: no window. Required for access-package and access-nil-letter */
@@ -388,7 +388,7 @@ export interface components {
             /** @description Token subjects (`sub`) of the issuing Commission's staff who may download the document besides its subject person, with a token of that Commission, within the same window and audited the same way: the access officer who recorded an in-person self-access application, to print the certified copy they hand over. None: the subject person only */
             additionalDownloaders?: string[];
             /** @description The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`) */
-            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["DecisionLetterSource"] | components["schemas"]["ActionLetterSource"] | components["schemas"]["ReferralPackageSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"] | components["schemas"]["FormMPayload"] | components["schemas"]["ComplianceReportReceiptPayload"] | components["schemas"]["NcrPayload"];
+            payload: components["schemas"]["AcknowledgementSlipPayload"] | components["schemas"]["ClarificationLetterSource"] | components["schemas"]["DecisionLetterSource"] | components["schemas"]["ActionLetterSource"] | components["schemas"]["ReferralPackageSource"] | components["schemas"]["AccessPackagePayload"] | components["schemas"]["AccessNilLetterPayload"] | components["schemas"]["CertifiedCopyPayload"] | components["schemas"]["FormMPayload"] | components["schemas"]["ComplianceReportReceiptPayload"] | components["schemas"]["NcrPayload"] | components["schemas"]["OpenDataManifestPayload"];
         };
         /** @description A clarification-letter's payload: the clarification whose letter this is; the fields the template renders are pulled from the review service's letter payload endpoint */
         ClarificationLetterSource: {
@@ -782,6 +782,29 @@ export interface components {
             approver: string;
             /** Format: date-time */
             approvedAt: string;
+        };
+        /** @description Payload of open-data-manifest v1: a published open-data release's id, financial year, kind and version, build time, the NCR reference it reconciles with (null for a snapshot of a draft), who published it (null when on the NCR's approval), the suppression threshold, and the six tables' rows, hidden cells and SHA-256 of their JSON and CSV files, with the SHA-256 of the release JSON. No figures. Sent by the reporting service */
+        OpenDataManifestPayload: {
+            /** Format: uuid */
+            releaseId: string;
+            financialYear: string;
+            /** @enum {string} */
+            kind: "annual" | "snapshot";
+            version: number;
+            /** Format: date-time */
+            builtAt: string;
+            ncrReference: string | null;
+            publishedBy: string | null;
+            suppressionThreshold: number;
+            tables: {
+                /** @enum {string} */
+                table: "filing-by-commission" | "compliance-by-commission" | "by-entity-type" | "by-cycle" | "access-requests" | "national-totals";
+                rows: number;
+                cellsSuppressed: number;
+                sha256Json: string;
+                sha256Csv: string;
+            }[];
+            releaseSha256: string;
         };
         FormMDeclarationSection: {
             expected: number;

@@ -26,6 +26,7 @@ import { certifiedCopyPayload } from './issuance/templates/certified-copy.v1.js'
 import { complianceReportReceiptPayload } from './issuance/templates/compliance-report-receipt.v1.js';
 import { formMPayload } from './issuance/templates/form-m.v1.js';
 import { ncrPayload } from './issuance/templates/ncr.v1.js';
+import { openDataManifestPayload } from './issuance/templates/open-data-manifest.v1.js';
 import { disclosedDeclarationSchema } from './issuance/templates/declaration-content.js';
 import { commissionRefSchema } from './issuance/templates/references.js';
 import { uploadPurposeSchema } from './uploads/purposes.js';
@@ -74,6 +75,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   FormMPayload: formMPayload,
   ComplianceReportReceiptPayload: complianceReportReceiptPayload,
   NcrPayload: ncrPayload,
+  OpenDataManifestPayload: openDataManifestPayload,
   // Parts of form-m.v1 the Form M payload repeats, named so the contract states them once.
   FormMDeclarationSection: formM.partII.shape.initial,
   FormMSignatory: formM.partIII.shape.compiledBy,

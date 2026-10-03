@@ -49,9 +49,17 @@ export const openDataReleases = pgTable(
     /** Who built it (a subject), or null for the release workflow on NCR approval. */
     builtBy: text(),
     publishedAt: timestamp({ withTimezone: true }),
+    /**
+     * The EACC supervisor who published it (subject and name as their token gave it): who
+     * approved the NCR, for an annual release published on its approval.
+     */
     publishedBy: text(),
+    publishedByName: text(),
     withdrawnAt: timestamp({ withTimezone: true }),
+    /** The EACC supervisor who withdrew it. */
     withdrawnBy: text(),
+    withdrawnByName: text(),
+    /** Why, shown with the withdrawn release in the public API. */
     withdrawnReason: text(),
     /** The manifest (tables, hashes, version, FY, kind) as a Public verifiable document. */
     manifestDocumentId: uuid(),

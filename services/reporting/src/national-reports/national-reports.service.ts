@@ -118,7 +118,8 @@ export interface DraftAnswer {
  * Recommendations), or have the ai-gateway draft it from the figures and pattern candidates
  * (spec 09b) as AI-draft paragraphs they edit. An EACC supervisor who neither built it nor wrote any of it approves it: the
  * `NCR` reference is allocated, `ncr.approved.v1` published, and the approval workflow issues the
- * Restricted PDF and ends the year's chase. Once approved the report no longer changes (409).
+ * Restricted PDF and ends the year's chase while the year's annual open-data release is published
+ * (spec 09b). Once approved the report no longer changes (409).
  * Everything runs in EACC's row-level security tenant.
  */
 @Injectable()
@@ -371,9 +372,10 @@ export class NationalReportsService {
    * An EACC supervisor approves the year's report (an `Idempotency-Key` at the controller). The
    * author and anyone who built it or wrote its narrative cannot (403 `separation-of-duties`).
    * Allocates `NCR-EACC-<FY end>-<seq>-<check>`, records the approver, publishes `ncr.approved.v1`
-   * and starts the approval workflow before the commit, so a Temporal outage approves nothing;
-   * the workflow issues the PDF and ends the chase once the commit is visible. 404 before the
-   * first build; 409 `ncr-approved` once approved.
+   * and starts the approval and open-data release workflows before the commit, so a Temporal
+   * outage approves nothing; once the commit is visible they issue the PDF and end the chase, and
+   * build, certify and publish the year's annual open-data release. 404 before the first build;
+   * 409 `ncr-approved` once approved.
    */
   async approve(principal: Principal, fy: number): Promise<NationalReportView> {
     requireEaccSupervisor(principal, 'approve the national consolidated report');
@@ -523,7 +525,10 @@ export class NationalReportsService {
     return nationalReportView(report, aggregates, paragraphs.map(paragraphOf), draft);
   }
 
-  /** Starts the approval workflow; 503 while Temporal is unreachable (nothing is approved). */
+  /**
+   * Starts the approval and open-data release workflows; 503 while Temporal is unreachable
+   * (nothing is approved).
+   */
   private async startApproval(nationalReportId: string, fy: number): Promise<void> {
     try {
       await this.workflows.approved({ nationalReportId, fy });

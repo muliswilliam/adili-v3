@@ -4,28 +4,39 @@ type Schemas = components['schemas'];
 
 /**
  * The documents the reporting service issues (documents.yaml `DocumentType`): a submitted report's
- * Form M and receipt, and EACC's national consolidated report.
+ * Form M and receipt, EACC's national consolidated report, and the manifest of a published
+ * open-data release.
  */
-export type ReportDocumentType = 'form-m' | 'compliance-report-receipt' | 'ncr';
+export type ReportDocumentType =
+  'form-m' | 'compliance-report-receipt' | 'ncr' | 'open-data-manifest';
 
 /**
  * A request to render, sign and register a verifiable document (documents.yaml `IssueDocument`,
- * ADR-010): the Restricted Form M as filed, its signed acknowledgement receipt, or the Restricted
- * national consolidated report. The payload travels in the request body only: never in logs,
+ * ADR-010): the Restricted Form M as filed, its signed acknowledgement receipt, the Restricted
+ * national consolidated report, or the Public manifest of an open-data release. The payload travels in the request body only: never in logs,
  * events or workflow history.
  */
 export interface IssueDocumentRequest {
   type: ReportDocumentType;
   templateVersion: number;
-  /** The issuing tenant, sent as X-Acting-Tenant: the Commission, or EACC for the NCR. */
+  /**
+   * The issuing tenant, sent as X-Acting-Tenant: the Commission, or EACC for the NCR and the
+   * open-data manifest.
+   */
   issuerTenant: string;
-  /** The owning record: `compliance-report:<uuid>` or `national-report:<uuid>`. */
+  /**
+   * The owning record: `compliance-report:<uuid>`, `national-report:<uuid>` or
+   * `open-data-release:<uuid>`.
+   */
   subjectRef: string;
   /** No person owns a Commission's report or the national report. */
   subjectPersonId: null;
-  /** The fields the template renders: the `form-m.v1` document, the receipt's or the NCR's. */
+  /** The fields the template renders: the `form-m.v1` document, the receipt's, the NCR's or the manifest's. */
   payload:
-    Schemas['FormMPayload'] | Schemas['ComplianceReportReceiptPayload'] | Schemas['NcrPayload'];
+    | Schemas['FormMPayload']
+    | Schemas['ComplianceReportReceiptPayload']
+    | Schemas['NcrPayload']
+    | Schemas['OpenDataManifestPayload'];
   /** The same key for the same document, so a retried request issues it once. */
   idempotencyKey: string;
 }

@@ -1,3 +1,4 @@
+import { type Officer, storedOfficer } from '../officer.js';
 import type { FileFormat } from './files.js';
 import { openDataFiles, openDataReleases } from './schema.js';
 import { OPEN_DATA_TABLES, type OpenDataTableName } from './tables.js';
@@ -15,8 +16,11 @@ export interface OpenDataReleaseView {
   status: ReleaseStatus;
   builtAt: string;
   publishedAt: string | null;
+  publishedBy: Officer | null;
   withdrawnAt: string | null;
+  withdrawnBy: Officer | null;
   withdrawnReason: string | null;
+  manifestDocumentId: string | null;
   manifestVerificationId: string | null;
   tables: { table: OpenDataTableName; rows: number; sha256Json: string; sha256Csv: string }[];
 }
@@ -36,8 +40,11 @@ export function openDataReleaseView(
     status: release.status,
     builtAt: release.builtAt.toISOString(),
     publishedAt: release.publishedAt?.toISOString() ?? null,
+    publishedBy: storedOfficer(release.publishedBy, release.publishedByName),
     withdrawnAt: release.withdrawnAt?.toISOString() ?? null,
+    withdrawnBy: storedOfficer(release.withdrawnBy, release.withdrawnByName),
     withdrawnReason: release.withdrawnReason,
+    manifestDocumentId: release.manifestDocumentId,
     manifestVerificationId: release.verificationId,
     tables: OPEN_DATA_TABLES.flatMap((table) => {
       const json = fileOf(table, 'json');

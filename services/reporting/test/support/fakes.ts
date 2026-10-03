@@ -23,6 +23,7 @@ import {
 } from '../../src/directory/directory-client.js';
 import {
   DocumentsClient,
+  DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
 } from '../../src/documents/documents-client.js';
@@ -283,7 +284,7 @@ export class FakeDocuments extends DocumentsClient {
   issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
     if (this.failures > 0) {
       this.failures -= 1;
-      return Promise.reject(new Error('The documents service is unreachable'));
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
     }
     const replayed = this.byKey.get(request.idempotencyKey);
     if (replayed) return Promise.resolve(replayed);
