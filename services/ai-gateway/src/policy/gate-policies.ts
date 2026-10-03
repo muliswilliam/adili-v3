@@ -229,8 +229,9 @@ export class GatePolicies {
               ],
             });
           }
-          // `null` widens on purpose; left out keeps the rule as it is (none for a new one).
-          const tasks = input.tasks === undefined ? (before?.tasks ?? null) : input.tasks;
+          // Left out is every task: a scoped rule was refused it above, so this is a new rule or one
+          // already every task's; `null` widens a scoped rule on purpose.
+          const tasks = input.tasks ?? null;
           const decision = {
             allowed: input.allowed,
             tasks,
