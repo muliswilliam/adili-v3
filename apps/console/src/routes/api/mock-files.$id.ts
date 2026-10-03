@@ -3,10 +3,11 @@ import { createFileRoute } from '@tanstack/react-router';
 import { env } from '../../server/env.server';
 
 /**
- * Stands in for object storage's presigned downloads while REVIEW_MOCK or ACCESS_MOCK is on: the
- * review mock's letter and attachment links and the access mock's representation attachments
- * point here, as do the self-access mock's certified copies with `?inline`, served inline as
- * object storage serves issued PDFs. Serves a one-page placeholder PDF naming the file.
+ * Stands in for object storage's presigned downloads while REVIEW_MOCK, ACCESS_MOCK or
+ * REPORTING_MOCK is on: the review mock's letter and attachment links, the access mock's
+ * representation attachments and the reporting mock's referral evidence packages point here, as
+ * do the self-access mock's certified copies with `?inline`, served inline as object storage
+ * serves issued PDFs. Serves a one-page placeholder PDF naming the file.
  * Development and tests only; everywhere else it is a 404.
  */
 async function file(id: string, inline: boolean): Promise<Response> {
@@ -18,6 +19,9 @@ async function file(id: string, inline: boolean): Promise<Response> {
       : null) ??
     (config.ACCESS_MOCK
       ? (await import('../../server/access/mock.server')).mockAccessFileTitle(id)
+      : null) ??
+    (config.REPORTING_MOCK
+      ? (await import('../../server/reporting/referral-intake-mock.server')).mockIntakeFileTitle(id)
       : null);
   if (!title) return new Response(null, { status: 404 });
   return new Response(placeholderPdf([title, 'Placeholder file from the development mock.']), {
@@ -40,7 +44,7 @@ export const Route = createFileRoute('/api/mock-files/$id')({
         // branch and the mock's chunk with it; keep the check inline for that to work.
         import.meta.env.DEV &&
         process.env.NODE_ENV !== 'production' &&
-        (env().REVIEW_MOCK || env().ACCESS_MOCK)
+        (env().REVIEW_MOCK || env().ACCESS_MOCK || env().REPORTING_MOCK)
           ? file(params.id, new URL(request.url).searchParams.has('inline'))
           : notFound(),
     },

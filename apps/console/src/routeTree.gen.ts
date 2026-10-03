@@ -32,6 +32,7 @@ import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
+import { Route as EaccReferralsRouteRouteImport } from './routes/eacc/referrals/route'
 import { Route as LeaIndexRouteImport } from './routes/lea/index'
 import { Route as LeaRequestsRouteRouteImport } from './routes/lea/requests/route'
 import { Route as ObligationsIndexRouteImport } from './routes/obligations/index'
@@ -63,6 +64,7 @@ import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
+import { Route as EaccReferralsIndexRouteImport } from './routes/eacc/referrals/index'
 import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index'
 import { Route as LeaRequestsLeaRequestIdRouteImport } from './routes/lea/requests/$leaRequestId'
 import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new'
@@ -205,6 +207,11 @@ const CommissionsNewRoute = CommissionsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
+} as any)
+const EaccReferralsRouteRoute = EaccReferralsRouteRouteImport.update({
+  id: '/eacc/referrals',
+  path: '/eacc/referrals',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LeaIndexRoute = LeaIndexRouteImport.update({
   id: '/',
@@ -369,6 +376,11 @@ const CommissionsSlugRecordsRouteRoute =
     path: '/records',
     getParentRoute: () => CommissionsSlugRouteRoute,
   } as any)
+const EaccReferralsIndexRoute = EaccReferralsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EaccReferralsRouteRoute,
+} as any)
 const LeaRequestsIndexRoute = LeaRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -532,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/eacc/referrals': typeof EaccReferralsRouteRouteWithChildren
   '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
   '/obligations/national': typeof ObligationsNationalRouteRouteWithChildren
   '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
@@ -575,6 +588,7 @@ export interface FileRoutesByFullPath {
   '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/eacc/referrals/': typeof EaccReferralsIndexRoute
   '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations/national/': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
@@ -633,6 +647,7 @@ export interface FileRoutesByTo {
   '/access/lea-requests': typeof AccessLeaRequestsIndexRoute
   '/access/requests': typeof AccessRequestsIndexRoute
   '/commissions/$slug': typeof CommissionsSlugIndexRoute
+  '/eacc/referrals': typeof EaccReferralsIndexRoute
   '/lea/requests': typeof LeaRequestsIndexRoute
   '/obligations/national': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement': typeof PlatformLawEnforcementIndexRoute
@@ -671,6 +686,7 @@ export interface FileRoutesById {
   '/access/lea-requests': typeof AccessLeaRequestsRouteRouteWithChildren
   '/access/requests': typeof AccessRequestsRouteRouteWithChildren
   '/commissions/$slug': typeof CommissionsSlugRouteRouteWithChildren
+  '/eacc/referrals': typeof EaccReferralsRouteRouteWithChildren
   '/lea/requests': typeof LeaRequestsRouteRouteWithChildren
   '/obligations_/national': typeof ObligationsNationalRouteRouteWithChildren
   '/platform/law-enforcement': typeof PlatformLawEnforcementRouteRouteWithChildren
@@ -715,6 +731,7 @@ export interface FileRoutesById {
   '/access/lea-requests/': typeof AccessLeaRequestsIndexRoute
   '/access/requests/': typeof AccessRequestsIndexRoute
   '/commissions/$slug/': typeof CommissionsSlugIndexRoute
+  '/eacc/referrals/': typeof EaccReferralsIndexRoute
   '/lea/requests/': typeof LeaRequestsIndexRoute
   '/obligations_/national/': typeof ObligationsNationalIndexRoute
   '/platform/law-enforcement/': typeof PlatformLawEnforcementIndexRoute
@@ -755,6 +772,7 @@ export interface FileRouteTypes {
     | '/access/lea-requests'
     | '/access/requests'
     | '/commissions/$slug'
+    | '/eacc/referrals'
     | '/lea/requests'
     | '/obligations/national'
     | '/platform/law-enforcement'
@@ -798,6 +816,7 @@ export interface FileRouteTypes {
     | '/access/lea-requests/'
     | '/access/requests/'
     | '/commissions/$slug/'
+    | '/eacc/referrals/'
     | '/lea/requests/'
     | '/obligations/national/'
     | '/platform/law-enforcement/'
@@ -856,6 +875,7 @@ export interface FileRouteTypes {
     | '/access/lea-requests'
     | '/access/requests'
     | '/commissions/$slug'
+    | '/eacc/referrals'
     | '/lea/requests'
     | '/obligations/national'
     | '/platform/law-enforcement'
@@ -893,6 +913,7 @@ export interface FileRouteTypes {
     | '/access/lea-requests'
     | '/access/requests'
     | '/commissions/$slug'
+    | '/eacc/referrals'
     | '/lea/requests'
     | '/obligations_/national'
     | '/platform/law-enforcement'
@@ -937,6 +958,7 @@ export interface FileRouteTypes {
     | '/access/lea-requests/'
     | '/access/requests/'
     | '/commissions/$slug/'
+    | '/eacc/referrals/'
     | '/lea/requests/'
     | '/obligations_/national/'
     | '/platform/law-enforcement/'
@@ -972,6 +994,7 @@ export interface RootRouteChildren {
   ReferralsRouteRoute: typeof ReferralsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
+  EaccReferralsRouteRoute: typeof EaccReferralsRouteRouteWithChildren
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
@@ -1142,6 +1165,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/new'
       preLoaderRoute: typeof CommissionsNewRouteImport
       parentRoute: typeof CommissionsRouteRoute
+    }
+    '/eacc/referrals': {
+      id: '/eacc/referrals'
+      path: '/eacc/referrals'
+      fullPath: '/eacc/referrals'
+      preLoaderRoute: typeof EaccReferralsRouteRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lea/': {
       id: '/lea/'
@@ -1359,6 +1389,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/$slug/records'
       preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport
       parentRoute: typeof CommissionsSlugRouteRoute
+    }
+    '/eacc/referrals/': {
+      id: '/eacc/referrals/'
+      path: '/'
+      fullPath: '/eacc/referrals/'
+      preLoaderRoute: typeof EaccReferralsIndexRouteImport
+      parentRoute: typeof EaccReferralsRouteRoute
     }
     '/lea/requests/': {
       id: '/lea/requests/'
@@ -1928,6 +1965,17 @@ const RosterRouteRouteWithChildren = RosterRouteRoute._addFileChildren(
   RosterRouteRouteChildren,
 )
 
+interface EaccReferralsRouteRouteChildren {
+  EaccReferralsIndexRoute: typeof EaccReferralsIndexRoute
+}
+
+const EaccReferralsRouteRouteChildren: EaccReferralsRouteRouteChildren = {
+  EaccReferralsIndexRoute: EaccReferralsIndexRoute,
+}
+
+const EaccReferralsRouteRouteWithChildren =
+  EaccReferralsRouteRoute._addFileChildren(EaccReferralsRouteRouteChildren)
+
 interface ObligationsNationalRouteRouteChildren {
   ObligationsNationalIndexRoute: typeof ObligationsNationalIndexRoute
 }
@@ -1954,6 +2002,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReferralsRouteRoute: ReferralsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
+  EaccReferralsRouteRoute: EaccReferralsRouteRouteWithChildren,
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,

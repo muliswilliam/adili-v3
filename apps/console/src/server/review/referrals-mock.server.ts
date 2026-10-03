@@ -21,7 +21,8 @@
  *
  * Seeded (`MOCK_REFERRAL_IDS`): two system proposals (two missed cycles, an unanswered
  * clarification), assets referrals proposed by Peter Mwangi, by Mercy Wambui on a case the
- * caller reviewed and by the caller, one sent with its manifest, one declined with a note.
+ * caller reviewed and by the caller, one sent with its manifest and registered by EACC in ICMS
+ * (spec 09), one declined with a note.
  */
 import { createHash, randomUUID } from 'node:crypto';
 
@@ -331,6 +332,9 @@ export function resetReferralsMock(
         manifest: manifestOf(sent.evidence),
       };
       sent.sentAt = new Date(Date.parse(approvedAt) + 60_000).toISOString();
+      // EACC registered it in ICMS a day later (`referral.icms-registered.v1`, spec 09).
+      sent.icmsCaseNumber = 'ICMS-2026-004790';
+      sent.icmsRegisteredAt = new Date(Date.parse(sent.sentAt) + 86_400_000).toISOString();
       return sent;
     })(),
     (() => {

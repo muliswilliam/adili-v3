@@ -91,6 +91,8 @@ export const messages = {
     stillAssembling: 'This is taking longer than usual.',
     checkAgain: 'Check again',
     sentToEacc: 'Sent to EACC',
+    icmsCase: (caseNumber: string) => `ICMS case ${caseNumber}`,
+    icmsRegistered: (at: string) => `Registered by EACC ${formatDateTime(at)}`,
     declinedBy: 'Declined by',
     note: 'Note',
     when: (name: string, at: string) => `${name} · ${formatDateTime(at)}`,

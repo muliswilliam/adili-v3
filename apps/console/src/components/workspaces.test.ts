@@ -24,7 +24,12 @@ describe('workspacesFor', () => {
   });
 
   it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
-    expect(ids(['eacc-analyst'])).toEqual(['commissions', 'national-obligations', 'compliance']);
+    expect(ids(['eacc-analyst'])).toEqual([
+      'commissions',
+      'national-obligations',
+      'compliance',
+      'referrals-intake',
+    ]);
   });
 
   it('gives declarants nothing in the console', () => {
@@ -276,4 +281,21 @@ describe('S16 AI policy workspace', () => {
   ])('stays closed for %s', (role) => {
     expect(workspaceFor([role], 'ai-policy')).toBeUndefined();
   });
+});
+
+describe('S12 referrals received (EACC intake)', () => {
+  it.each(['eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
+    expect(workspaceFor([role], 'referrals-intake')).toMatchObject({
+      title: 'Referrals received',
+      href: '/eacc/referrals',
+      readOnly: false,
+    });
+  });
+
+  it.each(['supervisor', 'reviewer', 'commission-admin', 'platform-admin', 'auditor'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'referrals-intake')).toBeUndefined();
+    },
+  );
 });

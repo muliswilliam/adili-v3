@@ -36,7 +36,8 @@ export type WorkspaceHref =
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
-  | '/ai-policy';
+  | '/ai-policy'
+  | '/eacc/referrals';
 
 interface WorkspaceDefinition {
   id: string;
@@ -184,6 +185,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'compliance',
     title: 'Compliance reports',
     description: 'Receive Form M reports and build the national consolidated report.',
+    roles: EACC_ROLES,
+  },
+  {
+    id: 'referrals-intake',
+    title: 'Referrals received',
+    description: 'Referrals from Commissions with their evidence packages, handed to ICMS.',
+    href: '/eacc/referrals',
     roles: EACC_ROLES,
   },
   {
