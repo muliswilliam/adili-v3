@@ -318,7 +318,10 @@ function collect(
     if (cls === 'PERSON') {
       collectName(value, known);
     } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
-      for (const { value: found, cls: foundClass } of documentIdentifiers(value)) {
+      for (const { value: found, cls: foundClass } of documentIdentifiers(
+        value,
+        PATTERNS.map(({ pattern }) => pattern),
+      )) {
         if (!known.has(found)) known.set(found, foundClass);
       }
     } else if (cls !== undefined && value.trim().length >= 2) {

@@ -508,11 +508,56 @@ describe('minimise a text layer: review probes', () => {
     ['Mpendwa Halima Ali', 'Halima Ali'],
     ['Ndugu Juma Hamisi,', 'Juma Hamisi'],
     ['Imesainiwa na Juma Hamisi', 'Juma Hamisi'],
+    // After a label, every capitalised word to the end of the line or the next label (F31).
+    ['Borrower 1: John Kamau', 'John Kamau'],
+    ['Borrower (1): John Kamau', 'John Kamau'],
+    ['Guarantor(s): John Kamau, Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietor: 1) John Kamau 2) Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietors: 1. John Kamau 2. Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietor: Ali bin Hassan', 'Ali Hassan'],
+    ['Proprietor: Fatuma binti Omar', 'Fatuma Omar'],
+    ['Proprietor: Kamau wa Ngengi', 'Kamau Ngengi'],
+    ['Proprietor: Maria de Souza', 'Maria Souza'],
+    ['Proprietor: Pieter van Dijk', 'Pieter Dijk'],
+    ['Proprietor: John "Johnny" Kamau', 'John Johnny Kamau'],
+    ['Proprietor: John (Johnny) Kamau', 'John Johnny Kamau'],
+    ['Proprietor: John Kamau  Mwangi', 'John Kamau Mwangi'],
+    ['Signed: Kevin Odera for and on behalf of Pwani Traders', 'Kevin Odera'],
+    ['Witness: Mary Wanjiru, a duly authorised officer, Nairobi', 'Mary Wanjiru'],
+    ['Proprietor: JOHN KAMAU AND MARY WANJIRU', 'JOHN KAMAU MARY WANJIRU'],
+    // A name ending a sentence is the same name bare (F30).
+    ['Proprietor: John Kamau.\nKamau signed the transfer.', 'John Kamau'],
   ])('sends no name word of %j', (line, names) => {
     const { input } = minimise({ textLayer: line });
 
     for (const word of names.split(' ')) {
       expect(input.textLayer).not.toMatch(new RegExp(`(?<![\\p{L}])${word}(?![\\p{L}])`, 'u'));
     }
+  });
+});
+
+/**
+ * A text layer is untrusted input: no label, number or address pattern may take more than linear
+ * time over it (#314 review F29). 10,000 spaces after each kind of introducer.
+ */
+describe('minimise a text layer in linear time', () => {
+  const SPACES = ' '.repeat(10_000);
+  it.each([
+    ['Address', `Address${SPACES}\n`],
+    ['Physical address', `Physical address${SPACES}x\n`],
+    ['Member No.', `Member No.${SPACES}\n`],
+    ['Member No. code', `Member No. ${'A1'.repeat(5_000)}\n`],
+    ['Proprietor', `Proprietor${SPACES}\n`],
+    ['Proprietor colon', `Proprietor:${SPACES}John\n`],
+    ['Guarantor(s)', `Guarantor(s)${SPACES}:\n`],
+    ['Mr.', `Mr.${SPACES}\n`],
+    ['Dear', `Dear${SPACES}\n`],
+    ['certify that', `certify${SPACES}that${SPACES}\n`],
+    ['blank lines', `Proprietor:${'\n'.repeat(10_000)}`],
+    ['capitalised words', `Proprietor: ${'Kamau '.repeat(5_000)}\n`],
+  ])('reads %s and 10,000 more characters quickly', (_name, text) => {
+    const started = performance.now();
+    minimise({ textLayer: text });
+    expect(performance.now() - started).toBeLessThan(500);
   });
 });
