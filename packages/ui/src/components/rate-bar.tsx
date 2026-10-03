@@ -43,7 +43,7 @@ export type RateBarProps = Omit<ComponentProps<'div'>, 'children'> & {
 
 /**
  * A rate to one decimal place. It never rounds up to 100 while someone has not declared, so a
- * Commission with one officer missing does not read as complete.
+ * Commission with one officer missing does not read as complete, nor down to 0 while someone has.
  */
 function percentOf(declared: number, expected: number): number {
   const percent = Math.round((declared / expected) * 1000) / 10;
@@ -90,7 +90,9 @@ export function RateBar({
   }
 
   const percent = percentOf(declared, expected);
-  const tone = rateTone(declared / expected, threshold, criticalBelow);
+  // From the percentage shown, so the colour never disagrees with the number.
+  const tone = rateTone(percent / 100, threshold, criticalBelow);
+  const text = percent === 0 && declared > 0 ? `<${formatPercent(0.1)}` : formatPercent(percent);
   const counts = copy.counts(formatNumber(declared), formatNumber(expected));
 
   return (
@@ -120,7 +122,7 @@ export function RateBar({
             TONE[tone].text,
           )}
         >
-          {formatPercent(percent)}
+          {text}
         </span>
         <span className="sr-only">{` ${copy.declared}, `}</span>
         {showCounts ? null : <span className="sr-only">{counts}</span>}

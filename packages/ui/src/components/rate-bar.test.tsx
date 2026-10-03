@@ -25,6 +25,19 @@ describe('RateBar', () => {
     expect(screen.getByText('99.9%')).toBeTruthy();
   });
 
+  it('takes the tone from the percentage shown, so 80% is never amber', () => {
+    const { container } = render(<RateBar declared={7_996} expected={10_000} />);
+
+    expect(screen.getByText('80%')).toBeTruthy();
+    expect(container.querySelector<HTMLElement>('[data-tone]')?.dataset.tone).toBe('ok');
+  });
+
+  it('never shows 0% while someone has declared', () => {
+    render(<RateBar declared={1} expected={5_000} />);
+
+    expect(screen.getByText('<0.1%')).toBeTruthy();
+  });
+
   it('fills the bar to the share declared, never past full', () => {
     const { container, rerender } = render(<RateBar declared={1} expected={4} />);
     const fill = () => container.querySelector<HTMLElement>('[data-slot="rate-fill"]');
