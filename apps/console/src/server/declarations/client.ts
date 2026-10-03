@@ -24,6 +24,9 @@ export type CommissionObligationsSummary = Schemas['CommissionSummary'];
 export type StatusCounts = Schemas['StatusCounts'];
 export type NationalObligationsSummary = Schemas['NationalSummary'];
 export type NationalCommissionRow = NationalObligationsSummary['commissions'][number];
+export type DeclarationProgress = Schemas['DeclarationProgress'];
+export type ProgressCounts = Schemas['ProgressCounts'];
+export type ProgressRow = DeclarationProgress['reportingEntities'][number];
 export type ObligationPage =
   paths['/v1/commissions/{slug}/obligations']['get']['responses'][200]['content']['application/json'];
 export type ListObligationsQuery = NonNullable<

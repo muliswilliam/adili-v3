@@ -40,6 +40,7 @@ import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platfo
 import { Route as ReviewQueueRouteImport } from './routes/review/_queue'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
+import { Route as RosterCoverageRouteImport } from './routes/roster/coverage'
 import { Route as RosterFlaggedRouteImport } from './routes/roster/flagged'
 import { Route as RosterImportRouteImport } from './routes/roster/import'
 import { Route as RosterImportsRouteRouteImport } from './routes/roster/imports/route'
@@ -238,6 +239,11 @@ const RosterIndexRoute = RosterIndexRouteImport.update({
 const RosterApiAccessRouteRoute = RosterApiAccessRouteRouteImport.update({
   id: '/api-access',
   path: '/api-access',
+  getParentRoute: () => RosterRouteRoute,
+} as any)
+const RosterCoverageRoute = RosterCoverageRouteImport.update({
+  id: '/coverage',
+  path: '/coverage',
   getParentRoute: () => RosterRouteRoute,
 } as any)
 const RosterFlaggedRoute = RosterFlaggedRouteImport.update({
@@ -499,6 +505,7 @@ export interface FileRoutesByFullPath {
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -556,6 +563,7 @@ export interface FileRoutesByTo {
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -627,6 +635,7 @@ export interface FileRoutesById {
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/review/_queue': typeof ReviewQueueRouteWithChildren
+  '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
@@ -703,6 +712,7 @@ export interface FileRouteTypes {
     | '/commissions/new'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -760,6 +770,7 @@ export interface FileRouteTypes {
     | '/commissions/new'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -830,6 +841,7 @@ export interface FileRouteTypes {
     | '/obligations/policy'
     | '/platform/integrations'
     | '/review/_queue'
+    | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
     | '/roster/template'
@@ -1114,6 +1126,13 @@ declare module '@tanstack/react-router' {
       path: '/api-access'
       fullPath: '/roster/api-access'
       preLoaderRoute: typeof RosterApiAccessRouteRouteImport
+      parentRoute: typeof RosterRouteRoute
+    }
+    '/roster/coverage': {
+      id: '/roster/coverage'
+      path: '/coverage'
+      fullPath: '/roster/coverage'
+      preLoaderRoute: typeof RosterCoverageRouteImport
       parentRoute: typeof RosterRouteRoute
     }
     '/roster/flagged': {
@@ -1746,6 +1765,7 @@ interface RosterRouteRouteChildren {
   RosterApiAccessRouteRoute: typeof RosterApiAccessRouteRouteWithChildren
   RosterImportsRouteRoute: typeof RosterImportsRouteRouteWithChildren
   RosterRecordsRouteRoute: typeof RosterRecordsRouteRouteWithChildren
+  RosterCoverageRoute: typeof RosterCoverageRoute
   RosterFlaggedRoute: typeof RosterFlaggedRoute
   RosterImportRoute: typeof RosterImportRoute
   RosterTemplateRoute: typeof RosterTemplateRoute
@@ -1756,6 +1776,7 @@ const RosterRouteRouteChildren: RosterRouteRouteChildren = {
   RosterApiAccessRouteRoute: RosterApiAccessRouteRouteWithChildren,
   RosterImportsRouteRoute: RosterImportsRouteRouteWithChildren,
   RosterRecordsRouteRoute: RosterRecordsRouteRouteWithChildren,
+  RosterCoverageRoute: RosterCoverageRoute,
   RosterFlaggedRoute: RosterFlaggedRoute,
   RosterImportRoute: RosterImportRoute,
   RosterTemplateRoute: RosterTemplateRoute,
