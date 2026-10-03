@@ -242,6 +242,14 @@ describe('DeterminationPage (spec 08 FE-2)', () => {
     expect(screen.queryByRole('button', { name: 'Propose determination' })).toBeNull();
   });
 
+  it('names the system as proposer of a bulk closure, with no way to the inbox', async () => {
+    await open(CASES.bulkClosure, { officer: SUP, supervisor: true });
+    expect(
+      screen.getByText(/^Determination proposed by the system on .*, awaiting approval$/),
+    ).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Open in Approvals' })).toBeNull();
+  });
+
   it('offers a supervisor the proposal in Approvals', async () => {
     await open(CASES.peters, { officer: SUP, supervisor: true });
     expect(

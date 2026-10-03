@@ -33,11 +33,8 @@ import { useId, useRef, useState } from 'react';
 
 import { RETURN_REASON_MAX_LENGTH } from '../../determination/view';
 import { approveCaseDetermination, returnCaseDetermination } from '../../server/determinations';
-import {
-  type DeterminationRefusal,
-  type DeterminationResult,
-  refusalProblem,
-} from '../../server/determinations.server';
+import { type DeterminationRefusal, refusalProblem } from '../../determination/refusals';
+import type { DeterminationResult } from '../../server/determinations.server';
 import type { Determination } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
