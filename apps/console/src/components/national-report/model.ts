@@ -6,6 +6,7 @@ import {
 import { EACC_SUPERVISOR } from '@adili/roles';
 import { z } from 'zod';
 
+import { FIRST_FINANCIAL_YEAR } from '../form-m/financial-year';
 import {
   NARRATIVE_SECTION_IDS,
   type Narrative,
@@ -13,50 +14,16 @@ import {
   type NationalReport,
 } from '../../server/reporting/types';
 
-/** The first financial year reports exist for (reporting.yaml `FinancialYear` minimum). */
-export const FIRST_REPORT_YEAR = 2025;
-
-/** Nairobi is UTC+3 all year. */
-const NAIROBI_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-/** The financial year (1 July to 30 June, by its start year) `now` falls in, in Nairobi. */
-export function financialYearAt(now: Date): number {
-  const nairobi = new Date(now.getTime() + NAIROBI_OFFSET_MS);
-  const year = nairobi.getUTCFullYear();
-  return nairobi.getUTCMonth() >= 6 ? year : year - 1;
-}
-
-/** Every financial year from the first to the current one, latest first. */
-export function reportYears(now: Date): number[] {
-  const current = Math.max(FIRST_REPORT_YEAR, financialYearAt(now));
-  return Array.from({ length: current - FIRST_REPORT_YEAR + 1 }, (_, i) => current - i);
-}
-
-/**
- * The year the page opens on: the one before the current year, whose Form M reports fall due on
- * 31 July and which the national report consolidates.
- */
-export function defaultReportYear(now: Date): number {
-  return Math.max(FIRST_REPORT_YEAR, financialYearAt(now) - 1);
-}
-
-/** "2025/2026". */
+/** "2025/2026", as the national report's copy says it. */
 export function fyLabel(fy: number): string {
   return `${String(fy)}/${String(fy + 1)}`;
 }
 
-/** The date Form M for the year is due at EACC (Regs r.25(2)). */
-export function dueDateOf(fy: number): string {
-  return `${String(fy + 1)}-07-31`;
-}
-
-/** reporting.yaml `FinancialYear`: a start year reports exist for. */
-export const financialYearSchema = z.number().int().min(FIRST_REPORT_YEAR).max(2100);
-
-/** The page's address: the year shown and the page of the per-Commission table. */
+/** The page's address: the year shown (else the last that ended) and the per-Commission page. */
 export const ncrSearchSchema = z.object({
-  fy: financialYearSchema.optional().catch(undefined),
-  page: z.number().int().min(1).optional().catch(undefined),
+  // As `financialYear` (server/form-m), which a browser module cannot import.
+  fy: z.int().min(FIRST_FINANCIAL_YEAR).max(9999).optional().catch(undefined),
+  page: z.int().min(1).optional().catch(undefined),
 });
 
 export type NcrSearch = z.infer<typeof ncrSearchSchema>;
@@ -88,7 +55,7 @@ export interface NcrViewer {
 /**
  * Whether the viewer may approve the draft: an EACC supervisor who is not its author. The service
  * also refuses a supervisor who rebuilt it or saved its narrative (`separation-of-duties`), which
- * the report does not say; the approve dialog shows that refusal.
+ * the report does not say (#558); the approve dialog shows that refusal.
  */
 export type Approval = 'approved' | 'can-approve' | 'author' | 'not-supervisor';
 
@@ -109,4 +76,35 @@ export function newReportsSince(page: {
 }): number {
   if (page.report.status === 'approved') return 0;
   return Math.max(0, page.reported - page.report.reportsIncluded);
+}
+
+/** What a panel inserting a paragraph gives: its text and what it cites. */
+export type NewParagraph = Pick<NarrativeParagraph, 'text'> &
+  Partial<Pick<NarrativeParagraph, 'aiDraft' | 'aggregateRefs' | 'candidateIds'>>;
+
+/**
+ * The narrative with `paragraph` added at the end of `section` (empty fields dropped first), e.g.
+ * #331's "Cite in findings". Pass it to the extension context's `editNarrative`.
+ */
+export function appendParagraph(
+  value: NarrativeEditorValue,
+  section: NarrativeParagraph['section'],
+  paragraph: NewParagraph,
+): NarrativeEditorValue {
+  const kept = (value[section] ?? []).filter((each) => each.text.trim() !== '');
+  return {
+    ...value,
+    [section]: [
+      ...kept,
+      {
+        id: crypto.randomUUID(),
+        section,
+        position: kept.length,
+        aiDraft: false,
+        aggregateRefs: [],
+        candidateIds: [],
+        ...paragraph,
+      },
+    ],
+  };
 }

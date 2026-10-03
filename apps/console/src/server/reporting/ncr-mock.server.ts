@@ -1,37 +1,39 @@
 /**
- * The EACC part of the reporting mock (`mock.server.ts` hands it every `/v1/eacc/` request): an
- * in-memory stand-in for the reporting service's EACC endpoints the national consolidated report
- * needs (reporting.yaml: `getEaccIntake` for the year's totals, `getNationalReport`,
- * `buildNationalReport`, `updateNationalReportNarrative`, `approveNationalReport`), used when
- * REPORTING_MOCK is set, for screens without the reporting service and its upstreams (directory,
- * documents, Temporal) running. It follows the service's rules
+ * The national consolidated report part of the reporting mock (`mock.server.ts` hands it every
+ * `/v1/eacc/national-reports/` request): an in-memory stand-in for reporting.yaml's
+ * `getNationalReport`, `buildNationalReport`, `updateNationalReportNarrative` and
+ * `approveNationalReport`, used when REPORTING_MOCK is set. The aggregates are built from the
+ * intake mock's Commissions and receipts (`mockEaccIntake`), so the intake and the national
+ * report count the same reports. It follows the service's rules
  * (`services/reporting/src/national-reports`):
  *
- * - EACC analysts and supervisors only (403 for anyone else); approving is a supervisor's.
+ * - EACC analysts and supervisors of tenant `eacc` only (403 for anyone else); approving is a
+ *   supervisor's.
  * - The first build makes the caller the author; every build and narrative save adds the caller to
  *   the contributors, and none of them may approve (403 `separation-of-duties`).
- * - A rebuild recomputes the aggregates from the Commissions' receipts and keeps the narrative;
+ * - A rebuild recomputes the aggregates from the receipts as they are and keeps the narrative;
  *   saving maps each section's text onto the stored paragraphs, so an unchanged paragraph keeps its
  *   id and labels and an edited one stops being an AI draft.
  * - Approval allocates `NCR-EACC-<FY end>-<seq>-<check>`; the PDF follows `pdfDelayMs` later
  *   (four seconds by default), as the approval workflow issues it. A retry with the same
  *   Idempotency-Key replays the approval; another one is 409 `ncr-approved`.
  *
- * One store for every caller. FY 2025/2026: 14 active Commissions, 11 reported (3 late). FY
- * 2026/2027, the current year, nobody has reported for yet. REPORTING_MOCK_NCR picks where FY
- * 2025/2026's report starts: `not-built`; `draft`, built by another analyst (Brian Otieno) with
- * an overview and two findings, the second an AI draft; `stale`, that draft with the Kwale board's
- * late report received since the build; `approved`, approved by Esther Chebet with its PDF.
- *
- * A narrative save with `offline` in its text answers 503, so the editor's retry shows. Also
- * answers the documents service's download of the NCR PDF (`mockNcrDocumentsFetch`), with
+ * REPORTING_MOCK_NCR picks where FY 2025/2026's report starts: `not-built`; `draft`, built by
+ * another analyst (Brian Otieno) from every report received, with an overview and two findings,
+ * the second an AI draft; `stale`, that draft built before the latest report came in; `approved`,
+ * approved by Esther Chebet with its PDF. The receipts carry no clarification or access-request
+ * counts, so those totals are 0. A narrative save with `offline` in its text answers 503, so the
+ * editor's retry shows. `mockNcrDocumentsFetch` answers documents' download of the NCR PDF, with
  * links to `/api/mock-files/{id}` (`routes/api/mock-files.$id.ts`).
  */
+import { EACC_SUPERVISOR } from '@adili/roles';
+import { NARRATIVE_MAX_LENGTH } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import type { paths as documentsPaths } from '../documents/api.gen';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
+import { isEacc, mockEaccIntake, mockHasBiennialCycle } from './eacc-mock.server';
 import {
   type CommissionAggregate,
   type Intake,
@@ -46,143 +48,12 @@ import {
 
 export type NcrMockSeed = Env['REPORTING_MOCK_NCR'];
 
-const EACC_ANALYST = 'eacc-analyst';
-const EACC_SUPERVISOR = 'eacc-supervisor';
+type Row = Intake['commissions'][number];
+type SectionKey = 'initial' | 'biennial' | 'final';
+const SECTIONS: readonly SectionKey[] = ['initial', 'biennial', 'final'];
 
-const MAX_LENGTH: Record<NarrativeSectionId, number> = {
-  overview: 20_000,
-  findings: 40_000,
-  recommendations: 20_000,
-};
-
-interface Counts {
-  expected: number;
-  declared: number;
-}
-
-/** A Commission's Form M as EACC received it: the counts the aggregates are built from. */
-interface Receipt {
-  reportId: string;
-  reference: string;
-  submittedAt: string;
-  late: boolean;
-  initial: Counts;
-  biennial: Counts;
-  final: Counts;
-  clarifications: number;
-}
-
-interface MockCommission {
-  slug: string;
-  name: string;
-  issuer: string;
-}
-
-const COMMISSIONS: MockCommission[] = [
-  { slug: 'tsc', name: 'Teachers Service Commission', issuer: 'TSC' },
-  { slug: 'psc', name: 'Public Service Commission', issuer: 'PSC' },
-  { slug: 'parlsc', name: 'Parliamentary Service Commission', issuer: 'PARLSC' },
-  { slug: 'npsc', name: 'National Police Service Commission', issuer: 'NPSC' },
-  { slug: 'jsc', name: 'Judicial Service Commission', issuer: 'JSC' },
-  { slug: 'cpsbnairobicity', name: 'Nairobi City County Public Service Board', issuer: 'NRB' },
-  { slug: 'cpsbmombasa', name: 'Mombasa County Public Service Board', issuer: 'MSA' },
-  { slug: 'cpsbnakuru', name: 'Nakuru County Public Service Board', issuer: 'NKR' },
-  { slug: 'cpsbkiambu', name: 'Kiambu County Public Service Board', issuer: 'KBU' },
-  { slug: 'cpsbmachakos', name: 'Machakos County Public Service Board', issuer: 'MKS' },
-  { slug: 'cpsbuasingishu', name: 'Uasin Gishu County Public Service Board', issuer: 'UGU' },
-  { slug: 'cpsbkwale', name: 'Kwale County Public Service Board', issuer: 'KWL' },
-  { slug: 'cpsbmandera', name: 'Mandera County Public Service Board', issuer: 'MDR' },
-  { slug: 'cpsbturkana', name: 'Turkana County Public Service Board', issuer: 'TRK' },
-];
-
-const c = (expected: number, declared: number): Counts => ({ expected, declared });
-
-/** FY 2025/2026's receipts (due 31 July 2026), keyed by Commission slug. */
-function receipts2025(): Map<string, Receipt> {
-  const receipt = (
-    slug: string,
-    seq: number,
-    submittedAt: string,
-    initial: Counts,
-    biennial: Counts,
-    final: Counts,
-    clarifications: number,
-  ): [string, Receipt] => {
-    const issuer = COMMISSIONS.find((each) => each.slug === slug)?.issuer ?? slug.toUpperCase();
-    return [
-      slug,
-      {
-        reportId: `0199b000-0000-7000-8000-${String(seq).padStart(12, '0')}`,
-        reference: `RPT-${issuer}-2026-${String(seq).padStart(7, '0')}-K`,
-        submittedAt,
-        late: submittedAt > '2026-07-31T20:59:59Z',
-        initial,
-        biennial,
-        final,
-        clarifications,
-      },
-    ];
-  };
-  return new Map([
-    receipt(
-      'tsc',
-      1,
-      '2026-08-06T09:12:00Z',
-      c(9412, 8960),
-      c(331_870, 318_402),
-      c(7905, 6811),
-      412,
-    ),
-    receipt('psc', 1, '2026-07-21T10:40:00Z', c(214, 206), c(2890, 2811), c(96, 90), 18),
-    receipt('parlsc', 1, '2026-07-28T08:05:00Z', c(96, 94), c(1200, 1188), c(40, 39), 4),
-    receipt(
-      'npsc',
-      1,
-      '2026-07-30T14:22:00Z',
-      c(6120, 5988),
-      c(104_300, 101_120),
-      c(2410, 2209),
-      97,
-    ),
-    receipt('jsc', 1, '2026-07-17T07:58:00Z', c(1180, 1152), c(6400, 6211), c(210, 198), 11),
-    receipt(
-      'cpsbnairobicity',
-      1,
-      '2026-08-12T11:30:00Z',
-      c(1840, 1702),
-      c(16_240, 10_069),
-      c(410, 351),
-      64,
-    ),
-    receipt('cpsbmombasa', 1, '2026-07-24T12:00:00Z', c(620, 598), c(7410, 7102), c(0, 3), 9),
-    receipt('cpsbnakuru', 1, '2026-07-29T09:45:00Z', c(512, 501), c(6802, 6590), c(133, 127), 7),
-    receipt('cpsbkiambu', 1, '2026-07-31T16:10:00Z', c(455, 440), c(6120, 5890), c(148, 101), 12),
-    receipt('cpsbmachakos', 1, '2026-08-03T08:20:00Z', c(388, 371), c(5210, 4988), c(0, 0), 5),
-    receipt(
-      'cpsbuasingishu',
-      1,
-      '2026-07-27T13:35:00Z',
-      c(402, 390),
-      c(5980, 5801),
-      c(121, 116),
-      6,
-    ),
-  ]);
-}
-
-/** The Kwale board's late report, received after the `stale` seed's build. */
-function kwaleReceipt(): Receipt {
-  return {
-    reportId: '0199b000-0000-7000-8000-000000000099',
-    reference: 'RPT-KWL-2026-0000001-K',
-    submittedAt: '2026-09-29T10:05:00Z',
-    late: true,
-    initial: c(254, 244),
-    biennial: c(2822, 2764),
-    final: c(66, 60),
-    clarifications: 3,
-  };
-}
+/** The year of the seeded report. */
+const SEEDED_FY = 2025;
 
 interface StoredReport {
   id: string;
@@ -204,8 +75,8 @@ interface StoredReport {
 }
 
 interface Store {
-  receipts: Map<number, Map<string, Receipt>>;
   reports: Map<number, StoredReport>;
+  /** Approvals by year, caller and Idempotency-Key, for replays. */
   approvals: Map<string, Response>;
   sequence: number;
   pdfDelayMs: number;
@@ -219,7 +90,7 @@ const ESTHER: Officer = { subject: 'mock-esther-chebet', name: 'Esther Chebet' }
 const DRAFT_OVERVIEW =
   'This report consolidates the compliance reports (Form M) received from Responsible Commissions for the financial year 1 July 2025 to 30 June 2026 under Regulation 25(2) of the Conflict of Interest Regulations, 2026.';
 const DRAFT_FINDINGS = [
-  'Eleven of fourteen Commissions reported, three of them late. The national declared rate is high, driven by the Teachers Service Commission and the National Police Service Commission.',
+  'Eleven of fifteen Commissions reported, three of them late. The national declared rate is high, driven by the National Police Service Commission and the Teachers Service Commission.',
   'The Nairobi City County Public Service Board reports a biennial rate of 62%, well below every other Commission.',
 ];
 
@@ -241,37 +112,39 @@ function paragraph(
   };
 }
 
+/** The year's receipts: the intake's Commissions that have reported. */
+function receiptsOf(fy: number): Row[] {
+  return mockEaccIntake(fy).commissions.filter((row) => row.status !== 'not-reported');
+}
+
 /** Starts the store over at `seed`; `pdfDelayMs` is how long an approval's PDF takes. */
 export function resetNcrMock(
   seed: NcrMockSeed,
   { pdfDelayMs = 4000 }: { pdfDelayMs?: number } = {},
 ): void {
-  const receipts = receipts2025();
-  store = {
-    receipts: new Map([
-      [2025, receipts],
-      [2026, new Map<string, Receipt>()],
-    ]),
-    reports: new Map(),
-    approvals: new Map(),
-    sequence: 0,
-    pdfDelayMs,
-  };
+  store = { reports: new Map(), approvals: new Map(), sequence: 0, pdfDelayMs };
   if (seed === 'not-built') return;
+  const fy = SEEDED_FY;
+  const receipts = receiptsOf(fy);
+  // `stale`: built before the latest report came in.
+  const latest = [...receipts].sort((a, b) =>
+    (b.submittedAt ?? '').localeCompare(a.submittedAt ?? ''),
+  )[0];
+  const included = seed === 'stale' ? receipts.filter((row) => row !== latest) : receipts;
   const report: StoredReport = {
     id: '0199b100-0000-7000-8000-000000000001',
-    fy: 2025,
+    fy,
     version: 3,
     status: 'draft',
     builtAt: '2026-09-24T07:15:00Z',
-    aggregates: buildAggregates(2025, receipts),
-    reportsIncluded: receipts.size,
+    aggregates: buildAggregates(fy, included),
+    reportsIncluded: included.length,
     paragraphs: [
       paragraph('overview', 0, DRAFT_OVERVIEW),
       paragraph('findings', 0, DRAFT_FINDINGS[0] ?? ''),
       paragraph('findings', 1, DRAFT_FINDINGS[1] ?? '', {
         aiDraft: true,
-        aggregateRefs: ['commission.cpsbnairobicity.rate.biennial'],
+        aggregateRefs: ['commission.cpsb047.rate.biennial'],
       }),
     ],
     author: BRIAN,
@@ -282,8 +155,7 @@ export function resetNcrMock(
     documentId: null,
     pdfReadyAt: null,
   };
-  store.reports.set(2025, report);
-  if (seed === 'stale') receipts.set('cpsbkwale', kwaleReceipt());
+  store.reports.set(fy, report);
   if (seed === 'approved') {
     store.sequence = 1;
     report.paragraphs.push(
@@ -298,7 +170,7 @@ export function resetNcrMock(
       version: 4,
       approver: ESTHER,
       approvedAt: '2026-09-25T13:40:00Z',
-      reference: referenceOf(2025, 1),
+      reference: referenceOf(fy, 1),
       documentId: '0199b200-0000-7000-8000-000000000001',
       pdfReadyAt: 0,
     } satisfies Partial<StoredReport>);
@@ -307,7 +179,7 @@ export function resetNcrMock(
 
 function ensureSeeded(): Store {
   if (!store) resetNcrMock(seedFromEnv());
-  if (!store) throw new Error('The reporting mock did not seed');
+  if (!store) throw new Error('The national report mock did not seed');
   return store;
 }
 
@@ -337,6 +209,11 @@ function rateOf(declared: number, expected: number): number | null {
   return expected > 0 ? Math.round((declared / expected) * 10_000) / 10_000 : null;
 }
 
+interface Counts {
+  expected: number;
+  declared: number;
+}
+
 function section(counts: Counts): SectionAggregate {
   return {
     expected: counts.expected,
@@ -346,22 +223,37 @@ function section(counts: Counts): SectionAggregate {
   };
 }
 
-function add(total: Counts, counts: Counts): Counts {
-  return { expected: total.expected + counts.expected, declared: total.declared + counts.declared };
-}
+const add = (a: Counts, b: Counts): Counts => ({
+  expected: a.expected + b.expected,
+  declared: a.declared + b.declared,
+});
 
-/** As the service's `buildAggregates`: per section and Commission, from the receipts. */
-function buildAggregates(fy: number, receipts: Map<string, Receipt>): NationalAggregates {
-  let initial = c(0, 0);
-  let biennial = c(0, 0);
-  let final = c(0, 0);
-  let clarifications = 0;
+const countsOf = (row: Row, key: SectionKey): Counts => ({
+  expected: row.rates[key]?.expected ?? 0,
+  declared: row.rates[key]?.declared ?? 0,
+});
+
+/**
+ * As the service's `buildAggregates`: every Commission of the intake, with the numbers of those
+ * among `receipts`.
+ */
+function buildAggregates(fy: number, receipts: readonly Row[]): NationalAggregates {
+  const included = new Set(receipts.map((row) => row.commission.slug));
+  const totals: Record<SectionKey, Counts> = {
+    initial: { expected: 0, declared: 0 },
+    biennial: { expected: 0, declared: 0 },
+    final: { expected: 0, declared: 0 },
+  };
   const byCommission: Record<string, CommissionAggregate> = {};
-  for (const commission of [...COMMISSIONS].sort((a, b) => a.slug.localeCompare(b.slug))) {
-    const receipt = receipts.get(commission.slug);
-    if (!receipt) {
-      byCommission[commission.slug] = {
-        name: commission.name,
+  const rows = [...mockEaccIntake(fy).commissions].sort((a, b) =>
+    a.commission.slug.localeCompare(b.commission.slug),
+  );
+  let late = 0;
+  for (const row of rows) {
+    const { slug, name } = row.commission;
+    if (!included.has(slug)) {
+      byCommission[slug] = {
+        name,
         status: 'not-reported',
         reportId: null,
         reference: null,
@@ -374,87 +266,44 @@ function buildAggregates(fy: number, receipts: Map<string, Receipt>): NationalAg
       };
       continue;
     }
-    initial = add(initial, receipt.initial);
-    biennial = add(biennial, receipt.biennial);
-    final = add(final, receipt.final);
-    clarifications += receipt.clarifications;
-    byCommission[commission.slug] = {
-      name: commission.name,
-      status: receipt.late ? 'submitted-late' : 'submitted-on-time',
-      reportId: receipt.reportId,
-      reference: receipt.reference,
-      submittedAt: receipt.submittedAt,
-      initial: section(receipt.initial),
-      biennial: { ...section(receipt.biennial), noCycleInPeriod: false },
-      final: section(receipt.final),
-      clarifications: receipt.clarifications,
+    for (const key of SECTIONS) totals[key] = add(totals[key], countsOf(row, key));
+    if (row.status === 'submitted-late') late += 1;
+    byCommission[slug] = {
+      name,
+      status: row.status,
+      reportId: row.reportId,
+      reference: row.reference,
+      submittedAt: row.submittedAt,
+      initial: section(countsOf(row, 'initial')),
+      biennial: {
+        ...section(countsOf(row, 'biennial')),
+        noCycleInPeriod: !mockHasBiennialCycle(fy),
+      },
+      final: section(countsOf(row, 'final')),
+      clarifications: 0,
       accessRequests: { received: 0, granted: 0, declined: 0 },
     };
   }
-  const late = [...receipts.values()].filter((receipt) => receipt.late).length;
-  const reported = receipts.size;
+  const reported = included.size;
   return {
     fy,
     reporting: {
-      commissions: COMMISSIONS.length,
+      commissions: rows.length,
       reported,
       onTime: reported - late,
       late,
-      notReported: COMMISSIONS.length - reported,
-      rate: rateOf(reported, COMMISSIONS.length),
+      notReported: rows.length - reported,
+      rate: rateOf(reported, rows.length),
     },
     national: {
-      initial: section(initial),
-      biennial: section(biennial),
-      final: section(final),
-      all: section(add(add(initial, biennial), final)),
-      clarifications,
+      initial: section(totals.initial),
+      biennial: section(totals.biennial),
+      final: section(totals.final),
+      all: section(add(add(totals.initial, totals.biennial), totals.final)),
+      clarifications: 0,
       accessRequests: { received: 0, granted: 0, declined: 0 },
     },
     byCommission,
-  };
-}
-
-function intakeOf(fy: number, receipts: Map<string, Receipt>): Intake {
-  const commissions = [...COMMISSIONS]
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((commission) => {
-      const receipt = receipts.get(commission.slug);
-      const rates = receipt
-        ? Object.fromEntries(
-            (['initial', 'biennial', 'final'] as const).map((key) => [
-              key,
-              { ...receipt[key], rate: rateOf(receipt[key].declared, receipt[key].expected) },
-            ]),
-          )
-        : {};
-      return {
-        commission: { slug: commission.slug, name: commission.name },
-        status: receipt
-          ? receipt.late
-            ? ('submitted-late' as const)
-            : ('submitted-on-time' as const)
-          : ('not-reported' as const),
-        reportId: receipt?.reportId ?? null,
-        reference: receipt?.reference ?? null,
-        submittedAt: receipt?.submittedAt ?? null,
-        rates,
-        outliers: [],
-        chases: { count: 0, lastAt: null },
-        formMDocumentId: null,
-        receiptDocumentId: null,
-      };
-    });
-  const totals = buildAggregates(fy, receipts);
-  return {
-    fy,
-    totals: {
-      onTime: totals.reporting.onTime,
-      late: totals.reporting.late,
-      notReported: totals.reporting.notReported,
-      nationalDeclaredRate: totals.national.all.rate,
-    },
-    commissions,
   };
 }
 
@@ -526,35 +375,19 @@ function saveSection(
   });
 }
 
-function forbidden(detail: string, code?: string) {
-  return json(403, {
-    type: 'about:blank',
-    title: 'Forbidden',
-    status: 403,
-    detail,
-    ...(code ? { code } : {}),
-  });
-}
-
-function conflict(code: string, detail: string) {
-  return json(409, { type: 'about:blank', title: 'Conflict', status: 409, detail, code });
-}
-
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
-/** Whether `pathname` is one of the EACC endpoints this part of the mock answers. */
-export function isNcrPath(pathname: string): boolean {
-  return pathname.startsWith('/v1/eacc/');
-}
+const approvedConflict = () =>
+  problem(409, 'The report is approved and can no longer change.', 'ncr-approved');
 
-/** Answers the reporting client's EACC requests as the service would, from the store. */
+/** Answers `/v1/eacc/national-reports/{fy}[/build|/narrative|/approve]` from the store. */
 export async function mockNcrFetch(request: Request): Promise<Response> {
   const data = ensureSeeded();
   const url = new URL(request.url);
   const caller = mockCallerOf(request);
-  const eacc = caller.roles.includes(EACC_ANALYST) || caller.roles.includes(EACC_SUPERVISOR);
-  if (!eacc) {
-    return forbidden(
+  if (!isEacc(caller)) {
+    return problem(
+      403,
       'Only EACC analysts and supervisors work on the national consolidated report.',
     );
   }
@@ -562,22 +395,12 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
     subject: caller.subject ?? 'unknown',
     name: caller.name ?? caller.subject ?? 'unknown',
   };
-
-  if (request.method === 'GET' && url.pathname === '/v1/eacc/compliance-reports') {
-    const fy = Number(url.searchParams.get('fy'));
-    const receipts = data.receipts.get(fy);
-    if (!receipts) return problem(400, 'No reports exist for that year');
-    return json(200, intakeOf(fy, receipts));
-  }
-
   const match = /^\/v1\/eacc\/national-reports\/(\d{4})(?:\/(build|narrative|approve))?$/.exec(
     url.pathname,
   );
   if (!match) return problem(404, 'Not found');
   const fy = Number(match[1]);
   const action = match[2];
-  const receipts = data.receipts.get(fy);
-  if (!receipts) return problem(404, NOT_BUILT);
   const report = data.reports.get(fy);
 
   if (request.method === 'GET' && !action) {
@@ -585,10 +408,12 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
   }
 
   if (request.method === 'POST' && action === 'build') {
-    if (receipts.size === 0) {
-      return conflict(
-        'no-submitted-reports',
+    const receipts = receiptsOf(fy);
+    if (receipts.length === 0) {
+      return problem(
+        409,
         'No Commission has submitted its report for the year yet.',
+        'no-submitted-reports',
       );
     }
     if (report?.status === 'approved') return approvedConflict();
@@ -613,7 +438,7 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
     Object.assign(next, {
       builtAt: new Date().toISOString(),
       aggregates: buildAggregates(fy, receipts),
-      reportsIncluded: receipts.size,
+      reportsIncluded: receipts.length,
     });
     touch(next, officer);
     data.reports.set(fy, next);
@@ -641,11 +466,12 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
 
   if (request.method === 'POST' && action === 'approve') {
     if (!caller.roles.includes(EACC_SUPERVISOR)) {
-      return forbidden('Only an EACC supervisor can approve the national consolidated report.');
+      return problem(403, 'Only an EACC supervisor can approve the national consolidated report.');
     }
     const key = request.headers.get('idempotency-key');
     if (!key) return problem(400, 'Idempotency-Key missing');
-    const replay = data.approvals.get(key);
+    const replayKey = `${String(fy)}:${officer.subject}:${key}`;
+    const replay = data.approvals.get(replayKey);
     if (replay) return replay.clone();
     if (!report) return problem(404, NOT_BUILT);
     if (report.status === 'approved') return approvedConflict();
@@ -653,7 +479,8 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
       report.author.subject === officer.subject ||
       report.contributors.includes(officer.subject)
     ) {
-      return forbidden(
+      return problem(
+        403,
         'The author cannot approve: another EACC supervisor approves the report.',
         'separation-of-duties',
       );
@@ -669,15 +496,11 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
       pdfReadyAt: Date.now() + data.pdfDelayMs,
     } satisfies Partial<StoredReport>);
     const response = json(200, viewOf(report));
-    data.approvals.set(key, response.clone());
+    data.approvals.set(replayKey, response.clone());
     return response;
   }
 
   return problem(405, 'Method not allowed');
-}
-
-function approvedConflict() {
-  return conflict('ncr-approved', 'The report is approved and can no longer change.');
 }
 
 function touch(report: StoredReport, officer: Officer): void {
@@ -691,21 +514,19 @@ function narrativeErrors(body: unknown): { path: string; message: string }[] {
   for (const id of NARRATIVE_SECTION_IDS) {
     const text = body[id];
     if (typeof text !== 'string') errors.push({ path: id, message: 'Required' });
-    else if (text.length > MAX_LENGTH[id]) {
-      errors.push({ path: id, message: `At most ${String(MAX_LENGTH[id])} characters` });
+    else if (text.length > NARRATIVE_MAX_LENGTH[id]) {
+      errors.push({ path: id, message: `At most ${String(NARRATIVE_MAX_LENGTH[id])} characters` });
     }
   }
   return errors;
 }
 
-/** Answers the documents service's download of an approved NCR's PDF, for EACC roles. */
+/** Answers documents' download of an approved NCR's PDF, for EACC analysts and supervisors. */
 export function mockNcrDocumentsFetch(request: Request): Promise<Response> {
   const data = ensureSeeded();
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
-  const caller = mockCallerOf(request);
-  const eacc = caller.roles.includes(EACC_ANALYST) || caller.roles.includes(EACC_SUPERVISOR);
   const known = [...data.reports.values()].some((report) => report.documentId === match?.[1]);
-  if (request.method !== 'GET' || !match?.[1] || !eacc || !known) {
+  if (request.method !== 'GET' || !match?.[1] || !isEacc(mockCallerOf(request)) || !known) {
     return Promise.resolve(problem(404, 'Not found'));
   }
   return Promise.resolve(

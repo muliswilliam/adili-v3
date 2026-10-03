@@ -2,6 +2,7 @@ import {
   AiLabel,
   Alert,
   AlertDescription,
+  type Autosave,
   AutosaveFailure,
   Badge,
   Button,
@@ -14,8 +15,6 @@ import {
   NarrativeEditor,
   ReferenceChip,
   type ReferencePart,
-  Select,
-  SelectItem,
   Skeleton,
   Spinner,
   useAutosave,
@@ -34,7 +33,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useId, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 
 import type {
   NationalReportPage,
@@ -51,13 +50,14 @@ import { problemStatus, type ServiceResult } from '../../server/service-call';
 import { downloadFrom } from '../download';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
+import { YearSelect } from '../eacc-intake/year-select';
+import { dueDateOf } from '../form-m/financial-year';
 import { usePollWhile } from '../use-poll-while';
 import { CommissionsTable, NationalTotals } from './aggregate-tables';
 import { type ApproveReport, ApproveDialog } from './approve-dialog';
 import { messages as m } from './messages';
 import {
   approvalOf,
-  dueDateOf,
   editorValueOf,
   fyLabel,
   type NarrativeEditorValue,
@@ -66,17 +66,39 @@ import {
   newReportsSince,
 } from './model';
 
-/** What the page knows of the panels spec 09b adds to it, for each to render. */
+/**
+ * What spec 09b's panels get from the page. They read the report and the narrative being edited,
+ * and change the narrative through the page, so every change is shown in the editor and saved
+ * through its autosave like typing.
+ */
 export interface NcrExtensionContext {
+  /** The report as last read from the reporting service. */
   report: NationalReport;
   /** The viewer writes the narrative (an EACC analyst, while the report is a draft). */
   canEdit: boolean;
+  /** The narrative being edited: each section's paragraphs, unsaved edits included. */
+  narrative: NarrativeEditorValue;
+  /**
+   * Changes the narrative being edited and saves it, e.g. #331's "Cite in findings" with
+   * `appendParagraph(value, 'findings', { text, aggregateRefs, candidateIds })`. Ignored unless
+   * `canEdit`.
+   */
+  editNarrative: (edit: (value: NarrativeEditorValue) => NarrativeEditorValue) => void;
+  /**
+   * Takes a report the service answered with (#341's draft endpoint inserting or replacing AI-draft
+   * paragraphs) as the narrative being edited, dropping edits not saved yet, and reloads the page.
+   */
+  adoptReport: (report: NationalReport) => void;
 }
 
 /**
- * Where spec 09b's panels plug in: the notable patterns panel (#331) between the per-Commission
- * table and the narrative; the Draft narrative menu (#341) in the narrative's header with its
- * errors above the sections; AI labels and figure citations under each paragraph.
+ * Where spec 09b's panels plug in (#331, #341):
+ * - `patterns`: the notable patterns panel (#331), between the per-Commission table and the
+ *   narrative.
+ * - `narrativeActions`: the Draft narrative menu (#341) in the narrative's header.
+ * - `narrativeNotice`: above the sections, e.g. #341's drafting errors.
+ * - `paragraphMeta`: under each paragraph after the "AI draft" label the page always shows on an
+ *   AI-drafted paragraph, e.g. #341's figure citation chips.
  */
 export interface NcrExtensions {
   patterns?: (context: NcrExtensionContext) => ReactNode;
@@ -87,9 +109,11 @@ export interface NcrExtensions {
 
 export interface NationalReportViewProps {
   fy: number;
-  /** The years to choose from, latest first. */
-  years: number[];
+  /** Today in Nairobi, which the year selector counts from; null while the page loads. */
+  today: string | null;
   onYearChange: (fy: number) => void;
+  /** The workspace's tabs under the title (intake, national report). */
+  tabs?: ReactNode;
   /** The page of the per-Commission table. */
   page: number;
   onPageChange: (page: number) => void;
@@ -126,14 +150,24 @@ export function NationalReportView(props: NationalReportViewProps) {
   if (problemStatus(result) === 403) {
     return (
       <Page narrow>
-        <PageHead title={m.title} />
+        <PageHead title={m.workspaceTitle} />
         <NoAccess text={m.noAccess} action={props.forbiddenAction} />
       </Page>
     );
   }
   return (
     <Page>
-      <PageHead title={m.title} actions={<YearSelect {...props} />} />
+      <PageHead
+        title={m.workspaceTitle}
+        actions={
+          props.today ? (
+            <YearSelect today={props.today} fy={fy} onChange={props.onYearChange} />
+          ) : (
+            <Skeleton className="h-10 w-64" />
+          )
+        }
+      />
+      {props.tabs}
       {result === null ? (
         <Loading />
       ) : !result.ok ? (
@@ -150,34 +184,6 @@ export function NationalReportView(props: NationalReportViewProps) {
         <Loaded {...props} key={fy} data={result.data} />
       )}
     </Page>
-  );
-}
-
-function YearSelect({ fy, years, onYearChange }: NationalReportViewProps) {
-  const id = useId();
-  return (
-    <div className="flex w-full min-w-0 items-center gap-2.5 sm:w-auto">
-      <label
-        htmlFor={id}
-        className="sr-only text-[13.5px] whitespace-nowrap text-muted-foreground sm:not-sr-only"
-      >
-        {m.yearLabel}
-      </label>
-      <Select
-        id={id}
-        value={String(fy)}
-        onValueChange={(value) => {
-          onYearChange(Number(value));
-        }}
-        className="h-10 w-full min-w-0 sm:w-auto sm:min-w-[260px]"
-      >
-        {years.map((year) => (
-          <SelectItem key={year} value={String(year)}>
-            {m.yearOption(fyLabel(year), formatDate(dueDateOf(year)))}
-          </SelectItem>
-        ))}
-      </Select>
-    </div>
   );
 }
 
@@ -306,7 +312,15 @@ function Built({
   onRebuild: () => void;
 }) {
   const approved = report.status === 'approved';
-  const context: NcrExtensionContext = { report, canEdit: !approved && isAnalyst };
+  const canEdit = !approved && isAnalyst;
+  const draft = useNarrativeDraft({ ...props, report, canEdit });
+  const context: NcrExtensionContext = {
+    report,
+    canEdit,
+    narrative: draft.value,
+    editNarrative: draft.edit,
+    adoptReport: draft.adopt,
+  };
   return (
     <div className="flex flex-col gap-4">
       <StatusBar
@@ -345,13 +359,7 @@ function Built({
         onPageChange={props.onPageChange}
       />
       {props.extensions?.patterns?.(context)}
-      <NarrativeCard
-        // A fresh editor for another report or once approved; edits survive reloads otherwise.
-        key={`${report.id}:${report.status}`}
-        {...props}
-        report={report}
-        context={context}
-      />
+      <NarrativeCard {...props} report={report} context={context} draft={draft} />
     </div>
   );
 }
@@ -531,21 +539,44 @@ function PdfButton({
   );
 }
 
-function NarrativeCard({
+interface NarrativeDraft {
+  value: NarrativeEditorValue;
+  autosave: Autosave<Narrative>;
+  /** An edit typed in the editor. */
+  change: (next: NarrativeEditorValue, textChanged: boolean) => void;
+  edit: NcrExtensionContext['editNarrative'];
+  adopt: NcrExtensionContext['adoptReport'];
+}
+
+/**
+ * The narrative being edited, kept above the editor so a rebuild leaves it be. It is saved through
+ * one `useAutosave`. When the report changes on the server (another version than the editor took,
+ * not one of its own saves: a rebuild, an approval, another analyst's edit) the editor takes the
+ * server's narrative, unless edits are still waiting to be saved, which then win.
+ */
+function useNarrativeDraft({
   report,
-  context,
+  canEdit,
   fy,
   saveNarrative,
   onUnauthenticated,
-  extensions,
-}: NationalReportViewProps & { report: NationalReport; context: NcrExtensionContext }) {
+}: NationalReportViewProps & { report: NationalReport; canEdit: boolean }): NarrativeDraft {
   const router = useRouter();
   const [value, setValue] = useState<NarrativeEditorValue>(() =>
     editorValueOf(report.narrativeParagraphs),
   );
+  const [basis, setBasis] = useState({ id: report.id, version: report.version });
+  // Versions the editor already holds: its own saves and the reports it adopted.
+  const [own, setOwn] = useState<ReadonlySet<number>>(() => new Set());
+  const hold = (version: number) => {
+    setOwn((held) => new Set(held).add(version));
+  };
   const autosave = useAutosave<Narrative>(async (narrative) => {
     const result = await saveNarrative(fy, narrative);
-    if (result.ok) return;
+    if (result.ok) {
+      hold(result.data.version);
+      return;
+    }
     const { error } = result;
     if (error.kind === 'unauthenticated') {
       onUnauthenticated();
@@ -558,18 +589,56 @@ function NarrativeCard({
     }
     throw new Error('The narrative could not be saved');
   });
+  if (report.id !== basis.id || report.version !== basis.version) {
+    setBasis({ id: report.id, version: report.version });
+    const waiting = autosave.status === 'saving' || autosave.status === 'retrying';
+    if (report.id !== basis.id || (!own.has(report.version) && !waiting)) {
+      setValue(editorValueOf(report.narrativeParagraphs));
+    }
+  }
+  return {
+    value,
+    autosave,
+    change: (next, textChanged) => {
+      setValue(next);
+      if (textChanged) autosave.change(narrativeTextOf(next));
+    },
+    edit: (edit) => {
+      if (!canEdit) return;
+      const next = edit(value);
+      setValue(next);
+      autosave.change(narrativeTextOf(next));
+    },
+    adopt: (adopted) => {
+      hold(adopted.version);
+      autosave.reset();
+      setValue(editorValueOf(adopted.narrativeParagraphs));
+      void router.invalidate();
+    },
+  };
+}
+
+function NarrativeCard({
+  report,
+  context,
+  draft,
+  extensions,
+}: NationalReportViewProps & {
+  report: NationalReport;
+  context: NcrExtensionContext;
+  draft: NarrativeDraft;
+}) {
   const approved = report.status === 'approved';
   return (
     <NarrativeEditor<NarrativeParagraph>
       id="ncr-narrative"
       sections={NATIONAL_REPORT_NARRATIVE_SECTIONS}
-      value={value}
+      value={draft.value}
       readOnly={!context.canEdit}
       readOnlyNote={approved ? m.frozenAtApproval : m.writtenByAnalyst}
-      autosave={context.canEdit ? autosave : undefined}
+      autosave={context.canEdit ? draft.autosave : undefined}
       onChange={(next, change) => {
-        setValue(next);
-        if (change.textChanged) autosave.change(narrativeTextOf(next));
+        draft.change(next, change.textChanged);
       }}
       createParagraph={(id, section) => ({
         id,
@@ -582,14 +651,15 @@ function NarrativeCard({
       })}
       actions={extensions?.narrativeActions?.(context)}
       notice={extensions?.narrativeNotice?.(context)}
-      paragraphMeta={(paragraph) =>
-        extensions?.paragraphMeta ? (
-          extensions.paragraphMeta(paragraph, context)
-        ) : paragraph.aiDraft ? (
-          // Until #341 brings its own labels, an AI-drafted paragraph still says it is one.
-          <AiLabel size="sm" text={m.aiDraft} />
-        ) : null
-      }
+      paragraphMeta={(paragraph) => {
+        const extra = extensions?.paragraphMeta?.(paragraph, context);
+        return paragraph.aiDraft || extra ? (
+          <>
+            {paragraph.aiDraft ? <AiLabel size="sm" text={m.aiDraft} /> : null}
+            {extra}
+          </>
+        ) : null;
+      }}
       title={m.narrativeTitle}
     />
   );

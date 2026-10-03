@@ -15,18 +15,18 @@ describe('navFor', () => {
     }
   });
 
+  it('shows EACC staff the compliance reports intake under EACC (spec 09)', () => {
+    expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/ncr')).toBe('/eacc/reports');
+  });
+
   it('marks Open data on a release page too (#350)', () => {
     const groups = navFor(['eacc-analyst']);
     expect(groups[1]?.items[1]?.to).toBe('/eacc/open-data');
     expect(activeNavHref(groups, '/eacc/open-data/0199c000-0000-7000-8000-000000000002')).toBe(
       '/eacc/open-data',
     );
-  });
-
-  it('marks Compliance reports on every page under /eacc/reports (spec 09)', () => {
-    const groups = navFor(['eacc-analyst']);
-    expect(groups[1]?.items[0]?.to).toBe('/eacc/reports');
-    expect(activeNavHref(groups, '/eacc/reports/ncr')).toBe('/eacc/reports');
   });
 
   it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {

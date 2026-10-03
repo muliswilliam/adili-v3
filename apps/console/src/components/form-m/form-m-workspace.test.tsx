@@ -15,7 +15,8 @@ import {
   resetReportingMock,
   setReportingMockLatency,
 } from '../../server/reporting/mock.server';
-import { formMCapabilities } from '../workspaces';
+import { workspaceFor } from '../workspaces';
+import { formMCapabilities } from './capabilities';
 import { type FormMReportExtensions, FormMWorkspaceView } from './form-m-workspace';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -65,7 +66,7 @@ function view(
       <TooltipProvider>
         <FormMWorkspaceView
           result={result}
-          capabilities={formMCapabilities(roles)}
+          capabilities={formMCapabilities(roles, workspaceFor(roles, 'form-m') ?? null)}
           onCompile={onCompile}
           onSelect={onSelect}
           extensions={extensions}
@@ -355,5 +356,20 @@ describe('the Form M workspace (S15)', () => {
     expect(screen.getByRole('region', { name: 'Editable Part I' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Editable Part B' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'B. Complaints and investigations' })).toBeNull();
+  });
+
+  it('gives the sign-off screens the footer on a preview too, telling them it is one', async () => {
+    resetReportingMock('2027-04-10');
+    await compileReport(mockReportingClient([SUPERVISOR]), 'psc', 2026);
+    setReportingMockLatency(0, { compileMs: 0 });
+    const result = await load('2027-04-10', { fy: 2026 });
+    setReportingMockLatency(0);
+    const footerActions = vi.fn((_report: unknown, { preview }: { preview: boolean }) =>
+      preview ? <button type="button">Preview action</button> : null,
+    );
+    show(result, { extensions: { footerActions } });
+    expect(footerActions).toHaveBeenCalledWith(expect.anything(), { preview: true });
+    expect(screen.getByRole('button', { name: 'Preview action' })).toBeTruthy();
+    expect(screen.queryByText('Preview. Submit after 30 Jun 2027.')).toBeNull();
   });
 });

@@ -9,8 +9,14 @@
  *   1 April); the year before is a draft compiled eleven days ago (not before 1 July), overdue
  *   once 31 July has passed: 12 appointed and 10 initial declarations, 100 in service and 95
  *   biennial, 4 exits and 3 final, 6 clarifications, no access request data yet (section 5 note).
- * - From April to June: the current year can be previewed; the year before was submitted late.
+ *   With `reviewed`, that draft was marked reviewed by the supervisor two days ago (Part III's
+ *   compiled-by filled).
+ * - From April to June: the current year can be previewed; the year before was submitted late,
+ *   reviewed by Samuel Njoroge and confirmed by Joyce Wanjiku, with Part I and Part B filled.
  *   A preview compiled then has no biennial cycle and section 5 counts from access requests.
+ *
+ * `mockStoredReport` hands the store's report to the EACC intake mock (`eacc-mock.server.ts`),
+ * which shows psc not reported until it is submitted; `submitMockReport` submits it on a day.
  *
  * Only the Commission's supervisor, commission-admin and reporting officer see it (anyone else,
  * and any other Commission, gets 404); only the supervisor compiles (403), from 1 April after the
@@ -24,6 +30,7 @@ import createClient from 'openapi-fetch';
 import {
   dueDateOf,
   finalCompileOf,
+  FIRST_FINANCIAL_YEAR,
   financialYearOf,
   nairobiToday,
   previewFromOf,
@@ -31,12 +38,9 @@ import {
 import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
-import { isNcrPath, mockNcrFetch } from './ncr-mock.server';
-import { isReleasesPath, mockReleasesFetch } from './releases-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
-const FIRST_FINANCIAL_YEAR = 2025;
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
 
@@ -99,6 +103,9 @@ function plusDays(date: string, days: number): string {
   return at.toISOString().slice(0, 10);
 }
 
+/** The Nairobi day (`YYYY-MM-DD`) of an instant. */
+const nairobiDayOf = (iso: string) => nairobiToday(new Date(iso));
+
 /** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
 const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
@@ -118,20 +125,7 @@ export function resetReportingMock(
   const last = current - 1;
   if (last < FIRST_FINANCIAL_YEAR) return;
   if (day >= previewFromOf(current)) {
-    const submittedOn = plusDays(dueDateOf(last), 57);
-    const reviewedOn = plusDays(submittedOn, -1);
-    reports.set(last, {
-      fy: last,
-      status: 'submitted',
-      compiledAt: sixAm(finalCompileOf(last)),
-      compileStartedAt: null,
-      submittedAt: `${submittedOn}T11:42:00.000Z`,
-      late: true,
-      reference: `RPT-PSC-${String(last + 1)}-0000001-K`,
-      reviewedBy: SUPERVISOR_OFFICER,
-      confirmedBy: ADMIN_OFFICER,
-      document: confirmed(fullDocument(last), reviewedOn, submittedOn),
-    });
+    reports.set(last, submitted(last, `${plusDays(dueDateOf(last), 57)}T11:42:00.000Z`));
     return;
   }
   const yearStart = finalCompileOf(last);
@@ -202,11 +196,18 @@ export function mockReportingClient(
 const notFound = () => problem(404, 'Not found');
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
-  const { pathname } = new URL(input.url);
-  // EACC's open-data releases (#350).
-  if (isReleasesPath(pathname)) return mockReleasesFetch(input);
-  // EACC's national consolidated report and intake totals (#233).
-  if (isNcrPath(pathname)) return mockNcrFetch(input);
+  // EACC's open-data releases (releases-mock.server.ts, #350).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/open-data/releases')) {
+    return (await import('./releases-mock.server')).mockReleasesFetch(input);
+  }
+  // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
+    return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
+  }
+  // EACC's national consolidated report (ncr-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/national-reports/')) {
+    return (await import('./ncr-mock.server')).mockNcrFetch(input);
+  }
   ensureSeeded();
   await delay(250);
   const url = new URL(input.url);
@@ -306,6 +307,45 @@ function advance(stored: Stored) {
   // A year compiled before it ends is a preview of today's data.
   stored.document =
     today < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
+}
+
+/**
+ * The Public Service Commission's report for `fy` as the store holds it now (null before its
+ * first compile), for the EACC intake mock: EACC sees it once it is submitted.
+ */
+export function mockStoredReport(fy: number): ComplianceReport | null {
+  ensureSeeded();
+  const stored = reports.get(fy);
+  if (!stored) return null;
+  advance(stored);
+  return view(stored);
+}
+
+/**
+ * The year's report as the commission-admin's confirmation leaves it at `submittedAt`: reference
+ * allocated, reviewed the day before, Part I, Part B and Part III filled, late when its Nairobi
+ * day is after 31 July. The seed (April to June) and `submitMockReport` both build it here.
+ */
+function submitted(fy: number, submittedAt: string): Stored {
+  const day = nairobiDayOf(submittedAt);
+  return {
+    fy,
+    status: 'submitted',
+    compiledAt: sixAm(finalCompileOf(fy)),
+    compileStartedAt: null,
+    submittedAt,
+    late: day > dueDateOf(fy),
+    reference: `RPT-PSC-${String(fy + 1)}-0000001-K`,
+    reviewedBy: SUPERVISOR_OFFICER,
+    confirmedBy: ADMIN_OFFICER,
+    document: confirmed(fullDocument(fy), plusDays(day, -1), day),
+  };
+}
+
+/** Submits the year's report on `day` at 11:20 in Nairobi (tests and the EACC intake demo). */
+export function submitMockReport(fy: number, day: string) {
+  ensureSeeded();
+  reports.set(fy, submitted(fy, `${day}T08:20:00.000Z`));
 }
 
 function countsOf(document: FormMV1): ReportCounts {
