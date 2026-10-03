@@ -58,7 +58,7 @@ export class PayrollController {
     operationId: 'submitPayrollInstruction',
     summary:
       'Send a stop or resume salary instruction to payroll (idempotent by instruction reference)',
-    description: `Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll; another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. ${SCOPE}`,
+    description: `Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll (a pending one is asked again; while payroll does not answer, its stored pending acknowledgement, 200); another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging an instruction with nothing stored is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. ${SCOPE}`,
   })
   @ApiBody({ required: true, schema: schemaRef('PayrollInstructionRequest') })
   @ApiResponse({

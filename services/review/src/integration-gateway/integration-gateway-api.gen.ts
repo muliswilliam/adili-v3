@@ -155,7 +155,7 @@ export interface paths {
         put?: never;
         /**
          * Send a stop or resume salary instruction to payroll (idempotent by instruction reference)
-         * @description Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll; another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
+         * @description Sends the instruction to payroll and stores its acknowledgement (payroll reference, status, received at) with the legal basis and case. Idempotent by instruction reference: the same instruction again answers the stored acknowledgement (200) without calling payroll (a pending one is asked again; while payroll does not answer, its stored pending acknowledgement, 200); another under the same reference is 409. Behind payroll's own circuit breaker, rate limit, timeout and pause; never cached. Payroll not acknowledging an instruction with nothing stored is 503 and nothing is recorded as sent: retry. The personal number and national ID travel in the body and are kept only as keyed hashes. Requires a service token with scope `payroll`. Instructions act for no tenant: the employer is in the instruction (ADR-013 section 8.6).
          */
         post: operations["submitPayrollInstruction"];
         delete?: never;
@@ -275,7 +275,7 @@ export interface paths {
         put?: never;
         /**
          * Force lookups to unavailable during a known outage (platform-admin)
-         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
+         * @description From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent; one already stored answers what is stored (200), a pending payroll acknowledgement included. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.
          */
         post: operations["pauseIntegration"];
         delete?: never;

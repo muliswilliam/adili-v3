@@ -53,7 +53,7 @@ export class IntegrationsController {
     operationId: 'pauseIntegration',
     summary: 'Force lookups to unavailable during a known outage (platform-admin)',
     description:
-      "From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.",
+      "From now on the system's lookups answer `unavailable` with reason `paused` without calling it; answers still in the cache are served. A paused payroll or ICMS answers instructions and referrals 503 and records nothing as sent; one already stored answers what is stored (200), a pending payroll acknowledgement included. Records who paused it and when, and `integrations.system.paused.v1`. Pausing a paused system changes nothing. Platform administrators only.",
   })
   @ApiOkResponse({ description: 'Paused', schema: schemaRef('SystemCoverage') })
   @ApiProblemResponse(HttpStatus.NOT_FOUND, NO_ADAPTER)
