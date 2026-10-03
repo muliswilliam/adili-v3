@@ -375,8 +375,12 @@ describe('minimise a text layer', () => {
     ['Member No. UW-00781', 'UW-00781'],
     ['Nambari ya uanachama BW-02214', 'BW-02214'],
     ['Payroll No.: KSM/0045123', 'KSM/0045123'],
+    ['member no. uw-00781', 'uw-00781'],
   ])('finds the labelled number in %j', (line, number) => {
-    expect(minimise({ textLayer: line }).input.textLayer).not.toContain(number);
+    const { input, counts } = minimise({ textLayer: line });
+
+    expect(input.textLayer).not.toContain(number);
+    expect(counts).toMatchObject({ MEMBER_NUMBER: 1 });
   });
 
   it("keeps a company's words readable after a label: they are no one's name", () => {
@@ -385,6 +389,7 @@ describe('minimise a text layer', () => {
         'Borrower: Tumaini Fresh Produce Limited\nSigned: Kevin Otieno Odera, Branch Manager\nPwani Commercial Bank Limited',
     });
 
+    expect(input.textLayer).toContain('Borrower: Tumaini Fresh Produce Limited');
     expect(input.textLayer).toContain('Pwani Commercial Bank Limited');
     expect(input.textLayer).toContain(', Branch Manager');
     expect(input.textLayer).not.toContain('Otieno');

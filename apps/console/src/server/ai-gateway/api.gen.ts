@@ -648,7 +648,7 @@ export interface components {
             dataClass: components["schemas"]["DataClass"];
             providerClass: components["schemas"]["ProviderClass"];
             allowed: boolean;
-            /** @description The tasks the rule is for; null for every task, which a rule for some tasks only needs to be widened. Left out: every task for a new rule; refused for a rule that names tasks */
+            /** @description The tasks the rule is for; null for every task. Left out: every task, except over a rule for some tasks only, where the change (allowing or blocking) is refused: name the tasks to keep the scope, or send null to make the rule every task's */
             tasks?: components["schemas"]["TaskName"][] | null;
         };
         GateCell: {

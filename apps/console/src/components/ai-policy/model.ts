@@ -253,6 +253,18 @@ export function changeText(
   return rule.tasks ? m.forTasksOnly(text, rule.tasks) : text;
 }
 
+/** A cell's explicit rule, or null when the default decides it. */
+export function cellRule(
+  gate: readonly GateCellView[],
+  dataClass: DataClass,
+  providerClass: ProviderClass,
+): GateRule | null {
+  return (
+    gate.find((cell) => cell.dataClass === dataClass && cell.providerClass === providerClass)
+      ?.rule ?? null
+  );
+}
+
 /**
  * The tasks a cell's rule is for when it is a rule for some tasks only (the demo's document
  * reading), which the Commission's AI assistance does not follow; null otherwise.
@@ -262,9 +274,7 @@ export function cellScope(
   dataClass: DataClass,
   providerClass: ProviderClass,
 ): readonly TaskName[] | null {
-  const rule = gate.find(
-    (cell) => cell.dataClass === dataClass && cell.providerClass === providerClass,
-  )?.rule;
+  const rule = cellRule(gate, dataClass, providerClass);
   return rule && !decidesForReviewers(rule) ? rule.tasks : null;
 }
 
@@ -283,10 +293,7 @@ function draftAllowed(
   if (cellScope(gate, dataClass, providerClass) === null) {
     return isAllowed(gate, dataClass, providerClass);
   }
-  return (
-    gate.find((cell) => cell.dataClass === dataClass && cell.providerClass === providerClass)?.rule
-      ?.allowed ?? false
-  );
+  return cellRule(gate, dataClass, providerClass)?.allowed ?? false;
 }
 
 export function gateDraft(gate: readonly GateCellView[]): GateDraft {

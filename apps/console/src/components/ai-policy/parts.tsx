@@ -5,7 +5,7 @@ import type { DataClass } from '../../server/ai-gateway/types';
 import type { AiTenantRow } from '../../server/ai-policy.server';
 import { InfoTip } from '../info-tip';
 import { messages as m } from './messages';
-import { allowedProviders, cellScope } from './model';
+import { allowedProviders, cellRule, cellScope } from './model';
 
 /** Small pieces the AI policy table, drawer and dialogs share. */
 
@@ -28,9 +28,7 @@ export function GateCell({ row, dataClass }: { row: AiTenantRow; dataClass: Data
   // A rule for some tasks only (the demo's document reading) shows under the cell's own state.
   const scoped = row.routed.flatMap((providerClass) => {
     const tasks = cellScope(row.gate, dataClass, providerClass);
-    const rule = row.gate.find(
-      (cell) => cell.dataClass === dataClass && cell.providerClass === providerClass,
-    )?.rule;
+    const rule = cellRule(row.gate, dataClass, providerClass);
     return tasks && rule ? [m.tasksOnly(rule.allowed, tasks)] : [];
   });
   const note = scoped.length > 0 && (
