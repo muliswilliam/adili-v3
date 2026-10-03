@@ -149,7 +149,7 @@ export function narrativeYear(aggregates: NationalAggregates): NarrativeYear {
       }
       const all = sumOf(initial, biennial, final);
       const sections = { initial, biennial, final, all };
-      const clarifications = row.clarifications ?? 0;
+      const { clarifications } = row;
       return {
         code,
         commissionName: row.name,
@@ -159,7 +159,7 @@ export function narrativeYear(aggregates: NationalAggregates): NarrativeYear {
           ...sectionCounts(sections),
           clarifications,
           ...sectionRates(sections),
-          clarificationRatio: rateOf(clarifications, all.declared),
+          clarificationRatio: clarifications === null ? null : rateOf(clarifications, all.declared),
         },
       };
     });

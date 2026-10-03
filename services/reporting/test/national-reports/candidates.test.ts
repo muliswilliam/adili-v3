@@ -210,6 +210,17 @@ describe('NCR narrative input', () => {
     ]);
   });
 
+  it('sends a Commission clarification count it lacks as unknown, never as 0', () => {
+    const cra = aggregates.byCommission.cra;
+    if (!cra) throw new Error('fixture lacks cra');
+    const lacking = {
+      ...aggregates,
+      byCommission: { ...aggregates.byCommission, cra: { ...cra, clarifications: null } },
+    };
+    const row = narrativeYear(lacking).commissionTable.find((each) => each.code === 'cra');
+    expect(row?.figures).toMatchObject({ clarifications: null, clarificationRatio: null });
+  });
+
   it('keys prior-year figures by their gateway year, most recent first', () => {
     const before = buildAggregates({ fy: 2026, commissions: HISTORY_COMMISSIONS, receipts: [] });
     const older = buildAggregates({ fy: 2025, commissions: HISTORY_COMMISSIONS, receipts: [] });
