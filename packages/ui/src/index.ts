@@ -425,6 +425,14 @@ export {
   RegistryStatusRow,
   type RegistryStatusRowProps,
 } from './components/registry-status';
+export {
+  RELEASE_STATUS_BADGE_MESSAGES,
+  RELEASE_STATUSES,
+  type ReleaseStatus,
+  ReleaseStatusBadge,
+  type ReleaseStatusBadgeMessages,
+  type ReleaseStatusBadgeProps,
+} from './components/release-status-badge';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,
@@ -529,6 +537,17 @@ export {
   type SuggestionMessages,
   type SuggestionStatus,
 } from './components/suggestion-card';
+export {
+  DEFAULT_SUPPRESSION_THRESHOLD,
+  SUPPRESSION_KINDS,
+  SUPPRESSION_MESSAGES,
+  type SuppressionKind,
+  SuppressionLegend,
+  type SuppressionLegendProps,
+  SuppressionMarker,
+  type SuppressionMarkerProps,
+  type SuppressionMessages,
+} from './components/suppression-marker';
 export {
   Table,
   TableBody,
