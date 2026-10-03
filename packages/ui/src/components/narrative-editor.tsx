@@ -1,0 +1,356 @@
+import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons';
+import { type ComponentProps, type ReactNode, useEffect, useId, useRef } from 'react';
+
+import { cn } from '../lib/cn';
+import { formatTime } from '../lib/format-date';
+import { formatNumber } from '../lib/format-number';
+import { type AutosaveStatus, useAutosave } from '../lib/use-autosave';
+import { Button } from './button';
+import { Icon } from './icon';
+import { SaveIndicator } from './save-indicator';
+import { Textarea } from './textarea';
+
+/**
+ * One paragraph of a narrative section, as the reporting contract's `NarrativeParagraph` keeps
+ * them. `aiDraft` is true for an AI-drafted paragraph until it is edited.
+ */
+export interface NarrativeParagraph {
+  id: string;
+  text: string;
+  aiDraft?: boolean;
+}
+
+/** Paragraphs per section id, in order. A missing section has none. */
+export type NarrativeValue = Record<string, NarrativeParagraph[]>;
+
+export interface NarrativeSection {
+  id: string;
+  /** "Overview": names the section and its fields. */
+  label: string;
+  /** The most characters the section may hold, as the contract limits it. */
+  maxLength?: number;
+}
+
+export interface NarrativeEditorMessages {
+  autosaves: string;
+  saving: string;
+  /** The time of the last save in Kenyan time → "Saved 10:42". */
+  saved: (time: string) => string;
+  retrying: string;
+  /** Names a paragraph's field: "Overview, paragraph 2". */
+  paragraph: (section: string, position: number) => string;
+  /** The placeholder of a section's first paragraph: "Write the overview…". */
+  firstPlaceholder: (section: string) => string;
+  placeholder: string;
+  addParagraph: string;
+  /** Names the add button: "Add paragraph to overview". */
+  addParagraphTo: (section: string) => string;
+  /** Names a remove button: "Remove overview paragraph 2". */
+  removeParagraph: (section: string, position: number) => string;
+  characters: (count: string) => string;
+  /** A section over its limit: "21,000 characters, 20,000 at most". */
+  tooLong: (count: string, max: string) => string;
+  /** A read-only section with nothing written. */
+  notWritten: string;
+}
+
+export const NARRATIVE_EDITOR_MESSAGES: NarrativeEditorMessages = {
+  autosaves: 'Autosaves',
+  saving: 'Saving…',
+  saved: (time) => `Saved ${time}`,
+  retrying: 'Could not save, retrying',
+  paragraph: (section, position) => `${section}, paragraph ${String(position)}`,
+  firstPlaceholder: (section) => `Write the ${section.toLowerCase()}…`,
+  placeholder: 'Write a paragraph…',
+  addParagraph: 'Add paragraph',
+  addParagraphTo: (section) => `Add paragraph to ${section.toLowerCase()}`,
+  removeParagraph: (section, position) =>
+    `Remove ${section.toLowerCase()} paragraph ${String(position)}`,
+  characters: (count) => `${count} characters`,
+  tooLong: (count, max) => `${count} characters, ${max} at most`,
+  notWritten: 'Not written yet.',
+};
+
+export type NarrativeEditorProps = Omit<ComponentProps<'section'>, 'children' | 'onChange'> & {
+  sections: NarrativeSection[];
+  value: NarrativeValue;
+  /** Every edit, with the whole narrative. Required unless read-only. */
+  onChange?: (value: NarrativeValue) => void;
+  /**
+   * Saves the whole narrative once typing pauses or the editor loses focus. Resolve when saved;
+   * reject to have it retried with backoff. Required unless read-only.
+   */
+  onSave?: (value: NarrativeValue) => Promise<void>;
+  /** How long typing must pause before a save. 1.5 s by default. */
+  saveDelayMs?: number;
+  /** Shows the text without fields, e.g. to the supervisor or once approved. */
+  readOnly?: boolean;
+  /** Said in the header when read-only, e.g. "Written by the analyst" or "Frozen at approval". */
+  readOnlyNote?: ReactNode;
+  /** The card's heading. "Narrative" by default. */
+  title?: ReactNode;
+  /** In the header after the save status, e.g. a draft menu. */
+  actions?: ReactNode;
+  /** Above the sections, e.g. an alert that drafting failed. */
+  notice?: ReactNode;
+  /** Under a paragraph, e.g. its AI label and figure citations. */
+  paragraphMeta?: (paragraph: NarrativeParagraph, section: NarrativeSection) => ReactNode;
+  /** Ids for new paragraphs. `crypto.randomUUID` by default. */
+  newParagraphId?: () => string;
+  messages?: Partial<NarrativeEditorMessages>;
+};
+
+const sectionLength = (paragraphs: NarrativeParagraph[]) =>
+  paragraphs.reduce((sum, paragraph) => sum + paragraph.text.length, 0);
+
+/**
+ * A report's narrative as a card of sections (Overview, Findings, Recommendations), each a list of
+ * paragraphs the author writes, adds and removes. It autosaves the whole narrative through
+ * `onSave` and says so in the header ("Autosaves", "Saving…", "Saved 10:42"). An AI-drafted
+ * paragraph is ringed in violet until edited, when it stops being an AI draft; its label comes
+ * from `paragraphMeta`. Read-only, it shows the text and a note instead.
+ */
+export function NarrativeEditor({
+  sections,
+  value,
+  onChange,
+  onSave,
+  saveDelayMs,
+  readOnly = false,
+  readOnlyNote,
+  title = 'Narrative',
+  actions,
+  notice,
+  paragraphMeta,
+  newParagraphId = () => crypto.randomUUID(),
+  messages,
+  className,
+  ...props
+}: NarrativeEditorProps) {
+  const copy = { ...NARRATIVE_EDITOR_MESSAGES, ...messages };
+  const headingId = useId();
+  const root = useRef<HTMLElement>(null);
+  const autosave = useAutosave(onSave ?? noSave, { delayMs: saveDelayMs });
+
+  // An empty section shows one field; typing in it creates the paragraph under this id, so the
+  // field keeps its focus. Only an empty section shows it, so it never clashes with a paragraph.
+  const startId = (section: string) => `${headingId}-${section}-start`;
+
+  const focusNext = useRef<string | null>(null);
+  useEffect(() => {
+    const id = focusNext.current;
+    if (!id) return;
+    focusNext.current = null;
+    root.current
+      ?.querySelector<HTMLTextAreaElement>(`textarea[data-paragraph-id="${CSS.escape(id)}"]`)
+      ?.focus();
+  });
+
+  // An added, empty paragraph changes nothing worth saving; writing in it does.
+  const update = (section: string, paragraphs: NarrativeParagraph[], save = true) => {
+    const next = { ...value, [section]: paragraphs };
+    onChange?.(next);
+    if (save) autosave.change(next);
+  };
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      className={cn('rounded-2xl bg-card text-card-foreground shadow-card', className)}
+      ref={root}
+      {...props}
+    >
+      <div className="flex flex-wrap items-center gap-3 border-b px-5 py-4">
+        <h3 id={headingId} className="text-[15.5px] font-semibold tracking-[-0.01em]">
+          {title}
+        </h3>
+        <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+          {readOnly ? (
+            readOnlyNote ? (
+              <span className="text-[13px] text-muted-foreground">{readOnlyNote}</span>
+            ) : null
+          ) : (
+            <AutosaveText status={autosave.status} savedAt={autosave.savedAt} copy={copy} />
+          )}
+          {actions}
+        </div>
+      </div>
+      <div className="flex flex-col gap-6 px-5 py-[18px]">
+        {notice}
+        {sections.map((section) => {
+          const paragraphs = value[section.id] ?? [];
+          const length = sectionLength(paragraphs);
+          const tooLong = section.maxLength !== undefined && length > section.maxLength;
+          const labelId = `${headingId}-${section.id}`;
+          const shown: NarrativeParagraph[] =
+            readOnly || paragraphs.length > 0
+              ? paragraphs
+              : [{ id: startId(section.id), text: '' }];
+          const written = paragraphs.filter((paragraph) => paragraph.text.trim() !== '');
+
+          return (
+            <div
+              key={section.id}
+              role="group"
+              aria-labelledby={labelId}
+              className="flex flex-col gap-1.5"
+            >
+              <div className="flex items-baseline gap-2.5">
+                <h4 id={labelId} className="text-[14.5px] font-semibold">
+                  {section.label}
+                </h4>
+                {readOnly ? null : (
+                  <span
+                    className={cn(
+                      'ml-auto text-xs text-muted-foreground tabular-nums',
+                      tooLong && 'font-medium text-destructive',
+                    )}
+                  >
+                    {tooLong && section.maxLength !== undefined
+                      ? copy.tooLong(formatNumber(length), formatNumber(section.maxLength))
+                      : copy.characters(formatNumber(length))}
+                  </span>
+                )}
+              </div>
+              {readOnly ? (
+                <div className="flex flex-col gap-3">
+                  {written.length > 0 ? (
+                    written.map((paragraph) => (
+                      <div key={paragraph.id}>
+                        <p
+                          className={cn(
+                            'rounded-[10px] bg-card px-3.5 py-3 text-[14.5px] leading-[1.6] whitespace-pre-wrap shadow-card-flat',
+                            paragraph.aiDraft && 'shadow-control-ai',
+                          )}
+                        >
+                          {paragraph.text}
+                        </p>
+                        <Meta>{paragraphMeta?.(paragraph, section)}</Meta>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="rounded-[10px] px-3.5 py-3 text-[14.5px] text-muted-foreground shadow-card-flat">
+                      {copy.notWritten}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {shown.map((paragraph, index) => {
+                    const removable =
+                      paragraphs.length > 1 || (paragraphs.length === 1 && paragraph.text !== '');
+                    return (
+                      <div key={paragraph.id} className="group relative">
+                        <Textarea
+                          autoGrow
+                          rows={2}
+                          data-paragraph-id={paragraph.id}
+                          data-ai-draft={paragraph.aiDraft ? 'true' : undefined}
+                          aria-label={copy.paragraph(section.label, index + 1)}
+                          aria-invalid={tooLong || undefined}
+                          placeholder={
+                            index === 0 ? copy.firstPlaceholder(section.label) : copy.placeholder
+                          }
+                          value={paragraph.text}
+                          className={cn(
+                            'min-h-[72px] pr-11 text-[14.5px] leading-[1.6]',
+                            paragraph.aiDraft && 'shadow-control-ai hover:shadow-control-ai',
+                          )}
+                          onChange={(event) => {
+                            const edited: NarrativeParagraph = {
+                              ...paragraph,
+                              text: event.target.value,
+                              ...(paragraph.aiDraft ? { aiDraft: false } : {}),
+                            };
+                            update(
+                              section.id,
+                              paragraphs.length === 0
+                                ? [edited]
+                                : paragraphs.map((each) =>
+                                    each.id === paragraph.id ? edited : each,
+                                  ),
+                            );
+                          }}
+                          onBlur={autosave.flush}
+                        />
+                        {removable ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={copy.removeParagraph(section.label, index + 1)}
+                            className="absolute top-1.5 right-1.5 size-[30px] text-muted-foreground opacity-70 group-hover:opacity-100 focus-visible:opacity-100 [&_svg]:size-[15px]"
+                            onClick={() => {
+                              const rest = paragraphs.filter((each) => each.id !== paragraph.id);
+                              focusNext.current =
+                                rest[Math.max(index - 1, 0)]?.id ?? startId(section.id);
+                              update(section.id, rest);
+                            }}
+                          >
+                            <Icon icon={Delete02Icon} />
+                          </Button>
+                        ) : null}
+                        <Meta>{paragraphMeta?.(paragraph, section)}</Meta>
+                      </div>
+                    );
+                  })}
+                  <div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label={copy.addParagraphTo(section.label)}
+                      onClick={() => {
+                        const added = { id: newParagraphId(), text: '' };
+                        focusNext.current = added.id;
+                        update(section.id, [...paragraphs, added], false);
+                      }}
+                    >
+                      <Icon icon={Add01Icon} />
+                      {copy.addParagraph}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const noSave = () => Promise.resolve();
+
+function Meta({ children }: { children: ReactNode }) {
+  if (children === null || children === undefined || children === false) return null;
+  return <div className="mt-[7px] flex min-h-6 flex-wrap items-center gap-1.5">{children}</div>;
+}
+
+function AutosaveText({
+  status,
+  savedAt,
+  copy,
+}: {
+  status: AutosaveStatus;
+  savedAt: Date | null;
+  copy: NarrativeEditorMessages;
+}) {
+  if (status === 'idle') {
+    return (
+      <span role="status" className="text-[13px] text-muted-foreground">
+        {copy.autosaves}
+      </span>
+    );
+  }
+  return (
+    <SaveIndicator
+      status={status}
+      messages={{
+        saving: copy.saving,
+        retrying: copy.retrying,
+        saved: savedAt ? copy.saved(formatTime(savedAt.getTime())) : copy.saved(''),
+      }}
+    />
+  );
+}
