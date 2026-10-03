@@ -74,7 +74,7 @@ PR #491 (spec 09b backend) edits `internal/reporting.yaml` by hand. Once #238 me
 
 #493 changes section 5 while this PR is open, and is not merged into it:
 
-- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)". #493 is ready and will likely merge first, so #238 already carries the new sentence, in `federated-reports.controller.ts`. The export keeps it either way. Until #493 lands, the contract states #493's rule, while this branch's `federated-submission.ts` still enforces the stricter "add up to declined".
+- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)", next to the looser rule in `federated-submission.ts`. On this branch, the contract states the rule this branch enforces ("add up to declined"), so a Commission that follows it is never refused. Whichever of #493 and #238 merges second carries both the rule and the sentence. The sentence then lives in `federated-reports.controller.ts`, and the file is re-exported, never edited by hand.
 - Its other changes (the `access_request_facts` projection, migration 0009, `form-m.ts` compiling section 5, `dataUnavailable` false for hosted reports) touch no HTTP contract. `ComplianceReport.accessDataUnavailable` and `ReportCounts.accessRequests` keep their shape.
 - It updates `docs/contracts/10-access-requests.md`, which this PR does not touch.
 
