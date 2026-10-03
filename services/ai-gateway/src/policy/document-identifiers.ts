@@ -101,6 +101,9 @@ const RUN_INTRODUCERS: readonly RegExp[] = [
 /** Words that introduce a run themselves, where a run ends: short titles and salutations. */
 const INTRODUCER_WORDS = new Set([...SHORT_TITLES, 'dear', 'mpendwa', 'ndugu']);
 
+/** What a shape's characters are blanked to: a private-use mark that is no word. */
+const BLANK = '\ue000';
+
 /** Every line terminator a text layer may hold, stray carriage returns and separators included. */
 const LINE_BREAK = /\r\n|[\n\r\v\f\u0085\u2028\u2029]/u;
 
@@ -149,7 +152,18 @@ function tokenAt(tokens: readonly Token[], offset: number): number {
 
 /** Currencies, in any case: KES 12,500,000 is no one's name, and ends a name's span. */
 const CURRENCIES: ReadonlySet<string> = new Set([
-  ...['kes', 'ksh', 'kshs', 'sh', 'shs', 'usd', 'eur', 'gbp', 'tsh', 'tzs', 'ush', 'ugx'],
+  'kes',
+  'ksh',
+  'kshs',
+  'sh',
+  'shs',
+  'usd',
+  'eur',
+  'gbp',
+  'tsh',
+  'tzs',
+  'ush',
+  'ugx',
 ]);
 
 /** Words that join two parties, in any case: "and", "or", Swahili "na", "aka", "alias". */
@@ -220,6 +234,9 @@ const FIELD_WORDS = new Set([
   ...['id', 'signature', 'sahihi', 'tarehe', 'kiasi', 'salio', 'cheo', 'idara', 'simu'],
   ...['gender', 'nationality', 'occupation', 'grade', 'salary', 'pay', 'shares', 'value'],
   ...['purpose', 'parcel', 'village', 'ward', 'plot'],
+  ...['bank', 'company', 'business', 'sacco', 'group', 'vehicle', 'description'],
+  ...['manufacturer', 'registry', 'residence', 'constituency', 'sub-county', 'ministry'],
+  ...['organisation', 'organization'],
 ]);
 /**
  * Words that start a field label of two words or more ("Account Type:", "Basic Salary:", "Date of
@@ -229,6 +246,7 @@ const FIELD_LEADS = new Set([
   ...FIELD_WORDS,
   ...['registration', 'customer', 'kra', 'tax', 'postal', 'physical', 'basic', 'gross', 'net'],
   ...['job', 'total'],
+  'nature',
 ]);
 /** Words before "Name" that make it another field's name ("Bank Name:", "Employer Name:"). */
 const NAMED_FIELDS = new Set([
@@ -248,10 +266,6 @@ const COMMON_WORDS = new Set([
   ...['baba', 'mama', 'bibi', 'tel', 'shares', 'total', 'value', 'purpose', 'male', 'female'],
 ]);
 
-/** Whether a name word is also a common word, matched only as a page writes it. */
-export function isCommonWord(word: string): boolean {
-  return COMMON_WORDS.has(word.toLowerCase());
-}
 /**
  * Places a line below a name may hold (a county or a large town), which the name does not wrap
  * onto: "John Kamau\nNakuru".
@@ -260,6 +274,44 @@ const PLACES = new Set([
   ...COUNTIES.flatMap(({ name }) => name.toLowerCase().split(/[\s-]+/u)),
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
 ]);
+/** A document's headings and vehicle makes, which a list's unmarked line may hold. */
+const HEADING_WORDS = new Set([
+  ...['assets', 'liabilities', 'security', 'offered', 'share', 'capital', 'schedule'],
+  ...['registered', 'office', 'terms', 'conditions', 'particulars', 'details', 'summary'],
+  ...['toyota', 'nissan', 'isuzu', 'mitsubishi', 'mazda', 'subaru', 'honda', 'mercedes'],
+  ...['volkswagen', 'suzuki', 'land', 'county'],
+]);
+/** Words that, before a colon, end a name's span: another field, an organisation, place, office. */
+const BOUNDARY_WORDS: ReadonlySet<string> = new Set([
+  ...FIELD_LEADS,
+  ...ORGANISATION_WORDS,
+  ...PLACES,
+  ...ROLE_WORDS,
+]);
+/**
+ * Words known to be no one's name, or common words that are also names: a name a page gives that
+ * is one of them is matched only as written, capitalised or in capitals, so one false hit does
+ * not hide the word everywhere ("Group", "Branch", "Nakuru", "Grace"). Any other name is matched
+ * in every case, as privacy asks.
+ */
+const WRITTEN_ONLY: ReadonlySet<string> = new Set([
+  ...COMMON_WORDS,
+  ...BOUNDARY_WORDS,
+  ...ROLE_QUALIFIERS,
+  ...HEADING_WORDS,
+  ...CURRENCIES,
+]);
+
+/**
+ * How a name word the page gives recurs: `any` case; `written`, as written, capitalised or in
+ * capitals (a common word that is also a name: "Grace"); or `exact`, only as written (a word known
+ * to be no one's name, which one false hit must not hide elsewhere: "Branch", "Group", "Nakuru").
+ */
+export function recurrenceOf(word: string): 'any' | 'written' | 'exact' {
+  const text = word.toLowerCase();
+  if (COMMON_WORDS.has(text)) return 'written';
+  return WRITTEN_ONLY.has(text) ? 'exact' : 'any';
+}
 
 const lower = (word: string) => word.toLowerCase();
 const isOrganisationWord = (word: string | undefined) =>
@@ -291,25 +343,48 @@ function colonAfter(tokens: readonly Token[], index: number): number {
 }
 
 /**
- * Whether the word at `index` labels another field, which ends a name's span: a field word
- * ("Make", "Salary", "ID"), with or without a colon, or a field label's first word before one or
- * two more and a colon ("Account Type:", "Date of Registration:"). Nothing else does, not even a
- * colon after a name ("John Kamau: Chairman"): when in doubt, a word is a name.
+ * Whether a value follows the word at `index` (past spaces): a number, a token, a currency or a
+ * word known to be no one's name ("Gender Male", "ID 12345678"), not another name word.
+ */
+function valueAfter(tokens: readonly Token[], index: number): boolean {
+  let at = index + 1;
+  while (tokens[at]?.kind === 'space') at++;
+  const next = tokens[at];
+  if (next?.kind === 'number') return true;
+  if (next?.kind === 'other' && (next.text === BLANK || next.text.startsWith('[['))) return true;
+  return (
+    next?.kind === 'word' &&
+    (CURRENCIES.has(lower(next.text)) || COMMON_WORDS.has(lower(next.text)))
+  );
+}
+
+/**
+ * Whether the word at `index` labels another field, which ends a name's span:
+ * - a field, organisation, place or office word before a colon ("Make:", "Bank:", "Nakuru:");
+ * - a field word before a value ("Gender Male", "ID 12345678"), but not before more name words
+ *   ("John Kamau Ward Otieno": Ward is a name there);
+ * - a field label's first word before one or two more and a colon ("Account Type:", "Nature of
+ *   Title:").
+ * Nothing else does, not even a colon after a name ("John Kamau: Chairman"): when in doubt, a word
+ * is a name.
  */
 function labelsAField(tokens: readonly Token[], index: number): boolean {
   const word = tokens[index];
   if (word?.kind !== 'word') return false;
-  if (FIELD_WORDS.has(lower(word.text))) return true;
-  if (!FIELD_LEADS.has(lower(word.text))) return false;
-  // The field label's next words, past spaces and an "of", up to its colon.
+  const text = lower(word.text);
+  if (colonAfter(tokens, index) >= 0) return BOUNDARY_WORDS.has(text);
+  if (FIELD_WORDS.has(text) && valueAfter(tokens, index)) return true;
+  if (!FIELD_LEADS.has(text)) return false;
+  // The field label's next words, past spaces and an "of", up to its colon or value.
   for (let at = index + 1, seen = 0; at < tokens.length && seen < 2; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') return false;
-    if (colonAfter(tokens, at) >= 0 || FIELD_WORDS.has(lower(token.text))) return true;
+    if (colonAfter(tokens, at) >= 0) return true;
+    if (FIELD_WORDS.has(lower(token.text)) && valueAfter(tokens, at)) return true;
     if (token.text !== 'of') seen++;
   }
-  return colonAfter(tokens, index) >= 0;
+  return false;
 }
 
 /** Whether a label starts at word `index`: one to three words that are a label ("Account Name"). */
@@ -374,27 +449,35 @@ function runParty(tokens: readonly Token[], from: number): string[] {
 }
 
 /**
- * Whether a line continues the name on the line above: it holds a few capitalised words only, and
- * no label, office, company or place.
+ * Whether a line continues a name wrapped from the line above: one to three capitalised name
+ * words and nothing else, none a label, field, organisation, place, office, heading or common
+ * word ("John\nKamau Mwangi"; not "Assets", "Toyota Premio", "Kiambu County Land").
  */
-function continuesName(tokens: readonly Token[]): boolean {
+function wrapsName(tokens: readonly Token[]): boolean {
   const words = tokens.filter((token) => token.kind === 'word');
   return (
     words.length > 0 &&
-    words.length <= 4 &&
+    words.length <= 3 &&
     tokens.every((token) => token.kind === 'word' || token.kind === 'space') &&
-    words.every(({ text }) => {
-      const word = lower(text);
-      return (
+    words.every(
+      ({ text }) =>
         (isCapitalised(text) || PARTICLES.has(text)) &&
         !LABEL_WORDS.test(text) &&
-        !ROLE_WORDS.has(word) &&
-        !ROLE_QUALIFIERS.has(word) &&
-        !ORGANISATION_WORDS.has(word) &&
-        !PLACES.has(word)
-      );
-    })
+        !WRITTEN_ONLY.has(lower(text)),
+    )
   );
+}
+
+/** Whether a line's last word, past spaces, is a capitalised name word: a name may wrap after it. */
+function endsWithName(tokens: readonly Token[]): boolean {
+  for (let at = tokens.length - 1; at >= 0; at--) {
+    const token = tokens[at];
+    if (token?.kind === 'space') continue;
+    return (
+      token?.kind === 'word' && isCapitalised(token.text) && !WRITTEN_ONLY.has(lower(token.text))
+    );
+  }
+  return false;
 }
 
 /**
@@ -487,49 +570,23 @@ const LIST_LETTERS = /^(?:[a-z]|[ivx]{1,4})$/iu;
 function afterMarker(tokens: readonly Token[]): number {
   let at = 0;
   while (tokens[at]?.kind === 'space') at++;
-  const marker = tokens[at];
-  const next = tokens[at + 1];
-  if (marker?.kind === 'other' && BULLETS.has(marker.text)) return at + 1;
-  const numbered =
-    (marker?.kind === 'number' && marker.text.length <= 2) ||
-    (marker?.kind === 'word' && LIST_LETTERS.test(marker.text));
-  if (numbered && next?.kind === 'other' && (next.text === '.' || next.text === ')')) return at + 2;
-  return 0;
-}
-
-/**
- * Whether an unmarked line under a stand-alone label is one more entry: a few capitalised words
- * and particles, no field word, then nothing or a comma, dash or colon and an office ("Mary
- * Wanjiru, Secretary"). A marked line ("2. ...") always is.
- */
-function readsAsName(tokens: readonly Token[]): boolean {
-  const words: string[] = [];
-  let at = 0;
-  for (; at < tokens.length; at++) {
-    const token = tokens[at];
-    if (token?.kind === 'space') continue;
-    if (token?.kind !== 'word') break;
-    if (PARTICLES.has(token.text)) continue;
-    if (!isCapitalised(token.text) || LABEL_WORDS.test(token.text)) return false;
-    if (FIELD_WORDS.has(lower(token.text))) return false;
-    words.push(token.text);
+  const isNumbering = (token: Token | undefined) =>
+    (token?.kind === 'number' && token.text.length <= 2) ||
+    (token?.kind === 'word' && LIST_LETTERS.test(token.text));
+  const isOther = (token: Token | undefined, ...texts: string[]) =>
+    token?.kind === 'other' && texts.includes(token.text);
+  const [first, second, third] = [tokens[at], tokens[at + 1], tokens[at + 2]];
+  if (isOther(first, ...BULLETS)) return at + 1;
+  // "(a)", "(1)", "(ii)", "[1]".
+  if (isOther(first, '(', '[') && isNumbering(second) && isOther(third, ')', ']')) return at + 3;
+  // "1.", "a)", "ii.".
+  if (isNumbering(first) && isOther(second, '.', ')')) return at + 2;
+  // "1 John Kamau": a bare number, a space and a capitalised word.
+  if (first?.kind === 'number' && first.text.length <= 2 && second?.kind === 'space') {
+    const word = tokens[at + 2];
+    if (word?.kind === 'word' && isCapitalised(word.text)) return at + 2;
   }
-  if (words.length === 0 || words.length > 6) return false;
-  const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
-  if (rest.length === 0) return true;
-  const [mark, ...office] = rest;
-  const separates =
-    mark?.kind === 'joiner' ||
-    mark?.kind === 'colon' ||
-    (mark?.kind === 'other' && BULLETS.has(mark.text));
-  return (
-    separates &&
-    office.length > 0 &&
-    office.every(
-      (token) =>
-        token.kind === 'word' && (ROLE_WORDS.has(lower(token.text)) || qualifiesOffice(token.text)),
-    )
-  );
+  return 0;
 }
 
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
@@ -549,9 +606,10 @@ export function documentIdentifiers(
   shapes: readonly RegExp[] = [],
 ): DocumentIdentifier[] {
   const found: DocumentIdentifier[] = [];
+  // Each character of a shape becomes a private-use mark: a value, no name ("Tel 0712 ...").
   const blanked = shapes.reduce(
     (current, shape) =>
-      current.replace(shape, (match) => match.replace(/[^\r\n\v\f\u0085\u2028\u2029]/gu, ' ')),
+      current.replace(shape, (match) => match.replace(/[^\r\n\v\f\u0085\u2028\u2029]/gu, BLANK)),
     text,
   );
   const lines = text.split(LINE_BREAK);
@@ -570,7 +628,13 @@ export function documentIdentifiers(
   };
 
   nameLines.forEach((line, row) => {
-    const labels = [...line.matchAll(LABEL), ...line.matchAll(OFFICE_LABEL)];
+    // A label and an office at the same place ("Director:") are read once.
+    const seen = new Set<number>();
+    const labels = [...line.matchAll(LABEL), ...line.matchAll(OFFICE_LABEL)].filter((match) => {
+      if (seen.has(match.index)) return false;
+      seen.add(match.index);
+      return true;
+    });
     for (const match of labels) {
       const end = match.index + match[0].length;
       if (!isLabel(line, match.index, end)) continue;
@@ -585,15 +649,16 @@ export function documentIdentifiers(
         at = nextLine(nameLines, row);
         if (at < 0) continue;
         add(labelParties(tokensAt(at), afterMarker(tokensAt(at))));
-        // Further entries, across blank lines: every marked line, and an unmarked one that reads
-        // as a name. An entry with other data on it is read all the same; only an unmarked line
-        // that is not a name ends the list.
+        // Further entries: every marked line, read whatever data it holds.
         for (let entries = 1; entries < MAX_ENTRIES; entries++) {
+          // A marked line may come after blank lines; an unmarked one only continues a name
+          // wrapped from the line straight above.
           const next = nextLine(nameLines, at);
           if (next < 0) break;
           const tokens = tokensAt(next);
           const from = afterMarker(tokens);
-          if (from === 0 && !readsAsName(tokens)) break;
+          const wraps = next === at + 1 && endsWithName(tokensAt(at)) && wrapsName(tokens);
+          if (from === 0 && !wraps) break;
           add(labelParties(tokens, from));
           at = next;
         }
@@ -603,7 +668,7 @@ export function documentIdentifiers(
       // A name may wrap onto the next line; an office or company it ends in may not.
       const tail = parties.at(-1) ?? [];
       const wraps = !tail.some((word) => ROLE_WORDS.has(lower(word)) || isOrganisationWord(word));
-      if (parties.length > 0 && wraps && continuesName(tokensAt(at + 1))) {
+      if (parties.length > 0 && wraps && wrapsName(tokensAt(at + 1))) {
         add(labelParties(tokensAt(at + 1), 0));
       }
     }

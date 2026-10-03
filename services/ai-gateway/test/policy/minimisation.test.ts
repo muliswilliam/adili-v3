@@ -599,6 +599,8 @@ describe('minimise a text layer in linear time', () => {
     ['a long address', `Physical address: ${'House 14, Riverside Drive, '.repeat(4_000)}`],
     ['Make: A repeated', 'Make: A '.repeat(12_500)],
     ['Chairman: repeated', 'Chairman: '.repeat(10_000)],
+    ['a marked list', `Directors:\n${'(a) John Kamau\n'.repeat(7_000)}`],
+    ['shapes after a name', `Witness: Jane Akinyi Tel ${'0712 345 678 '.repeat(8_000)}`],
     ['a long list', `Directors:\n${'1. John Kamau\n'.repeat(7_000)}`],
     ['Kamau: repeated', `Borrower: ${'Kamau: '.repeat(14_000)}`],
     ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
@@ -758,6 +760,81 @@ describe('minimise a text layer: names out, fields readable', () => {
       'John Kamau Mary Wanjiru',
       'Chairman Treasurer',
     ],
+    // More list markers (F62).
+    ['Directors:\n(a) John Kamau\n(b) Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n(1) John Kamau\n(2) Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n(i) John Kamau\n(ii) Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n[1] John Kamau\n[2] Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n1 John Kamau\n2 Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    // Field, organisation, place and office words before a colon are labels (F63).
+    [
+      'Proprietor: John Kamau Bank: Equity Bank Branch: Nyali',
+      'John Kamau',
+      'Bank Equity Branch Nyali',
+    ],
+    [
+      'Director: John Kamau Company: Tumaini Traders Ltd',
+      'John Kamau',
+      'Company Tumaini Traders Ltd',
+    ],
+    [
+      'Owner: John Kamau Vehicle: Toyota Premio Description: Saloon',
+      'John Kamau',
+      'Vehicle Toyota Premio Description Saloon',
+    ],
+    [
+      'Owner: John Kamau Manufacturer: Toyota Registry: Nakuru',
+      'John Kamau',
+      'Manufacturer Toyota Registry Nakuru',
+    ],
+    [
+      'Proprietor: John Kamau Residence: Njoro Constituency: Molo Sub-County: Njoro',
+      'John Kamau',
+      'Residence Njoro Constituency Molo Sub-County',
+    ],
+    [
+      'Employee Name: Mary Wanjiru Ministry: Health Organisation: Kenya Red Cross',
+      'Mary Wanjiru',
+      'Ministry Health Organisation Red Cross',
+    ],
+    ['Proprietor: John Kamau Nature of Title: Freehold', 'John Kamau', 'Nature of Title Freehold'],
+    ['Proprietor: John Kamau Nakuru: Njoro', 'John Kamau', 'Nakuru Njoro'],
+    ['Witness: Mary Wanjiru Sacco: Ufanisi', 'Mary Wanjiru', 'Sacco Ufanisi'],
+    // A false hit does not spread to other cases (F63).
+    [
+      'Proprietor: John Kamau Nyali Branch\nThe nyali branch and NYALI BRANCH accounts.',
+      'John Kamau',
+      'branch BRANCH',
+    ],
+    ['Borrower: John Kamau Group\nThe group and its GROUP savings.', 'John Kamau', 'group GROUP'],
+    // A list ends at an unmarked line that is no wrapped name (F64).
+    ['Directors:\n1. John Kamau\nAssets\nLand in Njoro', 'John Kamau', 'Assets Land Njoro'],
+    [
+      'Directors:\n1. John Kamau\nSecurity Offered\nShare Capital',
+      'John Kamau',
+      'Security Offered Share Capital',
+    ],
+    [
+      'Proprietors:\n1. John Kamau\nSchedule\nRegistered Office',
+      'John Kamau',
+      'Schedule Registered Office',
+    ],
+    ['Guarantors:\n1. John Kamau\nTERMS AND CONDITIONS', 'John Kamau', 'TERMS AND CONDITIONS'],
+    ['Owners:\n1. John Kamau\nToyota Premio', 'John Kamau', 'Toyota Premio'],
+    [
+      'Signatories:\n1. John Kamau\nEquity Bank Nyali Branch',
+      'John Kamau',
+      'Equity Bank Nyali Branch',
+    ],
+    ['Proprietors:\n1. John Kamau\nKiambu County Land', 'John Kamau', 'Kiambu County Land'],
+    [
+      'Directors:\n1. John\nKamau Mwangi\n2. Mary Wanjiru',
+      'John Kamau Mwangi Mary Wanjiru',
+      'Directors',
+    ],
+    // A field word without a colon goes on as a name when more name words follow (F65).
+    ['Borrower: John Kamau Ward Otieno', 'John Kamau Ward Otieno', 'Borrower'],
+    ['Borrower: John Kamau ID 12345678', 'John Kamau', 'ID'],
     // Common words a name holds stay readable in prose (F48, F55).
     [
       'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',

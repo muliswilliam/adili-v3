@@ -1,4 +1,4 @@
-import { documentIdentifiers, isCommonWord } from './document-identifiers.js';
+import { documentIdentifiers, recurrenceOf } from './document-identifiers.js';
 
 /**
  * Minimisation (spec 07c, ADR-007): personal identifiers in a task input are replaced by stable
@@ -258,12 +258,15 @@ export function minimise<T>(input: T): Minimised<T> {
   collect(input, undefined, known, documentTexts);
   // A document's pages are read as one text, so a label at a page's foot finds its name on the
   // next. The names a page gives are matched in every case, except common words ("Grace",
-  // "Upendo"), matched only as written, capitalised or in capitals: a trade of a little privacy
-  // for prose that stays readable (#504).
+  // "Upendo"), matched only as written, capitalised or in capitals, and words known to be no
+  // one's name ("Branch", "Nakuru"), matched only as written: a trade of a little privacy for
+  // prose that stays readable (#504).
   const written = new Map<string, IdentifierClass>();
   for (const { value, cls } of documentIdentifiers(documentTexts.join('\n'), SHAPES)) {
-    if (cls === 'PERSON' && isCommonWord(value)) {
-      for (const form of writtenForms(value)) if (!written.has(form)) written.set(form, cls);
+    const recurrence = cls === 'PERSON' ? recurrenceOf(value) : 'any';
+    if (recurrence !== 'any') {
+      const forms = recurrence === 'exact' ? [value] : writtenForms(value);
+      for (const form of forms) if (!written.has(form)) written.set(form, cls);
     } else if (!known.has(value)) {
       known.set(value, cls);
     }
