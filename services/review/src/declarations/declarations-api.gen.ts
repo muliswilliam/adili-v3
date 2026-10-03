@@ -846,15 +846,15 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                attachmentId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated */
+        /**
+         * Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
+         * @description The document is read into the item it is attached to: the item's statement list, and its type unless `targetItemType` names another of the list. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.
+         */
         post: operations["extractAttachment"];
         delete?: never;
         options?: never;
@@ -1846,18 +1846,19 @@ export interface components {
             setId: string;
             personKey: string;
             sectionKey: components["schemas"]["SectionKey"];
-            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
+            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
             itemType: string;
-            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call */
+            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says */
             fields: {
                 [key: string]: unknown;
             };
-            /** @description The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. Documents: page and field */
+            /** @description The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. A document's reading: `documentKind` (what the reading took the document for), `fields` (`[{name, confidence, page}]`, each field's confidence from 0 to 1 and the page it is on, null when on none), `warnings` (what the declarant should know, such as an unreadable page) and `attachmentId` */
             sourceRef: {
                 [key: string]: unknown;
             };
+            /** @description A document's reading: its least sure field's confidence, null when it read none. Null for a registry's */
             confidence: number | null;
-            /** @description The item already in the section whose identifier (registration, parcel, company) coincides: offer "Apply to this item" instead of a duplicate */
+            /** @description The item already in the section whose identifier (registration, parcel, company) coincides, or for a document the item it is attached to: offer "Apply to this item" instead of a duplicate */
             matchItemId: string | null;
             /** @enum {string} */
             status: "new" | "accepted" | "dismissed" | "superseded";
@@ -1869,7 +1870,7 @@ export interface components {
             personKey: string;
             source: components["schemas"]["SuggestionSource"];
             /**
-             * @description `pending` while the registry is being asked (retried with backoff); `ready` when it answered, with or without records; `unavailable` when it did not answer after the retries; `failed` when the check could not run. Poll `listSuggestions` until no set is `pending`
+             * @description `pending` while the registry is being asked (retried with backoff) or the document read; `ready` when it answered, with or without records, or the document was read (one suggestion); `unavailable` when a registry did not answer after the retries; `not-enabled` when the Commission's AI policy does not let documents be read; `failed` when the check or reading could not run (for a document, `reason` says why). Poll `listSuggestions` until no set is `pending`
              * @enum {string}
              */
             status: "pending" | "ready" | "unavailable" | "no-id" | "not-enabled" | "failed";
@@ -1878,6 +1879,12 @@ export interface components {
             readyAt: string | null;
             verificationResultId: string | null;
             aiJobId: string | null;
+            /** @description A document's set: the attachment read */
+            attachmentId: string | null;
+            /** @description A document's set: what the declarant said the document is */
+            documentKind: ("title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other") | null;
+            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back) or `unavailable` (the reading service could not do it now: try again). Null otherwise */
+            reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable") | null;
             suggestions: components["schemas"]["Suggestion"][];
         };
         RegistryLookupRequest: {
@@ -1917,6 +1924,21 @@ export interface components {
         DismissSuggestionRequest: {
             /** @description Why the declarant set it aside, if they said */
             reason?: string;
+        };
+        ExtractAttachmentRequest: {
+            /**
+             * @description What the declarant says it is
+             * @enum {string}
+             */
+            documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
+            /** @description The declaration.v1 item type to read it into, of the list the attached item is in (`assets`, `income` or `liabilities`); the attached item's own type when left out */
+            targetItemType?: string;
+            /**
+             * @description The language of the warnings the reading gives
+             * @default en
+             * @enum {string}
+             */
+            language: "en" | "sw";
         };
         ProblemDetails: {
             type: string;
@@ -4299,30 +4321,21 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
+                declarationId: string;
                 attachmentId: string;
             };
             cookie?: never;
         };
-        requestBody: {
+        requestBody?: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
-                    targetItemType: string;
-                    /**
-                     * @default en
-                     * @enum {string}
-                     */
-                    language?: "en" | "sw";
-                };
+                "application/json": components["schemas"]["ExtractAttachmentRequest"];
             };
         };
         responses: {
-            /** @description Extraction requested; a suggestion set of source `document` */
+            /** @description Reading requested; the `document` suggestion set */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -4331,9 +4344,44 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionSet"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`) */
+            /** @description Validation failed (an unknown document kind or language, an item type not of the attached item's list), or the Idempotency-Key header missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a draft (`declaration-not-draft`), the file is no longer clean (`upload-not-clean`), or a request with the same Idempotency-Key still running */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; nothing was recorded */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

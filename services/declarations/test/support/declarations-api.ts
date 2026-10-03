@@ -35,6 +35,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
+import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
 import type { Transaction } from '../../src/db/transaction.js';
@@ -51,12 +52,14 @@ import {
   CycleOpeningSchedules,
 } from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
+import { ExtractionJobConsumer } from '../../src/suggestions/extraction-job.consumer.js';
 import { ObligationsSweep, SweepSchedule } from '../../src/obligations/workflow/sweep.js';
 import {
   type ObligationChanges,
   ObligationWorkflows,
   type StoppedWorkflow,
 } from '../../src/obligations/workflows.js';
+import { FakeAiGateway } from './fake-ai-gateway.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
 import { FakeIntegrationGateway } from './fake-integration-gateway.js';
@@ -238,6 +241,8 @@ export interface DeclarationsApi {
   notifications: FakeNotifications;
   /** The integration-gateway's registry lookups (spec 05b), run by the lookup workflow. */
   gateway: FakeIntegrationGateway;
+  /** The ai-gateway's `extract-document` jobs (spec 05b), asked for by "Read into the form". */
+  ai: FakeAiGateway;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
   /** Starts and signals sent to Temporal (`fake` mode only). */
@@ -257,6 +262,8 @@ export interface DeclarationsApi {
   consumers: DirectoryEventsConsumer;
   /** The acknowledgement slip's event consumers (documents, verification-api), likewise. */
   acknowledgementConsumers: AcknowledgementConsumer;
+  /** The consumer of the ai-gateway's `ai.job.*` events, likewise. */
+  extractionJobs: ExtractionJobConsumer;
   /**
    * Publishes a directory event to the RabbitMQ events exchange, as the directory's outbox relay
    * would (`events` option only): the service's consumers receive it on the suite's own queue.
@@ -282,7 +289,7 @@ export interface DeclarationsApi {
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
  * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the
- * integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are
+ * integration-gateway `FakeIntegrationGateway`, the ai-gateway `FakeAiGateway`, the field cipher `FakeCipher`, workflows are
  * recorded (see `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay
  * in the outbox for assertions). The service's Temporal worker polls the suite's own task queue.
  * The test role owns the tables, so FORCE row-level security applies to it as to the service's
@@ -318,6 +325,7 @@ export async function startDeclarationsApi({
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
   const gateway = new FakeIntegrationGateway();
+  const ai = new FakeAiGateway();
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
@@ -335,6 +343,8 @@ export async function startDeclarationsApi({
     .useValue(notifications)
     .overrideProvider(IntegrationGatewayClient)
     .useValue(gateway)
+    .overrideProvider(AiGatewayClient)
+    .useValue(ai)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(FieldCipher)
@@ -388,6 +398,7 @@ export async function startDeclarationsApi({
     documents,
     notifications,
     gateway,
+    ai,
     workflows,
     temporal,
     cipher,
@@ -401,6 +412,7 @@ export async function startDeclarationsApi({
     corpus,
     consumers: app.get(DirectoryEventsConsumer),
     acknowledgementConsumers: app.get(AcknowledgementConsumer),
+    extractionJobs: app.get(ExtractionJobConsumer),
     async get(path, caller) {
       const token = await signer(caller);
       return app.inject({
@@ -435,6 +447,7 @@ export async function startDeclarationsApi({
       documents.reset();
       notifications.reset();
       gateway.reset();
+      ai.reset();
       workflows.reset();
       temporal.reset();
       clock.reset();

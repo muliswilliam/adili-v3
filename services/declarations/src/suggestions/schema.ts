@@ -6,8 +6,9 @@ import { bytea, declarations } from '../declaration/schema.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
 
 /**
- * Registry pre-fill suggestions (spec 05b): what KRA, NTSA, BRS and ArdhiSasa hold about a person
- * of the declaration, offered to the declarant item by item. They live with the draft and go with
+ * Pre-fill suggestions (spec 05b): what KRA, NTSA, BRS and ArdhiSasa hold about a person of the
+ * declaration, and what a document the declarant attached reads as, offered to the declarant item
+ * by item. They live with the draft and go with
  * it: every row cascades from its declaration, and discarding or submitting the draft, or
  * discarding an amendment, deletes them (S7, `expiry.ts`).
  *
@@ -32,6 +33,36 @@ export const SUGGESTION_SET_STATUSES = [
   'failed',
 ] as const;
 export type SuggestionSetStatus = (typeof SUGGESTION_SET_STATUSES)[number];
+
+/** What the declarant says a document is (`extractAttachment`), as the ai-gateway takes it. */
+export const DOCUMENT_KINDS = [
+  'title-deed',
+  'logbook',
+  'payslip',
+  'bank-letter',
+  'share-certificate',
+  'other',
+] as const;
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+/**
+ * Why a document's set is `failed`, for the declarant: the link to the file ran out or the store
+ * did not answer (`document-unavailable`, try again), the file cannot be read (`document-unreadable`:
+ * damaged, too long, or a type the reading does not take), nothing usable came back
+ * (`not-read`: the reading did not fit the item, or the model declined), or the reading service
+ * could not do it now (`unavailable`).
+ */
+export const EXTRACTION_FAILURES = [
+  'document-unavailable',
+  'document-unreadable',
+  'not-read',
+  'unavailable',
+] as const;
+export type ExtractionFailure = (typeof EXTRACTION_FAILURES)[number];
+
+/** The item lists of a statement, as a document's reading targets them. */
+export const STATEMENT_LISTS = ['assets', 'income', 'liabilities'] as const;
+export type StatementList = (typeof STATEMENT_LISTS)[number];
 
 export const SUGGESTION_STATUSES = ['new', 'accepted', 'dismissed', 'superseded'] as const;
 export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
@@ -79,13 +110,26 @@ export const suggestionSets = pgTable(
     consentId: uuid().references(() => suggestionConsents.id, { onDelete: 'cascade' }),
     /** The gateway's verification result, once the registry answered. */
     verificationResultId: uuid(),
+    /** The ai-gateway's `extract-document` job, for a document's set. */
     aiJobId: uuid(),
+    /**
+     * A document's set: the attachment read (`declaration_attachments.id`, no foreign key: the
+     * reading outlives an unlink), what the declarant said it is, and the declaration.v1
+     * statement item it is read into: its list and type. Null for a registry's set.
+     */
+    attachmentId: uuid(),
+    documentKind: text({ enum: DOCUMENT_KINDS }),
+    targetSection: text({ enum: STATEMENT_LISTS }),
+    targetItemType: text(),
+    /** Why a document's set is `failed`; null otherwise. */
+    reason: text({ enum: EXTRACTION_FAILURES }),
     requestedAt: timestamp({ withTimezone: true }).notNull(),
     /** When it became `ready`; null otherwise. */
     readyAt: timestamp({ withTimezone: true }),
   },
   (table) => [
     index('suggestion_sets_declaration_id_idx').on(table.declarationId),
+    index('suggestion_sets_ai_job_id_idx').on(table.aiJobId),
     check(
       'suggestion_sets_source_check',
       sql`${table.source} in ('kra', 'ntsa', 'brs', 'ardhisasa', 'document')`,
@@ -93,6 +137,10 @@ export const suggestionSets = pgTable(
     check(
       'suggestion_sets_status_check',
       sql`${table.status} in ('pending', 'ready', 'unavailable', 'no-id', 'not-enabled', 'failed')`,
+    ),
+    check(
+      'suggestion_sets_document_check',
+      sql`(${table.source} = 'document') = (${table.attachmentId} is not null and ${table.documentKind} is not null and ${table.targetSection} is not null and ${table.targetItemType} is not null)`,
     ),
   ],
 );

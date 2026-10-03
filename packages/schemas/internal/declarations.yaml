@@ -2237,64 +2237,78 @@ paths:
         action: declaration.suggestion.read
         resource: declaration-suggestion
   /v1/declarations/{declarationId}/attachments/{attachmentId}/extract:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - name: attachmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
     post:
       tags:
         - suggestions
       summary: Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
+      description: "The document is read into the item it is attached to: the item's statement list (`assets`, `income` or `liabilities`) and type. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`."
       operationId: extractAttachment
-      x-draft: true
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: declarationId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: attachmentId
+          required: true
+          in: path
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Client-generated UUID, unique per logical request; reuse on retry
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
-              type: object
-              required:
-                - documentKindHint
-                - targetItemType
-              properties:
-                documentKindHint:
-                  type: string
-                  enum:
-                    - title-deed
-                    - logbook
-                    - payslip
-                    - bank-letter
-                    - share-certificate
-                    - other
-                targetItemType:
-                  type: string
-                language:
-                  type: string
-                  enum:
-                    - en
-                    - sw
-                  default: en
+              $ref: '#/components/schemas/ExtractAttachmentRequest'
       responses:
         '202':
-          description: Extraction requested; a suggestion set of source `document`
+          description: Reading requested; the `document` suggestion set
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuggestionSet'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`)
+        '400':
+          description: Validation failed (an unknown document kind or language, an item type not of the attached item's list), or the Idempotency-Key header missing
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not found, or not visible to the caller
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Not a draft (`declaration-not-draft`), the file is no longer clean (`upload-not-clean`), or a request with the same Idempotency-Key still running
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; nothing was recorded
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.suggestions.read
+        resource: declaration
   /v1/me/assistant/conversations:
     post:
       tags:
@@ -4614,31 +4628,32 @@ components:
           $ref: '#/components/schemas/SectionKey'
         itemType:
           type: string
-          description: 'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)'
+          description: 'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)'
         fields:
           type: object
           propertyNames:
             type: string
           additionalProperties: {}
-          description: "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call"
+          description: "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says"
         sourceRef:
           type: object
           propertyNames:
             type: string
           additionalProperties: {}
-          description: "The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. Documents: page and field"
+          description: "The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. A document's reading: `documentKind` (what the reading took the document for), `fields` (`[{name, confidence, page}]`, each field's confidence from 0 to 1 and the page it is on, null when on none), `warnings` (what the declarant should know, such as an unreadable page) and `attachmentId`"
         confidence:
           anyOf:
             - type: number
               minimum: 0
               maximum: 1
             - type: 'null'
+          description: "A document's reading: its least sure field's confidence, null when it read none. Null for a registry's"
         matchItemId:
           anyOf:
             - type: string
               format: uuid
             - type: 'null'
-          description: 'The item already in the section whose identifier (registration, parcel, company) coincides: offer "Apply to this item" instead of a duplicate'
+          description: 'The item already in the section whose identifier (registration, parcel, company) coincides, or for a document the item it is attached to: offer "Apply to this item" instead of a duplicate'
         status:
           type: string
           enum:
@@ -4682,7 +4697,7 @@ components:
             - no-id
             - not-enabled
             - failed
-          description: '`pending` while the registry is being asked (retried with backoff); `ready` when it answered, with or without records; `unavailable` when it did not answer after the retries; `failed` when the check could not run. Poll `listSuggestions` until no set is `pending`'
+          description: "`pending` while the registry is being asked (retried with backoff) or the document read; `ready` when it answered, with or without records, or the document was read (one suggestion); `unavailable` when a registry did not answer after the retries; `not-enabled` when the Commission's AI policy does not let documents be read; `failed` when the check or reading could not run (for a document, `reason` says why). Poll `listSuggestions` until no set is `pending`"
         requestedAt:
           type: string
           format: date-time
@@ -4701,6 +4716,34 @@ components:
             - type: string
               format: uuid
             - type: 'null'
+        attachmentId:
+          anyOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+          description: "A document's set: the attachment read"
+        documentKind:
+          anyOf:
+            - type: string
+              enum:
+                - title-deed
+                - logbook
+                - payslip
+                - bank-letter
+                - share-certificate
+                - other
+            - type: 'null'
+          description: "A document's set: what the declarant said the document is"
+        reason:
+          anyOf:
+            - type: string
+              enum:
+                - document-unavailable
+                - document-unreadable
+                - not-read
+                - unavailable
+            - type: 'null'
+          description: "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back) or `unavailable` (the reading service could not do it now: try again). Null otherwise"
         suggestions:
           type: array
           items:
@@ -4714,6 +4757,9 @@ components:
         - readyAt
         - verificationResultId
         - aiJobId
+        - attachmentId
+        - documentKind
+        - reason
         - suggestions
     RegistryLookupRequest:
       type: object
@@ -4793,6 +4839,28 @@ components:
           description: Why the declarant set it aside, if they said
           type: string
           maxLength: 200
+    ExtractAttachmentRequest:
+      type: object
+      properties:
+        documentKindHint:
+          type: string
+          enum:
+            - title-deed
+            - logbook
+            - payslip
+            - bank-letter
+            - share-certificate
+            - other
+          description: What the declarant says it is
+        language:
+          default: en
+          description: The language of the warnings the reading gives
+          type: string
+          enum:
+            - en
+            - sw
+      required:
+        - documentKindHint
     ProblemDetails:
       type: object
       properties:
