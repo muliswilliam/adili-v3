@@ -114,6 +114,7 @@ export class SuggestionsController {
   @Post(':suggestionId/accept')
   @HttpCode(HttpStatus.OK)
   @ApiSuggestionIdParam()
+  @AuditedRead({ action: 'declaration.suggestion.read', resource: 'declaration-suggestion' })
   @ApiOperation({
     operationId: 'acceptSuggestion',
     summary:
@@ -165,6 +166,7 @@ export class SuggestionsController {
   @Post(':suggestionId/dismiss')
   @HttpCode(HttpStatus.OK)
   @ApiSuggestionIdParam()
+  @AuditedRead({ action: 'declaration.suggestion.read', resource: 'declaration-suggestion' })
   @ApiOperation({
     operationId: 'dismissSuggestion',
     summary: 'Set a suggestion aside, with an optional reason (declarant)',

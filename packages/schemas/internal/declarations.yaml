@@ -2179,6 +2179,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.suggestion.read
+        resource: declaration-suggestion
   /v1/declarations/{declarationId}/suggestions/{suggestionId}/dismiss:
     post:
       tags:
@@ -2230,6 +2233,9 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
+      x-audited-read:
+        action: declaration.suggestion.read
+        resource: declaration-suggestion
   /v1/declarations/{declarationId}/attachments/{attachmentId}/extract:
     parameters:
       - $ref: '#/components/parameters/DeclarationId'

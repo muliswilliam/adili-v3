@@ -543,6 +543,34 @@ describe('accepting a suggestion (S4)', () => {
     expect(await eventsOf('declaration.suggestion-accepted.v1')).toEqual([]);
   });
 
+  it('audits the suggestion that accept and dismiss answer with, registry record and all (ADR-008)', async () => {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+    const dmax = suggestionOf(set, 'vehicle', 1);
+
+    await accepted(draft.id, fielder);
+    expect((await dismiss(draft.id, dmax.id)).statusCode).toBe(200);
+
+    const reads = (await eventsOf('audit.read.v1')).filter(
+      (event) => event.data.action === 'declaration.suggestion.read',
+    );
+    expect(reads).toHaveLength(2);
+    expect(reads.map((event) => event.data.resource)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'declaration-suggestion',
+          params: { declarationId: draft.id, suggestionId: fielder.id },
+        }),
+        expect.objectContaining({
+          type: 'declaration-suggestion',
+          params: { declarationId: draft.id, suggestionId: dmax.id },
+        }),
+      ]),
+    );
+  });
+
   it('makes one change and one event of two accepts at once (no Idempotency-Key, ADR-013 8.11)', async () => {
     const draft = await givenDraft();
     givenOfficerRegistries();
