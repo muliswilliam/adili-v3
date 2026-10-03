@@ -43,11 +43,19 @@ export interface WorkflowStart {
   args: unknown[];
   /** The 503 `workflow-unavailable` detail when Temporal cannot be reached. */
   unavailable: string;
+  /**
+   * The record was reopened from a state its last run left it in for good (a failed certified
+   * copy ordered again): a run still open under the id is that run, past its last write but not
+   * yet closed, so it is terminated and a new one started rather than kept. Kept, it would close
+   * without reading the record again, and leave it pending with no workflow behind it.
+   */
+  replaceRunning?: boolean;
 }
 
 /**
  * Starts a workflow, idempotently: one running under the same id is left as it is (a retried
- * start, or a re-order of a record still in progress); one that ended is started afresh. Temporal
+ * start, or a re-order of a record still in progress) unless `replaceRunning`; one that ended is
+ * started afresh. Temporal
  * unreachable is logged and thrown as 503 `workflow-unavailable`, which rolls the caller's
  * transaction back.
  */
@@ -57,7 +65,8 @@ export async function startWorkflow(temporal: Client, start: WorkflowStart): Pro
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowId: start.workflowId,
       args: start.args,
-      workflowIdConflictPolicy: 'USE_EXISTING',
+      workflowIdConflictPolicy:
+        start.replaceRunning === true ? 'TERMINATE_EXISTING' : 'USE_EXISTING',
       workflowIdReusePolicy: 'ALLOW_DUPLICATE',
     });
   } catch (error) {
