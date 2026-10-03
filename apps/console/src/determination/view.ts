@@ -86,7 +86,6 @@ export function determinationState(
   };
 }
 
-/** One line of the determination's history. */
 /**
  * A bulk closure: the system's "compliant: no issues identified" proposal, approved in batches on
  * its own page (#202), never in the approvals inbox (review's `notBulkClosure`).
@@ -97,6 +96,7 @@ export function isBulkClosure(
   return determination.proposerKind === 'system' && determination.outcome === 'compliant-no-issues';
 }
 
+/** One line of the determination's history. */
 export interface HistoryEntry {
   key: string;
   kind: 'proposed' | 'returned' | 'approved' | 'withdrawn';

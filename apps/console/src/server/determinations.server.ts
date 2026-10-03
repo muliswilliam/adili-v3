@@ -4,8 +4,6 @@ import type { Determination, DeterminationInput, LetterDownload } from './review
 import { type DeterminationRefusal, REFUSAL_STATUS } from '../determination/refusals';
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
-export type { DeterminationRefusal };
-
 /**
  * The review service's determination endpoints (spec 08, S1 and S2): propose on a case, approve,
  * return and withdraw, and the decision letter. Each refusal the screens explain gets its own
