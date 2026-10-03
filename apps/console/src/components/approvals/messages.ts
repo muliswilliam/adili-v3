@@ -20,7 +20,6 @@ export const messages = {
   reassign: 'Reassign to another supervisor',
   reassignedToYou: 'Reassigned to you',
   reassignedTo: (name: string) => `Reassigned to ${name}`,
-  system: 'The system',
   emptyTitle: 'All caught up',
   emptyBody: 'Nothing is waiting for approval.',
   loadFailed: {

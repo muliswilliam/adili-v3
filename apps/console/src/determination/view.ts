@@ -1,4 +1,5 @@
 import type { Assignee, CaseListItem, Determination } from '../server/review/types';
+import { SYSTEM_PROPOSER } from '../review-case/labels';
 import { DETERMINATION_COPY as c } from './copy';
 
 /**
@@ -104,7 +105,7 @@ export interface HistoryEntry {
   at: string;
 }
 
-const who = (officer: Assignee | null) => officer?.name ?? c.system;
+const who = (officer: Assignee | null) => officer?.name ?? SYSTEM_PROPOSER.inSentence;
 
 /** Every proposal of the case and what became of it, newest first. */
 export function determinationHistory(determinations: readonly Determination[]): HistoryEntry[] {

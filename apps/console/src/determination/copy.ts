@@ -7,7 +7,6 @@ import type { DeterminationOutcome } from '../server/review/types';
  * pure modules here; the screens' own copy is `components/determination/messages.ts`.
  */
 export const DETERMINATION_COPY = {
-  system: 'the system',
   history: {
     proposed: (name: string, outcome: DeterminationOutcome) =>
       `Proposed by ${name}: ${OUTCOME_BADGE_MESSAGES[outcome]}`,
