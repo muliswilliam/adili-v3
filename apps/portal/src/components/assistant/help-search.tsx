@@ -1,6 +1,7 @@
 import {
   Alert,
   AlertDescription,
+  Badge,
   Button,
   cn,
   focusRing,
@@ -18,7 +19,8 @@ import {
 import { Link } from '@tanstack/react-router';
 import { useEffect, useId, useRef, useState } from 'react';
 
-import type { AskCopy, AskLanguage } from '../../assistant/copy';
+import type { AskCopy } from '../../assistant/copy';
+import type { Language } from '../../language';
 import { searchAssistantHelp } from '../../server/assistant';
 import { getDeclarationSummary } from '../../server/declarations';
 import type { CompletenessIssue, HelpPassage } from '../../server/declarations/types';
@@ -47,7 +49,7 @@ export function HelpSearch({
   onFix,
 }: {
   copy: AskCopy;
-  language: AskLanguage;
+  language: Language;
   sectionKey: string | null;
   initialQuery: string;
   /** What to search for before anything is typed: the section's name. */
@@ -239,7 +241,7 @@ function Results({
 }: {
   search: Search;
   copy: AskCopy;
-  language: AskLanguage;
+  language: Language;
 }) {
   if (search.status === 'failed') {
     return <p className="text-sm text-muted-foreground">{copy.searchFailed}</p>;
@@ -269,10 +271,10 @@ function Results({
               'grid justify-items-start gap-1.5 rounded-item bg-card px-3 py-2.5 text-foreground no-underline shadow-card hover:bg-background',
             )}
           >
-            <span className="inline-flex h-[22px] items-center gap-[5px] rounded-md bg-muted px-2 text-[12px] font-medium text-secondary-foreground [&_svg]:size-3">
+            <Badge size="tag">
               <Icon icon={passage.source === 'help' ? HelpCircleIcon : JusticeScale01Icon} />
               {passage.citation}
-            </span>
+            </Badge>
             <b className="text-sm font-semibold">{passage.title}</b>
             <p className="line-clamp-3 text-[13px] leading-[1.45] text-secondary-foreground">
               {passage.snippet}

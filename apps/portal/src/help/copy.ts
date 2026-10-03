@@ -1,9 +1,7 @@
-import type { AssistantLanguage } from '../server/declarations/types';
+import type { Language } from '../language';
 import type { TopicKey } from './topics';
 
 /** The help pages' words in English and Kiswahili (spec 11 FE-3, i18n). */
-
-export type HelpLanguage = AssistantLanguage;
 
 export interface HelpCopy {
   title: string;
@@ -124,4 +122,4 @@ const SW: HelpCopy = {
   open: 'Msaada',
 };
 
-export const HELP_COPY: Record<HelpLanguage, HelpCopy> = { en: EN, sw: SW };
+export const HELP_COPY: Record<Language, HelpCopy> = { en: EN, sw: SW };

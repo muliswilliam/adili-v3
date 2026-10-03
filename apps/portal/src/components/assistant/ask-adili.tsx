@@ -28,7 +28,8 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-import { ASK_COPY, type AskCopy, type AskLanguage } from '../../assistant/copy';
+import { ASK_COPY, type AskCopy } from '../../assistant/copy';
+import type { Language } from '../../language';
 import { ASSISTANT_NOTE_MAX_LENGTH } from '../../assistant/limits';
 import { linkedItem, linkPlace } from '../../assistant/place';
 import { type AskTopic, suggestedQuestions } from '../../assistant/suggested';
@@ -107,7 +108,7 @@ export function AskAdiliProvider({
 }: AskAdiliProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [opened, setOpened] = useState(false);
-  const [language, setLanguage] = useState<AskLanguage>('en');
+  const [language, setLanguage] = useState<Language>('en');
   const [tab, setTab] = useState<Category | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const launcherRef = useRef<HTMLButtonElement | null>(null);
@@ -179,8 +180,8 @@ function Panel({
   sections: readonly DeclarationSection[];
   topic: AskTopic;
   sectionKey: string | null;
-  language: AskLanguage;
-  onLanguage: (language: AskLanguage) => void;
+  language: Language;
+  onLanguage: (language: Language) => void;
   onClose: () => void;
 }) {
   const copy = ASK_COPY[language];
@@ -265,7 +266,7 @@ function Panel({
     void navigate({ to: '/help/$passageId', params: { passageId }, search: { lang: language } });
   }
 
-  function switchLanguage(next: AskLanguage) {
+  function switchLanguage(next: Language) {
     if (next === language) return;
     onLanguage(next);
     setAnnouncement(ASK_COPY[next].languageChanged);
@@ -516,7 +517,7 @@ function Answer({
   declarationId: string | null;
   copy: AskCopy;
   sections: readonly DeclarationSection[];
-  language: AskLanguage;
+  language: Language;
   readSection: ReadSection;
   onOpenPlace: (step: string, field: string | null) => void;
   onReadPassage: (passageId: string) => void;

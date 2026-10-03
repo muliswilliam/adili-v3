@@ -1,10 +1,10 @@
 import type { Feedback } from '@adili/ui';
 
+import type { Language } from '../language';
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   AssistantConversation,
   AssistantItemType,
-  AssistantLanguage,
   CompletenessHints,
   HelpPassage,
 } from './declarations/types';
@@ -21,7 +21,7 @@ export type OpenResult =
 
 export function openConversation(
   client: DeclarationsClient,
-  body: { declarationId: string | null; language: AssistantLanguage },
+  body: { declarationId: string | null; language: Language },
 ): Promise<OpenResult> {
   return attempt(async () => {
     const { data, response } = await client.POST('/v1/me/assistant/conversations', { body });
@@ -115,7 +115,7 @@ export function searchHelp(
   client: DeclarationsClient,
   query: {
     q: string;
-    language: AssistantLanguage;
+    language: Language;
     sectionKey: string | null;
     /** How many passages, best first: the service gives 8 unless asked (at most 20). */
     limit?: number;
@@ -146,7 +146,7 @@ export type HintsResult = { status: 'ok'; hints: CompletenessHints } | NotFound 
 export function getCompletenessHints(
   client: DeclarationsClient,
   declarationId: string,
-  language: AssistantLanguage,
+  language: Language,
 ): Promise<HintsResult> {
   return attempt(async (): Promise<HintsResult> => {
     const { data, response } = await client.GET('/v1/declarations/{declarationId}/hints', {

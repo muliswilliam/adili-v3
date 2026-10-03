@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { ASSISTANT_NOTE_MAX_LENGTH } from '../assistant/limits';
-import { languageSchema } from '../help/language';
+import { languageSchema } from '../language';
 import { isSectionKey } from '../declaration/section-key';
 import {
   getCompletenessHints,

@@ -1,5 +1,6 @@
 import type { DeclarationsClient } from './declarations/client.server';
-import type { AssistantLanguage, HelpPassageDetail } from './declarations/types';
+import type { Language } from '../language';
+import type { HelpPassageDetail } from './declarations/types';
 import { attempt, type NotFound, notFound, type Unavailable, unavailable } from './results';
 
 /**
@@ -13,7 +14,7 @@ export type HelpPassageResult =
 /** One passage of the law or one help article, whole, in `language` where it has it. */
 export function getHelpPassage(
   client: DeclarationsClient,
-  query: { passageId: string; language: AssistantLanguage },
+  query: { passageId: string; language: Language },
 ): Promise<HelpPassageResult> {
   return attempt(async (): Promise<HelpPassageResult> => {
     const { data, response } = await client.GET('/v1/help/passages/{passageId}', {

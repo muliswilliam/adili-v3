@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { languageSchema } from '../help/language';
+import { languageSchema } from '../language';
 import { type HelpSearchResult, searchHelp } from './assistant.server';
 import { asDeclarant } from './bff.server';
 import { declarationsClient } from './declarations/client.server';

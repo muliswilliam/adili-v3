@@ -3,7 +3,8 @@ import { HelpCircleIcon, JusticeScale01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import { HELP_COPY, type HelpCopy, type HelpLanguage } from '../../help/copy';
+import { HELP_COPY, type HelpCopy } from '../../help/copy';
+import type { Language } from '../../language';
 import { highlight } from '../../help/highlight';
 import type { HelpPassage } from '../../server/declarations/types';
 import { SignOutButton } from '../sign-out-button';
@@ -17,7 +18,7 @@ export const liftOnHover = 'transition-shadow hover:shadow-card-hover';
  * The question mark in the page header that opens the help pages, in the language the help is
  * read in (English outside them).
  */
-export function HelpLink({ language = 'en' }: { language?: HelpLanguage }) {
+export function HelpLink({ language = 'en' }: { language?: Language }) {
   const label = HELP_COPY[language].open;
   return (
     <Tooltip content={label}>
@@ -35,7 +36,7 @@ export function HelpLink({ language = 'en' }: { language?: HelpLanguage }) {
 }
 
 /** The signed-in declarant's header actions: help, and signing out. */
-export function DeclarantHeaderActions({ language }: { language?: HelpLanguage }) {
+export function DeclarantHeaderActions({ language }: { language?: Language }) {
   return (
     <>
       <HelpLink language={language} />
@@ -53,9 +54,9 @@ export function LanguageSwitch({
   copy,
   onChange,
 }: {
-  language: HelpLanguage;
+  language: Language;
   copy: HelpCopy;
-  onChange: (language: HelpLanguage) => void;
+  onChange: (language: Language) => void;
 }) {
   // Said once the page is in the language picked, not on arrival.
   const [switched, setSwitched] = useState(false);
@@ -107,11 +108,7 @@ export function PassageTag({
 }) {
   const help = source === 'help';
   return (
-    // The kit's citation tag: a square-cornered badge.
-    <Badge
-      variant={help ? 'brand' : 'default'}
-      className="h-[22px] rounded-md px-2 text-[12px] font-semibold [&_svg]:size-3"
-    >
+    <Badge variant={help ? 'brand' : 'default'} size="tag">
       <Icon icon={help ? HelpCircleIcon : JusticeScale01Icon} />
       {help ? copy.helpTag(issuerCode) : citation}
     </Badge>
@@ -144,7 +141,7 @@ export function PassageRow({
   passage: HelpPassage;
   /** Marked in the snippet; empty when browsing. */
   query: string;
-  language: HelpLanguage;
+  language: Language;
 }) {
   const copy = HELP_COPY[language];
   const englishOnly = language === 'sw' && passage.language === 'en';

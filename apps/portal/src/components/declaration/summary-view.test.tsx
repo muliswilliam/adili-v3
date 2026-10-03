@@ -8,7 +8,7 @@ import { discardMyDeclaration } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { SummaryView } from './summary-view';
-import { PENDING_RETRY_MS } from './use-hints';
+import { PENDING_RETRY_MS, resetHintsAvailability } from './use-hints';
 import {
   DECLARATION_ID,
   region as card,
@@ -200,6 +200,7 @@ beforeEach(() => {
   navigate.mockReset();
   hintsMock.mockReset();
   hintsMock.mockResolvedValue({ status: 'unavailable' });
+  resetHintsAvailability();
 });
 
 describe('SummaryView', () => {
@@ -678,6 +679,33 @@ describe('S5: completeness hints on the summary', () => {
     expect(within(panel).queryByRole('img', { name: /AI-assisted/ })).toBeNull();
     expect(within(panel).queryByRole('link', { name: /^Fix/ })).toBeNull();
     expect(within(panel).getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('says nothing about hints once they came back without AI', async () => {
+    const unavailable = (residuals: CompletenessIssue[]) => ({
+      status: 'ok' as const,
+      hints: {
+        status: 'unavailable' as const,
+        label: null,
+        residuals: residuals.map((residual) => ({ ...residual, hint: null })),
+      },
+    });
+    hintsMock.mockResolvedValue(unavailable([ADDRESS, CITIZENSHIP]));
+    const first = renderBlocked();
+    await waitFor(() => {
+      expect(within(first).getByRole('status').textContent).toBe('');
+    });
+    first.remove();
+
+    // The summary read again with fewer residuals: asked again, quietly.
+    hintsMock.mockReturnValue(new Promise(() => undefined));
+    renderSummary(
+      summaryOf({ blocking: [ADDRESS], valid: false, cannotSubmitReason: 'incomplete' }),
+    );
+    const panel = card('1 thing to complete before you can submit');
+    expect(within(panel).getByRole('status').textContent).toBe('');
+    expect(within(panel).queryByText('Getting hints…')).toBeNull();
+    expect(hintsMock).toHaveBeenCalledTimes(2);
   });
 
   it('asks again while the hints are still being written', async () => {

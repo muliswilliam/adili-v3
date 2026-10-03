@@ -1,9 +1,4 @@
-import { z } from 'zod';
-
-/** English or Kiswahili: the languages of the help, Ask Adili and the hints (`HelpLanguage`). */
-export const languageSchema = z.enum(['en', 'sw']);
-
-export type Language = z.infer<typeof languageSchema>;
+import { type Language, languageSchema } from '../language';
 
 /** A help page's `?lang=`: left out for English, anything unknown read as English. */
 export const langSearch = languageSchema.optional().catch(undefined);

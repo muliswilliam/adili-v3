@@ -31,6 +31,18 @@ export function residualKey(issue: Pick<CompletenessIssue, 'sectionKey' | 'path'
   return `${issue.sectionKey}|${issue.path}|${issue.code}`;
 }
 
+/**
+ * Drafts whose hints came back without AI this visit. The contract gives the declarant no AI
+ * status, so it is learnt by asking; after that the summary asks again quietly (no "Getting
+ * hints"), and shows hints only if they come.
+ */
+const withoutAi = new Set<string>();
+
+/** Forgets what was learnt (tests). */
+export function resetHintsAvailability() {
+  withoutAi.clear();
+}
+
 export function useSummaryHints(
   declarationId: string,
   blocking: readonly CompletenessIssue[],
@@ -55,6 +67,8 @@ export function useSummaryHints(
             return;
           }
           const { hints } = result;
+          if (hints.status === 'unavailable') withoutAi.add(declarationId);
+          if (hints.status === 'ready') withoutAi.delete(declarationId);
           if (hints.status === 'pending' && retriesLeft > 0) {
             timer = setTimeout(() => {
               ask(retriesLeft - 1);
@@ -84,5 +98,6 @@ export function useSummaryHints(
   }, [declarationId, key]);
 
   if (key === '') return { status: 'none' };
-  return settled?.key === key ? settled.hints : { status: 'loading' };
+  if (settled?.key === key) return settled.hints;
+  return withoutAi.has(declarationId) ? { status: 'none' } : { status: 'loading' };
 }

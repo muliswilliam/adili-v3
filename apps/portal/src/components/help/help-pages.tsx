@@ -8,6 +8,7 @@ import {
   focusRing,
   formatDate,
   Icon,
+  IconTile,
   Input,
   SiteFooter,
   SiteHeader,
@@ -33,7 +34,8 @@ import {
 import { Link } from '@tanstack/react-router';
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
-import { HELP_COPY, type HelpLanguage } from '../../help/copy';
+import { HELP_COPY } from '../../help/copy';
+import type { Language } from '../../language';
 import { HELP_TOPICS, type TopicKey, topicOf } from '../../help/topics';
 import type { HelpPassage, HelpPassageDetail } from '../../server/declarations/types';
 import {
@@ -64,7 +66,7 @@ const TOPIC_ICONS = {
 /** How long typing pauses before the address (and so the search) follows it. */
 const DEBOUNCE_MS = 250;
 
-export function HelpShell({ language, children }: { language: HelpLanguage; children: ReactNode }) {
+export function HelpShell({ language, children }: { language: Language; children: ReactNode }) {
   return (
     <TooltipProvider>
       <SiteHeader actions={<DeclarantHeaderActions language={language} />} />
@@ -86,14 +88,14 @@ export type HelpListing =
   | { kind: 'topic'; topic: TopicKey; passages: HelpPassage[] | null };
 
 export interface HelpHomeProps {
-  language: HelpLanguage;
+  language: Language;
   /** What is in the address's `q`; the box follows the declarant's typing ahead of it. */
   query: string;
   /** `passages` null: the search could not be run. */
   listing: HelpListing;
   onQuery: (query: string) => void;
   onTopic: (topic: TopicKey | null) => void;
-  onLanguage: (language: HelpLanguage) => void;
+  onLanguage: (language: Language) => void;
 }
 
 export function HelpHome({
@@ -181,7 +183,7 @@ function Listing({
   onTopic,
 }: {
   listing: HelpListing;
-  language: HelpLanguage;
+  language: Language;
   onTopic: (topic: TopicKey | null) => void;
 }) {
   const copy = HELP_COPY[language];
@@ -201,9 +203,9 @@ function Listing({
                 'flex h-full w-full cursor-pointer items-center gap-3.5 rounded-item bg-card px-4 py-3.5 text-left shadow-card',
               )}
             >
-              <span className="grid size-[38px] shrink-0 place-items-center rounded-lg bg-muted text-secondary-foreground [&_svg]:size-[18px]">
+              <IconTile size="md">
                 <Icon icon={TOPIC_ICONS[key]} />
-              </span>
+              </IconTile>
               <span className="grid min-w-0 flex-1">
                 <b className="font-semibold">{copy.topics[key].name}</b>
                 <span className="text-sm text-muted-foreground">{copy.topics[key].about}</span>
@@ -265,7 +267,7 @@ function Listing({
   );
 }
 
-function NoResults({ language }: { language: HelpLanguage }) {
+function NoResults({ language }: { language: Language }) {
   const copy = HELP_COPY[language];
   return (
     <Card>
@@ -288,11 +290,11 @@ function Unavailable({ message }: { message: string }) {
 }
 
 export interface HelpArticleProps {
-  language: HelpLanguage;
+  language: Language;
   passage: HelpPassageDetail;
   /** Other passages on the article's topic; null when they could not be read. */
   related: HelpPassage[] | null;
-  onLanguage: (language: HelpLanguage) => void;
+  onLanguage: (language: Language) => void;
 }
 
 /** One passage or article, whole, with its source, citation and when it took effect. */
@@ -390,7 +392,7 @@ export function HelpArticle({ language, passage, related, onLanguage }: HelpArti
 }
 
 /** The passage is not in force, not visible to the declarant, or not there at all. */
-export function HelpArticleNotFound({ language }: { language: HelpLanguage }) {
+export function HelpArticleNotFound({ language }: { language: Language }) {
   const copy = HELP_COPY[language];
   return (
     <Card>
@@ -410,6 +412,6 @@ export function HelpArticleNotFound({ language }: { language: HelpLanguage }) {
   );
 }
 
-export function HelpUnavailable({ language }: { language: HelpLanguage }) {
+export function HelpUnavailable({ language }: { language: Language }) {
   return <Unavailable message={HELP_COPY[language].unavailable} />;
 }

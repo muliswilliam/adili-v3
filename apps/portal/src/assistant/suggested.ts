@@ -1,4 +1,4 @@
-import type { AskLanguage } from './copy';
+import type { Language } from '../language';
 
 /**
  * Where the declarant is, as far as Ask Adili's suggestions go: the dashboard, a workspace
@@ -20,7 +20,7 @@ export type AskTopic =
  * questions from the Commission's question log join these once the suggestions endpoint is built
  * (#339).
  */
-const SUGGESTED: Record<AskTopic, Record<AskLanguage, readonly string[]>> = {
+const SUGGESTED: Record<AskTopic, Record<Language, readonly string[]>> = {
   home: {
     en: [
       'When is my declaration due?',
@@ -78,6 +78,6 @@ const SUGGESTED: Record<AskTopic, Record<AskLanguage, readonly string[]>> = {
   },
 };
 
-export function suggestedQuestions(topic: AskTopic, language: AskLanguage): readonly string[] {
+export function suggestedQuestions(topic: AskTopic, language: Language): readonly string[] {
   return SUGGESTED[topic][language];
 }

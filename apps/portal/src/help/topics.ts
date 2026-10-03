@@ -1,4 +1,4 @@
-import type { AssistantLanguage } from '../server/declarations/types';
+import type { Language } from '../language';
 
 /**
  * The topics the help pages browse by (spec 11 FE-3). The corpus has no topic field: a passage
@@ -24,7 +24,7 @@ export type TopicKey = (typeof TOPIC_KEYS)[number];
 export interface HelpTopic {
   key: TopicKey;
   /** What the topic's search asks, per language. */
-  query: Record<AssistantLanguage, string>;
+  query: Record<Language, string>;
   /** The corpus tags that put an article in the topic. */
   tags: readonly string[];
 }
@@ -118,7 +118,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   },
 ];
 
-export function topicQuery(key: TopicKey, language: AssistantLanguage): string {
+export function topicQuery(key: TopicKey, language: Language): string {
   return HELP_TOPICS.find((topic) => topic.key === key)?.query[language] ?? '';
 }
 
