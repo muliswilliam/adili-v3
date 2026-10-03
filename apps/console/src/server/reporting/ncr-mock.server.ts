@@ -38,6 +38,7 @@ import {
   type CommissionAggregate,
   type Intake,
   NARRATIVE_SECTION_IDS,
+  type NarrativeDraft,
   type NarrativeParagraph,
   type NarrativeSectionId,
   type NationalAggregates,
@@ -55,7 +56,8 @@ const SECTIONS: readonly SectionKey[] = ['initial', 'biennial', 'final'];
 /** The year of the seeded report. */
 const SEEDED_FY = 2025;
 
-interface StoredReport {
+/** A report as the mock keeps it; `narrative-draft-mock.server.ts` drafts into it. */
+export interface StoredReport {
   id: string;
   fy: number;
   version: number;
@@ -72,6 +74,10 @@ interface StoredReport {
   /** The PDF, once issued: at `pdfReadyAt`. */
   documentId: string | null;
   pdfReadyAt: number | null;
+  /** The latest AI narrative draft (spec 09b), null until one is asked for. */
+  narrativeDraft: NarrativeDraft | null;
+  /** A draft still being written: `settle` inserts or discards it once `readyAt` has passed. */
+  pendingDraft: { readyAt: number; settle: () => void } | null;
 }
 
 interface Store {
@@ -94,7 +100,7 @@ const DRAFT_FINDINGS = [
   'The Nairobi City County Public Service Board reports a biennial rate of 62%, well below every other Commission.',
 ];
 
-function paragraph(
+export function paragraph(
   section: NarrativeSectionId,
   position: number,
   text: string,
@@ -154,6 +160,8 @@ export function resetNcrMock(
     reference: null,
     documentId: null,
     pdfReadyAt: null,
+    narrativeDraft: null,
+    pendingDraft: null,
   };
   store.reports.set(fy, report);
   if (seed === 'approved') {
@@ -307,7 +315,13 @@ function buildAggregates(fy: number, receipts: readonly Row[]): NationalAggregat
   };
 }
 
-function viewOf(report: StoredReport): NationalReport {
+/** The report as the service answers it, a draft whose job has ended inserted or discarded. */
+export function viewOf(report: StoredReport): NationalReport {
+  if (report.pendingDraft && Date.now() >= report.pendingDraft.readyAt) {
+    const { settle } = report.pendingDraft;
+    report.pendingDraft = null;
+    settle();
+  }
   if (report.pdfReadyAt !== null && report.documentId === null && Date.now() >= report.pdfReadyAt) {
     report.documentId = crypto.randomUUID();
   }
@@ -340,6 +354,7 @@ function viewOf(report: StoredReport): NationalReport {
     approvedAt: report.approvedAt,
     reference: report.reference,
     documentId: report.documentId,
+    narrativeDraft: report.narrativeDraft ? { ...report.narrativeDraft } : null,
   };
 }
 
@@ -377,12 +392,17 @@ function saveSection(
 
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
+/** The year's report as stored, for the narrative draft part of the mock; undefined before it is built. */
+export function ncrMockReport(fy: number): StoredReport | undefined {
+  return ensureSeeded().reports.get(fy);
+}
+
 /** The aggregates of the year's report as last built, or null before its first build. */
 export function ncrMockAggregates(fy: number): NationalAggregates | null {
   return ensureSeeded().reports.get(fy)?.aggregates ?? null;
 }
 
-const approvedConflict = () =>
+export const approvedConflict = () =>
   problem(409, 'The report is approved and can no longer change.', 'ncr-approved');
 
 /** Answers `/v1/eacc/national-reports/{fy}[/build|/narrative|/approve]` from the store. */
@@ -439,6 +459,8 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
       reference: null,
       documentId: null,
       pdfReadyAt: null,
+      narrativeDraft: null,
+      pendingDraft: null,
     };
     Object.assign(next, {
       builtAt: new Date().toISOString(),
@@ -508,7 +530,8 @@ export async function mockNcrFetch(request: Request): Promise<Response> {
   return problem(405, 'Method not allowed');
 }
 
-function touch(report: StoredReport, officer: Officer): void {
+/** A build, narrative save or inserted draft: a new version, with the caller a contributor. */
+export function touch(report: StoredReport, officer: Officer): void {
   report.version += 1;
   if (!report.contributors.includes(officer.subject)) report.contributors.push(officer.subject);
 }

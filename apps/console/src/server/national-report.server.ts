@@ -1,7 +1,12 @@
 import type { DocumentsClient } from './documents/client';
 import { nationalAggregatesSchema } from './reporting/aggregates';
 import type { ReportingClient } from './reporting/client.server';
-import type { Narrative, NationalReport, ReportingProblem } from './reporting/types';
+import type {
+  Narrative,
+  NarrativeDraftSection,
+  NationalReport,
+  ReportingProblem,
+} from './reporting/types';
 import { callService, type ServiceResult } from './service-call';
 
 /**
@@ -68,6 +73,45 @@ export async function loadNationalReportPage(
     ok: true,
     data: { fy, report: read?.data ?? null, reported: onTime + late, notReported },
   };
+}
+
+/** The year's report alone, e.g. to see whether a narrative draft answered 202 has ended. */
+export async function loadNationalReport(
+  client: ReportingClient,
+  fy: number,
+): Promise<NationalReportResult<NationalReport>> {
+  return readReportResult(
+    await callService<RawReport, ReportingProblem>(() =>
+      client.GET('/v1/eacc/national-reports/{fy}', { params: { path: { fy } } }),
+    ),
+  );
+}
+
+/** What the analyst asks AI to draft: a section or all, replacing its AI drafts or all of it. */
+export interface NarrativeDraftRequest {
+  section: NarrativeDraftSection;
+  replaceAll: boolean;
+}
+
+/**
+ * Asks the reporting service for an AI narrative draft (spec 09b S2, S3, #338): the report with the
+ * draft's paragraphs inserted as AI drafts (200), or still `drafting` (202: read the report until
+ * its `narrativeDraft` has ended). A retry with the same key reads the same job.
+ */
+export async function draftNationalReportNarrative(
+  client: ReportingClient,
+  fy: number,
+  request: NarrativeDraftRequest,
+  idempotencyKey: string,
+): Promise<NationalReportResult<NationalReport>> {
+  return readReportResult(
+    await callService<RawReport, ReportingProblem>(() =>
+      client.POST('/v1/eacc/national-reports/{fy}/narrative/draft', {
+        params: { path: { fy }, header: { 'Idempotency-Key': idempotencyKey } },
+        body: request,
+      }),
+    ),
+  );
 }
 
 /** Builds the year's report, or rebuilds its draft keeping the narrative. */

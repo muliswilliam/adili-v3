@@ -9,6 +9,8 @@ import { financialYear, today } from './form-m';
 import {
   approveNationalReport,
   buildNationalReport,
+  draftNationalReportNarrative,
+  loadNationalReport,
   loadNationalReportPage,
   nationalReportPdf,
   type NationalReportPage,
@@ -61,6 +63,34 @@ export const getPatternCandidatesFn = createServerFn({ method: 'GET' })
   .validator(z.object({ fy: financialYear }))
   .handler(({ data }): Promise<NationalReportResult<PatternCandidate[]> | Unauthenticated> =>
     asReportingViewer((client) => loadPatternCandidates(client, data.fy)),
+  );
+
+/** The year's report alone, polled while an AI narrative draft is being written (#341). */
+export const getNationalReportFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ fy: financialYear }))
+  .handler(({ data }): Promise<NationalReportResult<NationalReport> | Unauthenticated> =>
+    asReportingViewer((client) => loadNationalReport(client, data.fy)),
+  );
+
+/** Asks for an AI narrative draft of a section or all (spec 09b S2, S3, #341). */
+export const draftNationalReportNarrativeFn = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      fy: financialYear,
+      section: z.enum(['overview', 'findings', 'recommendations', 'all']),
+      replaceAll: z.boolean(),
+      idempotencyKey: z.uuid(),
+    }),
+  )
+  .handler(({ data }): Promise<NationalReportResult<NationalReport> | Unauthenticated> =>
+    asReportingViewer((client) =>
+      draftNationalReportNarrative(
+        client,
+        data.fy,
+        { section: data.section, replaceAll: data.replaceAll },
+        data.idempotencyKey,
+      ),
+    ),
   );
 
 export const buildNationalReportFn = createServerFn({ method: 'POST' })

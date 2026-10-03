@@ -32,9 +32,18 @@ export const NARRATIVE_SECTION_IDS = [
   'recommendations',
 ] as const satisfies readonly NarrativeSectionId[];
 
-/** reporting.yaml `NationalReport`, with its aggregates read. */
+/** reporting.yaml `NarrativeDraft`: the latest AI narrative draft of a report (spec 09b). */
+export type NarrativeDraft = Schemas['NarrativeDraft'];
+/** What a narrative draft is asked for: one section or `all`. */
+export type NarrativeDraftSection = NarrativeDraft['section'];
+
+/**
+ * reporting.yaml `NationalReport`, with its aggregates read. `narrativeDraft` is spec 09b's
+ * (#338): the service's contract gains it with #491, so until then it may be missing, read as null.
+ */
 export type NationalReport = Omit<Schemas['NationalReport'], 'aggregates'> & {
   aggregates: NationalAggregates;
+  narrativeDraft?: NarrativeDraft | null;
 };
 
 /**
