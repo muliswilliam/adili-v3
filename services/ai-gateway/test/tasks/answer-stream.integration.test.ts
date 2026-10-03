@@ -144,9 +144,13 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
 
   it('asks the provider for tagged text with the input as untrusted data, minimised', async () => {
     provider.scripts = [answered()];
-    const question = 'My ID is 12345678. Do I declare a matatu I co-own?';
+    const question = 'My ID is 12345678. Do I declare a matatu I co-own, worth KES 1.2 million?';
 
-    await stream({ ...answerInput, question });
+    await stream({
+      ...answerInput,
+      question,
+      history: [{ role: 'user', text: 'I paid 450,000 shillings for my share.' }],
+    });
 
     const sent = provider.requests.at(-1);
     expect(sent).not.toHaveProperty('schema');
@@ -154,6 +158,9 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const content = sent?.messages[0]?.content as string;
     expect(content).toContain('<untrusted-input>');
     expect(content).not.toContain('12345678');
+    // Spec 11: the helper never receives an amount, even one the declarant typed.
+    expect(content).not.toMatch(/1\.2 million|450,000/);
+    expect(content).toContain('[[AMOUNT_');
   });
 
   it('answers in Swahili with the Swahili label, citations unchanged', async () => {

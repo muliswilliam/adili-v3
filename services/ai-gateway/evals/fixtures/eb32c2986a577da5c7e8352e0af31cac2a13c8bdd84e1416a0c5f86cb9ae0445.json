@@ -7,7 +7,7 @@
     "messages": [
       {
         "role": "user",
-        "content": "<untrusted-input>\n{\"context\":{\"declarationType\":\"biennial\",\"householdCounts\":{\"children\":2,\"spouses\":1},\"residuals\":[],\"sectionKey\":\"statement:officer\",\"statementDate\":\"2026-11-01\"},\"history\":[],\"kind\":\"answer-declarant-question\",\"language\":\"en\",\"mode\":\"answer\",\"passages\":[{\"citation\":\"Act First Schedule, para. 8\",\"id\":\"act-sch1-para-8\",\"text\":\"8. Financial statement for _______________________(A separate statement is required for the officer and each spouse and dependent child under the age of 18 years. Additional sheets should be added as required.) (a) Statement date: (b) Income, including emoluments, for periods from __________________ to ____________________(Including, but not limited to, salary and emoluments and.income from investments. The period is from the previous statement date to the current statement date. For an initial declaration, the period is the year ending on the statement date.) Description Approximate amount (c) Assets (as of the statement date)(Including, but not limited to, land, buildings, vehicles, investments and financial obligations owed to the person for whom the statement is made.) Description (include location of asset where applicable) Approximate value (c) Liabilities (as of the statement date) Description Approximate amount\"},{\"citation\":\"Act First Schedule, note 9\",\"id\":\"act-sch1-note-9\",\"text\":\"A person submitting a declaration or providing a clarification shall ensure that the declaration or clarification is correct to the best of their knowledge.\"},{\"citation\":\"Act s.39\",\"id\":\"act-s39\",\"text\":\"A public officer who submits information that the public officer knows, or ought to know, is false or misleading, commits an offence.\"}],\"question\":\"Is KES 3 million the right value for my car?\"}\n</untrusted-input>"
+        "content": "<untrusted-input>\n{\"context\":{\"declarationType\":\"biennial\",\"householdCounts\":{\"children\":2,\"spouses\":1},\"residuals\":[],\"sectionKey\":\"statement:officer\",\"statementDate\":\"2026-11-01\"},\"history\":[],\"kind\":\"answer-declarant-question\",\"language\":\"sw\",\"mode\":\"answer\",\"passages\":[{\"citation\":\"Act First Schedule, para. 8\",\"id\":\"act-sch1-para-8\",\"text\":\"8. Financial statement for _______________________(A separate statement is required for the officer and each spouse and dependent child under the age of 18 years. Additional sheets should be added as required.) (a) Statement date: (b) Income, including emoluments, for periods from __________________ to ____________________(Including, but not limited to, salary and emoluments and.income from investments. The period is from the previous statement date to the current statement date. For an initial declaration, the period is the year ending on the statement date.) Description Approximate amount (c) Assets (as of the statement date)(Including, but not limited to, land, buildings, vehicles, investments and financial obligations owed to the person for whom the statement is made.) Description (include location of asset where applicable) Approximate value (c) Liabilities (as of the statement date) Description Approximate amount\"},{\"citation\":\"Act First Schedule, note 9\",\"id\":\"act-sch1-note-9\",\"text\":\"A person submitting a declaration or providing a clarification shall ensure that the declaration or clarification is correct to the best of their knowledge.\"},{\"citation\":\"Act s.39\",\"id\":\"act-s39\",\"text\":\"A public officer who submits information that the public officer knows, or ought to know, is false or misleading, commits an offence.\"}],\"question\":\"Je, [[AMOUNT_1]] ni thamani sahihi ya gari langu?\"}\n</untrusted-input>"
       }
     ],
     "maxOutputTokens": 2048
@@ -20,10 +20,10 @@
     {
       "type": "final",
       "result": {
-        "model": "anthropic/claude-opus-5-5",
+        "model": "claude-opus-5-5",
         "usage": {
-          "inputTokens": 585,
-          "outputTokens": 156,
+          "inputTokens": 602,
+          "outputTokens": 45,
           "cacheReadTokens": 1770,
           "cacheWriteTokens": 0
         },
