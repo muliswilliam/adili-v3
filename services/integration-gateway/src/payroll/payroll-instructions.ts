@@ -48,10 +48,10 @@ export interface Submitted {
  * instruction payroll does not acknowledge (down, timed out, breaker open, paused) is
  * `upstream-unavailable` and nothing is recorded as sent: the caller's workflow retries, and
  * payroll, idempotent by reference too, answers a retry of an instruction it did receive with
- * the original. Every call
- * to payroll leaves a `system_calls` row for coverage, in one transaction with what it achieved:
- * the acknowledgement stored and `payroll.instruction.submitted.v1`, or, unacknowledged,
- * `payroll.instruction.unacknowledged.v1` alone.
+ * the original. Every call to payroll leaves a `system_calls` row for coverage, in one
+ * transaction with what it achieved: the acknowledgement stored and
+ * `payroll.instruction.submitted.v1`, or, unacknowledged, `payroll.instruction.unacknowledged.v1`
+ * alone (also when a stored pending acknowledgement is answered).
  */
 @Injectable()
 export class PayrollInstructions {
@@ -101,9 +101,10 @@ export class PayrollInstructions {
       });
     if (call.outcome === 'unavailable') {
       await unacknowledged(call.reason);
-      // A pending instruction was acknowledged: its replay answers what is stored, as a read does.
-      const pending = stored && (await this.find(request.instructionReference));
-      if (pending) return replay(pending, particulars);
+      // A stored instruction (pending, or settled meanwhile by another call): its replay answers
+      // what is stored now, as a read does.
+      const current = stored && (await this.find(request.instructionReference));
+      if (current) return replay(current, particulars);
       throw new ProblemException({
         type: 'upstream-unavailable',
         title: 'Payroll unavailable',

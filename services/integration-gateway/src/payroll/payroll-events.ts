@@ -44,8 +44,10 @@ export function payrollInstructionSubmitted(
 /**
  * The gateway sent payroll an instruction it did not acknowledge (ADR-008: an integration call,
  * answered or not, is audited): payroll down, timed out, its breaker open or paused, or holding
- * another instruction under the reference. Nothing is recorded as sent. Once per attempt; the
- * same identifiers as `payroll.instruction.submitted.v1`, with why.
+ * another instruction under the reference. Nothing is recorded as sent. Once per attempt, also
+ * when the attempt was a replay of a stored `pending` instruction (the attempt went unacknowledged,
+ * and the caller is answered the stored pending acknowledgement). The same identifiers as
+ * `payroll.instruction.submitted.v1`, with why.
  */
 export const PAYROLL_INSTRUCTION_UNACKNOWLEDGED = 'payroll.instruction.unacknowledged.v1';
 
