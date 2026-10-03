@@ -55,9 +55,8 @@ export interface WorkflowStart {
 /**
  * Starts a workflow, idempotently: one running under the same id is left as it is (a retried
  * start, or a re-order of a record still in progress) unless `replaceRunning`; one that ended is
- * started afresh. Temporal
- * unreachable is logged and thrown as 503 `workflow-unavailable`, which rolls the caller's
- * transaction back.
+ * started afresh. Temporal unreachable is logged and thrown as 503 `workflow-unavailable`, which
+ * rolls the caller's transaction back.
  */
 export async function startWorkflow(temporal: Client, start: WorkflowStart): Promise<void> {
   try {

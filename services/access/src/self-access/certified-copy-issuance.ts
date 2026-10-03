@@ -110,13 +110,13 @@ export class CertifiedCopyIssuance {
     if (!found) throw new Error('The certified copy was not recorded');
     if (found.status !== 'failed') return { copy: found, retried: false };
     // Asked again after declarations had no such version: try again, as asked now.
-    const [retried] = await tx
+    const [reopened] = await tx
       .update(certifiedCopies)
       .set({ status: 'pending', failedAt: null, commissionName: order.commissionName, ...asked })
       .where(eq(certifiedCopies.id, found.id))
       .returning();
-    if (!retried) throw new Error('The certified copy was not recorded');
-    return { copy: retried, retried: true };
+    if (!reopened) throw new Error('The certified copy was not recorded');
+    return { copy: reopened, retried: true };
   }
 
   private async start(input: CertifiedCopyWorkflowInput, replaceRunning: boolean): Promise<void> {

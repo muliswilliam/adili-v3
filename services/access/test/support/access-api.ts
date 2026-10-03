@@ -94,7 +94,10 @@ export interface AccessApi {
   temporal: Client;
   /** The events recorded in the outbox, of `type` when given, oldest first. */
   events(type?: string): Promise<RecordedEvent[]>;
-  /** Terminates the workflows with these ids (one not running is fine) and waits out their activities in flight. */
+  /**
+   * Terminates the workflows with these ids (one not running is fine), then waits until the
+   * worker runs no activity: a terminated run's activity in flight runs on.
+   */
   endWorkflows(ids: readonly string[]): Promise<void>;
   /**
    * Waits until `check` holds (or returns a value other than undefined), as a workflow's
@@ -264,6 +267,7 @@ export async function startAccessApi(): Promise<AccessApi> {
           // Never started (held), or ended already.
         }
       }
+      // As in endWorkflows: no straggling activity writes into the next test.
       await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
       // Children before parents; the register's insert-only trigger does not fire on truncate.
       await db.execute(
