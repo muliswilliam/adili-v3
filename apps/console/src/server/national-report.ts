@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { defaultFinancialYear } from '../components/eacc-intake/intake-view';
 import { asReportingViewer, type Unauthenticated, withViewerClient } from './as-viewer.server';
 import { reportDocumentsClient } from './documents/report-client.server';
-import { financialYear, today } from './form-m';
+import { financialYear } from './form-m';
 import {
   approveNationalReport,
   buildNationalReport,
@@ -17,6 +17,7 @@ import {
   saveNationalReportNarrative,
 } from './national-report.server';
 import { loadPatternCandidates } from './pattern-candidates.server';
+import { reportingToday } from './reporting/today.server';
 import type { NationalReport, PatternCandidate } from './reporting/types';
 import type { ServiceResult } from './service-call';
 
@@ -47,7 +48,7 @@ export interface NationalReportScreen {
 export const getNationalReportPage = createServerFn({ method: 'GET' })
   .validator(z.object({ fy: financialYear.optional() }))
   .handler(async ({ data }): Promise<NationalReportScreen> => {
-    const day = await today();
+    const day = await reportingToday();
     const fy = data.fy ?? defaultFinancialYear(day);
     return {
       today: day,

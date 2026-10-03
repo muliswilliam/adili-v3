@@ -179,7 +179,7 @@ describe('S15 national report: before it is built', () => {
 
     expect(build).toHaveBeenCalledWith(2025);
     expect(screen.getByText('Building from 11 submitted reports…')).toBeDefined();
-    expect(screen.getByText('Your narrative is kept.')).toBeDefined();
+    expect(screen.queryByText('Your narrative is kept.')).toBeNull();
     await act(async () => {
       finish({ ok: true, data: reportOf(built) });
       await Promise.resolve();
@@ -631,6 +631,135 @@ describe('seams for spec 09b', () => {
       'value',
       'Typed, not saved yet.',
     );
+  });
+
+  it('keeps text the service refused when a newer version arrives, so it is not lost', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const saveNarrative = vi.fn(() =>
+      Promise.resolve<NationalReportResult<NationalReport>>({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Bad Request', status: 400 },
+        },
+      }),
+    );
+    const view = renderView({ result: page, saveNarrative });
+    const field = screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' });
+    fireEvent.change(field, { target: { value: 'Refused text.' } });
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(saveNarrative).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Could not save')).toBeDefined();
+    });
+
+    view.rerender({
+      result: {
+        ok: true,
+        data: { ...page.data, report: { ...report, version: report.version + 5 } },
+      },
+    });
+
+    expect(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' })).toHaveProperty(
+      'value',
+      'Refused text.',
+    );
+  });
+
+  it('shows the server narrative, frozen, once the report is approved meanwhile', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const approved = reportOf(await pageOf('approved'));
+    const saveNarrative = vi.fn(() =>
+      Promise.resolve<NationalReportResult<NationalReport>>({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Conflict', status: 409, code: 'ncr-approved' },
+        },
+      }),
+    );
+    const view = renderView({ result: page, saveNarrative });
+    const field = screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' });
+    fireEvent.change(field, { target: { value: 'Typed as it was approved.' } });
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(saveNarrative).toHaveBeenCalled();
+    });
+
+    view.rerender({
+      result: {
+        ok: true,
+        data: { ...page.data, report: { ...approved, id: report.id, version: report.version + 1 } },
+      },
+    });
+
+    expect(screen.getByText('Frozen at approval')).toBeDefined();
+    expect(
+      screen.getByText('Commissions that did not report should do so within 30 days.'),
+    ).toBeDefined();
+    expect(screen.queryByText('Typed as it was approved.')).toBeNull();
+    expect(screen.queryByText('Could not save')).toBeNull();
+  });
+
+  it('drops an edit still waiting to be saved when the report is approved meanwhile', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const approved = reportOf(await pageOf('approved'));
+    const saveNarrative = vi.fn(() => Promise.resolve({ ok: true as const, data: report }));
+    vi.useFakeTimers();
+    try {
+      const view = renderView({ result: page, saveNarrative });
+      fireEvent.change(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' }), {
+        target: { value: 'Waiting on the debounce.' },
+      });
+
+      view.rerender({
+        result: {
+          ok: true,
+          data: {
+            ...page.data,
+            report: { ...approved, id: report.id, version: report.version + 1 },
+          },
+        },
+      });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(saveNarrative).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores an adopted report while the viewer cannot edit', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    renderView({
+      result: page,
+      viewer: SUPERVISOR,
+      extensions: {
+        narrativeActions: ({ adoptReport }) => (
+          <button
+            type="button"
+            onClick={() => {
+              adoptReport({ ...report, version: report.version + 1, narrativeParagraphs: [] });
+            }}
+          >
+            Adopt
+          </button>
+        ),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adopt' }));
+
+    expect(screen.getByText(/^This report consolidates/)).toBeDefined();
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it('keeps the AI-draft label when a panel adds its own paragraph line', async () => {

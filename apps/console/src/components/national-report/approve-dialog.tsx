@@ -19,8 +19,8 @@ import { useState } from 'react';
 
 import type { NationalReportResult } from '../../server/national-report.server';
 import type { NationalReport } from '../../server/reporting/types';
+import { messages as intakeMessages } from '../eacc-intake/messages';
 import { messages as m } from './messages';
-import { fyLabel } from './model';
 
 export type ApproveReport = (
   fy: number,
@@ -111,7 +111,9 @@ export function ApproveDialog({
             </div>
           ) : (
             <>
-              <p className="text-[14.5px] leading-[1.55]">{m.approveText(fyLabel(fy))}</p>
+              <p className="text-[14.5px] leading-[1.55]">
+                {m.approveText(intakeMessages.fyLabel(fy))}
+              </p>
               <dl className="grid grid-cols-2 gap-4 rounded-lg bg-muted px-4 py-3">
                 <div>
                   <dt className="text-xs text-muted-foreground">{m.approveAuthor}</dt>
