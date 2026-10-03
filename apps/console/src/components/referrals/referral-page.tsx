@@ -98,8 +98,14 @@ function EvidenceText({ kind, reference }: { kind: ReferralManifestKind; referen
   );
 }
 
-/** Why the viewer was refused a decision, after the page loaded. */
-type Refused = 'proposer' | 'reviewer-of-record' | 'role';
+/**
+ * Why review refused the viewer a decision after the page loaded, and which decision: the panel
+ * then says so in that decision's words (approve or decline) and offers no decision again.
+ */
+interface Refused {
+  reason: 'proposer' | 'reviewer-of-record' | 'role';
+  decision: 'approve' | 'decline';
+}
 
 /**
  * One referral to EACC (spec 08 FE-6; S12, S13): its status, grounds and classification, that
@@ -134,13 +140,14 @@ export function ReferralPage({
     // The cover sheet lists every item, then itself.
     evidenceItems: evidence.length + 1,
   };
-  const panel = refused ?? approvalPanel(referral, viewer, supervisor);
+  const panel = refused ? 'refused' : approvalPanel(referral, viewer, supervisor);
   const loadSupervisors = useCallback(() => getSupervisors({ data: { slug } }), [slug]);
 
   /** Settles a decision: a refusal by the rule says why on the page; another's decision reloads. */
   async function settle(
     result: DecisionResult,
     success: (data: Referral) => string,
+    decision: Refused['decision'],
   ): Promise<FailureText | null> {
     if (result.ok) {
       setApproving(null);
@@ -156,7 +163,10 @@ export function ReferralPage({
       if (refusal.kind === 'not-proposed') {
         toast({ title: t.toasts.decided, urgency: 'assertive' });
       } else {
-        setRefused(refusal.kind === 'separation-of-duties' ? refusal.reason : 'role');
+        setRefused({
+          reason: refusal.kind === 'separation-of-duties' ? refusal.reason : 'role',
+          decision,
+        });
       }
       await router.invalidate();
       return null;
@@ -166,11 +176,15 @@ export function ReferralPage({
   }
 
   async function approve(): Promise<FailureText | null> {
-    return settle(await decisions.approve(), (data) => t.toasts.approved(data.reference));
+    return settle(
+      await decisions.approve(),
+      (data) => t.toasts.approved(data.reference),
+      'approve',
+    );
   }
 
   async function decline(_: ReferralSubject, note: string): Promise<FailureText | null> {
-    return settle(await decisions.decline(note), () => t.toasts.declined);
+    return settle(await decisions.decline(note), () => t.toasts.declined, 'decline');
   }
 
   async function reassign(target: ReassignTarget, to: Assignee): Promise<FailureText | null> {
@@ -283,6 +297,7 @@ export function ReferralPage({
             <ApprovalBody
               referral={referral}
               panel={panel}
+              refused={refused}
               exhausted={poll.exhausted}
               onCheckAgain={poll.restart}
               onApprove={() => {
@@ -360,6 +375,7 @@ function Section({
 function ApprovalBody({
   referral,
   panel,
+  refused,
   exhausted,
   onCheckAgain,
   onApprove,
@@ -367,7 +383,8 @@ function ApprovalBody({
   onReassign,
 }: {
   referral: Referral;
-  panel: ReturnType<typeof approvalPanel> | Refused;
+  panel: ReturnType<typeof approvalPanel> | 'refused';
+  refused: Refused | null;
   exhausted: boolean;
   onCheckAgain: () => void;
   onApprove: () => void;
@@ -390,19 +407,19 @@ function ApprovalBody({
     );
   }
   if (panel !== 'decided') {
-    const reason =
-      panel === 'role'
+    const reason = refused
+      ? t.refused[refused.decision][refused.reason]
+      : panel === 'role'
         ? t.detail.role
-        : panel === 'proposer'
-          ? t.detail.proposer
-          : t.refused['reviewer-of-record'];
+        : t.detail.proposer;
+    const role = refused ? refused.reason === 'role' : panel === 'role';
     return (
       <>
         <Alert variant="warning" role="status">
           <Icon icon={SquareLock02Icon} />
           <AlertTitle>{reason}</AlertTitle>
         </Alert>
-        {onReassign && panel !== 'role' ? (
+        {onReassign && !role ? (
           <Button size="sm" variant="secondary" className="w-full" onClick={onReassign}>
             <Icon icon={ArrowDataTransferHorizontalIcon} />
             {t.detail.reassign}

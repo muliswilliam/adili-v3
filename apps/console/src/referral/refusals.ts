@@ -1,6 +1,7 @@
 import {
   type CodedRefusal,
-  type DecisionRefusal as SharedDecisionRefusal,
+  DECISION_REFUSAL_STATUS,
+  type DecisionRefusal,
   problemLabel,
 } from '../server/service-call';
 
@@ -18,23 +19,14 @@ export const PROPOSE_REFUSAL_STATUS = {
   'not-the-assignee': 403,
 } as const satisfies Record<string, 403 | 409>;
 
-/** Approving or declining a referral. */
-export const DECISION_REFUSAL_STATUS = {
-  /** The caller proposed it or held one of its cases (with `reason`). */
-  'separation-of-duties': 403,
-  /** A reviewer, not a supervisor. */
-  'supervisor-required': 403,
-  /** It was decided already. */
-  'not-proposed': 409,
-} as const satisfies Record<string, 403 | 409>;
-
 /** Why review refused a referral proposal. */
 export type ProposeRefusal = CodedRefusal<keyof typeof PROPOSE_REFUSAL_STATUS>;
 
+/** Approving or declining a referral: the refusals of deciding any approval. */
+export { DECISION_REFUSAL_STATUS };
+
 /** Why review refused approving or declining a referral. */
-export type DecisionRefusal = CodedRefusal<keyof typeof DECISION_REFUSAL_STATUS>;
-// The inbox's notice reads every kind's decision refusals (`service-call.ts` `DecisionRefusal`).
-DECISION_REFUSAL_STATUS satisfies Record<SharedDecisionRefusal['kind'], 403 | 409>;
+export type { DecisionRefusal };
 
 /** The refusal's status and code, as a dialog prints it ("409 referral-open"). */
 export function referralRefusalProblem(refusal: ProposeRefusal | DecisionRefusal): string {

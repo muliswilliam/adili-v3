@@ -1,4 +1,4 @@
-import { type CodedRefusal, problemLabel } from '../server/service-call';
+import { type CodedRefusal, DECISION_REFUSAL_STATUS, problemLabel } from '../server/service-call';
 
 /**
  * The refusals of review's determination endpoints (spec 08) the screens explain, by problem
@@ -14,14 +14,10 @@ export const REFUSAL_STATUS = {
   'clarification-open': 409,
   /** Propose: only the case's assignee proposes. */
   'not-the-assignee': 403,
-  /** Approve or return: the caller proposed it or held the case (with `reason`). */
-  'separation-of-duties': 403,
-  /** Approve or return: a reviewer, not a supervisor. */
-  'supervisor-required': 403,
   /** Withdraw: only the proposer withdraws. */
   'not-the-proposer': 403,
-  /** Approve, return or withdraw: it was decided already. */
-  'not-proposed': 409,
+  /** Approve, return or withdraw: the decision refusals (`not-proposed` for withdraw too). */
+  ...DECISION_REFUSAL_STATUS,
 } as const satisfies Record<string, 403 | 409>;
 
 /** Why review refused a determination call, as review.yaml's problem codes name it. */
