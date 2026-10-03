@@ -42,8 +42,9 @@ const NAME_LABELS = [
   'borrowers?',
   String.raw`(?:registered\s+)?holders?`,
   'shareholders?',
-  // Not a member's number or deposits ("Member No.", "Member Deposits").
-  String.raw`members?(?![ \t]+(?:no\b|nos\b|number|deposits|ship))(?:\s+name)?`,
+  // Not a member's deposits ("Member Deposits"); a member's number is read as a value, after
+  // which a name may follow ("Member No. 3310 Mary Wanjiru").
+  String.raw`members?(?![ \t]+deposits)(?:\s+name)?`,
   String.raw`jina(?:\s+kamili)?`,
   'majina',
   'mmiliki',
@@ -289,6 +290,7 @@ const PLACES = new Set([
   ...COUNTIES.flatMap(({ name }) => name.toLowerCase().split(/[\s-]+/u)),
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
   ...['kenya', 'uganda', 'tanzania', 'rwanda', 'nyali', 'westlands', 'kilimani'],
+  ...['kileleshwa', 'lavington', 'parklands', 'runda', 'muthaiga', 'langata', 'gigiri'],
 ]);
 /** A document's headings and vehicle makes, which a list's unmarked line may hold. */
 const HEADING_WORDS = new Set([
@@ -496,9 +498,14 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
     }
     // A field whose value is a shape or a number ends a party as a shape does ("John Kamau KRA
     // PIN A123456789Z and Mary Wanjiru", "Mary Wanjiru, Member No. 3310, and Peter Otieno").
-    const value = fieldValueAt(tokens, at);
+    const opening = fieldValueAt(tokens, at, words === 0);
+    const value = opening > 0 ? opening : fieldValueAt(tokens, at);
     if (value > 0) {
-      const next = words === 0 ? value : partyAfterValue(tokens, value);
+      // A field before the name is skipped ("Proprietor: ID 12345678 John Kamau"); a member's
+      // number the span opens on is followed by a name or ends it ("Member No. 3310 Mary
+      // Wanjiru", not "... Stima Sacco").
+      const numberFirst = words === 0 && LABEL_TAILS.has(lower(word));
+      const next = words === 0 && !numberFirst ? value : partyAfterValue(tokens, value);
       if (next < 0) break;
       nextParty();
       at = next - 1;
@@ -517,11 +524,13 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
 
 /**
  * Whether a person's name starts at `at`: capitalised name words and particles, none a known word
- * (a field, heading, place, office, vehicle model or currency) and not an organisation's ("Mary
- * Wanjiru", not "Toyota Premio", "Freehold", "Equity Bank", "Kakuzi PLC").
+ * (a field, heading, office, vehicle model or currency), not an organisation's or an address's,
+ * and not places alone ("Mary Wanjiru", "Kericho Langat"; not "Toyota Premio", "Freehold",
+ * "Equity Bank", "Runda Estate", "Nairobi").
  */
 function nameRunAt(tokens: readonly Token[], at: number): boolean {
   let names = 0;
+  let places = 0;
   for (let next = at; next < tokens.length; next++) {
     const token = tokens[next];
     if (token?.kind === 'space') continue;
@@ -530,6 +539,16 @@ function nameRunAt(tokens: readonly Token[], at: number): boolean {
     const word = lower(token.text);
     if (isOrganisationWord(word)) return false;
     if (!isCapitalised(token.text)) break;
+    // An address's word makes the run no person's ("Runda Estate", "Kileleshwa Road"), and so do
+    // places alone ("Nairobi"); a name may start with one ("Kericho Langat").
+    // A field's label ends the name ("Peter Otieno Staff No. 12").
+    if (CODE_LEADS.has(word) || LABEL_TAILS.has(word)) break;
+    if (ADDRESS_TAIL_WORDS.has(word)) return false;
+    if (PLACES.has(word)) {
+      places++;
+      names++;
+      continue;
+    }
     // A common word that is also a name is one here ("Grace Njeri").
     const common = COMMON_WORDS.has(word) && !FIELD_LEADS.has(word);
     if ((WRITTEN_ONLY.has(word) && !common) || VEHICLE_MODELS.has(word) || FIELD_WORDS.has(word))
@@ -537,7 +556,7 @@ function nameRunAt(tokens: readonly Token[], at: number): boolean {
     if (startsLabel(tokens, next) || labelsAField(tokens, next)) break;
     names++;
   }
-  return names > 0;
+  return names > places;
 }
 
 /** Words a field's label may hold after its field words ("ID No.", "Account Number"). */
@@ -547,6 +566,7 @@ const LABEL_TAILS: ReadonlySet<string> = new Set(NUMBER_WORDS);
 const ADDRESS_TAIL_WORDS: ReadonlySet<string> = new Set([
   ...['of', 'box', 'road', 'rd', 'street', 'avenue', 'lane', 'drive', 'close', 'way', 'highway'],
   ...['town', 'city', 'estate', 'house', 'plot', 'building', 'floor', 'county', 'centre'],
+  ...['apartments', 'apartment', 'court', 'gardens', 'flats', 'heights', 'park'],
   ...NUMBER_WORDS,
 ]);
 
@@ -574,8 +594,10 @@ const CODE_LEADS = new Set(['member', 'membership', 'payroll', 'staff', 'policy'
  * Where a field's value starts after its label at `at`: the label's field words (and number
  * words), spaces, dots and colons, then a blanked shape ("KRA PIN A123...", "ID No. 12345678"),
  * or a number after a number word ("Member No. 3310", "Account Number 0123456789"); -1 for none.
+ * When `opening`, the label may be the number word alone, as a span opens on it after a label
+ * ("Member No. 3310": the span after "Member" is "No. 3310").
  */
-function fieldValueAt(tokens: readonly Token[], at: number): number {
+function fieldValueAt(tokens: readonly Token[], at: number, opening = false): number {
   let next = at;
   let fields = 0;
   let codes = 0;
@@ -587,7 +609,7 @@ function fieldValueAt(tokens: readonly Token[], at: number): number {
     const word = lower(token.text);
     if (FIELD_LEADS.has(word)) fields++;
     else if (CODE_LEADS.has(word) && fields === 0 && !numbered) codes++;
-    else if (fields + codes > 0 && LABEL_TAILS.has(word)) numbered = true;
+    else if ((fields + codes > 0 || opening) && LABEL_TAILS.has(word)) numbered = true;
     else break;
   }
   const value = tokens[next];
@@ -598,21 +620,23 @@ function fieldValueAt(tokens: readonly Token[], at: number): number {
 
 /**
  * Where the span goes on after a value at `at` (a shape, or a field's number) that follows a name:
- * past the value, its address's tail and any more fields and values, at a joiner ("... ID
- * 12345678 of Nakuru and Mary Wanjiru") or a name ("... 0712345678 Mary Wanjiru"); -1 when an item
- * or a field's value follows instead ("... ID 12345678 Toyota Premio", "... Equity Bank").
+ * past the value, its address's tail, joiners and any more fields and values, at a person's name
+ * ("... ID 12345678 of Nakuru and Mary Wanjiru", "... 0712345678 Mary Wanjiru"); -1 when an item,
+ * an organisation or a place follows instead ("... ID 12345678 Toyota Premio", "... Equity Bank",
+ * "... ID 12345678, Runda Estate, Nairobi").
  */
 function partyAfterValue(tokens: readonly Token[], at: number): number {
   let next = addressTail(tokens, at);
-  for (let value = fieldValueAt(tokens, next); value > 0; value = fieldValueAt(tokens, next)) {
-    next = addressTail(tokens, value);
+  for (;;) {
+    const value = fieldValueAt(tokens, next);
+    const after = tokens[next];
+    const joins =
+      after?.kind === 'joiner' || (after?.kind === 'word' && JOINER_WORDS.has(lower(after.text)));
+    if (value > 0) next = addressTail(tokens, value);
+    else if (joins) next = nextToken(tokens, next);
+    else break;
   }
-  const after = tokens[next];
-  const goesOn =
-    after?.kind === 'joiner' ||
-    (after?.kind === 'word' && JOINER_WORDS.has(lower(after.text))) ||
-    nameRunAt(tokens, next);
-  return goesOn ? next : -1;
+  return nameRunAt(tokens, next) ? next : -1;
 }
 
 /**
