@@ -42,7 +42,8 @@ import {
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import { declarationAttachments, declarationSections, obligationDrafts } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
-import { isRecord } from '../guards.js';
+import { isRecord, isUuid } from '../guards.js';
+import { statementKey, statementPersonKey } from '../drafts/sections.js';
 import { readingContents } from './document-reading.js';
 import { declarationExtractionRequested, declarationSuggestionsReady } from './events.js';
 import {
@@ -79,8 +80,8 @@ export function readingSubjectRef(declarationId: string): string {
 
 /** The declaration a reading's job is about, from its subject; null for anyone else's job. */
 export function declarationOfSubjectRef(subjectRef: string): string | null {
-  const match = /^declaration:([0-9a-f-]{36})$/iu.exec(subjectRef);
-  return match?.[1] ?? null;
+  const id = subjectRef.startsWith('declaration:') ? subjectRef.slice('declaration:'.length) : '';
+  return isUuid(id) ? id : null;
 }
 
 /** How a job that ended without a reading reads to the declarant. */
@@ -94,6 +95,8 @@ function outcomeOf(job: ExtractionJob): {
   if (job.status === 'blocked' || job.status === 'failed') {
     return { status: 'failed', reason: failureOf(job.reason) };
   }
+  // Succeeded, but its reading is gone (purged): nothing to offer.
+  if (job.status === 'succeeded' && !job.output) return { status: 'failed', reason: 'not-read' };
   return null;
 }
 
@@ -181,11 +184,11 @@ export class ExtractionService {
     const download = await this.download(declaration, attachment.uploadId, person.subject);
     const setId = uuidv7();
     if (!isReadable(download.contentType)) {
-      await this.record(person, reading, request, setId, null, {
+      const recorded = await this.record(person, reading, request, setId, null, {
         status: 'failed',
         reason: 'document-unreadable',
       });
-      return this.view(person, declaration, setId);
+      return this.view(person, declaration, recorded);
     }
     const input: ExtractDocumentInput = {
       kind: 'extract-document',
@@ -212,13 +215,13 @@ export class ExtractionService {
       );
       throw aiUnavailable();
     }
-    await this.record(person, reading, request, setId, job.id, outcomeOf(job));
+    const recorded = await this.record(person, reading, request, setId, job.id, outcomeOf(job));
     // A job that succeeded already (an equal request was read) is recorded now; a live one by its
     // event, or by this pull should it have ended before the set was recorded.
     if (job.status === 'succeeded' || !isFinished(job)) {
       await this.pull(person, declaration, job.id, job);
     }
-    return this.view(person, declaration, setId);
+    return this.view(person, declaration, recorded);
   }
 
   /**
@@ -252,11 +255,15 @@ export class ExtractionService {
   }
 
   /**
-   * Records how the job ended on its pending sets of the declaration, pulling it from the gateway
-   * unless given finished. Nothing when it has not ended, or no set waits for it. Throws
+   * Pulls the job from the gateway and records how it ended on its pending sets of the
+   * declaration. Nothing when it has not ended, or no set waits for it. Throws
    * `AiGatewayUnavailable` when the gateway cannot answer (the event is retried).
    */
-  async settle(person: PersonContext, declaration: DeclarationRow, jobId: string): Promise<void> {
+  private async settle(
+    person: PersonContext,
+    declaration: DeclarationRow,
+    jobId: string,
+  ): Promise<void> {
     const job = await this.gateway.getJob(declaration.tenant, jobId);
     if (job && isFinished(job)) await this.recordOutcome(person, declaration, job);
   }
@@ -315,7 +322,7 @@ export class ExtractionService {
           setId: set.id,
           declarationId: declaration.id,
           personKey: set.personKey,
-          sectionKey: `statement:${set.personKey}`,
+          sectionKey: statementKey(set.personKey),
           itemType: set.targetItemType ?? 'other',
           ciphertext: sealed.ciphertext,
           envelope: sealed.envelope,
@@ -401,7 +408,7 @@ export class ExtractionService {
   ): Promise<Reading | null> {
     const declaration = await liveDeclaration(tx, declarationId);
     if (!declaration) return null;
-    const [attachment] = /^[0-9a-f-]{36}$/iu.test(attachmentId)
+    const [attachment] = isUuid(attachmentId)
       ? await tx
           .select()
           .from(declarationAttachments)
@@ -432,7 +439,8 @@ export class ExtractionService {
         : undefined;
       return isRecord(item) ? [{ list, type: item.type }] : [];
     })[0];
-    if (!found) return null;
+    const personKey = statementPersonKey(attachment.sectionKey);
+    if (!found || !personKey) return null;
     const itemType = typeof found.type === 'string' ? found.type : '';
     // An item saved without a type (a draft can be) has nothing to be read into yet.
     if (!ITEM_TYPES[found.list].includes(itemType)) {
@@ -443,7 +451,7 @@ export class ExtractionService {
     return {
       declaration,
       attachment,
-      personKey: attachment.sectionKey.slice('statement:'.length) as PersonKey,
+      personKey,
       target: { section: found.list, itemType },
     };
   }
@@ -508,7 +516,12 @@ export class ExtractionService {
     }
   }
 
-  /** The set, with the request's audit event, in one transaction. */
+  /**
+   * The set, with the request's audit event, in one transaction; the set's id. A concurrent
+   * request that recorded a pending reading of the attachment as this kind first wins
+   * (`suggestion_sets_pending_reading_key`): its set is the answer, and this one is not recorded
+   * (the gateway answered both with the same job, from its cache).
+   */
   private async record(
     person: PersonContext,
     { declaration, attachment, personKey, target }: Reading,
@@ -516,22 +529,40 @@ export class ExtractionService {
     setId: string,
     aiJobId: string | null,
     outcome: { status: SuggestionSetStatus; reason: ExtractionFailure | null } | null,
-  ): Promise<void> {
-    await withPerson(this.db, person, async (tx) => {
-      await tx.insert(suggestionSets).values({
-        id: setId,
-        declarationId: declaration.id,
-        personKey,
-        source: 'document',
-        status: outcome?.status ?? 'pending',
-        reason: outcome?.reason ?? null,
-        aiJobId,
-        attachmentId: attachment.id,
-        documentKind: request.documentKindHint,
-        targetSection: target.section,
-        targetItemType: target.itemType,
-        requestedAt: this.clock.now(),
-      });
+  ): Promise<string> {
+    return withPerson(this.db, person, async (tx) => {
+      const inserted = await tx
+        .insert(suggestionSets)
+        .values({
+          id: setId,
+          declarationId: declaration.id,
+          personKey,
+          source: 'document',
+          status: outcome?.status ?? 'pending',
+          reason: outcome?.reason ?? null,
+          aiJobId,
+          attachmentId: attachment.id,
+          documentKind: request.documentKindHint,
+          targetSection: target.section,
+          targetItemType: target.itemType,
+          requestedAt: this.clock.now(),
+        })
+        .onConflictDoNothing()
+        .returning({ id: suggestionSets.id });
+      if (inserted.length === 0) {
+        const [first] = await tx
+          .select({ id: suggestionSets.id })
+          .from(suggestionSets)
+          .where(
+            and(
+              eq(suggestionSets.attachmentId, attachment.id),
+              eq(suggestionSets.documentKind, request.documentKindHint),
+              eq(suggestionSets.status, 'pending'),
+            ),
+          );
+        if (!first) throw new Error('A pending reading conflicted and is gone');
+        return first.id;
+      }
       await this.events.record(
         tx,
         declarationExtractionRequested(declaration.tenant, {
@@ -541,6 +572,7 @@ export class ExtractionService {
           aiJobId,
         }),
       );
+      return setId;
     });
   }
 

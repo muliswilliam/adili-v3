@@ -45,7 +45,7 @@ export class ExtractionController {
   })
   @ApiProblemResponse(
     400,
-    "Validation failed (an unknown document kind or language, an item type not of the attached item's list), or the Idempotency-Key header missing",
+    'Validation failed (an unknown document kind or language, or the attached item has no type yet), or the Idempotency-Key header missing',
   )
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(
@@ -54,7 +54,7 @@ export class ExtractionController {
   )
   @ApiProblemResponse(
     503,
-    'Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; nothing was recorded',
+    'Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; no reading was recorded',
   )
   extract(
     @CurrentPrincipal() principal: Principal,

@@ -472,6 +472,19 @@ describe('when the Commission does not read documents, or the reading fails (S6)
     expect((await documentSets(draft.id))[0]).toMatchObject({ status: 'failed', reason });
   });
 
+  it('fails a reading the gateway no longer holds (purged) as not read', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    await extract(draft.id, attachment.id);
+    const job = api.ai.finish(api.ai.onlyJob().id, { output: null });
+
+    await api.extractionJobs.completed(jobEvent('ai.job.completed.v1', job));
+
+    expect((await documentSets(draft.id))[0]).toMatchObject({
+      status: 'failed',
+      reason: 'not-read',
+    });
+  });
+
   it('fails a file a reading does not take without asking the gateway', async () => {
     const { draft, attachment } = await draftWithLogbook(ACHIENG, 'image/heic');
 
@@ -530,6 +543,21 @@ describe('one reading per attachment and kind', () => {
     expect(again.json<SuggestionSet>().id).toBe(first.id);
     expect(api.ai.requests).toHaveLength(1);
     expect(await documentSets(draft.id)).toHaveLength(1);
+  });
+
+  it('records one reading for requests that arrive together', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+
+    const answers = await Promise.all([
+      extract(draft.id, attachment.id),
+      extract(draft.id, attachment.id),
+      extract(draft.id, attachment.id),
+    ]);
+
+    const ids = new Set(answers.map((answer) => answer.json<SuggestionSet>().id));
+    expect(ids.size).toBe(1);
+    expect(await documentSets(draft.id)).toHaveLength(1);
+    expect(await eventsOf('declaration.extraction-requested.v1')).toHaveLength(1);
   });
 
   it('reads it again as another kind, superseding the earlier reading not decided on', async () => {

@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { TENANT_KEY } from '@adili/api-kit';
 import { type Database, InjectDatabase } from '@adili/data-access';
-import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
+import { consumeIdempotent, type EventEnvelope, OnEvent } from '@adili/events';
 import { z } from 'zod';
 
 import { EXTRACT_DOCUMENT } from '../ai-gateway/ai-gateway-client.js';
@@ -29,8 +29,9 @@ const tenantSchema = z.string().regex(TENANT_KEY);
  * The ai-gateway's events that a job ended (spec 05b S6). An `extract-document` job about a
  * declaration (`subjectRef` `declaration:<id>`) settles the document sets waiting for it: the
  * service pulls the job and records its reading, or why there is none. Other services' jobs are
- * left alone. Each event is handled once (inbox); a handler that throws (the gateway did not
- * answer the pull) is retried once, then dead-lettered, and the declarant asking again pulls it.
+ * left alone. Each event is recorded in the inbox once handled; a handler that throws (the gateway
+ * did not answer the pull) is retried once, then dead-lettered, and the declarant asking again
+ * pulls it.
  */
 @Controller()
 export class ExtractionJobConsumer {
@@ -60,7 +61,9 @@ export class ExtractionJobConsumer {
     const declarationId = declarationOfSubjectRef(subjectRef);
     if (declarationId === null) return;
     const tenant = tenantSchema.parse(event.tenant);
-    await consumeOnce(this.db, EXTRACTION_JOB_CONSUMER, event, () =>
+    // Recorded once settled, outside a transaction: settling calls the gateway (ADR-013), and is
+    // idempotent on its own (only pending sets are settled).
+    await consumeIdempotent(this.db, EXTRACTION_JOB_CONSUMER, event, () =>
       this.extractions.jobFinished(tenant, declarationId, jobId),
     );
   }

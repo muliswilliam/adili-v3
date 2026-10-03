@@ -1,6 +1,16 @@
 import type { DeclarationSectionKey, PersonKey } from '@adili/forms';
 import { sql } from 'drizzle-orm';
-import { check, index, jsonb, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  check,
+  index,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { bytea, declarations } from '../declaration/schema.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
@@ -130,6 +140,10 @@ export const suggestionSets = pgTable(
   (table) => [
     index('suggestion_sets_declaration_id_idx').on(table.declarationId),
     index('suggestion_sets_ai_job_id_idx').on(table.aiJobId),
+    // One reading of an attachment as a kind under way at a time (idempotent per attachment and kind).
+    uniqueIndex('suggestion_sets_pending_reading_key')
+      .on(table.attachmentId, table.documentKind)
+      .where(sql`${table.status} = 'pending' and ${table.source} = 'document'`),
     check(
       'suggestion_sets_source_check',
       sql`${table.source} in ('kra', 'ntsa', 'brs', 'ardhisasa', 'document')`,

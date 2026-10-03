@@ -1,5 +1,5 @@
 {
-  "id": "d503a472-9382-41b8-8ed9-ddd7f8120df2",
+  "id": "0a6c828b-e49b-42f5-841e-5ab6a11a909f",
   "prevId": "bd2cfe02-78c2-4a7a-9dca-fb38ba31a528",
   "version": "7",
   "dialect": "postgresql",
@@ -2437,6 +2437,28 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "suggestion_sets_pending_reading_key": {
+          "name": "suggestion_sets_pending_reading_key",
+          "columns": [
+            {
+              "expression": "attachment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "document_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"suggestion_sets\".\"status\" = 'pending' and \"suggestion_sets\".\"source\" = 'document'",
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -4342,7 +4342,7 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionSet"];
                 };
             };
-            /** @description Validation failed (an unknown document kind or language, an item type not of the attached item's list), or the Idempotency-Key header missing */
+            /** @description Validation failed (an unknown document kind or language, or the attached item has no type yet), or the Idempotency-Key header missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4378,7 +4378,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; nothing was recorded */
+            /** @description Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; no reading was recorded */
             503: {
                 headers: {
                     [name: string]: unknown;

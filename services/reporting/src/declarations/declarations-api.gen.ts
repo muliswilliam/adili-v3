@@ -853,7 +853,7 @@ export interface paths {
         put?: never;
         /**
          * Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
-         * @description The document is read into the item it is attached to: the item's statement list, and its type unless `targetItemType` names another of the list. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.
+         * @description The document is read into the item it is attached to: the item's statement list (`assets`, `income` or `liabilities`) and type. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.
          */
         post: operations["extractAttachment"];
         delete?: never;
@@ -1931,8 +1931,6 @@ export interface components {
              * @enum {string}
              */
             documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
-            /** @description The declaration.v1 item type to read it into, of the list the attached item is in (`assets`, `income` or `liabilities`); the attached item's own type when left out */
-            targetItemType?: string;
             /**
              * @description The language of the warnings the reading gives
              * @default en
@@ -4344,7 +4342,7 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionSet"];
                 };
             };
-            /** @description Validation failed (an unknown document kind or language, an item type not of the attached item's list), or the Idempotency-Key header missing */
+            /** @description Validation failed (an unknown document kind or language, or the attached item has no type yet), or the Idempotency-Key header missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4380,7 +4378,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; nothing was recorded */
+            /** @description Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; no reading was recorded */
             503: {
                 headers: {
                     [name: string]: unknown;

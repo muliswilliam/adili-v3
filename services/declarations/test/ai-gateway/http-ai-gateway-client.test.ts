@@ -145,7 +145,7 @@ describe('HttpAiGatewayClient', () => {
     });
   });
 
-  it('answers null for an unknown job and unavailable for a refusal or a malformed answer', async () => {
+  it('answers null for an unknown job and unavailable for a refusal or a malformed reading', async () => {
     const problem = (status: number) => () =>
       new Response(JSON.stringify({ type: 'x', title: 'x', status }), {
         status,
@@ -159,10 +159,18 @@ describe('HttpAiGatewayClient', () => {
       ).rejects.toBeInstanceOf(AiGatewayUnavailable);
     }
     await expect(
-      clientAnswering(() => json(job({ status: 'succeeded', output: null }))).client.getJob(
-        'psc',
-        JOB_ID,
-      ),
+      clientAnswering(() =>
+        json({ ...(job() as object), status: 'succeeded', output: { detectedKind: 'passport' } }),
+      ).client.getJob('psc', JOB_ID),
     ).rejects.toBeInstanceOf(AiGatewayUnavailable);
+  });
+
+  it('reads a succeeded job whose reading was purged as one without output', async () => {
+    const purged = clientAnswering(() => json(job({ status: 'succeeded', output: null })));
+
+    expect(await purged.client.getJob('psc', JOB_ID)).toMatchObject({
+      status: 'succeeded',
+      output: null,
+    });
   });
 });

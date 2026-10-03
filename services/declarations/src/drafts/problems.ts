@@ -152,7 +152,7 @@ export function uploadAlreadyLinked(): ProblemException {
   });
 }
 
-/** 503: documents did not answer, so the file could not be `checked` or `attached`. */
+/** 503: documents did not answer, so the file could not be `checked`, `attached` or `read`. */
 export function documentsUnavailable(action: 'checked' | 'attached' | 'read'): ProblemException {
   return new ProblemException({
     type: 'documents-unavailable',

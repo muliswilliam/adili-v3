@@ -5,6 +5,8 @@ import type { paths } from './ai-gateway-api.gen.js';
 import {
   AiGatewayClient,
   AiGatewayUnavailable,
+  type AiJobReason,
+  type AiJobStatus,
   EXTRACT_DOCUMENT,
   type ExtractionReading,
   type ExtractionJob,
@@ -28,7 +30,26 @@ const DOCUMENT_KINDS = [
   'bank-letter',
   'share-certificate',
   'other',
-] as const;
+] as const satisfies readonly ExtractionReading['detectedKind'][];
+const JOB_STATUSES = [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'blocked',
+] as const satisfies readonly AiJobStatus[];
+const JOB_REASONS = [
+  'policy',
+  'budget',
+  'validation',
+  'refused',
+  'provider',
+  'provider-unavailable',
+  'timeout',
+  'cancelled',
+  'document-unavailable',
+  'document-unreadable',
+] as const satisfies readonly AiJobReason[];
 
 /** The output of a succeeded `extract-document` job, as far as the service reads it. */
 const outputSchema = z.object({
@@ -48,29 +69,17 @@ const jobSchema = z
   .object({
     id: z.uuid(),
     task: z.literal(EXTRACT_DOCUMENT),
-    status: z.enum(['queued', 'running', 'succeeded', 'failed', 'blocked']),
-    reason: z
-      .enum([
-        'policy',
-        'budget',
-        'validation',
-        'refused',
-        'provider',
-        'provider-unavailable',
-        'timeout',
-        'cancelled',
-        'document-unavailable',
-        'document-unreadable',
-      ])
-      .nullable(),
+    status: z.enum(JOB_STATUSES),
+    reason: z.enum(JOB_REASONS).nullable(),
     output: z.unknown(),
   })
   .transform((job, ctx): ExtractionJob => {
     let output: ExtractionJob['output'] = null;
-    if (job.status === 'succeeded') {
+    // A succeeded job's reading, unless purged since (null).
+    if (job.status === 'succeeded' && job.output !== null) {
       const parsed = outputSchema.safeParse(job.output);
       if (!parsed.success) {
-        ctx.addIssue({ code: 'custom', message: 'A succeeded job without its reading' });
+        ctx.addIssue({ code: 'custom', message: 'A succeeded job with a malformed reading' });
         return z.NEVER;
       }
       output = parsed.data;

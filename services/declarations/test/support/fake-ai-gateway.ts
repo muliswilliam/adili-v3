@@ -103,10 +103,11 @@ export class FakeAiGateway extends AiGatewayClient {
     return job;
   }
 
-  /** Ends the job: succeeded with `output`, or failed with `reason`. */
+  /** Ends the job: succeeded with `output` (null: since purged), or failed with `reason`. */
   finish(
     jobId: string,
-    outcome: { output: ExtractDocumentOutput } | { reason: NonNullable<ExtractionJob['reason']> },
+    outcome:
+      { output: ExtractDocumentOutput | null } | { reason: NonNullable<ExtractionJob['reason']> },
   ): FakeJob {
     const job = this.jobs.get(jobId);
     if (!job) throw new Error(`No job ${jobId}`);
