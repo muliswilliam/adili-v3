@@ -642,6 +642,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open or resume the conversation for a draft (or for the declarant without a draft)
+         * @description Declarants (by the person_id claim). One conversation per draft, kept while it is a draft and deleted when it is discarded or submitted; one outside a draft (the dashboard), at the Commission of the declarant's latest filing obligation, deleted 30 days after its last message. Opening in another language switches it. 404 for a draft that is not the caller's or not being edited, for a declarant without a filing obligation outside a draft, and for any other caller.
+         */
+        post: operations["openAssistantConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/assistant/conversations/{conversationId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion
+         * @description Declarants, on their own conversation. The ai-gateway gets the question, the declaration's type and statement date, the household as counts, the section and what the completeness check still reports (rule ids and field paths), and the passages of the Act, Regulations and help articles retrieved for it: never amounts, names, identifiers or descriptions. Events: `delta` {text}, the answer's prose as it is written, provisional until the end; then `final` {question, answer}, both turns as stored, whose answer replaces the deltas (an answer whose blocks do not all cite the passages retrieved is stored as a decline, with the reporting officer's contact); or `error` {code: assistant-unavailable}, after which nothing is stored. A `: ping` comment is sent every 15 s. A caller that disconnects ends the answer, and nothing is stored. Records `assistant.message.answered.v1`.
+         */
+        post: operations["askAssistant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/declarations/{declarationId}/versions/{version}/document": {
         parameters: {
             query?: never;
@@ -856,42 +896,6 @@ export interface paths {
         put?: never;
         /** Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated */
         post: operations["extractAttachment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/assistant/conversations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Open or resume the conversation for a draft (or for the declarant without a draft) */
-        post: operations["openAssistantConversation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/assistant/conversations/{conversationId}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion */
-        post: operations["askAssistant"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1731,6 +1735,65 @@ export interface components {
             removed: number;
             unchanged: number;
         };
+        OpenAssistantConversationRequest: {
+            /** @description The draft the declarant is working on; null for their conversation outside a draft (the dashboard) */
+            declarationId: string | null;
+            /** @description The language to answer in; switches a resumed conversation */
+            language: components["schemas"]["HelpLanguage"];
+        };
+        AskAssistantRequest: {
+            text: string;
+            /** @description The section of the draft the declarant is on; ignored outside a draft */
+            sectionKey: string | null;
+            /** @description The statement item type the declarant is on; passages about it rank higher */
+            itemType?: ("land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "mortgage" | "loan" | "guarantee" | "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy") | null;
+        };
+        /** @description The Commission's reporting officer, whom a declined answer sends the declarant to */
+        ReportingOfficerContact: {
+            name: string;
+            email: string;
+            phone: string | null;
+        };
+        AssistantMessage: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            /** @description The question, or the answer's paragraphs separated by a blank line; for a declined answer, the decline in the conversation's language */
+            text: string;
+            /** @description The passages the answer rests on, all retrieved for it; empty for a question or a decline */
+            citations: components["schemas"]["HelpPassage"][];
+            sectionLink: {
+                sectionKey: string;
+                /** @description JSON pointer within the section */
+                fieldPath: string | null;
+            } | null;
+            /** @description The Act, Regulations and help articles retrieved do not support an answer */
+            declined: boolean;
+            /** @description On a declined answer, whom to ask instead; null when the Commission has none on record */
+            reportingOfficer: components["schemas"]["ReportingOfficerContact"] | null;
+            /** @description ai-gateway AiLabel for assistant turns from the AI; null for a question */
+            label: {
+                [key: string]: unknown;
+            } | null;
+            rating: ("helpful" | "not-helpful") | null;
+            /** Format: date-time */
+            at: string;
+        };
+        AssistantConversation: {
+            /** Format: uuid */
+            id: string;
+            declarationId: string | null;
+            language: components["schemas"]["HelpLanguage"];
+            /** @description Oldest first */
+            messages: components["schemas"]["AssistantMessage"][];
+            /** @description When a conversation outside a draft is deleted (30 days after its last message); null for a draft, whose conversation goes with it */
+            expiresAt: string | null;
+        };
+        AssistantAnswer: {
+            question: components["schemas"]["AssistantMessage"];
+            answer: components["schemas"]["AssistantMessage"];
+        };
         InternalVersionDocument: {
             /** Format: uuid */
             declarationId: string;
@@ -1934,38 +1997,6 @@ export interface components {
                 path: string;
                 message: string;
             }[];
-        };
-        AssistantConversation: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            declarationId: string | null;
-            /** @enum {string} */
-            language: "en" | "sw";
-            messages: components["schemas"]["AssistantMessage"][];
-            /** Format: date-time */
-            expiresAt: string | null;
-        };
-        AssistantMessage: {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            role: "user" | "assistant";
-            text: string;
-            citations: components["schemas"]["HelpPassage"][];
-            sectionLink: {
-                sectionKey: string;
-                fieldPath: string | null;
-            } | null;
-            declined: boolean;
-            /** @description ai-gateway AiLabel for assistant turns */
-            label: {
-                [key: string]: unknown;
-            } | null;
-            /** @enum {string|null} */
-            rating: "helpful" | "not-helpful" | null;
-            /** Format: date-time */
-            at: string;
         };
     };
     responses: {
@@ -3758,6 +3789,118 @@ export interface operations {
             };
         };
     };
+    openAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAssistantConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Conversation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversation"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    askAssistant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskAssistantRequest"];
+            };
+        };
+        responses: {
+            /** @description SSE stream: `delta` {text}, then `final` {question, answer} (`AssistantAnswer`) or `error` {code} */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `assistant-unavailable`: the ai-gateway cannot answer now (unreachable, the Commission's limit or budget reached, no provider); nothing was stored. Use help search */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     internalGetVersionDocument: {
         parameters: {
             query?: never;
@@ -4334,84 +4477,6 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`) */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    openAssistantConversation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    declarationId: string | null;
-                    /** @enum {string} */
-                    language: "en" | "sw";
-                };
-            };
-        };
-        responses: {
-            /** @description Conversation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssistantConversation"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    askAssistant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    text: string;
-                    sectionKey: string | null;
-                };
-            };
-        };
-        responses: {
-            /** @description SSE stream ending with the stored message */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Per-person rate limit */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Assistant unavailable; use help search */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

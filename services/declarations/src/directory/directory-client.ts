@@ -49,6 +49,13 @@ export interface PulledCommission {
   name: string;
 }
 
+/** A Commission's staff member holding a role (`InternalStaffList` item). Personal data. */
+export interface PulledStaffMember {
+  subject: string;
+  name: string;
+  email: string;
+}
+
 /** Which records to pull: those an import had rows for, or those an exit batch exited. */
 export type RosterRecordSelector = { importId: string } | { exitBatchId: string };
 
@@ -98,6 +105,13 @@ export abstract class DirectoryClient {
 
   /** The Commission's slug, issuer code and name. */
   abstract getCommission(slug: string): Promise<PulledCommission>;
+
+  /**
+   * The Commission's enabled reporting officers with a verified email, by name and email (an
+   * audited read in the directory): who a declarant is told to ask (spec 11). Personal data: never
+   * logged, put in an event or sent to the ai-gateway.
+   */
+  abstract listReportingOfficers(slug: string): Promise<PulledStaffMember[]>;
 
   /** Every Commission of the platform, by slug (no tenant to act for). */
   abstract listCommissions(): Promise<PulledCommission[]>;

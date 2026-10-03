@@ -156,6 +156,20 @@ describe('HttpDirectoryClient', () => {
     expect(requests[0]?.actingTenant).toBeNull();
   });
 
+  it("reads the Commission's reporting officers, acting for it", async () => {
+    const list = conforming('InternalStaffList', {
+      items: [{ subject: 'kc-1', email: 'mary.wanjiku@psc.go.ke', name: 'Mary Wanjiku' }],
+    });
+    const { client, requests } = clientAnswering(() => json(list));
+
+    await expect(client.listReportingOfficers('psc')).resolves.toEqual([
+      { subject: 'kc-1', email: 'mary.wanjiku@psc.go.ke', name: 'Mary Wanjiku' },
+    ]);
+    expect(requests[0]?.url.pathname).toBe('/internal/v1/commissions/psc/staff');
+    expect(requests[0]?.url.searchParams.get('role')).toBe('reporting-officer');
+    expect(requests[0]?.actingTenant).toBe('psc');
+  });
+
   it('gives null for a record the Commission does not have', async () => {
     const { client } = clientAnswering(() => json({ title: 'Not Found', status: 404 }, 404));
 

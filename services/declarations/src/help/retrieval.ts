@@ -45,7 +45,9 @@ export interface RetrievedPassage {
   citation: string;
   title: string;
   snippet: string;
-  /** The language of the snippet: Swahili only from a Swahili article body. */
+  /** The whole passage or article body, in the snippet's language: what the assistant reads. */
+  text: string;
+  /** The language of the snippet and text: Swahili only from a Swahili article body. */
   language: HelpLanguage;
   tags: CorpusTag[];
   effectiveFrom: string;
@@ -123,6 +125,7 @@ export async function retrieve(
     citation: string;
     title: string;
     snippet: string;
+    text: string;
     language: HelpLanguage;
     tags: CorpusTag[];
     effective_from: string;
@@ -179,6 +182,7 @@ export async function retrieve(
         when top.sw_hit then ts_headline('simple', top.body_sw, q.sw, ${HEADLINE})
         else ts_headline('english', top.body_en, q.en, ${HEADLINE})
       end as snippet,
+      case when top.sw_hit then top.body_sw else top.body_en end as text,
       case when top.sw_hit then 'sw' else 'en' end as language,
       top.score
     from top, q
@@ -191,6 +195,7 @@ export async function retrieve(
     citation: row.citation,
     title: row.title,
     snippet: row.snippet,
+    text: row.text,
     language: row.language,
     tags: row.tags,
     effectiveFrom: row.effective_from,

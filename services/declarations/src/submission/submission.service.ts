@@ -52,6 +52,7 @@ import { obligationStatusChanged } from '../obligations/events.js';
 import { filingObligations } from '../obligations/schema.js';
 import { noChanges, ObligationWorkflows, tellWorkflows } from '../obligations/workflows.js';
 import { deleteSuggestions } from '../suggestions/expiry.js';
+import { deleteConversations } from '../assistant/expiry.js';
 import { declarationSubmitted } from './events.js';
 import { type DerivedItem, deriveItems } from './items.js';
 import { incomplete, refused, stepUpRequired } from './problems.js';
@@ -353,6 +354,8 @@ export class SubmissionService {
     await tx.delete(obligationDrafts).where(eq(obligationDrafts.declarationId, declaration.id));
     // Registry suggestions expire with the draft they were offered on (spec 05b S7).
     await deleteSuggestions(tx, declaration.id);
+    // Ask Adili's conversation goes with the draft too (spec 11 S7).
+    await deleteConversations(tx, declaration.id);
 
     // An amendment keeps the obligation filed as it was (when, and whether late); only the
     // version in force moves on.

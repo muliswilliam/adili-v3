@@ -34,6 +34,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
+import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
@@ -57,6 +58,7 @@ import {
   ObligationWorkflows,
   type StoppedWorkflow,
 } from '../../src/obligations/workflows.js';
+import { FakeAiGateway } from './fake-ai-gateway.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
 import { FakeIntegrationGateway } from './fake-integration-gateway.js';
@@ -238,6 +240,8 @@ export interface DeclarationsApi {
   notifications: FakeNotifications;
   /** The integration-gateway's registry lookups (spec 05b), run by the lookup workflow. */
   gateway: FakeIntegrationGateway;
+  /** The ai-gateway's answer stream (spec 11): records what Ask Adili sends and answers it. */
+  aiGateway: FakeAiGateway;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
   /** Starts and signals sent to Temporal (`fake` mode only). */
@@ -282,7 +286,7 @@ export interface DeclarationsApi {
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
  * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the
- * integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are
+ * integration-gateway `FakeIntegrationGateway`, the ai-gateway `FakeAiGateway`, the field cipher `FakeCipher`, workflows are
  * recorded (see `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay
  * in the outbox for assertions). The service's Temporal worker polls the suite's own task queue.
  * The test role owns the tables, so FORCE row-level security applies to it as to the service's
@@ -318,6 +322,7 @@ export async function startDeclarationsApi({
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
   const gateway = new FakeIntegrationGateway();
+  const aiGateway = new FakeAiGateway();
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
@@ -335,6 +340,8 @@ export async function startDeclarationsApi({
     .useValue(notifications)
     .overrideProvider(IntegrationGatewayClient)
     .useValue(gateway)
+    .overrideProvider(AiGatewayClient)
+    .useValue(aiGateway)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(FieldCipher)
@@ -388,6 +395,7 @@ export async function startDeclarationsApi({
     documents,
     notifications,
     gateway,
+    aiGateway,
     workflows,
     temporal,
     cipher,
@@ -427,7 +435,7 @@ export async function startDeclarationsApi({
     },
     async reset() {
       await db.execute(
-        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate assistant_messages, assistant_conversations, help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
@@ -435,6 +443,7 @@ export async function startDeclarationsApi({
       documents.reset();
       notifications.reset();
       gateway.reset();
+      aiGateway.reset();
       workflows.reset();
       temporal.reset();
       clock.reset();

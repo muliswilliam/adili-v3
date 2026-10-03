@@ -10,6 +10,7 @@ import {
   type PulledPolicy,
   type PulledRosterRecord,
   type PulledRosterRecordPage,
+  type PulledStaffMember,
   type RosterRecordSelector,
 } from './directory-client.js';
 
@@ -78,6 +79,12 @@ const commissionSchema = z.object({
 }) satisfies z.ZodType<PulledCommission>;
 
 const commissionListSchema = z.object({ items: z.array(commissionSchema) });
+
+const staffListSchema = z.object({
+  items: z.array(
+    z.object({ subject: z.string(), name: z.string(), email: z.string() }),
+  ) satisfies z.ZodType<PulledStaffMember[]>,
+});
 
 const personNationalIdSchema = z.object({ nationalId: z.string().min(1) });
 
@@ -160,6 +167,21 @@ export class HttpDirectoryClient extends DirectoryClient {
         }),
       { status: 200, schema: commissionSchema },
     );
+  }
+
+  async listReportingOfficers(slug: string): Promise<PulledStaffMember[]> {
+    const list = await this.directory.call(
+      (api) =>
+        api.GET('/internal/v1/commissions/{slug}/staff', {
+          params: {
+            path: { slug },
+            header: { 'X-Acting-Tenant': slug },
+            query: { role: 'reporting-officer' },
+          },
+        }),
+      { status: 200, schema: staffListSchema },
+    );
+    return list.items;
   }
 
   async listCommissions(): Promise<PulledCommission[]> {

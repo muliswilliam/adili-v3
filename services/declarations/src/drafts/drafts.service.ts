@@ -85,6 +85,7 @@ import {
   statementPersonKey,
 } from './sections.js';
 import { deleteSuggestions } from '../suggestions/expiry.js';
+import { deleteConversations } from '../assistant/expiry.js';
 import { personNames, statementChanges, writeStatementChanges } from './statements.js';
 import { asDeclaredFor } from './since-last.js';
 import { reviewDraft } from './summary.js';
@@ -334,6 +335,8 @@ export class DraftsService {
         .where(eq(declarationSections.declarationId, declaration.id));
       // Registry suggestions go with the draft (spec 05b S7).
       await deleteSuggestions(tx, declaration.id);
+      // Ask Adili's conversation goes with the draft too (spec 11 S7).
+      await deleteConversations(tx, declaration.id);
       await tx
         .update(declarations)
         .set({ status: 'discarded' })
