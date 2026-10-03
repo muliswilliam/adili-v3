@@ -1,5 +1,11 @@
 import { Badge, Icon } from '@adili/ui';
-import { Alert02Icon, BanknoteIcon, Clock01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import {
+  Alert02Icon,
+  BanIcon,
+  BanknoteIcon,
+  Clock01Icon,
+  Tick02Icon,
+} from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
 import type { AdministrativeAction } from '../../server/actions.server';
@@ -53,6 +59,26 @@ export function payrollLine(action: AdministrativeAction): string | undefined {
   if (action.payrollStop?.receivedAt)
     return c.stepper.stopAcknowledged(action.payrollStop.receivedAt);
   return action.status === 'approved-pending-payroll' ? c.stepper.waiting : undefined;
+}
+
+/** A salary stoppage payroll acknowledged and has not reinstated: the salary is stopped now. */
+export function salaryStopped(action: AdministrativeAction): boolean {
+  return (
+    action.step === 'salary-stoppage' &&
+    action.payrollStop?.receivedAt != null &&
+    action.payrollResume === null &&
+    (action.status === 'issued' || action.status === 'responded')
+  );
+}
+
+/** "Salary stopped", in red, for a stoppage in force (the prototype's step badge). */
+export function SalaryStoppedBadge() {
+  return (
+    <Badge variant="destructive">
+      <Icon icon={BanIcon} />
+      {c.salaryStopped}
+    </Badge>
+  );
 }
 
 const BADGE = {

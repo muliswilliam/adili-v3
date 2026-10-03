@@ -46,7 +46,13 @@ import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { closingCauseLabel, en as m, ladderStatusLabel, stepLabel } from './messages';
 import { ActionStatusBadge } from './status-badge';
-import { PayrollInstruction, payrollInstructionsOf, payrollLine } from './payroll-instruction';
+import {
+  PayrollInstruction,
+  payrollInstructionsOf,
+  payrollLine,
+  SalaryStoppedBadge,
+  salaryStopped,
+} from './payroll-instruction';
 import { stepsBefore } from './prior-steps';
 import { ApproveStepDialog, DeclineStepDialog, RestartLadderDialog } from './step-dialogs';
 import { stoppageCopy as stoppage } from './stoppage-messages';
@@ -239,6 +245,10 @@ function stepperStep({ step, status, action }: LadderStepView): LadderStepperSte
     : {};
   switch (status) {
     case 'awaiting':
+      // Approved, its stop-salary instruction waiting for payroll (the payroll line says so).
+      if (action.status === 'approved-pending-payroll' && action.approvedAt) {
+        return { ...base, detail: stoppage.stepper.approved(action.approvedAt) };
+      }
       return {
         ...base,
         detail: (
@@ -312,7 +322,11 @@ function StepCard({
         <h2 id={headingId} className="text-[16px] font-semibold">
           {stepLabel(action.step)}
         </h2>
-        <ActionStatusBadge status={action.status} />
+        {salaryStopped(action) ? (
+          <SalaryStoppedBadge />
+        ) : (
+          <ActionStatusBadge status={action.status} />
+        )}
         <span className="ml-auto">
           {action.reference ? (
             <span className="rounded-md bg-muted px-2 py-1 font-mono text-[12.5px] font-semibold">
@@ -349,7 +363,7 @@ function StepCard({
         {action.issuedAt ? <Fact term={m.facts.issued}>{formatDate(action.issuedAt)}</Fact> : null}
         {action.windowEndsAt ? (
           <Fact
-            term={m.facts.actBy}
+            term={action.step === 'salary-stoppage' ? stoppage.stoppageWindowEnds : m.facts.actBy}
             sub={
               action.status === 'issued' || action.status === 'responded'
                 ? m.inDays(daysBetween(now, action.windowEndsAt))

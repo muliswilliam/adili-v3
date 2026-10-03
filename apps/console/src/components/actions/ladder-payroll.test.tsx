@@ -95,6 +95,11 @@ describe('payroll acknowledgements on the ladder (S6, S7, S15)', () => {
       ),
     ).toBeTruthy();
     expect(within(stoppageStep()).getByText('Waiting for payroll')).toBeTruthy();
+    expect(
+      within(stoppageStep()).getByText(
+        `Approved ${formatDate(new Date(NOW_MS - DAY).toISOString())}`,
+      ),
+    ).toBeTruthy();
   });
 
   it('shows payroll’s acknowledgement of a stopped salary', async () => {
@@ -103,6 +108,8 @@ describe('payroll acknowledgements on the ladder (S6, S7, S15)', () => {
     const instruction = within(card).getByRole('region', { name: 'Stop-salary instruction' });
     expect(within(instruction).getByText('Acknowledged')).toBeTruthy();
     expect(within(instruction).getByText('PAY-ACK-2026-0091822')).toBeTruthy();
+    expect(within(card).getByText('Salary stopped')).toBeTruthy();
+    expect(within(card).getByText('Stoppage window ends')).toBeTruthy();
     const stopped = formatDate(new Date(NOW_MS - 33 * DAY).toISOString());
     expect(within(stoppageStep()).getByText(`Payroll acknowledged ${stopped}`)).toBeTruthy();
   });

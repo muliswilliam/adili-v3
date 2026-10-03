@@ -8,6 +8,8 @@ import type { ActionStep } from '../../server/actions.server';
  * what approving or declining a grave step does. English only.
  */
 export const stoppageCopy = {
+  salaryStopped: 'Salary stopped',
+  stoppageWindowEnds: 'Stoppage window ends',
   payroll: {
     stop: 'Stop-salary instruction',
     resume: 'Reinstatement instruction',
@@ -28,6 +30,7 @@ export const stoppageCopy = {
     },
   },
   stepper: {
+    approved: (date: string) => `Approved ${formatDate(date)}`,
     stopAcknowledged: (date: string) => `Payroll acknowledged ${formatDate(date)}`,
     resumeAcknowledged: (date: string) => `Reinstatement acknowledged ${formatDate(date)}`,
     waiting: 'Waiting for payroll',
