@@ -119,7 +119,7 @@ export async function accessRequest(
 
   const received = await untilRecorded(input);
   const closed = stopOf(received);
-  if (closed !== null) return { outcome: stopWith(state, closed) };
+  if (closed !== null) return carriedOut(input, { outcome: stopWith(state, closed) });
   try {
     const [result] = await Promise.all([course(input, state, received), reminders(input, state)]);
     return result;
@@ -146,17 +146,11 @@ async function course(
   try {
     if (received === 'held') {
       const stop = await untilVerified(input, state);
-      if (stop !== null) return { outcome: stop };
+      if (stop !== null) return await carriedOut(input, { outcome: stop });
     }
 
     const notified = await untilNotified(input, state);
-    if (typeof notified !== 'string') {
-      // Decided before the run took in the declarant's notice: a written notice consented to in
-      // writing goes under decision at once, and its signals can arrive together, or be lost
-      // and the request read decided. The decision is carried out all the same.
-      if (notified.outcome !== 'decided') return notified;
-      return { outcome: await afterDecision(input) };
-    }
+    if (typeof notified !== 'string') return await carriedOut(input, notified);
 
     await untilWindowEnds(input, state, new Date(notified).getTime());
     if (state.stop === 'withdrawn' || state.stop === 'missing') return { outcome: state.stop };
@@ -313,6 +307,20 @@ async function untilDecided(input: AccessRequestWorkflowInput, state: RunState):
     const stop = stopOf(await check(input));
     if (stop !== null) return stopWith(state, stop);
   }
+}
+
+/**
+ * The run's result at a stop. One run follows a request and a request is decided once, so a
+ * decision the run stops at before its decision step is one nobody has carried out: it is
+ * carried out now. The run can lag that far: a written notice consented to in writing goes
+ * under decision at once, and the `notified` and `decided` signals then arrive together, or are
+ * lost and the request is read decided.
+ */
+async function carriedOut(
+  input: AccessRequestWorkflowInput,
+  result: AccessRequestResult,
+): Promise<AccessRequestResult> {
+  return result.outcome === 'decided' ? { outcome: await afterDecision(input) } : result;
 }
 
 /**

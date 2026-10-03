@@ -797,6 +797,16 @@ describe('AccessRequestWorkflow', () => {
       expect(dayOf(input, recorded, 'close-window')).toBe(8 + WINDOW_DAYS);
     }, 60_000);
 
+    it('decided before the run first read the request: the decision is carried out', async () => {
+      const input = await inputReceived();
+      const { mocks, recorded } = activities({ stored: { state: 'decided' } });
+
+      const result = await env.execute(accessRequest, options(mocks, input));
+
+      expect(result).toEqual({ outcome: 'decided' });
+      expect(recorded.calls).toEqual(GRANT_STEPS);
+    }, 60_000);
+
     it('the notice served and the request decided, both signals lost: the request read decided has the decision carried out', async () => {
       const input = await inputReceived();
       const stored: Stored = { state: 'resolved' };
