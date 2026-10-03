@@ -17,7 +17,7 @@ ${msg("adiliInviteLead", i.roleTitle, i.commission)}
 ${i.duty}
 </#if>
 
-${msg("adiliDetailCommission")}: ${i.commission}
+${i.commissionLabel}: ${i.commission}
 ${msg("adiliDetailRole")}: ${i.roleTitle?cap_first}
 <#if user.email?has_content>
 ${msg("adiliDetailEmail")}: ${user.email}

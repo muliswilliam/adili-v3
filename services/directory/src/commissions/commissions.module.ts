@@ -38,5 +38,6 @@ import { ReportingOfficersService } from './reporting-officers.service.js';
     // Every authenticated request of the service, not only this module's routes (S13: `/v1/me`).
     { provide: APP_INTERCEPTOR, useClass: ActivationObserver },
   ],
+  exports: [ActivationLookups],
 })
 export class CommissionsModule {}

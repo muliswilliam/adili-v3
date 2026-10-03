@@ -2,13 +2,15 @@ import {
   Alert,
   AlertDescription,
   Button,
+  cn,
   Icon,
   SiteFooter,
   SiteHeader,
+  textLink,
   ToastProvider,
   useToast,
 } from '@adili/ui';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router';
 import { AlertCircleIcon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useRef } from 'react';
 import { z } from 'zod';
@@ -20,8 +22,11 @@ import { orUnavailable } from '../components/dashboard/obligations';
 import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
+import { getMyClarifications, type MyClarificationsLoad } from '../server/clarifications';
 import { getMyDeclarations } from '../server/declarations';
 import type { DeclarationListResult } from '../server/declarations.server';
+import { getMyAccessNotices, type NoticesLoad } from '../server/access-notices';
+import { isSignedInApplicant } from '../server/access-requests';
 import { getMyObligations, getObligationDetail } from '../server/obligations';
 import type { MyObligationsResult } from '../server/obligations.server';
 import { getViewer, type Viewer } from '../server/viewer';
@@ -33,11 +38,18 @@ export const Route = createFileRoute('/')({
   }),
   loader: async () => {
     const viewer = await getViewer();
-    // Not awaited: the dashboard renders with skeleton cards, and the obligations and the
-    // declarations stream in, each on its own.
+    // Applicants (Form K, spec 10) have no declarant record: their home is My requests.
+    if (viewer?.declarant.status === 'not-declarant' && (await isSignedInApplicant())) {
+      throw redirect({ to: '/access/requests' });
+    }
+    // Not awaited: the dashboard renders with skeleton cards, and the obligations, the
+    // declarations, the clarifications and the access notices stream in, each on its own.
     const obligations = viewer ? orUnavailable(getMyObligations()) : null;
-    const declarations = viewer?.declarant.status === 'onboarded' ? loadDeclarations() : null;
-    return { viewer, obligations, declarations };
+    const onboarded = viewer?.declarant.status === 'onboarded';
+    const declarations = onboarded ? loadDeclarations() : null;
+    const clarifications = onboarded ? loadClarifications() : null;
+    const accessNotices = onboarded ? loadAccessNotices() : null;
+    return { viewer, obligations, declarations, clarifications, accessNotices };
   },
   component: Home,
 });
@@ -51,14 +63,32 @@ async function loadDeclarations(): Promise<DeclarationListResult> {
   return declarations.status === 'unauthenticated' ? { status: 'unavailable' } : declarations;
 }
 
+/** Requests to see the declaration; an ended session or a failed call reads as unavailable. */
+async function loadAccessNotices(): Promise<NoticesLoad> {
+  const now = new Date().toISOString();
+  const notices = await getMyAccessNotices().catch(() => ({ status: 'unavailable', now }) as const);
+  return notices.status === 'unauthenticated' ? { status: 'unavailable', now } : notices;
+}
+
+/** The declarant's clarifications; an ended session or a failed call reads as unavailable. */
+async function loadClarifications(): Promise<MyClarificationsLoad> {
+  const load = await getMyClarifications().catch(
+    () => ({ status: 'unavailable', now: new Date().toISOString() }) as const,
+  );
+  return load.status === 'unauthenticated' ? { status: 'unavailable', now: load.now } : load;
+}
+
 function Home() {
-  const { viewer, obligations, declarations } = Route.useLoaderData();
+  const { viewer, obligations, declarations, clarifications, accessNotices } =
+    Route.useLoaderData();
   const { auth_error, discarded } = Route.useSearch();
   return viewer && obligations ? (
     <Dashboard
       viewer={viewer}
       obligations={obligations}
       declarations={declarations}
+      accessNotices={accessNotices}
+      clarifications={clarifications}
       discarded={discarded === true}
     />
   ) : (
@@ -107,6 +137,12 @@ function Landing({ error }: { error: string | null }) {
       <p className="mt-3 text-[13.5px] text-muted-foreground">
         First time here? You need your personnel file number and national ID.
       </p>
+      <p className="mt-7 border-t pt-4 text-[13.5px] text-muted-foreground">
+        Not a public officer?{' '}
+        <Link to="/access" className={cn(textLink, 'font-medium')}>
+          Request access to a declaration
+        </Link>
+      </p>
     </AuthShell>
   );
 }
@@ -115,11 +151,15 @@ function Dashboard({
   viewer,
   obligations,
   declarations,
+  accessNotices,
+  clarifications,
   discarded,
 }: {
   viewer: Viewer;
   obligations: Promise<MyObligationsResult>;
   declarations: Promise<DeclarationListResult> | null;
+  accessNotices: Promise<NoticesLoad> | null;
+  clarifications: Promise<MyClarificationsLoad> | null;
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
@@ -142,6 +182,8 @@ function Dashboard({
           <DashboardCards
             viewer={viewer}
             declarations={declarations}
+            accessNotices={accessNotices}
+            clarifications={clarifications}
             obligations={
               <ObligationsSection
                 obligations={obligations}

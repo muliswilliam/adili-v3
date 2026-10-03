@@ -1,7 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { KcPage } from './kc.gen';
+// Not kc.gen's KcPage: it loads the login theme on demand, one more request between Keycloak's page
+// and anything on screen. Importing it here puts the whole theme in the entry bundle.
+import KcPage from './login/KcPage';
 
 // Dev preview: `pnpm dev`, then open /?page=login.ftl (any Keycloak page ID) or a named state
 // from src/login/stories.ts, e.g. /?story=otp-wrong.

@@ -25,6 +25,14 @@ export function allOf<T extends string>() {
 
 export type ObligationType = DeclarationDocument['type'];
 
+/**
+ * Whether a declaration of the type follows an earlier one, so "changed since last declaration"
+ * means something: every type but the initial declaration, the officer's first.
+ */
+export function followsEarlierDeclaration(type: ObligationType): boolean {
+  return type !== 'initial';
+}
+
 export type PersonName = Form.PersonName;
 export type Money = Form.Money;
 export type Location = Form.Location;

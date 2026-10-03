@@ -50,7 +50,12 @@ import type {
   LoadedSuggestion,
   LoadedSuggestionSet,
 } from '../../server/declarations.server';
-import type { AssetItem, Draft, Statement } from '../../declaration/contents';
+import {
+  type AssetItem,
+  type Draft,
+  followsEarlierDeclaration,
+  type Statement,
+} from '../../declaration/contents';
 import {
   AMOUNT_KEY,
   type AnyItem,
@@ -399,6 +404,7 @@ export function StatementSection({
                   item={item}
                   sectionKey={key}
                   disabled={disabled}
+                  sinceLastDeclaration={followsEarlierDeclaration(declaration.type)}
                   shareLabel={isOfficer ? 'My share' : `${firstName || 'Their'}'s share`}
                   renderAttachments={withReading}
                   onChange={(next) => {

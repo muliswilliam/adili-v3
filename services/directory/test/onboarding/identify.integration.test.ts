@@ -85,6 +85,27 @@ async function failuresOf(tenant: string) {
   return rows.reduce((sum, row) => sum + row.failures, 0);
 }
 
+/**
+ * Of 31 rounds, how many one cause must lose (or win) against another to count as told apart.
+ * Two causes alike lose to each other like coin tosses: 26 or more of 31 has odds of about
+ * 1 in 10,000 per pair and side.
+ */
+const CONSISTENT_ROUNDS = 26;
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
+
+function shuffled<T>(values: readonly T[]): T[] {
+  const copy = [...values];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j] as T, copy[i] as T];
+  }
+  return copy;
+}
+
 beforeAll(async () => {
   api = await startDirectoryApi();
   return () => api.close();
@@ -337,32 +358,44 @@ describe('S3 no-match', () => {
   });
 
   it('takes comparable time for every cause', async () => {
-    const rounds = 21;
-    const timings: Record<string, number[]> = {};
+    const rounds = 31;
     const entries = Object.entries(causes);
+    const timings = new Map(entries.map(([cause]) => [cause, [] as number[]]));
     // Warm up connections and code paths first.
     for (const [, input] of entries) await identify(api, input, freshIp());
-    // Causes take turns within each round, so a machine getting busier or quieter over the
-    // run (other suites in parallel) weighs on every cause alike.
+    // Every cause runs once per round, in a fresh order, so no cause always goes first or
+    // after the same other one.
     for (let round = 0; round < rounds; round++) {
-      for (const [cause, input] of entries) {
+      for (const [cause, input] of shuffled(entries)) {
         const started = performance.now();
         await identify(api, input, freshIp());
-        (timings[cause] ??= []).push(performance.now() - started);
+        timings.get(cause)?.push(performance.now() - started);
       }
     }
 
-    // Every cause does the same work (one lookup, one failure count): the medians differ by
-    // scheduling noise only (a few ms with other suites running), under three quarters of one.
-    const medians = Object.fromEntries(
-      Object.entries(timings).map(([cause, values]) => [
-        cause,
-        values.sort((a, b) => a - b)[Math.floor(rounds / 2)] ?? 0,
-      ]),
-    );
-    const values = Object.values(medians);
-    const spread = Math.max(...values) - Math.min(...values);
-    expect(spread, JSON.stringify(medians)).toBeLessThan(Math.max(10, Math.min(...values) * 0.75));
+    // Every cause does the same work (one lookup, one failure count). Other suites running in
+    // parallel slow whole rounds, by tens of milliseconds at times, so causes are compared in
+    // pairs, round by round, where that load weighs on both alike. A cause that told itself
+    // apart would be slower (or faster) than another in almost every round, and by a real
+    // share of the request: noise does neither, however busy the machine.
+    const differences: string[] = [];
+    for (const [i, [a]] of entries.entries()) {
+      for (const [b] of entries.slice(i + 1)) {
+        const timesA = timings.get(a) ?? [];
+        const timesB = timings.get(b) ?? [];
+        const deltas = timesA.map((time, round) => time - (timesB[round] ?? 0));
+        const slower = deltas.filter((delta) => delta > 0).length;
+        const consistent = Math.max(slower, rounds - slower) >= CONSISTENT_ROUNDS;
+        const typical = median(deltas);
+        const share = Math.abs(typical) / Math.min(median(timesA), median(timesB));
+        if (consistent && share > 0.5) {
+          differences.push(
+            `${a} vs ${b}: ${typical.toFixed(1)} ms, slower in ${slower}/${rounds} rounds`,
+          );
+        }
+      }
+    }
+    expect(differences).toEqual([]);
   });
 
   it('records the abuse threshold event once when a window reaches it', async () => {

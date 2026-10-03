@@ -8,22 +8,8 @@ import type { ReviewSchema } from '../db/schema.js';
 import { DirectoryClient } from '../directory/directory-client.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
-import { GROUNDS_LABELS } from './representation.js';
-import { type ReferralGrounds, referrals } from './schema.js';
-
-/**
- * review.yaml `ReferralIcmsPayload`: what ICMS needs of a sent referral (spec 09 BE-5) and no
- * more, in the names of the package's cover sheet (`ReferralPackagePayload`). The evidence stays
- * in the Confidential package EACC downloads.
- */
-export interface ReferralIcmsPayload {
-  reference: string;
-  grounds: ReferralGrounds;
-  groundsLabel: string;
-  commission: { name: string; issuerCode: string };
-  declarant: { name: string; nationalId: string };
-  narrative: string;
-}
+import { GROUNDS_LABELS, type ReferralIcmsPayload } from './representation.js';
+import { referrals } from './schema.js';
 
 /** 409 `roster-record-unknown`: the declarant's national ID cannot be read. */
 function rosterRecordUnknown(detail: string): ProblemException {

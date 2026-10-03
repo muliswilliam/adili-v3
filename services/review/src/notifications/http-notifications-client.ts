@@ -24,10 +24,6 @@ export interface HttpNotificationsClientOptions {
   fetch?: typeof fetch;
 }
 
-/** The templates notifications' contract lists. */
-type MessageTemplate =
-  paths['/internal/v1/messages']['post']['requestBody']['content']['application/json']['template'];
-
 const messageSchema = z.object({
   id: z.uuid(),
   status: z.enum(['sent', 'failed']),
@@ -63,9 +59,7 @@ export class HttpNotificationsClient extends NotificationsClient {
           body: {
             channel: message.channel,
             recipient: { kind: 'person', personId: message.personId },
-            // Review's templates join notifications' contract with #157; until then notifications
-            // refuses them with 422 (InternalApiRejected), which the activities do not retry.
-            template: message.template as string as MessageTemplate,
+            template: message.template,
             params: message.params,
             locale: 'en',
             tenant: message.tenant,

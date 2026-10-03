@@ -30,6 +30,7 @@ describe('checkDraft (S19: the same inputs the directory rejects in S5)', () => 
   it.each([
     ['Platform', SLUG_ERROR],
     ['platform', 'This key is reserved.'],
+    ['lea', 'This key is reserved.'],
     ['new', 'This key is reserved.'],
     ['x', SLUG_ERROR],
     ['too-long-key-abcdefghijk', SLUG_ERROR],

@@ -15,6 +15,7 @@ import { declarations, declarationVersions } from '../declaration/schema.js';
 import { openSnapshot, versionRow } from '../declaration/versions.js';
 import { filingObligations, rosterSnapshots } from '../obligations/schema.js';
 import type {
+  InternalPersonVersion,
   InternalPreviousVersion,
   InternalVersionDocument,
   PreviousVersionQuery,
@@ -130,6 +131,51 @@ export class ServiceVersionsService {
     });
     const earlier = notFoundIfInvisible(found);
     return { ...earlier, submittedAt: earlier.submittedAt.toISOString() };
+  }
+
+  /**
+   * Every version the person submitted at the Commission, latest submitted first: what a
+   * certified copy can be asked of (spec 10, Administrative Mechanism 32), and their ids, for the
+   * audit trail. Empty when the Commission has none of theirs.
+   */
+  async personVersions(
+    read: TenantContext,
+    personId: string,
+  ): Promise<{ versions: InternalPersonVersion[]; versionIds: string[] }> {
+    const rows = await withTenant(this.db, read, (tx) =>
+      tx
+        .select({
+          versionId: declarationVersions.id,
+          declarationId: declarationVersions.declarationId,
+          version: declarationVersions.version,
+          reference: declarationVersions.reference,
+          type: declarations.type,
+          statementDate: declarations.statementDate,
+          submittedAt: declarationVersions.submittedAt,
+          supersededAt: declarationVersions.supersededAt,
+        })
+        .from(declarationVersions)
+        .innerJoin(declarations, eq(declarations.id, declarationVersions.declarationId))
+        .where(
+          and(
+            eq(declarationVersions.personId, personId),
+            eq(declarationVersions.tenant, read.tenant),
+          ),
+        )
+        .orderBy(desc(declarationVersions.submittedAt), desc(declarationVersions.version)),
+    );
+    return {
+      versions: rows.map((row) => ({
+        declarationId: row.declarationId,
+        version: row.version,
+        reference: row.reference,
+        type: row.type,
+        statementDate: row.statementDate,
+        submittedAt: row.submittedAt.toISOString(),
+        superseded: row.supersededAt !== null,
+      })),
+      versionIds: rows.map((row) => row.versionId),
+    };
   }
 }
 

@@ -13,11 +13,13 @@ import { CasesModule } from './cases/cases.module.js';
 import { ClarificationsModule } from './clarifications/clarifications.module.js';
 import { ClosuresModule } from './closures/closures.module.js';
 import { config, SERVICE_NAME } from './config.js';
+import { CopilotModule } from './copilot/copilot.module.js';
 import { schema } from './db/schema.js';
 import { DeterminationsModule } from './determinations/determinations.module.js';
 import { EnforcementModule } from './enforcement/enforcement.module.js';
 import { ProcessingModule } from './processing/processing.module.js';
 import { ReferralsModule } from './referrals/referrals.module.js';
+import { RegistryModule } from './registry/registry.module.js';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { ReferralsModule } from './referrals/referrals.module.js';
     ClosuresModule,
     EnforcementModule,
     ReferralsModule,
+    CopilotModule,
+    RegistryModule,
     ProcessingModule,
   ],
 })

@@ -9,34 +9,8 @@ import { withUpstream } from '../internal-api/upstream.js';
 import { systemContext } from '../system-context.js';
 import { portalNoticeUrl } from './activities.js';
 import { STEP_LABELS, whatToDo } from './ladder-records.js';
-import {
-  type ActionStep,
-  administrativeActions,
-  enforcementLadders,
-  type SubjectKind,
-} from './schema.js';
-
-/**
- * review.yaml `ActionLetterPayload`: the fields the step letters (`notice-to-comply.v1`,
- * `warning.v1`, `salary-stoppage.v1`, `disciplinary-referral.v1`) render.
- */
-export interface ActionLetterPayload {
-  declarantName: string;
-  personnelFileNumber: string;
-  commission: { name: string; issuerCode: string };
-  reference: string;
-  step: ActionStep;
-  stepLabel: string;
-  subjectKind: SubjectKind;
-  subjectReference: string;
-  whatToDo: 'file-declaration' | 'respond-to-clarification';
-  issuedAt: string;
-  /** Null for the disciplinary referral, which sets no deadline. */
-  actBy: string | null;
-  /** The salary stoppage: the day payroll stops the salary from (`YYYY-MM-DD`); else null. */
-  salaryStoppedFrom: string | null;
-  respondUrl: string;
-}
+import type { ActionLetterPayload } from './representation.js';
+import { administrativeActions, enforcementLadders } from './schema.js';
 
 /**
  * The letter payload the documents service pulls when it renders a step's letter
@@ -70,6 +44,7 @@ export class ActionLetterPayloadService {
     }
     const commission = await withUpstream(() => this.directory.getCommission(tenant));
     return {
+      declarantPersonId: action.personId,
       declarantName: ladder.declarantName,
       personnelFileNumber: ladder.personnelFileNumber,
       commission: { name: commission.name, issuerCode: commission.issuerCode },

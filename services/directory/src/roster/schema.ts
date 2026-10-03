@@ -109,6 +109,8 @@ export const rosterRecords = pgTable(
     designation: text(),
     jobGroup: text(),
     reportingEntityId: uuid().references(() => reportingEntities.id),
+    /** The HR and payroll systems' code for the employer; review's supplier check takes it. */
+    employerCode: text(),
     appointmentDate: date({ mode: 'string' }),
     email: text(),
     /** E.164. */
@@ -391,7 +393,40 @@ export const rosterSummaries = pgTable('roster_summaries', {
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Invitations to set up a declarant account sent to a roster record's contacts (spec 10: an
+ * access request names an officer who has not onboarded, so the Commission invites them while it
+ * serves its notice in writing). One row per invitation, by the calling service's
+ * `Idempotency-Key`, with the channels it went out on (none when the roster holds no contact).
+ */
+export const onboardingInvitations = pgTable(
+  'onboarding_invitations',
+  {
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    tenant: text()
+      .notNull()
+      .references(() => commissions.slug),
+    rosterRecordId: uuid()
+      .notNull()
+      .references(() => rosterRecords.id),
+    /** The calling service's key: a retry with the same key is the same invitation. */
+    idempotencyKey: text().notNull(),
+    /** Who asked: the calling service's client id. */
+    requestedBy: text().notNull(),
+    /** The channels notifications sent it on (`email`, `sms`). */
+    channels: jsonb().$type<('email' | 'sms')[]>().notNull(),
+    sentAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex('onboarding_invitations_key_idx').on(table.tenant, table.idempotencyKey),
+    index('onboarding_invitations_record_idx').on(table.rosterRecordId, table.sentAt),
+  ],
+);
+
 export const rosterSchema = {
+  onboardingInvitations,
   reportingEntities,
   rosterRecords,
   rosterImports,

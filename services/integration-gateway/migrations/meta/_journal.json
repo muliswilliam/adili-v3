@@ -15,6 +15,55 @@
       "when": 1790542890931,
       "tag": "0001_verification_results",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790885084891,
+      "tag": "0002_lookup_purpose_and_payload",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790892404794,
+      "tag": "0003_integration_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790895153713,
+      "tag": "0004_verification_subject_person",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790895382464,
+      "tag": "0005_idempotency_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790944599384,
+      "tag": "0006_verification_results_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790970164224,
+      "tag": "0007_payroll_instructions",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790972562216,
+      "tag": "0008_icms_referrals",
+      "breakpoints": true
     }
   ]
 }

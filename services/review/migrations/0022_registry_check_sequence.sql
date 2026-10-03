@@ -1,0 +1,2 @@
+ALTER TABLE "review_cases" ADD COLUMN "registry_check_sequence" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "review_cases" ADD COLUMN "stored_registry_check" integer DEFAULT 0 NOT NULL;

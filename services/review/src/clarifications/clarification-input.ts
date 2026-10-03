@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { REQUIREMENTS } from '../cases/schema.js';
+import { letterLanguageSchema } from './representation.js';
 
 /** `bio`, `household`, `other` or `statement:<person key>` (declarations' section keys). */
 const SECTION_KEY =
@@ -14,15 +15,47 @@ export const clarificationItemInput = z.object({
   itemId: z.uuid().nullish(),
   requirement: z.enum(REQUIREMENTS),
   text: z.string().trim().min(1).max(1000),
+  /** The Draft with AI job that drafted the item (ADR-007), kept through the reviewer's edits. */
+  aiJobId: z.uuid().nullish().meta({
+    description:
+      'The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null: written by the reviewer.',
+  }),
 });
 
 /**
  * review.yaml `ClarificationInput`. A draft may have no items yet; issuing one needs at least
- * one.
+ * one. The opening paragraph is optional: left out or blank, the letter has none (and no job
+ * drafted it). The letter's language, left out, is English.
  */
-export const clarificationInput = z.object({
-  items: z.array(clarificationItemInput).max(50),
-});
+export const clarificationInput = z
+  .object({
+    items: z.array(clarificationItemInput).max(50),
+    opening: z
+      .string()
+      .trim()
+      .max(800)
+      .nullish()
+      .transform((opening) =>
+        opening === undefined || opening === null || opening === '' ? null : opening,
+      )
+      .meta({
+        description:
+          "The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items.",
+      }),
+    openingAiJobId: z.uuid().nullish().meta({
+      description:
+        'The Draft with AI job that drafted the opening paragraph, kept when the reviewer edits it. Left out or null: written by the reviewer (or no opening).',
+    }),
+    language: letterLanguageSchema.optional().meta({
+      description:
+        "The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows.",
+    }),
+  })
+  .transform((input) => ({
+    ...input,
+    language: input.language ?? 'en',
+    openingAiJobId: input.opening === null ? null : (input.openingAiJobId ?? null),
+  }));
 
 export type ClarificationInput = z.infer<typeof clarificationInput>;
 

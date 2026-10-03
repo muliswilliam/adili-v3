@@ -8,8 +8,12 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clarifications, ladderHistory, outbox } from '../../src/db/schema.js';
 import { enforcementWorkflowId } from '../../src/enforcement/contract.js';
-import type { DeclarantNoticeView } from '../../src/enforcement/declarant-notices.service.js';
-import type { ActionView, LadderView } from '../../src/enforcement/representation.js';
+
+import type {
+  ActionView,
+  DeclarantNoticeView,
+  LadderView,
+} from '../../src/enforcement/representation.js';
 import { asset, declaration, statement } from '../fixtures/declarations.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { givenWorkedCase } from '../support/determinations.js';
@@ -209,6 +213,7 @@ describe('enforcement ladder', () => {
       ),
     ).toEqual([]);
     expect(letter?.pulled.body).toEqual({
+      declarantPersonId: obligation.personId,
       declarantName: 'Grace Wanjiru',
       personnelFileNumber: 'PSC/2019/0077',
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },

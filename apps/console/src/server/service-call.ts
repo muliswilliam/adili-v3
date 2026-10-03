@@ -91,3 +91,10 @@ function isProblem(body: unknown): body is BaseProblem {
     typeof body.title === 'string'
   );
 }
+
+/** The status of the problem a service answered with; null while loading, on success or failure. */
+export function problemStatus(result: ServiceResult<unknown> | null): number | null {
+  return result && !result.ok && result.error.kind === 'problem'
+    ? result.error.problem.status
+    : null;
+}

@@ -1,7 +1,9 @@
 import {
+  ArrowRight01Icon,
   Download04Icon,
   InboxIcon,
   JusticeScale01Icon,
+  Mail01Icon,
   Message01Icon,
   Notification03Icon,
   PackageIcon,
@@ -10,10 +12,13 @@ import {
   Undo02Icon,
   UserCheck01Icon,
   UserRemove01Icon,
+  UserSearch01Icon,
 } from '@hugeicons/core-free-icons';
 import { type ReactNode, useId } from 'react';
 
+import { accessOutcomeTones } from '../lib/access';
 import { cn } from '../lib/cn';
+import { focusRingInset } from '../lib/focus';
 import { formatDate, formatDateTime, formatMonth } from '../lib/format-date';
 import { type Tone, toneClassNames } from '../lib/tone';
 import { Icon, type IconProps } from './icon';
@@ -22,9 +27,11 @@ import { Icon, type IconProps } from './icon';
 export const REGISTER_KINDS = [
   'received',
   'verified',
+  'identified',
   'notified',
   'representations',
   'decided',
+  'decision-notified',
   'package-issued',
   'downloaded',
   'expired',
@@ -48,15 +55,21 @@ interface EntryMeta {
 export const registerKindMeta: Record<RegisterKind, EntryMeta> = {
   received: { label: 'Request received', icon: InboxIcon, tone: 'default' },
   verified: { label: 'Verified', icon: UserCheck01Icon, tone: 'info' },
+  identified: { label: 'Officer identified', icon: UserSearch01Icon, tone: 'info' },
   notified: { label: 'Declarant notified', icon: Notification03Icon, tone: 'info' },
   representations: { label: 'Representations received', icon: Message01Icon, tone: 'default' },
   decided: { label: 'Decision recorded', icon: JusticeScale01Icon, tone: 'default' },
+  'decision-notified': {
+    label: 'Declarant told the decision in writing',
+    icon: Mail01Icon,
+    tone: 'info',
+  },
   'package-issued': { label: 'Package issued', icon: PackageIcon, tone: 'success' },
   downloaded: { label: 'Package downloaded', icon: Download04Icon, tone: 'default' },
   expired: { label: 'Download window closed', icon: Timer02Icon, tone: 'warning' },
   withdrawn: { label: 'Request withdrawn', icon: Undo02Icon, tone: 'default' },
   'cannot-identify': {
-    label: 'Declarant could not be identified',
+    label: 'Officer could not be identified',
     icon: UserRemove01Icon,
     tone: 'destructive',
   },
@@ -69,9 +82,9 @@ export const registerKindMeta: Record<RegisterKind, EntryMeta> = {
 
 /** How a `decided` entry reads and is tinted, by its outcome. */
 export const registerOutcomeMeta: Record<RegisterOutcome, Pick<EntryMeta, 'label' | 'tone'>> = {
-  grant: { label: 'Access granted', tone: 'success' },
-  'partial-grant': { label: 'Access partially granted', tone: 'warning' },
-  deny: { label: 'Access denied', tone: 'destructive' },
+  grant: { label: 'Access granted', tone: accessOutcomeTones.grant },
+  'partial-grant': { label: 'Access partially granted', tone: accessOutcomeTones['partial-grant'] },
+  deny: { label: 'Access denied', tone: accessOutcomeTones.deny },
 };
 
 export interface RegisterEntry {
@@ -174,6 +187,11 @@ export type HeadingLevel = 2 | 3 | 4;
 export interface RegisterListProps extends RegisterTimelineProps {
   /** Level of the month headings, to fit the page's outline. */
   headingLevel?: HeadingLevel;
+  /**
+   * Makes each row a button (with a chevron) that opens the entry, e.g. in a drawer with the
+   * request's details. Without it the rows are plain.
+   */
+  onSelect?: (entry: RegisterEntry) => void;
 }
 
 /**
@@ -185,6 +203,7 @@ export function RegisterList({
   entries,
   label = 'Access register',
   headingLevel = 3,
+  onSelect,
   className,
 }: RegisterListProps) {
   const months: { month: string; entries: RegisterEntry[] }[] = [];
@@ -198,7 +217,13 @@ export function RegisterList({
   return (
     <div role="group" aria-label={label} className={cn('@container', className)}>
       {months.map(({ month, entries: inMonth }) => (
-        <RegisterMonth key={month} month={month} entries={inMonth} headingLevel={headingLevel} />
+        <RegisterMonth
+          key={month}
+          month={month}
+          entries={inMonth}
+          headingLevel={headingLevel}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   );
@@ -208,10 +233,12 @@ function RegisterMonth({
   month,
   entries,
   headingLevel,
+  onSelect,
 }: {
   month: string;
   entries: RegisterEntry[];
   headingLevel: HeadingLevel;
+  onSelect: RegisterListProps['onSelect'];
 }) {
   const headingId = useId();
   const Heading = `h${String(headingLevel)}` as 'h2' | 'h3' | 'h4';
@@ -228,36 +255,67 @@ function RegisterMonth({
           <li
             key={entry.id}
             data-kind={entry.kind}
-            className="flex items-start gap-3.5 px-5 py-3.5 not-first:border-t not-first:border-border @min-[700px]:px-6"
+            className="not-first:border-t not-first:border-border"
           >
-            <EntryIcon entry={entry} size="md" />
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-px">
-              <span className="text-[15px] leading-[1.35] font-medium">{display(entry).title}</span>
-              {entry.actor || entry.reference ? (
-                <span className="text-[13.5px] leading-[1.4] break-words text-muted-foreground">
-                  {entry.actor}
-                  {entry.actor && entry.reference ? ' · ' : null}
-                  {entry.reference ? (
-                    <span className="font-mono text-[12.5px] whitespace-nowrap">
-                      {entry.reference}
-                    </span>
-                  ) : null}
-                </span>
-              ) : null}
-              {entry.summary ? (
-                <span className="text-[13.5px] text-secondary-foreground">{entry.summary}</span>
-              ) : null}
-            </div>
-            <time
-              dateTime={entry.at}
-              className="pt-0.5 text-[13px] whitespace-nowrap text-muted-foreground"
-            >
-              <span className="sr-only">{formatDateTime(entry.at)}</span>
-              <span aria-hidden="true">{formatDate(entry.at)}</span>
-            </time>
+            {onSelect ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(entry);
+                }}
+                className={cn(
+                  focusRingInset,
+                  rowClassName,
+                  'w-full cursor-pointer text-left transition-colors hover:bg-muted/50',
+                )}
+              >
+                <RegisterRow entry={entry} />
+                <Icon
+                  icon={ArrowRight01Icon}
+                  className="mt-1 size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </button>
+            ) : (
+              <div className={rowClassName}>
+                <RegisterRow entry={entry} />
+              </div>
+            )}
           </li>
         ))}
       </ol>
     </div>
+  );
+}
+
+const rowClassName = 'flex items-start gap-3.5 px-5 py-3.5 @min-[700px]:px-6';
+
+function RegisterRow({ entry }: { entry: RegisterEntry }) {
+  return (
+    <>
+      <EntryIcon entry={entry} size="md" />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 pt-px">
+        <span className="text-[15px] leading-[1.35] font-medium">{display(entry).title}</span>
+        {entry.actor || entry.reference ? (
+          <span className="text-[13.5px] leading-[1.4] break-words text-muted-foreground">
+            {entry.actor}
+            {entry.actor && entry.reference ? ' · ' : null}
+            {entry.reference ? (
+              <span className="font-mono text-[12.5px] whitespace-nowrap">{entry.reference}</span>
+            ) : null}
+          </span>
+        ) : null}
+        {entry.summary ? (
+          <span className="text-[13.5px] text-secondary-foreground">{entry.summary}</span>
+        ) : null}
+      </span>
+      <time
+        dateTime={entry.at}
+        className="pt-0.5 text-[13px] whitespace-nowrap text-muted-foreground"
+      >
+        <span className="sr-only">{formatDateTime(entry.at)}</span>
+        <span aria-hidden="true">{formatDate(entry.at)}</span>
+      </time>
+    </>
   );
 }

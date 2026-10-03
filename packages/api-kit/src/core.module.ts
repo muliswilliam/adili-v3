@@ -1,12 +1,14 @@
 import { type DynamicModule, Module, RequestMethod, type Type } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import type { Options } from 'pino-http';
 
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
 import { TokenVerifier } from './auth/token-verifier.js';
 import type { BaseEnv } from './config.js';
 import { HealthController, READINESS_CHECKS } from './health/health.controller.js';
 import type { ReadinessCheck } from './health/readiness-check.js';
+import { serializeRequest } from './log-redaction.js';
 import { ProblemDetailsFilter } from './problem-details.filter.js';
 
 export interface CoreModuleOptions {
@@ -17,6 +19,25 @@ export interface CoreModuleOptions {
    * or ready-made instances such as `new HttpReadinessCheck(...)`.
    */
   readiness?: (Type<ReadinessCheck> | ReadinessCheck)[];
+}
+
+/** The request logger's options; exported so tests can drive pino-http with them directly. */
+export function requestLoggerOptions(serviceName: string, config: BaseEnv): Options {
+  return {
+    name: serviceName,
+    level: config.LOG_LEVEL,
+    // Request IDs come from Fastify (x-request-id or generated).
+    genReqId: (request) => request.id,
+    redact: ['req.headers.authorization', 'req.headers.cookie'],
+    serializers: {
+      req: serializeRequest,
+      res: (response: { statusCode: number }) => ({ statusCode: response.statusCode }),
+    },
+    transport:
+      config.NODE_ENV === 'development'
+        ? { target: 'pino-pretty', options: { singleLine: true } }
+        : undefined,
+  };
 }
 
 /**
@@ -34,20 +55,7 @@ export class CoreModule {
         LoggerModule.forRoot({
           // Probes hit these every few seconds; logging them buries real traffic.
           exclude: [{ path: 'health/{*probe}', method: RequestMethod.GET }],
-          pinoHttp: {
-            name: options.serviceName,
-            level: config.LOG_LEVEL,
-            // Request IDs come from Fastify (x-request-id or generated).
-            genReqId: (request) => request.id,
-            redact: ['req.headers.authorization', 'req.headers.cookie'],
-            serializers: {
-              res: (response: { statusCode: number }) => ({ statusCode: response.statusCode }),
-            },
-            transport:
-              config.NODE_ENV === 'development'
-                ? { target: 'pino-pretty', options: { singleLine: true } }
-                : undefined,
-          },
+          pinoHttp: requestLoggerOptions(options.serviceName, config),
         }),
       ],
       controllers: [HealthController],

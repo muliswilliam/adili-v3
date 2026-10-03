@@ -1,4 +1,4 @@
-import { DECLARANT, REPORTING_OFFICER } from '@adili/roles';
+import { ACCESS_OFFICER, DECLARANT, REPORTING_OFFICER } from '@adili/roles';
 import { z } from 'zod';
 
 /** CSV as declared by clients and as detected by the sniffer. */
@@ -51,6 +51,46 @@ export const UPLOAD_PURPOSES = {
   /** Evidence on a declaration item: a title deed, logbook, statement or payslip (spec 05). */
   'declaration-attachment': {
     roles: [DECLARANT],
+    contentTypes: [PDF, JPEG, PNG, HEIC],
+    maxSize: 20 * MB,
+    uploaderOnly: true,
+    linked: true,
+  },
+  /**
+   * Evidence the declarant attaches to their response to a clarification (spec 07a). The review
+   * service checks each one at the response (clean, this purpose) and keeps its name and hash
+   * with the response, so it records no link and the orphan sweep leaves these alone.
+   */
+  'clarification-attachment': {
+    roles: [DECLARANT],
+    contentTypes: [PDF, JPEG, PNG, HEIC],
+    maxSize: 20 * MB,
+    uploaderOnly: true,
+    linked: false,
+  },
+  /**
+   * Evidence the declarant attaches to their response to a notice of the administrative action
+   * ladder: a notice to comply, warning, salary stoppage or disciplinary referral (spec 08). As
+   * with a clarification response, the review service checks each one at the response and keeps
+   * its name and hash, so it records no link and the orphan sweep leaves these alone.
+   */
+  'action-response': {
+    roles: [DECLARANT],
+    contentTypes: [PDF, JPEG, PNG, HEIC],
+    maxSize: 20 * MB,
+    uploaderOnly: true,
+    linked: false,
+  },
+  /**
+   * Evidence with a declarant's representations on an access request: a letter, a court order;
+   * or, uploaded by the access officer recording a written self-access application, a
+   * representative's written authority and ID (spec 10). The access service links it to the
+   * representations or the application, and takes only the caller's own uploads. The name
+   * predates the officer's uploads and is kept: it is in stored uploads, their object keys and
+   * the contract.
+   */
+  'access-representation': {
+    roles: [DECLARANT, ACCESS_OFFICER],
     contentTypes: [PDF, JPEG, PNG, HEIC],
     maxSize: 20 * MB,
     uploaderOnly: true,

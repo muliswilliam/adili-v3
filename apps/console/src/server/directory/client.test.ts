@@ -101,6 +101,13 @@ describe('directoryTimeoutMs', () => {
     ['GET', '/v1/commissions/tsc', DIRECTORY_TIMEOUTS_MS.read],
     ['POST', '/v1/commissions', DIRECTORY_TIMEOUTS_MS.write],
     ['PUT', '/v1/commissions/tsc/reporting-officer', DIRECTORY_TIMEOUTS_MS.identity],
+    ['GET', '/v1/law-enforcement/agencies/DCI/officers', DIRECTORY_TIMEOUTS_MS.read],
+    ['POST', '/v1/law-enforcement/agencies/DCI/officers', DIRECTORY_TIMEOUTS_MS.identity],
+    [
+      'POST',
+      '/v1/law-enforcement/officers/0190f3a2-0000-7000-8000-000000000001/revoke',
+      DIRECTORY_TIMEOUTS_MS.identity,
+    ],
     [
       'POST',
       '/v1/commissions/tsc/reporting-officer/resend-invitation',

@@ -1,7 +1,10 @@
+import { z } from 'zod';
+
 /** Contract enums of the job state machine: queued → running → succeeded | failed | blocked. */
 
 export const JOB_STATUSES = ['queued', 'running', 'succeeded', 'failed', 'blocked'] as const;
 export type JobStatus = (typeof JOB_STATUSES)[number];
+export const jobStatusSchema = z.enum(JOB_STATUSES);
 
 /** Statuses of a job still to finish. */
 export const LIVE_STATUSES = ['queued', 'running'] as const;
@@ -35,3 +38,6 @@ export const JOB_REASONS = [
   'timeout',
 ] as const;
 export type JobReason = (typeof JOB_REASONS)[number];
+export const jobReasonSchema = z
+  .enum(JOB_REASONS)
+  .meta({ description: 'Set when failed or blocked' });

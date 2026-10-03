@@ -49,6 +49,30 @@ describe('SourceRefLink', () => {
     expect(onOpen).toHaveBeenCalledWith(HOUSE);
   });
 
+  it('shows a detail after the label, to tell like chips apart, cut only past 45% of the chip (N26)', () => {
+    render(
+      <SourceRefLink
+        sourceRef={HOUSE}
+        label="Residential plot with two-bedroom flat, Ruaka"
+        detail="Peter Mwangi Kamau"
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const link = screen.getByRole('button', {
+      name: 'Open in the declaration: Residential plot with two-bedroom flat, Ruaka',
+    });
+    expect(link.textContent).toBe(
+      'Residential plot with two-bedroom flat, Ruaka· Peter Mwangi Kamau',
+    );
+    const detail = screen.getByText('· Peter Mwangi Kamau');
+    expect(detail.className).toContain('shrink-0');
+    // On a phone a long name is cut rather than spilling out of the chip.
+    expect(detail.className).toContain('max-w-[45%]');
+    expect(detail.className).toContain('truncate');
+    expect(link.className).toContain('overflow-hidden');
+  });
+
   it('names the target with the label when there is no longer description', () => {
     render(
       <SourceRefLink onOpen={vi.fn()} sourceRef={BIO} label="Personal and employment details" />,

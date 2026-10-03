@@ -1,5 +1,7 @@
+import type { ReadLegalBasisCode } from '@adili/api-kit';
+
 import { checkCharacter, hasValidCheckCharacter } from './check-character.js';
-import { findScheme, type NumberingScheme, numberingSchemes } from './schemes.js';
+import { ARQ, findScheme, LEA, type NumberingScheme, numberingSchemes } from './schemes.js';
 
 export interface ReferenceParts {
   issuer?: string;
@@ -123,4 +125,52 @@ export function parse(
 
 function isSequence(value: number, scheme: NumberingScheme): boolean {
   return Number.isInteger(value) && value >= 1 && value < 10 ** scheme.sequenceDigits;
+}
+
+/**
+ * ADR-011: the shape of an access grant's reference, a Form K request's (`ARQ`) or a
+ * law-enforcement request's (`LEA`), e.g. `ARQ-PSC-2028-0000012-N`: the pattern contracts
+ * publish. `isGrantReference` also verifies the check character.
+ */
+export const GRANT_REFERENCE_PATTERN = /^(ARQ|LEA)-[A-Z][A-Z0-9]{1,19}-[0-9]{4}-[0-9]{7}-[0-9A-Z]$/;
+
+/** The schemes an access grant is numbered in: Form K (`ARQ`) and law enforcement (`LEA`). */
+export const GRANT_SCHEMES: readonly NumberingScheme[] = [ARQ, LEA];
+
+/**
+ * The provisions an access grant rests on (ADR-008 `legal_basis`, one word per basis): Act
+ * s.36(1) for a Form K request (`ARQ`), s.36(2) with Regulation 23 for a law-enforcement request
+ * (`LEA`). The audit trail's read bases (api-kit `READ_LEGAL_BASES`) include them.
+ */
+export const GRANT_LEGAL_BASES = [
+  'act-s36-1',
+  'act-s36-2',
+] as const satisfies readonly ReadLegalBasisCode[];
+export type GrantLegalBasis = (typeof GRANT_LEGAL_BASES)[number];
+
+const LEGAL_BASIS_OF_SCHEME: Readonly<Record<string, GrantLegalBasis>> = {
+  [ARQ.code]: 'act-s36-1',
+  [LEA.code]: 'act-s36-2',
+};
+
+/**
+ * The legal basis that goes with a grant reference, by its scheme; undefined when `reference` is
+ * not a valid grant reference.
+ */
+export function grantLegalBasis(reference: string): GrantLegalBasis | undefined {
+  return isGrantReference(reference) ? LEGAL_BASIS_OF_SCHEME[reference.slice(0, 3)] : undefined;
+}
+
+/**
+ * Whether `reference` is a valid access grant reference: an `ARQ` or `LEA` number of the right
+ * shape whose check character verifies.
+ */
+export function isGrantReference(reference: string): boolean {
+  try {
+    parse(reference, GRANT_SCHEMES);
+    return true;
+  } catch (error) {
+    if (error instanceof InvalidReferenceError) return false;
+    throw error;
+  }
 }

@@ -44,6 +44,9 @@ services:
     hostname: rabbitmq
     # Official image starts as root, chowns /var/lib/rabbitmq, then drops to rabbitmq.
     # Do not set `user:` or mount only `mnesia/` - Ra cannot create its data dir.
+    # The healthcheck execs as root, and the CLI creates the Erlang cookie in HOME
+    # (/var/lib/rabbitmq) when the broker has not yet: root-owned, the broker cannot read it
+    # and exits on its first start (eacces). It runs as rabbitmq, so the cookie is the broker's.
     environment:
       RABBITMQ_DEFAULT_USER: adili
       RABBITMQ_DEFAULT_PASS: adili_dev
@@ -51,7 +54,7 @@ services:
     volumes: [rabbitmq-data:/var/lib/rabbitmq]
     healthcheck:
       <<: *healthcheck-defaults
-      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
+      test: ['CMD', 'su-exec', 'rabbitmq', 'rabbitmq-diagnostics', '-q', 'check_port_connectivity']
 
   temporal-schema:
     image: temporalio/admin-tools:1.32.0

@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common';
 
+import { Clock, SystemClock } from '../clock.js';
+import {
+  ApplicantProfileController,
+  InternalApplicantsController,
+} from './applicants.controller.js';
+import { ApplicantsService } from './applicants.service.js';
 import {
   DeclarantProfileController,
   InternalPersonsController,
@@ -10,10 +16,18 @@ import { PersonsService } from './persons.service.js';
 /**
  * Persons (spec 03): the declarant's own profile (`GET /v1/me/declarant`) and the helpdesk's
  * lookup by officer reference (`GET /v1/persons?ofr=`); their verified contacts for services
- * (`GET /internal/v1/persons/{personId}/contacts`, spec 04). Onboarding creates them.
+ * (`GET /internal/v1/persons/{personId}/contacts`, spec 04). Applicants (spec 10): their own
+ * profile (`GET /v1/me/applicant`), and for the access service their particulars and the record of
+ * an officer's verification (`/internal/v1/applicants/{personId}`). Onboarding creates them.
  */
 @Module({
-  controllers: [DeclarantProfileController, PersonsController, InternalPersonsController],
-  providers: [PersonsService],
+  controllers: [
+    DeclarantProfileController,
+    PersonsController,
+    InternalPersonsController,
+    ApplicantProfileController,
+    InternalApplicantsController,
+  ],
+  providers: [{ provide: Clock, useClass: SystemClock }, PersonsService, ApplicantsService],
 })
 export class PersonsModule {}

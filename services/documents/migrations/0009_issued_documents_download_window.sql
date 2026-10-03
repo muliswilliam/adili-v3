@@ -1,0 +1,1 @@
+ALTER TABLE "issued_documents" ADD COLUMN "download_expires_at" timestamp with time zone;

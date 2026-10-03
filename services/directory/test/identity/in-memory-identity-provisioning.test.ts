@@ -28,6 +28,8 @@ identityProvisioningContract('InMemoryIdentityProvisioning', () => ({
       tenants: user.tenants,
       ofr: user.ofr,
       personId: user.personId,
+      agency: user.agency,
+      identityStatus: user.identityStatus,
       phone: user.phone,
       realmRoles: user.roles,
       requiredActions: user.requiredActions,

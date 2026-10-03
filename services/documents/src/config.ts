@@ -36,7 +36,12 @@ export const envSchema = baseEnvSchema.extend({
   VERIFY_BASE_URL: z.url(),
   /** The declarations service, whose internal API an acknowledgement slip's payload comes from. */
   DECLARATIONS_API_URL: z.url(),
-  /** The service's confidential Keycloak client (client credentials, `declarations:internal`). */
+  /** The review service, whose internal API a clarification letter's payload comes from. */
+  REVIEW_API_URL: z.url(),
+  /**
+   * The service's confidential Keycloak client (client credentials, `declarations:internal` and
+   * `review:internal`).
+   */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('documents'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),
 });

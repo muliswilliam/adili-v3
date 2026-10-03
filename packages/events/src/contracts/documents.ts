@@ -9,11 +9,78 @@
  * Document types the documents service issues, each with its templates (ADR-010 registry); later
  * specs add theirs.
  */
-export const DOCUMENT_TYPES = ['acknowledgement-slip'] as const;
+export const DOCUMENT_TYPES = [
+  'acknowledgement-slip',
+  'clarification-letter',
+  'decision-letter',
+  'notice-to-comply',
+  'warning',
+  'salary-stoppage',
+  'disciplinary-referral',
+  'referral-package',
+  'access-package',
+  'access-nil-letter',
+  'certified-copy',
+  'form-m',
+  'compliance-report-receipt',
+  'ncr',
+] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
 /** A declaration version's acknowledgement slip (spec 06). */
 export const ACKNOWLEDGEMENT_SLIP = 'acknowledgement-slip' satisfies DocumentType;
+
+/** A Commission's request for clarification of a declaration (spec 07a, Act s.35). */
+export const CLARIFICATION_LETTER = 'clarification-letter' satisfies DocumentType;
+
+/** A Commission's compliance determination on a declaration (spec 08): restricted. */
+export const DECISION_LETTER = 'decision-letter' satisfies DocumentType;
+
+/** The first step of the administrative action ladder (spec 08): restricted. */
+export const NOTICE_TO_COMPLY = 'notice-to-comply' satisfies DocumentType;
+
+/** The second step of the administrative action ladder (spec 08): restricted. */
+export const WARNING = 'warning' satisfies DocumentType;
+
+/** The ladder's salary stoppage pending compliance (spec 08): restricted. */
+export const SALARY_STOPPAGE = 'salary-stoppage' satisfies DocumentType;
+
+/** The ladder's referral to the employer for disciplinary proceedings (spec 08): restricted. */
+export const DISCIPLINARY_REFERRAL = 'disciplinary-referral' satisfies DocumentType;
+
+/**
+ * A referral's evidence package for EACC (spec 08, Regs r.20): a cover sheet with the manifest of
+ * what it includes and their hashes. Confidential: the verify page shows validity only.
+ */
+export const REFERRAL_PACKAGE = 'referral-package' satisfies DocumentType;
+
+/**
+ * The scoped disclosure granted on an access request or a law-enforcement request (spec 10):
+ * confidential, watermarked with its recipient, downloadable by them for a window.
+ */
+export const ACCESS_PACKAGE = 'access-package' satisfies DocumentType;
+
+/**
+ * What a grant delivers instead of its access package when the Commission holds no declaration
+ * within the granted scope (spec 10): a signed letter saying so, confidential, watermarked and
+ * downloadable like the package.
+ */
+export const ACCESS_NIL_LETTER = 'access-nil-letter' satisfies DocumentType;
+
+/** A declarant's certified copy of one of their submitted versions (spec 10): restricted. */
+export const CERTIFIED_COPY = 'certified-copy' satisfies DocumentType;
+
+/** A Commission's compliance report to EACC as filed (spec 09, Regs r.25(2)): restricted. */
+export const FORM_M = 'form-m' satisfies DocumentType;
+
+/**
+ * The signed acknowledgement that EACC received a Commission's compliance report (spec 09): its
+ * reference, the SHA-256 of the report as received and when. Restricted.
+ */
+export const COMPLIANCE_REPORT_RECEIPT = 'compliance-report-receipt' satisfies DocumentType;
+
+/** EACC's national consolidated report of the year's compliance reports (spec 09): restricted. */
+export const NATIONAL_CONSOLIDATED_REPORT = 'ncr' satisfies DocumentType;
 
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;
@@ -131,4 +198,26 @@ export const DOCUMENT_REVOKED = 'document.revoked.v1';
 export interface DocumentRevokedData extends DocumentEventData {
   reasonCategory: RevocationReason;
   statusChangedAt: string;
+}
+
+/**
+ * A download link to a document was handed to the person it is for, within its download window
+ * when it has one. The access register records it as a download of a package or a certified
+ * copy (by `subjectRef`). Subject: the document id; tenant: the issuer.
+ */
+export const DOCUMENT_DOWNLOADED = 'document.downloaded.v1';
+
+export interface DocumentDownloadedData extends Record<string, unknown> {
+  documentId: string;
+  verificationId: string;
+  /** A `DocumentType`, typed open as on every document event. */
+  documentType: string;
+  issuerTenant: string;
+  /** The record the document is about, e.g. `access-request:<uuid>`. */
+  subjectRef: string;
+  /** `sub` of the person's token the link was handed to. */
+  downloadedBy: string;
+  downloadedAt: string;
+  /** End of the download window; null when the document has none. */
+  downloadExpiresAt: string | null;
 }

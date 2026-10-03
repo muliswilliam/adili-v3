@@ -18,12 +18,16 @@ import {
   ACTION_PROPOSED,
   ACTION_RESPONDED,
   actionData,
+  AI_FEEDBACK_RECORDED,
+  aiFeedbackRecordedData,
   CLARIFICATION_ISSUED,
   CLARIFICATION_OVERDUE,
   CLARIFICATION_RESOLVED,
   CLARIFICATION_RESPONDED,
   CLARIFICATION_WITHDRAWN,
   clarificationData,
+  COPILOT_UPDATED,
+  copilotUpdatedData,
   DECLARATION_SUBMITTED,
   declarationSubmittedData,
   DETERMINATION_APPROVED,
@@ -38,7 +42,9 @@ import {
 import {
   actionFacts,
   type ActionStatus,
+  aiFeedbackFacts,
   clarificationFacts,
+  copilotCaseFacts,
   type ClarificationFactStatus,
   determinationFacts,
   obligationFacts,
@@ -284,6 +290,61 @@ export class ProjectionsConsumer {
             ...newerStatus(actionFacts.status, actionFacts.statusAt),
             ...personOf(data),
             ...dated,
+          },
+        }),
+    );
+  }
+
+  @OnEvent(COPILOT_UPDATED)
+  copilotUpdated(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = copilotUpdatedData.parse(event.data);
+    const at = new Date(event.time);
+    const ready = data.status === 'ready' ? { firstReadyAt: at, fy: financialYearAt(at) } : {};
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(copilotCaseFacts)
+        .values({ caseId: data.caseId, tenant, status: data.status, statusAt: at, ...ready })
+        .onConflictDoUpdate({
+          target: copilotCaseFacts.caseId,
+          set: {
+            ...newerStatus(copilotCaseFacts.status, copilotCaseFacts.statusAt),
+            // The earliest `ready` holds, whatever order the events arrive in.
+            ...(data.status === 'ready'
+              ? {
+                  firstReadyAt: sql`least(${copilotCaseFacts.firstReadyAt}, excluded.first_ready_at)`,
+                  fy: sql`case when ${copilotCaseFacts.firstReadyAt} is null or excluded.first_ready_at < ${copilotCaseFacts.firstReadyAt} then excluded.fy else ${copilotCaseFacts.fy} end`,
+                }
+              : {}),
+          },
+        }),
+    );
+  }
+
+  @OnEvent(AI_FEEDBACK_RECORDED)
+  aiFeedbackRecorded(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = aiFeedbackRecordedData.parse(event.data);
+    const at = new Date(data.recordedAt);
+    const facts = {
+      jobId: data.jobId,
+      task: data.task,
+      rating: data.rating,
+      reason: data.reason,
+      fy: financialYearAt(at),
+      recordedAt: at,
+    };
+    // A later rating by the same officer replaces theirs; a late redelivery of an older one not.
+    const newer = sql`${aiFeedbackFacts.recordedAt} <= excluded.recorded_at`;
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(aiFeedbackFacts)
+        .values({ feedbackId: data.feedbackId, tenant, ...facts })
+        .onConflictDoUpdate({
+          target: aiFeedbackFacts.feedbackId,
+          set: {
+            rating: sql`case when ${newer} then excluded.rating else ${aiFeedbackFacts.rating} end`,
+            reason: sql`case when ${newer} then excluded.reason else ${aiFeedbackFacts.reason} end`,
+            fy: sql`case when ${newer} then excluded.fy else ${aiFeedbackFacts.fy} end`,
+            recordedAt: sql`greatest(${aiFeedbackFacts.recordedAt}, excluded.recorded_at)`,
           },
         }),
     );

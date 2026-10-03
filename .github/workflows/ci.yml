@@ -73,12 +73,14 @@ jobs:
         run: git diff --exit-code -- '*.gen.ts'
       - name: Lint OpenAPI (internal + external)
         run: pnpm --filter @adili/schemas lint:openapi
+      # Every forms/*.json (declaration.v1, form-k.v1, form-m.v1); their fixtures are checked by
+      # the @adili/forms tests above.
       - name: Meta-validate form JSON Schemas
         run: pnpm --filter @adili/schemas lint:forms
       # Services with a `contracts` script export their OpenAPI; each export must equal the
       # committed packages/schemas/internal/<service>.yaml (directory, documents, declarations,
-      # notifications, integration-gateway, verification-api), and each client generated from a contract must equal
-      # its committed copy.
+      # notifications, integration-gateway, review, verification-api, access), and each client
+      # generated from a contract must equal its committed copy.
       - name: Internal contracts match the services
         run: pnpm contracts:drift
       # What the image does after the build (infra/docker/service.Dockerfile), on this job's

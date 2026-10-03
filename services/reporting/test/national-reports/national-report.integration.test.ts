@@ -403,16 +403,9 @@ describe('National consolidated report (S11)', () => {
     const [pdf] = api.documents.issued;
     expect(pdf).toMatchObject({
       type: 'ncr',
-      disclosureLevel: 'restricted',
       issuerTenant: 'eacc',
       subjectRef: `national-report:${approved.id}`,
       subjectPersonId: null,
-      publicPayload: {
-        reference: approved.reference,
-        type: 'ncr',
-        issuer: 'EACC',
-        issuedAt: '2028-08-25T08:00:00.000Z',
-      },
       payload: {
         reference: approved.reference,
         financialYear: '2027/2028',

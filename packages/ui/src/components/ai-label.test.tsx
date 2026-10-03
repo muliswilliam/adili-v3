@@ -51,6 +51,16 @@ describe('AiLabel', () => {
     expect(label.getAttribute('data-edited')).toBeNull();
   });
 
+  it('says the content was drafted with AI where its details were not kept', () => {
+    render(<AiLabel text="AI-assisted" size="sm" />);
+
+    expect(
+      screen.getByRole('img', {
+        name: 'AI-assisted. Drafted with AI and approved by a named reviewer',
+      }).textContent,
+    ).toBe('AI-assisted');
+  });
+
   it('shows the details in a tooltip on focus', () => {
     render(<AiLabel details={SUMMARY} />);
 

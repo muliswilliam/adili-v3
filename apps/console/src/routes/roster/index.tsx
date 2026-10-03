@@ -20,6 +20,7 @@ import {
   AlertCircleIcon,
   ArrowDown01Icon,
   ArrowRight01Icon,
+  ChartColumnIcon,
   Clock01Icon,
   Download04Icon,
   File02Icon,
@@ -46,7 +47,7 @@ import { ImportRosterButton } from '../../components/roster/import-roster-button
 import { type NextStep, nextSteps } from '../../components/roster/next-steps';
 import { ImportChannelBadge, ImportStateBadge } from '../../components/roster/roster-badges';
 import { RunningImportBanner } from '../../components/roster/running-import-banner';
-import { Tile, TileValue } from '../../components/roster/tile';
+import { Tile, TileValue, WARNING_TILE } from '../../components/roster/tile';
 import { useImportPolling } from '../../components/roster/use-import-polling';
 import { useTemplateDownload } from '../../components/roster/use-template-download';
 import { goToSignIn } from '../../components/sign-in-redirect';
@@ -147,6 +148,12 @@ function RosterOverview() {
       {banner}
       <SummaryTiles roster={roster} />
       <nav aria-label={m.links} className="mt-4 flex flex-wrap gap-2">
+        <Button asChild variant="secondary" size="sm">
+          <Link to="/roster/coverage">
+            <Icon icon={ChartColumnIcon} />
+            {m.coverageLink}
+          </Link>
+        </Button>
         <Button asChild variant="secondary" size="sm">
           <Link to="/roster/records">
             <Icon icon={LeftToRightListBulletIcon} />
@@ -307,15 +314,7 @@ function SummaryTiles({ roster }: { roster: RosterSummary }) {
         />
         <p className="text-[13px] text-muted-foreground">{m.toGo(toOnboard(roster))}</p>
       </Tile>
-      <Tile
-        icon={Flag02Icon}
-        label={m.flagged}
-        className={
-          flagged
-            ? 'bg-linear-to-b from-warning-subtle/45 to-card ring-1 ring-warning/25'
-            : undefined
-        }
-      >
+      <Tile icon={Flag02Icon} label={m.flagged} className={flagged ? WARNING_TILE : undefined}>
         <div className="flex items-center justify-between gap-2">
           <TileValue>{formatNumber(roster.flagged)}</TileValue>
           {flagged ? (

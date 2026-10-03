@@ -29,6 +29,7 @@ describe('Button', () => {
     ['ghost', 'text-secondary-foreground'],
     ['destructive', 'bg-destructive'],
     ['destructive-ghost', 'hover:bg-destructive-subtle'],
+    ['ai', 'bg-ai'],
     ['link', 'underline'],
   ] as const)('renders the %s variant', (variant, expected) => {
     render(<Button variant={variant}>Save</Button>);

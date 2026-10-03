@@ -23,6 +23,7 @@ import {
   Message01Icon,
   Notification01Icon,
   SentIcon,
+  SparklesIcon,
   UnavailableIcon,
 } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
@@ -69,7 +70,7 @@ export function ClarificationPage(props: ClarificationPageProps) {
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
       <Button asChild variant="ghost" size="sm" className="-ml-3 mb-3">
-        <Link to="/">
+        <Link to="/clarifications">
           <Icon icon={ArrowLeft01Icon} />
           {COPY.back}
         </Link>
@@ -128,7 +129,9 @@ function Header({
         <Badge variant={status.variant}>{status.label.en}</Badge>
         {clarification.responseLate ? <Badge variant="warning">Late</Badge> : null}
         <span>{clarification.commission.name}</span>
-        <span className="font-mono">{COPY.declaration(clarification.declarationReference)}</span>
+        <span>
+          {COPY.declaration} <span className="font-mono">{clarification.declarationReference}</span>
+        </span>
       </div>
     </div>
   );
@@ -410,9 +413,18 @@ function Points({
 }) {
   const { items, response } = clarification;
   const heading = form ? COPY.askedOpen : response ? COPY.askedAnswered : COPY.askedClosed;
+  // ADR-007: AI-assisted text stays labelled, for the declarant too.
+  const aiAssisted =
+    clarification.openingAiJobId !== null || items.some((item) => Boolean(item.aiJobId));
   return (
     <Card className="p-0 sm:p-0">
       <h2 className="border-b px-5 py-4 text-base font-semibold">{heading}</h2>
+      {aiAssisted ? (
+        <p className="flex items-start gap-2 border-b px-5 py-3 text-[13px] text-muted-foreground">
+          <Icon icon={SparklesIcon} className="mt-0.5 size-3.5 shrink-0" />
+          {COPY.aiAssisted}
+        </p>
+      ) : null}
       <ol className="divide-y">
         {items.map((item, index) => {
           const answer = response?.items.find((each) => each.index === index);
@@ -422,11 +434,15 @@ function Points({
               <p className="text-sm font-medium text-muted-foreground">
                 {COPY.point(index + 1, items.length)}
               </p>
-              <div className="grid gap-1">
-                <p className="font-medium">{requirement.ask.en}</p>
+              {/* What the letter asks, in its language; the reviewer's text as written. */}
+              <div lang={clarification.language} className="grid gap-1">
+                <p className="font-medium">{requirement.ask[clarification.language]}</p>
                 {item.label ? <p className="text-sm">{item.label}</p> : null}
               </div>
-              <blockquote className="border-l-2 border-border pl-3 text-sm text-secondary-foreground">
+              <blockquote
+                lang={clarification.language}
+                className="border-l-2 border-border pl-3 text-sm text-secondary-foreground"
+              >
                 {item.text}
               </blockquote>
               {answer ? (
@@ -509,7 +525,7 @@ function LetterCard({ clarification }: { clarification: DeclarantClarification }
         <>
           <div className="grid gap-1">
             <p className="text-sm text-muted-foreground">{COPY.verificationCode}</p>
-            <p className="font-mono text-sm font-semibold break-all">{letter.verificationId}</p>
+            <p className="font-mono text-sm font-semibold break-words">{letter.verificationId}</p>
             {letter.status === 'revoked' ? (
               <Badge variant="destructive">{COPY.revoked}</Badge>
             ) : (

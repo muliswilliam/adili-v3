@@ -8,12 +8,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   allocate,
   allocateReference,
+  ARQ,
   DCB,
   DCF,
   DCI,
   declarationSchemes,
   defineScheme,
   issuerCode,
+  LEA,
   numberingCounters,
   numberingSchema,
   OFR,
@@ -221,6 +223,68 @@ describe('S18: declaration schemes', () => {
       sequence: 2,
     });
   });
+});
+
+describe('S2, S11: access request schemes', () => {
+  it('keeps one counter per (scheme, issuer, year of submission)', async () => {
+    const issue = (scheme: typeof ARQ, tenant: string, year: number) =>
+      db.transaction((tx) =>
+        allocateReference(tx, scheme, { issuer: issuerCode(tenant), period: year }),
+      );
+
+    const references = [
+      await issue(ARQ, 'jsc', 2028),
+      await issue(ARQ, 'jsc', 2028),
+      await issue(LEA, 'jsc', 2028),
+      await issue(ARQ, 'psc', 2028),
+      await issue(ARQ, 'jsc', 2029),
+    ];
+    expect(references.map((reference) => parse(reference))).toMatchObject([
+      { scheme: 'ARQ', issuer: 'JSC', period: 2028, sequence: 1 },
+      { scheme: 'ARQ', issuer: 'JSC', period: 2028, sequence: 2 },
+      { scheme: 'LEA', issuer: 'JSC', period: 2028, sequence: 1 },
+      { scheme: 'ARQ', issuer: 'PSC', period: 2028, sequence: 1 },
+      { scheme: 'ARQ', issuer: 'JSC', period: 2029, sequence: 1 },
+    ]);
+    expect(references[0]).toMatch(/^ARQ-JSC-2028-0000001-[0-9A-Z]$/);
+    expect(references[2]).toMatch(/^LEA-JSC-2028-0000001-[0-9A-Z]$/);
+
+    const counters = await db
+      .select()
+      .from(numberingCounters)
+      .where(inArray(numberingCounters.scheme, ['ARQ', 'LEA']))
+      .orderBy(numberingCounters.scheme, numberingCounters.issuer, numberingCounters.period);
+    expect(counters).toEqual([
+      { scheme: 'ARQ', issuer: 'JSC', period: 2028, value: 2 },
+      { scheme: 'ARQ', issuer: 'JSC', period: 2029, value: 1 },
+      { scheme: 'ARQ', issuer: 'PSC', period: 2028, value: 1 },
+      { scheme: 'LEA', issuer: 'JSC', period: 2028, value: 1 },
+    ]);
+  });
+
+  it.each([ARQ, LEA])(
+    'gives concurrent $code submissions of one Commission and year consecutive references',
+    async (scheme) => {
+      const key = { issuer: issuerCode('tsc'), period: 2027 };
+      const submissions = Array.from({ length: 200 }, () =>
+        db.transaction(async (tx) => {
+          const reference = await allocateReference(tx, scheme, key);
+          // Hold the counter lock like a submit transaction writing its request rows.
+          await tx.execute(sql`select pg_sleep(0.002)`);
+          return reference;
+        }),
+      );
+
+      const sequences = (await Promise.all(submissions))
+        .map((reference) => parse(reference))
+        .map((parsed) => {
+          expect(parsed).toMatchObject({ scheme: scheme.code, issuer: 'TSC', period: 2027 });
+          return parsed.sequence;
+        })
+        .sort((a, b) => a - b);
+      expect(sequences).toEqual(Array.from({ length: 200 }, (_, index) => index + 1));
+    },
+  );
 });
 
 function testScheme(code: string, { issuer = false, period = false } = {}) {

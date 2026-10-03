@@ -115,23 +115,41 @@ export class QueueService {
   async summary(principal: Principal, slug: string): Promise<QueueSummary> {
     const tenant = queueTenant(principal, slug);
     return withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
-      const byStatus = await tx
-        .select({ status: reviewCases.status, count: count() })
+      const cells = await tx
+        .select({ status: reviewCases.status, band: reviewCases.band, count: count() })
         .from(reviewCases)
         .where(eq(reviewCases.tenant, tenant))
-        .groupBy(reviewCases.status);
-      const byBand = await tx
+        .groupBy(reviewCases.status, reviewCases.band);
+      const mine = await tx
         .select({ band: reviewCases.band, count: count() })
         .from(reviewCases)
-        .where(eq(reviewCases.tenant, tenant))
+        .where(
+          and(
+            eq(reviewCases.tenant, tenant),
+            eq(reviewCases.assignee, principal.subject),
+            ne(reviewCases.status, 'determined'),
+          ),
+        )
         .groupBy(reviewCases.band);
       const [overdue] = await tx
         .select({ count: count() })
         .from(clarifications)
         .where(and(eq(clarifications.tenant, tenant), eq(clarifications.status, 'overdue')));
+      const byStatusAndBand = Object.fromEntries(
+        CASE_STATUSES.map((status) => [
+          status,
+          tally(
+            PRIORITY_BANDS,
+            cells.filter((cell) => cell.status === status),
+            (cell) => cell.band,
+          ),
+        ]),
+      );
       return {
-        byStatus: tally(CASE_STATUSES, byStatus, (row) => row.status),
-        byBand: tally(PRIORITY_BANDS, byBand, (row) => row.band),
+        byStatus: tally(CASE_STATUSES, cells, (cell) => cell.status),
+        byBand: tally(PRIORITY_BANDS, cells, (cell) => cell.band),
+        byStatusAndBand,
+        mine: tally(PRIORITY_BANDS, mine, (row) => row.band),
         overdueClarifications: overdue?.count ?? 0,
       };
     });
@@ -145,6 +163,9 @@ function filters(principal: Principal, query: QueueQuery): (SQL | undefined)[] {
   if (query.type) where.push(eq(reviewCases.type, query.type));
   if (query.cycle !== undefined) where.push(eq(reviewCases.cycleYear, query.cycle));
   if (query.late !== undefined) where.push(eq(reviewCases.late, query.late));
+  if (query.registryUnavailable !== undefined) {
+    where.push(eq(reviewCases.registryUnavailable, query.registryUnavailable));
+  }
   if (query.openClarification !== undefined) {
     where.push(
       query.openClarification
@@ -183,13 +204,13 @@ function escapeLike(text: string): string {
   return text.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
-/** Counts per key, with every key present (zero when no row has it). */
+/** Counts per key, summed over the rows with that key; every key present (zero when none). */
 function tally<K extends string, R extends { count: number }>(
   keys: readonly K[],
   rows: R[],
   keyOf: (row: R) => K,
 ): Record<K, number> {
   const counts = Object.fromEntries(keys.map((key) => [key, 0])) as Record<K, number>;
-  for (const row of rows) counts[keyOf(row)] = row.count;
+  for (const row of rows) counts[keyOf(row)] += row.count;
   return counts;
 }

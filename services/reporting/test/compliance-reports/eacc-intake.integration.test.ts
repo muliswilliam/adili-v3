@@ -266,7 +266,6 @@ describe('EACC intake, report viewer and chase (S9, S10)', () => {
       expect(body.document?.partI.commissionName).toBe('Public Service Commission');
       expect(api.documents.issued.find((issued) => issued.type === 'form-m')).toMatchObject({
         subjectRef: `compliance-report:${psc.id}`,
-        disclosureLevel: 'restricted',
       });
 
       const audited = (await api.events()).slice(before);

@@ -1,43 +1,29 @@
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
-import {
-  DECLARATION_TYPES,
-  declarationSchemes,
-  InvalidReferenceError,
-  parse,
-} from '@adili/numbering/references';
+import { CLR, DECLARATION_TYPES, declarationSchemes } from '@adili/numbering/references';
 import { z } from 'zod';
 
-export const CHANNELS = ['email', 'sms'] as const;
-export type Channel = (typeof CHANNELS)[number];
+import { accessTemplates } from './access-templates.js';
+import { determinationTemplates } from './determination-templates.js';
+import { formMTemplates } from './form-m-templates.js';
+import {
+  CHANNELS,
+  type Channel,
+  define,
+  email,
+  escapeHtml,
+  LOCALES,
+  type Locale,
+  longDate,
+  NEVER_ASKS,
+  paragraph,
+  portalUrlSchema,
+  referenceOf,
+  type RenderedEmail,
+  type RenderedSms,
+  signInParagraph,
+} from './template-kit.js';
 
-/** English now; Swahili renders English until its copy is written. */
-export const LOCALES = ['en', 'sw'] as const;
-export type Locale = (typeof LOCALES)[number];
-
-export interface RenderedEmail {
-  subject: string;
-  text: string;
-  html: string;
-}
-
-export interface RenderedSms {
-  text: string;
-}
-
-type Rendered<TChannel extends Channel> = TChannel extends 'email' ? RenderedEmail : RenderedSms;
-
-interface Template<TChannel extends Channel, TParams extends z.ZodType> {
-  channel: TChannel;
-  params: TParams;
-  /** English is required; other locales fall back to it until translated. */
-  copy: { en: (params: z.infer<TParams>) => Rendered<TChannel> } & Partial<
-    Record<Exclude<Locale, 'en'>, (params: z.infer<TParams>) => Rendered<TChannel>>
-  >;
-}
-
-const define = <TChannel extends Channel, TParams extends z.ZodType>(
-  template: Template<TChannel, TParams>,
-) => template;
+export { CHANNELS, type Channel, LOCALES, type Locale, type RenderedEmail, type RenderedSms };
 
 const otpParams = z.strictObject({
   code: z.string().regex(/^\d{4,8}$/, 'must be 4 to 8 digits'),
@@ -47,28 +33,6 @@ const otpParams = z.strictObject({
 type OtpParams = z.infer<typeof otpParams>;
 
 const minutes = (n: number) => (n === 1 ? '1 minute' : `${n} minutes`);
-
-/** One paragraph of an email, as plain text and as HTML. */
-interface Paragraph {
-  text: string;
-  html: string;
-}
-
-/** A paragraph of plain words, escaped for the HTML body. */
-const paragraph = (text: string): Paragraph => ({ text, html: escapeHtml(text) });
-
-/** "Sign in to Adili Online at <portal> <rest>", the portal linked in the HTML body. */
-const signInParagraph = (portalUrl: string, rest: string): Paragraph => ({
-  text: `Sign in to Adili Online at ${portalUrl} ${rest}`,
-  html: `Sign in to Adili Online at <a href="${escapeHtml(portalUrl)}">${escapeHtml(portalUrl)}</a> ${escapeHtml(rest)}`,
-});
-
-/** An email of `paragraphs`: blank-line separated in the text body, one `<p>` each in HTML. */
-const email = (subject: string, paragraphs: readonly Paragraph[]): RenderedEmail => ({
-  subject,
-  text: paragraphs.map((p) => p.text).join('\n\n'),
-  html: paragraphs.map((p) => `<p>${p.html}</p>`).join('\n'),
-});
 
 function otpEmail(
   subject: string,
@@ -88,6 +52,33 @@ function otpEmail(
 const forCommission = (params: OtpParams) =>
   params.commissionName ? ` with ${params.commissionName}` : '';
 
+/**
+ * An invitation to a roster officer who has not set up their declarant account (spec 10: the
+ * Commission needs to reach them, e.g. to tell them of an access request). Names no request.
+ */
+const invitationParams = z.strictObject({
+  commissionName: z.string().trim().min(1).max(120),
+  /** The portal's onboarding start for the Commission (http or https URL). */
+  getStartedUrl: z.url({ protocol: /^https?$/ }).max(200),
+});
+type InvitationParams = z.infer<typeof invitationParams>;
+
+function invitationEmail(params: InvitationParams): RenderedEmail {
+  return email('Set up your Adili Online declarant account', [
+    paragraph(
+      `${params.commissionName} has you on its roster of public officers who declare on Adili Online, and you have not set up your declarant account yet.`,
+    ),
+    paragraph(
+      "With an account you file your declarations online and receive the Commission's notices about them.",
+    ),
+    {
+      text: `Set it up at ${params.getStartedUrl} with your personnel file number and national ID.`,
+      html: `Set it up at <a href="${escapeHtml(params.getStartedUrl)}">${escapeHtml(params.getStartedUrl)}</a> with your personnel file number and national ID.`,
+    },
+    paragraph(NEVER_ASKS),
+  ]);
+}
+
 const reminderParams = z
   .strictObject({
     type: z.enum(DECLARATION_TYPES),
@@ -97,7 +88,7 @@ const reminderParams = z
     dueDate: z.iso.date(),
     /** Whole days from the send to the due date; the caller computes it in Nairobi time. */
     daysLeft: z.number().int().min(0).max(366),
-    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+    portalUrl: portalUrlSchema,
   })
   .refine((params) => params.dueDate >= params.statementDate, {
     path: ['dueDate'],
@@ -110,35 +101,12 @@ const reminderParams = z
   });
 type ReminderParams = z.infer<typeof reminderParams>;
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
-
-/** `2027-12-31` as `31 December 2027`, without a time zone: the date is already civil. */
-function longDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-').map(Number);
-  return `${String(day)} ${MONTHS[(month ?? 1) - 1] ?? ''} ${String(year)}`;
-}
-
 const days = (n: number) => (n === 1 ? '1 day' : `${String(n)} days`);
 
 const statementDateParagraph = (statementDate: string) =>
   paragraph(
     `It declares your income, assets and liabilities as at the statement date, ${longDate(statementDate)}.`,
   );
-
-const NEVER_ASKS = 'Adili Online will never ask you for your password or sign-in code.';
 
 function reminderEmail(params: ReminderParams): RenderedEmail {
   const due = longDate(params.dueDate);
@@ -165,20 +133,7 @@ const DECLARATION_SCHEMES = Object.values(declarationSchemes);
 
 const acknowledgementParams = z
   .strictObject({
-    reference: z.string().superRefine((reference, ctx) => {
-      try {
-        parse(reference, DECLARATION_SCHEMES);
-      } catch (error) {
-        if (!(error instanceof InvalidReferenceError)) throw error;
-        ctx.addIssue({
-          code: 'custom',
-          message:
-            error.reason === 'bad-check-character'
-              ? 'has a wrong check character'
-              : 'must be a DCI, DCB or DCF declaration reference',
-        });
-      }
-    }),
+    reference: referenceOf(DECLARATION_SCHEMES, 'a DCI, DCB or DCF declaration reference'),
     type: z.enum(DECLARATION_TYPES),
     /** The submitted version the slip is for; above 1 is an amendment, same reference. */
     version: z.number().int().min(1).max(99),
@@ -193,7 +148,7 @@ const acknowledgementParams = z
         'must be a verification code in its printed form, such as ADL-7Q4K-M2XR-9HTC-2B7F-Q3ZD-8WNA-9K',
       ),
     /** Where the declarant signs in to download the slip; the email carries no attachment. */
-    portalUrl: z.url({ protocol: /^https?$/ }).max(200),
+    portalUrl: portalUrlSchema,
   })
   .refine((params) => params.reference.startsWith(`${declarationSchemes[params.type].code}-`), {
     path: ['type'],
@@ -233,14 +188,70 @@ function acknowledgementEmail(params: AcknowledgementParams): RenderedEmail {
   ]);
 }
 
+const clarificationFields = {
+  /** The clarification request's reference (ADR-011): `CLR-PSC-2028-0000451-1`. */
+  reference: referenceOf([CLR], 'a CLR clarification reference'),
+  commissionName: z.string().trim().min(1).max(120),
+  /** Civil date `YYYY-MM-DD`: the last day to respond, in Nairobi time. */
+  dueDate: z.iso.date(),
+  /** The portal page where the declarant reads the letter and responds. */
+  portalUrl: portalUrlSchema,
+};
+
+const clarificationIssuedParams = z.strictObject(clarificationFields);
+type ClarificationIssuedParams = z.infer<typeof clarificationIssuedParams>;
+
+const clarificationReminderParams = z.strictObject({
+  ...clarificationFields,
+  /** Whole days from the send to the due date; the caller computes it in Nairobi time. */
+  daysLeft: z.number().int().min(0).max(366),
+});
+type ClarificationReminderParams = z.infer<typeof clarificationReminderParams>;
+
+const LATE_RESPONSE =
+  'You can still respond after that date, but your response will be recorded as late.';
+
+const CLARIFICATION_QUESTIONS = `If you have questions about this request, contact your Commission. ${NEVER_ASKS}`;
+
+function clarificationIssuedEmail(params: ClarificationIssuedParams): RenderedEmail {
+  return email(`Clarification request ${params.reference}`, [
+    paragraph(
+      `${params.commissionName} has sent you a clarification request about your declaration. Its reference number is ${params.reference}.`,
+    ),
+    paragraph(`Please respond by ${longDate(params.dueDate)}. ${LATE_RESPONSE}`),
+    // The letter names the declarant and the items asked about, so it stays behind sign-in.
+    signInParagraph(
+      params.portalUrl,
+      'to read the letter and respond. It is not attached to this email, so that only you can open it.',
+    ),
+    paragraph(CLARIFICATION_QUESTIONS),
+  ]);
+}
+
+function clarificationReminderEmail(params: ClarificationReminderParams): RenderedEmail {
+  const due = longDate(params.dueDate);
+  const when = params.daysLeft === 0 ? `today, ${due}` : `on ${due}, in ${days(params.daysLeft)}`;
+  return email(
+    params.daysLeft === 0
+      ? `Reminder: clarification request ${params.reference} is due today`
+      : `Reminder: clarification request ${params.reference} is due on ${due}`,
+    [
+      paragraph(
+        `You have not yet responded to clarification request ${params.reference} from ${params.commissionName}. Your response is due ${when}. ${LATE_RESPONSE}`,
+      ),
+      signInParagraph(params.portalUrl, 'to read the letter and respond.'),
+      paragraph(CLARIFICATION_QUESTIONS),
+    ],
+  );
+}
+
 /**
  * Every message the service can send, by template id. Params are validated before rendering.
  *
- * Later specs add theirs here, which widens the contract's `TemplateId` enum: 07a clarifications
- * (issued, reminder), 08 decisions, notices, salary stopped and reinstated, 09 Form M (draft
- * ready, reminder, chase, receipt), access requests (acknowledged, notified, decisions to
- * applicant and declarant, package ready, officer reminder), law-enforcement access (grant
- * notice, decision) and certified copies (ready).
+ * Later specs add theirs here, which widens the contract's `TemplateId` enum. Spec 08's decision,
+ * notice and salary templates are in determination-templates.ts; spec 09's Form M templates
+ * (draft ready, reminder, receipt, chase) in form-m-templates.ts; spec 10's access templates, the
+ * Form K acknowledgement among them, in access-templates.ts.
  */
 export const templates = {
   'onboarding-otp-email': define({
@@ -283,6 +294,20 @@ export const templates = {
         )(params),
     },
   }),
+  'onboarding-invitation-email': define({
+    channel: 'email',
+    params: invitationParams,
+    copy: { en: invitationEmail },
+  }),
+  'onboarding-invitation-sms': define({
+    channel: 'sms',
+    params: invitationParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: ${params.commissionName} invites you to set up your declarant account, to file your declarations and receive the Commission's notices online. Start at ${params.getStartedUrl}`,
+      }),
+    },
+  }),
   'obligation-reminder-sms': define({
     channel: 'sms',
     params: reminderParams,
@@ -312,6 +337,37 @@ export const templates = {
       }),
     },
   }),
+  'clarification-issued-email': define({
+    channel: 'email',
+    params: clarificationIssuedParams,
+    copy: { en: clarificationIssuedEmail },
+  }),
+  'clarification-issued-sms': define({
+    channel: 'sms',
+    params: clarificationIssuedParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: ${params.commissionName} has sent you clarification request ${params.reference}. Respond by ${longDate(params.dueDate)} at ${params.portalUrl}`,
+      }),
+    },
+  }),
+  'clarification-reminder-email': define({
+    channel: 'email',
+    params: clarificationReminderParams,
+    copy: { en: clarificationReminderEmail },
+  }),
+  'clarification-reminder-sms': define({
+    channel: 'sms',
+    params: clarificationReminderParams,
+    copy: {
+      en: (params) => ({
+        text: `Adili: clarification request ${params.reference} is due on ${longDate(params.dueDate)} (${params.daysLeft === 0 ? 'today' : days(params.daysLeft)}). Respond at ${params.portalUrl}`,
+      }),
+    },
+  }),
+  ...determinationTemplates,
+  ...accessTemplates,
+  ...formMTemplates,
 } as const;
 
 export type TemplateId = keyof typeof templates;
@@ -334,6 +390,15 @@ export function templateParams(id: TemplateId): z.ZodType {
 
 type RenderFn = (params: unknown) => RenderedEmail | RenderedSms;
 
+export interface RenderOptions {
+  /**
+   * Refuse a `portalUrl` that is not https: a link a declarant follows to sign in must not go out
+   * in the clear. On outside development and test (`NODE_ENV=production`), where the portal runs
+   * on plain http locally.
+   */
+  httpsLinksOnly?: boolean;
+}
+
 /**
  * Validates `params` against the template's schema and renders it in `locale`, falling back
  * to English. Throws a `ZodError` whose paths start at `params`.
@@ -342,6 +407,7 @@ export function renderTemplate(
   id: TemplateId,
   locale: Locale,
   params: unknown,
+  { httpsLinksOnly = false }: RenderOptions = {},
 ): Partial<RenderedEmail> & { text: string } {
   const template = templates[id] as unknown as {
     params: z.ZodType;
@@ -353,14 +419,16 @@ export function renderTemplate(
       parsed.error.issues.map((issue) => ({ ...issue, path: ['params', ...issue.path] })),
     );
   }
+  const portalUrl = (parsed.data as { portalUrl?: unknown }).portalUrl;
+  if (httpsLinksOnly && typeof portalUrl === 'string' && !portalUrl.startsWith('https:')) {
+    throw new z.ZodError([
+      {
+        code: 'custom',
+        path: ['params', 'portalUrl'],
+        message: 'must be an https URL',
+        input: portalUrl,
+      },
+    ]);
+  }
   return (template.copy[locale] ?? template.copy.en)(parsed.data);
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
 }

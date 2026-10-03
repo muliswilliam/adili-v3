@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/com
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import {
   AcceptIdempotencyKey,
+  ApiJsonBody,
   ApiProblemResponse,
   ApiQueryParameters,
   CurrentPrincipal,
@@ -70,6 +71,7 @@ export class ApprovalsController {
   @ApiParam({ name: 'kind', schema: { type: 'string', enum: [...APPROVAL_KINDS] } })
   @ApiParam({ name: 'subjectId', schema: { type: 'string', format: 'uuid' } })
   @AcceptIdempotencyKey()
+  @ApiJsonBody(reassignApprovalInput)
   @ApiOperation({
     operationId: 'reassignApproval',
     summary:

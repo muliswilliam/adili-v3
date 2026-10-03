@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, randomUUID, verify } from 'node:crypto';
 
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import {
@@ -22,7 +22,6 @@ import { componentSchema, contractErrors, okResponse } from '../support/contract
 import {
   type Caller,
   type DocumentsApi,
-  listKeys,
   requireEnv,
   startDocumentsApi,
   testOpenBao,
@@ -48,6 +47,12 @@ import {
 const DECLARATIONS: Caller = {
   sub: 'service-account-declarations',
   azp: 'declarations',
+  scope: 'documents:internal',
+};
+/** The review service's account, downloading a letter for a reviewer of the Commission. */
+const REVIEW: Caller = {
+  sub: 'service-account-review',
+  azp: 'review',
   scope: 'documents:internal',
 };
 const DECLARANT_PERSON = randomUUID();
@@ -415,6 +420,21 @@ describe('issuing: validation and callers', () => {
     expect(rows).toEqual([]);
   });
 
+  it.each([
+    ['disclosureLevel', 'public'],
+    ['issuerTenant', 'psc'],
+    ['publicPayload', { reference: 'DCB-PSC-2027-0000001-Y' }],
+  ])(
+    'refuses a field the request does not take, %s (the template or X-Acting-Tenant decides it), with 400',
+    async (field, value) => {
+      const response = await issue({ ...issueBody(), [field]: value });
+      expect(response.statusCode, response.body).toBe(400);
+      expect(response.json<Problem>().errors).toEqual([
+        expect.objectContaining({ message: expect.stringContaining(field) as string }),
+      ]);
+    },
+  );
+
   it('refuses a template version that does not exist with 400', async () => {
     const response = await issue({ ...issueBody(), templateVersion: 99 });
     expect(response.statusCode).toBe(400);
@@ -579,6 +599,10 @@ describe('S13 downloading', () => {
     const fetched = await fetch(body.downloadUrl);
     expect(fetched.status).toBe(200);
     expect(fetched.headers.get('content-type')).toBe('application/pdf');
+    // Saved, not opened in place of the page that asked for it.
+    expect(fetched.headers.get('content-disposition')).toBe(
+      'attachment; filename="acknowledgement-slip-DCB-PSC-2027-0000001-1.pdf"',
+    );
     expect(sha256(new Uint8Array(await fetched.arrayBuffer()))).toBe(document.sha256);
 
     const audits = (
@@ -614,6 +638,53 @@ describe('S13 downloading', () => {
       tx.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1')),
     );
     expect(audits.filter((row) => JSON.stringify(row.envelope).includes(document.id))).toEqual([]);
+  });
+
+  it("hands the issuing tenant's service a presigned URL for its staff, audited with the person and the staff member", async () => {
+    const document = await issued();
+    const response = await api.get(`/internal/v1/documents/${document.id}/download`, REVIEW, {
+      'x-acting-tenant': 'psc',
+      'x-acting-subject': 'reviewer-a',
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<DocumentDownload>();
+    expect(
+      contractErrors(okResponse('/internal/v1/documents/{documentId}/download', 'get'), body),
+    ).toEqual([]);
+    expect(body.sha256).toBe(document.sha256);
+    const fetched = await fetch(body.downloadUrl);
+    expect(fetched.status).toBe(200);
+    expect(sha256(new Uint8Array(await fetched.arrayBuffer()))).toBe(document.sha256);
+
+    const audits = (
+      await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+        tx.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1')),
+      )
+    ).filter((row) => JSON.stringify(row.envelope).includes(document.id));
+    expect(audits).toHaveLength(1);
+    expect(audits[0]?.envelope).toMatchObject({
+      tenant: 'psc',
+      data: {
+        action: 'document.downloaded',
+        resource: {
+          type: 'issued-document',
+          params: { documentId: document.id },
+          tenant: 'psc',
+          subjectPersonId: DECLARANT_PERSON,
+        },
+        // M13: the reviewer the service read for (ADR-013 §8.6).
+        actor: { subject: REVIEW.sub, onBehalfOf: 'reviewer-a' },
+      },
+    });
+  });
+
+  it('answers 404 to a service acting for another tenant, and 403 to staff tokens', async () => {
+    const document = await issued();
+    const path = `/internal/v1/documents/${document.id}/download`;
+    expect((await api.get(path, REVIEW, { 'x-acting-tenant': 'tsc' })).statusCode).toBe(404);
+    const unknown = `/internal/v1/documents/${randomUUID()}/download`;
+    expect((await api.get(unknown, REVIEW, { 'x-acting-tenant': 'psc' })).statusCode).toBe(404);
+    expect((await api.get(path, OFFICER, { 'x-acting-tenant': 'psc' })).statusCode).toBe(403);
   });
 
   it("shows the declarant the document's metadata", async () => {
@@ -680,7 +751,9 @@ describe('a dependency down', () => {
     const down = await startDocumentsApi({ openbaoUrl: 'http://127.0.0.1:9' });
     try {
       const body = issueBody();
-      const stored = await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/');
+      // The suite's own client: the bucket is shared with suites running alongside, whose
+      // objects come and go while this one runs.
+      const send = vi.spyOn(down.s3, 'send');
       const response = await down.post('/internal/v1/documents/issue', body, DECLARATIONS, {
         idempotencyKey: null,
         headers: { 'x-acting-tenant': 'psc' },
@@ -688,7 +761,8 @@ describe('a dependency down', () => {
       expect(response.statusCode).toBe(502);
       expect(response.json<Problem>().type).toBe('signer-unavailable');
       await nothingRegistered(down, body.subjectRef);
-      expect(await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/')).toEqual(stored);
+      const puts = send.mock.calls.filter(([command]) => command instanceof PutObjectCommand);
+      expect(puts).toEqual([]);
     } finally {
       await down.close();
     }

@@ -90,3 +90,27 @@ export function previousPage<S extends CursorSearch>(search: S, paging: Paging):
     state: before ? { trail: paging.trail.slice(0, -1), offset: before.offset } : firstPage,
   };
 }
+
+/** One page of rows held in the browser (a list read whole, paged on screen). */
+export interface ClientPage<T> {
+  rows: T[];
+  /** 1-based, clamped to the pages there are. */
+  page: number;
+  pages: number;
+  /** 1-based positions of the first and last row on the page. */
+  from: number;
+  to: number;
+}
+
+/** The `requested` page (the first when absent) of `rows`, `size` to a page. */
+export function clientPage<T>(
+  rows: readonly T[],
+  requested: number | undefined,
+  size: number,
+): ClientPage<T> {
+  const pages = Math.max(1, Math.ceil(rows.length / size));
+  const page = Math.min(Math.max(1, requested ?? 1), pages);
+  const start = (page - 1) * size;
+  const shown = rows.slice(start, start + size);
+  return { rows: shown, page, pages, from: start + 1, to: start + shown.length };
+}

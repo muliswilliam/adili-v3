@@ -1,6 +1,7 @@
 import {
   Alert,
   AlertDescription,
+  AlertTitle,
   Button,
   Dialog,
   DialogBody,
@@ -17,33 +18,42 @@ import {
   Spinner,
   Textarea,
 } from '@adili/ui';
-import { InformationCircleIcon } from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 import { useId, useState } from 'react';
 
 import { resolveNoteError, resolveOutcome, withdrawReasonError } from '../../clarification/dialogs';
 
 /**
- * Mark resolved and Withdraw (spec 07a S15), as controlled dialogs. Each checks its text, then
- * hands it to `onSubmit`, which resolves to an error to show in the dialog or null when done.
+ * Mark resolved and Withdraw (spec 07a S15), as controlled dialogs. Each checks its text (an
+ * error under the field), then hands it to `onSubmit`, which resolves to an error to show in the
+ * dialog or null when done. That error is about the request, not the text, so it shows above the
+ * buttons, not under the field.
  */
+
+/** Why a request failed: one sentence, or a title with what it means for the record. */
+export type SubmitFailureText = string | { title: string; detail: string };
 
 interface TextDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   reference: string | null;
-  onSubmit: (text: string) => Promise<string | null>;
+  onSubmit: (text: string) => Promise<SubmitFailureText | null>;
 }
 
 function useTextDialog(
-  onSubmit: (text: string) => Promise<string | null>,
+  onSubmit: (text: string) => Promise<SubmitFailureText | null>,
   check: (text: string) => string | null,
 ) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<SubmitFailureText | null>(null);
   const [busy, setBusy] = useState(false);
   return {
     text,
+    /** What is wrong with the text. */
     error,
+    /** Why the request failed. */
+    failure,
     busy,
     change: (value: string) => {
       setText(value);
@@ -52,8 +62,10 @@ function useTextDialog(
     reset: () => {
       setText('');
       setError(null);
+      setFailure(null);
     },
     submit: async () => {
+      setFailure(null);
       const problem = check(text);
       if (problem) {
         setError(problem);
@@ -62,9 +74,21 @@ function useTextDialog(
       setBusy(true);
       const failed = await onSubmit(text.trim());
       setBusy(false);
-      setError(failed);
+      setFailure(failed);
     },
   };
+}
+
+/** A request that failed, above the dialog's buttons. */
+function SubmitFailure({ text }: { text: SubmitFailureText | null }) {
+  if (!text) return null;
+  return (
+    <Alert variant="destructive" role="alert">
+      <Icon icon={AlertCircleIcon} />
+      <AlertTitle>{typeof text === 'string' ? text : text.title}</AlertTitle>
+      {typeof text === 'string' ? null : <AlertDescription>{text.detail}</AlertDescription>}
+    </Alert>
+  );
 }
 
 export function ResolveDialog({
@@ -113,6 +137,7 @@ export function ResolveDialog({
             <Icon icon={InformationCircleIcon} />
             <AlertDescription>{resolveOutcome(othersOpen)}</AlertDescription>
           </Alert>
+          <SubmitFailure text={state.failure} />
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
@@ -172,6 +197,7 @@ export function WithdrawDialog({ open, onOpenChange, reference, onSubmit }: Text
             />
             {state.error ? <FieldError id={`${fieldId}-error`}>{state.error}</FieldError> : null}
           </div>
+          <SubmitFailure text={state.failure} />
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>

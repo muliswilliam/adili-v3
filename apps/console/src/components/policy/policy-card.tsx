@@ -8,19 +8,18 @@ import {
   formatDateTime,
   formatMonthDay,
   Icon,
-  Tooltip,
   useToast,
-  focusRing,
 } from '@adili/ui';
-import {
-  InformationCircleIcon,
-  PencilEdit02Icon,
-  Settings01Icon,
-} from '@hugeicons/core-free-icons';
+import { PencilEdit02Icon, Settings01Icon } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
+import type { CommissionAiStatus } from '../../server/ai-status';
 import type { TenantPolicyHistory, TenantPolicyVersion } from '../../server/directory/client';
+import type { ServiceResult } from '../../server/service-call';
+import { AiStatusValue } from '../ai-policy/ai-status';
+import { messages as aiMessages } from '../ai-policy/messages';
+import { InfoTip } from '../info-tip';
 import { SectionCard } from '../page';
 import { messages as m } from './messages';
 import { PolicyDialogContent, type SavePolicyVersion } from './policy-dialog';
@@ -33,16 +32,26 @@ export interface PolicyCardProps {
    * tenant and platform admins); without it the card is read only.
    */
   save?: SavePolicyVersion;
+  /** Whether AI assistance is enabled for the Commission (spec 07c), for its own admins. */
+  aiStatus?: ServiceResult<CommissionAiStatus>;
   onUnauthenticated: () => void;
   className?: string;
 }
 
 /**
- * The obligations policy of a Commission (spec 04 FE-4): statutory periods, reminder offsets and
- * the obligations start date, which those who may change it do through a dialog that saves a new
- * version; then the version history, newest first.
+ * The obligations policy of a Commission (spec 04 FE-4): statutory periods, reminder offsets, the
+ * periods of access to declarations (spec 10, read only: each request's clock reads them as it
+ * starts) and the obligations start date, which those who may change it do through a dialog that
+ * saves a new version; for the Commission's own admins whether AI assistance is enabled (spec 07c);
+ * then the version history, newest first.
  */
-export function PolicyCard({ history, save, onUnauthenticated, className }: PolicyCardProps) {
+export function PolicyCard({
+  history,
+  save,
+  aiStatus,
+  onUnauthenticated,
+  className,
+}: PolicyCardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -77,6 +86,14 @@ export function PolicyCard({ history, save, onUnauthenticated, className }: Poli
           <span className="block">{m.finalPeriod(current.finalDueAfterExitDays)}</span>
         </PolicyRow>
         <PolicyRow term={m.reminders}>{reminderOffsetsText(current.reminderOffsetsDays)}</PolicyRow>
+        <PolicyRow term={m.accessPeriods}>
+          <span className="block">{m.formKDecision(current.access.decisionDays)}</span>
+          <span className="block">{m.leaDecision(current.access.leaDecisionDays)}</span>
+          <span className="block">
+            {m.representationWindow(current.access.representationWindowDays)}
+          </span>
+          <span className="block">{m.packageDownload(current.access.packageDownloadDays)}</span>
+        </PolicyRow>
         <PolicyRow
           term={m.startDate}
           action={
@@ -109,20 +126,18 @@ export function PolicyCard({ history, save, onUnauthenticated, className }: Poli
             <time dateTime={current.obligationsStartDate}>
               {formatDate(current.obligationsStartDate)}
             </time>
-            <Tooltip content={m.startDateTip}>
-              <button
-                type="button"
-                aria-label={m.startDateTipLabel}
-                className={cn(
-                  'inline-grid size-5 place-items-center rounded-full text-muted-foreground hover:text-foreground',
-                  focusRing,
-                )}
-              >
-                <Icon icon={InformationCircleIcon} className="size-3.5" />
-              </button>
-            </Tooltip>
+            <InfoTip
+              content={m.startDateTip}
+              label={m.startDateTipLabel}
+              className="text-muted-foreground"
+            />
           </span>
         </PolicyRow>
+        {aiStatus ? (
+          <PolicyRow term={aiMessages.aiAssistance}>
+            <AiStatusValue status={aiStatus} />
+          </PolicyRow>
+        ) : null}
       </dl>
       <VersionHistory history={history} />
     </SectionCard>

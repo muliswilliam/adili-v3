@@ -12,6 +12,7 @@ export default defineConfig({
     maxWorkers: maxWorkers(),
     isolate: false,
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    exclude: ['**/*.integration.test.ts'],
     // Config is validated at import; tests use the committed local defaults.
     env: { ...parseEnv(readFileSync('.env.example', 'utf8')), LOG_LEVEL: 'fatal' },
   },

@@ -7,8 +7,9 @@ import type { InternalCommissionStaff, StaffRole } from './representation.js';
 
 /**
  * A Commission's staff by role, for services that write to them (spec 09: the Form M reminders to
- * its supervisors and commission admins, the chase of a late report to its reporting officers):
- * the enabled accounts holding the role with a verified email, as the identity provider has them.
+ * its supervisors and commission admins, the chase of a late report to its reporting officers;
+ * spec 10: the reminders to its access officers): the enabled accounts holding the role with a
+ * verified email, as the identity provider has them.
  */
 @Injectable()
 export class CommissionStaffService {

@@ -27,6 +27,7 @@ interface RecordValues {
   designation: string | null;
   jobGroup: string | null;
   reportingEntityId: string | null;
+  employerCode: string | null;
   appointmentDate: string | null;
   email: string | null;
   phone: string | null;
@@ -268,6 +269,7 @@ const RECORD_FIELDS = [
   'designation',
   'jobGroup',
   'reportingEntityId',
+  'employerCode',
   'appointmentDate',
   'email',
   'phone',
@@ -285,6 +287,8 @@ function recordValues(row: NormalisedRosterRow, reportingEntityId: string | null
     designation: row.designation,
     jobGroup: row.jobGroup,
     reportingEntityId,
+    // Rows staged before the column existed have none.
+    employerCode: row.employerCode ?? null,
     appointmentDate: row.appointmentDate,
     email: row.email,
     phone: row.phone,
@@ -398,6 +402,7 @@ async function recordsByFileNumber(
       designation: rosterRecords.designation,
       jobGroup: rosterRecords.jobGroup,
       reportingEntityId: rosterRecords.reportingEntityId,
+      employerCode: rosterRecords.employerCode,
       appointmentDate: rosterRecords.appointmentDate,
       email: rosterRecords.email,
       phone: rosterRecords.phone,
@@ -459,6 +464,7 @@ async function updateRecords(
     designation: values.designation,
     job_group: values.jobGroup,
     reporting_entity_id: values.reportingEntityId,
+    employer_code: values.employerCode,
     appointment_date: values.appointmentDate,
     email: values.email,
     phone: values.phone,
@@ -471,6 +477,7 @@ async function updateRecords(
       designation = source.designation,
       job_group = source.job_group,
       reporting_entity_id = source.reporting_entity_id,
+      employer_code = source.employer_code,
       appointment_date = source.appointment_date,
       email = source.email,
       phone = source.phone,
@@ -491,6 +498,7 @@ async function updateRecords(
       designation text,
       job_group text,
       reporting_entity_id uuid,
+      employer_code text,
       appointment_date date,
       email text,
       phone text

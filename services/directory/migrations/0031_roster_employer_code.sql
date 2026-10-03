@@ -1,0 +1,1 @@
+ALTER TABLE "roster_records" ADD COLUMN "employer_code" text;

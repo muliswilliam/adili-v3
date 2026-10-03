@@ -22,6 +22,12 @@ export interface DocumentTemplate<TPayload = unknown> {
   disclosureLevel: DisclosureLevel;
   /** Human title, e.g. `Acknowledgement slip`. */
   title: string;
+  /**
+   * What an issue request of the type must carry besides the payload: a watermark, a download
+   * window, a subject person (someone must be able to download it). Absent means optional;
+   * `subjectPerson: 'refused'` refuses one (a Commission's report belongs to no person).
+   */
+  requires?: { watermark?: boolean; downloadWindow?: boolean; subjectPerson?: boolean | 'refused' };
   /** The fields the template renders; validated before anything is rendered. */
   payload: z.ZodType<TPayload>;
   /** The reference number the document is about (a declaration's), or null when none. */
@@ -33,6 +39,11 @@ export interface DocumentTemplate<TPayload = unknown> {
   subjectVersion(payload: TPayload): number | null;
   /** What the verify page may show; null for confidential documents. */
   publicPayload(payload: TPayload, context: { issuedAt: Date }): PublicPayload | null;
+  /**
+   * The links the document prints for its reader to follow, by payload field (`portalUrl`):
+   * outside development and test issuance refuses one that is not https (`portalUrlSchema`).
+   */
+  links?(payload: TPayload): Record<string, string>;
   /** The footer fields the template decides; issuance adds the code, URL and date. */
   footer(payload: TPayload): Pick<FooterFields, 'issuerName' | 'reference' | 'version' | 'mark'>;
   /** The main page's HTML document. */

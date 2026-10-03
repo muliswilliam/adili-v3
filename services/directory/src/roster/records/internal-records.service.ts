@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { and, asc, eq, gt, isNotNull, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, isNotNull, like, or, type SQL, sql } from 'drizzle-orm';
 
 import type { Transaction } from '../../commissions/commissions.service.js';
 import { type DirectorySchema, persons } from '../../db/schema.js';
@@ -17,6 +17,8 @@ import {
   decodePullCursor,
   encodePullCursor,
   type InternalListRosterRecordsQuery,
+  MAX_PULL_PAGE,
+  MAX_SEARCH_PAGE,
   type PullCursor,
 } from './internal-query.js';
 import type {
@@ -34,6 +36,7 @@ const internalRecordColumns = {
   jobGroup: rosterRecords.jobGroup,
   reportingEntityId: reportingEntities.id,
   reportingEntityName: reportingEntities.name,
+  employerCode: rosterRecords.employerCode,
   state: rosterRecords.state,
   appointmentDate: rosterRecords.appointmentDate,
   exitDate: rosterRecords.exitDate,
@@ -45,17 +48,19 @@ const internalRecordColumns = {
 
 /**
  * The roster records other services pull after a directory event (spec 04, ADR-013 local read
- * models): those an import had rows for, those an exit confirmation exited, or one record. The
- * callers are services acting for the Commission; another Commission's records, imports and
- * batches are 404.
+ * models): those an import had rows for, those an exit confirmation exited, or one record; and
+ * the records matching a search by file number or name (the access service resolving the officer
+ * a Form K names, spec 10). The callers are services acting for the Commission; another
+ * Commission's records, imports and batches are 404.
  */
 @Injectable()
 export class InternalRosterRecordsService {
   constructor(@InjectDatabase() private readonly db: Database<DirectorySchema>) {}
 
   /**
-   * One page of the records of an import (in row order) or of an exit batch (in id order), each
-   * as it is now. 404 when the tenant has no such import or batch.
+   * One page of the records of an import (in row order), of an exit batch (in id order) or of a
+   * search (by full name), each as it is now. 404 when the tenant has no such import or batch; a
+   * search matching nothing is an empty page.
    */
   async list(
     principal: Principal,
@@ -64,7 +69,8 @@ export class InternalRosterRecordsService {
     query: InternalListRosterRecordsQuery,
   ): Promise<InternalRosterRecordPage> {
     const context = actingTenantContext(principal, tenant, slug);
-    const kind = query.importId === undefined ? 'record' : 'row';
+    const kind =
+      query.importId !== undefined ? 'row' : query.search !== undefined ? 'name' : 'record';
     const after = query.cursor === undefined ? undefined : decodePullCursor(query.cursor);
     if (after === null || (after && after.kind !== kind)) {
       throw new ProblemException({
@@ -76,9 +82,17 @@ export class InternalRosterRecordsService {
     }
     return withTenant(this.db, context, async (tx) => {
       const page =
-        query.importId === undefined
-          ? await exitBatchPage(tx, slug, query.exitBatchId ?? '', after, query.limit)
-          : await importPage(tx, slug, query.importId, after, query.limit);
+        query.importId !== undefined
+          ? await importPage(tx, slug, query.importId, after, query.limit ?? MAX_PULL_PAGE)
+          : query.search !== undefined
+            ? await searchPage(tx, slug, query.search, after, query.limit ?? MAX_SEARCH_PAGE)
+            : await exitBatchPage(
+                tx,
+                slug,
+                query.exitBatchId ?? '',
+                after,
+                query.limit ?? MAX_PULL_PAGE,
+              );
       return {
         items: page.rows.map(toInternalRecord),
         nextCursor: page.next ? encodePullCursor(page.next) : null,
@@ -204,6 +218,44 @@ async function exitBatchPage(
   };
 }
 
+/**
+ * The Commission's records whose personnel file number begins with `search` or whose full name
+ * contains it (both case-insensitive), by full name, after the cursor's record.
+ */
+async function searchPage(
+  tx: Transaction,
+  slug: string,
+  search: string,
+  after: PullCursor | undefined,
+  limit: number,
+): Promise<Page> {
+  const escaped = search.replace(/[\\%_]/g, (char) => `\\${char}`);
+  const rows = await selectRecords(tx)
+    .where(
+      and(
+        eq(rosterRecords.tenant, slug),
+        or(
+          like(sql`lower(${rosterRecords.personnelFileNumber})`, `${escaped.toLowerCase()}%`),
+          ilike(rosterRecords.fullName, `%${escaped}%`),
+        ),
+        after?.kind === 'name'
+          ? sql`(${rosterRecords.fullName}, ${rosterRecords.id}) > (${after.fullName}, ${after.recordId})`
+          : undefined,
+      ),
+    )
+    .orderBy(asc(rosterRecords.fullName), asc(rosterRecords.id))
+    .limit(limit + 1);
+  const page = rows.slice(0, limit);
+  const last = page.at(-1);
+  return {
+    rows: page,
+    next:
+      rows.length > limit && last
+        ? { kind: 'name', fullName: last.fullName, recordId: last.id }
+        : null,
+  };
+}
+
 function toInternalRecord(row: RecordRow): InternalRosterRecord {
   return {
     id: row.id,
@@ -216,6 +268,7 @@ function toInternalRecord(row: RecordRow): InternalRosterRecord {
       row.reportingEntityId === null || row.reportingEntityName === null
         ? null
         : { id: row.reportingEntityId, name: row.reportingEntityName },
+    employerCode: row.employerCode,
     state: row.state,
     appointmentDate: row.appointmentDate,
     exitDate: row.exitDate,

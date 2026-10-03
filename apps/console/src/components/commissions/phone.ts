@@ -22,9 +22,3 @@ export function normalisePhone(input: string): string | null {
   if (digits.startsWith(KENYA) && digits.length !== KENYA.length + 9) return null;
   return digits;
 }
-
-/** An E.164 number grouped for reading: `+254 712 345 678`; other countries as stored. */
-export function formatPhone(e164: string): string {
-  const kenyan = /^\+254(\d{3})(\d{3})(\d{3})$/.exec(e164);
-  return kenyan ? `${KENYA} ${kenyan[1]} ${kenyan[2]} ${kenyan[3]}` : e164;
-}

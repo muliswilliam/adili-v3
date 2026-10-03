@@ -10,9 +10,6 @@ import {
   IntegrationGatewayUnavailable,
 } from './integration-gateway-client.js';
 
-/** The scope the reporting service's token needs for the gateway's ICMS adapter. */
-export const ICMS_SCOPE = 'icms';
-
 /** The legal basis of every ICMS registration: a referral to EACC under Regs r.20. */
 export const ICMS_LEGAL_BASIS = 'regs-r20-referral';
 
@@ -71,7 +68,8 @@ export class HttpIntegrationGatewayClient extends IntegrationGatewayClient {
       {
         status: [200, 201],
         schema: referralSchema,
-        otherwise: refusedWith('integration-gateway', [400]),
+        // A conflict (another referral under the reference) is no better on a retry.
+        otherwise: refusedWith('integration-gateway', [400, 409]),
       },
     );
   }

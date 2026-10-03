@@ -57,6 +57,8 @@ identityProvisioningContract('KeycloakIdentityProvisioning', () => ({
       tenants: user.attributes?.tenants ?? [],
       ofr: user.attributes?.ofr?.[0] ?? null,
       personId: user.attributes?.person_id?.[0] ?? null,
+      agency: user.attributes?.agency?.[0] ?? null,
+      identityStatus: user.attributes?.identityStatus?.[0] ?? null,
       phone: user.attributes?.phone?.[0] ?? null,
       commissionName: user.attributes?.commissionName?.[0] ?? null,
       invitedRole: user.attributes?.invitedRole?.[0] ?? null,

@@ -5,6 +5,9 @@ import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { AiGatewayUnavailable } from '../../src/ai-gateway/ai-gateway-client.js';
+import type { CopilotActivities } from '../../src/copilot/activities.js';
+import { DeclarationsUnavailable } from '../../src/declarations/declarations-client.js';
 import { ProcessingActivities } from '../../src/processing/activities.js';
 import {
   type PreviousVersion,
@@ -15,6 +18,8 @@ import {
   type VersionFacts,
 } from '../../src/processing/contract.js';
 import { declarationProcessing } from '../../src/processing/workflows.js';
+import type { RegistryCheckActivities } from '../../src/registry/activities.js';
+import type { RegistryCheckResult, RegistryLookups } from '../../src/registry/contract.js';
 import type { Flag } from '../../src/rules/index.js';
 import { declaration, statement } from '../fixtures/declarations.js';
 import { FakeDeclarations, submittedVersion } from '../support/fake-declarations.js';
@@ -26,7 +31,22 @@ import { historyPayloads } from '../support/workflow-history.js';
  */
 const workflowsPath = fileURLToPath(new URL('../../src/processing/workflows.ts', import.meta.url));
 
-type Activities = { [K in keyof ProcessingActivities]: ProcessingActivities[K] };
+type Activities = { [K in keyof ProcessingActivities]: ProcessingActivities[K] } & {
+  [K in keyof RegistryCheckActivities]: RegistryCheckActivities[K];
+} & {
+  [K in keyof CopilotActivities]: CopilotActivities[K];
+};
+
+const lookups: RegistryLookups = {
+  sequence: 1,
+  persons: {
+    officer: {
+      kra: { outcome: 'found', reason: null, resultId: 'r-kra', checkedAt: '2027-12-10T09:00:00Z' },
+    },
+  },
+  suppliers: {},
+};
+const checked: RegistryCheckResult = { outcome: 'checked', flags: 0, statuses: [] };
 
 const input: ProcessingInput = {
   tenant: 'psc',
@@ -60,6 +80,14 @@ function activities(overrides: Partial<Activities> = {}): Activities {
     pullPreviousVersion: vi.fn(() => Promise.resolve<PreviousVersion | null>(null)),
     runRules: vi.fn(() => Promise.resolve([noPrevious])),
     upsertCase: vi.fn(() => Promise.resolve({ outcome: 'created' as const, caseId: 'case-1' })),
+    lookupRegistries: vi.fn(() => Promise.resolve<RegistryLookups | null>(lookups)),
+    matchAndStoreRegistries: vi.fn(() => Promise.resolve(checked)),
+    planRegistrySweep: vi.fn(() => Promise.resolve([])),
+    requestCopilot: vi.fn(() => Promise.resolve()),
+    settleCopilot: vi.fn(() => Promise.resolve()),
+    recordCopilotJob: vi.fn(() => Promise.resolve()),
+    copilotUnavailable: vi.fn(() => Promise.resolve()),
+    notEnabledCopilots: vi.fn(() => Promise.resolve({ caseIds: [], next: null })),
     ...overrides,
   };
 }
@@ -75,7 +103,7 @@ describe('DeclarationProcessingWorkflow', () => {
     await env.teardown();
   });
 
-  it('pulls the version and the previous one, runs the rules, then creates the case', async () => {
+  it('pulls the version and the previous one, runs the rules, creates the case, checks the registries for it, then requests its copilot', async () => {
     const mocks = activities();
 
     const result = await env.execute(declarationProcessing, {
@@ -101,6 +129,109 @@ describe('DeclarationProcessingWorkflow', () => {
       facts,
       flags: [noPrevious],
     } satisfies UpsertCaseRequest);
+    // S9: the lookups come after the rules, for the case the version is now on.
+    const check = { ...input, caseId: 'case-1' };
+    expect(mocks.lookupRegistries).toHaveBeenCalledWith({ check, previous: null });
+    expect(mocks.matchAndStoreRegistries).toHaveBeenCalledWith({ check, lookups });
+    const order = (fn: unknown) => vi.mocked(fn as () => void).mock.invocationCallOrder[0] ?? 0;
+    expect(order(mocks.upsertCase)).toBeLessThan(order(mocks.lookupRegistries));
+    // S10: the copilot is requested after the case is written and its registries checked.
+    expect(mocks.requestCopilot).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      trigger: 'case-created',
+    });
+    expect(mocks.copilotUnavailable).not.toHaveBeenCalled();
+    expect(order(mocks.matchAndStoreRegistries)).toBeLessThan(order(mocks.requestCopilot));
+  }, 60_000);
+
+  it('S9: a registry check that fails for good leaves the case created', async () => {
+    const matchAndStoreRegistries = vi.fn(() =>
+      Promise.reject(ApplicationFailure.nonRetryable('gone', VERSION_MISSING)),
+    );
+
+    const result = await env.execute(declarationProcessing, {
+      workflowsPath,
+      activities: activities({ matchAndStoreRegistries }),
+      args: [input],
+    });
+
+    expect(result).toEqual({ outcome: 'created', caseId: 'case-1' });
+    expect(matchAndStoreRegistries).toHaveBeenCalledTimes(1);
+  }, 60_000);
+
+  it('checks the registries of an amended case, and of one already at the version (a re-run)', async () => {
+    for (const outcome of ['updated', 'unchanged'] as const) {
+      const mocks = activities({
+        upsertCase: vi.fn(() => Promise.resolve({ outcome, caseId: 'case-1' })),
+      });
+
+      const result = await env.execute(declarationProcessing, {
+        workflowsPath,
+        activities: mocks,
+        args: [input],
+      });
+
+      expect(result).toEqual({ outcome, caseId: 'case-1' });
+      expect(mocks.matchAndStoreRegistries).toHaveBeenCalledTimes(1);
+    }
+  }, 60_000);
+
+  it('S11: requests the copilot again for an amendment, and not for a version already processed', async () => {
+    const amended = activities({
+      upsertCase: vi.fn(() => Promise.resolve({ outcome: 'updated' as const, caseId: 'case-1' })),
+    });
+    await env.execute(declarationProcessing, { workflowsPath, activities: amended, args: [input] });
+    expect(amended.requestCopilot).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      trigger: 'amendment',
+    });
+
+    const repeated = activities({
+      upsertCase: vi.fn(() => Promise.resolve({ outcome: 'unchanged' as const, caseId: 'case-1' })),
+    });
+    await env.execute(declarationProcessing, {
+      workflowsPath,
+      activities: repeated,
+      args: [input],
+    });
+    expect(repeated.requestCopilot).not.toHaveBeenCalled();
+  }, 60_000);
+
+  it('records the copilot as failed, and still ends with the case, when the gateway stays unreachable', async () => {
+    const mocks = activities({
+      requestCopilot: vi.fn(() =>
+        Promise.reject(new AiGatewayUnavailable('ai-gateway unreachable')),
+      ),
+    });
+
+    const result = await env.execute(declarationProcessing, {
+      workflowsPath,
+      activities: mocks,
+      args: [input],
+    });
+
+    expect(result).toEqual({ outcome: 'created', caseId: 'case-1' });
+    expect(mocks.requestCopilot).toHaveBeenCalledTimes(10);
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      reason: 'ai-gateway-unavailable',
+    });
+  }, 60_000);
+
+  it("records the copilot's own reason when the declaration cannot be pulled for it", async () => {
+    const unavailable = new DeclarationsUnavailable('declarations unreachable');
+    const mocks = activities({ requestCopilot: vi.fn(() => Promise.reject(unavailable)) });
+
+    await env.execute(declarationProcessing, { workflowsPath, activities: mocks, args: [input] });
+
+    expect(mocks.copilotUnavailable).toHaveBeenCalledWith({
+      tenant: 'psc',
+      caseId: 'case-1',
+      reason: 'declarations-unavailable',
+    });
   }, 60_000);
 
   it('hands the previous version to the rules', async () => {
@@ -159,6 +290,7 @@ describe('DeclarationProcessingWorkflow', () => {
     expect(result).toEqual({ outcome: 'missing' });
     expect(mocks.runRules).not.toHaveBeenCalled();
     expect(mocks.upsertCase).not.toHaveBeenCalled();
+    expect(mocks.lookupRegistries).not.toHaveBeenCalled();
   }, 60_000);
 
   it("keeps the declarant's name and personnel file number out of the workflow history", async () => {

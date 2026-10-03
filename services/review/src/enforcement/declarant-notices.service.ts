@@ -5,7 +5,7 @@ import { EventPublisher } from '@adili/events';
 import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { asPerson } from '../clarifications/declarant-clarifications.service.js';
+import { asPerson, personSubject } from '../clarifications/declarant-clarifications.service.js';
 import { letterDownloadUrl } from '../clarifications/links.js';
 import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
@@ -15,14 +15,8 @@ import { InternalApiRejected } from '../internal-api/rejected.js';
 import { withUpstream } from '../internal-api/upstream.js';
 import { ACTION_RESPONDED } from './events.js';
 import { type ActionRow, recordAction, REVIEW_STAFF_STEPS, whatToDo } from './ladder-records.js';
-import { responseView } from './representation.js';
-import {
-  type ActionResponse,
-  type ActionStatus,
-  type ActionStep,
-  administrativeActions,
-  ISSUED_ACTION_STATUSES,
-} from './schema.js';
+import { type DeclarantNoticeView, responseView } from './representation.js';
+import { type ActionResponse, administrativeActions, ISSUED_ACTION_STATUSES } from './schema.js';
 
 /** review.yaml `respondToNotice` body. */
 export const noticeResponseInput = z.object({
@@ -39,22 +33,6 @@ export const NOTICE_ATTACHMENT_PURPOSES: readonly string[] = [
   'clarification-attachment',
   'action-response',
 ];
-
-/** review.yaml `DeclarantNotice`. */
-export interface DeclarantNoticeView {
-  actionId: string;
-  commission: { slug: string; name: string };
-  step: ActionStep;
-  status: ActionStatus;
-  issuedAt: string;
-  actBy: string | null;
-  whatToDo: 'file-declaration' | 'respond-to-clarification';
-  reference: string;
-  letterDownloadUrl: string | null;
-  response: ReturnType<typeof responseView>;
-  salaryStoppedAt: string | null;
-  salaryReinstatedAt: string | null;
-}
 
 /**
  * The declarant's notices across Commissions (spec 08): the ladder's steps issued to them, read
@@ -114,7 +92,7 @@ export class DeclarantNoticesService {
       requireAnswerable(action);
       const response: ActionResponse = {
         text: input.text,
-        attachments: await this.verifiedAttachments(tenant, input.attachments),
+        attachments: await this.verifiedAttachments(tenant, personId, input.attachments),
         submittedAt: now.toISOString(),
       };
       const [updated] = await tx
@@ -138,13 +116,16 @@ export class DeclarantNoticesService {
   /** Each upload checked with documents, in the order given; the first one refused is a 409. */
   private async verifiedAttachments(
     tenant: string,
+    personId: string,
     uploadIds: readonly string[],
   ): Promise<ActionResponse['attachments']> {
     const verified: ActionResponse['attachments'] = [];
     for (const uploadId of uploadIds) {
       let upload;
       try {
-        upload = await withUpstream(() => this.documents.getUploadDownload(uploadId, tenant));
+        upload = await withUpstream(() =>
+          this.documents.getUploadDownload(uploadId, tenant, personSubject(personId)),
+        );
       } catch (error) {
         if (error instanceof InternalApiRejected) throw attachmentRefused(uploadId, 'not-clean');
         throw error;

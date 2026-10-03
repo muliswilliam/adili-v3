@@ -26,6 +26,12 @@ function version(v: number, overrides: Partial<TenantPolicyVersion> = {}): Tenan
     reminderOffsetsDays: [30, 14, 7],
     clarification: { issueWindowMonths: 6, replyWindowDays: 30 },
     formMDue: '07-31',
+    access: {
+      decisionDays: 30,
+      leaDecisionDays: 14,
+      representationWindowDays: 7,
+      packageDownloadDays: 14,
+    },
     createdBy: '0199a0b4-0000-7000-8000-0000000000aa',
     createdByName: 'Amina Wanjiru',
     createdAt: '2026-08-03T06:14:00Z',
@@ -70,6 +76,26 @@ describe('S19 policy card', () => {
       'v2Effective 26 Sep 2026, 10:30In forceObligations start date 1 Jul 2026 · by Daniel Kiprop',
       'v1Effective 3 Aug 2026, 09:14Platform defaults · by Amina Wanjiru',
     ]);
+  });
+
+  it("shows the Commission's periods of access to declarations, read only", () => {
+    renderCard({
+      current: version(2, {
+        access: {
+          decisionDays: 21,
+          leaDecisionDays: 10,
+          representationWindowDays: 5,
+          packageDownloadDays: 7,
+        },
+      }),
+      previous: [v1],
+    });
+    const card = screen.getByRole('region', { name: 'Policy' });
+    expect(card.textContent).toContain('Access to declarations');
+    expect(card.textContent).toContain('Form K decision: 21 days after receipt');
+    expect(card.textContent).toContain('Law enforcement decision: 10 days after receipt');
+    expect(card.textContent).toContain('Representations: 5 days after the declarant is notified');
+    expect(card.textContent).toContain('Package download: 7 days after issue');
   });
 
   it('leaves out who created a version when the directory does not know their name', () => {
@@ -187,5 +213,55 @@ describe('S19 change dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     await screen.findByRole('dialog');
     expect(dateInput().value).toBe('2026-08-03');
+  });
+});
+
+describe('S16 AI status line', () => {
+  const renderWithStatus = (aiStatus: Parameters<typeof PolicyCard>[0]['aiStatus']) =>
+    render(
+      <ToastProvider>
+        <PolicyCard
+          history={{ current: v1, previous: [] }}
+          aiStatus={aiStatus}
+          onUnauthenticated={vi.fn()}
+        />
+      </ToastProvider>,
+    );
+  const aiRow = () => {
+    const term = screen.getByText('AI assistance');
+    return term.parentElement?.textContent;
+  };
+
+  it('says AI assistance is enabled and how, as the spec words it, read only', () => {
+    renderWithStatus({
+      ok: true,
+      data: {
+        enabled: true,
+        providerClass: 'external',
+        provider: 'anthropic',
+        dataClasses: ['synthetic'],
+      },
+    });
+    // The badge says Enabled; the detail reads on from it, no brackets (e2e 33).
+    expect(aiRow()).toBe('AI assistanceEnabledExternal provider Anthropic, synthetic data only');
+    expect(screen.queryByRole('button', { name: /edit|change/i })).toBeNull();
+  });
+
+  it('says it is not enabled and that no declaration data leaves', () => {
+    renderWithStatus({
+      ok: true,
+      data: { enabled: false, providerClass: null, provider: null, dataClasses: [] },
+    });
+    expect(aiRow()).toBe('AI assistanceNot enabledNo declaration data is sent to an AI provider');
+  });
+
+  it('says when the status could not be checked', () => {
+    renderWithStatus({ ok: false, error: { kind: 'unavailable', detail: null } });
+    expect(aiRow()).toBe('AI assistanceCould not be checked. Reload the page to try again.');
+  });
+
+  it('has no AI row without a status (platform admins on a Commission page)', () => {
+    renderWithStatus(undefined);
+    expect(screen.queryByText('AI assistance')).toBeNull();
   });
 });

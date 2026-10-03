@@ -1,6 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import {
-  ApiBody,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
@@ -9,6 +8,7 @@ import {
 } from '@nestjs/swagger';
 import {
   AcceptIdempotencyKey,
+  ApiJsonBody,
   ApiProblemResponse,
   AuditedRead,
   CurrentPrincipal,
@@ -161,7 +161,7 @@ export class CasesController {
     summary: 'Supervisor reassigns or unassigns a case',
     description: `${STAFF} Supervisors only; a reviewer gets 403.`,
   })
-  @ApiBody({ schema: z.toJSONSchema(reassignBody) as object })
+  @ApiJsonBody(reassignBody)
   @ApiOkResponse({ description: 'Updated', schema: schemaRef('CaseListItem') })
   @ApiProblemResponse(400, 'Body failed validation')
   @ApiProblemResponse(403, 'The caller is not a supervisor')
@@ -182,7 +182,7 @@ export class CasesController {
     summary: 'Add an internal note',
     description: `${STAFF} The declarant never sees notes.`,
   })
-  @ApiBody({ schema: z.toJSONSchema(noteBody) as object })
+  @ApiJsonBody(noteBody)
   @ApiCreatedResponse({ description: 'Note', schema: schemaRef('Note') })
   @ApiProblemResponse(400, 'Body failed validation')
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -204,7 +204,7 @@ export class CasesController {
     summary: 'Record that a flag was considered, with a note',
     description: `${STAFF} Once per flag.`,
   })
-  @ApiBody({ schema: z.toJSONSchema(flagReviewedBody) as object })
+  @ApiJsonBody(flagReviewedBody)
   @ApiOkResponse({ description: 'Flag', schema: schemaRef('Flag') })
   @ApiProblemResponse(400, 'Body failed validation')
   @ApiProblemResponse(404, NOT_VISIBLE)

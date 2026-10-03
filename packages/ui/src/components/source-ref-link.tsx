@@ -52,13 +52,18 @@ const DEFAULT_MESSAGES: SourceRefLinkMessages = { openPrefix: 'Open in the decla
 
 const linkClassName = cn(
   focusRing,
-  'inline-flex min-h-6 max-w-full cursor-pointer items-center gap-[5px] rounded-[7px] bg-muted py-0.5 pr-2 pl-1.5 text-left text-[12.5px] leading-[1.3] font-medium text-foreground hover:bg-input [&_svg]:size-[13px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
+  'inline-flex min-h-6 max-w-full cursor-pointer items-center gap-[5px] overflow-hidden rounded-chip bg-muted py-0.5 pr-2 pl-1.5 text-left text-[12.5px] leading-[1.3] font-medium text-foreground hover:bg-input [&_svg]:size-[13px] [&_svg]:shrink-0 [&_svg]:text-muted-foreground',
 );
 
 export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'children' | 'onClick'> {
   sourceRef: SourceRef;
   /** The chip's text, e.g. the item's description. Long text is cut with an ellipsis. */
   label: string;
+  /**
+   * Muted text after the label that is never cut, for what tells two chips of the same label
+   * apart, e.g. whose statement a jointly held item is in.
+   */
+  detail?: string | null;
   /**
    * The full target for the accessible name, e.g. "Assets, Building, 4-bedroom house on LR
    * 12715/482, Wanjiku Njeri Kamau". Defaults to `label`.
@@ -83,6 +88,7 @@ export interface SourceRefLinkProps extends Omit<ComponentProps<'button'>, 'chil
 export function SourceRefLink({
   sourceRef,
   label,
+  detail,
   targetLabel,
   icon,
   onOpen,
@@ -127,7 +133,14 @@ export function SourceRefLink({
       }}
     >
       <Icon icon={icon ?? TARGET_ICONS[target]} />
-      <span className="truncate">{label}</span>
+      {/* min-w-0: the label gives way first, so a chip never widens what holds it; a long
+          detail (a person's full name) is cut too, past the chip's last 45%. */}
+      <span className="min-w-0 truncate">{label}</span>
+      {detail ? (
+        <span className="max-w-[45%] shrink-0 truncate font-normal text-muted-foreground">
+          · {detail}
+        </span>
+      ) : null}
     </button>
   );
 }

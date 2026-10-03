@@ -80,6 +80,35 @@ export function formatDate(value: string | Date): string {
   return `${day} ${MONTHS[month - 1]} ${year}`;
 }
 
+/** The calendar date of an instant in Kenyan time, `YYYY-MM-DD`. */
+export function kenyanDate(value: string | Date): string {
+  const { year, month, day } = kenyanParts(new Date(value));
+  const pad = (number: number) => String(number).padStart(2, '0');
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+/** A count as printed, `334,281`. */
+export function formatCount(n: number): string {
+  return esc(n.toLocaleString('en-GB'));
+}
+
+/** The year a `2027/2028` financial year covers, `1 Jul 2027 to 30 Jun 2028`. */
+export function financialYearPeriod(financialYear: string): string {
+  const start = Number(financialYear.slice(0, 4));
+  return `${formatDate(`${start}-07-01`)} to ${formatDate(`${start + 1}-06-30`)}`;
+}
+
+/**
+ * When a Commission's compliance report on a `2027/2028` financial year is due: 31 July after it,
+ * `2028-07-31` (Regs r.25(2)).
+ */
+export function reportDueDate(financialYear: string): string {
+  return `${Number(financialYear.slice(0, 4)) + 1}-07-31`;
+}
+
+/** EACC, which receives the Commissions' compliance reports and issues the national report. */
+export const EACC_ISSUER = { name: 'Ethics and Anti-Corruption Commission', code: 'EACC' };
+
 /** `30 Sep 2026, 14:05 EAT`. */
 export function formatDateTime(value: string | Date): string {
   const { hour, minute } = kenyanParts(new Date(value));
@@ -118,9 +147,96 @@ export function signatureNote(signerName: string, signedAt: Date): string {
   return `<div class="sigbox">${SHIELD}<div><b>Digitally signed by ${esc(signerName)}</b><br />${esc(formatDateTime(signedAt))}<br />PAdES · Reason: issued through Adili Online</div></div>`;
 }
 
+/**
+ * Styles shared by the multi-page documents of a declaration (the certified copy, the access
+ * package): the heading, the reference box, the summary list, the verification panel and the
+ * signature's place. Goes after the letterhead's and the declaration content's styles.
+ */
+export const DECLARATION_DOCUMENT_STYLES = `
+body{font-size:9.2pt;line-height:1.45}
+p{margin:0 0 2.5mm}
+.doc-h{margin:7mm 0 5mm}
+.doc-h .t1{font-size:17pt;font-weight:700;letter-spacing:-0.01em;line-height:1.2}
+.doc-sub{color:${SOFT};font-size:10pt;margin-top:1mm}
+.fine{font-size:8.2pt;color:${SOFT}}
+.ref{display:flex;align-items:center;justify-content:space-between;gap:4mm;padding:4.5mm 5mm;border:0.35mm solid ${INK};border-radius:2mm}
+.lbl{font-size:7.4pt;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${MUTED}}
+.ref .big{font-size:16pt;font-weight:700;margin-top:0.5mm}
+.skv{display:grid;grid-template-columns:44mm 1fr;margin:5mm 0}
+.skv dt,.skv dd{margin:0;padding:1.6mm 0;border-bottom:0.25mm solid ${LINE}}
+.skv dt{color:${MUTED}}
+.skv dd{font-weight:500}
+.vpanel{padding:5mm;border-radius:2mm;background:#f6f5f3;margin:6mm 0 4mm;break-inside:avoid}
+.vpanel .t{font-size:11pt;font-weight:700;margin-bottom:1.5mm}
+.vpanel .vcode{font-size:12pt;font-weight:700;letter-spacing:0.03em;margin:1.5mm 0 2mm}
+.signed{display:flex;justify-content:flex-end;break-inside:avoid}`;
+
+/**
+ * Styles of the ruled tables of the forms and reports (`.ft`: a referral package's manifest, Form
+ * M's lists): a caption, header cells, a number column, numeric cells, a muted sub-line and a
+ * centred "None" row; no row split across pages. Also `.hashc`, a SHA-256 in small mono.
+ */
+export const RULED_TABLE_STYLES = `
+.ft{width:100%;border-collapse:collapse;font-size:7.8pt;line-height:1.35;margin:1mm 0 3mm}
+.ft caption{text-align:left;font-weight:600;font-size:8.2pt;padding:1mm 0 1.4mm}
+.ft th,.ft td{border:0.25mm solid #a8a6a1;padding:1.3mm 1.6mm;text-align:left;vertical-align:top}
+.ft th{background:#f1f0ed;font-weight:600}
+.ft tr{break-inside:avoid}
+.ft .n{width:7mm;text-align:center}
+.ft .num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.ft .sub{color:${MUTED};display:block}
+.ft .none td{text-align:center;color:${MUTED};font-style:italic}
+.hashc{font-family:'DejaVu Sans Mono','Liberation Mono',monospace;font-size:6.6pt;line-height:1.35;word-break:break-all}`;
+
+/** A SHA-256 in two lines of 32 characters, so it fits a table column or a narrow cell. */
+export function twoLineHash(sha256: string): string {
+  return `<span class="hashc">${esc(sha256.slice(0, 32))}<br />${esc(sha256.slice(32))}</span>`;
+}
+
+/**
+ * How to check that a multi-page document is genuine: its verification code, and `shows`, what
+ * the check tells whoever makes it. `what` names the document (`copy`, `package`).
+ */
+export function verificationPanel(what: string, verificationId: string, shows: string): string {
+  return `<div class="vpanel"><div class="t">Check that this ${esc(what)} is genuine</div><div>Scan the QR code at the foot of any page, or go to the Adili Online verify page and enter:</div><div class="vcode mono nw">${esc(verificationId)}</div><div class="fine">${esc(shows)}</div></div>`;
+}
+
 /** An HTML document for Gotenberg's main page. */
 export function htmlDocument(title: string, styles: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>${esc(title)}</title><style>${BASE}${styles}</style></head><body>${body}</body></html>`;
+}
+
+/** Who a watermarked document was issued to, for what and when (ADR-010 §6). */
+export interface Watermark {
+  recipientName: string;
+  /** The request reference the document answers, e.g. `ARQ-PSC-2026-0000012-H`. */
+  reference: string;
+  /** Calendar date `YYYY-MM-DD`. */
+  date: string;
+}
+
+/** `Issued to Amina Otieno · ARQ-PSC-2026-0000012-H · 1 Oct 2026`: the watermark's line. */
+export function watermarkText(watermark: Watermark): string {
+  return `Issued to ${watermark.recipientName} · ${watermark.reference} · ${formatDate(watermark.date)}`;
+}
+
+/** Lines of the watermark down each page; each fits the page's width whole. */
+const WATERMARK_LINES = 5;
+
+const WATERMARK_STYLES = `.wm{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:2147483647;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:40mm 0}
+.wm div{transform:rotate(-30deg);white-space:nowrap;font-size:11pt;font-weight:600;letter-spacing:0.03em;color:rgba(26,26,26,0.11)}`;
+
+/**
+ * `html` with the watermark across every page: a fixed layer above the content, which Chromium
+ * prints on each page, so no page of a leaked copy lacks its recipient. Issuance applies it to
+ * any template's document, so no template can forget it.
+ */
+export function watermarked(html: string, watermark: Watermark): string {
+  const at = html.lastIndexOf('</body>');
+  if (at < 0) throw new Error('a watermarked document needs a body');
+  const line = `<div>${esc(watermarkText(watermark))}</div>`;
+  const layer = `<style>${WATERMARK_STYLES}</style><div class="wm" aria-hidden="true">${line.repeat(WATERMARK_LINES)}</div>`;
+  return `${html.slice(0, at)}${layer}${html.slice(at)}`;
 }
 
 /** What the verification footer shows on every page. */

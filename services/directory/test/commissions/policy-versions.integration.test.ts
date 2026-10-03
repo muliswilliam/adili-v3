@@ -1,11 +1,16 @@
+import { PLATFORM_TENANT } from '@adili/api-kit';
+import { withTenant } from '@adili/data-access';
+import { and, eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { PLATFORM_DEFAULT_POLICY, type StoredTenantPolicy } from '../../src/commissions/policy.js';
 
 import type {
   TenantPolicyHistory,
   TenantPolicyVersion,
 } from '../../src/commissions/policy-representation.js';
 import type { Commission } from '../../src/commissions/representation.js';
-import { outbox } from '../../src/db/schema.js';
+import { outbox, tenantPolicyVersions } from '../../src/db/schema.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type DirectoryApi, startDirectoryApi } from '../support/directory-api.js';
 import { givenCommissions } from '../support/fixtures.js';
@@ -99,6 +104,7 @@ describe('S19 create a policy version', () => {
       reminderOffsetsDays: current.reminderOffsetsDays,
       clarification: current.clarification,
       formMDue: current.formMDue,
+      access: current.access,
       createdBy: 'admin-psc',
       createdByName: 'Grace Njeri',
       createdAt: expect.any(String) as string,
@@ -247,6 +253,38 @@ describe('S19 read the policy', () => {
 
     expect(current).toMatchObject({ version: 1, reminderOffsetsDays: [30, 14, 7] });
     expect(previous).toEqual([]);
+  });
+
+  it('gives the access periods, the platform defaults on version 1', async () => {
+    const { current } = await history();
+
+    expect(current.access).toEqual({
+      decisionDays: 30,
+      leaDecisionDays: 14,
+      representationWindowDays: 7,
+      packageDownloadDays: 14,
+    });
+  });
+
+  it('reads a version stored before the access periods existed with the defaults, and copies them on', async () => {
+    const legacy: StoredTenantPolicy = { ...PLATFORM_DEFAULT_POLICY };
+    delete legacy.access;
+    await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .update(tenantPolicyVersions)
+        .set({ policy: legacy })
+        .where(eq(tenantPolicyVersions.tenant, 'psc')),
+    );
+
+    expect((await history()).current.access).toEqual(PLATFORM_DEFAULT_POLICY.access);
+    await createVersion({ obligationsStartDate: '2027-01-01' });
+    const [stored] = await withTenant(api.db, { tenant: PLATFORM_TENANT, subject: 'test' }, (tx) =>
+      tx
+        .select({ policy: tenantPolicyVersions.policy })
+        .from(tenantPolicyVersions)
+        .where(and(eq(tenantPolicyVersions.tenant, 'psc'), eq(tenantPolicyVersions.version, 2))),
+    );
+    expect(stored?.policy.access).toEqual(PLATFORM_DEFAULT_POLICY.access);
   });
 });
 

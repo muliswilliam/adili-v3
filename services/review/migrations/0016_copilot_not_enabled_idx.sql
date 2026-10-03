@@ -1,0 +1,1 @@
+CREATE INDEX "review_copilots_not_enabled_idx" ON "review_copilots" USING btree ("tenant","case_id") WHERE "review_copilots"."status" = 'not-enabled';

@@ -41,19 +41,23 @@ export interface CommissionFacts {
 /**
  * What payroll needs of a roster record (directory.yaml `InternalRosterRecord`, and
  * `RosterNationalId` for the national ID), read at send time
- * (spec 08). Personal data: used where it is read, never stored, logged or put in workflow history.
+ * (spec 08); the registry check reads the national ID and employer code from it too (spec 07b).
+ * Personal data: used where it is read, never stored, logged or put in workflow history.
  */
 export interface PayrollRosterFacts {
   /** The personal number payroll knows the officer by: the roster's personnel file number. */
   personalNumber: string;
   nationalId: string;
-  /**
-   * The payroll employer code; null while the directory's roster record does not carry one
-   * (directory.yaml has no such field yet).
-   */
+  /** The HR and payroll systems' employer code; null when the roster gives none. */
   employerCode: string | null;
   /** The reporting entity (the employer the disciplinary referral is for); null when none. */
   reportingEntityId: string | null;
+}
+
+/** A staff member of a Commission (directory.yaml `InternalStaffList`), without their email. */
+export interface StaffMember {
+  subject: string;
+  name: string;
 }
 
 /** The directory is unreachable or answered outside its contract; activities retry. */
@@ -86,4 +90,10 @@ export abstract class DirectoryClient {
    * `internalGetRosterNationalId`); null when the Commission has no such record. Never cached: read each time an instruction is sent.
    */
   abstract getRosterRecord(slug: string, recordId: string): Promise<PayrollRosterFacts | null>;
+
+  /**
+   * The Commission's enabled staff accounts holding `role` (`internalListCommissionStaff`), read
+   * each time; throws `DirectoryUnavailable`.
+   */
+  abstract listStaff(slug: string, role: 'reviewer' | 'supervisor'): Promise<StaffMember[]>;
 }

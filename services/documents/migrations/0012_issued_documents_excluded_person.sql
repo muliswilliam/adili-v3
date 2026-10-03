@@ -1,0 +1,1 @@
+ALTER TABLE "issued_documents" ADD COLUMN "excluded_person_id" uuid;

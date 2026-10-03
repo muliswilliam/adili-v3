@@ -363,7 +363,7 @@
     {
       "clientId": "review",
       "name": "Review service",
-      "description": "Service account the review service uses to read submitted versions from declarations, policy and Commission references from the directory, attachments and letters from documents, and to send messages through notifications",
+      "description": "Review service account: reads declarations, the directory and documents, sends messages through notifications, and calls registries and payroll through the integration-gateway",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -379,6 +379,35 @@
         "directory:internal",
         "directory:roster-national-id",
         "documents:internal",
+        "messages",
+        "ai:internal",
+        "registry",
+        "payroll"
+      ],
+      "optionalClientScopes": []
+    },
+    {
+      "clientId": "access",
+      "name": "Access service",
+      "description": "Service account the access service uses for Commissions, roster records, staff, applicants and officers (directory), disclosures and full documents (declarations), granted clarifications (review), packages, copies and attachments (documents), and messages",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "access-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "declarations:internal",
+        "declarations:disclosures",
+        "directory:internal",
+        "documents:internal",
+        "directory:applicants",
+        "directory:law-enforcement",
+        "review:disclosures",
         "messages"
       ],
       "optionalClientScopes": []
@@ -414,6 +443,30 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "reporting",
+      "name": "Reporting service",
+      "description": "Reporting service account for Form M: directory Commissions and staff, declarations officer details, review clarifications and ICMS payloads, documents PDFs, notifications emails, and ICMS referrals through the integration-gateway",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "reporting-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": [
+        "basic",
+        "declarations:internal",
+        "directory:internal",
+        "documents:internal",
+        "review:internal",
+        "messages",
+        "icms"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -1169,6 +1222,50 @@
       ]
     },
     {
+      "name": "directory:applicants",
+      "description": "Service tokens that may read applicants' particulars from the directory and record an access officer's verification of a passport applicant: the access service only (spec 10)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "directory:law-enforcement",
+      "description": "Service tokens that may read law-enforcement officers' accounts (names, agency, Keycloak account and state) from the directory: the access service only, which checks a law-enforcement request's provenance (spec 10)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "directory:roster-national-id",
       "description": "Service tokens that may read a roster record's national ID from the directory: the review service only, for payroll's salary stoppage and the ICMS referral (spec 08)",
       "protocol": "openid-connect",
@@ -1213,8 +1310,140 @@
       ]
     },
     {
+      "name": "declarations:disclosures",
+      "description": "Service tokens that may ask the declarations service for what an access grant discloses and for a version in full for a certified copy, decrypted for a third party: the access service only (spec 10)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
       "name": "review:internal",
       "description": "Service tokens for the review service's internal API: letter payloads the documents service renders, acting for a tenant (spec 07a)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "registry",
+      "description": "Registry lookups through the integration-gateway (KRA, NTSA, BRS, ArdhiSasa, the employer-supplier check) and stored result reads, acting for a tenant (spec 07b)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "payroll",
+      "description": "Payroll instructions through the integration-gateway (salary stoppage and its lifting under the Administrative Mechanisms, spec 08)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "icms",
+      "description": "Referral registration with EACC's ICMS through the integration-gateway (spec 09)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "review:disclosures",
+      "description": "Service tokens that may ask the review service for the clarifications an access grant discloses, read for a third party: the access service only (spec 10)",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "adili-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "adili-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai:internal",
+      "description": "Run AI tasks, read their jobs, rate their outputs and read a tenant's AI status through the ai-gateway (/internal/v1/tasks, /internal/v1/jobs, /internal/v1/jobs/{id}/feedback, /internal/v1/tenants/{tenant}/status, spec 07c)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",
@@ -1613,7 +1842,7 @@
         "subComponents": {},
         "config": {
           "kc.user.profile.config": [
-            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"tenants\", \"displayName\": \"Tenants\", \"multivalued\": true, \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"ofr\", \"displayName\": \"Officer reference\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"person_id\", \"displayName\": \"Person id\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"phone\", \"displayName\": \"Phone\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"commissionName\", \"displayName\": \"Commission name\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"invitedRole\", \"displayName\": \"Invited role\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}], \"groups\": []}"
+            "{\"unmanagedAttributePolicy\": \"ADMIN_VIEW\", \"attributes\": [{\"name\": \"username\", \"displayName\": \"${username}\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"min\": 3, \"max\": 255}, \"username-prohibited-characters\": {}, \"up-username-not-idn-homograph\": {}}}, {\"name\": \"email\", \"displayName\": \"${email}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"email\": {}, \"length\": {\"max\": 255}}}, {\"name\": \"firstName\", \"displayName\": \"${firstName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"lastName\", \"displayName\": \"${lastName}\", \"required\": {\"roles\": [\"user\"]}, \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\", \"user\"]}, \"validations\": {\"length\": {\"max\": 255}, \"person-name-prohibited-characters\": {}}}, {\"name\": \"tenant\", \"displayName\": \"Tenant\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"tenants\", \"displayName\": \"Tenants\", \"multivalued\": true, \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"ofr\", \"displayName\": \"Officer reference\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"person_id\", \"displayName\": \"Person id\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"phone\", \"displayName\": \"Phone\", \"permissions\": {\"view\": [\"admin\", \"user\"], \"edit\": [\"admin\"]}}, {\"name\": \"commissionName\", \"displayName\": \"Commission name\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"invitedRole\", \"displayName\": \"Invited role\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"agency\", \"displayName\": \"Agency\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}, {\"name\": \"identityStatus\", \"displayName\": \"Identity status\", \"permissions\": {\"view\": [\"admin\"], \"edit\": [\"admin\"]}}], \"groups\": []}"
           ]
         }
       }
@@ -1862,6 +2091,7 @@
       "realmRoles": ["default-roles-adili", "platform-admin"]
     },
     {
+      "id": "7159c22a-33fd-4ba0-bcfd-23c91d6acd8e",
       "username": "applicant",
       "email": "applicant@demo.adili.go.ke",
       "emailVerified": true,
@@ -1869,8 +2099,9 @@
       "lastName": "Wambua",
       "enabled": true,
       "attributes": {
-        "tenant": ["public"],
-        "phone": ["+254700000012"]
+        "person_id": ["2c2097c9-c981-44f4-8343-3e5a124422cd"],
+        "phone": ["+254700000012"],
+        "identityStatus": ["verified"]
       },
       "credentials": [
         {
@@ -1882,6 +2113,7 @@
       "realmRoles": ["default-roles-adili", "applicant"]
     },
     {
+      "id": "21aa54e7-20f5-4942-a0ab-990fad9cb8c2",
       "username": "law-enforcement",
       "email": "law-enforcement@demo.adili.go.ke",
       "emailVerified": true,
@@ -1890,6 +2122,8 @@
       "enabled": true,
       "attributes": {
         "tenant": ["lea"],
+        "agency": ["DCI"],
+        "person_id": ["a0221136-2e38-49ef-8a9b-7cdc1882e84e"],
         "phone": ["+254700000013"]
       },
       "credentials": [

@@ -6911,8 +6911,8 @@
       };
       const REFS = {
         'o-tsc-initial': 'DCI-TSC-2026-0012345-8',
-        'o-psc-final': 'DCF-PSC-2026-0000891-3',
-        'o-tsc-b2027': 'DCB-TSC-2027-0012346-K',
+        'o-psc-final': 'DCF-PSC-2026-0000891-0',
+        'o-tsc-b2027': 'DCB-TSC-2027-0012346-8',
       };
       const VCODES = [
         'ADL-7KQ2-M9XD-4TNB-P3WF-R8CH-6J',
@@ -7271,7 +7271,7 @@
       /* compact access-request card (spec 10 #255); shown only when someone requested access */
       function accessHomeCard() {
         return `<section class="card acc-home" aria-labelledby="acc-h"><div class="card-head"><h3 id="acc-h">Access requests</h3><span class="spacer"></span><a class="btn btn-ghost btn-sm" href="${AFTER}#access-requests">View all<span class="sr-only"> access requests</span></a></div>
-    <a class="acc-row" href="${AFTER}#access-requests"><span class="ico">${icon('users', 18)}</span><span class="body"><span class="t">Someone has requested access to your declaration</span><span class="d"><span class="mono">ARQ-TSC-2026-0000052-3</span> · Wanjiru Kamau<br/>Journalistic research on school procurement in Uasin Gishu County</span><span class="cd-line">${icon('clock', 14)} Respond by 29 Sep · 3 days left</span></span>${icon('right', 20)}</a></section>`;
+    <a class="acc-row" href="${AFTER}#access-requests"><span class="ico">${icon('users', 18)}</span><span class="body"><span class="t">Someone has requested access to your declaration</span><span class="d"><span class="mono">ARQ-TSC-2026-0000052-I</span> · Wanjiru Kamau<br/>Journalistic research on school procurement in Uasin Gishu County</span><span class="cd-line">${icon('clock', 14)} Respond by 29 Sep · 3 days left</span></span>${icon('right', 20)}</a></section>`;
       }
       function commissionCards() {
         const row = (ic, tint, title, text, href) =>
@@ -7392,7 +7392,7 @@
     </div>
     <h2>Round 6: acknowledgement ${Kit.badge('#137')}</h2>
     <div class="gal">
-      <div class="card"><h3>ReferenceChip <span class="mono">breakdown from the scheme registry</span></h3><div class="row-wrap">${refChip('DCB-TSC-2027-0012345-K')}</div><div class="row-wrap">${refChip('DCI-TSC-2026-0012345-8', 'sm')}</div><p class="small muted">Hover, focus or press ? to read it: type, issuer, year, sequence, check.</p></div>
+      <div class="card"><h3>ReferenceChip <span class="mono">breakdown from the scheme registry</span></h3><div class="row-wrap">${refChip('DCB-TSC-2027-0012345-A')}</div><div class="row-wrap">${refChip('DCI-TSC-2026-0012345-8', 'sm')}</div><p class="small muted">Hover, focus or press ? to read it: type, issuer, year, sequence, check.</p></div>
       <div class="card"><h3>QrCode <span class="mono">alt text carries the code</span></h3><div class="row-wrap" style="gap:18px">${Kit.qr(18, 112, `QR code for verification code ${VCODES[0]}`)}<div><div class="small muted">Verification code</div><div class="mono" style="font-weight:600">${VCODES[0]}</div></div></div>
         <h3 style="margin-top:6px">VersionBadge</h3><div class="row-wrap">${verBadge(2)}${verBadge(1, true)} ${Kit.badge('Superseded')}</div><p class="small muted">HashDropZone lives in the verify app prototype.</p></div>
     </div>

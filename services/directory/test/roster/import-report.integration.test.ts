@@ -55,6 +55,8 @@ const COLUMNS = [
   'phone',
 ];
 const REASON_COLUMNS = ['row_number', 'error_fields', 'error_codes', 'error_messages'];
+/** The report's columns: every template column (these files leave out the employer code), then why. */
+const REPORT_COLUMNS = [...COLUMNS, 'employer_code', ...REASON_COLUMNS];
 const HEADER = COLUMNS.join(',');
 const csv = (rows: string[], header = HEADER) => [header, ...rows].join('\n') + '\n';
 
@@ -239,9 +241,9 @@ describe('S6 mixed bad rows', () => {
       'attachment; filename="psc-roster-rejected-rows.csv"',
     );
     const [header, ...rows] = parseCsv(response.body);
-    expect(header).toEqual([...COLUMNS, ...REASON_COLUMNS]);
+    expect(header).toEqual(REPORT_COLUMNS);
     expect(rows).toHaveLength(S6_REJECTIONS.length);
-    expect(rows.map((row) => row.slice(9))).toEqual([
+    expect(rows.map((row) => row.slice(10))).toEqual([
       ['3', 'national_id', 'format', 'Enter 5 to 10 digits'],
       ['4', 'appointment_date', 'future-date', 'Date is in the future'],
       ['5', 'email', 'format', 'Enter a valid email address'],
@@ -350,7 +352,7 @@ describe('rejected rows report', () => {
 
     const [, row] = parseCsv((await reportOf(done.id)).body);
     expect(row?.slice(2, 3)).toEqual(['99887766']);
-    expect(row?.slice(9, 12)).toEqual(['2', 'national_id', 'identity-locked']);
+    expect(row?.slice(10, 13)).toEqual(['2', 'national_id', 'identity-locked']);
   });
 
   it('streams large reports page by page, one line per rejected row', async () => {
@@ -366,7 +368,7 @@ describe('rejected rows report', () => {
     expect(response.headers['content-length']).toBeUndefined();
     const [, ...lines] = parseCsv(response.body);
     expect(lines).toHaveLength(2_500);
-    expect(lines.map((line) => line[9])).toEqual(rows.map((_, index) => String(index + 2)));
+    expect(lines.map((line) => line[10])).toEqual(rows.map((_, index) => String(index + 2)));
   });
 
   it('keeps spreadsheet formulas from running, without mangling phone numbers', async () => {
@@ -395,7 +397,7 @@ describe('rejected rows report', () => {
 
     const response = await reportOf(done.id);
 
-    expect(parseCsv(response.body)).toEqual([[...COLUMNS, ...REASON_COLUMNS]]);
+    expect(parseCsv(response.body)).toEqual([REPORT_COLUMNS]);
     expect(response.headers['content-disposition']).toBe(
       'attachment; filename="Roster-final-rejected-rows.csv"',
     );

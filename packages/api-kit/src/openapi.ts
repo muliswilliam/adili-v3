@@ -2,6 +2,7 @@ import { applyDecorators, type INestApplication, type Type } from '@nestjs/commo
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter } from '@nestjs/platform-fastify';
 import {
+  ApiBody,
   ApiQuery,
   ApiResponse,
   DocumentBuilder,
@@ -162,6 +163,22 @@ export const ApiQueryParameters = (schema: z.ZodObject) => {
       });
     }),
   );
+};
+
+/**
+ * Documents a required JSON request body from the Zod schema `ZodValidationPipe` validates it
+ * with, as clients send it. For a body other operations or schemas share, name the schema in
+ * `OpenApiOptions.schemas` and use `@ApiBody({ required: true, schema: schemaRef(name) })`.
+ *
+ * @example
+ * @ApiJsonBody(noteBody)
+ * addNote(@Body(new ZodValidationPipe(noteBody)) body: NoteBody) {}
+ */
+export const ApiJsonBody = (schema: z.ZodType) => {
+  const body = z.toJSONSchema(schema, CONVERSION);
+  // The dialect is the document's (OpenAPI 3.1), not the body's to declare.
+  delete body.$schema;
+  return ApiBody({ required: true, schema: body as SchemaObject });
 };
 
 /** Maximum and minimum Zod puts on every `.int()`; they say nothing to a client. */

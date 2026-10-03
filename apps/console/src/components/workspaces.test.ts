@@ -9,8 +9,13 @@ describe('workspacesFor', () => {
     expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'obligations']);
   });
 
-  it('gives supervisors review, approvals and obligations, once each', () => {
-    expect(ids(['supervisor', 'reviewer'])).toEqual(['review', 'approvals', 'obligations']);
+  it('gives supervisors review, approvals, access requests and obligations, once each', () => {
+    expect(ids(['supervisor', 'reviewer'])).toEqual([
+      'review',
+      'approvals',
+      'access',
+      'obligations',
+    ]);
   });
 
   it('gives EACC analysts Commissions, national obligations and compliance reports but not the review queue', () => {
@@ -59,8 +64,8 @@ describe('S18 Commissions workspace', () => {
   });
 
   it('leaves workspaces that are not built yet without a link', () => {
-    expect(workspaceFor(['reviewer'], 'review')).toMatchObject({ readOnly: false });
-    expect(workspaceFor(['reviewer'], 'review')?.href).toBeUndefined();
+    expect(workspaceFor(['supervisor'], 'approvals')).toMatchObject({ readOnly: false });
+    expect(workspaceFor(['supervisor'], 'approvals')?.href).toBeUndefined();
   });
 });
 
@@ -121,6 +126,71 @@ describe('Obligations workspace', () => {
   );
 });
 
+describe('Access requests workspace (spec 10)', () => {
+  it('opens for the access officer, who acts', () => {
+    expect(workspaceFor(['access-officer'], 'access')).toEqual({
+      id: 'access',
+      title: 'Access requests',
+      description: 'Decide Form K and law enforcement requests for declarations.',
+      href: '/access/requests',
+      readOnly: false,
+    });
+  });
+
+  it('opens read-only for the supervisor', () => {
+    expect(workspaceFor(['supervisor'], 'access')).toEqual({
+      id: 'access',
+      title: 'Access requests',
+      description:
+        'Form K and law enforcement requests for declarations and where each one stands.',
+      href: '/access/requests',
+      readOnly: true,
+    });
+  });
+
+  it.each([
+    'reviewer',
+    'commission-admin',
+    'reporting-officer',
+    'eacc-analyst',
+    'eacc-supervisor',
+    'platform-admin',
+    'declarant',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'access')).toBeUndefined();
+  });
+});
+
+describe('Law enforcement requests workspace (spec 10 FE-6)', () => {
+  it('opens for law enforcement officers, and only them', () => {
+    expect(workspacesFor(['law-enforcement'])).toEqual([
+      {
+        id: 'lea',
+        title: 'Law enforcement requests',
+        description:
+          'Send written requests for declarations to Commissions and download what is granted.',
+        href: '/lea/requests',
+        readOnly: false,
+      },
+    ]);
+    for (const role of ['access-officer', 'supervisor', 'platform-admin', 'eacc-analyst']) {
+      expect(workspaceFor([role], 'lea'), role).toBeUndefined();
+    }
+  });
+});
+
+describe('Platform settings workspace (spec 10 FE-6)', () => {
+  it("opens law-enforcement accounts for platform admins, and nobody else's", () => {
+    expect(workspaceFor(['platform-admin'], 'platform')).toMatchObject({
+      href: '/platform/law-enforcement',
+      readOnly: false,
+    });
+    for (const role of ['eacc-analyst', 'eacc-supervisor', 'access-officer', 'law-enforcement']) {
+      expect(workspaceFor([role], 'platform'), role).toBeUndefined();
+    }
+  });
+});
+
 describe("the Obligations workspace's policy page (spec 04 access table)", () => {
   it('opens for commission admins, who change the start date', () => {
     expect(opensOwnPolicy(['commission-admin'])).toBe(true);
@@ -165,4 +235,25 @@ describe('S16 National obligations workspace', () => {
       expect(workspaceFor([role], 'national-obligations')).toBeUndefined();
     },
   );
+});
+
+describe('S16 AI policy workspace', () => {
+  it('opens for platform admins', () => {
+    expect(workspaceFor(['platform-admin'], 'ai-policy')).toMatchObject({
+      href: '/ai-policy',
+      readOnly: false,
+    });
+  });
+
+  it.each([
+    'eacc-analyst',
+    'eacc-supervisor',
+    'commission-admin',
+    'supervisor',
+    'reviewer',
+    'reporting-officer',
+    'auditor',
+  ])('stays closed for %s', (role) => {
+    expect(workspaceFor([role], 'ai-policy')).toBeUndefined();
+  });
 });

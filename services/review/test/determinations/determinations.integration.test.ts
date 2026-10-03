@@ -14,8 +14,11 @@ import {
   reviewTimeline,
 } from '../../src/db/schema.js';
 import { determinationIssuanceWorkflowId } from '../../src/determinations/contract.js';
-import type { DeclarantDecisionView } from '../../src/determinations/declarant-decisions.service.js';
-import type { DeterminationView } from '../../src/determinations/representation.js';
+
+import type {
+  DeclarantDecisionView,
+  DeterminationView,
+} from '../../src/determinations/representation.js';
 import { asset, declaration, statement } from '../fixtures/declarations.js';
 import { givenAssignedCase } from '../support/cases.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -293,6 +296,7 @@ describe('determinations: propose, approve, return, withdraw', () => {
       ),
     ).toEqual([]);
     expect(letter?.pulled.body).toEqual({
+      declarantPersonId: version.personId,
       declarantName: 'James Otieno',
       commission: { name: 'Public Service Commission', issuerCode: 'PSC' },
       declarationReference: 'DCB-PSC-2027-0000042-7',

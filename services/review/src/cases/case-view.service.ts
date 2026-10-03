@@ -2,19 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 
+import { clarificationItems } from '../clarifications/representation.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { determinationView } from '../determinations/representation.js';
 import { determinations } from '../determinations/schema.js';
-import {
-  DeclarationsClient,
-  DeclarationsUnavailable,
-  type PulledVersion,
-} from '../declarations/declarations-client.js';
+import { DeclarationsClient, type PulledVersion } from '../declarations/declarations-client.js';
 import { DocumentsClient, DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/rejected.js';
-import { declarationsUnavailable, upstreamUnavailable } from '../internal-api/upstream.js';
+import { upstreamUnavailable } from '../internal-api/upstream.js';
+import { pullViewedVersion } from '../internal-api/view-declaration.js';
+import { registrySummary } from '../registry/representation.js';
+import { registryChecks } from '../registry/schema.js';
 import { SYSTEM_SUBJECT } from '../system-context.js';
 import { caseTenant } from './access.js';
 import {
@@ -107,7 +107,7 @@ export class CaseViewService {
     notFoundIfInvisible(pulled.attachments.find((attachment) => attachment.uploadId === upload));
     let link: AttachmentDownload | null;
     try {
-      const found = await this.documents.getUploadDownload(upload, tenant);
+      const found = await this.documents.getUploadDownload(upload, tenant, principal.subject);
       link = found && { downloadUrl: found.downloadUrl, expiresAt: found.expiresAt };
     } catch (error) {
       // A filed attachment is clean; one documents refuses is as good as unreachable.
@@ -120,24 +120,8 @@ export class CaseViewService {
   }
 
   /** The current version as the declarations service gives it, read for the viewer and case. */
-  private async pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
-    let pulled: PulledVersion | null;
-    try {
-      pulled = await this.declarations.getVersionDocument(row.declarationId, row.currentVersion, {
-        tenant: row.tenant,
-        actingSubject: principal.subject,
-        caseId: row.id,
-      });
-    } catch (error) {
-      if (error instanceof DeclarationsUnavailable) throw declarationsUnavailable();
-      throw error;
-    }
-    if (pulled === null) {
-      throw declarationsUnavailable(
-        'The declarations service does not have the version under review.',
-      );
-    }
-    return pulled;
+  private pull(principal: Principal, row: CaseRow): Promise<PulledVersion> {
+    return pullViewedVersion(this.declarations, principal, row);
   }
 }
 
@@ -188,6 +172,14 @@ async function caseData(
     .from(determinations)
     .where(eq(determinations.caseId, row.id))
     .orderBy(asc(determinations.proposedAt), asc(determinations.id));
+  const checks = await tx
+    .select()
+    .from(registryChecks)
+    // The current version's: statuses of another version describe other declared items.
+    .where(
+      and(eq(registryChecks.caseId, row.id), eq(registryChecks.versionId, row.currentVersionId)),
+    )
+    .orderBy(asc(registryChecks.personKey), asc(registryChecks.system));
   const assignments = await tx
     .select()
     .from(reviewAssignments)
@@ -239,9 +231,15 @@ async function caseData(
       submittedAt: version.submittedAt.toISOString(),
       late: version.late,
       amendment: version.amendment,
+      firstOnAdili: version.firstOnAdili,
     })),
     reviewerHistory,
     determinations: determinationRows.map(determinationView),
+    registry: registrySummary(
+      checks,
+      // The timeline is oldest first: the last re-check asked for is the last of its entries.
+      timeline.findLast((entry) => entry.kind === 'registry-rechecked')?.at ?? null,
+    ),
   };
 }
 
@@ -258,13 +256,7 @@ function clarificationView(
     caseId: row.caseId,
     reference: row.reference,
     status: row.status,
-    items: row.items.map((item) => ({
-      sectionKey: item.sectionKey,
-      personKey: item.personKey,
-      itemId: item.itemId,
-      requirement: item.requirement,
-      text: item.text,
-    })),
+    items: clarificationItems(row),
     issuedAt: row.issuedAt?.toISOString() ?? null,
     dueAt: row.dueAt?.toISOString() ?? null,
     respondedAt: row.respondedAt?.toISOString() ?? null,
@@ -285,6 +277,10 @@ function clarificationView(
                   : 'issued',
           },
     followUpOf: row.followUpOf,
+    opening: row.opening,
+    openingAiJobId: row.openingAiJobId,
+    openingAiLanguage: row.openingAiLanguage,
+    language: row.language,
     response:
       response === undefined
         ? null

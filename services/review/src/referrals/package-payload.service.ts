@@ -23,47 +23,8 @@ import {
   flagContent,
   planEvidence,
 } from './evidence-package.js';
-import { GROUNDS_LABELS } from './representation.js';
-import { type ManifestItem, type ReferralGrounds, referrals } from './schema.js';
-
-/**
- * review.yaml `ReferralPackagePayload`: what `referral-package.v1` renders. A cover sheet (the
- * reference, grounds, Commission, declarant, narrative, proposer and approver) with the manifest,
- * then the evidence it lists. Letters are the documents service's own documents, named by id.
- */
-export interface ReferralPackagePayload {
-  reference: string;
-  grounds: ReferralGrounds;
-  groundsLabel: string;
-  cycleYear: number;
-  commission: { name: string; issuerCode: string };
-  declarant: { name: string; personnelFileNumber: string };
-  narrative: string;
-  proposedBy: string;
-  proposedAt: string;
-  approvedBy: string;
-  approvedAt: string;
-  manifest: ManifestItem[];
-  versions: {
-    reference: string;
-    version: number;
-    type: string;
-    statementDate: string;
-    submittedAt: string;
-    late: boolean;
-    document: Record<string, unknown>;
-  }[];
-  flags: Record<string, unknown>[];
-  clarifications: Record<string, unknown>[];
-  obligations: {
-    cycleKey: string;
-    type: string;
-    status: string;
-    dueDate: string;
-    filedAt: string | null;
-  }[];
-  letters: { reference: string; documentId: string }[];
-}
+import { GROUNDS_LABELS, type ReferralPackagePayload } from './representation.js';
+import { referrals } from './schema.js';
 
 /**
  * The package payload the documents service pulls when it renders a referral's Confidential
@@ -117,6 +78,7 @@ export class ReferralPackagePayloadService {
       throw error;
     }
     return {
+      declarantPersonId: referral.personId,
       reference,
       grounds: referral.grounds,
       groundsLabel: GROUNDS_LABELS[referral.grounds],

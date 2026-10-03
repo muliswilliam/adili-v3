@@ -12,7 +12,7 @@ Adili Online V3, Track 3: **Declaration of Income, Assets and Liabilities (DIALs
 | See how EACC's user stories are covered | [User story coverage](requirements/user-stories.md) |
 | See the product team's process flowcharts (onboarding, DIALs, access) | [Flowcharts](requirements/dials-flowcharts.html) |
 | Know who owns what and how we run specs with agents | [How we work](how-we-work.md) |
-| Pick up a ticket: read its spec (the epic issue) and the API contract | [Epics](https://github.com/muliswilliam/adili-v3/issues?q=label%3Aepic) · [Internal contracts](../packages/schemas/internal/) |
+| Pick up a ticket: read its spec (the epic issue) and the API contract | [Epics](https://github.com/muliswilliam/adili-v3/issues?q=label%3Aepic) · [Internal contracts](../packages/schemas/internal/) · [Contract convergence notes](contracts/) |
 | Understand scale and sizing | [Scope and scale](research/dials-scope-and-scale.md) · [Database sizing](research/database-sizing.md) |
 | Learn the domain vocabulary | [CONTEXT.md](../CONTEXT.md) |
 | Look up a code or issuer (`DCB`, `TSC`) | [Glossary](glossary.md) |
@@ -27,6 +27,7 @@ docs/
 ├── architecture/     # system architecture and diagrams
 ├── adr/              # architecture decision records (0001-0017)
 ├── agents/           # config read by engineering agent skills
+├── contracts/        # per-spec notes: drafted contracts vs what was built
 ├── requirements/     # legal traceability, user story coverage, flowcharts
 ├── research/         # scope, population, sizing
 ├── reference/legal/  # Conflict of Interest Act 2025, Regulations 2026

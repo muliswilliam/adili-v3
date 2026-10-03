@@ -43,7 +43,7 @@ export {
   MEMBERSHIP_KINDS,
   OCCUPATION_SECTORS,
 } from './declaration.v1.zod.gen.js';
-export { validateFormK } from './form-k.js';
+export { FORM_K_SECTIONS, type FormKSection, validateFormK } from './form-k.js';
 export type { FormKV1 } from './form-k.v1.gen.js';
 export {
   FORM_M_SECTIONS,

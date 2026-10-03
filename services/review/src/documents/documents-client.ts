@@ -10,6 +10,13 @@ export interface UploadDownload {
   sha256: string;
 }
 
+/** A short-lived link to an issued document's signed PDF (documents.yaml `DocumentDownload`). */
+export interface DocumentDownload {
+  downloadUrl: string;
+  expiresAt: string;
+  sha256: string;
+}
+
 /** Why a document is revoked (documents.yaml `RevocationReason`). */
 export type RevocationReason = 'issued-in-error';
 
@@ -92,9 +99,27 @@ export abstract class DocumentsClient {
   /**
    * A presigned GET on a clean upload of the Commission (`getUploadDownload`); null when the
    * Commission has no such upload. Throws `InternalApiRejected` (409) when the upload is not
-   * clean. Documents records the download in its own audit trail.
+   * clean. Documents records the download in its own audit trail, naming `actingSubject` as whom
+   * it was read for (ADR-013 §8.6): the reviewer, or the declarant whose response attaches it.
    */
-  abstract getUploadDownload(uploadId: string, tenant: string): Promise<UploadDownload | null>;
+  abstract getUploadDownload(
+    uploadId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<UploadDownload | null>;
+
+  /**
+   * A presigned GET on the signed PDF of a document the Commission issued
+   * (`internalGetDocumentDownload`), for a staff member the review service has let see it; null
+   * when the Commission issued no such document. Documents records the download in its own audit
+   * trail, naming the person the document is about and `actingSubject`, the staff member it was
+   * read for (ADR-013 §8.6).
+   */
+  abstract getIssuedDocumentDownload(
+    documentId: string,
+    tenant: string,
+    actingSubject: string,
+  ): Promise<DocumentDownload | null>;
 
   /**
    * Renders, signs and registers a verifiable document of the Commission (`issueDocument`,

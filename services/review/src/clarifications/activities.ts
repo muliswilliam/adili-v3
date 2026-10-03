@@ -118,7 +118,7 @@ export class ClarificationActivities {
     const commission = await this.directory.getCommission(tenant);
     const template = `clarification-${notice}-${channel}` as const;
     const params: Record<string, string | number> = {
-      commission: commission.name,
+      commissionName: commission.name,
       reference: found.reference,
       dueDate: nairobiDate(found.dueAt),
       portalUrl: portalClarificationUrl(clarificationId),

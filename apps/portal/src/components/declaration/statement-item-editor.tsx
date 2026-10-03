@@ -30,6 +30,7 @@ import {
   originalCents,
   withCurrency,
 } from '../../declaration/statement';
+import { DETAIL_FIELD_LABELS, ITEM_FIELD_LABELS } from '../../declaration/field-labels';
 import { CATEGORY_WORDS, CHANGE_KIND_OPTIONS, TYPE_LABELS } from '../../declaration/labels';
 import { optionalLabel } from './optional-label';
 
@@ -105,18 +106,29 @@ const ASSET_DETAILS: Partial<Record<string, DetailField[]>> = {
   land: [
     {
       key: 'parcelNumber',
-      label: 'Parcel or plot number',
+      label: DETAIL_FIELD_LABELS.parcelNumber,
       placeholder: 'e.g. Eldoret Municipality Block 7/1234',
       maxLength: 100,
       hint: 'As on the title deed.',
     },
-    { key: 'size', label: 'Size', placeholder: 'e.g. 0.25 acres', maxLength: 50, optional: true },
+    {
+      key: 'size',
+      label: DETAIL_FIELD_LABELS.size,
+      placeholder: 'e.g. 0.25 acres',
+      maxLength: 50,
+      optional: true,
+    },
   ],
   vehicle: [
-    { key: 'registration', label: 'Registration', placeholder: 'e.g. KDA 123X', maxLength: 20 },
+    {
+      key: 'registration',
+      label: DETAIL_FIELD_LABELS.registration,
+      placeholder: 'e.g. KDA 123X',
+      maxLength: 20,
+    },
     {
       key: 'makeModel',
-      label: 'Make and model',
+      label: DETAIL_FIELD_LABELS.makeModel,
       placeholder: 'e.g. Toyota Fielder, 2014',
       maxLength: 100,
     },
@@ -124,13 +136,13 @@ const ASSET_DETAILS: Partial<Record<string, DetailField[]>> = {
   securities: [
     {
       key: 'issuer',
-      label: 'Company or issuer',
+      label: DETAIL_FIELD_LABELS.issuer,
       placeholder: 'e.g. Safaricom PLC',
       maxLength: 200,
     },
     {
       key: 'quantityOrPercent',
-      label: 'Number or percentage',
+      label: DETAIL_FIELD_LABELS.quantityOrPercent,
       placeholder: 'e.g. 20,000 shares or 5%',
       maxLength: 50,
     },
@@ -138,13 +150,13 @@ const ASSET_DETAILS: Partial<Record<string, DetailField[]>> = {
   'bank-account': [
     {
       key: 'institution',
-      label: 'Institution',
+      label: DETAIL_FIELD_LABELS.institution,
       placeholder: 'e.g. KCB Bank, Mwalimu SACCO, M-Pesa',
       maxLength: 200,
     },
     {
       key: 'accountType',
-      label: 'Account type',
+      label: DETAIL_FIELD_LABELS.accountType,
       placeholder: 'e.g. Savings, current, fixed deposit',
       maxLength: 50,
     },
@@ -152,7 +164,7 @@ const ASSET_DETAILS: Partial<Record<string, DetailField[]>> = {
   receivable: [
     {
       key: 'debtor',
-      label: 'Debtor',
+      label: DETAIL_FIELD_LABELS.debtor,
       placeholder: 'Who owes you, e.g. Peter Kennedy (brother)',
       maxLength: 200,
     },
@@ -175,6 +187,11 @@ export interface ItemEditorProps {
   /** "My share", or "Mary's share" on someone else's statement. */
   shareLabel: string;
   disabled: boolean;
+  /**
+   * The declaration follows an earlier one, so an item can have changed since it ("Changed since
+   * last declaration"); not on an initial declaration.
+   */
+  sinceLastDeclaration: boolean;
   renderAttachments?: RenderAttachments | undefined;
 }
 
@@ -193,6 +210,7 @@ export function ItemEditor({
   onMoneyText,
   shareLabel,
   disabled,
+  sinceLastDeclaration,
   renderAttachments,
 }: ItemEditorProps) {
   const anyItem = item as AnyItem;
@@ -287,7 +305,11 @@ export function ItemEditor({
         </div>
       ) : null}
 
-      <FormField label="Description" error={errorFor('description')} controlId={fid('description')}>
+      <FormField
+        label={ITEM_FIELD_LABELS.description}
+        error={errorFor('description')}
+        controlId={fid('description')}
+      >
         <Input
           value={anyItem.description ?? ''}
           maxLength={200}
@@ -303,7 +325,11 @@ export function ItemEditor({
       </FormField>
 
       {category === 'liabilities' ? (
-        <FormField label="Creditor" error={errorFor('creditor')} controlId={fid('creditor')}>
+        <FormField
+          label={ITEM_FIELD_LABELS.creditor}
+          error={errorFor('creditor')}
+          controlId={fid('creditor')}
+        >
           <Input
             value={anyItem.creditor ?? ''}
             maxLength={200}
@@ -323,7 +349,7 @@ export function ItemEditor({
         <div className="grid gap-4 sm:grid-cols-2">
           <SegmentedChoice
             id={fid('location')}
-            legend="Location"
+            legend={ITEM_FIELD_LABELS.location}
             options={[
               { value: 'kenya', label: 'In Kenya' },
               { value: 'abroad', label: 'Outside Kenya' },
@@ -338,7 +364,11 @@ export function ItemEditor({
             }}
           />
           {abroad ? (
-            <FormField label="Country" error={errorFor('country')} controlId={fid('country')}>
+            <FormField
+              label={ITEM_FIELD_LABELS.country}
+              error={errorFor('country')}
+              controlId={fid('country')}
+            >
               <CountrySelect
                 exclude={['KE']}
                 value={location.country ?? null}
@@ -352,7 +382,11 @@ export function ItemEditor({
               />
             </FormField>
           ) : (
-            <FormField label="County" error={errorFor('county')} controlId={fid('county')}>
+            <FormField
+              label={ITEM_FIELD_LABELS.county}
+              error={errorFor('county')}
+              controlId={fid('county')}
+            >
               <CountySelect
                 value={location.county ?? null}
                 onBlur={() => {
@@ -401,7 +435,11 @@ export function ItemEditor({
           />
           {abroad ? (
             <div className="ml-7 rounded-lg bg-muted p-4">
-              <FormField label="Country" error={errorFor('country')} controlId={fid('country')}>
+              <FormField
+                label={ITEM_FIELD_LABELS.country}
+                error={errorFor('country')}
+                controlId={fid('country')}
+              >
                 <CountrySelect
                   exclude={['KE']}
                   value={location.country ?? null}
@@ -483,7 +521,7 @@ export function ItemEditor({
       {category === 'assets' ? (
         <div className="grid gap-3">
           <CheckboxItem
-            label="Jointly held"
+            label={ITEM_FIELD_LABELS.joint}
             checked={anyItem.joint?.isJoint === true}
             onChange={(event) => {
               const isJoint = event.target.checked;
@@ -511,7 +549,10 @@ export function ItemEditor({
                   }}
                 />
               </FormField>
-              <FormField label={optionalLabel('Co-owner relationship')} controlId={fid('coOwner')}>
+              <FormField
+                label={optionalLabel(ITEM_FIELD_LABELS.coOwner)}
+                controlId={fid('coOwner')}
+              >
                 <Select
                   placeholder="Choose one"
                   value={anyItem.joint.coOwner ?? ''}
@@ -534,64 +575,66 @@ export function ItemEditor({
         </div>
       ) : null}
 
-      <div className="grid gap-3">
-        <CheckboxItem
-          label="Changed since last declaration"
-          hint="Value up or down 25% or more, acquired, disposed of or settled."
-          checked={anyItem.change?.changed === true}
-          onChange={(event) => {
-            const changed = event.target.checked;
-            set((current) => ({
-              ...current,
-              change: changed ? { ...current.change, changed } : { changed: false },
-            }));
-          }}
-        />
-        {anyItem.change?.changed ? (
-          <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
-            <SegmentedChoice
-              id={fid('changeKind')}
-              legend="What changed?"
-              options={CHANGE_KIND_OPTIONS[category]}
-              value={anyItem.change.kind ?? null}
-              error={errorFor('changeKind')}
-              onValueChange={(kind) => {
-                onTouch('changeKind');
-                set((current) => ({
-                  ...current,
-                  change: {
-                    ...current.change,
-                    changed: true,
-                    kind: kind as NonNullable<AnyItem['change']>['kind'],
-                  },
-                }));
-              }}
-            />
-            <FormField
-              label="Explanation"
-              error={errorFor('explanation')}
-              controlId={fid('explanation')}
-            >
-              <Textarea
-                rows={3}
-                maxLength={1000}
-                placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
-                value={anyItem.change.explanation ?? ''}
-                onBlur={() => {
-                  onTouch('explanation');
-                }}
-                onChange={(event) => {
-                  const explanation = event.target.value;
+      {sinceLastDeclaration ? (
+        <div className="grid gap-3">
+          <CheckboxItem
+            label={ITEM_FIELD_LABELS.change}
+            hint="Value up or down 25% or more, acquired, disposed of or settled."
+            checked={anyItem.change?.changed === true}
+            onChange={(event) => {
+              const changed = event.target.checked;
+              set((current) => ({
+                ...current,
+                change: changed ? { ...current.change, changed } : { changed: false },
+              }));
+            }}
+          />
+          {anyItem.change?.changed ? (
+            <div className="ml-7 grid gap-4 rounded-lg bg-muted p-4">
+              <SegmentedChoice
+                id={fid('changeKind')}
+                legend="What changed?"
+                options={CHANGE_KIND_OPTIONS[category]}
+                value={anyItem.change.kind ?? null}
+                error={errorFor('changeKind')}
+                onValueChange={(kind) => {
+                  onTouch('changeKind');
                   set((current) => ({
                     ...current,
-                    change: { ...current.change, changed: true, explanation },
+                    change: {
+                      ...current.change,
+                      changed: true,
+                      kind: kind as NonNullable<AnyItem['change']>['kind'],
+                    },
                   }));
                 }}
               />
-            </FormField>
-          </div>
-        ) : null}
-      </div>
+              <FormField
+                label={ITEM_FIELD_LABELS.explanation}
+                error={errorFor('explanation')}
+                controlId={fid('explanation')}
+              >
+                <Textarea
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="e.g. Bought in January 2026 with savings and a SACCO loan."
+                  value={anyItem.change.explanation ?? ''}
+                  onBlur={() => {
+                    onTouch('explanation');
+                  }}
+                  onChange={(event) => {
+                    const explanation = event.target.value;
+                    set((current) => ({
+                      ...current,
+                      change: { ...current.change, changed: true, explanation },
+                    }));
+                  }}
+                />
+              </FormField>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {category !== 'income' && renderAttachments
         ? renderAttachments({

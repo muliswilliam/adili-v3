@@ -4,6 +4,7 @@ import type {
   NationalCommissionRow,
   NationalObligationsSummary,
 } from '../../server/declarations/client';
+import { type ClientPage, clientPage } from '../paging';
 
 /** Columns the national table sorts by. */
 export const NATIONAL_SORTS = [
@@ -116,23 +117,11 @@ export function hasNationalObligations(summary: NationalObligationsSummary): boo
   );
 }
 
-export interface NationalPage {
-  rows: NationalCommissionRow[];
-  /** 1-based, clamped to the pages there are. */
-  page: number;
-  pages: number;
-  /** 1-based positions of the first and last row on the page. */
-  from: number;
-  to: number;
-}
+export type NationalPage = ClientPage<NationalCommissionRow>;
 
 export function nationalPage(
   rows: readonly NationalCommissionRow[],
   requested: number | undefined,
 ): NationalPage {
-  const pages = Math.max(1, Math.ceil(rows.length / NATIONAL_PAGE_SIZE));
-  const page = Math.min(Math.max(1, requested ?? 1), pages);
-  const start = (page - 1) * NATIONAL_PAGE_SIZE;
-  const shown = rows.slice(start, start + NATIONAL_PAGE_SIZE);
-  return { rows: shown, page, pages, from: start + 1, to: start + shown.length };
+  return clientPage(rows, requested, NATIONAL_PAGE_SIZE);
 }

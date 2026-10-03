@@ -64,6 +64,34 @@
       "when": 1790858462814,
       "tag": "0008_issued_documents_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790885032721,
+      "tag": "0009_issued_documents_download_window",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790897849705,
+      "tag": "0010_issued_documents_additional_downloaders",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790972484801,
+      "tag": "0011_issued_documents_eacc_read",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790976269265,
+      "tag": "0012_issued_documents_excluded_person",
+      "breakpoints": true
     }
   ]
 }

@@ -13,9 +13,16 @@ import {
 import { Building03Icon, LockIcon } from '@hugeicons/core-free-icons';
 import { useState } from 'react';
 
+import { PERSON_FIELD_LABELS } from '../../declaration/field-labels';
 import type { LoadedSection } from '../../server/declarations.server';
 import { BIO_FIELD_ORDER, BIO_MESSAGES, type BioField, bioIssues } from '../../declaration/bio';
-import type { Draft, EmploymentNature, MaritalStatus, Officer } from '../../declaration/contents';
+import {
+  type Draft,
+  type EmploymentNature,
+  followsEarlierDeclaration,
+  type MaritalStatus,
+  type Officer,
+} from '../../declaration/contents';
 import {
   EMPLOYMENT_NATURE_LABELS,
   MARITAL_STATUS_LABELS,
@@ -96,7 +103,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
     invalid: false,
   });
 
-  const issues = bioIssues(officer, declaration.statementDate);
+  const issues = bioIssues(officer, declaration.statementDate, declaration.type);
   if (birthDateText.invalid) {
     issues.birthDate = { kind: 'invalid', message: BIO_MESSAGES.dateFormat };
   }
@@ -137,7 +144,7 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
 
       <Card className="grid gap-5 p-5 sm:grid-cols-2">
         <FormField
-          label="Date of birth"
+          label={PERSON_FIELD_LABELS.dateOfBirth}
           error={error('birthDate')}
           controlId={fieldId('birthDate')}
         >
@@ -226,47 +233,50 @@ export function BioSection({ section, etag, showErrors = false }: BioSectionProp
           />
         </FormField>
 
-        <div className="grid gap-3 sm:col-span-2">
-          <CheckboxItem
-            label="Marital status changed since last declaration"
-            checked={changed}
-            onChange={(event) => {
-              const next = event.target.checked;
-              set((current) => ({
-                ...current,
-                maritalStatusChange: next
-                  ? { ...current.maritalStatusChange, changed: true }
-                  : { changed: false },
-              }));
-            }}
-          />
-          {changed ? (
-            <div className="ml-7 rounded-lg bg-muted p-4">
-              <FormField
-                label="Explain the change"
-                error={error('maritalChange')}
-                controlId={fieldId('maritalChange')}
-              >
-                <Textarea
-                  rows={3}
-                  maxLength={1000}
-                  placeholder="e.g. Married Mary Wanjiru Kennedy in April 2025."
-                  value={officer.maritalStatusChange?.explanation ?? ''}
-                  onBlur={() => {
-                    touch('maritalChange');
-                  }}
-                  onChange={(event) => {
-                    const explanation = event.target.value;
-                    set((current) => ({
-                      ...current,
-                      maritalStatusChange: { changed: true, explanation },
-                    }));
-                  }}
-                />
-              </FormField>
-            </div>
-          ) : null}
-        </div>
+        {/* An initial declaration is the first: there is no last one to have changed since. */}
+        {followsEarlierDeclaration(declaration.type) ? (
+          <div className="grid gap-3 sm:col-span-2">
+            <CheckboxItem
+              label="Marital status changed since last declaration"
+              checked={changed}
+              onChange={(event) => {
+                const next = event.target.checked;
+                set((current) => ({
+                  ...current,
+                  maritalStatusChange: next
+                    ? { ...current.maritalStatusChange, changed: true }
+                    : { changed: false },
+                }));
+              }}
+            />
+            {changed ? (
+              <div className="ml-7 rounded-lg bg-muted p-4">
+                <FormField
+                  label="Explain the change"
+                  error={error('maritalChange')}
+                  controlId={fieldId('maritalChange')}
+                >
+                  <Textarea
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="e.g. Married Mary Wanjiru Kennedy in April 2025."
+                    value={officer.maritalStatusChange?.explanation ?? ''}
+                    onBlur={() => {
+                      touch('maritalChange');
+                    }}
+                    onChange={(event) => {
+                      const explanation = event.target.value;
+                      set((current) => ({
+                        ...current,
+                        maritalStatusChange: { changed: true, explanation },
+                      }));
+                    }}
+                  />
+                </FormField>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </Card>
 
       <Card className="grid gap-5 p-5 sm:grid-cols-2">

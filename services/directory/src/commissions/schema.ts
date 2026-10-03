@@ -16,7 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import type { OfficerCategoryCode } from './create-commission.js';
-import type { TenantPolicy } from './policy.js';
+import type { StoredTenantPolicy } from './policy.js';
 
 const timestamps = {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -92,7 +92,7 @@ export const tenantPolicyVersions = pgTable(
       .references(() => commissions.slug),
     version: integer().notNull(),
     effectiveFrom: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    policy: jsonb().$type<TenantPolicy>().notNull(),
+    policy: jsonb().$type<StoredTenantPolicy>().notNull(),
     /**
      * Obligations are created only for statement dates on or after it, so officers appointed
      * before the Commission joined Adili owe no initial declaration here (spec 04). Version 1's

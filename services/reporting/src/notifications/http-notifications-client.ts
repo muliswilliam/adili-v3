@@ -29,13 +29,6 @@ export interface HttpNotificationsClientOptions {
   fetch?: typeof fetch;
 }
 
-/**
- * A template id as notifications' contract declares it. Reporting's four templates join it when
- * notifications renders them (#218); until then they are sent by name.
- */
-type TemplateId =
-  paths['/internal/v1/messages']['post']['requestBody']['content']['application/json']['template'];
-
 const messageSchema = z.object({
   id: z.uuid(),
   status: z.enum(['sent', 'failed']),
@@ -70,7 +63,7 @@ export class HttpNotificationsClient extends NotificationsClient {
           body: {
             channel: 'email',
             recipient: { kind: 'address', to: message.to },
-            template: message.template as TemplateId,
+            template: message.template,
             params: message.params,
             locale: 'en',
             tenant: message.tenant,

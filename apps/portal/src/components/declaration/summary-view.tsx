@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  textLink,
 } from '@adili/ui';
 import {
   Alert02Icon,
@@ -66,6 +67,7 @@ import {
 import {
   type AnyItem,
   blockingGroups,
+  issueText,
   blockingTitle,
   childDetails,
   childrenEmptyText,
@@ -116,11 +118,7 @@ function ErrorsLink({
   // Every section route reads `?errors=true` to show all its missing answers at once.
   const search = { errors: true } as never;
   return (
-    <Link
-      {...stepLink(declarationId, step)}
-      search={search}
-      className="rounded-sm underline decoration-input underline-offset-3 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
+    <Link {...stepLink(declarationId, step)} search={search} className={textLink}>
       {children}
     </Link>
   );
@@ -130,10 +128,13 @@ function BlockingPanel({
   declarationId,
   blocking,
   sections,
+  document,
 }: {
   declarationId: string;
   blocking: LoadedSummary['blocking'];
   sections: Sections;
+  /** Names the items the issues are on. */
+  document: SummaryDocument;
 }) {
   const headingId = useId();
   const { groups, hidden } = blockingGroups(blocking, sections);
@@ -151,7 +152,7 @@ function BlockingPanel({
               {group.issues.map((issue) => (
                 <li key={`${issue.path}-${issue.code}-${issue.message}`} className="list-disc">
                   <ErrorsLink declarationId={declarationId} step={group.key}>
-                    {issue.message}
+                    {issueText(issue, document)}
                   </ErrorsLink>
                 </li>
               ))}
@@ -764,6 +765,7 @@ export function SummaryView({ summary: loaded, stepUpMarker = null }: SummaryVie
           declarationId={declaration.id}
           blocking={blocking}
           sections={declaration.sections}
+          document={document}
         />
       ) : (
         <Alert variant="success">

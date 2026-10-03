@@ -26,6 +26,7 @@ import {
   Home01Icon,
   Search01Icon,
   Settings01Icon,
+  SparklesIcon,
   TaskDone01Icon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
@@ -183,6 +184,7 @@ const WORKSPACE_ICONS: Record<string, IconProps['icon']> = {
   compliance: FileChartColumnIcon,
   audit: Search01Icon,
   support: CustomerSupportIcon,
+  'ai-policy': SparklesIcon,
   platform: Settings01Icon,
 };
 
@@ -204,7 +206,7 @@ function WorkspaceCard({ workspace }: { workspace: Workspace }) {
     );
   }
   return (
-    <li className="relative flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--input),0_6px_20px_-8px_rgb(0_0_0/0.15)]">
+    <li className="relative flex min-h-[150px] flex-col gap-2.5 rounded-2xl bg-card p-5 shadow-card transition-shadow hover:shadow-card-hover">
       <CardIcon className="mb-0 size-[38px] bg-brand-subtle text-brand-subtle-foreground [&_svg]:size-[19px]">
         <Icon icon={icon} />
       </CardIcon>

@@ -9,22 +9,18 @@ import { z } from 'zod';
 import { caseTenant, queueTenant, requireSupervisor } from '../cases/access.js';
 import { knownName } from '../cases/assignment.service.js';
 import type { ReviewTransaction } from '../cases/case-lookup.js';
-import type { Assignee } from '../cases/representation.js';
+import { type Assignee, assigneeSchema } from '../cases/assignee.js';
 import { Clock } from '../clock.js';
 import type { ReviewSchema } from '../db/schema.js';
 import { DeterminationApprovals } from '../determinations/determination-approvals.js';
+import { proposerKindSchema } from '../determinations/representation.js';
 import { ActionApprovals } from '../enforcement/action-approvals.js';
 import { decodeCursor, encodeCursor, type Position } from '../paging.js';
 import { ReferralApprovals } from '../referrals/referral-approvals.js';
 import type { ApprovalPosition, ApprovalSource, PendingApproval } from './approval-source.js';
 import { notProposed } from './decisions.js';
 import { APPROVAL_REASSIGNED, type ApprovalReassignedData } from './events.js';
-import {
-  APPROVAL_KINDS,
-  type ApprovalKind,
-  approvalReassignments,
-  type ProposerKind,
-} from './schema.js';
+import { APPROVAL_KINDS, type ApprovalKind, approvalReassignments } from './schema.js';
 import { type CannotApproveReason, cannotApprove } from './separation-of-duties.js';
 
 /** Query of `GET /v1/commissions/{slug}/approvals` (review.yaml `listApprovals`). */
@@ -45,18 +41,26 @@ export const reassignApprovalInput = z.object({
 });
 export type ReassignApprovalInput = z.infer<typeof reassignApprovalInput>;
 
+/** review.yaml `ApprovalKind`. */
+export const approvalKindSchema = z.enum(APPROVAL_KINDS);
+
 /** review.yaml `ApprovalItem`. */
-export interface ApprovalItemView {
-  kind: ApprovalKind;
-  subjectId: string;
-  proposedAt: string;
-  proposerKind: ProposerKind;
-  proposer: Assignee | null;
-  summary: Record<string, unknown>;
-  canApprove: boolean;
-  cannotApproveReason: CannotApproveReason | null;
-  reassignedTo: Assignee | null;
-}
+export const approvalItemSchema = z.object({
+  kind: approvalKindSchema,
+  subjectId: z.uuid(),
+  proposedAt: z.iso.datetime(),
+  proposerKind: proposerKindSchema,
+  proposer: assigneeSchema.nullable(),
+  summary: z.record(z.string(), z.unknown()).meta({
+    description: 'Kind-specific summary (outcome and reasons excerpt; step and subject; grounds)',
+  }),
+  canApprove: z.boolean(),
+  cannotApproveReason: z
+    .enum(['proposer', 'reviewer-of-record', 'role'])
+    .nullable() satisfies z.ZodType<CannotApproveReason | null>,
+  reassignedTo: assigneeSchema.nullable(),
+});
+export type ApprovalItemView = z.infer<typeof approvalItemSchema>;
 
 export interface ApprovalPage {
   items: ApprovalItemView[];
@@ -65,12 +69,13 @@ export interface ApprovalPage {
   counts: Record<string, number>;
 }
 
-/** review.yaml `reassignApproval` response. */
-export interface ReassignedApproval {
-  kind: ApprovalKind;
-  subjectId: string;
-  reassignedTo: Assignee;
-}
+/** review.yaml `ApprovalReassignment`: the `reassignApproval` response. */
+export const approvalReassignmentSchema = z.object({
+  kind: approvalKindSchema,
+  subjectId: z.uuid(),
+  reassignedTo: assigneeSchema,
+});
+export type ReassignedApproval = z.infer<typeof approvalReassignmentSchema>;
 
 /** The age bands of the inbox's counts. */
 const AGE_BANDS = ['under-7-days', '7-to-30-days', 'over-30-days'] as const;

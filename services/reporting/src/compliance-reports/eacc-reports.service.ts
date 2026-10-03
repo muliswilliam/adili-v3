@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Principal, type ReadAudit } from '@adili/api-kit';
 import { type Database, FieldCipher, InjectDatabase, withTenant } from '@adili/data-access';
+import { REPORTS_SUBMIT_SCOPE } from '@adili/roles';
 import { and, count, eq, max } from 'drizzle-orm';
 
 import { requireEacc, submittedReportReader } from '../access.js';
@@ -10,7 +11,6 @@ import { DirectoryClient } from '../directory/directory-client.js';
 import { notFound } from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { activeCommissions, commissionOf } from './commission.js';
-import { REPORTS_SUBMIT_SCOPE } from './federated-submission.js';
 import { buildIntake, type IntakeFilters, type IntakeView, type RateThresholds } from './intake.js';
 import { type ComplianceReportView, reportView } from './representation.js';
 import { complianceReports, reportChases, reportReceipts } from './schema.js';
