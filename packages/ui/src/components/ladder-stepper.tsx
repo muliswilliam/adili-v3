@@ -251,7 +251,7 @@ export function LadderStepper({
                     <span className="truncate font-mono">{step.letter}</span>
                   )}
                   {step.response === undefined ? null : <span>{step.response}</span>}
-                  {step.payroll === undefined ? null : <span data-payroll="">{step.payroll}</span>}
+                  {step.payroll === undefined ? null : <span>{step.payroll}</span>}
                 </span>
               )}
             </li>

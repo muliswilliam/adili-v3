@@ -32,7 +32,7 @@ export function SalaryBanner({ standing }: { standing: SalaryStanding }) {
       <Icon icon={disciplinary ? LegalHammerIcon : BanknoteIcon} />
       <AlertTitle>{disciplinary ? S.disciplinary(shortName(notice)) : S.stopped}</AlertTitle>
       <AlertDescription>
-        <p>{disciplinary ? S.disciplinaryBody(notice.whatToDo) : S.toComply(notice.whatToDo)}</p>
+        <p>{disciplinary ? S.disciplinaryBody(notice.subject) : S.toComply(notice.subject)}</p>
         <div className="mt-2.5">
           <ComplyLink notice={notice} />
         </div>

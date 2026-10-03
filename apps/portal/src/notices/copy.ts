@@ -69,7 +69,7 @@ export function subjectName(subject: Subject): string {
 }
 
 /** How to comply, in the imperative ("file your biennial declaration 2027"). */
-function complyBy(subject: Subject): string {
+export function complyBy(subject: Subject): string {
   return subject.kind === 'clarification'
     ? `respond to ${subjectName(subject)}`
     : `file your ${subjectName(subject)}`;

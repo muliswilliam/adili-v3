@@ -99,7 +99,7 @@ describe('LadderStepper', () => {
     const [, , stoppage] = items().getAllByRole('listitem');
     if (!stoppage) throw new Error('no stoppage step');
     expect(within(stoppage).getByText('Payroll acknowledged 20 Aug 2026')).toBeTruthy();
-    expect(items().getAllByRole('listitem')[0]?.querySelector('[data-payroll]')).toBeNull();
+    expect(screen.getAllByText('Payroll acknowledged 20 Aug 2026')).toHaveLength(1);
   });
 
   it('says a step that was not needed, declined or stopped a salary', () => {

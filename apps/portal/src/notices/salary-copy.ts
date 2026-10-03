@@ -1,21 +1,18 @@
 import { formatDate } from '@adili/ui';
 
 import type { DeclarantNotice } from '../server/review/types';
-import { COPY } from './copy';
+import { complyBy, COPY } from './copy';
 
-type WhatToDo = DeclarantNotice['whatToDo'];
+type Subject = DeclarantNotice['subject'];
 
 /** Copy for the declarant's salary stoppage and disciplinary referral (spec 08 FE-7, #208). */
 export const SALARY_COPY = {
   stopped: COPY.salaryStopped,
-  toComply: (whatToDo: WhatToDo) =>
-    `To comply: ${whatToDo === 'file-declaration' ? 'file your declaration' : 'respond to your clarification'}.`,
+  toComply: (subject: Subject) => `To comply: ${complyBy(subject)}.`,
   disciplinary: (commission: string) =>
     `${commission} has asked for disciplinary proceedings to start.`,
-  disciplinaryBody: (whatToDo: WhatToDo) =>
-    `Your salary remains stopped. You can still comply: ${
-      whatToDo === 'file-declaration' ? 'file your declaration' : 'respond to your clarification'
-    }.`,
+  disciplinaryBody: (subject: Subject) =>
+    `Your salary remains stopped. You can still comply: ${complyBy(subject)}.`,
   reinstating:
     'You have complied. Your salary reinstatement is being sent to payroll. We will SMS you when payroll confirms it.',
   reinstated: (date: string) =>

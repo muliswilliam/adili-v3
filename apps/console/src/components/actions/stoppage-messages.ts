@@ -1,4 +1,4 @@
-import { formatDate, formatDateTime } from '@adili/ui';
+import { formatDate } from '@adili/ui';
 
 import type { ActionStep } from '../../server/actions.server';
 
@@ -21,7 +21,6 @@ export const stoppageCopy = {
     payrollReference: 'Payroll reference',
     notYet: 'Not yet',
     receivedAt: 'Received at',
-    receivedAtValue: (iso: string) => formatDateTime(iso),
     waitingNote: {
       stop_salary:
         'Payroll has not acknowledged it yet; review retries until it does. The salary is not stopped and no letter is issued until then.',
@@ -57,15 +56,13 @@ export const stoppageCopy = {
     admPayroll: 'It is also the payroll instruction reference',
     payroll: 'Payroll receives a stop_salary instruction',
     payrollDetail: (file: string) =>
-      `With the employer code, personal number ${file} and ID number from the roster record`,
+      `With the reporting entity's code, personnel file number ${file} and ID number from the roster record`,
     stoppageLetter: 'The salary stoppage letter is issued when payroll acknowledges',
     letterDetail: 'Restricted, with a QR code',
     disciplinaryLetter: 'A disciplinary referral letter is issued to the declarant',
-    employer: 'The reporting entity is told to start disciplinary proceedings',
-    employerDetail: 'The ladder then waits for compliance',
-    notified: (name: string) => `${name} is notified`,
+    reportingEntity: 'The reporting entity is told to start disciplinary proceedings',
+    reportingEntityDetail: 'The ladder then waits for compliance',
     reinstatedDetail: 'Salary is reinstated automatically when they comply',
-    notifiedDetail: 'By email, SMS and in the portal',
     read: 'I have read the notice, the warning and any responses',
     confirmStoppage: 'Approve and stop salary',
   },

@@ -6,7 +6,7 @@ import { isClosed } from './view';
  * (spec 08 FE-7, #208; S7, S10, US 20). Pure.
  *
  * - `stopped`: payroll stopped the salary and the ladder is open.
- * - `disciplinary`: the Commission asked the employer to start disciplinary proceedings; the
+ * - `disciplinary`: the Commission asked the reporting entity to start disciplinary proceedings; the
  *   salary stays stopped.
  * - `reinstating`: the declarant complied; the reinstatement is on its way to payroll.
  * - `reinstated`: payroll confirmed the reinstatement (`at`).

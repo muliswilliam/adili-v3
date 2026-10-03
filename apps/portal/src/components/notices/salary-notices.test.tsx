@@ -73,7 +73,9 @@ describe('a salary stoppage notice (S17, US 20)', () => {
         'Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.',
       ),
     ).toBeTruthy();
-    expect(within(banner).getByText('To comply: respond to your clarification.')).toBeTruthy();
+    expect(
+      within(banner).getByText('To comply: respond to clarification CLR-TSC-2026-0000519-L.'),
+    ).toBeTruthy();
     const salary = screen.getByRole('region', { name: 'Your salary' });
     expect(within(salary).getByText('Salary stopped')).toBeTruthy();
     expect(
@@ -113,7 +115,7 @@ describe('a disciplinary referral notice (S10)', () => {
     expect(screen.getByText('TSC has asked for disciplinary proceedings to start.')).toBeTruthy();
     expect(
       screen.getByText(
-        'Your salary remains stopped. You can still comply: respond to your clarification.',
+        'Your salary remains stopped. You can still comply: respond to clarification CLR-TSC-2026-0000519-L.',
       ),
     ).toBeTruthy();
     expect(screen.queryByText(/Act by/)).toBeNull();

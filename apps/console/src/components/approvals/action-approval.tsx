@@ -18,7 +18,7 @@ import type { ActionStep, AdministrativeAction } from '../../server/actions.serv
 import { approveLadderStep, declineLadderStep, getLadder } from '../../server/actions';
 import type { ServiceResult } from '../../server/service-call';
 import { en as a, stepLabel } from '../actions/messages';
-import { type EarlierSteps, stepsBefore } from '../actions/prior-steps';
+import { type EarlierSteps, stepsBefore, takesResponse } from '../actions/prior-steps';
 import { ApproveStepDialog, consequencesOf, DeclineStepDialog } from '../actions/step-dialogs';
 import type { FailureText } from '../dialog-parts';
 import { messages as t } from './action-messages';
@@ -51,8 +51,7 @@ function PriorSteps({ item }: { item: ActionApprovalItem }) {
               {t.responded(prior.respondedAt, prior.responseAttachments)}{' '}
               <span className="whitespace-pre-line">{prior.responseExcerpt}</span>
             </span>
-          ) : prior.step === 'notice-to-comply' || prior.step === 'warning' ? (
-            // Only a notice or a warning takes a response.
+          ) : takesResponse(prior.step) ? (
             <span>{t.noResponse}</span>
           ) : null}
         </li>

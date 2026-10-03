@@ -23,7 +23,9 @@ const STEP_ICONS: Record<ActionStep, IconProps['icon']> = {
 };
 
 /** Only a notice or a warning takes a response; the later steps say nothing about one. */
-const ANSWERABLE: readonly ActionStep[] = ['notice-to-comply', 'warning'];
+export function takesResponse(step: ActionStep): boolean {
+  return step === 'notice-to-comply' || step === 'warning';
+}
 
 /**
  * The steps before `actionId` on the ladder that were approved (they carry a reference), in
@@ -117,7 +119,7 @@ function PriorSteps({ steps }: { steps: readonly AdministrativeAction[] }) {
                   </Badge>
                 ))}
               </Response>
-            ) : ANSWERABLE.includes(step.step) ? (
+            ) : takesResponse(step.step) ? (
               <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
                 <Icon icon={MinusSignIcon} className="size-3" />
                 {c.before.noResponse}

@@ -154,7 +154,7 @@ describe('approving a salary stoppage from the inbox (S6)', () => {
     expect(within(before).getAllByRole('listitem')).toHaveLength(2);
     expect(within(before).getAllByText('No response from the declarant')).toHaveLength(1);
     expect(within(before).getByText('KNH discharge summary.pdf')).toBeTruthy();
-    expect(within(dialog).getByText(/personal number 20085562/)).toBeTruthy();
+    expect(within(dialog).getByText(/personnel file number 20085562/)).toBeTruthy();
     const confirm = within(dialog).getByRole('button', { name: 'Approve and stop salary' });
     expect((confirm as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(

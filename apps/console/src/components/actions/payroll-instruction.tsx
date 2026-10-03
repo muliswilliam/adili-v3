@@ -1,4 +1,4 @@
-import { Badge, Icon } from '@adili/ui';
+import { Badge, formatDateTime, Icon } from '@adili/ui';
 import {
   Alert02Icon,
   BanIcon,
@@ -137,7 +137,7 @@ export function PayrollInstruction({
           {ack?.payrollReference ?? c.payroll.notYet}
         </Fact>
         {ack?.receivedAt ? (
-          <Fact term={c.payroll.receivedAt}>{c.payroll.receivedAtValue(ack.receivedAt)}</Fact>
+          <Fact term={c.payroll.receivedAt}>{formatDateTime(ack.receivedAt)}</Fact>
         ) : null}
       </dl>
       {state === 'waiting' ? (

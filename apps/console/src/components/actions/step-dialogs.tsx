@@ -88,15 +88,28 @@ export function consequencesOf(
         grave: true,
       },
       { icon: File01Icon, title: a.stoppageLetter, detail: a.letterDetail },
-      { icon: Notification01Icon, title: a.notified(declarantName), detail: a.reinstatedDetail },
+      {
+        icon: Notification01Icon,
+        title: m.consequences.notified(declarantName),
+        detail: a.reinstatedDetail,
+      },
     ];
   }
   if (step === 'disciplinary-referral') {
     return [
       { icon: HashtagIcon, title: m.consequences.reference },
       { icon: File01Icon, title: a.disciplinaryLetter, detail: a.letterDetail },
-      { icon: Building03Icon, title: a.employer, detail: a.employerDetail, grave: true },
-      { icon: Notification01Icon, title: a.notified(declarantName), detail: a.notifiedDetail },
+      {
+        icon: Building03Icon,
+        title: a.reportingEntity,
+        detail: a.reportingEntityDetail,
+        grave: true,
+      },
+      {
+        icon: Notification01Icon,
+        title: m.consequences.notified(declarantName),
+        detail: m.consequences.notifiedDetail,
+      },
     ];
   }
   const days = LADDER_WINDOW_DAYS[step];
