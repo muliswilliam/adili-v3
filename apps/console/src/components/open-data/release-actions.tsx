@@ -31,6 +31,7 @@ import {
 import { useRouter } from '@tanstack/react-router';
 import { type ReactNode, useId, useState } from 'react';
 
+import { WITHDRAW_REASON_MAX } from '../../server/open-data-limits';
 import type { OpenDataReleaseView, ReleasesResult } from '../../server/open-data-releases.server';
 import type { OpenDataRelease } from '../../server/reporting/types';
 import { messages as m } from './messages';
@@ -335,9 +336,6 @@ function PublishDialog({
 
 type IconSvg = IconProps['icon'];
 
-/** `withdrawOpenDataRelease`'s longest reason. */
-export const REASON_MAX = 1000;
-
 function WithdrawDialog({
   view,
   withdraw,
@@ -392,7 +390,7 @@ function WithdrawDialog({
         <Textarea
           id={fieldId}
           rows={4}
-          maxLength={REASON_MAX}
+          maxLength={WITHDRAW_REASON_MAX}
           value={reason}
           placeholder={m.reasonPlaceholder}
           aria-invalid={reasonError ? true : undefined}
@@ -405,7 +403,9 @@ function WithdrawDialog({
         {reasonError ? (
           <FieldError id={`${fieldId}-help`}>{reasonError}</FieldError>
         ) : (
-          <FieldHint id={`${fieldId}-help`}>{m.reasonHint(reason.length, REASON_MAX)}</FieldHint>
+          <FieldHint id={`${fieldId}-help`}>
+            {m.reasonHint(reason.length, WITHDRAW_REASON_MAX)}
+          </FieldHint>
         )}
       </div>
     </ActionDialog>

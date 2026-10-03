@@ -1130,7 +1130,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
         '400':
-          description: The release id is not a UUID
+          description: The release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`)
           content:
             application/problem+json:
               schema:
@@ -1204,7 +1204,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
         '400':
-          description: Body failed validation, or the release id is not a UUID
+          description: Body failed validation, the release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`)
           content:
             application/problem+json:
               schema:

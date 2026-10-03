@@ -523,6 +523,19 @@ describe('Idempotency-Key on publish and withdraw', () => {
     });
   });
 
+  it('takes any key of 1 to 255 characters, as api-kit does, and refuses a longer one', async () => {
+    const preview = await built2026();
+
+    expect(await publishOpenDataRelease(supervisor(), preview.id, 'x'.repeat(256))).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 400, type: 'idempotency-key-missing' } },
+    });
+    expect(await publishOpenDataRelease(supervisor(), preview.id, 'retry-1')).toMatchObject({
+      ok: true,
+      data: { status: 'published' },
+    });
+  });
+
   it('does not store a 5xx: a retry with the key runs again', async () => {
     const preview = await built2026();
     const key = crypto.randomUUID();

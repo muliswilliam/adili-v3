@@ -34,6 +34,7 @@ import { EACC_SUPERVISOR } from '@adili/roles';
 
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem } from '../mock-http';
+import { WITHDRAW_REASON_MAX } from '../open-data-limits';
 import { isEacc } from './eacc-mock.server';
 import { BRIAN, ESTHER, mockNcrCommissions, mockNcrSourceOf } from './ncr-mock.server';
 import {
@@ -57,6 +58,8 @@ export type ReleasesMockSeed = Env['REPORTING_MOCK_RELEASES'];
 const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PATH = '/v1/eacc/open-data/releases';
 const FIRST_YEAR = 2025;
+/** api-kit's longest Idempotency-Key. */
+const MAX_KEY_LENGTH = 255;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Source = OpenDataReleaseDetail['source'];
@@ -183,12 +186,7 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const caller = mockCallerOf(request);
   if (!isEacc(caller)) {
-    return json(403, {
-      type: 'about:blank',
-      title: 'Forbidden',
-      status: 403,
-      detail: 'Only EACC analysts and supervisors of EACC work on open-data releases.',
-    });
+    return forbidden('Only EACC analysts and supervisors of EACC work on open-data releases.');
   }
   if (data.seed === 'unavailable') return problem(503, 'The reporting service is unavailable');
   publishAnnualOnApproval(data);
@@ -214,12 +212,7 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
       name: caller.name ?? caller.subject ?? 'unknown',
     };
     if (!caller.roles.includes(EACC_SUPERVISOR)) {
-      return json(403, {
-        type: 'about:blank',
-        title: 'Forbidden',
-        status: 403,
-        detail: `Only an EACC supervisor can ${command[2]} a release.`,
-      });
+      return forbidden(`Only an EACC supervisor can ${command[2]} a release.`);
     }
     if (!UUID.test(command[1])) return problem(400, 'The release id is not a UUID');
     const releaseId = command[1];
@@ -283,6 +276,11 @@ async function underKey(
   if (response.status >= 500) keys.delete(scope);
   else keys.set(scope, { body, response: response.clone() });
   return response;
+}
+
+/** api-kit's 403 for a role the route does not allow. */
+function forbidden(detail: string): Response {
+  return json(403, { type: 'about:blank', title: 'Forbidden', status: 403, detail });
 }
 
 function idempotencyProblem(status: number, type: string, title: string): Response {
@@ -399,8 +397,11 @@ async function keyed(
   const text = await request.text();
   const once = async () => reply(await run(text ? safeJson(text) : null));
   const key = request.headers.get('idempotency-key');
-  if (!key) return once();
-  if (!UUID.test(key)) return problem(400, 'Idempotency-Key is not a UUID');
+  if (key === null) return once();
+  // api-kit takes any key of 1 to 255 characters; an empty or longer one is malformed.
+  if (key.length < 1 || key.length > MAX_KEY_LENGTH) {
+    return idempotencyProblem(400, 'idempotency-key-missing', 'Idempotency-Key required');
+  }
   return underKey(
     data.commands,
     `${officer.subject}:${key}`,
@@ -456,7 +457,7 @@ async function withdraw(
     isRecord(body) && Object.keys(body).length === 1 && typeof body.reason === 'string'
       ? body.reason.trim()
       : '';
-  if (reason.length < 1 || reason.length > 1000) {
+  if (reason.length < 1 || reason.length > WITHDRAW_REASON_MAX) {
     return coded(400, 'validation-failed', 'Body failed validation');
   }
   const found = data.releases.find((each) => each.release.id === releaseId);
@@ -478,7 +479,11 @@ async function withdraw(
   return { status: 200, body: found.release };
 }
 
-/** A problem as api-kit sends a coded one: the code as both `type` and `code`. */
+/**
+ * A problem as api-kit's `ProblemException.fromCode` sends it: the code as both `type` and `code`.
+ * Not mock-http's `problem()`, whose `type` is `about:blank`: the console reads a 5xx's code from
+ * `type` (`documents-unavailable`).
+ */
 function coded(status: number, code: string, title: string): Answer {
   return { status, body: { type: code, title, status, code } };
 }

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { withViewerClient } from './as-viewer.server';
 import { env } from './env.server';
 import { financialYear } from './form-m';
+import { WITHDRAW_REASON_MAX } from './open-data-limits';
 import {
   buildOpenDataRelease,
   buildOpenDataSnapshot,
@@ -101,7 +102,11 @@ export const publishOpenDataReleaseFn = createServerFn({ method: 'POST' })
 /** Withdraw a published release with its public reason (EACC supervisor; #353). */
 export const withdrawOpenDataReleaseFn = createServerFn({ method: 'POST' })
   .validator(
-    z.object({ releaseId, reason: z.string().trim().min(1).max(1000), idempotencyKey: z.uuid() }),
+    z.object({
+      releaseId,
+      reason: z.string().trim().min(1).max(WITHDRAW_REASON_MAX),
+      idempotencyKey: z.uuid(),
+    }),
   )
   .handler(({ data }): Promise<ReleasesResult<OpenDataRelease>> =>
     withViewerClient(reportingClient, (client) =>

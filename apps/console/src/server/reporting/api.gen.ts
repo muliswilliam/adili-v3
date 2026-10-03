@@ -2473,7 +2473,7 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
-            /** @description The release id is not a UUID */
+            /** @description The release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2552,7 +2552,7 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
-            /** @description Body failed validation, or the release id is not a UUID */
+            /** @description Body failed validation, the release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`) */
             400: {
                 headers: {
                     [name: string]: unknown;
