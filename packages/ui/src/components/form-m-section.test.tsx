@@ -108,6 +108,22 @@ describe('FormMSection', () => {
     expect(onRemarkChange).toHaveBeenCalledWith(ROWS[0], 'Warning issued; responded late.');
   });
 
+  it('keeps a remark read-only on a row it could not be saved against', () => {
+    render(
+      <FormMSection
+        section="initial"
+        data={{
+          ...INITIAL,
+          nonFilers: [{ ...ROWS[1], obligationId: undefined } as (typeof ROWS)[1]],
+        }}
+        onRemarkChange={() => undefined}
+      />,
+    );
+
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.getByText('-')).toBeTruthy();
+  });
+
   it('says who edited a remark', () => {
     render(
       <FormMSection
