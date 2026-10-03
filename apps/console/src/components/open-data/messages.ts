@@ -153,6 +153,74 @@ export const en = {
     accessRequestsDeclined: 'Access requests declined',
   } satisfies Record<NationalMeasure, string>,
 
+  publishedOnApproval: (at: string) => `Published ${at} on NCR approval`,
+  openVersion: (version: number) => `Open v${String(version)}`,
+
+  // Publish, withdraw and rebuild (#353): EACC supervisors publish and withdraw.
+  publish: 'Publish',
+  publishTitle: (name: string) => `Publish ${name}?`,
+  publishWarning: 'This will be public immediately.',
+  publishConsequences: [
+    'Anyone can view and download it on the open-data page and API.',
+    'A manifest is issued as a Public verifiable document.',
+    'It cannot be edited. To correct it, withdraw it and publish a new version.',
+  ],
+  publishing: 'Publishing…',
+  publishingText: 'Issuing the manifest.',
+  publishedToast: 'Published. It is public now.',
+  publishForbidden: 'Only an EACC supervisor can publish a release.',
+  notPreviewAnymore: 'This release is no longer a preview. The page shows it as it is now.',
+  annualReleasePublished: (fy: number) =>
+    `Another FY ${fyLabel(fy)} annual release is published. Withdraw it first, then publish this one.`,
+  manifestRefused: 'The documents service refused the manifest. Nothing was published.',
+  publishDocumentsUnavailable:
+    'The documents service could not be reached. Nothing was published. Try again.',
+  publishStorageUnavailable: 'File storage could not be reached. Nothing was published. Try again.',
+  publishFailed: 'We could not confirm the publication. Try again: it will not be published twice.',
+
+  withdraw: 'Withdraw',
+  withdrawTitle: (name: string) => `Withdraw ${name}?`,
+  withdrawConsequences: [
+    'It stays online, marked withdrawn with your reason.',
+    'Its files can still be downloaded.',
+    'To correct it, build and publish a new version.',
+  ],
+  reason: 'Reason',
+  reasonPlaceholder: 'What was wrong, and what the next version will change',
+  reasonHint: (length: number) => `Shown publicly. ${formatNumber(length)}/1000`,
+  reasonRequired: 'Enter a reason. It is shown publicly with the release.',
+  reasonInvalid: 'Enter a reason of up to 1,000 characters.',
+  withdrawing: 'Withdrawing…',
+  withdrawnToast: 'Withdrawn. The reason is public.',
+  withdrawForbidden: 'Only an EACC supervisor can withdraw a release.',
+  notPublishedAnymore: 'This release is no longer published. The page shows it as it is now.',
+  revocationRefused: 'The documents service refused to revoke the manifest. Nothing was withdrawn.',
+  withdrawDocumentsUnavailable:
+    'The documents service could not be reached. Nothing was withdrawn. Try again.',
+  withdrawFailed: 'We could not confirm the withdrawal. Try again: it will not be withdrawn twice.',
+
+  releaseGone: 'This release no longer exists.',
+  stillProcessing: 'Your earlier request is still being processed. Try again in a moment.',
+  earlierRequestRecorded:
+    'Your earlier request was recorded. The page shows the release as it is now.',
+
+  rebuild: (version: number) => `Build v${String(version)}`,
+  rebuiltToast: (version: number) => `v${String(version)} built. Preview only.`,
+  rebuildStopped: (version: number) => `v${String(version)} was not built.`,
+  ncrNotBuilt: 'The national report for the year is not built yet. Nothing was written.',
+  ncrNotApproved: 'The national report for the year is not approved yet. Nothing was written.',
+  annualStillPublished:
+    'An annual release of the year is still published. Withdraw it first. Nothing was written.',
+  rebuildFailed: 'The release could not be built. Nothing was written.',
+
+  // Version history (S7)
+  versions: 'Versions',
+  viewing: 'Viewing',
+  versionsUnavailable: 'The version history could not be loaded.',
+  eventWithdrawn: (at: string, name: string | null) =>
+    `Withdrawn ${at}${name ? ` by ${name}` : ''}`,
+  eventBuilt: (at: string, name: string | null) => `Built ${at}${name ? ` by ${name}` : ''}`,
+
   // Side cards
   manifest: 'Manifest',
   manifestPublic: 'Public',

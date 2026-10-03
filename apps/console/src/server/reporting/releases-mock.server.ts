@@ -326,7 +326,10 @@ async function build(data: Store, request: Request, officer: Officer): Promise<R
   return response;
 }
 
-type Answer = { status: number; body: unknown };
+interface Answer {
+  status: number;
+  body: unknown;
+}
 
 /**
  * Runs a publish or withdraw under its Idempotency-Key, as api-kit's `AcceptIdempotencyKey`: no
