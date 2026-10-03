@@ -91,6 +91,7 @@ export interface NcrExtensionContext {
   /**
    * Takes a report the service answered with (#341's draft endpoint inserting or replacing AI-draft
    * paragraphs) as the narrative being edited, dropping edits not saved yet, and reloads the page.
+   * Ignored unless `canEdit`.
    */
   adoptReport: (report: NationalReport) => void;
 }
@@ -622,6 +623,7 @@ function useNarrativeDraft({
       autosave.change(narrativeTextOf(next));
     },
     adopt: (adopted) => {
+      if (!canEdit) return;
       hold(adopted.version);
       autosave.reset();
       setValue(editorValueOf(adopted.narrativeParagraphs));

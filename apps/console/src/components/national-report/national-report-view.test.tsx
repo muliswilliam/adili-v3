@@ -705,6 +705,63 @@ describe('seams for spec 09b', () => {
     expect(screen.queryByText('Could not save')).toBeNull();
   });
 
+  it('drops an edit still waiting to be saved when the report is approved meanwhile', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const approved = reportOf(await pageOf('approved'));
+    const saveNarrative = vi.fn(() => Promise.resolve({ ok: true as const, data: report }));
+    vi.useFakeTimers();
+    try {
+      const view = renderView({ result: page, saveNarrative });
+      fireEvent.change(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' }), {
+        target: { value: 'Waiting on the debounce.' },
+      });
+
+      view.rerender({
+        result: {
+          ok: true,
+          data: {
+            ...page.data,
+            report: { ...approved, id: report.id, version: report.version + 1 },
+          },
+        },
+      });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(saveNarrative).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores an adopted report while the viewer cannot edit', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    renderView({
+      result: page,
+      viewer: SUPERVISOR,
+      extensions: {
+        narrativeActions: ({ adoptReport }) => (
+          <button
+            type="button"
+            onClick={() => {
+              adoptReport({ ...report, version: report.version + 1, narrativeParagraphs: [] });
+            }}
+          >
+            Adopt
+          </button>
+        ),
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adopt' }));
+
+    expect(screen.getByText(/^This report consolidates/)).toBeDefined();
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
   it('keeps the AI-draft label when a panel adds its own paragraph line', async () => {
     renderView({
       result: await pageOf('draft'),
