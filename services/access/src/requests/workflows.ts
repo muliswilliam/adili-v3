@@ -150,7 +150,13 @@ async function course(
     }
 
     const notified = await untilNotified(input, state);
-    if (typeof notified !== 'string') return notified;
+    if (typeof notified !== 'string') {
+      // Decided before the run took in the declarant's notice: a written notice consented to in
+      // writing goes under decision at once, and its signals can arrive together, or be lost
+      // and the request read decided. The decision is carried out all the same.
+      if (notified.outcome !== 'decided') return notified;
+      return { outcome: await afterDecision(input) };
+    }
 
     await untilWindowEnds(input, state, new Date(notified).getTime());
     if (state.stop === 'withdrawn' || state.stop === 'missing') return { outcome: state.stop };
