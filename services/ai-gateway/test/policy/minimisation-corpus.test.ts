@@ -1,0 +1,78 @@
+import { readFileSync } from 'node:fs';
+
+import { describe, expect, it } from 'vitest';
+
+import { minimise } from '../../src/policy/minimisation.js';
+
+/**
+ * The review corpus of PR #506 (#314 review rounds 4 to 18): each probe is a document's pages, the
+ * name words that must not be sent (in any case, tokens aside) and the text that must stay as it
+ * is. A change that leaks a name or hides a field again fails here.
+ */
+interface Probe {
+  id: string;
+  input: string | string[];
+  mustHide: string[];
+  mustKeep: string[];
+}
+
+const probes = JSON.parse(
+  readFileSync(new URL('fixtures/minimisation-probes.json', import.meta.url), 'utf8'),
+) as Probe[];
+
+/**
+ * Probes known to fail, and why: the trade-offs this reader makes by design and the long tail
+ * tracked on #504. A probe here that starts passing fails the suite, so the list stays true.
+ */
+const EXPECTED_FAILURES: Readonly<Record<string, string>> = {
+  'fields-readable-143':
+    'checker false hit: lowercase "baba" in prose stays readable by design, the probe matches any case',
+  'r18-std-15': 'by design: one word before an item field is an item ("(a) Achieng Shares 500")',
+  'r18-std-16': '#504: a month that is also a surname is tokenised in a date ("3 March 2020")',
+  'r18-std-27':
+    '#504: a list line led by a common word that is a name ("Grace Fielder") is not read as a name; it leaked at d02a462e too',
+  'r18-std-25': '#504: a common word that is a name ("Grace") is matched only as written',
+  'r18-std-26': '#504: "Members:" is not a label',
+  'r18-spec-13': '#504: "Members:" is not a label',
+  'r18-spec-49': '#504: "Members:" is not a label',
+  'r18-spec-34': '#504: a common word that is a name ("Grace") is matched only as written',
+  'r18-spec-47': '#504: a common word that is a name ("Grace") is matched only as written',
+  'r18-spec-36': '#504: a mixed "Assets:" list',
+  'r18-spec-46': '#504: a date after "Signed on" is tokenised',
+  'r18-spec-50': '#504: a date or place after "Signed at" / "Witnessed on" is tokenised',
+  'r18-spec-51': '#504: a date or place after "Signed at" / "Witnessed on" is tokenised',
+  'r18-spec-52': '#504: a date or place after "Signed at" / "Witnessed on" is tokenised',
+  'r18-spec-53': '#504: a date or place after "Signed at" / "Witnessed on" is tokenised',
+};
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const anyCase = (word: string) =>
+  new RegExp(`(?<![\\p{L}\\p{N}])${escape(word)}(?![\\p{L}\\p{N}])`, 'iu');
+
+/** The pages as sent, joined, with tokens blanked so a token's class is no name word. */
+function sent(input: string | string[]): string {
+  const pages = (Array.isArray(input) ? input : [input]).map((textLayer, index) => ({
+    page: index + 1,
+    textLayer,
+  }));
+  const { input: minimised } = minimise({ document: { pages } });
+  return minimised.document.pages.map(({ textLayer }) => textLayer).join('\n<PAGE>\n');
+}
+
+describe('minimise a document: the review corpus', () => {
+  it('names every expected failure after a probe in the corpus', () => {
+    const ids = new Set(probes.map(({ id }) => id));
+    expect(Object.keys(EXPECTED_FAILURES).filter((id) => !ids.has(id))).toEqual([]);
+  });
+
+  for (const { id, input, mustHide, mustKeep } of probes) {
+    const reason = EXPECTED_FAILURES[id];
+    const run = reason === undefined ? it : it.fails;
+    run(reason === undefined ? id : `${id} (expected to fail: ${reason})`, () => {
+      const text = sent(input);
+      const words = text.replace(/\[\[[A-Z_]+_\d+\]\]/gu, ' ');
+      expect(mustHide.filter((word) => anyCase(word).test(words))).toEqual([]);
+      expect(mustKeep.filter((kept) => !text.includes(kept))).toEqual([]);
+    });
+  }
+});
