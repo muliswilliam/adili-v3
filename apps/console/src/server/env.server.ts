@@ -31,6 +31,11 @@ export const envSchema = bffEnvSchema.extend({
    */
   REVIEW_MOCK_COPILOT: z.enum(['ready', 'not-enabled']).default('ready'),
   /**
+   * With REVIEW_MOCK: the first attempt of every bulk closure approval stops with a 503 before
+   * this chunk (1-based), for the screen's stopped and Resume states (spec 08 #202). Off by default.
+   */
+  REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK: z.coerce.number().int().min(1).optional(),
+  /**
    * Serve the ai-gateway's policy, routing and usage endpoints from in-memory fixtures, so the
    * console runs without the gateway. Honoured in `vite dev` and tests only, like REVIEW_MOCK.
    */

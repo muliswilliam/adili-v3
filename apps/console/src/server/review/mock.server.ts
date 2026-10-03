@@ -56,6 +56,7 @@ import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
+import { type ClosuresMockOptions, closuresRoute, resetClosuresMock } from './closures-mock.server';
 import {
   copilotRoute,
   declarationOf,
@@ -465,8 +466,12 @@ export function mockReviewClient(subject: string, name: string) {
 /** Seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(
   now: number = Date.now(),
-  { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
+  {
+    copilot = 'ready',
+    closures = {},
+  }: { copilot?: Env['REVIEW_MOCK_COPILOT']; closures?: ClosuresMockOptions } = {},
 ) {
+  resetClosuresMock(now, closures);
   cases.clear();
   clarifications.clear();
   letterReadyAt.clear();
@@ -832,7 +837,10 @@ function ensureSeeded() {
   if (cases.size > 0) return;
   // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
   const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
-  resetReviewMock(Date.now(), { copilot });
+  const failAtChunk = envSchema.shape.REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK.parse(
+    process.env.REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK,
+  );
+  resetReviewMock(Date.now(), { copilot, closures: { failAtChunk } });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -891,6 +899,9 @@ async function route(request: Request): Promise<Response> {
     if (!mockCallerOf(request).roles.includes(COMMISSION_ADMIN)) return problem(404, 'Not found');
     return json(200, mockTenantAiStatus(aiStatus[1]));
   }
+
+  const closures = await closuresRoute(request, mockCallerOf(request));
+  if (closures) return closures;
 
   const attachment = /^\/v1\/review\/cases\/([^/]+)\/attachments\/([^/]+)\/download$/.exec(
     pathname,

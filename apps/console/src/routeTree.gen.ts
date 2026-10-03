@@ -23,6 +23,7 @@ import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/
 import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
 import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route'
 import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
+import { Route as ApprovalsBulkClosureRouteImport } from './routes/approvals_/bulk-closure'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
@@ -154,6 +155,11 @@ const AiPolicyIndexRoute = AiPolicyIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AiPolicyRouteRoute,
+} as any)
+const ApprovalsBulkClosureRoute = ApprovalsBulkClosureRouteImport.update({
+  id: '/approvals_/bulk-closure',
+  path: '/approvals/bulk-closure',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
@@ -499,6 +505,7 @@ export interface FileRoutesByFullPath {
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
+  '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -557,6 +564,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/review': typeof ReviewQueueIndexRoute
+  '/approvals/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -628,6 +636,7 @@ export interface FileRoutesById {
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
+  '/approvals_/bulk-closure': typeof ApprovalsBulkClosureRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -706,6 +715,7 @@ export interface FileRouteTypes {
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
+    | '/approvals/bulk-closure'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -764,6 +774,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/review'
+    | '/approvals/bulk-closure'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -834,6 +845,7 @@ export interface FileRouteTypes {
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
+    | '/approvals_/bulk-closure'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -902,6 +914,7 @@ export interface RootRouteChildren {
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
+  ApprovalsBulkClosureRoute: typeof ApprovalsBulkClosureRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -1008,6 +1021,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/ai-policy/'
       preLoaderRoute: typeof AiPolicyIndexRouteImport
       parentRoute: typeof AiPolicyRouteRoute
+    }
+    '/approvals_/bulk-closure': {
+      id: '/approvals_/bulk-closure'
+      path: '/approvals/bulk-closure'
+      fullPath: '/approvals/bulk-closure'
+      preLoaderRoute: typeof ApprovalsBulkClosureRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auth/callback': {
       id: '/auth/callback'
@@ -1812,6 +1832,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,
+  ApprovalsBulkClosureRoute: ApprovalsBulkClosureRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
