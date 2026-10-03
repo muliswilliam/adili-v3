@@ -2560,6 +2560,91 @@ paths:
                 maxItems: 8
                 items:
                   type: string
+  /v1/help/search/preview:
+    get:
+      tags:
+        - help
+      summary: Help search as a Commission's declarants (or every declarant) would see it, for the staff who write the articles
+      description: "A Commission's administrators and reporting officers, with `commission` their own Commission: the Act and Regulations, the platform's published articles and the Commission's, in force on `date`, ranked as `searchHelp` ranks them for its declarants. Platform admins, without `commission`: the law and the platform's articles, as every declarant gets them. A just-published article is found at once. Deterministic: no AI. Anyone else, or another Commission, gets 404."
+      operationId: previewHelpSearch
+      x-draft: true
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - name: language
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - en
+              - sw
+        - name: commission
+          in: query
+          required: false
+          description: The Commission whose declarants to search as; the platform's articles only when left out (platform admins)
+          schema:
+            type: string
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: date
+          in: query
+          required: false
+          description: Read the law in force on this day (`YYYY-MM-DD`); today by default
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 8
+      responses:
+        '200':
+          description: Passages, best first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HelpPassage'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/help/corpus/{passageId}:
+    get:
+      tags:
+        - help
+      summary: One wording of the statutory corpus with its text in English and Kiswahili
+      description: 'platform-admin only. Read-only: statutory text changes only by import.'
+      operationId: getCorpusPassage
+      x-draft: true
+      parameters:
+        - name: passageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The wording
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorpusPassageText'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     bearer:
@@ -5205,6 +5290,22 @@ components:
         - type
         - title
         - status
+    CorpusPassageText:
+      description: A corpus wording as `CorpusPassage` lists it, with its text
+      allOf:
+        - $ref: '#/components/schemas/CorpusPassage'
+        - type: object
+          required:
+            - textEn
+            - textSw
+          properties:
+            textEn:
+              type: string
+            textSw:
+              description: Null where the corpus has no Kiswahili text
+              type:
+                - string
+                - 'null'
   parameters:
     DeclarationId:
       name: declarationId
