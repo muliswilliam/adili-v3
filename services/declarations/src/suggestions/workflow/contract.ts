@@ -79,11 +79,22 @@ export interface ReadingRef {
 }
 
 export interface DocumentReadingInput extends ReadingRef {
+  /** `pg_current_xact_id()` of the transaction that recorded the job and started the workflow. */
+  transactionId: string;
   /** From the start, after which the job's pending sets are failed. */
   timeoutMs: number;
 }
 
-/** `settled`: nothing waits for the job any more; `pending`: it has not ended yet. */
+/** What the first settling waits on: the transaction that recorded the job and started this. */
+export interface ReadingSettle extends ReadingRef {
+  /** `pg_current_xact_id()` of that transaction, while it may still be open; null once ended. */
+  transactionId: string | null;
+}
+
+/**
+ * `settled`: nothing waits for the job any more (settled, or its recording rolled back);
+ * `pending`: it has not ended yet.
+ */
 export type ReadingOutcome = 'settled' | 'pending';
 
 /** One workflow per declaration and job: an equal request served from the cache shares it. */

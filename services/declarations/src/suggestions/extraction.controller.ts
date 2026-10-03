@@ -35,9 +35,9 @@ export class ExtractionController {
     summary:
       'Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated',
     description:
-      "The document is read into the item it is attached to: the item's statement list (`assets`, `income` or `liabilities`) and type. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.",
+      "The document is read into the item it is attached to: the item's statement list (`assets`, `income` or `liabilities`) and type. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind, section and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended; one pending longer than 15 minutes counts as failed, `unavailable`, first); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.",
   })
-  @ApiBody({ required: false, schema: schemaRef('ExtractAttachmentRequest') })
+  @ApiBody({ required: true, schema: schemaRef('ExtractAttachmentRequest') })
   @ApiResponse({
     status: HttpStatus.ACCEPTED,
     description: 'Reading requested; the `document` suggestion set',
@@ -54,7 +54,7 @@ export class ExtractionController {
   )
   @ApiProblemResponse(
     503,
-    'Documents (`documents-unavailable`) or the ai-gateway (`ai-gateway-unavailable`) could not take it now; no reading was recorded',
+    'Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now, or a concurrent request for the same reading gave it up (`reading-conflict`); no reading was recorded, try again',
   )
   extract(
     @CurrentPrincipal() principal: Principal,

@@ -486,9 +486,11 @@ export const extractSuite: EvalSuite<Expected> = {
         detectedKind: 'bank-letter',
         pageCount: 1,
         fields: { creditor: /pwani commercial bank/iu },
-        // The amount guaranteed or the loan's balance: the letter states both.
+        // The amount guaranteed or the loan's balance: the letter states both, which the officer
+        // should be told (the reading recorded at 6d43820e does not: warns-when-expected misses it).
         allowed: [...ANYWHERE, 'outstanding.kesCents'],
         identifiers: [],
+        warns: true,
         neverSent: [
           'Wanjiku',
           'Njoki',

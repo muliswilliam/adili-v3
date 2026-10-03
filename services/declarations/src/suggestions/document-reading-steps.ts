@@ -12,6 +12,8 @@ import {
 } from '../ai-gateway/ai-gateway-client.js';
 import { Clock } from '../clock.js';
 import type { DeclarationsSchema } from '../db/schema.js';
+import { requireTransactionEnded } from '../db/workflow-transactions.js';
+import { isEditable } from '../declaration/schema.js';
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import { declarationAttachments } from '../drafts/schema.js';
 import { statementKey } from '../drafts/sections.js';
@@ -74,14 +76,25 @@ export class DocumentReadingSteps {
 
   /**
    * Pulls the job and, once it has ended, records how on its pending sets: `pending` while it
-   * has not, `settled` once nothing waits for it (the declaration gone, or the gateway knowing no
-   * such job, whose sets are failed). Throws `AiGatewayUnavailable` when the gateway cannot answer.
+   * has not, `settled` once nothing waits for it. Nothing waits when the transaction that
+   * recorded the job rolled back (`transactionId`, waited on first: a retryable failure while it
+   * is open), when the declaration is gone or past the draft (submitted: a draft's suggestions
+   * never reach it, ADR-018 decision 5), or when the gateway knows no such job (its sets fail).
+   * Throws `AiGatewayUnavailable` when the gateway cannot answer.
    */
-  async settle(ref: ReadingRef): Promise<ReadingOutcome> {
+  async settle(ref: ReadingRef & { transactionId?: string | null }): Promise<ReadingOutcome> {
+    if (ref.transactionId) await requireTransactionEnded(this.db, ref.transactionId);
     const person = personOf(ref);
-    const declaration = await withPerson(this.db, person, (tx) =>
-      liveDeclaration(tx, ref.declarationId),
-    );
+    const declaration = await withPerson(this.db, person, async (tx) => {
+      const found = await liveDeclaration(tx, ref.declarationId);
+      if (!found || !isEditable(found.status)) return null;
+      const [waiting] = await tx
+        .select({ id: suggestionSets.id })
+        .from(suggestionSets)
+        .where(pendingOf(ref))
+        .limit(1);
+      return waiting ? found : null;
+    });
     if (!declaration) return 'settled';
     const job = await this.gateway.getJob(declaration.tenant, ref.jobId);
     if (!job) {
@@ -108,13 +121,7 @@ export class DocumentReadingSteps {
       tx
         .update(suggestionSets)
         .set({ status: 'failed', reason: 'unavailable' })
-        .where(
-          and(
-            eq(suggestionSets.declarationId, ref.declarationId),
-            eq(suggestionSets.aiJobId, ref.jobId),
-            eq(suggestionSets.status, 'pending'),
-          ),
-        ),
+        .where(pendingOf(ref)),
     );
   }
 
@@ -148,13 +155,7 @@ export class DocumentReadingSteps {
       tx
         .select()
         .from(suggestionSets)
-        .where(
-          and(
-            eq(suggestionSets.declarationId, declaration.id),
-            eq(suggestionSets.aiJobId, job.id),
-            eq(suggestionSets.status, 'pending'),
-          ),
-        ),
+        .where(pendingOf({ declarationId: declaration.id, jobId: job.id })),
     );
     for (const set of waiting) {
       if (job.status === 'succeeded' && job.output) {
@@ -245,6 +246,15 @@ export class DocumentReadingSteps {
       );
     });
   }
+}
+
+/** The declaration's sets still pending on the job. */
+function pendingOf({ declarationId, jobId }: Pick<ReadingRef, 'declarationId' | 'jobId'>) {
+  return and(
+    eq(suggestionSets.declarationId, declarationId),
+    eq(suggestionSets.aiJobId, jobId),
+    eq(suggestionSets.status, 'pending'),
+  );
 }
 
 function personOf({ personId, subject }: Pick<ReadingRef, 'personId' | 'subject'>): PersonContext {

@@ -7,6 +7,7 @@ import type {
   LookupAttemptOutcome,
   ReadingOutcome,
   ReadingRef,
+  ReadingSettle,
   SetRef,
 } from './contract.js';
 
@@ -41,8 +42,11 @@ export class SuggestionActivities {
 export class ReadingActivities {
   constructor(private readonly steps: DocumentReadingSteps) {}
 
-  /** Pulls the job and, once it ended, records its reading or why there is none. */
-  settleReading(ref: ReadingRef): Promise<ReadingOutcome> {
+  /**
+   * Once the transaction that started the workflow has ended (retried while it is open), pulls
+   * the job and, once it ended, records its reading or why there is none.
+   */
+  settleReading(ref: ReadingSettle): Promise<ReadingOutcome> {
     return this.steps.settle(ref);
   }
 

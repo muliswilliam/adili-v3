@@ -447,3 +447,129 @@ describe('minimise a text layer', () => {
     expect(minimise({ textLayer: payslip }).input.textLayer).toBe(payslip);
   });
 });
+
+/**
+ * Review probes of a text layer's names (#314 review rounds 4 and 5): every name word of each row
+ * must be minimised. A row per probe, so a change that leaks one again fails here. The long tail
+ * (unlabelled names, lowercase names, tables) is #504.
+ */
+describe('minimise a text layer: review probes', () => {
+  it.each([
+    // Offices, titles and fillers wherever they sit in a party (F21).
+    ['Signed: Director Peter Kamau', 'Peter Kamau'],
+    ['Witnessed by: Advocate Jane Wanjiru', 'Jane Wanjiru'],
+    ['Witness: Treasurer Mary Wanjiru', 'Mary Wanjiru'],
+    ['Signed by: Chairman John Kamau', 'John Kamau'],
+    ['Proprietor: the late John Kamau', 'John Kamau'],
+    ['Signed: Kevin Otieno Odera Sacco Secretary', 'Kevin Otieno Odera'],
+    ['Witness: Mary Achieng, Chama Treasurer', 'Mary Achieng'],
+    // Spans end at the next label or a wide gap; a label may be followed by blank lines (F22).
+    ['Borrower: John Kamau   Guarantor: Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Borrower: John Kamau\tGuarantor: Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Borrower: John Kamau Guarantor: Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietor:\r\nJohn Kamau', 'John Kamau'],
+    ['Proprietor:\n\nJohn Kamau', 'John Kamau'],
+    ['Proprietor:\r\n\r\nJohn Kamau Mwangi', 'John Kamau Mwangi'],
+    ['Proprietor: John Kamau\nMwangi Njoroge', 'John Kamau Mwangi Njoroge'],
+    // Joiners (F23).
+    ['Proprietors: John Kamau / Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietors: John Kamau; Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietors: John Kamau or Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Wamiliki: John Kamau na pia Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Wamiliki: John Kamau pamoja na Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Owner: John Kamau c/o Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Owner: Mary Wanjiru w/o John Kamau', 'Mary Wanjiru John Kamau'],
+    ['Owner: Peter Kamau s/o John Kamau', 'Peter Kamau John'],
+    ['Owner: Grace Njeri d/o John Kamau', 'Grace Njeri John Kamau'],
+    ['Owner: John Kamau alias Johnny Kamau', 'John Kamau Johnny'],
+    ['Owner: John Kamau aka JK Mwangi', 'John Kamau JK Mwangi'],
+    ['Owner: John Kamau t/a Kamau Traders', 'John Kamau Traders'],
+    // Mixed people and companies (F17, F24).
+    ['Borrower: Wanjiku Njoki Trading Company', 'Wanjiku Njoki Trading'],
+    ['Chargors: Jane Wanjiru & Tumaini Holdings Ltd', 'Jane Wanjiru Tumaini'],
+    ['Guarantor: Mary Achieng and Upendo Women Group', 'Mary Achieng Upendo Women'],
+    ['Proprietor: Grace Trust\nGrace signed the transfer.', 'Grace'],
+    ['Borrower: Peter Kamau Mwangi', 'Peter Kamau Mwangi'],
+    // Titles in any case, salutations with or without a comma (F25).
+    ['MR. JOHN KAMAU', 'JOHN KAMAU'],
+    ['Mr.John Kamau', 'John Kamau'],
+    ['Rev. Peter Mwangi', 'Peter Mwangi'],
+    ['Pastor Grace Wambui', 'Grace Wambui'],
+    ['Bishop Samuel Kariuki', 'Samuel Kariuki'],
+    ['Sheikh Ali Hassan', 'Ali Hassan'],
+    ['Mzee Jomo Kariuki', 'Jomo Kariuki'],
+    ['Mama Wanjiru Kamau', 'Wanjiru Kamau'],
+    ['Bwana Juma Hamisi', 'Juma Hamisi'],
+    ['Bibi Amina Said', 'Amina Said'],
+    ['Dkt. Otieno Ouma', 'Otieno Ouma'],
+    ['Capt. Daniel Kiprop', 'Daniel Kiprop'],
+    ['CPA Mary Atieno', 'Mary Atieno'],
+    ['Dear John Kamau', 'John Kamau'],
+    ['Mpendwa Halima Ali', 'Halima Ali'],
+    ['Ndugu Juma Hamisi,', 'Juma Hamisi'],
+    ['Imesainiwa na Juma Hamisi', 'Juma Hamisi'],
+    // After a label, every capitalised word to the end of the line or the next label (F31).
+    ['Borrower 1: John Kamau', 'John Kamau'],
+    ['Borrower (1): John Kamau', 'John Kamau'],
+    ['Guarantor(s): John Kamau, Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietor: 1) John Kamau 2) Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietors: 1. John Kamau 2. Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietor: Ali bin Hassan', 'Ali Hassan'],
+    ['Proprietor: Fatuma binti Omar', 'Fatuma Omar'],
+    ['Proprietor: Kamau wa Ngengi', 'Kamau Ngengi'],
+    ['Proprietor: Maria de Souza', 'Maria Souza'],
+    ['Proprietor: Pieter van Dijk', 'Pieter Dijk'],
+    ['Proprietor: John "Johnny" Kamau', 'John Johnny Kamau'],
+    ['Proprietor: John (Johnny) Kamau', 'John Johnny Kamau'],
+    ['Proprietor: John Kamau  Mwangi', 'John Kamau Mwangi'],
+    ['Signed: Kevin Odera for and on behalf of Pwani Traders', 'Kevin Odera'],
+    ['Witness: Mary Wanjiru, a duly authorised officer, Nairobi', 'Mary Wanjiru'],
+    ['Proprietor: JOHN KAMAU AND MARY WANJIRU', 'JOHN KAMAU MARY WANJIRU'],
+    // A name ending a sentence is the same name bare (F30).
+    ['Proprietor: John Kamau.\nKamau signed the transfer.', 'John Kamau'],
+  ])('sends no name word of %j', (line, names) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of names.split(' ')) {
+      expect(input.textLayer).not.toMatch(new RegExp(`(?<![\\p{L}])${word}(?![\\p{L}])`, 'u'));
+    }
+  });
+});
+
+/**
+ * A text layer is untrusted input: no label, number or address pattern may take more than linear
+ * time over it (#314 review F29). 10,000 spaces after each kind of introducer.
+ */
+describe('minimise a text layer in linear time', () => {
+  const SPACES = ' '.repeat(10_000);
+  it.each([
+    ['Address', `Address${SPACES}\n`],
+    ['Physical address', `Physical address${SPACES}x\n`],
+    ['Member No.', `Member No.${SPACES}\n`],
+    ['Member No. code', `Member No. ${'A1'.repeat(5_000)}\n`],
+    ['Proprietor', `Proprietor${SPACES}\n`],
+    ['Proprietor colon', `Proprietor:${SPACES}John\n`],
+    ['Guarantor(s)', `Guarantor(s)${SPACES}:\n`],
+    ['Mr.', `Mr.${SPACES}\n`],
+    ['Dear', `Dear${SPACES}\n`],
+    ['certify that', `certify${SPACES}that${SPACES}\n`],
+    ['blank lines', `Proprietor:${'\n'.repeat(10_000)}`],
+    ['capitalised words', `Proprietor: ${'Kamau '.repeat(5_000)}\n`],
+  ])('reads %s and 10,000 more characters quickly', (_name, text) => {
+    const started = performance.now();
+    minimise({ textLayer: text });
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('minimise free text in linear time', () => {
+  it.each([
+    ['a long run of letters and digits', 'A1'.repeat(10_000)],
+    ['a long address-like run', `${'a.'.repeat(5_000)}@${'b.'.repeat(5_000)}`],
+  ])('reads %s quickly, and still finds an email', (_name, run) => {
+    const started = performance.now();
+    const { input } = minimise({ note: `${run} mail jane.doe@example.co.ke` });
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
+  });
+});

@@ -457,7 +457,7 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
       if (before?.tasks && tasks === undefined) {
         errors.push({
           path: `rules.${String(index)}.tasks`,
-          message: 'The rule is for some tasks only: send tasks, or null for every task',
+          message: `The rule is for ${before.tasks.join(', ')} only: send tasks to keep it so, or null for every task`,
         });
       }
       rules.push({ dataClass, providerClass, allowed: rule.allowed === true, tasks });
