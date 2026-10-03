@@ -189,6 +189,20 @@ describe('S6 buildOpenDataSnapshot', () => {
     });
   });
 
+  it("counts a year as started from the mocks' day (REPORTING_MOCK_TODAY), not the clock", async () => {
+    expect(await buildOpenDataSnapshot(analyst(), 2027, crypto.randomUUID())).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { code: 'fy-not-started' } },
+    });
+
+    resetFormMMock('2027-07-02');
+
+    expect(await buildOpenDataSnapshot(analyst(), 2027, crypto.randomUUID())).toMatchObject({
+      ok: true,
+      data: { fy: 2027, status: 'preview' },
+    });
+  });
+
   it('refuses a year that has not started', async () => {
     const built = await buildOpenDataSnapshot(analyst(), 2099, crypto.randomUUID());
 

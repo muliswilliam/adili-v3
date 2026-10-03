@@ -38,7 +38,7 @@ function ReleasesPageView({ page }: { page: ReleasesPage | null }) {
     <ReleasesView
       result={page?.releases ?? null}
       links={page?.links ?? { publicPage: null, verifyBase: null }}
-      fy={financialYearOf(nairobiToday())}
+      fy={page?.fy ?? financialYearOf(nairobiToday())}
       build={(fy, idempotencyKey) => buildOpenDataSnapshotFn({ data: { fy, idempotencyKey } })}
       onBuilt={(release) => {
         void navigate({ to: '/eacc/open-data/$releaseId', params: { releaseId: release.id } });

@@ -32,10 +32,12 @@ import { createHash } from 'node:crypto';
 
 import { EACC_SUPERVISOR } from '@adili/roles';
 
+import { financialYearOf } from '../../components/form-m/financial-year';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem } from '../mock-http';
 import { WITHDRAW_REASON_MAX } from '../open-data-limits';
 import { isEacc } from './eacc-mock.server';
+import { mockDay } from './mock-store.server';
 import { BRIAN, ESTHER, mockNcrCommissions, mockNcrSourceOf } from './ncr-mock.server';
 import {
   buildReleaseTables,
@@ -91,11 +93,6 @@ interface Store {
 }
 
 let store: Store | null = null;
-
-/** Whether `pathname` is one of the endpoints this part of the mock answers. */
-export function isReleasesPath(pathname: string): boolean {
-  return pathname === PATH || pathname.startsWith(`${PATH}/`);
-}
 
 /**
  * Starts the store over at `seed`; `buildMs` is how long a build takes outside tests. `keep`
@@ -779,10 +776,9 @@ function aggregatesOf(fy: number, counts: Record<string, LiveCounts>): NationalA
   };
 }
 
-/** The financial year (by its start year) today falls in, in Nairobi (UTC+3). */
+/** The financial year (by its start year) of the mocks' day (REPORTING_MOCK_TODAY, else today). */
 function financialYearNow(): number {
-  const nairobi = new Date(Date.now() + 3 * 60 * 60 * 1000);
-  return nairobi.getUTCMonth() >= 6 ? nairobi.getUTCFullYear() : nairobi.getUTCFullYear() - 1;
+  return financialYearOf(mockDay());
 }
 
 function conflict(code: string, detail: string) {
