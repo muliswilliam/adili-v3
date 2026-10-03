@@ -9,6 +9,7 @@ import {
   LIABILITY_TYPE_LABELS,
   RELATION_LABELS,
 } from './labels';
+import { COMPARE_COPY } from './messages';
 
 /**
  * The version comparison (spec 07a FE-3, S10) as the case view's `DiffTable`s read it: per
@@ -46,13 +47,6 @@ export interface ComparisonView {
     oneVersionOnly: number;
   };
 }
-
-export const COMPARE_COPY = {
-  marked: 'Marked as changed',
-  notMarked: 'Not marked',
-  markedNew: 'marked as new',
-  notMarkedNew: 'not marked',
-} as const;
 
 const TYPE_LABELS: Record<Category, Record<string, string>> = {
   income: INCOME_TYPE_LABELS,

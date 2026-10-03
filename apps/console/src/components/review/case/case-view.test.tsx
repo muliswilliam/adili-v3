@@ -546,6 +546,13 @@ describe('CaseView: version compare (S10, S19)', () => {
     expect(plotRow.getByText('Increase of KES 2,700,000')).toBeTruthy();
     expect(plotRow.getByText('+150.0%')).toBeTruthy();
     expect(plotRow.getByText('Not marked')).toBeTruthy();
+    // A decrease, with a true minus sign, read out in words.
+    const mortgage = within(officer).getByRole('rowheader', { name: /Mortgage from KCB Bank/ });
+    const mortgageRow = within(mortgage.closest('tr') as HTMLElement);
+    expect(mortgageRow.getByText('−500,000')).toBeTruthy();
+    expect(mortgageRow.getByText('Decrease of KES 500,000')).toBeTruthy();
+    expect(mortgageRow.getByText('−12.8%')).toBeTruthy();
+    expect(mortgageRow.getByText('Down 12.8 percent')).toBeTruthy();
     // Unmatched on both sides.
     const fund = within(officer).getByRole('rowheader', { name: /CIC Money Market Fund units/ });
     expect(within(fund.closest('tr') as HTMLElement).getByText(/Only in version 2/)).toBeTruthy();

@@ -1,3 +1,5 @@
+import { DIFF_HIGHLIGHT_PERCENT } from '@adili/ui';
+
 /**
  * Copy for the case view (spec 07a FE-3), as the spec's frontend comment and the 07a-review
  * prototype word it. English now; Swahili slots stay empty until translated.
@@ -94,14 +96,13 @@ export const en = {
     firstDeclaration: 'First declaration on Adili: nothing to compare.',
     loading: 'Loading the comparison',
     matched: (count: number) => `${String(count)} matched`,
-    changedBig: (count: number) => `${String(count)} changed 25%+`,
+    changedBig: (count: number) => `${String(count)} changed ${String(DIFF_HIGHLIGHT_PERCENT)}%+`,
     oneVersionOnly: (count: number) => `${String(count)} in one version only`,
     span: (previous: string, current: string) => `${previous} → ${current}`,
     versionOn: (version: number, date: string | null) =>
       date ? `v${String(version)} ${date}` : `v${String(version)}`,
     howMatched: 'How items are matched',
-    howMatchedBody:
-      'Items are matched by person, category, type and description. "Not marked" means the declarant did not mark the change or the new item. Changes of 25% or more are shaded. Disposals are recorded under Other information.',
+    howMatchedBody: `Items are matched by person, category, type and description. "Not marked" means the declarant did not mark the change or the new item. Changes of ${String(DIFF_HIGHLIGHT_PERCENT)}% or more are shaded. Disposals are recorded under Other information.`,
     caption: (name: string, previous: number | null, current: number) =>
       `Changes for ${name} between ${previous === null ? 'the previous declaration' : `version ${String(previous)}`} and version ${String(current)}`,
     previousDeclaration: 'Previous declaration',

@@ -146,3 +146,11 @@ export const REGISTRY_COPY = {
     closed: 'This case is determined. Its registries are no longer checked.',
   },
 } as const;
+
+/** What a version comparison row says about the declarant's marking (spec 07a FE-3, S10). */
+export const COMPARE_COPY = {
+  marked: 'Marked as changed',
+  notMarked: 'Not marked',
+  markedNew: 'marked as new',
+  notMarkedNew: 'not marked',
+} as const;
