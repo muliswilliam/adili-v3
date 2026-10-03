@@ -10,6 +10,7 @@ import { Logger } from 'nestjs-pino';
 import { v7 as uuidv7 } from 'uuid';
 
 import { type BaseEnv, TRUSTED_PROXIES_DEFAULT } from './config.js';
+import { traceRouteTemplates } from './http-route.js';
 import { createOpenApiDocument, type OpenApiOptions } from './openapi.js';
 
 export interface ServiceOptions {
@@ -41,6 +42,7 @@ export async function createService(options: ServiceOptions): Promise<NestFastif
   });
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
+  traceRouteTemplates(app);
   await app.register(helmet, {
     // Swagger UI needs inline scripts and styles.
     contentSecurityPolicy: false,
