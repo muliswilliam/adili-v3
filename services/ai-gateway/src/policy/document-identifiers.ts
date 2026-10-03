@@ -229,7 +229,7 @@ const FIELD_WORDS = new Set([
   ...['make', 'model', 'colour', 'color', 'year', 'type', 'fuel', 'engine', 'body', 'chassis'],
   ...['frame', 'rating', 'section', 'station', 'branch', 'district', 'county', 'location'],
   ...['area', 'size', 'use', 'term', 'tenure', 'date', 'amount', 'balance', 'currency'],
-  ...['status', 'tel', 'telephone', 'phone', 'mobile', 'email', 'address', 'box'],
+  ...['status', 'tel', 'telephone', 'phone', 'mobile', 'email', 'address'],
   'designation',
   ...['department', 'employer', 'institution', 'account', 'loan', 'ref', 'reference', 'pin'],
   ...['id', 'signature', 'sahihi', 'tarehe', 'kiasi', 'salio', 'cheo', 'idara', 'simu'],
@@ -287,7 +287,7 @@ const HEADING_WORDS = new Set([
   ...['registered', 'office', 'terms', 'conditions', 'particulars', 'details', 'summary'],
   ...['toyota', 'nissan', 'isuzu', 'mitsubishi', 'mazda', 'subaru', 'honda', 'mercedes'],
   ...['volkswagen', 'suzuki', 'land', 'county', 'collateral', 'vehicles', 'vehicle', 'motor'],
-  ...['properties', 'property', 'shareholding', 'shareholdings'],
+  ...['properties', 'property', 'shareholding', 'shareholdings', 'freehold', 'leasehold'],
 ]);
 /** Words that, before a colon, end a name's span: another field, an organisation, place, office. */
 const BOUNDARY_WORDS: ReadonlySet<string> = new Set([
@@ -503,7 +503,7 @@ interface Marker {
   from: number;
 }
 
-/** A roman numeral of two letters or more, up to 39 ("ii", "iv", "xii"); "i" alone is a letter unless "ii" follows. */
+/** A roman numeral of two letters or more, up to 39 ("ii", "iv", "xii"); "i" alone is a letter. */
 const ROMAN = /^(?=[ivx]{2,})x{0,3}(?:ix|iv|v?i{0,3})$/iu;
 const ROMAN_DIGITS: Readonly<Partial<Record<string, number>>> = { i: 1, v: 5, x: 10 };
 /** A roman numeral's value ("iv" is 4); its letters are i, v and x. */
@@ -569,35 +569,70 @@ function markerOf(tokens: readonly Token[]): Marker | null {
   return null;
 }
 
+/** Field words that follow a person's name on a list line ("Akinyi ID 12345678", "Otieno Tel"). */
+const PERSON_FIELDS = new Set([
+  'id',
+  'pin',
+  'tel',
+  'telephone',
+  'phone',
+  'mobile',
+  'email',
+  'simu',
+]);
+
+/** Whether the word at `at` is "Box" in an address: after "P.O." or before a number ("Box 123"). */
+function isBox(tokens: readonly Token[], at: number, names: readonly string[]): boolean {
+  const token = tokens[at];
+  if (token?.kind !== 'word' || lower(token.text) !== 'box') return false;
+  let next = at + 1;
+  while (tokens[next]?.kind === 'space') next++;
+  return tokens[next]?.kind === 'number' || names.join('.').toLowerCase().endsWith('p.o');
+}
+
 /**
  * How a list line reads, from token `from` (past its marker), on its leading words: one to six
  * capitalised name words, particles and initials ("J."), after any office ("Secretary Mary
- * Wanjiru"), none a place, organisation, heading or common word, up to the first field word,
- * currency, uncapitalised word, number, joiner, dash or other mark. `name` when nothing follows
- * them; `name-office` when a comma, dash or colon and only offices or field words follow ("Mary
- * Wanjiru, Secretary"); `name-led` when anything else follows ("John Kamau ID 12345678", "Mary
- * Wanjiru - 40%"); `other` when the leading words are not a name. `names` are the name's words.
+ * Wanjiru"), none a place, heading or common word, up to the first field word, currency,
+ * uncapitalised word, number, joiner, dash or other mark ("John Kamau ID 12345678", "Mary Wanjiru
+ * - 40%"). A company word after them makes the line an organisation ("Equity Bank"), not a name.
+ * One word is a name only when the line ends there, or a person's field or a mark follows it
+ * ("Akinyi ID 12345678", "Otieno, Nakuru"); before another field word, a currency or a number it is
+ * an item ("Freehold Tenure", "Premio Year 2015", "Preference Shares 200").
+ * `name` when nothing follows the name; `name-office` when a comma, dash or colon and only offices
+ * or field words follow ("Mary Wanjiru, Secretary"); `name-led` when anything else follows;
+ * `other` when the leading words are not a name. `names` are the name's words.
  */
 function listLine(tokens: readonly Token[], from: number): ListLine {
   const other: ListLine = { reading: 'other', names: [] };
   const names: string[] = [];
+  // Whether the name stops at a field word, currency or number other than a person's field.
+  let atItemField = false;
   let at = from;
   for (; at < tokens.length; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
     if (token?.kind === 'other' && token.text === '.' && names.length > 0) continue;
+    if (token?.kind === 'number') atItemField = true;
     if (token?.kind !== 'word') break;
     if (PARTICLES.has(token.text)) continue;
     const word = lower(token.text);
     // An office before the name, wherever the list puts it ("Chairman John Kamau").
     if (names.length === 0 && (ROLE_WORDS.has(word) || qualifiesOffice(token.text))) continue;
-    if (FIELD_WORDS.has(word) || CURRENCIES.has(word)) break;
+    if (names.length > 0 && isOrganisationWord(word)) return other;
+    if (FIELD_WORDS.has(word) || CURRENCIES.has(word) || isBox(tokens, at, names)) {
+      atItemField = !PERSON_FIELDS.has(word);
+      break;
+    }
     // A word after the name ends it ("Peter Otieno born 1990").
     if (!isCapitalised(token.text) && names.length > 0) break;
-    if (!isCapitalised(token.text) || WRITTEN_ONLY.has(word)) return other;
+    // A joined word is no name when a part of it is not ("Freehold/Leasehold").
+    const known = word.split(/[-/]/u).some((part) => WRITTEN_ONLY.has(part));
+    if (!isCapitalised(token.text) || known) return other;
     names.push(token.text);
   }
   if (names.length === 0 || names.length > 6) return other;
+  if (names.length === 1 && atItemField) return other;
   const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
   if (rest.length === 0) return { reading: 'name', names };
   const [mark, ...after] = rest;
@@ -628,8 +663,7 @@ interface ListLine {
  * one must be a name alone or a name and an office, so a sentence that starts with a name is not
  * read as an entry.
  */
-function readsAsName(tokens: readonly Token[], marker: Marker | null): boolean {
-  const { reading } = listLine(tokens, marker?.from ?? 0);
+function readsAsName({ reading }: ListLine, marker: Marker | null): boolean {
   return marker ? reading !== 'other' : reading === 'name' || reading === 'name-office';
 }
 
@@ -656,17 +690,29 @@ function listParties(
   first: number,
 ): string[][] {
   const parties: string[][] = [];
+  // The first marker within a few lines after `row` that `wanted` accepts.
+  const markerAhead = (
+    row: number,
+    read: (at: number) => Marker | null,
+    wanted: (marker: Marker) => boolean,
+  ) => {
+    for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
+      const marker = read(at);
+      if (marker && wanted(marker)) return marker;
+    }
+    return null;
+  };
   // A line's marker; "i." is roman, not a letter, when the next marked line is "ii.".
   const markerAt = (row: number): Marker | null => {
     const marker = markerOf(tokensAt(row));
     if (marker?.kind !== 'letter' || marker.value !== 9) return marker;
-    for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
-      const next = markerOf(tokensAt(at));
-      if (next === null) continue;
-      const roman = next.kind === 'roman' && next.value === 2 && next.indent === marker.indent;
-      return roman ? { ...marker, kind: 'roman', value: 1 } : marker;
-    }
-    return marker;
+    const next = markerAhead(
+      row,
+      (at) => markerOf(tokensAt(at)),
+      () => true,
+    );
+    const roman = next?.kind === 'roman' && next.value === 2 && next.indent === marker.indent;
+    return roman ? { ...marker, kind: 'roman', value: 1 } : marker;
   };
   const firstMarker = markerAt(first);
   parties.push(...labelParties(tokensAt(first), firstMarker?.from ?? 0));
@@ -677,20 +723,16 @@ function listParties(
     marker.kind === level.kind &&
     marker.indent === level.indent;
   // Whether the level's next number comes within a few lines after `row`.
-  const nextNumberAhead = (row: number) => {
-    for (let at = row + 1; at < nameLines.length && at <= row + ENTRY_LOOKAHEAD; at++) {
-      const marker = markerAt(at);
-      if (atLevel(marker)) return marker?.value === (level?.value ?? 0) + 1;
-    }
-    return false;
-  };
+  const nextNumberAhead = (row: number) =>
+    markerAhead(row, markerAt, atLevel)?.value === (level?.value ?? 0) + 1;
   let at = first;
   for (let entries = 1; entries < MAX_ENTRIES; entries++) {
     const next = nextLine(nameLines, at);
     if (next < 0) break;
     const tokens = tokensAt(next);
     const marker = markerAt(next);
-    const name = readsAsName(tokens, marker);
+    const line = listLine(tokens, marker?.from ?? 0);
+    const name = readsAsName(line, marker);
     if (next > at + 1 && !name) break;
     at = next;
     if (marker && (level === null || atLevel(marker))) {
@@ -701,7 +743,7 @@ function listParties(
     }
     if (marker) {
       // A sub-list's line: only the name it leads with ("(a) Peter Otieno - Son", not "Son").
-      if (name) parties.push(listLine(tokens, marker.from).names);
+      if (name) parties.push(line.names);
       continue;
     }
     if (nextNumberAhead(next)) {
@@ -711,7 +753,7 @@ function listParties(
     }
     const wraps = wrapsFrom(tokensAt(next - 1), nameLines[next - 1] ?? '') && wrapsName(tokens);
     const plainList = firstMarker === null && name;
-    if (!wraps && !plainList && listLine(tokens, 0).reading !== 'name-office') break;
+    if (!wraps && !plainList && line.reading !== 'name-office') break;
     parties.push(...labelParties(tokens, 0));
   }
   return parties;
