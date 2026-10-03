@@ -1,27 +1,20 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
-import {
-  type Database,
-  InjectDatabase,
-  type PersonContext,
-  withPerson,
-  withTenant,
-} from '@adili/data-access';
+import { Injectable, Logger } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ASSET_TYPES, INCOME_TYPES, LIABILITY_TYPES, type PersonKey } from '@adili/forms';
-import { and, asc, eq, inArray, ne } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import {
   AiGatewayClient,
   AiGatewayUnavailable,
-  type AiJobReason,
   type ExtractDocumentInput,
   type ExtractionJob,
   isFinished,
 } from '../ai-gateway/ai-gateway-client.js';
 import { Clock } from '../clock.js';
-import { declarations, isEditable } from '../declaration/schema.js';
+import { isEditable } from '../declaration/schema.js';
 import type { DeclarationsSchema } from '../db/schema.js';
 import type { Transaction } from '../db/transaction.js';
 import {
@@ -33,6 +26,7 @@ import {
 } from '../documents/documents-client.js';
 import { personOf } from '../drafts/access.js';
 import {
+  aiGatewayUnavailable,
   declarationNotDraft,
   documentsUnavailable,
   fieldErrors,
@@ -40,12 +34,14 @@ import {
   validationProblem,
 } from '../drafts/problems.js';
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
-import { declarationAttachments, declarationSections, obligationDrafts } from '../drafts/schema.js';
+import { declarationAttachments, declarationSections } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { isRecord, isUuid } from '../guards.js';
-import { statementKey, statementPersonKey } from '../drafts/sections.js';
-import { readingContents } from './document-reading.js';
-import { declarationExtractionRequested, declarationSuggestionsReady } from './events.js';
+import { statementPersonKey } from '../drafts/sections.js';
+import { DocumentReadingSteps, outcomeOf } from './document-reading-steps.js';
+import { DocumentReadingWorkflows } from './document-reading-workflows.js';
+import { declarationExtractionRequested } from './events.js';
+import { READING_TIMEOUT_MS, type ReadingRef } from './workflow/contract.js';
 import {
   type ExtractAttachmentRequest,
   extractAttachmentRequestSchema,
@@ -79,38 +75,19 @@ export function readingSubjectRef(declarationId: string): string {
 }
 
 /** The declaration a reading's job is about, from its subject; null for anyone else's job. */
+/** The reading's workflow ref without its job: the declarant as the request's token names them. */
+function refOf(person: PersonContext, declaration: DeclarationRow): Omit<ReadingRef, 'jobId'> {
+  return {
+    tenant: declaration.tenant,
+    declarationId: declaration.id,
+    personId: person.personId,
+    subject: person.subject,
+  };
+}
+
 export function declarationOfSubjectRef(subjectRef: string): string | null {
   const id = subjectRef.startsWith('declaration:') ? subjectRef.slice('declaration:'.length) : '';
   return isUuid(id) ? id : null;
-}
-
-/** How a job that ended without a reading reads to the declarant. */
-function outcomeOf(job: ExtractionJob): {
-  status: Exclude<SuggestionSetStatus, 'ready'>;
-  reason: ExtractionFailure | null;
-} | null {
-  if (job.status === 'blocked' && job.reason === 'policy') {
-    return { status: 'not-enabled', reason: null };
-  }
-  if (job.status === 'blocked' || job.status === 'failed') {
-    return { status: 'failed', reason: failureOf(job.reason) };
-  }
-  // Succeeded, but its reading is gone (purged): nothing to offer.
-  if (job.status === 'succeeded' && !job.output) return { status: 'failed', reason: 'not-read' };
-  return null;
-}
-
-function failureOf(reason: AiJobReason | null): ExtractionFailure {
-  switch (reason) {
-    case 'document-unavailable':
-    case 'document-unreadable':
-      return reason;
-    case 'validation':
-    case 'refused':
-      return 'not-read';
-    default:
-      return 'unavailable';
-  }
 }
 
 interface Reading {
@@ -132,10 +109,11 @@ interface Reading {
  * policy decides whether the document may go to a provider at all. The set is recorded with the
  * job: `pending`, `not-enabled` when the gateway blocks it by policy, `failed` when it cannot run.
  *
- * Settling: the job's `ai.job.*` event (`ExtractionJobConsumer`), or the declarant asking again,
- * pulls the job; a succeeded one becomes one suggestion with each field's confidence and page, a
- * failed one the set's reason. A job that ended before its set was recorded (the gateway's cache)
- * is settled straight away.
+ * Settling (`DocumentReadingSteps`, always as the declarant from the request's token): a job that
+ * ended at once (the gateway's cache) is settled by the request; a live one by its
+ * `DocumentReadingWorkflow`, started with that person, on the job's `ai.job.*` event or by
+ * pulling, or by the declarant asking again. A succeeded job becomes one suggestion with each
+ * field's confidence and page, a failed one the set's reason; one pending past the timeout fails.
  */
 @Injectable()
 export class ExtractionService {
@@ -147,16 +125,20 @@ export class ExtractionService {
     private readonly cipher: SuggestionCipher,
     private readonly documents: DocumentsClient,
     private readonly gateway: AiGatewayClient,
+    private readonly steps: DocumentReadingSteps,
+    private readonly workflows: DocumentReadingWorkflows,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
   ) {}
 
   /**
    * Asks for the attachment to be read, or answers the reading of it already asked for with the
-   * same kind and item type while pending or offered and not decided on (idempotent per
-   * attachment and kind). 400 for a malformed body or an item with no type yet, 404
+   * same kind into the same item type while pending or offered and not decided on (idempotent per
+   * attachment, kind and item type; a reading pending past `READING_TIMEOUT_MS` counts as failed
+   * first). Concurrent first requests reserve one pending set; only the one that reserved it
+   * downloads and asks the gateway. 400 for a malformed body or an item with no type yet, 404
    * when the draft or attachment is not the caller's, 409 when it is past the draft or the file
-   * is not clean, 503 when documents or the gateway cannot take it now (nothing recorded).
+   * is not clean, 503 when documents or the gateway cannot take it now (no reading recorded).
    */
   async request(
     principal: Principal,
@@ -171,24 +153,49 @@ export class ExtractionService {
     const reading = notFoundIfInvisible(
       await withPerson(this.db, person, (tx) => this.readingOf(tx, declarationId, attachmentId)),
     );
-    const { declaration, attachment, target } = reading;
+    const { declaration } = reading;
+    await this.steps.expireStale(person, declaration.id);
 
     const earlier = await this.underWay(person, reading, request.documentKindHint);
     if (earlier) {
       if (earlier.status === 'pending' && earlier.aiJobId) {
-        await this.pull(person, declaration, earlier.aiJobId);
+        await this.pull({ ...refOf(person, declaration), jobId: earlier.aiJobId });
       }
       return this.view(person, declaration, earlier.id);
     }
 
-    const download = await this.download(declaration, attachment.uploadId, person.subject);
     const setId = uuidv7();
+    const reserved = await this.reserve(person, reading, request.documentKindHint, setId);
+    // Another request reserved it first: it reads the document.
+    if (reserved !== setId) return this.view(person, declaration, reserved);
+    try {
+      await this.read(person, reading, request, setId);
+    } catch (error) {
+      await this.release(person, setId);
+      throw error;
+    }
+    return this.view(person, declaration, setId);
+  }
+
+  /**
+   * Reads the reserved set's document: documents' link, then the gateway's job, recorded on the
+   * set with the request's event. A job that ended already (refused by policy, or an equal
+   * request read before) is settled at once; a live one by its `DocumentReadingWorkflow`.
+   */
+  private async read(
+    person: PersonContext,
+    reading: Reading,
+    request: ExtractAttachmentRequest,
+    setId: string,
+  ): Promise<void> {
+    const { declaration, attachment, target } = reading;
+    const download = await this.download(declaration, attachment.uploadId, person.subject);
     if (!isReadable(download.contentType)) {
-      const recorded = await this.record(person, reading, request, setId, null, {
+      await this.recordJob(person, reading, setId, null, {
         status: 'failed',
         reason: 'document-unreadable',
       });
-      return this.view(person, declaration, recorded);
+      return;
     }
     const input: ExtractDocumentInput = {
       kind: 'extract-document',
@@ -213,188 +220,42 @@ export class ExtractionService {
         { declarationId: declaration.id, err: error.name },
         'The ai-gateway did not take a document reading',
       );
-      throw aiUnavailable();
+      throw aiGatewayUnavailable();
     }
-    const recorded = await this.record(person, reading, request, setId, job.id, outcomeOf(job));
-    // A job that succeeded already (an equal request was read) is recorded now; a live one by its
-    // event, or by this pull should it have ended before the set was recorded.
-    if (job.status === 'succeeded' || !isFinished(job)) {
-      await this.pull(person, declaration, job.id, job);
+    await this.recordJob(person, reading, setId, job.id, outcomeOf(job));
+    if (job.status === 'succeeded') {
+      await this.steps.settled(person, declaration, job);
+      return;
     }
-    return this.view(person, declaration, recorded);
-  }
-
-  /**
-   * An `extract-document` job about the declaration ended (its `ai.job.*` event): its sets are
-   * settled. The event names no person, and a draft is the declarant's alone, so the Commission
-   * finds whose draft it is through the identifiers it may read (the live drafts of its
-   * obligations, or the declaration once submitted, as one being amended is), and the sets are
-   * settled as that person. Nothing when the declaration is gone.
-   */
-  async jobFinished(tenant: string, declarationId: string, jobId: string): Promise<void> {
-    const subject = 'declarations:ai-job';
-    const personId = await withTenant(this.db, { tenant, subject }, async (tx) => {
-      const [draft] = await tx
-        .select({ personId: obligationDrafts.personId })
-        .from(obligationDrafts)
-        .where(eq(obligationDrafts.declarationId, declarationId));
-      if (draft) return draft.personId;
-      const [amending] = await tx
-        .select({ personId: declarations.personId })
-        .from(declarations)
-        .where(eq(declarations.id, declarationId));
-      return amending?.personId ?? null;
-    });
-    if (personId === null) return;
-    const person: PersonContext = { personId, subject };
-    const declaration = await withPerson(this.db, person, (tx) =>
-      liveDeclaration(tx, declarationId),
-    );
-    if (!declaration) return;
-    await this.settle(person, declaration, jobId);
-  }
-
-  /**
-   * Pulls the job from the gateway and records how it ended on its pending sets of the
-   * declaration. Nothing when it has not ended, or no set waits for it. Throws
-   * `AiGatewayUnavailable` when the gateway cannot answer (the event is retried).
-   */
-  private async settle(
-    person: PersonContext,
-    declaration: DeclarationRow,
-    jobId: string,
-  ): Promise<void> {
-    const job = await this.gateway.getJob(declaration.tenant, jobId);
-    if (job && isFinished(job)) await this.recordOutcome(person, declaration, job);
-  }
-
-  /** `settle`, as a best effort: a gateway that does not answer leaves it to the job's event. */
-  private async pull(
-    person: PersonContext,
-    declaration: DeclarationRow,
-    jobId: string,
-    known?: ExtractionJob,
-  ): Promise<void> {
+    if (isFinished(job)) return;
+    const ref = { ...refOf(person, declaration), jobId: job.id };
     try {
-      if (known?.status === 'succeeded' && known.output) {
-        await this.recordOutcome(person, declaration, known);
-      } else {
-        await this.settle(person, declaration, jobId);
-      }
+      await this.workflows.start({ ...ref, timeoutMs: READING_TIMEOUT_MS });
+    } catch (error) {
+      // Nothing would settle it: it fails now, and asking again reads it (from the cache).
+      this.logger.warn(
+        {
+          declarationId: declaration.id,
+          jobId: job.id,
+          err: error instanceof Error ? error.name : typeof error,
+        },
+        'Document reading workflow not started',
+      );
+      await this.steps.expire(ref);
+    }
+  }
+
+  /** `settle`, as a best effort: a gateway that does not answer leaves it to the workflow. */
+  private async pull(ref: ReadingRef): Promise<void> {
+    try {
+      await this.steps.settle(ref);
     } catch (error) {
       if (!(error instanceof AiGatewayUnavailable)) throw error;
       this.logger.warn(
-        { declarationId: declaration.id, jobId, err: error.name },
-        'A document reading was not pulled; its event will record it',
+        { declarationId: ref.declarationId, jobId: ref.jobId, err: error.name },
+        'A document reading was not pulled; its workflow will record it',
       );
     }
-  }
-
-  private async recordOutcome(
-    person: PersonContext,
-    declaration: DeclarationRow,
-    job: ExtractionJob,
-  ): Promise<void> {
-    const waiting = await withPerson(this.db, person, (tx) =>
-      tx
-        .select()
-        .from(suggestionSets)
-        .where(
-          and(
-            eq(suggestionSets.declarationId, declaration.id),
-            eq(suggestionSets.aiJobId, job.id),
-            eq(suggestionSets.status, 'pending'),
-          ),
-        ),
-    );
-    for (const set of waiting) {
-      if (job.status === 'succeeded' && job.output) {
-        const suggestionId = uuidv7();
-        const contents = readingContents(job.output, set.attachmentId);
-        // Sealed before the transaction: the key service is not called with a row lock held.
-        const sealed = await this.cipher.seal(declaration.tenant, declaration.id, suggestionId, {
-          fields: contents.fields,
-          sourceRef: contents.sourceRef,
-          matchKeys: [],
-        });
-        await this.ready(person, declaration, set, {
-          id: suggestionId,
-          setId: set.id,
-          declarationId: declaration.id,
-          personKey: set.personKey,
-          sectionKey: statementKey(set.personKey),
-          itemType: set.targetItemType ?? 'other',
-          ciphertext: sealed.ciphertext,
-          envelope: sealed.envelope,
-          confidence: contents.confidence,
-          status: 'new',
-          createdAt: this.clock.now(),
-        });
-      } else {
-        const outcome = outcomeOf(job);
-        if (!outcome) continue;
-        await withPerson(this.db, person, (tx) =>
-          tx
-            .update(suggestionSets)
-            .set(outcome)
-            .where(and(eq(suggestionSets.id, set.id), eq(suggestionSets.status, 'pending'))),
-        );
-      }
-    }
-  }
-
-  /**
-   * The set becomes `ready` with its one suggestion, matched to the item the document is on
-   * while it is still attached; the `new` suggestions of earlier readings of the attachment are
-   * superseded. Nothing when another settling got there first.
-   */
-  private async ready(
-    person: PersonContext,
-    declaration: DeclarationRow,
-    pending: SetRow,
-    row: typeof suggestions.$inferInsert,
-  ): Promise<void> {
-    await withPerson(this.db, person, async (tx) => {
-      const [set] = await tx
-        .select()
-        .from(suggestionSets)
-        .where(eq(suggestionSets.id, pending.id))
-        .for('update');
-      if (set?.status !== 'pending' || !set.attachmentId) return;
-      const [attached] = await tx
-        .select({ itemId: declarationAttachments.itemId })
-        .from(declarationAttachments)
-        .where(eq(declarationAttachments.id, set.attachmentId));
-      const earlier = tx
-        .select({ id: suggestionSets.id })
-        .from(suggestionSets)
-        .where(
-          and(
-            eq(suggestionSets.declarationId, set.declarationId),
-            eq(suggestionSets.source, 'document'),
-            eq(suggestionSets.attachmentId, set.attachmentId),
-            ne(suggestionSets.id, set.id),
-          ),
-        );
-      await tx
-        .update(suggestions)
-        .set({ status: 'superseded' })
-        .where(and(inArray(suggestions.setId, earlier), eq(suggestions.status, 'new')));
-      await tx.insert(suggestions).values({ ...row, matchItemId: attached?.itemId ?? null });
-      await tx
-        .update(suggestionSets)
-        .set({ status: 'ready', readyAt: this.clock.now(), reason: null })
-        .where(eq(suggestionSets.id, set.id));
-      await this.events.record(
-        tx,
-        declarationSuggestionsReady(declaration.tenant, {
-          declarationId: declaration.id,
-          setId: set.id,
-          source: 'document',
-          count: 1,
-        }),
-      );
-    });
   }
 
   /**
@@ -517,18 +378,15 @@ export class ExtractionService {
   }
 
   /**
-   * The set, with the request's audit event, in one transaction; the set's id. A concurrent
-   * request that recorded a pending reading of the attachment as this kind first wins
-   * (`suggestion_sets_pending_reading_key`): its set is the answer, and this one is not recorded
-   * (the gateway answered both with the same job, from its cache).
+   * Reserves the reading: a `pending` set without a job, or, when a concurrent request reserved
+   * the same attachment, kind and item type first (`suggestion_sets_pending_reading_key`), that
+   * one's id.
    */
-  private async record(
+  private async reserve(
     person: PersonContext,
     { declaration, attachment, personKey, target }: Reading,
-    request: ExtractAttachmentRequest,
+    documentKind: DocumentKind,
     setId: string,
-    aiJobId: string | null,
-    outcome: { status: SuggestionSetStatus; reason: ExtractionFailure | null } | null,
   ): Promise<string> {
     return withPerson(this.db, person, async (tx) => {
       const inserted = await tx
@@ -538,31 +396,46 @@ export class ExtractionService {
           declarationId: declaration.id,
           personKey,
           source: 'document',
-          status: outcome?.status ?? 'pending',
-          reason: outcome?.reason ?? null,
-          aiJobId,
+          status: 'pending',
           attachmentId: attachment.id,
-          documentKind: request.documentKindHint,
+          documentKind,
           targetSection: target.section,
           targetItemType: target.itemType,
           requestedAt: this.clock.now(),
         })
         .onConflictDoNothing()
         .returning({ id: suggestionSets.id });
-      if (inserted.length === 0) {
-        const [first] = await tx
-          .select({ id: suggestionSets.id })
-          .from(suggestionSets)
-          .where(
-            and(
-              eq(suggestionSets.attachmentId, attachment.id),
-              eq(suggestionSets.documentKind, request.documentKindHint),
-              eq(suggestionSets.status, 'pending'),
-            ),
-          );
-        if (!first) throw new Error('A pending reading conflicted and is gone');
-        return first.id;
-      }
+      if (inserted.length > 0) return setId;
+      const [first] = await tx
+        .select({ id: suggestionSets.id })
+        .from(suggestionSets)
+        .where(
+          and(
+            eq(suggestionSets.attachmentId, attachment.id),
+            eq(suggestionSets.documentKind, documentKind),
+            eq(suggestionSets.targetSection, target.section),
+            eq(suggestionSets.targetItemType, target.itemType),
+            eq(suggestionSets.status, 'pending'),
+          ),
+        );
+      if (!first) throw new Error('A pending reading conflicted and is gone');
+      return first.id;
+    });
+  }
+
+  /** The reserved set's job and, if it ended at once, its outcome, with the request's event. */
+  private async recordJob(
+    person: PersonContext,
+    { declaration, attachment }: Reading,
+    setId: string,
+    aiJobId: string | null,
+    outcome: { status: SuggestionSetStatus; reason: ExtractionFailure | null } | null,
+  ): Promise<void> {
+    await withPerson(this.db, person, async (tx) => {
+      await tx
+        .update(suggestionSets)
+        .set({ aiJobId, ...(outcome ?? {}) })
+        .where(eq(suggestionSets.id, setId));
       await this.events.record(
         tx,
         declarationExtractionRequested(declaration.tenant, {
@@ -572,8 +445,16 @@ export class ExtractionService {
           aiJobId,
         }),
       );
-      return setId;
     });
+  }
+
+  /** Takes back a reservation whose reading could not be asked for. */
+  private async release(person: PersonContext, setId: string): Promise<void> {
+    await withPerson(this.db, person, (tx) =>
+      tx
+        .delete(suggestionSets)
+        .where(and(eq(suggestionSets.id, setId), isNull(suggestionSets.aiJobId))),
+    );
   }
 
   /** The set as the declarant lists it, its suggestion decrypted. */
@@ -606,13 +487,4 @@ export class ExtractionService {
 
 function isReadable(contentType: string): contentType is ReadableType {
   return (READABLE_TYPES as readonly string[]).includes(contentType);
-}
-
-function aiUnavailable(): ProblemException {
-  return new ProblemException({
-    type: 'ai-gateway-unavailable',
-    title: 'Document reading unavailable',
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    detail: 'The document could not be sent to be read. Try again.',
-  });
 }

@@ -465,6 +465,28 @@ export const DOCUMENTS: readonly SyntheticDocument[] = [
     ],
   },
   {
+    file: 'group-loan-letter.pdf',
+    output: 'pdf',
+    pages: [
+      [
+        { kind: 'text', bold: true, size: 14, text: 'Ufanisi Walimu SACCO Society Limited' },
+        { kind: 'text', size: 9, text: 'Group Lending Desk, Kisii' },
+        { kind: 'rule' },
+        { kind: 'text', text: '2nd July 2026' },
+        { kind: 'text', bold: true, text: 'GROUP LOAN: BALANCE CONFIRMATION' },
+        { kind: 'field', label: 'Borrowers', value: 'Mary Achieng and Upendo Women Group' },
+        { kind: 'field', label: 'Guarantor', value: 'Daniel Mutiso Kyalo, Chama Treasurer' },
+        { kind: 'field', label: 'Loan type', value: 'Group development loan' },
+        { kind: 'field', label: 'Balance at 30/06/2026', value: 'KES 512,000.00' },
+        {
+          kind: 'text',
+          text: 'The balance above is owed jointly by the borrowers named, as recorded in the society register.',
+        },
+        { kind: 'field', label: 'Signed', value: 'Kevin Otieno Odera Sacco Secretary' },
+      ],
+    ],
+  },
+  {
     file: 'bank-letter-planted.pdf',
     output: 'pdf',
     pages: [

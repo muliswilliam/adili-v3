@@ -140,9 +140,10 @@ export const suggestionSets = pgTable(
   (table) => [
     index('suggestion_sets_declaration_id_idx').on(table.declarationId),
     index('suggestion_sets_ai_job_id_idx').on(table.aiJobId),
-    // One reading of an attachment as a kind under way at a time (idempotent per attachment and kind).
+    // One reading of an attachment as a kind into an item type under way at a time (idempotent
+    // per attachment, kind and item type, as the request finds it).
     uniqueIndex('suggestion_sets_pending_reading_key')
-      .on(table.attachmentId, table.documentKind)
+      .on(table.attachmentId, table.documentKind, table.targetSection, table.targetItemType)
       .where(sql`${table.status} = 'pending' and ${table.source} = 'document'`),
     check(
       'suggestion_sets_source_check',

@@ -100,7 +100,7 @@ function typedPatch(
 ): [string, Value][] {
   const errors: { path: string; message: string }[] = [];
   const patch = Object.entries(accepted).flatMap(([path, value]): [string, Value][] => {
-    if (!(path in read)) {
+    if (!Object.hasOwn(read, path)) {
       errors.push({ path: `fields.${path}`, message: 'Not a field the document was read for' });
       return [];
     }
