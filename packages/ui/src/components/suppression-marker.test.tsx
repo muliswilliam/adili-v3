@@ -44,7 +44,13 @@ describe('SuppressionMarker', () => {
     render(
       <SuppressionMarker
         kind="complementary"
-        messages={{ complementary: 'Imefichwa', complementaryText: 'Imefichwa ili kulinda' }}
+        messages={{
+          complementary: {
+            short: () => 'Imefichwa',
+            text: () => 'Imefichwa ili kulinda',
+            title: () => 'Imefichwa ili kikundi kidogo kisitambulike',
+          },
+        }}
       />,
     );
 
@@ -92,6 +98,13 @@ describe('SuppressionLegend', () => {
     render(<SuppressionLegend />);
 
     const note = screen.getByRole('note');
-    expect(note.querySelector('[data-suppression]')?.getAttribute('aria-hidden')).toBe('true');
+    const keys = note.querySelectorAll('[data-suppression]');
+    expect(keys).toHaveLength(2);
+    for (const key of keys) {
+      expect(key.getAttribute('aria-hidden')).toBe('true');
+      // The key words beside it explain it, so no tooltip.
+      expect(key.getAttribute('title')).toBeNull();
+      expect(key.className).not.toContain('cursor-help');
+    }
   });
 });

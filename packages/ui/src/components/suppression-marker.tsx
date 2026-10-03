@@ -7,10 +7,11 @@ import { Icon } from './icon';
 
 /**
  * Why an open-data figure is not shown: `under-threshold`, it counts over fewer officers than
- * the release's suppression threshold (the contract's `suppressed: true` row); `complementary`,
- * it is hidden so a figure under the threshold cannot be worked out from a published total;
- * `not-reported`, the Commission has not reported for the year (its figures are `null`,
- * unsuppressed).
+ * the release's suppression threshold; `complementary`, it is hidden so a figure under the
+ * threshold cannot be worked out from a published total; `not-reported`, the Commission has not
+ * reported for the year (a gap, not suppression: its figures are `null` and nothing is hidden).
+ * The contract marks suppressed cells as `null` with a marker but does not yet tell the two
+ * suppression kinds apart, so until it does a suppressed cell is `under-threshold`.
  */
 export type SuppressionKind = 'under-threshold' | 'complementary' | 'not-reported';
 
@@ -20,42 +21,60 @@ export const SUPPRESSION_KINDS: readonly SuppressionKind[] = [
   'not-reported',
 ];
 
-/** The default suppression threshold, as the reporting contract's `suppression.threshold`. */
+/** Figures over fewer officers than this are suppressed (ADR 0009, spec 09b). */
 export const DEFAULT_SUPPRESSION_THRESHOLD = 10;
 
-export interface SuppressionMessages {
+/** The words for one kind of suppressed figure, given the release's threshold. */
+export interface SuppressedCopy {
   /** Shown in the cell, hidden from screen readers: "‹10". */
-  underThreshold: (threshold: number) => string;
-  /** Read by screen readers in place of the cell's marker. */
-  underThresholdText: (threshold: number) => string;
-  /** The tooltip on hover. */
-  underThresholdTitle: (threshold: number) => string;
-  complementary: string;
-  complementaryText: string;
-  complementaryTitle: string;
+  short: (threshold: number) => string;
+  /** Read by screen readers in place of the short form. */
+  text: (threshold: number) => string;
+  /** The reason on hover. */
+  title: (threshold: number) => string;
+}
+
+export interface SuppressionMessages {
+  underThreshold: SuppressedCopy;
+  complementary: SuppressedCopy;
   notReported: string;
   /** The legend's sentence. */
   legend: (threshold: number) => string;
   /** How many cells the table hides, beside the legend's sentence. */
-  hiddenCount: (count: string) => string;
+  hiddenCount: (count: number) => string;
   /** The legend's key words beside each marker. */
   underThresholdKey: (threshold: number) => string;
   complementaryKey: string;
 }
 
 export const SUPPRESSION_MESSAGES: SuppressionMessages = {
-  underThreshold: (threshold) => `‹${threshold}`,
-  underThresholdText: (threshold) => `Fewer than ${threshold} officers, not shown`,
-  underThresholdTitle: (threshold) => `Fewer than ${threshold} officers`,
-  complementary: 'Hidden',
-  complementaryText: 'Hidden to protect a small group',
-  complementaryTitle: 'Hidden so a small group cannot be worked out from the totals',
+  underThreshold: {
+    short: (threshold) => `‹${threshold}`,
+    text: (threshold) => `Fewer than ${threshold} officers, not shown`,
+    title: (threshold) => `Fewer than ${threshold} officers`,
+  },
+  complementary: {
+    short: () => 'Hidden',
+    text: () => 'Hidden to protect a small group',
+    title: () => 'Hidden so a small group cannot be worked out from the totals',
+  },
   notReported: 'Not reported',
   legend: (threshold) =>
     `Cells based on fewer than ${threshold} officers are not shown to protect privacy.`,
-  hiddenCount: (count) => `${count} hidden`,
+  hiddenCount: (count) => `${formatNumber(count)} hidden`,
   underThresholdKey: (threshold) => `Under ${threshold}`,
   complementaryKey: 'Protects a total',
+};
+
+const CHIP =
+  'inline-flex h-[19px] w-fit shrink-0 items-center rounded-[5px] px-1.5 text-xs whitespace-nowrap tabular-nums shadow-[inset_0_0_0_1px_var(--border)]';
+
+const SUPPRESSED: Record<
+  Exclude<SuppressionKind, 'not-reported'>,
+  { messages: 'underThreshold' | 'complementary'; weight: string }
+> = {
+  'under-threshold': { messages: 'underThreshold', weight: 'font-semibold' },
+  complementary: { messages: 'complementary', weight: 'font-medium' },
 };
 
 export type SuppressionMarkerProps = Omit<ComponentProps<'span'>, 'children'> & {
@@ -72,7 +91,7 @@ export type SuppressionMarkerProps = Omit<ComponentProps<'span'>, 'children'> & 
  * suppression, on a hatched chip, and "Not reported" on a plain muted chip. Screen readers hear a
  * sentence instead of the short form ("Fewer than 10 officers, not shown"); hovering shows the
  * reason. Readable without colour: the words and the hatch say it. Pair a table of markers with a
- * `SuppressionLegend`.
+ * `SuppressionLegend`. With `aria-hidden` (a legend's key) it drops the hover reason too.
  */
 export function SuppressionMarker({
   kind = 'under-threshold',
@@ -82,14 +101,12 @@ export function SuppressionMarker({
   ...props
 }: SuppressionMarkerProps) {
   const copy = { ...SUPPRESSION_MESSAGES, ...messages };
-  const base =
-    'inline-flex h-[19px] w-fit shrink-0 items-center rounded-[5px] px-1.5 text-xs whitespace-nowrap tabular-nums shadow-[inset_0_0_0_1px_var(--border)]';
 
   if (kind === 'not-reported') {
     return (
       <span
         data-suppression={kind}
-        className={cn(base, 'bg-muted font-medium text-muted-foreground', className)}
+        className={cn(CHIP, 'bg-muted font-medium text-muted-foreground', className)}
         {...props}
       >
         {copy.notReported}
@@ -97,28 +114,24 @@ export function SuppressionMarker({
     );
   }
 
-  const [short, text, title] =
-    kind === 'complementary'
-      ? [copy.complementary, copy.complementaryText, copy.complementaryTitle]
-      : [
-          copy.underThreshold(threshold),
-          copy.underThresholdText(threshold),
-          copy.underThresholdTitle(threshold),
-        ];
+  const meta = SUPPRESSED[kind];
+  const words = copy[meta.messages];
+  const decorative = props['aria-hidden'] === true || props['aria-hidden'] === 'true';
   return (
     <span
       data-suppression={kind}
-      title={title}
+      title={decorative ? undefined : words.title(threshold)}
       className={cn(
-        base,
-        'bg-stripes-muted cursor-help text-secondary-foreground',
-        kind === 'complementary' ? 'font-medium' : 'font-semibold',
+        CHIP,
+        'bg-stripes-muted text-secondary-foreground',
+        !decorative && 'cursor-help',
+        meta.weight,
         className,
       )}
       {...props}
     >
-      <span aria-hidden="true">{short}</span>
-      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">{words.short(threshold)}</span>
+      {!decorative && <span className="sr-only">{words.text(threshold)}</span>}
     </span>
   );
 }
@@ -164,7 +177,7 @@ export function SuppressionLegend({
         {hiddenCount != null && (
           <span className="text-[12.5px] text-muted-foreground tabular-nums">
             {' '}
-            {copy.hiddenCount(formatNumber(hiddenCount))}
+            {copy.hiddenCount(hiddenCount)}
           </span>
         )}
       </span>

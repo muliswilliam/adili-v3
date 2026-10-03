@@ -49,15 +49,19 @@ export const SwahiliLegend: Story = {
   render: () => (
     <SuppressionLegend
       messages={{
-        underThreshold: (threshold) => `‹${threshold}`,
-        underThresholdText: (threshold) => `Maafisa chini ya ${threshold}, haionyeshwi`,
-        underThresholdTitle: (threshold) => `Maafisa chini ya ${threshold}`,
-        complementary: 'Imefichwa',
-        complementaryText: 'Imefichwa ili kulinda kikundi kidogo',
-        complementaryTitle: 'Imefichwa ili kikundi kidogo kisitambulike',
+        underThreshold: {
+          short: (threshold) => `‹${threshold}`,
+          text: (threshold) => `Maafisa chini ya ${threshold}, haionyeshwi`,
+          title: (threshold) => `Maafisa chini ya ${threshold}`,
+        },
+        complementary: {
+          short: () => 'Imefichwa',
+          text: () => 'Imefichwa ili kulinda kikundi kidogo',
+          title: () => 'Imefichwa ili kikundi kidogo kisitambulike',
+        },
         legend: (threshold) =>
           `Visanduku vinavyotokana na maafisa chini ya ${threshold} havionyeshwi ili kulinda faragha.`,
-        hiddenCount: (count) => `${count} vimefichwa`,
+        hiddenCount: (count) => `${count.toLocaleString('en-KE')} vimefichwa`,
         underThresholdKey: (threshold) => `Chini ya ${threshold}`,
         complementaryKey: 'Kinga ya jumla',
       }}
