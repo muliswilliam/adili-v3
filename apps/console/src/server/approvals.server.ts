@@ -1,5 +1,6 @@
-import { z } from 'zod';
+import type { z } from 'zod';
 
+import { isInboxKind, type InboxKind, SUMMARIES } from '../approvals/kinds';
 import type { ReviewClient } from './review/client.server';
 import type { ApprovalItem, ApprovalKind, Assignee } from './review/types';
 import { callService, type ServiceResult } from './service-call';
@@ -10,35 +11,9 @@ import { callService, type ServiceResult } from './service-call';
  * reassigning an approval; and the supervisors it can go to. Pure: the caller injects the client
  * (see `approvals.ts` for the server functions).
  *
- * review.yaml types `ApprovalItem.summary` as an open object, one shape per kind. Each kind the
- * console shows has its schema in `SUMMARIES`; a kind arrives by adding its schema there and its
- * card in `components/approvals` (actions, #205; referrals, #211).
+ * review.yaml types `ApprovalItem.summary` as an open object, one shape per kind, read with the
+ * kind's schema in `approvals/kinds.ts`.
  */
-
-/** A determination's summary: the case, its declarant and the proposal's outcome and reasons. */
-const determinationSummary = z.object({
-  caseId: z.uuid(),
-  caseReference: z.string(),
-  declarantName: z.string(),
-  personnelFileNumber: z.string().nullable(),
-  outcome: z.enum(['compliant', 'compliant-no-issues', 'non-compliant', 'further-action']),
-  reasonsExcerpt: z.string(),
-});
-export type DeterminationSummary = z.infer<typeof determinationSummary>;
-
-/** The summary schema of each kind the inbox shows. */
-const SUMMARIES = {
-  determination: determinationSummary,
-} as const;
-
-/** The kinds the inbox shows so far. */
-export type InboxKind = keyof typeof SUMMARIES;
-
-export const INBOX_KINDS = Object.keys(SUMMARIES) as InboxKind[];
-
-export function isInboxKind(kind: string): kind is InboxKind {
-  return kind in SUMMARIES;
-}
 
 /** One approval as the inbox shows it: the contract's item with its summary typed by kind. */
 export type InboxItem = {

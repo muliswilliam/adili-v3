@@ -44,7 +44,7 @@ export const messages = {
     reasons: 'Reasons',
     consequences: 'When you approve',
     cmp: 'A CMP number is allocated in your name',
-    cmpDetail: 'Its reference, CMP-…, goes on the decision letter',
+    cmpDetail: 'The next number in sequence, printed on the decision letter',
     letter: 'The decision letter is issued',
     letterDetail: 'Restricted, with a QR code the declarant can verify',
     notified: (name: string) => `${name} is notified`,

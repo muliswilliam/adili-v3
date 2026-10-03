@@ -21,8 +21,8 @@ import { useCallback, useRef, useState } from 'react';
 
 import type { ApprovalsLoad } from '../../server/approvals';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
-import type { ApprovalCounts, InboxItem, InboxKind } from '../../server/approvals.server';
-import { INBOX_KINDS } from '../../server/approvals.server';
+import { INBOX_KINDS, type InboxKind } from '../../approvals/kinds';
+import type { ApprovalCounts, InboxItem } from '../../server/approvals.server';
 import { approveCaseDetermination, returnCaseDetermination } from '../../server/determinations';
 import type { DeterminationRefusal, DeterminationResult } from '../../server/determinations.server';
 import type { Assignee, Determination } from '../../server/review/types';
@@ -377,7 +377,7 @@ function AgeBands({ counts }: { counts: ApprovalCounts }) {
       {bands.map((band) => (
         <div
           key={band.label}
-          className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 shadow-control"
+          className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1"
         >
           <dt className="text-secondary-foreground">{band.label}</dt>
           <dd

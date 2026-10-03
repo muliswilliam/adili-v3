@@ -451,7 +451,9 @@ function Banner({
     >
       <p>{further ? t.banner.furtherNext : t.banner.approvedBy(approver, approvedAt)}</p>
       <div className="flex flex-wrap items-center gap-2">
-        {current.reference ? <ReferenceChip reference={current.reference} size="sm" /> : null}
+        {current.reference ? (
+          <ReferenceChip reference={current.reference} size="sm" className="text-foreground" />
+        ) : null}
         {current.letterAvailable ? (
           <Button
             size="sm"

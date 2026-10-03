@@ -1,9 +1,9 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { INBOX_KINDS } from '../approvals/kinds';
 import {
   type ApprovalsPage,
-  INBOX_KINDS,
   loadApprovals,
   loadSupervisors,
   reassignApproval,

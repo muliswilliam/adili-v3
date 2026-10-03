@@ -211,6 +211,11 @@ export function CaseView({
     refresh: () => router.invalidate(),
   });
   const recheck = recheckAccess(item, { subject: viewer.subject, supervisor });
+  const determination = determinationState(item, detail.determinations, {
+    subject: viewer.subject,
+    supervisor,
+  });
+  const proposeAllowed = determination.kind === 'none' && determination.propose === 'allowed';
 
   /** Shows how a call went; resolves to the error to show in place, or null. */
   async function settle<T>(
@@ -440,16 +445,7 @@ export function CaseView({
         now={nowMs}
         onAction={onAction}
         extraActions={[
-          <DeterminationLink
-            key="determination"
-            caseId={item.id}
-            propose={
-              determinationState(item, detail.determinations, {
-                subject: viewer.subject,
-                supervisor,
-              }).kind === 'none' && actions.mine
-            }
-          />,
+          <DeterminationLink key="determination" caseId={item.id} propose={proposeAllowed} />,
           ...(recheck === 'hidden'
             ? []
             : [

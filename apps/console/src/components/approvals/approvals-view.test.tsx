@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApprovalsLoad } from '../../server/approvals';
 import { loadApprovals } from '../../server/approvals.server';
 import {
+  MOCK_CASE_IDS,
   MOCK_DETERMINATION_IDS as D,
   MOCK_OFFICERS,
   mockReviewClient,
@@ -187,6 +188,25 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Return proposal' }));
     expect(await screen.findByText('Returned to the reviewer')).toBeTruthy();
+  });
+
+  it('explains a separation-of-duties refusal and offers Reassign (403)', async () => {
+    await open();
+    // The viewer is handed the case after the inbox loaded: now a reviewer of record.
+    const { reassign } = await import('../../server/review-case.server');
+    await reassign(client(), MOCK_CASE_IDS.peters, ME.subject);
+    fireEvent.click(within(card('Mary Achieng')).getByRole('button', { name: 'Approve' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Approve determination' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve determination' }));
+    const notice = await screen.findByRole('dialog', { name: 'You cannot approve this' });
+    expect(
+      within(notice).getByText('You cannot approve this: you reviewed this case.'),
+    ).toBeTruthy();
+    expect(within(notice).getByText('403 separation-of-duties')).toBeTruthy();
+    fireEvent.click(within(notice).getByRole('button', { name: 'Reassign to another supervisor' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Reassign to another supervisor' }),
+    ).toBeTruthy();
   });
 
   it('says so when someone else decided first (409 not-proposed)', async () => {
