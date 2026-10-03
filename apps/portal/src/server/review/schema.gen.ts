@@ -4,5868 +4,5745 @@
  */
 
 export interface paths {
-  '/v1/commissions/{slug}/review/queue': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/review/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cases of the Commission ordered by score then age
+         * @description Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`. A `search` parameter is refused with 400.
+         */
+        get: operations["listReviewQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Cases of the Commission ordered by score then age
-     * @description Reviewers and supervisors of the Commission. Anyone else, including another Commission's staff, gets 404. Filters only: search text is personal data, so it is never in a URL; send it to `searchReviewQueue`. A `search` parameter is refused with 400.
-     */
-    get: operations['listReviewQueue'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/review/queue/search': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/review/queue/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cases of the Commission matching a search, ordered by score then age
+         * @description As `listReviewQueue`, with the filters and the search text in the body, so the text (a name, say) stays out of URLs and so out of access logs and traces. Reads nothing but the queue. Reviewers and supervisors of the Commission; anyone else gets 404.
+         */
+        post: operations["searchReviewQueue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Cases of the Commission matching a search, ordered by score then age
-     * @description As `listReviewQueue`, with the filters and the search text in the body, so the text (a name, say) stays out of URLs and so out of access logs and traces. Reads nothing but the queue. Reviewers and supervisors of the Commission; anyone else gets 404.
-     */
-    post: operations['searchReviewQueue'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/review/queue/summary': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/review/queue/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Counts by status and priority band */
+        get: operations["getReviewQueueSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Counts by status and priority band */
-    get: operations['getReviewQueueSummary'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/review/queue/reviewers': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/review/queue/reviewers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reviewers and supervisors a case can be given to, with the cases they hold
+         * @description Supervisors of the Commission (a reviewer gets 403 `supervisor-required`; anyone else 404). The Commission's enabled reviewer and supervisor accounts as the directory has them, by name, each with the cases of the Commission they hold that are not determined. For the reassign dialog and the queue's assignee filter.
+         */
+        get: operations["listCommissionReviewers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Reviewers and supervisors a case can be given to, with the cases they hold
-     * @description Supervisors of the Commission (a reviewer gets 403 `supervisor-required`; anyone else 404). The Commission's enabled reviewer and supervisor accounts as the directory has them, by name, each with the cases of the Commission they hold that are not determined. For the reassign dialog and the queue's assignee filter.
-     */
-    get: operations['listCommissionReviewers'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/compare': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Item matching and deltas between the current and previous submitted version
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. Both versions are read from declarations for every call, audited there as the caller's reads for the case.
+         */
+        get: operations["compareCaseVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Item matching and deltas between the current and previous submitted version
-     * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. Both versions are read from declarations for every call, audited there as the caller's reads for the case.
-     */
-    get: operations['compareCaseVersions'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Case with flags, clarifications, notes, timeline and the declaration pulled on demand
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Every call reads the declaration from the declarations service, which audits it with the viewer and the case, and records review.case.viewed.v1.
+         */
+        get: operations["getReviewCase"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Case with flags, clarifications, notes, timeline and the declaration pulled on demand
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Every call reads the declaration from the declarations service, which audits it with the viewer and the case, and records review.case.viewed.v1.
-     */
-    get: operations['getReviewCase'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/attachments/{uploadId}/download': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/attachments/{uploadId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Short-lived download link for an attachment of the declaration under review (audited)
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. The upload must be an attachment of the version under review.
+         */
+        get: operations["getCaseAttachmentDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Short-lived download link for an attachment of the declaration under review (audited)
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. The upload must be an attachment of the version under review.
-     */
-    get: operations['getCaseAttachmentDownload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/claim': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign an unassigned case to the caller
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404.
+         */
+        post: operations["claimCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Assign an unassigned case to the caller
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404.
-     */
-    post: operations['claimCase'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/release': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return the caller's case to the queue
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Only the officer holding the case releases it; others get 403.
+         */
+        post: operations["releaseCase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Return the caller's case to the queue
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Only the officer holding the case releases it; others get 403.
-     */
-    post: operations['releaseCase'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/assignment': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Supervisor reassigns or unassigns a case
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Supervisors only; a reviewer gets 403.
+         */
+        put: operations["reassignCase"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /**
-     * Supervisor reassigns or unassigns a case
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Supervisors only; a reviewer gets 403.
-     */
-    put: operations['reassignCase'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/notes': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add an internal note
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. The declarant never sees notes.
+         */
+        post: operations["addCaseNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Add an internal note
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. The declarant never sees notes.
-     */
-    post: operations['addCaseNote'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/flags/{flagId}/reviewed': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/flags/{flagId}/reviewed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record that a flag was considered, with a note
+         * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Once per flag.
+         */
+        post: operations["markFlagReviewed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Record that a flag was considered, with a note
-     * @description Reviewers and supervisors of the case's Commission. Anyone else, including another Commission's staff, gets 404. Once per flag.
-     */
-    post: operations['markFlagReviewed'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/clarifications': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/clarifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a clarification draft (assignee only) */
+        post: operations["createClarificationDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create a clarification draft (assignee only) */
-    post: operations['createClarificationDraft'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/clarifications/{clarificationId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/clarifications/{clarificationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Clarification with items, letter and response */
+        get: operations["getClarification"];
+        /** Update a draft's items and opening paragraph */
+        put: operations["updateClarificationDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Clarification with items, letter and response */
-    get: operations['getClarification'];
-    /** Update a draft's items and opening paragraph */
-    put: operations['updateClarificationDraft'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/clarifications/{clarificationId}/letter/download': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/clarifications/{clarificationId}/letter/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Short-lived download link for an issued clarification's letter (audited)
+         * @description The Commission's reviewers and supervisors, as for the clarification. The documents service hands the link out for the Commission (internalGetDocumentDownload); the read is audited naming the declarant. 404 while the letter is still being produced.
+         */
+        get: operations["getClarificationLetterDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Short-lived download link for an issued clarification's letter (audited)
-     * @description The Commission's reviewers and supervisors, as for the clarification. The documents service hands the link out for the Commission (internalGetDocumentDownload); the read is audited naming the declarant. 404 while the letter is still being produced.
-     */
-    get: operations['getClarificationLetterDownload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/clarifications/{clarificationId}/issue': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/clarifications/{clarificationId}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Allocate the CLR reference, issue the letter, notify the declarant, start the 30-day clock */
+        post: operations["issueClarification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Allocate the CLR reference, issue the letter, notify the declarant, start the 30-day clock */
-    post: operations['issueClarification'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/clarifications/{clarificationId}/resolve': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/clarifications/{clarificationId}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark the clarification resolved with a note */
+        post: operations["resolveClarification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Mark the clarification resolved with a note */
-    post: operations['resolveClarification'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/clarifications/{clarificationId}/follow-up': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/clarifications/{clarificationId}/follow-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a new draft pre-filled with the unresolved items */
+        post: operations["createFollowUpClarification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Create a new draft pre-filled with the unresolved items */
-    post: operations['createFollowUpClarification'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/clarifications/{clarificationId}/withdraw': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/clarifications/{clarificationId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an issued clarification (letter revoked as issued in error) */
+        post: operations["withdrawClarification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Withdraw an issued clarification (letter revoked as issued in error) */
-    post: operations['withdrawClarification'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/clarifications': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/clarifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The declarant's clarifications across Commissions */
+        get: operations["getMyClarifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** The declarant's clarifications across Commissions */
-    get: operations['getMyClarifications'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/clarifications/{clarificationId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/clarifications/{clarificationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One clarification with items, letter link and response */
+        get: operations["getMyClarification"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** One clarification with items, letter link and response */
-    get: operations['getMyClarification'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/clarifications/{clarificationId}/response': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/clarifications/{clarificationId}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit the response once (accepted after the due date, marked late) */
+        post: operations["respondToClarification"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Submit the response once (accepted after the due date, marked late) */
-    post: operations['respondToClarification'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/clarifications/{clarificationId}/letter-payload': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/clarifications/{clarificationId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fields the clarification letter template needs (documents service) */
+        get: operations["internalGetClarificationLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Fields the clarification letter template needs (documents service) */
-    get: operations['internalGetClarificationLetterPayload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/clarifications/details': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/clarifications/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09) */
+        post: operations["internalClarificationDetails"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Clarifications of a Commission in a batch, for Form M section 4 (reporting, spec 09) */
-    post: operations['internalClarificationDetails'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/clarifications/disclosures': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/clarifications/disclosures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The clarifications an access grant discloses with the declarations (audited)
+         * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1), Regulation 22(1)) discloses those issued on the declarations it disclosed: every clarification issued on each named declaration of the person at the Commission (never a draft or a withdrawn one), oldest issued first, each item as its letter put it with the declarant's answer (text and the names of the files attached; not the files), cut to the granted household members and sections. An item goes out only when everything it can concern is granted: a spouse's or child's needs them included; `bio` needs bio, `household` bio with spouses and children, `other` other information, a financial statement's income, assets and liabilities, the declaration as a whole every section and both household members. A clarification with no item in the scope is left out; the reviewer's resolution note never goes out. Audited (`audit.read.v1`, action `clarification.disclosed`) with the legal basis, the grant reference, the recipient and the clarifications served. A read: no Idempotency-Key, safe to retry.
+         */
+        post: operations["internalDiscloseClarifications"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * The clarifications an access grant discloses with the declarations (audited)
-     * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. A Form K grant that includes clarifications (Act s.36(1), Regulation 22(1)) discloses those issued on the declarations it disclosed: every clarification issued on each named declaration of the person at the Commission (never a draft or a withdrawn one), oldest issued first, each item as its letter put it with the declarant's answer (text and the names of the files attached; not the files), cut to the granted household members and sections. An item goes out only when everything it can concern is granted: a spouse's or child's needs them included; `bio` needs bio, `household` bio with spouses and children, `other` other information, a financial statement's income, assets and liabilities, the declaration as a whole every section and both household members. A clarification with no item in the scope is left out; the reviewer's resolution note never goes out. Audited (`audit.read.v1`, action `clarification.disclosed`) with the legal basis, the grant reference, the recipient and the clarifications served. A read: no Idempotency-Key, safe to retry.
-     */
-    post: operations['internalDiscloseClarifications'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/clarifications/disclosure-counts': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/clarifications/disclosure-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * How many clarifications a scope would disclose (audited, no content)
+         * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees what the scope holds: per declaration named, how many clarifications a grant of the scope would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one with none). Counts only, never content. Audited (`audit.read.v1`, action `clarification.disclosure-counted`) with the legal basis, the request reference, the officer as recipient and the clarifications counted. A read: no Idempotency-Key.
+         */
+        post: operations["internalCountClarificationDisclosure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * How many clarifications a scope would disclose (audited, no content)
-     * @description Service tokens with scope review:disclosures (the access service only), acting for the Commission in X-Acting-Tenant. Before deciding a Form K request, the access officer sees what the scope holds: per declaration named, how many clarifications a grant of the scope would disclose with it, cut as `internalDiscloseClarifications` cuts them (zero for one with none). Counts only, never content. Audited (`audit.read.v1`, action `clarification.disclosure-counted`) with the legal basis, the request reference, the officer as recipient and the clarifications counted. A read: no Idempotency-Key.
-     */
-    post: operations['internalCountClarificationDisclosure'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/determinations': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/determinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose a compliance determination (assignee) */
+        post: operations["proposeDetermination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Propose a compliance determination (assignee) */
-    post: operations['proposeDetermination'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/determinations/{determinationId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/determinations/{determinationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One determination */
+        get: operations["getDetermination"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** One determination */
-    get: operations['getDetermination'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/determinations/{determinationId}/letter': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/determinations/{determinationId}/letter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Decision letter download; issued on first request for bulk closures
+         * @description The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served.
+         */
+        get: operations["getDeterminationLetter"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Decision letter download; issued on first request for bulk closures
-     * @description The Commission's reviewers and supervisors, and the declarant for their own approved determinations. A bulk closure's letter is issued the first time it is asked for, then served.
-     */
-    get: operations['getDeterminationLetter'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/determinations/{determinationId}/approve': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/determinations/{determinationId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve (supervisor who is neither proposer nor reviewer of record); allocates CMP and issues the letter */
+        post: operations["approveDetermination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Approve (supervisor who is neither proposer nor reviewer of record); allocates CMP and issues the letter */
-    post: operations['approveDetermination'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/determinations/{determinationId}/return': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/determinations/{determinationId}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return to the proposer with a reason */
+        post: operations["returnDetermination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Return to the proposer with a reason */
-    post: operations['returnDetermination'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/determinations/{determinationId}/withdraw': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/determinations/{determinationId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Proposer withdraws while proposed */
+        post: operations["withdrawDetermination"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Proposer withdraws while proposed */
-    post: operations['withdrawDetermination'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/decisions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The declarant's approved determinations */
+        get: operations["getMyDecisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** The declarant's approved determinations */
-    get: operations['getMyDecisions'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/determinations/{determinationId}/letter-payload': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/determinations/{determinationId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fields the decision letter template needs (documents service) */
+        get: operations["internalGetDeterminationLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Fields the decision letter template needs (documents service) */
-    get: operations['internalGetDeterminationLetterPayload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/approvals': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Proposed determinations, actions and referrals awaiting approval (supervisor) */
+        get: operations["listApprovals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Proposed determinations, actions and referrals awaiting approval (supervisor) */
-    get: operations['listApprovals'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/approvals/{kind}/{subjectId}/reassign': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/approvals/{kind}/{subjectId}/reassign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Point an approval at another supervisor (informational; the separation rule still applies) */
+        post: operations["reassignApproval"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Point an approval at another supervisor (informational; the separation rule still applies) */
-    post: operations['reassignApproval'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/actions': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Administrative action ladders (per overdue obligation or clarification) with current step and status */
+        get: operations["listEnforcementLadders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Administrative action ladders (per overdue obligation or clarification) with current step and status */
-    get: operations['listEnforcementLadders'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/ladders/{ladderId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/ladders/{ladderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A ladder with all its steps, responses and payroll acknowledgements */
+        get: operations["getLadder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** A ladder with all its steps, responses and payroll acknowledgements */
-    get: operations['getLadder'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/actions/{actionId}/approve': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/actions/{actionId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a proposed step (notice, warning: reviewer or supervisor not reviewer of record; stoppage, disciplinary: supervisor) */
+        post: operations["approveAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Approve a proposed step (notice, warning: reviewer or supervisor not reviewer of record; stoppage, disciplinary: supervisor) */
-    post: operations['approveAction'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/actions/{actionId}/decline': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/actions/{actionId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline a proposed step with a note (ends the ladder) */
+        post: operations["declineAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Decline a proposed step with a note (ends the ladder) */
-    post: operations['declineAction'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/ladders/{ladderId}/restart': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/ladders/{ladderId}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Supervisor restarts a declined ladder */
+        post: operations["restartLadder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Supervisor restarts a declined ladder */
-    post: operations['restartLadder'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/notices': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The declarant's issued administrative actions with statuses */
+        get: operations["getMyNotices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** The declarant's issued administrative actions with statuses */
-    get: operations['getMyNotices'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/me/notices/{actionId}/response': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/me/notices/{actionId}/response": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Respond once to a notice or warning with text and attachments */
+        post: operations["respondToNotice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Respond once to a notice or warning with text and attachments */
-    post: operations['respondToNotice'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/actions/{actionId}/letter-payload': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/actions/{actionId}/letter-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fields the notice to comply and warning templates need (documents service) */
+        get: operations["internalGetActionLetterPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Fields the notice to comply and warning templates need (documents service) */
-    get: operations['internalGetActionLetterPayload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/referrals': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose a referral to EACC from a case (assignee) */
+        post: operations["proposeReferral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Propose a referral to EACC from a case (assignee) */
-    post: operations['proposeReferral'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/referrals': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Referrals of the Commission */
+        get: operations["listReferrals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Referrals of the Commission */
-    get: operations['listReferrals'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/referrals/{referralId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/referrals/{referralId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One referral with its package manifest, or what its package will include */
+        get: operations["getReferral"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** One referral with its package manifest, or what its package will include */
-    get: operations['getReferral'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/referrals/{referralId}/approve': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/referrals/{referralId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve (supervisor, separation rule); allocates RFL, then assembles the package and sends to EACC */
+        post: operations["approveReferral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Approve (supervisor, separation rule); allocates RFL, then assembles the package and sends to EACC */
-    post: operations['approveReferral'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/referrals/{referralId}/decline': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/referrals/{referralId}/decline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decline with a note */
+        post: operations["declineReferral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Decline with a note */
-    post: operations['declineReferral'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/referrals/{referralId}/package-payload': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/referrals/{referralId}/package-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cover sheet, manifest and evidence the referral package template needs (documents) */
+        get: operations["internalGetReferralPackagePayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Cover sheet, manifest and evidence the referral package template needs (documents) */
-    get: operations['internalGetReferralPackagePayload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/internal/v1/review/referrals/{referralId}/icms-payload': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/internal/v1/review/referrals/{referralId}/icms-payload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What ICMS needs of a sent referral, with the declarant's national ID (reporting) */
+        get: operations["internalGetReferralIcmsPayload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** What ICMS needs of a sent referral, with the declarant's national ID (reporting) */
-    get: operations['internalGetReferralIcmsPayload'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/closures': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Eligible system proposals, sampled and approved counts for a cycle and filters */
+        get: operations["getBulkClosureSummary"];
+        put?: never;
+        /**
+         * Approve system-proposed closures matching the filters, in chunks (supervisor)
+         * @description Chunks of 100 per transaction, each allocating its CMP numbers in sequence. Closures of cases the caller once held are skipped. Sent again with the same Idempotency-Key after a failure, it resumes and reports every closure approved under the key.
+         */
+        post: operations["approveBulkClosures"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Eligible system proposals, sampled and approved counts for a cycle and filters */
-    get: operations['getBulkClosureSummary'];
-    put?: never;
-    /**
-     * Approve system-proposed closures matching the filters, in chunks (supervisor)
-     * @description Chunks of 100 per transaction, each allocating its CMP numbers in sequence. Closures of cases the caller once held are skipped. Sent again with the same Idempotency-Key after a failure, it resumes and reports every closure approved under the key.
-     */
-    post: operations['approveBulkClosures'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/copilot': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/copilot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read)
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named reviewer decides.
+         */
+        get: operations["getCaseCopilot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * AI-assisted summary and flag explanations for the case (reviewer, supervisor; audited read)
-     * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. Indicators, not findings: a named reviewer decides.
-     */
-    get: operations['getCaseCopilot'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/copilot/refresh': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/copilot/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-request the summary and explanations (assignee or supervisor)
+         * @description A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the Commission may use it now. The console offers no Refresh there, as a change of the Commission's AI policy or route already requests not-enabled copilots again; the API keeps it on purpose, for a request made right after such a change and for tooling.
+         */
+        post: operations["refreshCaseCopilot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Re-request the summary and explanations (assignee or supervisor)
-     * @description A copilot that is `not-enabled` is requested again too: the ai-gateway decides whether the Commission may use it now. The console offers no Refresh there, as a change of the Commission's AI policy or route already requests not-enabled copilots again; the API keeps it on purpose, for a request made right after such a change and for tooling.
-     */
-    post: operations['refreshCaseCopilot'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/copilot/drafts': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/copilot/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft clarification items from selected flags and items (assignee); nothing is issued
+         * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over. Audited read (`review.copilot.drafted`).
+         */
+        post: operations["draftClarificationWithAi"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Draft clarification items from selected flags and items (assignee); nothing is issued
-     * @description Builds the ai-gateway `draft-clarification` input from the case's current version (item context) and flags, in the requested language, and waits up to 10 seconds for the job. A draft not ready by then answers 202 and is polled with `getCopilotDraft`. Drafts are kept for 24 hours and never become clarifications: the console inserts the items into the composer, and the clarification endpoints issue them. A retry with the same Idempotency-Key answers the same draft as it is now (never a stored replay: the drafted text is kept only encrypted), and 409 `draft-expired` once its 24 hours are over. Audited read (`review.copilot.drafted`).
-     */
-    post: operations['draftClarificationWithAi'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/copilot/drafts/{draftId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/copilot/drafts/{draftId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll a pending draft (assignee)
+         * @description Only the assignee who asked for it, for 24 hours; anyone else, or later, 404. Audited read (`review.copilot.draft-viewed`).
+         */
+        get: operations["getCopilotDraft"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Poll a pending draft (assignee)
-     * @description Only the assignee who asked for it, for 24 hours; anyone else, or later, 404. Audited read (`review.copilot.draft-viewed`).
-     */
-    get: operations['getCopilotDraft'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/copilot/outputs/{jobId}/feedback': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/copilot/outputs/{jobId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output block
+         * @description The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`); `block` names the block rated (a summary's section, a flag's explanation), null the output as a whole. A second rating by the same reviewer of the same block replaces the first. A block the output does not have is 400. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404.
+         */
+        put: operations["rateCopilotOutput"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /**
-     * Rate a copilot output shown on a case as helpful or not (the case's assignee); one rating per reviewer per output block
-     * @description The output is named by its job: a summary or explanations shown on the case (`CopilotView.jobs`), or a ready clarification draft within its 24 hours (`CopilotDraft.jobId`); `block` names the block rated (a summary's section, a flag's explanation), null the output as a whole. A second rating by the same reviewer of the same block replaces the first. A block the output does not have is 400. The rating is forwarded to the ai-gateway, which announces it for reporting. Supervisors and other reviewers of the Commission read the copilot but do not rate it (403); anyone else, or a job that is not such an output (a pending draft's, say), gets 404.
-     */
-    put: operations['rateCopilotOutput'];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/commissions/{slug}/ai-status': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/commissions/{slug}/ai-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether AI assistance is enabled for the Commission (commission-admin)
+         * @description The commission-admin of the Commission; anyone else gets 404. Reads the ai-gateway's tenant status (its routes and classification gate). `enabled` says whether the copilot may run on this Commission's cases: the data class its declarations are sent as is among `dataClasses`.
+         */
+        get: operations["getCommissionAiStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Whether AI assistance is enabled for the Commission (commission-admin)
-     * @description The commission-admin of the Commission; anyone else gets 404. Reads the ai-gateway's tenant status (its routes and classification gate). `enabled` says whether the copilot may run on this Commission's cases: the data class its declarations are sent as is among `dataClasses`.
-     */
-    get: operations['getCommissionAiStatus'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/registry': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/registry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-person, per-system registry status with records pulled from the gateway and paired with declared items
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. The records are read from the integration-gateway by result id for every call and never stored by review: its flags keep only the identifiers they are about (a parcel number, a vehicle registration, a company registration number), as spec 07b's evidence rule allows; the declaration is read from declarations, audited there as the caller's read for the case.
+         */
+        get: operations["getCaseRegistryChecks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Per-person, per-system registry status with records pulled from the gateway and paired with declared items
-     * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. The records are read from the integration-gateway by result id for every call and never stored by review: its flags keep only the identifiers they are about (a parcel number, a vehicle registration, a company registration number), as spec 07b's evidence rule allows; the declaration is read from declarations, audited there as the caller's read for the case.
-     */
-    get: operations['getCaseRegistryChecks'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/registry/status': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/registry/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * When the case's latest registry check was stored
+         * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. What a client polls while a re-check runs, before reading the registry view once: read from review alone (no declaration, no registry records), so not an audited read.
+         */
+        get: operations["getCaseRegistryStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * When the case's latest registry check was stored
-     * @description Reviewers and supervisors of the case's Commission; anyone else gets 404. What a client polls while a re-check runs, before reading the registry view once: read from review alone (no declaration, no registry records), so not an audited read.
-     */
-    get: operations['getCaseRegistryStatus'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/v1/review/cases/{caseId}/recheck': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/review/cases/{caseId}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-run registry lookups and matching for the case (assignee or supervisor)
+         * @description The case's assignee or a supervisor of its Commission; another reviewer gets 403 `not-the-assignee`, anyone else 404. Starts the registry check of the case's current version and records review.case.rechecked.v1; review.registry.checked.v1 follows once the check is stored. Flags it no longer raises are closed `superseded-by-recheck` (reviewed ones keep their note). Once per case every 10 minutes: 429 `recheck-cooldown` with `retryAfterSeconds`.
+         */
+        post: operations["recheckCaseRegistries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Re-run registry lookups and matching for the case (assignee or supervisor)
-     * @description The case's assignee or a supervisor of its Commission; another reviewer gets 403 `not-the-assignee`, anyone else 404. Starts the registry check of the case's current version and records review.case.rechecked.v1; review.registry.checked.v1 follows once the check is stored. Flags it no longer raises are closed `superseded-by-recheck` (reviewed ones keep their note). Once per case every 10 minutes: 429 `recheck-cooldown` with `retryAfterSeconds`.
-     */
-    post: operations['recheckCaseRegistries'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /** @enum {string} */
-    DeclarationType: 'initial' | 'biennial' | 'final';
-    /** @enum {string} */
-    CaseStatus:
-      | 'unassigned'
-      | 'assigned'
-      | 'awaiting-clarification'
-      | 'clarified'
-      | 'ready-for-determination'
-      | 'sample-review'
-      | 'further-action'
-      | 'determined';
-    /** @enum {string} */
-    PriorityBand: 'low' | 'medium' | 'high';
-    /** @enum {string} */
-    Severity: 'info' | 'low' | 'medium' | 'high';
-    /** @enum {string} */
-    RuleId:
-      | 'completeness-residual'
-      | 'no-previous-version'
-      | 'value-change-25'
-      | 'acquisition-unflagged'
-      | 'disposal-unflagged'
-      | 'change-flag-mismatch'
-      | 'income-vs-asset-growth'
-      | 'nil-after-populated'
-      | 'late-filing'
-      | 'foreign-holdings'
-      | 'joint-share-inconsistent'
-      | 'registry-parcel-undeclared'
-      | 'declared-parcel-not-found'
-      | 'registry-vehicle-undeclared'
-      | 'declared-vehicle-not-found'
-      | 'registry-directorship-undeclared'
-      | 'declared-company-not-found'
-      | 'directorship-employer-supplier'
-      | 'kra-pin-missing'
-      | 'kra-non-compliant'
-      | 'kra-income-mismatch'
-      | 'registry-parcel-number-missing'
-      | 'registry-vehicle-registration-missing'
-      | 'registry-company-registration-missing'
-      | 'registry-supplier-check-not-run'
-      | 'registry-company-dissolved';
-    /** @enum {string} */
-    ClarificationStatus: 'draft' | 'issued' | 'responded' | 'resolved' | 'overdue' | 'withdrawn';
-    /**
-     * @description Act s.35(4)
-     * @enum {string}
-     */
-    Requirement: 'provide-omitted' | 'explain-discrepancy' | 'correct';
-    Assignee: {
-      subject: string;
-      name: string;
-    };
-    CaseListItem: {
-      /** Format: uuid */
-      id: string;
-      reference: string;
-      declarantName: string;
-      personnelFileNumber: string;
-      type: components['schemas']['DeclarationType'];
-      cycleYear: number;
-      /** Format: date-time */
-      receivedAt: string;
-      /** Format: date-time */
-      windowEndsAt: string;
-      late: boolean;
-      band: components['schemas']['PriorityBand'];
-      status: components['schemas']['CaseStatus'];
-      assignee: components['schemas']['Assignee'] | null;
-      openFlags: number;
-      /** @description A registry could not be checked for someone on the case at its latest registry check (the queue's icon) */
-      registryUnavailable: boolean;
-      clarification: {
-        /** @description Clarifications the declarant still has to answer */
-        open: number;
-        /** @description The status of the latest clarification issued; null when none was */
-        status: components['schemas']['ClarificationStatus'] | null;
-        dueAt: string | null;
-      };
-      currentVersion: number;
-    };
-    QueueSummary: {
-      byStatus: {
-        [key: string]: number;
-      };
-      byBand: {
-        [key: string]: number;
-      };
-      /** @description Every status with its cases per band (the queue's tiles break their counts down) */
-      byStatusAndBand: {
-        [key: string]: {
-          low: number;
-          medium: number;
-          high: number;
+    schemas: {
+        /** @enum {string} */
+        DeclarationType: "initial" | "biennial" | "final";
+        /** @enum {string} */
+        CaseStatus: "unassigned" | "assigned" | "awaiting-clarification" | "clarified" | "ready-for-determination" | "sample-review" | "further-action" | "determined";
+        /** @enum {string} */
+        PriorityBand: "low" | "medium" | "high";
+        /** @enum {string} */
+        Severity: "info" | "low" | "medium" | "high";
+        /** @enum {string} */
+        RuleId: "completeness-residual" | "no-previous-version" | "value-change-25" | "acquisition-unflagged" | "disposal-unflagged" | "change-flag-mismatch" | "income-vs-asset-growth" | "nil-after-populated" | "late-filing" | "foreign-holdings" | "joint-share-inconsistent" | "registry-parcel-undeclared" | "declared-parcel-not-found" | "registry-vehicle-undeclared" | "declared-vehicle-not-found" | "registry-directorship-undeclared" | "declared-company-not-found" | "directorship-employer-supplier" | "kra-pin-missing" | "kra-non-compliant" | "kra-income-mismatch" | "registry-parcel-number-missing" | "registry-vehicle-registration-missing" | "registry-company-registration-missing" | "registry-supplier-check-not-run" | "registry-company-dissolved";
+        /** @enum {string} */
+        ClarificationStatus: "draft" | "issued" | "responded" | "resolved" | "overdue" | "withdrawn";
+        /**
+         * @description Act s.35(4)
+         * @enum {string}
+         */
+        Requirement: "provide-omitted" | "explain-discrepancy" | "correct";
+        Assignee: {
+            subject: string;
+            name: string;
         };
-      };
-      /** @description Cases the caller holds that are not determined, per band */
-      mine: {
-        low: number;
-        medium: number;
-        high: number;
-      };
-      overdueClarifications: number;
-    };
-    ReviewerList: {
-      items: {
-        /** @description The staff member's account (token `sub`) */
-        subject: string;
-        name: string;
-        /** @description Holds the supervisor role */
-        supervisor: boolean;
-        /** @description Cases of the Commission they hold, not determined */
-        openCases: number;
-      }[];
-    };
-    /** @enum {string} */
-    CopilotStatus: 'not-enabled' | 'pending' | 'ready' | 'failed' | 'stale';
-    CopilotView: {
-      status: components['schemas']['CopilotStatus'];
-      /** @description The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none */
-      forVersionId: string | null;
-      generatedAt: string | null;
-      /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
-      failureReason: string | null;
-      /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
-      summary: {
-        [key: string]: unknown;
-      } | null;
-      /** @description ai-gateway ExplainFlagsOutput (label, explanations) */
-      explanations: {
-        [key: string]: unknown;
-      } | null;
-      /** @description The jobs of the outputs shown, which the assignee rates */
-      jobs: {
-        summarize: string | null;
-        explain: string | null;
-      };
-      /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee */
-      feedback: {
-        /** Format: uuid */
-        jobId: string;
-        block: components['schemas']['CopilotBlock'];
-        /** @enum {string} */
-        rating: 'helpful' | 'not-helpful';
-      }[];
-    };
-    CopilotDraftInput: {
-      flagIds: string[];
-      itemRefs: {
-        personKey: string | null;
-        itemId: string | null;
-        sectionKey: string | null;
-        requirement: components['schemas']['Requirement'] | null;
-      }[];
-      language: components['schemas']['LetterLanguage'];
-    };
-    CopilotDraft: {
-      /** Format: uuid */
-      id: string;
-      /** @enum {string} */
-      status: 'pending' | 'ready' | 'failed';
-      jobId: string | null;
-      /** @description ai-gateway AiLabel; null until ready */
-      label: {
-        [key: string]: unknown;
-      } | null;
-      opening: string | null;
-      /** @description Empty until ready. Each item names the job that drafted it (`aiJobId`), which the composer keeps */
-      items: components['schemas']['ClarificationItemInput'][];
-      /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request */
-      failureReason: string | null;
-    };
-    CommissionAiStatus: {
-      /** @description The copilot may run on the Commission's cases: the data class they are sent as is among `dataClasses` */
-      enabled: boolean;
-      /** @description The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach */
-      providerClass: ('external' | 'self-hosted') | null;
-      /** @description The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is */
-      provider: string | null;
-      /** @description Data classes that provider class may process for the Commission */
-      dataClasses: ('synthetic' | 'restricted' | 'highly-confidential')[];
-    };
-    /** @description The block of an output a rating is for: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null: the output as a whole (a clarification draft). */
-    CopilotBlock: string | null;
-    CopilotFeedbackInput: {
-      block?: components['schemas']['CopilotBlock'];
-      /** @enum {string} */
-      rating: 'helpful' | 'not-helpful';
-      reason: ('inaccurate' | 'missed-something' | 'unclear' | 'too-long' | 'other') | null;
-      note: string | null;
-    };
-    Flag: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      versionId: string;
-      ruleId: components['schemas']['RuleId'];
-      severity: components['schemas']['Severity'];
-      title: string;
-      /** @description Plain-language indicator text; never a finding */
-      indicator: string;
-      /** @description Clear facts only (percentages, counts, dates, references); no amounts or descriptions */
-      evidence: {
-        [key: string]: string | number | boolean | null | string[];
-      };
-      itemRefs: {
-        personKey: string;
-        /** @description The item concerned, or null when the flag is about a whole category or statement */
-        itemId: string | null;
-        sectionKey: string | null;
-      }[];
-      /** @description Why the flag no longer counts toward the score and the open flags: a registry re-check no longer raised it. A reviewed flag keeps its note. Null while it counts. */
-      closedReason: 'superseded-by-recheck' | null;
-      reviewed: {
-        /** Format: date-time */
-        at: string;
-        by: components['schemas']['Assignee'];
-        note: string;
-      } | null;
-      recomputed: boolean;
-    };
-    Note: {
-      /** Format: uuid */
-      id: string;
-      author: components['schemas']['Assignee'];
-      text: string;
-      /** Format: date-time */
-      at: string;
-    };
-    TimelineEntry: {
-      /** Format: uuid */
-      id: string;
-      kind: string;
-      actor: components['schemas']['Assignee'] | null;
-      /** Format: date-time */
-      at: string;
-      summary: string;
-      ref: string | null;
-    };
-    CaseDetail: {
-      case: components['schemas']['CaseListItem'];
-      flags: components['schemas']['Flag'][];
-      clarifications: components['schemas']['Clarification'][];
-      notes: components['schemas']['Note'][];
-      timeline: components['schemas']['TimelineEntry'][];
-      /** @description The current version's declaration.v1 document, pulled from the declarations service (null when unavailable) */
-      document: {
-        [key: string]: unknown;
-      } | null;
-      /** @description Every version the case has processed, from the review service's own records; only the current one's document is pulled */
-      versions: {
-        /** Format: uuid */
-        versionId: string;
-        version: number;
-        /** Format: date-time */
-        submittedAt: string;
-        late: boolean;
-        /** @description The version amended an earlier one of the same declaration */
-        amendment: boolean;
-        /** @description The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag */
-        firstOnAdili: boolean;
-      }[];
-      reviewerHistory: components['schemas']['Assignee'][];
-      /** @description Every determination of the case, oldest first; the current one is last */
-      determinations: components['schemas']['Determination'][];
-      registry: components['schemas']['RegistrySummary'];
-    };
-    VersionComparison: {
-      previousVersion: number;
-      currentVersion: number;
-      statements: {
-        personKey: string;
-        personName: string;
-        matched: {
-          /** @enum {string} */
-          category: 'income' | 'assets' | 'liabilities';
-          type: string;
-          description: string;
-          previousCents: number;
-          currentCents: number;
-          deltaCents: number;
-          /** @description Whole percent of the previous value, signed; null when the previous value was nothing */
-          deltaPercent: number | null;
-          /** @description Whether the declarant marked the current item as changed */
-          flaggedByDeclarant: boolean;
-        }[];
-        onlyPrevious: {
-          /** Format: uuid */
-          itemId: string;
-          /** @enum {string} */
-          category: 'income' | 'assets' | 'liabilities';
-          type: string;
-          description: string;
-          valueCents: number;
-          flaggedByDeclarant: boolean;
-        }[];
-        onlyCurrent: {
-          /** Format: uuid */
-          itemId: string;
-          /** @enum {string} */
-          category: 'income' | 'assets' | 'liabilities';
-          type: string;
-          description: string;
-          valueCents: number;
-          flaggedByDeclarant: boolean;
-        }[];
-      }[];
-    };
-    ClarificationItemInput: {
-      sectionKey?: string | null;
-      personKey?: string | null;
-      itemId?: string | null;
-      /** @enum {string} */
-      requirement: 'provide-omitted' | 'explain-discrepancy' | 'correct';
-      text: string;
-      /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null: written by the reviewer. */
-      aiJobId?: string | null;
-    };
-    /**
-     * @description The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written.
-     * @enum {string}
-     */
-    LetterLanguage: 'en' | 'sw';
-    ClarificationInput: {
-      items: components['schemas']['ClarificationItemInput'][];
-      /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
-      opening?: string | null;
-      /** @description The Draft with AI job that drafted the opening paragraph, kept when the reviewer edits it. Left out or null: written by the reviewer (or no opening). */
-      openingAiJobId?: string | null;
-      /** @description The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows. */
-      language?: components['schemas']['LetterLanguage'];
-    };
-    ClarificationResponseInput: {
-      items: {
-        index: number;
-        text: string;
-        attachments: string[];
-      }[];
-    };
-    Clarification: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      caseId: string;
-      /** @description CLR-<ISSUER>-<YEAR>-<seq>-<check>; null while draft */
-      reference: string | null;
-      status: components['schemas']['ClarificationStatus'];
-      items: {
-        sectionKey: string | null;
-        personKey: string | null;
-        itemId: string | null;
-        requirement: components['schemas']['Requirement'];
-        text: string;
-        /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it */
-        aiJobId: string | null;
-        /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
-        aiLanguage: components['schemas']['LetterLanguage'] | null;
-        /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft */
-        label?: string;
-      }[];
-      issuedAt: string | null;
-      dueAt: string | null;
-      respondedAt: string | null;
-      responseLate: boolean;
-      resolvedAt: string | null;
-      resolutionNote: string | null;
-      letter: {
-        /** Format: uuid */
-        documentId: string;
-        verificationId: string;
-        /** @enum {string} */
-        status: 'pending' | 'issued' | 'revoked';
-      } | null;
-      followUpOf: string | null;
-      /** @description The letter's opening paragraph, printed before the items; null when it has none */
-      opening: string | null;
-      /** @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer */
-      openingAiJobId: string | null;
-      /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
-      openingAiLanguage: components['schemas']['LetterLanguage'] | null;
-      language: components['schemas']['LetterLanguage'];
-      response: {
-        items: {
-          index: number;
-          text: string;
-          attachments: {
+        CaseListItem: {
             /** Format: uuid */
-            uploadId: string;
-            fileName: string;
-            sha256: string;
-          }[];
-        }[];
-        /** Format: date-time */
-        submittedAt: string;
-      } | null;
-    };
-    DeclarantClarification: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      caseId: string;
-      /** @description CLR-<ISSUER>-<YEAR>-<seq>-<check>; null while draft */
-      reference: string | null;
-      status: components['schemas']['ClarificationStatus'];
-      items: {
-        sectionKey: string | null;
-        personKey: string | null;
-        itemId: string | null;
-        requirement: components['schemas']['Requirement'];
-        text: string;
-        /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it */
-        aiJobId: string | null;
-        /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
-        aiLanguage: components['schemas']['LetterLanguage'] | null;
-        /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft */
-        label?: string;
-      }[];
-      issuedAt: string | null;
-      dueAt: string | null;
-      respondedAt: string | null;
-      responseLate: boolean;
-      resolvedAt: string | null;
-      resolutionNote: string | null;
-      letter: {
-        /** Format: uuid */
-        documentId: string;
-        verificationId: string;
-        /** @enum {string} */
-        status: 'pending' | 'issued' | 'revoked';
-      } | null;
-      followUpOf: string | null;
-      /** @description The letter's opening paragraph, printed before the items; null when it has none */
-      opening: string | null;
-      /** @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer */
-      openingAiJobId: string | null;
-      /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
-      openingAiLanguage: components['schemas']['LetterLanguage'] | null;
-      language: components['schemas']['LetterLanguage'];
-      response: {
-        items: {
-          index: number;
-          text: string;
-          attachments: {
-            /** Format: uuid */
-            uploadId: string;
-            fileName: string;
-            sha256: string;
-          }[];
-        }[];
-        /** Format: date-time */
-        submittedAt: string;
-      } | null;
-      commission: {
-        slug: string;
-        name: string;
-      };
-      declarationReference: string;
-      letterDownloadUrl: string | null;
-    };
-    InternalClarificationDetails: {
-      /** Format: uuid */
-      clarificationId: string;
-      /** @description `CLR-...`; null for one never issued */
-      reference: string | null;
-      name: string;
-      designation: string;
-      /** @description Personnel file number, or another staff, ID or passport number */
-      identifier: string;
-      /** @description Labels of the requirement kinds asked for, e.g. "Source of income" */
-      requirementLabels: string[];
-    };
-    ClarificationLetterPayload: {
-      /**
-       * Format: uuid
-       * @description Who may download the letter: the documents service checks the issue request against it. Not printed
-       */
-      declarantPersonId: string;
-      declarantName: string;
-      commission: {
-        name: string;
-        issuerCode: string;
-      };
-      declarationReference: string;
-      clarificationReference: string;
-      /** @description The template prints its own text (heading, introduction, how to respond, sign-off, the AI note and the verification lines) in this language. `items[].label` and `items[].requirementLabel` already are; the opening and the items' text are the reviewer's, printed as written. Letters issued before it was recorded are `en`. */
-      language: components['schemas']['LetterLanguage'];
-      /** @description Printed before the items; null when the letter has no opening paragraph */
-      opening: string | null;
-      /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out. */
-      aiAssisted: boolean;
-      items: {
-        label: string;
-        requirementLabel: string;
-        text: string;
-        /** @description The item was drafted with AI (and possibly edited) before the reviewer issued it */
-        aiAssisted: boolean;
-      }[];
-      /** Format: date-time */
-      issuedAt: string;
-      /** Format: date-time */
-      dueAt: string;
-      /** Format: uri */
-      portalUrl: string;
-    };
-    ClarificationDisclosureRequest: {
-      /** Format: uuid */
-      personId: string;
-      grantReference: string;
-      /** @enum {string} */
-      legalBasis: 'act-s36-1' | 'act-s36-2';
-      declarationReferences: string[];
-      includeSpouses: boolean;
-      includeChildren: boolean;
-      sections: ('bio' | 'income' | 'assets' | 'liabilities' | 'other')[];
-      recipientSubject: string;
-    };
-    ClarificationDisclosure: {
-      grantReference: string;
-      /** @description Oldest issued first; empty when none was issued or none is in the scope */
-      clarifications: components['schemas']['DisclosedClarification'][];
-    };
-    DisclosedClarification: {
-      /** @description The declaration it was issued on */
-      declarationReference: string;
-      /** @description `CLR-...` */
-      reference: string;
-      /** @enum {string} */
-      status: 'issued' | 'overdue' | 'responded' | 'resolved';
-      /** Format: date-time */
-      issuedAt: string;
-      /** Format: date-time */
-      dueAt: string;
-      respondedAt: string | null;
-      responseLate: boolean;
-      resolvedAt: string | null;
-      items: components['schemas']['DisclosedClarificationItem'][];
-    };
-    DisclosedClarificationItem: {
-      /** @description What the item concerns, as the letter put it */
-      label: string;
-      /** @description What Act s.35(4) required of the declarant */
-      requirementLabel: string;
-      /** @description The reviewer's request */
-      text: string;
-      /** @description The declarant's answer; null when not answered */
-      response: {
-        text: string;
-        /** @description Names of the files attached to the answer; the files are not disclosed */
-        attachmentNames: string[];
-      } | null;
-    };
-    ClarificationCountsRequest: {
-      /** Format: uuid */
-      personId: string;
-      grantReference: string;
-      /** @enum {string} */
-      legalBasis: 'act-s36-1' | 'act-s36-2';
-      declarationReferences: string[];
-      includeSpouses: boolean;
-      includeChildren: boolean;
-      sections: ('bio' | 'income' | 'assets' | 'liabilities' | 'other')[];
-    };
-    ClarificationCounts: {
-      /** @description One per declaration named, in the order named */
-      counts: {
-        declarationReference: string;
-        clarifications: number;
-      }[];
-    };
-    /** @enum {string} */
-    RegistrySystem: 'kra' | 'ntsa' | 'brs' | 'ardhisasa';
-    /** @enum {string} */
-    RegistryCheckStatus: 'matched' | 'mismatched' | 'unavailable' | 'not-checked' | 'no-id';
-    /** @description One person's status in one registry at the case's latest registry check */
-    RegistryCheck: {
-      personKey: string;
-      system: components['schemas']['RegistrySystem'];
-      status: components['schemas']['RegistryCheckStatus'];
-      /** @description Why the registry is unavailable: the gateway's reason (timeout, breaker-open, paused, rate-limited, upstream-error), gateway-unavailable or gateway-rejected when the gateway gave no answer, supplier-check-unavailable when BRS answered but the employer supplier check did not, result-missing when the stored result could not be read back */
-      reason: string | null;
-      /** Format: date-time */
-      checkedAt: string;
-      /** @description The integration-gateway's stored result, from which the Registry tab pulls the records */
-      resultId: string | null;
-    };
-    /** @description The case's latest registry check, per person with an entry per registry; empty with checkedAt null before the first check (every registry not checked) */
-    RegistrySummary: {
-      checkedAt: string | null;
-      checks: components['schemas']['RegistryCheck'][];
-      /** @description When the next manual re-check is accepted: 10 minutes after the last one asked for, which a re-check before then is refused with 429 `recheck-cooldown`; null before the first. A time in the past means one is accepted now */
-      recheckAvailableAt: string | null;
-    };
-    RegistryView: {
-      checkedAt: string | null;
-      persons: {
-        personKey: string;
-        personName: string;
-        hasNationalId: boolean;
-        systems: {
-          system: components['schemas']['RegistrySystem'];
-          status: components['schemas']['RegistryCheckStatus'];
-          reason: string | null;
-          checkedAt: string | null;
-          resultId: string | null;
-          /** @description Registry record paired with the declared item it matched, if any */
-          rows: {
-            /** @description The registry's record as the gateway holds it (parcel, vehicle or directorship; for KRA pinPresent, complianceStatus, validUntil and the income difference as a percentage, never an amount). For not-in-registry, the declared identifier alone. */
-            registryRecord: {
-              [key: string]: unknown;
+            id: string;
+            reference: string;
+            declarantName: string;
+            personnelFileNumber: string;
+            type: components["schemas"]["DeclarationType"];
+            cycleYear: number;
+            /** Format: date-time */
+            receivedAt: string;
+            /** Format: date-time */
+            windowEndsAt: string;
+            late: boolean;
+            band: components["schemas"]["PriorityBand"];
+            status: components["schemas"]["CaseStatus"];
+            assignee: components["schemas"]["Assignee"] | null;
+            openFlags: number;
+            /** @description A registry could not be checked for someone on the case at its latest registry check (the queue's icon) */
+            registryUnavailable: boolean;
+            clarification: {
+                /** @description Clarifications the declarant still has to answer */
+                open: number;
+                /** @description The status of the latest clarification issued; null when none was */
+                status: components["schemas"]["ClarificationStatus"] | null;
+                dueAt: string | null;
             };
-            declaredItemId: string | null;
-            /** @enum {string} */
-            relation: 'matched' | 'not-declared' | 'not-in-registry';
-          }[];
-          flags: components['schemas']['Flag'][];
-        }[];
-      }[];
-    };
-    RegistryStatus: {
-      /** @description When the current version's latest check was stored; null before one */
-      checkedAt: string | null;
-    };
-    /** @enum {string} */
-    DeterminationOutcome: 'compliant' | 'compliant-no-issues' | 'non-compliant' | 'further-action';
-    /** @enum {string} */
-    ProposalStatus: 'proposed' | 'approved' | 'returned' | 'withdrawn';
-    /** @enum {string} */
-    ProposerKind: 'system' | 'user';
-    ReasonInput: {
-      reason: string;
-    };
-    DeterminationInput: {
-      /** @enum {string} */
-      outcome: 'compliant' | 'non-compliant' | 'further-action';
-      reasons: string;
-      furtherActionNote?: string | null;
-      furtherActionLink?: components['schemas']['FurtherActionLink'] | null;
-    };
-    FurtherActionLink: {
-      /** @enum {string} */
-      kind: 'action' | 'referral';
-      /** Format: uuid */
-      id: string;
-    };
-    Determination: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      caseId: string;
-      outcome: components['schemas']['DeterminationOutcome'];
-      reasons: string;
-      furtherActionNote: string | null;
-      /** @description The action or referral a `further-action` determination links to; null when none */
-      furtherActionLink: components['schemas']['FurtherActionLink'] | null;
-      proposerKind: components['schemas']['ProposerKind'];
-      proposer: components['schemas']['Assignee'] | null;
-      /** Format: date-time */
-      proposedAt: string;
-      status: components['schemas']['ProposalStatus'];
-      approver: components['schemas']['Assignee'] | null;
-      approvedAt: string | null;
-      /** @description The supervisor who returned it; null unless returned */
-      returnedBy: components['schemas']['Assignee'] | null;
-      returnedAt: string | null;
-      returnReason: string | null;
-      /** @description CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval */
-      reference: string | null;
-      letterAvailable: boolean;
-    };
-    LetterDownload: {
-      /** Format: uuid */
-      documentId: string;
-      verificationId: string;
-      /** @description The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service */
-      downloadUrl: string | null;
-    };
-    /** @enum {string} */
-    ApprovalKind: 'determination' | 'action' | 'referral';
-    ApprovalItem: {
-      kind: components['schemas']['ApprovalKind'];
-      /** Format: uuid */
-      subjectId: string;
-      /** Format: date-time */
-      proposedAt: string;
-      proposerKind: components['schemas']['ProposerKind'];
-      proposer: components['schemas']['Assignee'] | null;
-      /** @description Kind-specific summary (outcome and reasons excerpt; step and subject; grounds) */
-      summary: {
-        [key: string]: unknown;
-      };
-      canApprove: boolean;
-      cannotApproveReason: ('proposer' | 'reviewer-of-record' | 'role') | null;
-      reassignedTo: components['schemas']['Assignee'] | null;
-    };
-    ClosureSummary: {
-      cycleYear: number;
-      /** @description System `compliant-no-issues` proposals waiting for approval */
-      eligibleProposed: number;
-      /** @description Cases the sweep diverted to review instead of proposing their closure */
-      sampled: number;
-      approved: number;
-      /** @description Fraction of eligible cases diverted to review, e.g. 0.02 for 2% */
-      sampleRate: number;
-      /** @description When the last low-band case of the cycle and filters leaves its clarification window */
-      windowClosedAt: string | null;
-      /** @description When the closure sweep last ran for the cycle; null before the first sweep */
-      lastSweptAt: string | null;
-    };
-    BulkApprovalResult: {
-      approved: number;
-      /** @description Waiting closures of cases the caller once held, left for another supervisor */
-      skipped: number;
-      firstReference: string | null;
-      lastReference: string | null;
-      chunks: number;
-    };
-    /** @enum {string} */
-    ActionStep: 'notice-to-comply' | 'warning' | 'salary-stoppage' | 'disciplinary-referral';
-    /** @enum {string} */
-    ActionStatus:
-      | 'proposed'
-      | 'approved'
-      | 'approved-pending-payroll'
-      | 'declined'
-      | 'issued'
-      | 'responded'
-      | 'complied'
-      | 'reinstated'
-      | 'cancelled';
-    PayrollAck: {
-      instructionReference: string;
-      /** @enum {string} */
-      action: 'stop_salary' | 'resume_salary';
-      status: string;
-      payrollReference: string | null;
-      receivedAt: string | null;
-    };
-    AdministrativeAction: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      ladderId: string;
-      step: components['schemas']['ActionStep'];
-      status: components['schemas']['ActionStatus'];
-      proposerKind: components['schemas']['ProposerKind'];
-      /** @description The proposing officer; null for the system's drafts */
-      proposer: components['schemas']['Assignee'] | null;
-      /** Format: date-time */
-      proposedAt: string;
-      approver: components['schemas']['Assignee'] | null;
-      approvedAt: string | null;
-      declinedBy: components['schemas']['Assignee'] | null;
-      declinedAt: string | null;
-      declineNote: string | null;
-      /** @description When the letter was requested; the window runs from here */
-      issuedAt: string | null;
-      windowEndsAt: string | null;
-      /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
-      reference: string | null;
-      letter: {
-        /** Format: uuid */
-        documentId: string;
-        verificationId: string;
-      } | null;
-      response: {
-        text: string;
-        attachments: {
-          /** Format: uuid */
-          uploadId: string;
-          fileName: string;
-        }[];
-        /** Format: date-time */
-        submittedAt: string;
-      } | null;
-      payrollStop: components['schemas']['PayrollAck'] | null;
-      payrollResume: components['schemas']['PayrollAck'] | null;
-    };
-    Ladder: {
-      /** Format: uuid */
-      id: string;
-      /** @enum {string} */
-      subjectKind: 'obligation' | 'clarification';
-      /** Format: uuid */
-      subjectId: string;
-      subjectReference: string;
-      declarantName: string;
-      personnelFileNumber: string;
-      /** @enum {string} */
-      status: 'active' | 'complied' | 'declined' | 'ended';
-      /** @description What closed the ladder: compliance (`filed`, `clarification-responded`, `clarification-resolved`) or the subject gone (`obligation-cancelled`, `clarification-withdrawn`); null while active or declined */
-      closingCause:
-        | (
-            | 'filed'
-            | 'clarification-responded'
-            | 'clarification-resolved'
-            | 'obligation-cancelled'
-            | 'clarification-withdrawn'
-          )
-        | null;
-      currentStep: components['schemas']['ActionStep'] | null;
-      steps: components['schemas']['AdministrativeAction'][];
-      /** Format: date-time */
-      startedAt: string;
-      endedAt: string | null;
-    };
-    /** @enum {string} */
-    ReferralGrounds:
-      'undeclared-assets' | 'unexplained-assets' | 'two-missed-cycles' | 'unanswered-clarification';
-    /** @enum {string} */
-    ReferralStatus: 'proposed' | 'approved' | 'declined' | 'sent';
-    ReferralInput: {
-      /** @enum {string} */
-      grounds: 'undeclared-assets' | 'unexplained-assets';
-      narrative: string;
-      flagIds: string[];
-      clarificationIds: string[];
-    };
-    Referral: {
-      /** Format: uuid */
-      id: string;
-      /** @description The case it was proposed from (or whose clarification went unanswered) */
-      caseId: string | null;
-      /** @description The cycle it is about (the case's, or the later missed biennial cycle's) */
-      cycleYear: number;
-      grounds: components['schemas']['ReferralGrounds'];
-      proposerKind: components['schemas']['ProposerKind'];
-      proposer: components['schemas']['Assignee'] | null;
-      /** Format: date-time */
-      proposedAt: string;
-      status: components['schemas']['ReferralStatus'];
-      approver: components['schemas']['Assignee'] | null;
-      approvedAt: string | null;
-      declinedBy: components['schemas']['Assignee'] | null;
-      declinedAt: string | null;
-      declineNote: string | null;
-      /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
-      reference: string | null;
-      sources: {
-        caseIds: string[];
-        flagIds: string[];
-        clarificationIds: string[];
-        obligationIds: string[];
-        actionIds: string[];
-      };
-      narrative: string;
-      package: {
-        /** Format: uuid */
-        documentId: string;
-        verificationId: string;
-        manifest: components['schemas']['ReferralManifestItem'][];
-      } | null;
-      sentAt: string | null;
-      /** @description ICMS's case number once EACC registered the sent referral there (`referral.icms-registered.v1`, spec 09); null until then */
-      icmsCaseNumber: string | null;
-      /** @description When ICMS registered it; null until then */
-      icmsRegisteredAt: string | null;
-      declarantName: string;
-      personnelFileNumber: string;
-      /** @description `getReferral` only: what the package includes, by reference (attachments are listed in the manifest once it is assembled) */
-      evidence?: {
-        kind: components['schemas']['ReferralManifestKind'];
-        reference: string;
-      }[];
-    };
-    /** @enum {string} */
-    ReferralManifestKind:
-      | 'declaration-version'
-      | 'declaration-attachment'
-      | 'flag'
-      | 'clarification'
-      | 'clarification-attachment'
-      | 'obligation'
-      | 'letter';
-    ReferralManifestItem: {
-      kind: components['schemas']['ReferralManifestKind'];
-      reference: string;
-      /** @description SHA-256 of the item as the package includes it: canonical JSON (sorted keys) for versions' documents, flags, clarifications and obligations; the file's own hash for uploads and letters */
-      sha256: string;
-      /** @description The upload (attachments) or issued document (letters); null for records */
-      documentId: string | null;
-    };
-    /** @description What ICMS needs of a sent referral (spec 09 BE-5): its reference, grounds, Commission and narrative, and the declarant's name and national ID. Personal data: the caller passes it to ICMS and keeps it nowhere. */
-    ReferralIcmsPayload: {
-      /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
-      reference: string;
-      grounds: components['schemas']['ReferralGrounds'];
-      groundsLabel: string;
-      commission: {
-        name: string;
-        issuerCode: string;
-      };
-      declarant: {
-        name: string;
-        /** @description From the directory's roster record of the referral's case */
-        nationalId: string;
-      };
-      narrative: string;
-    };
-    ReferralPackagePayload: {
-      /**
-       * Format: uuid
-       * @description The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed
-       */
-      declarantPersonId: string;
-      reference: string;
-      grounds: components['schemas']['ReferralGrounds'];
-      groundsLabel: string;
-      cycleYear: number;
-      commission: {
-        name: string;
-        issuerCode: string;
-      };
-      declarant: {
-        name: string;
-        personnelFileNumber: string;
-      };
-      narrative: string;
-      proposedBy: string;
-      /** Format: date-time */
-      proposedAt: string;
-      approvedBy: string;
-      /** Format: date-time */
-      approvedAt: string;
-      manifest: components['schemas']['ReferralManifestItem'][];
-      versions: {
-        reference: string;
-        version: number;
-        type: components['schemas']['DeclarationType'];
-        /** Format: date */
-        statementDate: string;
-        /** Format: date-time */
-        submittedAt: string;
-        late: boolean;
-        /** @description The declaration.v1 document as submitted */
-        document: {
-          [key: string]: unknown;
+            currentVersion: number;
         };
-      }[];
-      flags: {
-        [key: string]: unknown;
-      }[];
-      clarifications: {
-        [key: string]: unknown;
-      }[];
-      obligations: {
-        cycleKey: string;
-        type: string;
-        status: string;
-        /** Format: date */
-        dueDate: string;
-        filedAt: string | null;
-      }[];
-      letters: {
-        reference: string;
-        /** Format: uuid */
-        documentId: string;
-      }[];
+        QueueSummary: {
+            byStatus: {
+                [key: string]: number;
+            };
+            byBand: {
+                [key: string]: number;
+            };
+            /** @description Every status with its cases per band (the queue's tiles break their counts down) */
+            byStatusAndBand: {
+                [key: string]: {
+                    low: number;
+                    medium: number;
+                    high: number;
+                };
+            };
+            /** @description Cases the caller holds that are not determined, per band */
+            mine: {
+                low: number;
+                medium: number;
+                high: number;
+            };
+            overdueClarifications: number;
+        };
+        ReviewerList: {
+            items: {
+                /** @description The staff member's account (token `sub`) */
+                subject: string;
+                name: string;
+                /** @description Holds the supervisor role */
+                supervisor: boolean;
+                /** @description Cases of the Commission they hold, not determined */
+                openCases: number;
+            }[];
+        };
+        /** @enum {string} */
+        CopilotStatus: "not-enabled" | "pending" | "ready" | "failed" | "stale";
+        CopilotView: {
+            status: components["schemas"]["CopilotStatus"];
+            /** @description The version the outputs shown are for (while `stale`, an earlier one); the version requested while there are none */
+            forVersionId: string | null;
+            generatedAt: string | null;
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...; `validation` also when an output breaks the task's contract), `output-purged` when a job succeeded but its output was purged before it was read, `policy` when not enabled, `rejected` / `ai-gateway-unavailable`, `declarations-unavailable` when the declaration could not be read, `key-service-unavailable` when an output could not be encrypted, or `internal-error` */
+            failureReason: string | null;
+            /** @description ai-gateway SummarizeDeclarationOutput (label, overview, changesSincePrevious, sections, worthAttention) */
+            summary: {
+                [key: string]: unknown;
+            } | null;
+            /** @description ai-gateway ExplainFlagsOutput (label, explanations) */
+            explanations: {
+                [key: string]: unknown;
+            } | null;
+            /** @description The jobs of the outputs shown, which the assignee rates */
+            jobs: {
+                summarize: string | null;
+                explain: string | null;
+            };
+            /** @description The ratings of the outputs shown (`jobs`) by the case's assignee, who rates them; read-only to the Commission's supervisors. Empty for anyone else, and while the case has no assignee */
+            feedback: {
+                /** Format: uuid */
+                jobId: string;
+                block: components["schemas"]["CopilotBlock"];
+                /** @enum {string} */
+                rating: "helpful" | "not-helpful";
+            }[];
+        };
+        CopilotDraftInput: {
+            flagIds: string[];
+            itemRefs: {
+                personKey: string | null;
+                itemId: string | null;
+                sectionKey: string | null;
+                requirement: components["schemas"]["Requirement"] | null;
+            }[];
+            language: components["schemas"]["LetterLanguage"];
+        };
+        CopilotDraft: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "pending" | "ready" | "failed";
+            jobId: string | null;
+            /** @description ai-gateway AiLabel; null until ready */
+            label: {
+                [key: string]: unknown;
+            } | null;
+            opening: string | null;
+            /** @description Empty until ready. Each item names the job that drafted it (`aiJobId`), which the composer keeps */
+            items: components["schemas"]["ClarificationItemInput"][];
+            /** @description The ai-gateway's job reason (`validation`, `budget`, `provider`, ...), `output-purged` when the job succeeded but its output was purged before it was read, or `rejected` when the gateway refused the request */
+            failureReason: string | null;
+        };
+        CommissionAiStatus: {
+            /** @description The copilot may run on the Commission's cases: the data class they are sent as is among `dataClasses` */
+            enabled: boolean;
+            /** @description The provider class the Commission's AI tasks are routed to; null when no route names a provider the ai-gateway can reach */
+            providerClass: ("external" | "self-hosted") | null;
+            /** @description The provider the Commission's AI tasks are routed to (`anthropic`...), of `providerClass`; null when `providerClass` is */
+            provider: string | null;
+            /** @description Data classes that provider class may process for the Commission */
+            dataClasses: ("synthetic" | "restricted" | "highly-confidential")[];
+        };
+        /** @description The block of an output a rating is for: a summary's `overview`, `changes`, `sections` or `worth-attention`, or an explanation's `flag:<flagId>`. Null: the output as a whole (a clarification draft). */
+        CopilotBlock: string | null;
+        CopilotFeedbackInput: {
+            block?: components["schemas"]["CopilotBlock"];
+            /** @enum {string} */
+            rating: "helpful" | "not-helpful";
+            reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
+            note: string | null;
+        };
+        Flag: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            versionId: string;
+            ruleId: components["schemas"]["RuleId"];
+            severity: components["schemas"]["Severity"];
+            title: string;
+            /** @description Plain-language indicator text; never a finding */
+            indicator: string;
+            /** @description Clear facts only (percentages, counts, dates, references); no amounts or descriptions */
+            evidence: {
+                [key: string]: string | number | boolean | null | string[];
+            };
+            itemRefs: {
+                personKey: string;
+                /** @description The item concerned, or null when the flag is about a whole category or statement */
+                itemId: string | null;
+                sectionKey: string | null;
+            }[];
+            /** @description Why the flag no longer counts toward the score and the open flags: a registry re-check no longer raised it. A reviewed flag keeps its note. Null while it counts. */
+            closedReason: "superseded-by-recheck" | null;
+            reviewed: {
+                /** Format: date-time */
+                at: string;
+                by: components["schemas"]["Assignee"];
+                note: string;
+            } | null;
+            recomputed: boolean;
+        };
+        Note: {
+            /** Format: uuid */
+            id: string;
+            author: components["schemas"]["Assignee"];
+            text: string;
+            /** Format: date-time */
+            at: string;
+        };
+        TimelineEntry: {
+            /** Format: uuid */
+            id: string;
+            kind: string;
+            actor: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            at: string;
+            summary: string;
+            ref: string | null;
+        };
+        CaseDetail: {
+            case: components["schemas"]["CaseListItem"];
+            flags: components["schemas"]["Flag"][];
+            clarifications: components["schemas"]["Clarification"][];
+            notes: components["schemas"]["Note"][];
+            timeline: components["schemas"]["TimelineEntry"][];
+            /** @description The current version's declaration.v1 document, pulled from the declarations service (null when unavailable) */
+            document: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Every version the case has processed, from the review service's own records; only the current one's document is pulled */
+            versions: {
+                /** Format: uuid */
+                versionId: string;
+                version: number;
+                /** Format: date-time */
+                submittedAt: string;
+                late: boolean;
+                /** @description The version amended an earlier one of the same declaration */
+                amendment: boolean;
+                /** @description The rules found no earlier declaration on Adili to compare the version with (`no-previous-version`), kept after an amendment replaces that flag */
+                firstOnAdili: boolean;
+            }[];
+            reviewerHistory: components["schemas"]["Assignee"][];
+            /** @description Every determination of the case, oldest first; the current one is last */
+            determinations: components["schemas"]["Determination"][];
+            registry: components["schemas"]["RegistrySummary"];
+        };
+        VersionComparison: {
+            previousVersion: number;
+            currentVersion: number;
+            statements: {
+                personKey: string;
+                personName: string;
+                matched: {
+                    /** @enum {string} */
+                    category: "income" | "assets" | "liabilities";
+                    type: string;
+                    description: string;
+                    previousCents: number;
+                    currentCents: number;
+                    deltaCents: number;
+                    /** @description Whole percent of the previous value, signed; null when the previous value was nothing */
+                    deltaPercent: number | null;
+                    /** @description Whether the declarant marked the current item as changed */
+                    flaggedByDeclarant: boolean;
+                }[];
+                onlyPrevious: {
+                    /** Format: uuid */
+                    itemId: string;
+                    /** @enum {string} */
+                    category: "income" | "assets" | "liabilities";
+                    type: string;
+                    description: string;
+                    valueCents: number;
+                    flaggedByDeclarant: boolean;
+                }[];
+                onlyCurrent: {
+                    /** Format: uuid */
+                    itemId: string;
+                    /** @enum {string} */
+                    category: "income" | "assets" | "liabilities";
+                    type: string;
+                    description: string;
+                    valueCents: number;
+                    flaggedByDeclarant: boolean;
+                }[];
+            }[];
+        };
+        ClarificationItemInput: {
+            sectionKey?: string | null;
+            personKey?: string | null;
+            itemId?: string | null;
+            /** @enum {string} */
+            requirement: "provide-omitted" | "explain-discrepancy" | "correct";
+            text: string;
+            /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled). Left out or null: written by the reviewer. */
+            aiJobId?: string | null;
+        };
+        /**
+         * @description The language of a clarification letter: English (`en`) or Swahili (`sw`). The letter's own text (heading, introduction, item labels, requirements, how to respond) is printed in it; the reviewer's text is printed as written.
+         * @enum {string}
+         */
+        LetterLanguage: "en" | "sw";
+        ClarificationInput: {
+            items: components["schemas"]["ClarificationItemInput"][];
+            /** @description The letter's opening paragraph, printed before the items (e.g. from Draft with AI). Left out or null: the letter has none. A draft's update replaces it like the items. */
+            opening?: string | null;
+            /** @description The Draft with AI job that drafted the opening paragraph, kept when the reviewer edits it. Left out or null: written by the reviewer (or no opening). */
+            openingAiJobId?: string | null;
+            /** @description The letter's language. Left out: English. A draft's update replaces it like the items; a follow-up starts in the language of the clarification it follows. */
+            language?: components["schemas"]["LetterLanguage"];
+        };
+        ClarificationResponseInput: {
+            items: {
+                index: number;
+                text: string;
+                attachments: string[];
+            }[];
+        };
+        Clarification: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            caseId: string;
+            /** @description CLR-<ISSUER>-<YEAR>-<seq>-<check>; null while draft */
+            reference: string | null;
+            status: components["schemas"]["ClarificationStatus"];
+            items: {
+                sectionKey: string | null;
+                personKey: string | null;
+                itemId: string | null;
+                requirement: components["schemas"]["Requirement"];
+                text: string;
+                /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it */
+                aiJobId: string | null;
+                /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
+                aiLanguage: components["schemas"]["LetterLanguage"] | null;
+                /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft */
+                label?: string;
+            }[];
+            issuedAt: string | null;
+            dueAt: string | null;
+            respondedAt: string | null;
+            responseLate: boolean;
+            resolvedAt: string | null;
+            resolutionNote: string | null;
+            letter: {
+                /** Format: uuid */
+                documentId: string;
+                verificationId: string;
+                /** @enum {string} */
+                status: "pending" | "issued" | "revoked";
+            } | null;
+            followUpOf: string | null;
+            /** @description The letter's opening paragraph, printed before the items; null when it has none */
+            opening: string | null;
+            /** @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer */
+            openingAiJobId: string | null;
+            /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
+            openingAiLanguage: components["schemas"]["LetterLanguage"] | null;
+            language: components["schemas"]["LetterLanguage"];
+            response: {
+                items: {
+                    index: number;
+                    text: string;
+                    attachments: {
+                        /** Format: uuid */
+                        uploadId: string;
+                        fileName: string;
+                        sha256: string;
+                    }[];
+                }[];
+                /** Format: date-time */
+                submittedAt: string;
+            } | null;
+        };
+        DeclarantClarification: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            caseId: string;
+            /** @description CLR-<ISSUER>-<YEAR>-<seq>-<check>; null while draft */
+            reference: string | null;
+            status: components["schemas"]["ClarificationStatus"];
+            items: {
+                sectionKey: string | null;
+                personKey: string | null;
+                itemId: string | null;
+                requirement: components["schemas"]["Requirement"];
+                text: string;
+                /** @description The Draft with AI job (`CopilotDraft.jobId`) that drafted the item, kept when the reviewer edits it (ADR-007: AI-assisted content stays labelled); null when the reviewer wrote it */
+                aiJobId: string | null;
+                /** @description The language the item's Draft with AI job (`aiJobId`) drafted in, recorded on save; it may differ from the letter's `language` when that changed after. Null when the reviewer wrote the item. */
+                aiLanguage: components["schemas"]["LetterLanguage"] | null;
+                /** @description Human label of the target (e.g. "Assets · Plot KSM/123 · Grace Otieno"), as the letter names it; absent while a draft */
+                label?: string;
+            }[];
+            issuedAt: string | null;
+            dueAt: string | null;
+            respondedAt: string | null;
+            responseLate: boolean;
+            resolvedAt: string | null;
+            resolutionNote: string | null;
+            letter: {
+                /** Format: uuid */
+                documentId: string;
+                verificationId: string;
+                /** @enum {string} */
+                status: "pending" | "issued" | "revoked";
+            } | null;
+            followUpOf: string | null;
+            /** @description The letter's opening paragraph, printed before the items; null when it has none */
+            opening: string | null;
+            /** @description The Draft with AI job that drafted the opening paragraph; null when written by the reviewer */
+            openingAiJobId: string | null;
+            /** @description The language the opening's Draft with AI job drafted in; it may differ from the letter's `language` when that changed after. Null when written by the reviewer. */
+            openingAiLanguage: components["schemas"]["LetterLanguage"] | null;
+            language: components["schemas"]["LetterLanguage"];
+            response: {
+                items: {
+                    index: number;
+                    text: string;
+                    attachments: {
+                        /** Format: uuid */
+                        uploadId: string;
+                        fileName: string;
+                        sha256: string;
+                    }[];
+                }[];
+                /** Format: date-time */
+                submittedAt: string;
+            } | null;
+            commission: {
+                slug: string;
+                name: string;
+            };
+            declarationReference: string;
+            letterDownloadUrl: string | null;
+        };
+        InternalClarificationDetails: {
+            /** Format: uuid */
+            clarificationId: string;
+            /** @description `CLR-...`; null for one never issued */
+            reference: string | null;
+            name: string;
+            designation: string;
+            /** @description Personnel file number, or another staff, ID or passport number */
+            identifier: string;
+            /** @description Labels of the requirement kinds asked for, e.g. "Source of income" */
+            requirementLabels: string[];
+        };
+        ClarificationLetterPayload: {
+            /**
+             * Format: uuid
+             * @description Who may download the letter: the documents service checks the issue request against it. Not printed
+             */
+            declarantPersonId: string;
+            declarantName: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarationReference: string;
+            clarificationReference: string;
+            /** @description The template prints its own text (heading, introduction, how to respond, sign-off, the AI note and the verification lines) in this language. `items[].label` and `items[].requirementLabel` already are; the opening and the items' text are the reviewer's, printed as written. Letters issued before it was recorded are `en`. */
+            language: components["schemas"]["LetterLanguage"];
+            /** @description Printed before the items; null when the letter has no opening paragraph */
+            opening: string | null;
+            /** @description Some of the letter's text (its opening or an item) was drafted with AI and approved by the reviewer who issued it (ADR-007); the letter says so. Once a save of the clarification names a Draft with AI job, it stays true, even if a later save leaves the job out. */
+            aiAssisted: boolean;
+            items: {
+                label: string;
+                requirementLabel: string;
+                text: string;
+                /** @description The item was drafted with AI (and possibly edited) before the reviewer issued it */
+                aiAssisted: boolean;
+            }[];
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            dueAt: string;
+            /** Format: uri */
+            portalUrl: string;
+        };
+        ClarificationDisclosureRequest: {
+            /** Format: uuid */
+            personId: string;
+            grantReference: string;
+            /** @enum {string} */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            declarationReferences: string[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+            recipientSubject: string;
+        };
+        ClarificationDisclosure: {
+            grantReference: string;
+            /** @description Oldest issued first; empty when none was issued or none is in the scope */
+            clarifications: components["schemas"]["DisclosedClarification"][];
+        };
+        DisclosedClarification: {
+            /** @description The declaration it was issued on */
+            declarationReference: string;
+            /** @description `CLR-...` */
+            reference: string;
+            /** @enum {string} */
+            status: "issued" | "overdue" | "responded" | "resolved";
+            /** Format: date-time */
+            issuedAt: string;
+            /** Format: date-time */
+            dueAt: string;
+            respondedAt: string | null;
+            responseLate: boolean;
+            resolvedAt: string | null;
+            items: components["schemas"]["DisclosedClarificationItem"][];
+        };
+        DisclosedClarificationItem: {
+            /** @description What the item concerns, as the letter put it */
+            label: string;
+            /** @description What Act s.35(4) required of the declarant */
+            requirementLabel: string;
+            /** @description The reviewer's request */
+            text: string;
+            /** @description The declarant's answer; null when not answered */
+            response: {
+                text: string;
+                /** @description Names of the files attached to the answer; the files are not disclosed */
+                attachmentNames: string[];
+            } | null;
+        };
+        ClarificationCountsRequest: {
+            /** Format: uuid */
+            personId: string;
+            grantReference: string;
+            /** @enum {string} */
+            legalBasis: "act-s36-1" | "act-s36-2";
+            declarationReferences: string[];
+            includeSpouses: boolean;
+            includeChildren: boolean;
+            sections: ("bio" | "income" | "assets" | "liabilities" | "other")[];
+        };
+        ClarificationCounts: {
+            /** @description One per declaration named, in the order named */
+            counts: {
+                declarationReference: string;
+                clarifications: number;
+            }[];
+        };
+        /** @enum {string} */
+        RegistrySystem: "kra" | "ntsa" | "brs" | "ardhisasa";
+        /** @enum {string} */
+        RegistryCheckStatus: "matched" | "mismatched" | "unavailable" | "not-checked" | "no-id";
+        /** @description One person's status in one registry at the case's latest registry check */
+        RegistryCheck: {
+            personKey: string;
+            system: components["schemas"]["RegistrySystem"];
+            status: components["schemas"]["RegistryCheckStatus"];
+            /** @description Why the registry is unavailable: the gateway's reason (timeout, breaker-open, paused, rate-limited, upstream-error), gateway-unavailable or gateway-rejected when the gateway gave no answer, supplier-check-unavailable when BRS answered but the employer supplier check did not, result-missing when the stored result could not be read back */
+            reason: string | null;
+            /** Format: date-time */
+            checkedAt: string;
+            /** @description The integration-gateway's stored result, from which the Registry tab pulls the records */
+            resultId: string | null;
+        };
+        /** @description The case's latest registry check, per person with an entry per registry; empty with checkedAt null before the first check (every registry not checked) */
+        RegistrySummary: {
+            checkedAt: string | null;
+            checks: components["schemas"]["RegistryCheck"][];
+            /** @description When the next manual re-check is accepted: 10 minutes after the last one asked for, which a re-check before then is refused with 429 `recheck-cooldown`; null before the first. A time in the past means one is accepted now */
+            recheckAvailableAt: string | null;
+        };
+        RegistryView: {
+            checkedAt: string | null;
+            persons: {
+                personKey: string;
+                personName: string;
+                hasNationalId: boolean;
+                systems: {
+                    system: components["schemas"]["RegistrySystem"];
+                    status: components["schemas"]["RegistryCheckStatus"];
+                    reason: string | null;
+                    checkedAt: string | null;
+                    resultId: string | null;
+                    /** @description Registry record paired with the declared item it matched, if any */
+                    rows: {
+                        /** @description The registry's record as the gateway holds it (parcel, vehicle or directorship; for KRA pinPresent, complianceStatus, validUntil and the income difference as a percentage, never an amount). For not-in-registry, the declared identifier alone. */
+                        registryRecord: {
+                            [key: string]: unknown;
+                        };
+                        declaredItemId: string | null;
+                        /** @enum {string} */
+                        relation: "matched" | "not-declared" | "not-in-registry";
+                    }[];
+                    flags: components["schemas"]["Flag"][];
+                }[];
+            }[];
+        };
+        RegistryStatus: {
+            /** @description When the current version's latest check was stored; null before one */
+            checkedAt: string | null;
+        };
+        /** @enum {string} */
+        DeterminationOutcome: "compliant" | "compliant-no-issues" | "non-compliant" | "further-action";
+        /** @enum {string} */
+        ProposalStatus: "proposed" | "approved" | "returned" | "withdrawn";
+        /** @enum {string} */
+        ProposerKind: "system" | "user";
+        ReasonInput: {
+            reason: string;
+        };
+        DeterminationInput: {
+            /** @enum {string} */
+            outcome: "compliant" | "non-compliant" | "further-action";
+            reasons: string;
+            furtherActionNote?: string | null;
+            furtherActionLink?: components["schemas"]["FurtherActionLink"] | null;
+        };
+        FurtherActionLink: {
+            /** @enum {string} */
+            kind: "action" | "referral";
+            /** Format: uuid */
+            id: string;
+        };
+        Determination: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            caseId: string;
+            outcome: components["schemas"]["DeterminationOutcome"];
+            reasons: string;
+            furtherActionNote: string | null;
+            /** @description The action or referral a `further-action` determination links to; null when none */
+            furtherActionLink: components["schemas"]["FurtherActionLink"] | null;
+            proposerKind: components["schemas"]["ProposerKind"];
+            proposer: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            proposedAt: string;
+            status: components["schemas"]["ProposalStatus"];
+            approver: components["schemas"]["Assignee"] | null;
+            approvedAt: string | null;
+            /** @description The supervisor who returned it; null unless returned */
+            returnedBy: components["schemas"]["Assignee"] | null;
+            returnedAt: string | null;
+            returnReason: string | null;
+            /** @description CMP-<ISSUER>-<YEAR>-<seq>-<check>, allocated at approval */
+            reference: string | null;
+            letterAvailable: boolean;
+        };
+        LetterDownload: {
+            /** Format: uuid */
+            documentId: string;
+            verificationId: string;
+            /** @description The declarant's portal download of their own letter (the documents owner rule); null for staff, who download the document by id from the documents service */
+            downloadUrl: string | null;
+        };
+        /** @enum {string} */
+        ApprovalKind: "determination" | "action" | "referral";
+        ApprovalItem: {
+            kind: components["schemas"]["ApprovalKind"];
+            /** Format: uuid */
+            subjectId: string;
+            /** Format: date-time */
+            proposedAt: string;
+            proposerKind: components["schemas"]["ProposerKind"];
+            proposer: components["schemas"]["Assignee"] | null;
+            /** @description Kind-specific summary (outcome and reasons excerpt; step and subject; grounds) */
+            summary: {
+                [key: string]: unknown;
+            };
+            canApprove: boolean;
+            cannotApproveReason: ("proposer" | "reviewer-of-record" | "role") | null;
+            reassignedTo: components["schemas"]["Assignee"] | null;
+        };
+        ClosureSummary: {
+            cycleYear: number;
+            /** @description System `compliant-no-issues` proposals waiting for approval */
+            eligibleProposed: number;
+            /** @description Cases the sweep diverted to review instead of proposing their closure */
+            sampled: number;
+            approved: number;
+            /** @description Fraction of eligible cases diverted to review, e.g. 0.02 for 2% */
+            sampleRate: number;
+            /** @description When the last low-band case of the cycle and filters leaves its clarification window */
+            windowClosedAt: string | null;
+            /** @description When the closure sweep last ran for the cycle; null before the first sweep */
+            lastSweptAt: string | null;
+        };
+        BulkApprovalResult: {
+            approved: number;
+            /** @description Waiting closures of cases the caller once held, left for another supervisor */
+            skipped: number;
+            firstReference: string | null;
+            lastReference: string | null;
+            chunks: number;
+        };
+        /** @enum {string} */
+        ActionStep: "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral";
+        /** @enum {string} */
+        ActionStatus: "proposed" | "approved" | "approved-pending-payroll" | "declined" | "issued" | "responded" | "complied" | "reinstated" | "cancelled";
+        PayrollAck: {
+            instructionReference: string;
+            /** @enum {string} */
+            action: "stop_salary" | "resume_salary";
+            status: string;
+            payrollReference: string | null;
+            receivedAt: string | null;
+        };
+        AdministrativeAction: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            ladderId: string;
+            step: components["schemas"]["ActionStep"];
+            status: components["schemas"]["ActionStatus"];
+            proposerKind: components["schemas"]["ProposerKind"];
+            /** @description The proposing officer; null for the system's drafts */
+            proposer: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            proposedAt: string;
+            approver: components["schemas"]["Assignee"] | null;
+            approvedAt: string | null;
+            declinedBy: components["schemas"]["Assignee"] | null;
+            declinedAt: string | null;
+            declineNote: string | null;
+            /** @description When the letter was requested; the window runs from here */
+            issuedAt: string | null;
+            windowEndsAt: string | null;
+            /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string | null;
+            letter: {
+                /** Format: uuid */
+                documentId: string;
+                verificationId: string;
+            } | null;
+            response: {
+                text: string;
+                attachments: {
+                    /** Format: uuid */
+                    uploadId: string;
+                    fileName: string;
+                }[];
+                /** Format: date-time */
+                submittedAt: string;
+            } | null;
+            payrollStop: components["schemas"]["PayrollAck"] | null;
+            payrollResume: components["schemas"]["PayrollAck"] | null;
+        };
+        Ladder: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            subjectKind: "obligation" | "clarification";
+            /** Format: uuid */
+            subjectId: string;
+            subjectReference: string;
+            declarantName: string;
+            personnelFileNumber: string;
+            /** @enum {string} */
+            status: "active" | "complied" | "declined" | "ended";
+            /** @description What closed the ladder: compliance (`filed`, `clarification-responded`, `clarification-resolved`) or the subject gone (`obligation-cancelled`, `clarification-withdrawn`); null while active or declined */
+            closingCause: ("filed" | "clarification-responded" | "clarification-resolved" | "obligation-cancelled" | "clarification-withdrawn") | null;
+            currentStep: components["schemas"]["ActionStep"] | null;
+            steps: components["schemas"]["AdministrativeAction"][];
+            /** Format: date-time */
+            startedAt: string;
+            endedAt: string | null;
+        };
+        /** @enum {string} */
+        ReferralGrounds: "undeclared-assets" | "unexplained-assets" | "two-missed-cycles" | "unanswered-clarification";
+        /** @enum {string} */
+        ReferralStatus: "proposed" | "approved" | "declined" | "sent";
+        ReferralInput: {
+            /** @enum {string} */
+            grounds: "undeclared-assets" | "unexplained-assets";
+            narrative: string;
+            flagIds: string[];
+            clarificationIds: string[];
+        };
+        Referral: {
+            /** Format: uuid */
+            id: string;
+            /** @description The case it was proposed from (or whose clarification went unanswered) */
+            caseId: string | null;
+            /** @description The cycle it is about (the case's, or the later missed biennial cycle's) */
+            cycleYear: number;
+            grounds: components["schemas"]["ReferralGrounds"];
+            proposerKind: components["schemas"]["ProposerKind"];
+            proposer: components["schemas"]["Assignee"] | null;
+            /** Format: date-time */
+            proposedAt: string;
+            status: components["schemas"]["ReferralStatus"];
+            approver: components["schemas"]["Assignee"] | null;
+            approvedAt: string | null;
+            declinedBy: components["schemas"]["Assignee"] | null;
+            declinedAt: string | null;
+            declineNote: string | null;
+            /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string | null;
+            sources: {
+                caseIds: string[];
+                flagIds: string[];
+                clarificationIds: string[];
+                obligationIds: string[];
+                actionIds: string[];
+            };
+            narrative: string;
+            package: {
+                /** Format: uuid */
+                documentId: string;
+                verificationId: string;
+                manifest: components["schemas"]["ReferralManifestItem"][];
+            } | null;
+            sentAt: string | null;
+            /** @description ICMS's case number once EACC registered the sent referral there (`referral.icms-registered.v1`, spec 09); null until then */
+            icmsCaseNumber: string | null;
+            /** @description When ICMS registered it; null until then */
+            icmsRegisteredAt: string | null;
+            declarantName: string;
+            personnelFileNumber: string;
+            /** @description `getReferral` only: what the package includes, by reference (attachments are listed in the manifest once it is assembled) */
+            evidence?: {
+                kind: components["schemas"]["ReferralManifestKind"];
+                reference: string;
+            }[];
+        };
+        /** @enum {string} */
+        ReferralManifestKind: "declaration-version" | "declaration-attachment" | "flag" | "clarification" | "clarification-attachment" | "obligation" | "letter";
+        ReferralManifestItem: {
+            kind: components["schemas"]["ReferralManifestKind"];
+            reference: string;
+            /** @description SHA-256 of the item as the package includes it: canonical JSON (sorted keys) for versions' documents, flags, clarifications and obligations; the file's own hash for uploads and letters */
+            sha256: string;
+            /** @description The upload (attachments) or issued document (letters); null for records */
+            documentId: string | null;
+        };
+        /** @description What ICMS needs of a sent referral (spec 09 BE-5): its reference, grounds, Commission and narrative, and the declarant's name and national ID. Personal data: the caller passes it to ICMS and keeps it nowhere. */
+        ReferralIcmsPayload: {
+            /** @description RFL-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                /** @description From the directory's roster record of the referral's case */
+                nationalId: string;
+            };
+            narrative: string;
+        };
+        ReferralPackagePayload: {
+            /**
+             * Format: uuid
+             * @description The officer referred, who must never download the package: the documents service keeps it from them (an EACC officer is referred by EACC as their Commission). Not printed
+             */
+            declarantPersonId: string;
+            reference: string;
+            grounds: components["schemas"]["ReferralGrounds"];
+            groundsLabel: string;
+            cycleYear: number;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarant: {
+                name: string;
+                personnelFileNumber: string;
+            };
+            narrative: string;
+            proposedBy: string;
+            /** Format: date-time */
+            proposedAt: string;
+            approvedBy: string;
+            /** Format: date-time */
+            approvedAt: string;
+            manifest: components["schemas"]["ReferralManifestItem"][];
+            versions: {
+                reference: string;
+                version: number;
+                type: components["schemas"]["DeclarationType"];
+                /** Format: date */
+                statementDate: string;
+                /** Format: date-time */
+                submittedAt: string;
+                late: boolean;
+                /** @description The declaration.v1 document as submitted */
+                document: {
+                    [key: string]: unknown;
+                };
+            }[];
+            flags: {
+                [key: string]: unknown;
+            }[];
+            clarifications: {
+                [key: string]: unknown;
+            }[];
+            obligations: {
+                cycleKey: string;
+                type: string;
+                status: string;
+                /** Format: date */
+                dueDate: string;
+                filedAt: string | null;
+            }[];
+            letters: {
+                reference: string;
+                /** Format: uuid */
+                documentId: string;
+            }[];
+        };
+        ApprovalReassignment: {
+            kind: components["schemas"]["ApprovalKind"];
+            /** Format: uuid */
+            subjectId: string;
+            reassignedTo: components["schemas"]["Assignee"];
+        };
+        DeterminationLetterPayload: {
+            /**
+             * Format: uuid
+             * @description Who may download the letter: the documents service checks the issue request against it. Not printed
+             */
+            declarantPersonId: string;
+            declarantName: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            declarationReference: string;
+            determinationReference: string;
+            outcome: components["schemas"]["DeterminationOutcome"];
+            outcomeLabel: string;
+            reasons: string;
+            /** Format: date-time */
+            decidedAt: string;
+            /** Format: uri */
+            portalUrl: string;
+        };
+        ActionLetterPayload: {
+            /** @description Who may download the letter: the documents service checks the issue request against it; null for an officer who never onboarded. Not printed */
+            declarantPersonId: string | null;
+            declarantName: string;
+            personnelFileNumber: string;
+            commission: {
+                name: string;
+                issuerCode: string;
+            };
+            /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
+            reference: string;
+            step: components["schemas"]["ActionStep"];
+            stepLabel: string;
+            /** @enum {string} */
+            subjectKind: "obligation" | "clarification";
+            /** @description The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference */
+            subjectReference: string;
+            /** @enum {string} */
+            whatToDo: "file-declaration" | "respond-to-clarification";
+            /** Format: date-time */
+            issuedAt: string;
+            /** @description By when to act; null for the disciplinary referral, which sets no deadline */
+            actBy: string | null;
+            /** @description The salary stoppage's effective date (payroll stops the salary from this day); null for other steps */
+            salaryStoppedFrom: string | null;
+            /** Format: uri */
+            respondUrl: string;
+        };
+        DeclarantDecision: {
+            /** Format: uuid */
+            determinationId: string;
+            declarationReference: string;
+            commission: {
+                slug: string;
+                name: string;
+            };
+            outcome: components["schemas"]["DeterminationOutcome"];
+            /** Format: date-time */
+            decidedAt: string;
+            reference: string;
+            letterAvailable: boolean;
+        };
+        DeclarantNotice: {
+            /** Format: uuid */
+            actionId: string;
+            commission: {
+                slug: string;
+                name: string;
+            };
+            step: components["schemas"]["ActionStep"];
+            status: components["schemas"]["ActionStatus"];
+            /** Format: date-time */
+            issuedAt: string;
+            actBy: string | null;
+            /** @enum {string} */
+            whatToDo: "file-declaration" | "respond-to-clarification";
+            reference: string;
+            letterDownloadUrl: string | null;
+            response: {
+                text: string;
+                attachments: {
+                    /** Format: uuid */
+                    uploadId: string;
+                    fileName: string;
+                }[];
+                /** Format: date-time */
+                submittedAt: string;
+            } | null;
+            salaryStoppedAt: string | null;
+            salaryReinstatedAt: string | null;
+        };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
+        };
     };
-    ApprovalReassignment: {
-      kind: components['schemas']['ApprovalKind'];
-      /** Format: uuid */
-      subjectId: string;
-      reassignedTo: components['schemas']['Assignee'];
-    };
-    DeterminationLetterPayload: {
-      /**
-       * Format: uuid
-       * @description Who may download the letter: the documents service checks the issue request against it. Not printed
-       */
-      declarantPersonId: string;
-      declarantName: string;
-      commission: {
-        name: string;
-        issuerCode: string;
-      };
-      declarationReference: string;
-      determinationReference: string;
-      outcome: components['schemas']['DeterminationOutcome'];
-      outcomeLabel: string;
-      reasons: string;
-      /** Format: date-time */
-      decidedAt: string;
-      /** Format: uri */
-      portalUrl: string;
-    };
-    ActionLetterPayload: {
-      /** @description Who may download the letter: the documents service checks the issue request against it; null for an officer who never onboarded. Not printed */
-      declarantPersonId: string | null;
-      declarantName: string;
-      personnelFileNumber: string;
-      commission: {
-        name: string;
-        issuerCode: string;
-      };
-      /** @description ADM-<ISSUER>-<YEAR>-<seq>-<check> */
-      reference: string;
-      step: components['schemas']['ActionStep'];
-      stepLabel: string;
-      /** @enum {string} */
-      subjectKind: 'obligation' | 'clarification';
-      /** @description The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference */
-      subjectReference: string;
-      /** @enum {string} */
-      whatToDo: 'file-declaration' | 'respond-to-clarification';
-      /** Format: date-time */
-      issuedAt: string;
-      /** @description By when to act; null for the disciplinary referral, which sets no deadline */
-      actBy: string | null;
-      /** @description The salary stoppage's effective date (payroll stops the salary from this day); null for other steps */
-      salaryStoppedFrom: string | null;
-      /** Format: uri */
-      respondUrl: string;
-    };
-    DeclarantDecision: {
-      /** Format: uuid */
-      determinationId: string;
-      declarationReference: string;
-      commission: {
-        slug: string;
-        name: string;
-      };
-      outcome: components['schemas']['DeterminationOutcome'];
-      /** Format: date-time */
-      decidedAt: string;
-      reference: string;
-      letterAvailable: boolean;
-    };
-    DeclarantNotice: {
-      /** Format: uuid */
-      actionId: string;
-      commission: {
-        slug: string;
-        name: string;
-      };
-      step: components['schemas']['ActionStep'];
-      status: components['schemas']['ActionStatus'];
-      /** Format: date-time */
-      issuedAt: string;
-      actBy: string | null;
-      /** @enum {string} */
-      whatToDo: 'file-declaration' | 'respond-to-clarification';
-      reference: string;
-      letterDownloadUrl: string | null;
-      response: {
-        text: string;
-        attachments: {
-          /** Format: uuid */
-          uploadId: string;
-          fileName: string;
-        }[];
-        /** Format: date-time */
-        submittedAt: string;
-      } | null;
-      salaryStoppedAt: string | null;
-      salaryReinstatedAt: string | null;
-    };
-    ProblemDetails: {
-      type: string;
-      title: string;
-      status: number;
-      /**
-       * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
-       * @enum {string}
-       */
-      code?:
-        | 'database-unavailable'
-        | 'rate-limit-exceeded'
-        | 'no-match'
-        | 'already-onboarded'
-        | 'no-roster'
-        | 'otp-invalid'
-        | 'otp-expired'
-        | 'resend-cooldown'
-        | 'otp-send-failed'
-        | 'wrong-step'
-        | 'session-expired'
-        | 'iprs-unavailable'
-        | 'identity-unavailable'
-        | 'email-in-use'
-        | 'identity-mismatch'
-        | 'step-up-required'
-        | 'incomplete'
-        | 'before-statement-date'
-        | 'amendment-window-closed'
-        | 'not-a-draft'
-        | 'not-submitted'
-        | 'obligation-cancelled'
-        | 'acknowledgement-issued'
-        | 'acknowledgement-in-progress'
-        | 'consent-required'
-        | 'no-id'
-        | 'not-new'
-        | 'no-applicant-record'
-        | 'request-decided'
-        | 'request-closed'
-        | 'officer-resolved'
-        | 'not-under-decision'
-        | 'not-pending-verification'
-        | 'lea-account-inactive'
-        | 'declarant-notified'
-        | 'representations-closed'
-        | 'download-window-closed'
-        | 'scope-exceeds-request'
-        | 'grounds-required';
-      detail?: string;
-      instance?: string;
-      /** @description Field-level errors; `path` is the dotted request field */
-      errors?: {
-        path: string;
-        message: string;
-      }[];
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  listReviewQueue: {
-    parameters: {
-      query?: {
-        status?:
-          | 'unassigned'
-          | 'assigned'
-          | 'awaiting-clarification'
-          | 'clarified'
-          | 'ready-for-determination'
-          | 'sample-review'
-          | 'further-action'
-          | 'determined';
-        band?: 'low' | 'medium' | 'high';
-        type?: 'initial' | 'biennial' | 'final';
-        /** @description The statement date's year */
-        cycle?: number;
-        /** @description `mine`, `unassigned`, `any` (the default), or a subject id */
-        assignee?: string;
-        /** @description `nextCursor` of the previous page; omit for the first page */
-        cursor?: string;
-        /** @description Only cases filed late, or only those filed on time */
-        late?: 'true' | 'false';
-        /** @description Only cases with an open clarification, or only those without */
-        openClarification?: 'true' | 'false';
-        /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
-        registryUnavailable?: 'true' | 'false';
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Page */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['CaseListItem'][];
-            nextCursor: string | null;
-          };
-        };
-      };
-      /** @description Query failed validation (a `search` included), or the cursor is unknown */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  searchReviewQueue: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @enum {string} */
-          status?:
-            | 'unassigned'
-            | 'assigned'
-            | 'awaiting-clarification'
-            | 'clarified'
-            | 'ready-for-determination'
-            | 'sample-review'
-            | 'further-action'
-            | 'determined';
-          /** @enum {string} */
-          band?: 'low' | 'medium' | 'high';
-          /** @enum {string} */
-          type?: 'initial' | 'biennial' | 'final';
-          /** @description The statement date's year */
-          cycle?: number;
-          /** @description `mine`, `unassigned`, `any` (the default), or a subject id */
-          assignee?: string;
-          /** @description `nextCursor` of the previous page; omit for the first page */
-          cursor?: string;
-          /** @description Only cases filed late, or only those filed on time */
-          late?: boolean;
-          /** @description Only cases with an open clarification, or only those without */
-          openClarification?: boolean;
-          /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
-          registryUnavailable?: boolean;
-          /** @description A reference or personnel file number or their beginning, or part of a name (case-insensitive) */
-          search?: string;
-          /** @default 50 */
-          limit?: number;
-        };
-      };
-    };
-    responses: {
-      /** @description Page */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['CaseListItem'][];
-            nextCursor: string | null;
-          };
-        };
-      };
-      /** @description Body failed validation, or the cursor is unknown */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getReviewQueueSummary: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Summary */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['QueueSummary'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  listCommissionReviewers: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Reviewers */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ReviewerList'];
-        };
-      };
-      /** @description Problem type `supervisor-required` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Directory unavailable */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  compareCaseVersions: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Comparison */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['VersionComparison'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description No previous version to compare with */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Declarations service unavailable */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getReviewCase: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Case detail */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CaseDetail'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Declarations unavailable: the problem carries the case detail with a null document */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getCaseAttachmentDownload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-        uploadId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Link */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            /** Format: uri */
-            downloadUrl: string;
-            /** Format: date-time */
-            expiresAt: string;
-          };
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Declarations or documents unavailable */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  claimCase: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Assigned */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CaseListItem'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem type `case-already-assigned`: another officer holds it */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  releaseCase: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Unassigned */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CaseListItem'];
-        };
-      };
-      /** @description The caller does not hold the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  reassignCase: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          /** @description Subject of a reviewer or supervisor of the Commission; null unassigns */
-          assignee: string | null;
-        };
-      };
-    };
-    responses: {
-      /** @description Updated */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CaseListItem'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The caller is not a supervisor */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  addCaseNote: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          text: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Note */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Note'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  markFlagReviewed: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-        flagId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          note: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Flag */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Flag'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem type `flag-already-reviewed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  createClarificationDraft: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ClarificationInput'];
-      };
-    };
-    responses: {
-      /** @description Draft */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getClarification: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Clarification */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  updateClarificationDraft: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ClarificationInput'];
-      };
-    };
-    responses: {
-      /** @description Draft */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-a-draft` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getClarificationLetterDownload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Link valid for five minutes */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            /** Format: uri */
-            downloadUrl: string;
-            /** Format: date-time */
-            expiresAt: string;
-          };
-        };
-      };
-      /** @description Not found, or not visible to the caller, or its letter is not issued yet */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Documents unavailable */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  issueClarification: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Issued */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Problem code `clarification-has-no-items` */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `clarification-window-closed` or `not-a-draft` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The declaration could not be read; nothing is issued */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached; nothing changed */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  resolveClarification: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          note: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Resolved */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `clarification-not-responded` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  createFollowUpClarification: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Draft with followUpOf set */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-followable` (a draft or a withdrawn clarification) */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  withdrawClarification: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          reason: string;
-        };
-      };
-    };
-    responses: {
-      /** @description Withdrawn */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Clarification'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `clarification-not-open` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The documents service could not revoke the letter; nothing changed */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getMyClarifications: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description List */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarantClarification'][];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getMyClarification: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Clarification */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarantClarification'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  respondToClarification: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ClarificationResponseInput'];
-      };
-    };
-    responses: {
-      /** @description Responded */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarantClarification'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `already-responded`, `clarification-closed`, `attachment-not-clean` or `attachment-not-accepted` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The documents service could not check the attachments */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalGetClarificationLetterPayload: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-      };
-      path: {
-        clarificationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Payload */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ClarificationLetterPayload'];
-        };
-      };
-      /** @description X-Acting-Tenant is missing or not a tenant key */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:internal */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description No issued clarification with this id at the acting Commission */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalClarificationDetails: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': {
-          clarificationIds: string[];
-        };
-      };
-    };
-    responses: {
-      /** @description The clarifications, one per known id */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['InternalClarificationDetails'][];
-          };
-        };
-      };
-      /** @description Body failed validation: no ids, more than 1,000, or one not a UUID */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:internal */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalDiscloseClarifications: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-        /** @description The access officer who decided the grant; recorded in the audit event */
-        'X-Acting-Subject': string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ClarificationDisclosureRequest'];
-      };
-    };
-    responses: {
-      /** @description The clarifications in the granted scope, oldest issued first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ClarificationDisclosure'];
-        };
-      };
-      /** @description Body failed validation, a legal basis that does not go with the grant reference, or no X-Acting-Subject */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:disclosures */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalCountClarificationDisclosure: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-        /** @description The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts */
-        'X-Acting-Subject': string;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ClarificationCountsRequest'];
-      };
-    };
-    responses: {
-      /** @description Per declaration named, the clarifications in the scope */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ClarificationCounts'];
-        };
-      };
-      /** @description Body failed validation, a legal basis that does not go with the request reference, or no X-Acting-Subject */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:disclosures */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  proposeDetermination: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['DeterminationInput'];
-      };
-    };
-    responses: {
-      /** @description Proposed */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Determination'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-the-assignee` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `determination-open`: one is already proposed or approved; `clarification-open`: a clarification of the case is still open */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getDetermination: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        determinationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Determination */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Determination'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getDeterminationLetter: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        determinationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Download link */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['LetterDownload'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-approved` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The documents service refused the letter */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The documents service could not be reached */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  approveDetermination: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        determinationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Approved */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Determination'];
-        };
-      };
-      /** @description Problem code `separation-of-duties` (the caller proposed it or held the case) or `supervisor-required` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached; nothing changed */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  returnDetermination: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        determinationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReasonInput'];
-      };
-    };
-    responses: {
-      /** @description Returned */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Determination'];
-        };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `separation-of-duties` (the caller proposed it or held the case) or `supervisor-required` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  withdrawDetermination: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        determinationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Withdrawn */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['Determination'];
-        };
-      };
-      /** @description Problem code `not-the-proposer` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  getMyDecisions: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description List */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeclarantDecision'][];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  internalGetDeterminationLetterPayload: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-      };
-      path: {
-        determinationId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Payload */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DeterminationLetterPayload'];
-        };
-      };
-      /** @description X-Acting-Tenant is missing or not a tenant key */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:internal */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description No approved determination with this id at the acting Commission */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-    };
-  };
-  listApprovals: {
-    parameters: {
-      query?: {
-        kind?: 'determination' | 'action' | 'referral';
-        /** @description `nextCursor` of the previous page; omit for the first page */
-        cursor?: string;
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Page */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            items: components['schemas']['ApprovalItem'][];
-            nextCursor: string | null;
-            counts: {
-              [key: string]: number;
+    listReviewQueue: {
+        parameters: {
+            query?: {
+                status?: "unassigned" | "assigned" | "awaiting-clarification" | "clarified" | "ready-for-determination" | "sample-review" | "further-action" | "determined";
+                band?: "low" | "medium" | "high";
+                type?: "initial" | "biennial" | "final";
+                /** @description The statement date's year */
+                cycle?: number;
+                /** @description `mine`, `unassigned`, `any` (the default), or a subject id */
+                assignee?: string;
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                /** @description Only cases filed late, or only those filed on time */
+                late?: "true" | "false";
+                /** @description Only cases with an open clarification, or only those without */
+                openClarification?: "true" | "false";
+                /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
+                registryUnavailable?: "true" | "false";
+                limit?: number;
             };
-          };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-      };
-      /** @description Query failed validation, or the cursor is unknown */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CaseListItem"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description Query failed validation (a `search` included), or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `supervisor-required`: approvals are for supervisors */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  reassignApproval: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        subjectId: string;
-        kind: 'determination' | 'action' | 'referral';
-      };
-      cookie?: never;
+    searchReviewQueue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status?: "unassigned" | "assigned" | "awaiting-clarification" | "clarified" | "ready-for-determination" | "sample-review" | "further-action" | "determined";
+                    /** @enum {string} */
+                    band?: "low" | "medium" | "high";
+                    /** @enum {string} */
+                    type?: "initial" | "biennial" | "final";
+                    /** @description The statement date's year */
+                    cycle?: number;
+                    /** @description `mine`, `unassigned`, `any` (the default), or a subject id */
+                    assignee?: string;
+                    /** @description `nextCursor` of the previous page; omit for the first page */
+                    cursor?: string;
+                    /** @description Only cases filed late, or only those filed on time */
+                    late?: boolean;
+                    /** @description Only cases with an open clarification, or only those without */
+                    openClarification?: boolean;
+                    /** @description Only cases where a registry could not be checked at the latest registry check, or only the others */
+                    registryUnavailable?: boolean;
+                    /** @description A reference or personnel file number or their beginning, or part of a name (case-insensitive) */
+                    search?: string;
+                    /** @default 50 */
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["CaseListItem"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description Body failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          toSupervisor: string;
+    getReviewQueueSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueueSummary"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Reassigned */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    listCommissionReviewers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['ApprovalReassignment'];
+        requestBody?: never;
+        responses: {
+            /** @description Reviewers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewerList"];
+                };
+            };
+            /** @description Problem type `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Directory unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `supervisor-required`: approvals are for supervisors */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  listEnforcementLadders: {
-    parameters: {
-      query?: {
-        status?:
-          | 'proposed'
-          | 'approved'
-          | 'approved-pending-payroll'
-          | 'declined'
-          | 'issued'
-          | 'responded'
-          | 'complied'
-          | 'reinstated'
-          | 'cancelled';
-        step?: 'notice-to-comply' | 'warning' | 'salary-stoppage' | 'disciplinary-referral';
-        /** @description `nextCursor` of the previous page; omit for the first page */
-        cursor?: string;
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
+    compareCaseVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comparison */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionComparison"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No previous version to compare with */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Page */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getReviewCase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': {
-            items: components['schemas']['Ladder'][];
-            nextCursor: string | null;
-          };
+        requestBody?: never;
+        responses: {
+            /** @description Case detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations unavailable: the problem carries the case detail with a null document */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Query failed validation, or the cursor is unknown */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getLadder: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        ladderId: string;
-      };
-      cookie?: never;
+    getCaseAttachmentDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+                uploadId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        downloadUrl: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations or documents unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Ladder */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    claimCase: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Ladder'];
+        requestBody?: never;
+        responses: {
+            /** @description Assigned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseListItem"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `case-already-assigned`: another officer holds it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  approveAction: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        actionId: string;
-      };
-      cookie?: never;
+    releaseCase: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unassigned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseListItem"];
+                };
+            };
+            /** @description The caller does not hold the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Approved (issuance and payroll follow) */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    reassignCase: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['AdministrativeAction'];
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Subject of a reviewer or supervisor of the Commission; null unassigns */
+                    assignee: string | null;
+                };
+            };
         };
-      };
-      /** @description Problem code `separation-of-duties` (the caller held the case) or `supervisor-required` (a later step, or not review staff) */
-      403: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseListItem"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The caller is not a supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached; nothing changed */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  declineAction: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        actionId: string;
-      };
-      cookie?: never;
+    addCaseNote: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    text: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Note */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Note"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReasonInput'];
-      };
+    markFlagReviewed: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+                flagId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Flag */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Flag"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `flag-already-reviewed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Declined */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    createClarificationDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['AdministrativeAction'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationInput"];
+            };
         };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Draft */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `separation-of-duties` (the caller held the case) or `supervisor-required` (a later step, or not review staff) */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  restartLadder: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        ladderId: string;
-      };
-      cookie?: never;
+    getClarification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clarification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Restarted */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    updateClarificationDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Ladder'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationInput"];
+            };
         };
-      };
-      /** @description Problem code `supervisor-required` */
-      403: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Body failed validation, or problem type `ai-draft-not-on-case`: an `aiJobId` or `openingAiJobId` the clarification does not already name that names no ready Draft with AI the caller asked for on the case (one whose 24 hours are over still counts: only its text is purged) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-a-draft` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `ladder-not-declined` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getMyNotices: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    getClarificationLetterDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link valid for five minutes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        downloadUrl: string;
+                        /** Format: date-time */
+                        expiresAt: string;
+                    };
+                };
+            };
+            /** @description Not found, or not visible to the caller, or its letter is not issued yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description List */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    issueClarification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['DeclarantNotice'][];
+        requestBody?: never;
+        responses: {
+            /** @description Issued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Problem code `clarification-has-no-items` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `clarification-window-closed` or `not-a-draft` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declaration could not be read; nothing is issued */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached; nothing changed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  respondToNotice: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        actionId: string;
-      };
-      cookie?: never;
+    resolveClarification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Resolved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `clarification-not-responded` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': {
-          text: string;
-          attachments: string[];
+    createFollowUpClarification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
         };
-      };
+        requestBody?: never;
+        responses: {
+            /** @description Draft with followUpOf set */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-followable` (a draft or a withdrawn clarification) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Responded */
-      201: {
-        headers: {
-          [name: string]: unknown;
+    withdrawClarification: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['DeclarantNotice'];
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
         };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Withdrawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Clarification"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `clarification-not-open` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not revoke the letter; nothing changed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `already-responded`, `notice-closed`, `attachment-not-clean` or `attachment-not-accepted` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The documents service could not check the attachments */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  internalGetActionLetterPayload: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-      };
-      path: {
-        actionId: string;
-      };
-      cookie?: never;
+    getMyClarifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantClarification"][];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Payload */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getMyClarification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['ActionLetterPayload'];
+        requestBody?: never;
+        responses: {
+            /** @description Clarification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantClarification"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description X-Acting-Tenant is missing or not a tenant key */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:internal */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description No approved step with this id at the acting Commission */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  proposeReferral: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    respondToClarification: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationResponseInput"];
+            };
+        };
+        responses: {
+            /** @description Responded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantClarification"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `already-responded`, `clarification-closed`, `attachment-not-clean` or `attachment-not-accepted` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not check the attachments */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReferralInput'];
-      };
+    internalGetClarificationLetterPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                clarificationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationLetterPayload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No issued clarification with this id at the acting Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Proposed */
-      201: {
-        headers: {
-          [name: string]: unknown;
+    internalClarificationDetails: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Referral'];
+        requestBody: {
+            content: {
+                "application/json": {
+                    clarificationIds: string[];
+                };
+            };
         };
-      };
-      /** @description Body failed validation, or a flag is not a registry or comparison flag of the case, or a clarification not an issued one of the case */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description The clarifications, one per known id */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["InternalClarificationDetails"][];
+                    };
+                };
+            };
+            /** @description Body failed validation: no ids, more than 1,000, or one not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-the-assignee` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `referral-open`: one from this case waits for approval */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  listReferrals: {
-    parameters: {
-      query?: {
-        status?: 'proposed' | 'approved' | 'declined' | 'sent';
-        /** @description `nextCursor` of the previous page; omit for the first page */
-        cursor?: string;
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
+    internalDiscloseClarifications: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer who decided the grant; recorded in the audit event */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationDisclosureRequest"];
+            };
+        };
+        responses: {
+            /** @description The clarifications in the granted scope, oldest issued first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationDisclosure"];
+                };
+            };
+            /** @description Body failed validation, a legal basis that does not go with the grant reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:disclosures */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Page, newest proposal first */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    internalCountClarificationDisclosure: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+                /** @description The access officer (or supervisor) weighing the scope before the decision; recorded in the audit event as the actor and the recipient of the counts */
+                "X-Acting-Subject": string;
+            };
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': {
-            items: components['schemas']['Referral'][];
-            nextCursor: string | null;
-          };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClarificationCountsRequest"];
+            };
         };
-      };
-      /** @description Query failed validation, or the cursor is unknown */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Per declaration named, the clarifications in the scope */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClarificationCounts"];
+                };
+            };
+            /** @description Body failed validation, a legal basis that does not go with the request reference, or no X-Acting-Subject */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:disclosures */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getReferral: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        referralId: string;
-      };
-      cookie?: never;
+    proposeDetermination: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeterminationInput"];
+            };
+        };
+        responses: {
+            /** @description Proposed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Determination"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-the-assignee` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `determination-open`: one is already proposed or approved; `clarification-open`: a clarification of the case is still open */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Referral */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getDetermination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                determinationId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Referral'];
+        requestBody?: never;
+        responses: {
+            /** @description Determination */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Determination"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  approveReferral: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        referralId: string;
-      };
-      cookie?: never;
+    getDeterminationLetter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                determinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Download link */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LetterDownload"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-approved` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused the letter */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Approved; the package is assembled and the referral sent in the background */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    approveDetermination: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                determinationId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Referral'];
+        requestBody?: never;
+        responses: {
+            /** @description Approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Determination"];
+                };
+            };
+            /** @description Problem code `separation-of-duties` (the caller proposed it or held the case) or `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached; nothing changed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Problem code `separation-of-duties` (the caller proposed it or held one of its cases) or `supervisor-required` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached; nothing changed */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  declineReferral: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        referralId: string;
-      };
-      cookie?: never;
+    returnDetermination: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                determinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonInput"];
+            };
+        };
+        responses: {
+            /** @description Returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Determination"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `separation-of-duties` (the caller proposed it or held the case) or `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ReasonInput'];
-      };
+    withdrawDetermination: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                determinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Determination"];
+                };
+            };
+            /** @description Problem code `not-the-proposer` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Declined */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getMyDecisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['Referral'];
+        requestBody?: never;
+        responses: {
+            /** @description List */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantDecision"][];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Body failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `separation-of-duties` (the caller proposed it or held one of its cases) or `supervisor-required` */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `not-proposed` */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  internalGetReferralPackagePayload: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-      };
-      path: {
-        referralId: string;
-      };
-      cookie?: never;
+    internalGetDeterminationLetterPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                determinationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeterminationLetterPayload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No approved determination with this id at the acting Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Payload */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    listApprovals: {
+        parameters: {
+            query?: {
+                kind?: "determination" | "action" | "referral";
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['ReferralPackagePayload'];
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ApprovalItem"][];
+                        nextCursor: string | null;
+                        counts: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+            };
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `supervisor-required`: approvals are for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description X-Acting-Tenant is missing or not a tenant key */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:internal */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description No approved referral with a manifest with this id at the acting Commission */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The evidence could not be read from declarations or documents */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  internalGetReferralIcmsPayload: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description The officer on whose behalf the service reads it; recorded in the audit event */
-        'X-Acting-Subject'?: string;
-        /** @description Tenant the calling service acts for; the resource must belong to it */
-        'X-Acting-Tenant': string;
-      };
-      path: {
-        referralId: string;
-      };
-      cookie?: never;
+    reassignApproval: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                subjectId: string;
+                kind: "determination" | "action" | "referral";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    toSupervisor: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Reassigned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalReassignment"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `supervisor-required`: approvals are for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Payload */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    listEnforcementLadders: {
+        parameters: {
+            query?: {
+                status?: "proposed" | "approved" | "approved-pending-payroll" | "declined" | "issued" | "responded" | "complied" | "reinstated" | "cancelled";
+                step?: "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral";
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['ReferralIcmsPayload'];
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Ladder"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description X-Acting-Tenant is missing or not a tenant key */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Requires a service token with scope review:internal */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description No sent referral with this id at the acting Commission */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `roster-record-unknown`: no roster record of the declarant is known, so the national ID cannot be read */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getBulkClosureSummary: {
-    parameters: {
-      query: {
-        cycleYear: number;
-        type?: 'initial' | 'biennial' | 'final';
-        reportingEntityId?: string;
-      };
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
+    getLadder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ladderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ladder */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ladder"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Summary */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    approveAction: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                actionId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['ClosureSummary'];
+        requestBody?: never;
+        responses: {
+            /** @description Approved (issuance and payroll follow) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrativeAction"];
+                };
+            };
+            /** @description Problem code `separation-of-duties` (the caller held the case) or `supervisor-required` (a later step, or not review staff) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached; nothing changed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Query failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `supervisor-required`: bulk closure is for supervisors */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  approveBulkClosures: {
-    parameters: {
-      query: {
-        cycleYear: number;
-        type?: 'initial' | 'biennial' | 'final';
-        reportingEntityId?: string;
-      };
-      header: {
-        'idempotency-key': string;
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        slug: string;
-      };
-      cookie?: never;
+    declineAction: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                actionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonInput"];
+            };
+        };
+        responses: {
+            /** @description Declined */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdministrativeAction"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `separation-of-duties` (the caller held the case) or `supervisor-required` (a later step, or not review staff) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Result */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    restartLadder: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                ladderId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['BulkApprovalResult'];
+        requestBody?: never;
+        responses: {
+            /** @description Restarted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ladder"];
+                };
+            };
+            /** @description Problem code `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `ladder-not-declined` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Query failed validation */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem code `supervisor-required`: bulk closure is for supervisors */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The Commission directory could not be reached; nothing changed */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getCaseCopilot: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    getMyNotices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantNotice"][];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Copilot view */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    respondToNotice: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                actionId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['CopilotView'];
+        requestBody: {
+            content: {
+                "application/json": {
+                    text: string;
+                    attachments: string[];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Responded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeclarantNotice"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `already-responded`, `notice-closed`, `attachment-not-clean` or `attachment-not-accepted` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service could not check the attachments */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  refreshCaseCopilot: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    internalGetActionLetterPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                actionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionLetterPayload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No approved step with this id at the acting Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Requested */
-      202: {
-        headers: {
-          [name: string]: unknown;
+    proposeReferral: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['CopilotView'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReferralInput"];
+            };
         };
-      };
-      /** @description The caller is neither the assignee nor a supervisor */
-      403: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Proposed */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Referral"];
+                };
+            };
+            /** @description Body failed validation, or a flag is not a registry or comparison flag of the case, or a clarification not an issued one of the case */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-the-assignee` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `referral-open`: one from this case waits for approval */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Already pending (problem type `copilot-pending`) */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The declarations service could not give the declaration; nothing was requested */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  draftClarificationWithAi: {
-    parameters: {
-      query?: never;
-      header: {
-        /** @description Client-generated UUID, unique per logical request; reuse on retry */
-        'Idempotency-Key': string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    listReferrals: {
+        parameters: {
+            query?: {
+                status?: "proposed" | "approved" | "declined" | "sent";
+                /** @description `nextCursor` of the previous page; omit for the first page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page, newest proposal first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Referral"][];
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description Query failed validation, or the cursor is unknown */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CopilotDraftInput'];
-      };
+    getReferral: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                referralId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Referral */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Referral"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Draft ready, or failed (`failureReason`) */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    approveReferral: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                referralId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['CopilotDraft'];
+        requestBody?: never;
+        responses: {
+            /** @description Approved; the package is assembled and the referral sent in the background */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Referral"];
+                };
+            };
+            /** @description Problem code `separation-of-duties` (the caller proposed it or held one of its cases) or `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached; nothing changed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Still drafting; poll the draft */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CopilotDraft'];
-        };
-      };
-      /** @description Body failed validation, or problem type `selection-not-on-case`: a flag the case does not have, an item or section its current version lacks, no selection, or more than 50 items */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The caller is not the assignee of the case */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`) */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The declarations service could not give the declaration; nothing was requested */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The ai-gateway (problem type `ai-gateway-unavailable`) or the Commission directory cannot be reached; nothing was requested */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getCopilotDraft: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        draftId: string;
-      };
-      cookie?: never;
+    declineReferral: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                referralId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonInput"];
+            };
+        };
+        responses: {
+            /** @description Declined */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Referral"];
+                };
+            };
+            /** @description Body failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `separation-of-duties` (the caller proposed it or held one of its cases) or `supervisor-required` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `not-proposed` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Draft */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    internalGetReferralPackagePayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                referralId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['CopilotDraft'];
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralPackagePayload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No approved referral with a manifest with this id at the acting Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The evidence could not be read from declarations or documents */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description The id is not a UUID */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller, or past its 24 hours */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`) */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  rateCopilotOutput: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        jobId: string;
-      };
-      cookie?: never;
+    internalGetReferralIcmsPayload: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The officer on whose behalf the service reads it; recorded in the audit event */
+                "X-Acting-Subject"?: string;
+                /** @description Tenant the calling service acts for; the resource must belong to it */
+                "X-Acting-Tenant": string;
+            };
+            path: {
+                referralId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payload */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralIcmsPayload"];
+                };
+            };
+            /** @description X-Acting-Tenant is missing or not a tenant key */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Requires a service token with scope review:internal */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No sent referral with this id at the acting Commission */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `roster-record-unknown`: no roster record of the declarant is known, so the national ID cannot be read */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CopilotFeedbackInput'];
-      };
+    getBulkClosureSummary: {
+        parameters: {
+            query: {
+                cycleYear: number;
+                type?: "initial" | "biennial" | "final";
+                reportingEntityId?: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureSummary"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `supervisor-required`: bulk closure is for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Recorded */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    approveBulkClosures: {
+        parameters: {
+            query: {
+                cycleYear: number;
+                type?: "initial" | "biennial" | "final";
+                reportingEntityId?: string;
+            };
+            header: {
+                "idempotency-key": string;
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-      /** @description Request failed validation, or problem type `block-not-in-output`: the output has no such block, or `feedback-rejected`: the AI gateway refused the rating */
-      400: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            /** @description Result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkApprovalResult"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `supervisor-required`: bulk closure is for supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The Commission directory could not be reached; nothing changed */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The caller is not the case's assignee (problem type `not-the-assignee`) */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getCommissionAiStatus: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        slug: string;
-      };
-      cookie?: never;
+    getCaseCopilot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copilot view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotView"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Status */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    refreshCaseCopilot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['CommissionAiStatus'];
+        requestBody?: never;
+        responses: {
+            /** @description Requested */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotView"];
+                };
+            };
+            /** @description The caller is neither the assignee nor a supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Already pending (problem type `copilot-pending`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declarations service could not give the declaration; nothing was requested */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was requested */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getCaseRegistryChecks: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    draftClarificationWithAi: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft ready, or failed (`failureReason`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotDraft"];
+                };
+            };
+            /** @description Still drafting; poll the draft */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotDraft"];
+                };
+            };
+            /** @description Body failed validation, or problem type `selection-not-on-case`: a flag the case does not have, an item or section its current version lacks, no selection, or more than 50 items */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The caller is not the assignee of the case */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description AI not enabled for this Commission (problem type `ai-not-enabled`), a request with the same Idempotency-Key is still running (`idempotency-key-in-use`), or the draft of that key is past its 24 hours (`draft-expired`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The declarations service could not give the declaration; nothing was requested */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway (problem type `ai-gateway-unavailable`) or the Commission directory cannot be reached; nothing was requested */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Registry view */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getCopilotDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                draftId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['RegistryView'];
+        requestBody?: never;
+        responses: {
+            /** @description Draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopilotDraft"];
+                };
+            };
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller, or past its 24 hours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Declarations or the integration-gateway unavailable */
-      502: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  getCaseRegistryStatus: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    rateCopilotOutput: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CopilotFeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request failed validation, or problem type `block-not-in-output`: the output has no such block, or `feedback-rejected`: the AI gateway refused the rating */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The caller is not the case's assignee (problem type `not-the-assignee`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway cannot be reached (problem type `ai-gateway-unavailable`); nothing was recorded */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Registry status */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getCommissionAiStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['RegistryStatus'];
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionAiStatus"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `ai-gateway-unavailable`; the status could not be read */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
-  recheckCaseRegistries: {
-    parameters: {
-      query?: never;
-      header?: {
-        /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-        'Idempotency-Key'?: string;
-      };
-      path: {
-        caseId: string;
-      };
-      cookie?: never;
+    getCaseRegistryChecks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registry view */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistryView"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Declarations or the integration-gateway unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Re-check started */
-      202: {
-        headers: {
-          [name: string]: unknown;
+    getCaseRegistryStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-      /** @description Problem type `not-the-assignee`: neither the assignee nor a supervisor */
-      403: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            /** @description Registry status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegistryStatus"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Not found, or not visible to the caller */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem type `case-closed`: the case is determined */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Idempotency-Key reused with a different request body */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
-      /** @description Problem type `recheck-cooldown`: re-checked within the last 10 minutes */
-      429: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['ProblemDetails'];
-        };
-      };
     };
-  };
+    recheckCaseRegistries: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                caseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Re-check started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Problem type `not-the-assignee`: neither the assignee nor a supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `case-closed`: the case is determined */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `recheck-cooldown`: re-checked within the last 10 minutes */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
 }
