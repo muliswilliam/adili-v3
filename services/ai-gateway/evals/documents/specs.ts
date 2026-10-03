@@ -525,6 +525,7 @@ export const DOCUMENTS: readonly SyntheticDocument[] = [
           kind: 'text',
           text: 'Account Name: Mary Wanjiru Kamau    Account Type: Fixed Deposit    Branch: Nyali',
         },
+        { kind: 'text', text: 'Bank Name: Highlands Bank Kenya PLC    Branch Name: Nyali' },
         { kind: 'text', text: 'Account Number: 0150-2938-4757    Currency: KES' },
         { kind: 'text', text: 'Balance at 30/06/2026: KES 1,250,000.00    Status: Active' },
         { kind: 'rule' },
