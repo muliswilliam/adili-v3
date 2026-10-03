@@ -31,6 +31,15 @@ export const LADDER_WINDOW_DAYS: Record<ActionStep, number | null> = {
   'disciplinary-referral': null,
 };
 
+/**
+ * Whether declining `step` leaves the ladder open: a declined disciplinary referral waits for
+ * compliance (a stopped salary stays stopped until then); any other declined step ends the
+ * ladder (spec 08 S8, S10).
+ */
+export function declineKeepsLadderOpen(step: ActionStep): boolean {
+  return step === 'disciplinary-referral';
+}
+
 /** The salary stoppage and the disciplinary referral: supervisors alone decide them, shown red. */
 export function isGraveStep(step: ActionStep): boolean {
   return step === 'salary-stoppage' || step === 'disciplinary-referral';

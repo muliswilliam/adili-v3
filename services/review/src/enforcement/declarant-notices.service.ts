@@ -237,6 +237,9 @@ async function subjectsOf(
         )),
     );
   }
+  // Back to the person's own scope: the reads that follow (the clarifications) must go through
+  // their person policy alone, not the last Commission's tenant policy. `true` keeps every
+  // setting local to this transaction, so nothing leaks to the next one on the connection.
   await tx.execute(sql`select set_config('app.tenant', '', true)`);
   const clarificationIds = ladders.flatMap((ladder) =>
     ladder.kind === 'clarification' ? [ladder.subjectId] : [],

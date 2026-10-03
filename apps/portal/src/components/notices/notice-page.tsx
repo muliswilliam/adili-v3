@@ -21,6 +21,7 @@ import {
   ProgressBar,
   Spinner,
   Textarea,
+  useIdempotencyKey,
   useToast,
 } from '@adili/ui';
 import {
@@ -228,7 +229,8 @@ function RespondForm({
   const { form, dispatch } = state;
   const { toast } = useToast();
   const router = useRouter();
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  // One key per response body, kept across retries (ADR-013 §7.5).
+  const keys = useIdempotencyKey();
   const [confirming, setConfirming] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<SendError>(null);
@@ -264,14 +266,15 @@ function RespondForm({
     setSending(true);
     let result;
     try {
+      const response = {
+        text: text.trim(),
+        attachments: form.files.flatMap((file) => (file.uploadId ? [file.uploadId] : [])),
+      };
       result = await respondToMyNotice({
         data: {
           actionId: notice.actionId,
-          idempotencyKey,
-          response: {
-            text: text.trim(),
-            attachments: form.files.flatMap((file) => (file.uploadId ? [file.uploadId] : [])),
-          },
+          idempotencyKey: keys.keyFor({ actionId: notice.actionId, response }),
+          response,
         },
       });
     } catch {

@@ -1,4 +1,4 @@
-import type { LadderFilter } from '../../actions/ladder';
+import { declineKeepsLadderOpen, type LadderFilter } from '../../actions/ladder';
 import type { DecisionRefusal } from '../../actions/refusal';
 import type { ActionStatus, ActionStep, Ladder } from '../../server/actions.server';
 
@@ -202,7 +202,7 @@ export const en = {
   declineTitle: (step: ActionStep) => `Decline ${stepLabel(step).toLowerCase()}`,
   /** A declined disciplinary referral leaves the ladder open (spec 08 S10); any other step ends it. */
   declineWarning: (step: ActionStep) =>
-    step === 'disciplinary-referral'
+    declineKeepsLadderOpen(step)
       ? 'Declining keeps the ladder open: it waits for compliance, and a stopped salary stays stopped until then.'
       : 'Declining ends this ladder. A supervisor can restart it.',
   note: 'Note',
@@ -212,7 +212,7 @@ export const en = {
   noteTooLong: 'Keep the note to 2,000 characters.',
   declined: (step: ActionStep) => `${stepLabel(step)} declined`,
   declinedDetail: (step: ActionStep) =>
-    step === 'disciplinary-referral' ? 'The ladder waits for compliance.' : 'The ladder has ended.',
+    declineKeepsLadderOpen(step) ? 'The ladder waits for compliance.' : 'The ladder has ended.',
   // Restart dialog
   restartTitle: 'Restart this ladder?',
   restartBody: (step: ActionStep) =>
