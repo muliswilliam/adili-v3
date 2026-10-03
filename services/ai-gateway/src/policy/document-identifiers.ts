@@ -237,7 +237,12 @@ const FIELD_WORDS = new Set([
   ...['bank', 'company', 'business', 'sacco', 'group', 'vehicle', 'description'],
   ...['manufacturer', 'registry', 'residence', 'constituency', 'sub-county', 'ministry'],
   ...['organisation', 'organization'],
+  ...['facility', 'interest', 'rate', 'overdraft'],
 ]);
+/** Field words that are also names: they end a span only before a value ("Ward 5"). */
+const NAME_FIELDS = new Set(['ward', 'grade', 'village', 'section', 'plot', 'pay', 'term', 'rate']);
+/** Field words that end a company's name, as company words do ("Sacco", "Business"). */
+const ORGANISATION_FIELDS = new Set(['bank', 'company', 'business', 'sacco', 'group']);
 /**
  * Words that start a field label of two words or more ("Account Type:", "Basic Salary:", "Date of
  * Registration:"): a span ends before them, as before a one-word one.
@@ -279,7 +284,8 @@ const HEADING_WORDS = new Set([
   ...['assets', 'liabilities', 'security', 'offered', 'share', 'capital', 'schedule'],
   ...['registered', 'office', 'terms', 'conditions', 'particulars', 'details', 'summary'],
   ...['toyota', 'nissan', 'isuzu', 'mitsubishi', 'mazda', 'subaru', 'honda', 'mercedes'],
-  ...['volkswagen', 'suzuki', 'land', 'county'],
+  ...['volkswagen', 'suzuki', 'land', 'county', 'collateral', 'vehicles', 'vehicle', 'motor'],
+  ...['properties', 'property', 'shareholding', 'shareholdings'],
 ]);
 /** Words that, before a colon, end a name's span: another field, an organisation, place, office. */
 const BOUNDARY_WORDS: ReadonlySet<string> = new Set([
@@ -373,7 +379,7 @@ function labelsAField(tokens: readonly Token[], index: number): boolean {
   if (word?.kind !== 'word') return false;
   const text = lower(word.text);
   if (colonAfter(tokens, index) >= 0) return BOUNDARY_WORDS.has(text);
-  if (FIELD_WORDS.has(text) && valueAfter(tokens, index)) return true;
+  if (FIELD_WORDS.has(text)) return fieldWordEnds(tokens, index);
   if (!FIELD_LEADS.has(text)) return false;
   // The field label's next words, past spaces and an "of", up to its colon or value.
   for (let at = index + 1, seen = 0; at < tokens.length && seen < 2; at++) {
@@ -381,10 +387,29 @@ function labelsAField(tokens: readonly Token[], index: number): boolean {
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') return false;
     if (colonAfter(tokens, at) >= 0) return true;
-    if (FIELD_WORDS.has(lower(token.text)) && valueAfter(tokens, at)) return true;
+    if (FIELD_WORDS.has(lower(token.text))) return fieldWordEnds(tokens, at);
     if (token.text !== 'of') seen++;
   }
   return false;
+}
+
+/**
+ * Whether a field word without a colon ends a span. Most do ("Make Toyota", "County Kiambu",
+ * "Employer Kenya Power"). One that is also a name ("Ward", "Grade", "Village") ends it only
+ * before a value, so "John Kamau Ward Otieno" keeps Ward Otieno. One that ends a company's name
+ * ("Bank", "Group") ends it unless a company word follows or nothing does ("Pwani Commercial
+ * Bank Limited", "Upendo Women Group").
+ */
+function fieldWordEnds(tokens: readonly Token[], index: number): boolean {
+  const word = tokens[index];
+  if (word?.kind !== 'word') return false;
+  const text = lower(word.text);
+  if (NAME_FIELDS.has(text)) return valueAfter(tokens, index);
+  if (!ORGANISATION_WORDS.has(text) && !ORGANISATION_FIELDS.has(text)) return true;
+  let at = index + 1;
+  while (tokens[at]?.kind === 'space') at++;
+  const next = tokens[at];
+  return next?.kind === 'word' && !isOrganisationWord(next.text);
 }
 
 /** Whether a label starts at word `index`: one to three words that are a label ("Account Name"). */
@@ -464,6 +489,68 @@ function wrapsName(tokens: readonly Token[]): boolean {
         (isCapitalised(text) || PARTICLES.has(text)) &&
         !LABEL_WORDS.test(text) &&
         !WRITTEN_ONLY.has(lower(text)),
+    )
+  );
+}
+
+/**
+ * Whether a list entry's line may wrap onto the next: it ends on a name word, and the name is a
+ * single word or the line is long, as a line the page's width broke is ("1. John\nKamau Mwangi";
+ * not "1. John Kamau\nCollateral").
+ */
+function wrapsFrom(tokens: readonly Token[], line: string): boolean {
+  if (!endsWithName(tokens)) return false;
+  const words = tokens.filter((token) => token.kind === 'word').length;
+  return words === 1 || line.trim().length >= WRAPPED_LINE_LENGTH;
+}
+
+/** A line at least this long may have been broken by the page's width. */
+const WRAPPED_LINE_LENGTH = 40;
+
+/** The number a list entry's marker gives ("2." is 2, "(b)" is 2), or null for none. */
+function markerNumber(tokens: readonly Token[]): number | null {
+  const from = afterMarker(tokens);
+  if (from === 0) return null;
+  for (const token of tokens.slice(0, from)) {
+    if (token.kind === 'number') return Number(token.text);
+    if (token.kind === 'word' && /^[a-z]$/iu.test(token.text)) {
+      return token.text.toLowerCase().charCodeAt(0) - 96;
+    }
+  }
+  return null;
+}
+
+/**
+ * Whether an unmarked line is a list entry all the same: a name, then a comma, dash or colon and
+ * only offices or field words ("Mary Wanjiru, Secretary", "Peter Otieno - Director").
+ */
+function readsAsEntry(tokens: readonly Token[]): boolean {
+  let at = 0;
+  let names = 0;
+  for (; at < tokens.length; at++) {
+    const token = tokens[at];
+    if (token?.kind === 'space') continue;
+    if (token?.kind !== 'word') break;
+    if (PARTICLES.has(token.text)) continue;
+    if (!isCapitalised(token.text) || WRITTEN_ONLY.has(lower(token.text))) return false;
+    names++;
+  }
+  if (names === 0 || names > 6) return false;
+  const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
+  const [mark, ...after] = rest;
+  const separates =
+    mark?.kind === 'joiner' ||
+    mark?.kind === 'colon' ||
+    (mark?.kind === 'other' && BULLETS.has(mark.text));
+  return (
+    separates &&
+    after.length > 0 &&
+    after.every(
+      (token) =>
+        token.kind === 'word' &&
+        (ROLE_WORDS.has(lower(token.text)) ||
+          qualifiesOffice(token.text) ||
+          FIELD_WORDS.has(lower(token.text))),
     )
   );
 }
@@ -606,11 +693,12 @@ export function documentIdentifiers(
   shapes: readonly RegExp[] = [],
 ): DocumentIdentifier[] {
   const found: DocumentIdentifier[] = [];
-  // Each character of a shape becomes a private-use mark: a value, no name ("Tel 0712 ...").
+  // Each character of a shape becomes a private-use mark: a value, no name ("Tel 0712 ..."). The
+  // mark already in a text layer is a space.
   const blanked = shapes.reduce(
     (current, shape) =>
       current.replace(shape, (match) => match.replace(/[^\r\n\v\f\u0085\u2028\u2029]/gu, BLANK)),
-    text,
+    text.replaceAll(BLANK, ' '),
   );
   const lines = text.split(LINE_BREAK);
   const nameLines = blanked.split(LINE_BREAK);
@@ -649,6 +737,8 @@ export function documentIdentifiers(
         at = nextLine(nameLines, row);
         if (at < 0) continue;
         add(labelParties(tokensAt(at), afterMarker(tokensAt(at))));
+        let previous = markerNumber(tokensAt(at));
+        const firstUnmarked = afterMarker(tokensAt(at)) === 0;
         // Further entries: every marked line, read whatever data it holds.
         for (let entries = 1; entries < MAX_ENTRIES; entries++) {
           // A marked line may come after blank lines; an unmarked one only continues a name
@@ -657,9 +747,17 @@ export function documentIdentifiers(
           if (next < 0) break;
           const tokens = tokensAt(next);
           const from = afterMarker(tokens);
-          const wraps = next === at + 1 && endsWithName(tokensAt(at)) && wrapsName(tokens);
-          if (from === 0 && !wraps) break;
+          // Numbering that starts again ("1." after "2.") starts another list.
+          const number = markerNumber(tokens);
+          if (number !== null && previous !== null && number <= previous) break;
+          // An unmarked line: a name wrapped from the line above; a name and an office; or, in a
+          // list whose first entry has no marker either, a name on its own.
+          const wraps =
+            next === at + 1 && wrapsFrom(tokensAt(at), nameLines[at] ?? '') && wrapsName(tokens);
+          const plainList = firstUnmarked && wrapsName(tokens);
+          if (from === 0 && !wraps && !plainList && !readsAsEntry(tokens)) break;
           add(labelParties(tokens, from));
+          if (number !== null) previous = number;
           at = next;
         }
         continue;

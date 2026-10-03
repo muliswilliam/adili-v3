@@ -835,6 +835,45 @@ describe('minimise a text layer: names out, fields readable', () => {
     // A field word without a colon goes on as a name when more name words follow (F65).
     ['Borrower: John Kamau Ward Otieno', 'John Kamau Ward Otieno', 'Borrower'],
     ['Borrower: John Kamau ID 12345678', 'John Kamau', 'ID'],
+    // A list entry is a name then a comma or dash and an office or field (F68).
+    [
+      'Directors:\nJohn Kamau, Chairman\nMary Wanjiru, Secretary',
+      'John Kamau Mary Wanjiru',
+      'Directors Chairman Secretary',
+    ],
+    [
+      'Directors:\nJohn Kamau - Chairman\nMary Wanjiru - Treasurer\nPeter Otieno, Director',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Chairman Treasurer',
+    ],
+    // A field word ends a span without a colon, unless it is also a name and a name follows (F69).
+    ['Owner: John Kamau Make Toyota Model Premio', 'John Kamau', 'Make Toyota Model Premio'],
+    ['Proprietor: John Kamau County Kiambu', 'John Kamau', 'County Kiambu'],
+    ['Employee Name: Mary Wanjiru Station Nyeri', 'Mary Wanjiru', 'Station Nyeri'],
+    ['Proprietor: John Kamau Tenure Freehold', 'John Kamau', 'Tenure Freehold'],
+    ['Employee Name: Mary Wanjiru Employer Kenya Power', 'Mary Wanjiru', 'Employer Kenya Power'],
+    [
+      'Account Name: Mary Wanjiru Bank Equity Bank Branch Nyali',
+      'Mary Wanjiru',
+      'Bank Equity Branch Nyali',
+    ],
+    ['Lessee: Peter Kamau Pwani Commercial Bank Limited', 'Peter Kamau', 'Lessee'],
+    [
+      'Borrower: John Kamau Facility Overdraft Interest Rate 13%',
+      'John Kamau',
+      'Facility Overdraft Interest Rate',
+    ],
+    // A list ends when numbering restarts, or at a line that is no wrapped name (F70).
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n1. Collateral: Title deed',
+      'John Kamau Mary Wanjiru',
+      'Collateral Title deed',
+    ],
+    ['Directors:\n1. John Kamau\nCollateral', 'John Kamau', 'Collateral'],
+    ['Directors:\n1. John Kamau\nVehicles', 'John Kamau', 'Vehicles'],
+    ['Directors:\n1. John Kamau\nMotor Vehicles', 'John Kamau', 'Motor Vehicles'],
+    ['Directors:\n1. JOHN KAMAU\nPROPERTIES', 'JOHN KAMAU', 'PROPERTIES'],
+    ['Directors:\n1. John Kamau\nShareholding', 'John Kamau', 'Shareholding'],
     // Common words a name holds stay readable in prose (F48, F55).
     [
       'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',
@@ -928,6 +967,25 @@ describe('minimise a text layer: what is no name', () => {
     });
 
     expect(JSON.stringify(input)).toContain('TITLE DEED');
+  });
+
+  it('sends an email that holds a name as one email token, restored exactly (F67)', () => {
+    const minimised = minimise({
+      textLayer: 'Proprietor: John Kamau\nContact John.Kamau@KamauLaw.co.ke or 0712 345 678',
+    });
+
+    expect(minimised.input.textLayer).toBe(
+      'Proprietor: [[PERSON_1]] [[PERSON_2]]\nContact [[EMAIL_1]] or [[PHONE_1]]',
+    );
+    expect(minimised.restore({ email: '[[EMAIL_1]]' })).toEqual({
+      email: 'John.Kamau@KamauLaw.co.ke',
+    });
+  });
+
+  it('reads a private-use mark already in a text layer as a space (F71)', () => {
+    const { input } = minimise({ textLayer: 'Proprietor: John\ue000Kamau' });
+
+    expect(input.textLayer).not.toMatch(/John|Kamau/u);
   });
 
   it('matches a name a page gives only in the cases a page writes it in', () => {

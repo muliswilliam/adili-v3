@@ -251,6 +251,15 @@ const AMOUNT = new RegExp(
   'giu',
 );
 
+/** Where a string sits: a declarant's question, or a document's text layer. */
+interface TextContext {
+  question: boolean;
+  document: boolean;
+}
+
+/** Classes that are names: replaced in a document's text after its shapes. */
+const NAME_CLASSES: ReadonlySet<IdentifierClass> = new Set(['PERSON', 'ORGANISATION', 'PARTY']);
+
 /** Replaces the identifiers in `input` with tokens; see the module comment. */
 export function minimise<T>(input: T): Minimised<T> {
   const known = new Map<string, IdentifierClass>();
@@ -291,22 +300,34 @@ export function minimise<T>(input: T): Minimised<T> {
   const lookup = knownLookup(known);
   const knownPattern = alternation(known);
   const writtenPattern = writtenAlternation(written);
-  const replaceText = (text: string, inQuestion: boolean): string => {
-    let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
-    if (inQuestion) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
-    if (knownPattern) {
-      result = result.replace(knownPattern, (match) => {
-        const found = lookup(match);
-        return found ? tokenFor(found.cls, found.value) : match;
-      });
-    }
-    // After the known values, so an organisation's whole name is one token before its words.
-    if (writtenPattern) {
-      result = result.replace(writtenPattern, (match) => {
-        const cls = written.get(match);
-        return cls ? tokenFor(cls, match) : match;
-      });
-    }
+  // A document's text: codes and addresses it labels, then shapes, then names, so a name inside
+  // an email or phone number is not cut out of it ("John.Kamau@KamauLaw.co.ke").
+  const codes = new Map([...known].filter(([, cls]) => !NAME_CLASSES.has(cls)));
+  const names = new Map([...known].filter(([, cls]) => NAME_CLASSES.has(cls)));
+  const codeLookup = knownLookup(codes);
+  const codePattern = alternation(codes);
+  const nameLookup = knownLookup(names);
+  const namePattern = alternation(names);
+  const replaceKnown = (
+    text: string,
+    pattern: RegExp | undefined,
+    find: (match: string) => { value: string; cls: IdentifierClass } | undefined,
+  ): string =>
+    pattern
+      ? text.replace(pattern, (match) => {
+          const found = find(match);
+          return found ? tokenFor(found.cls, found.value) : match;
+        })
+      : text;
+  const replaceWritten = (text: string): string =>
+    writtenPattern
+      ? text.replace(writtenPattern, (match) => {
+          const cls = written.get(match);
+          return cls ? tokenFor(cls, match) : match;
+        })
+      : text;
+  const replaceShapes = (text: string): string => {
+    let result = text;
     for (const { cls, pattern, group } of PATTERNS) {
       result = result.replace(pattern, (match, ...groups: unknown[]) => {
         if (group === undefined) return tokenFor(cls, match);
@@ -315,6 +336,16 @@ export function minimise<T>(input: T): Minimised<T> {
       });
     }
     return result;
+  };
+  const replaceText = (text: string, { question, document }: TextContext): string => {
+    let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
+    if (question) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
+    if (document) {
+      result = replaceShapes(replaceKnown(result, codePattern, codeLookup));
+      return replaceWritten(replaceKnown(result, namePattern, nameLookup));
+    }
+    // After the known values, so an organisation's whole name is one token before its words.
+    return replaceShapes(replaceWritten(replaceKnown(result, knownPattern, lookup)));
   };
 
   const minimised = mapStrings(input, undefined, replaceText) as T;
@@ -509,12 +540,14 @@ function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | unde
 function mapStrings(
   value: unknown,
   key: string | undefined,
-  map: (text: string, inQuestion: boolean) => string,
+  map: (text: string, context: TextContext) => string,
   inQuestion = false,
 ): unknown {
   if (key !== undefined && UNTOUCHED_FIELDS.has(key)) return value;
   const question = inQuestion || (key !== undefined && QUESTION_FIELDS.has(key));
-  if (typeof value === 'string') return map(value, question);
+  if (typeof value === 'string') {
+    return map(value, { question, document: key !== undefined && DOCUMENT_TEXT_FIELDS.has(key) });
+  }
   if (Array.isArray(value)) return value.map((each) => mapStrings(each, key, map, question));
   if (value !== null && typeof value === 'object') {
     // Sorted, so tokens are numbered in the same order the canonical JSON shows them.
