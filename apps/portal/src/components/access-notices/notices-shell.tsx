@@ -16,22 +16,14 @@ import { Link, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
 import { NOTICE_COPY as COPY } from '../../access/notice-copy';
-import { SignOutButton } from '../sign-out-button';
-import { HelpLink } from '../help/parts';
+import { DeclarantHeaderActions } from '../help/parts';
 
 /** The declarant's chrome around the access request pages: header, toasts, footer. */
 export function NoticesShell({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
       <TooltipProvider>
-        <SiteHeader
-          actions={
-            <>
-              <HelpLink />
-              <SignOutButton />
-            </>
-          }
-        />
+        <SiteHeader actions={<DeclarantHeaderActions />} />
         {children}
         <SiteFooter />
       </TooltipProvider>

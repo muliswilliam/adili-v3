@@ -10,6 +10,8 @@ export interface HelpCopy {
   /** The page's `<title>`. */
   documentTitle: string;
   language: string;
+  /** Read out after switching. */
+  languageChanged: string;
   search: string;
   searchPlaceholder: string;
   clear: string;
@@ -38,6 +40,7 @@ const EN: HelpCopy = {
   title: 'Help',
   documentTitle: 'Help · Adili Online',
   language: 'Language',
+  languageChanged: 'Help is now in English.',
   search: 'Search the help',
   searchPlaceholder: 'Search, e.g. joint assets',
   clear: 'Clear search',
@@ -77,6 +80,7 @@ const SW: HelpCopy = {
   title: 'Msaada',
   documentTitle: 'Msaada · Adili Online',
   language: 'Lugha',
+  languageChanged: 'Msaada sasa uko kwa Kiswahili.',
   search: 'Tafuta katika msaada',
   searchPlaceholder: 'Tafuta, kwa mfano mali ya pamoja',
   clear: 'Futa utafutaji',

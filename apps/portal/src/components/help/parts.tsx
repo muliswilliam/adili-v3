@@ -1,24 +1,47 @@
 import { Button, cn, focusRing, Icon, Tooltip } from '@adili/ui';
 import { HelpCircleIcon, JusticeScale01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { HELP_COPY, type HelpCopy, type HelpLanguage } from '../../help/copy';
 import { highlight } from '../../help/highlight';
 import type { HelpPassage } from '../../server/declarations/types';
+import { SignOutButton } from '../sign-out-button';
 
-/** Pieces the help pages share (spec 11 FE-3). */
+/** Pieces the help pages share (spec 11 FE-3), and the header link that opens them. */
 
-/** The question mark in the page header that opens the help pages. */
-export function HelpLink() {
-  const label = HELP_COPY.en.open;
+/** A card that lifts on hover: the help topics and passage rows. */
+export const liftOnHover =
+  'transition-shadow hover:shadow-[0_0_0_1px_var(--color-border),0_6px_18px_-10px_rgb(0_0_0/0.2)]';
+
+/**
+ * The question mark in the page header that opens the help pages, in the language the help is
+ * read in (English outside them).
+ */
+export function HelpLink({ language = 'en' }: { language?: HelpLanguage }) {
+  const label = HELP_COPY[language].open;
   return (
     <Tooltip content={label}>
       <Button asChild variant="ghost" size="icon" className="text-secondary-foreground">
-        <Link to="/help" aria-label={label}>
+        <Link
+          to="/help"
+          search={{ lang: language === 'en' ? undefined : language }}
+          aria-label={label}
+        >
           <Icon icon={HelpCircleIcon} />
         </Link>
       </Button>
     </Tooltip>
+  );
+}
+
+/** The signed-in declarant's header actions: help, and signing out. */
+export function DeclarantHeaderActions({ language }: { language?: HelpLanguage }) {
+  return (
+    <>
+      <HelpLink language={language} />
+      <SignOutButton />
+    </>
   );
 }
 
@@ -35,12 +58,17 @@ export function LanguageSwitch({
   copy: HelpCopy;
   onChange: (language: HelpLanguage) => void;
 }) {
+  // Said once the page is in the language picked, not on arrival.
+  const [switched, setSwitched] = useState(false);
   return (
     <div
       role="group"
       aria-label={copy.language}
       className="inline-flex gap-0.5 rounded-lg bg-muted p-[3px]"
     >
+      <span role="status" className="sr-only">
+        {switched ? copy.languageChanged : ''}
+      </span>
       {(['en', 'sw'] as const).map((code) => (
         <Button
           key={code}
@@ -50,6 +78,8 @@ export function LanguageSwitch({
           lang={code}
           aria-pressed={language === code}
           onClick={() => {
+            if (code === language) return;
+            setSwitched(true);
             onChange(code);
           }}
           className="h-[30px] px-3 text-[13.5px] font-medium text-secondary-foreground aria-pressed:bg-card aria-pressed:text-foreground aria-pressed:shadow-control"
@@ -130,7 +160,8 @@ export function PassageRow({
         search={{ lang: language }}
         className={cn(
           focusRing,
-          'grid gap-1.5 rounded-[14px] bg-card px-4 py-3.5 text-foreground shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--color-border),0_6px_18px_-10px_rgb(0_0_0/0.2)]',
+          liftOnHover,
+          'grid gap-1.5 rounded-[14px] bg-card px-4 py-3.5 text-foreground shadow-card',
         )}
       >
         <span className="flex flex-wrap items-center gap-2">

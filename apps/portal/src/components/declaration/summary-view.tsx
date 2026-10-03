@@ -131,7 +131,11 @@ function ErrorsLink({
   );
 }
 
-/** The words of the hints' AI label, beside the AiLabel tooltip's task name. */
+/**
+ * The words of the hints' AI label, and the task its tooltip names: hints are the
+ * `answer-declarant-question` task in hints mode (the label's `task` is that), which the shared
+ * names call "Answer".
+ */
 const HINTS_LABEL = 'Hints: AI-assisted';
 const HINTS_TASK_NAMES = { ...AI_TASK_NAMES, 'answer-declarant-question': 'Hints' };
 

@@ -36,8 +36,13 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { HELP_COPY, type HelpLanguage } from '../../help/copy';
 import { HELP_TOPICS, type TopicKey, topicOf } from '../../help/topics';
 import type { HelpPassage, HelpPassageDetail } from '../../server/declarations/types';
-import { SignOutButton } from '../sign-out-button';
-import { HelpLink, LanguageSwitch, PassageRow, PassageTag } from './parts';
+import {
+  DeclarantHeaderActions,
+  LanguageSwitch,
+  liftOnHover,
+  PassageRow,
+  PassageTag,
+} from './parts';
 
 /**
  * The help pages (spec 11 FE-3): the Act, the Regulations, the Administrative Mechanisms and
@@ -62,14 +67,7 @@ const DEBOUNCE_MS = 250;
 export function HelpShell({ language, children }: { language: HelpLanguage; children: ReactNode }) {
   return (
     <TooltipProvider>
-      <SiteHeader
-        actions={
-          <>
-            <HelpLink />
-            <SignOutButton />
-          </>
-        }
-      />
+      <SiteHeader actions={<DeclarantHeaderActions language={language} />} />
       <main
         lang={language}
         className="mx-auto w-full max-w-[820px] flex-1 px-4 pt-8 pb-16 sm:px-7 sm:pt-10"
@@ -199,7 +197,8 @@ function Listing({
               }}
               className={cn(
                 focusRing,
-                'flex h-full w-full cursor-pointer items-center gap-3.5 rounded-[14px] bg-card px-4 py-3.5 text-left shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--color-border),0_6px_18px_-10px_rgb(0_0_0/0.2)]',
+                liftOnHover,
+                'flex h-full w-full cursor-pointer items-center gap-3.5 rounded-[14px] bg-card px-4 py-3.5 text-left shadow-card',
               )}
             >
               <span className="grid size-[38px] shrink-0 place-items-center rounded-[10px] bg-muted text-secondary-foreground [&_svg]:size-[18px]">
@@ -254,8 +253,12 @@ function Listing({
 
   return (
     <>
-      <p role="status" className="text-sm text-muted-foreground">
-        {listing.passages.length > 0 ? copy.results(listing.passages.length) : ''}
+      {/* Read as results come; the empty state shows its own words. */}
+      <p
+        role="status"
+        className={listing.passages.length > 0 ? 'text-sm text-muted-foreground' : 'sr-only'}
+      >
+        {listing.passages.length > 0 ? copy.results(listing.passages.length) : copy.noResults}
       </p>
       {listing.passages.length > 0 ? list : <NoResults language={language} />}
     </>

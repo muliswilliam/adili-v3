@@ -7,8 +7,8 @@ export function highlight(text: string, query: string): { text: string; match: b
   const words = query
     .toLowerCase()
     .split(/[^\p{L}\p{N}]+/u)
-    .filter((word) => word.length > 2)
-    .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    // Letters and digits only, so the words are safe in the pattern.
+    .filter((word) => word.length > 2);
   if (words.length === 0) return [{ text, match: false }];
   const pattern = new RegExp(`(?<![\\p{L}\\p{N}])(${words.join('|')})`, 'giu');
   const parts: { text: string; match: boolean }[] = [];

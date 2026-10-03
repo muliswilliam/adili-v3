@@ -1,22 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { HELP_TOPICS, topicQuery } from '../help/topics';
-import { bearer, declarationsClient, PERSON, steppedUp } from '../test/declarant';
-import { startDeclaration } from './declarations.server';
-import {
-  MOCK_OBLIGATIONS,
-  resetDeclarationsMock,
-  setAnswerPace,
-  setAssistantMode,
-} from './declarations/mock.server';
-import { getCompletenessHints, searchHelp } from './assistant.server';
+import { bearer, declarationsClient, PERSON } from '../test/declarant';
+import { searchHelp } from './assistant.server';
+import { resetDeclarationsMock } from './declarations/mock.server';
 import { getHelpPassage } from './help.server';
 
 const declarant = () => declarationsClient(bearer(PERSON));
 
 beforeEach(() => {
   resetDeclarationsMock();
-  setAnswerPace(0);
 });
 
 describe('help pages: search (S12)', () => {
@@ -86,51 +79,6 @@ describe('help pages: one passage', () => {
   it('is not found for an unknown passage', async () => {
     expect(
       await getHelpPassage(declarant(), { passageId: 'no-such-passage', language: 'en' }),
-    ).toEqual({ status: 'not-found' });
-  });
-});
-
-describe('summary hints (S5)', () => {
-  async function draft() {
-    const started = await startDeclaration(
-      declarationsClient(steppedUp()),
-      MOCK_OBLIGATIONS.initial,
-    );
-    if (started.status !== 'started') throw new Error(started.status);
-    return started.declaration.id;
-  }
-
-  it("gives the summary's residuals, each with its deterministic text and an AI hint", async () => {
-    const id = await draft();
-    const result = await getCompletenessHints(declarationsClient(steppedUp()), id, 'en');
-    if (result.status !== 'ok') throw new Error(result.status);
-    expect(result.hints.status).toBe('ready');
-    expect(result.hints.label).toMatchObject({
-      aiAssisted: true,
-      task: 'answer-declarant-question',
-    });
-    expect(result.hints.residuals.length).toBeGreaterThan(0);
-    for (const residual of result.hints.residuals) expect(residual.message).not.toBe('');
-    expect(result.hints.residuals.some((residual) => residual.hint)).toBe(true);
-  });
-
-  it('has the text only when the AI is unavailable', async () => {
-    const id = await draft();
-    setAssistantMode('unavailable');
-    const result = await getCompletenessHints(declarationsClient(steppedUp()), id, 'en');
-    if (result.status !== 'ok') throw new Error(result.status);
-    expect(result.hints).toMatchObject({ status: 'unavailable', label: null });
-    expect(result.hints.residuals.every((residual) => residual.hint === null)).toBe(true);
-  });
-
-  it("is not found for someone else's draft", async () => {
-    const id = await draft();
-    expect(
-      await getCompletenessHints(
-        declarationsClient(bearer({ person_id: '9d9d9d9d-0000-4000-8000-000000000009' })),
-        id,
-        'en',
-      ),
     ).toEqual({ status: 'not-found' });
   });
 });

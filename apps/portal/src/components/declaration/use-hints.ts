@@ -18,9 +18,13 @@ export type SummaryHints =
     }
   | { status: 'none' };
 
-/** How long to wait before asking again while hints are `pending`, and how many times. */
+/**
+ * How long to wait before asking again while hints are `pending`, and how many times: each ask
+ * may wait 10 s in the service, so the declarant sees text only after about half a minute at
+ * worst.
+ */
 export const PENDING_RETRY_MS = 3_000;
-export const PENDING_RETRIES = 4;
+export const PENDING_RETRIES = 2;
 
 /** Joins a hint to its residual: the summary's issues have no id. */
 export function residualKey(issue: Pick<CompletenessIssue, 'sectionKey' | 'path' | 'code'>) {
@@ -33,14 +37,14 @@ export function useSummaryHints(
 ): SummaryHints {
   // A new residual set (an edit elsewhere, a 400 from submit) asks again; the same one does not.
   const key = blocking.map(residualKey).join('\n');
-  const [found, setFound] = useState<{ key: string; hints: SummaryHints } | null>(null);
+  const [settled, setSettled] = useState<{ key: string; hints: SummaryHints } | null>(null);
 
   useEffect(() => {
     if (key === '') return;
     let current = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = (hints: SummaryHints) => {
-      if (current) setFound({ key, hints });
+      if (current) setSettled({ key, hints });
     };
     const ask = (retriesLeft: number) => {
       getSummaryHints({ data: { declarationId, language: 'en' } })
@@ -80,5 +84,5 @@ export function useSummaryHints(
   }, [declarationId, key]);
 
   if (key === '') return { status: 'none' };
-  return found?.key === key ? found.hints : { status: 'loading' };
+  return settled?.key === key ? settled.hints : { status: 'loading' };
 }

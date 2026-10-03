@@ -17,8 +17,7 @@ import {
   settleLoad,
 } from '../../components/declaration/route-helpers';
 import { SubmittedView } from '../../components/declaration/submitted-view';
-import { SignOutButton } from '../../components/sign-out-button';
-import { HelpLink } from '../../components/help/parts';
+import { DeclarantHeaderActions } from '../../components/help/parts';
 import { getMySlipContext, getMySubmission } from '../../server/submission';
 
 /**
@@ -50,14 +49,7 @@ export const Route = createFileRoute('/declarations/$id_/submitted')({
 function Page({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
-      <SiteHeader
-        actions={
-          <>
-            <HelpLink />
-            <SignOutButton />
-          </>
-        }
-      />
+      <SiteHeader actions={<DeclarantHeaderActions />} />
       <main className="mx-auto w-full max-w-[760px] flex-1 px-4 py-10 sm:px-6">{children}</main>
       <SiteFooter />
     </ToastProvider>

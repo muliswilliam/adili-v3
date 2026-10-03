@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { type AnswerFrame, readAnswerStream } from '../assistant/stream';
-import { bearer, declarationsClient, PERSON } from '../test/declarant';
+import { bearer, declarationsClient, PERSON, steppedUp } from '../test/declarant';
 import {
   askAssistant,
   type AskResult,
+  getCompletenessHints,
   openConversation,
   rateAnswer,
   searchHelp,
 } from './assistant.server';
-import { resetDeclarationsMock, setAnswerPace, setAssistantMode } from './declarations/mock.server';
+import { startDeclaration } from './declarations.server';
+import {
+  MOCK_OBLIGATIONS,
+  resetDeclarationsMock,
+  setAnswerPace,
+  setAssistantMode,
+} from './declarations/mock.server';
 
 const DRAFT = '0b1e5a1d-5c0a-4d3e-9f10-00000000d001';
 const declarant = () => declarationsClient(bearer(PERSON));
@@ -213,5 +220,50 @@ describe('help search (no-AI mode)', () => {
     setAssistantMode('unavailable');
     const result = await searchHelp(declarant(), { q: 'value', language: 'en', sectionKey: null });
     expect(result.status).toBe('ok');
+  });
+});
+
+describe('summary hints (S5)', () => {
+  async function draft() {
+    const started = await startDeclaration(
+      declarationsClient(steppedUp()),
+      MOCK_OBLIGATIONS.initial,
+    );
+    if (started.status !== 'started') throw new Error(started.status);
+    return started.declaration.id;
+  }
+
+  it("gives the summary's residuals, each with its deterministic text and an AI hint", async () => {
+    const id = await draft();
+    const result = await getCompletenessHints(declarationsClient(steppedUp()), id, 'en');
+    if (result.status !== 'ok') throw new Error(result.status);
+    expect(result.hints.status).toBe('ready');
+    expect(result.hints.label).toMatchObject({
+      aiAssisted: true,
+      task: 'answer-declarant-question',
+    });
+    expect(result.hints.residuals.length).toBeGreaterThan(0);
+    for (const residual of result.hints.residuals) expect(residual.message).not.toBe('');
+    expect(result.hints.residuals.some((residual) => residual.hint)).toBe(true);
+  });
+
+  it('has the text only when the AI is unavailable', async () => {
+    const id = await draft();
+    setAssistantMode('unavailable');
+    const result = await getCompletenessHints(declarationsClient(steppedUp()), id, 'en');
+    if (result.status !== 'ok') throw new Error(result.status);
+    expect(result.hints).toMatchObject({ status: 'unavailable', label: null });
+    expect(result.hints.residuals.every((residual) => residual.hint === null)).toBe(true);
+  });
+
+  it("is not found for someone else's draft", async () => {
+    const id = await draft();
+    expect(
+      await getCompletenessHints(
+        declarationsClient(bearer({ person_id: '9d9d9d9d-0000-4000-8000-000000000009' })),
+        id,
+        'en',
+      ),
+    ).toEqual({ status: 'not-found' });
   });
 });

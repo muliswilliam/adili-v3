@@ -117,7 +117,7 @@ describe('help home (S12)', () => {
       listing: { kind: 'search', query: 'joint', passages: [AM24, JOINT] },
     });
 
-    expect(screen.getByRole('status').textContent).toBe('2 results');
+    expect(screen.getByText('2 results', { selector: '[role=status]' })).toBeTruthy();
     const links = screen.getAllByRole('link', { name: /Approximate values|Joint assets/ });
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
       '/help/am-24?lang=en',
@@ -137,7 +137,8 @@ describe('help home (S12)', () => {
       query: 'xylophone',
       listing: { kind: 'search', query: 'xylophone', passages: [] },
     });
-    expect(screen.getByText('No results')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'No results' })).toBeTruthy();
+    expect(screen.getByText('No results', { selector: '[role=status]' })).toBeTruthy();
     expect(screen.getByText('Try other words, for example "joint".')).toBeTruthy();
   });
 
@@ -169,13 +170,34 @@ describe('help home (S12)', () => {
       },
     });
     expect(screen.getByRole('heading', { level: 1, name: 'Msaada' })).toBeTruthy();
-    expect(screen.getByRole('status').textContent).toBe('Matokeo 2');
+    expect(screen.getByText('Matokeo 2', { selector: '[role=status]' })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Mali ya pamoja/ }).getAttribute('href')).toBe(
       '/help/help-joint?lang=sw',
     );
     expect(screen.getAllByText('Kiingereza tu')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'English' }));
     expect(onLanguage).toHaveBeenCalledWith('en');
+  });
+
+  it('says the language changed once the page is in it', () => {
+    const { rerender } = renderHome();
+    fireEvent.click(screen.getByRole('button', { name: 'Kiswahili' }));
+    expect(onLanguage).toHaveBeenCalledWith('sw');
+    rerender(
+      <TooltipProvider>
+        <HelpHome
+          language="sw"
+          query=""
+          listing={{ kind: 'topics' }}
+          onQuery={onQuery}
+          onTopic={onTopic}
+          onLanguage={onLanguage}
+        />
+      </TooltipProvider>,
+    );
+    expect(
+      screen.getByText('Msaada sasa uko kwa Kiswahili.', { selector: '[role=status]' }),
+    ).toBeTruthy();
   });
 });
 
