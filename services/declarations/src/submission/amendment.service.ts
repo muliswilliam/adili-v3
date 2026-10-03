@@ -12,6 +12,7 @@ import type { DeclarationSectionKey, DeclarationV1 } from '@adili/forms';
 import { desc, eq } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
+import { deleteWhatGoesWithTheDraft } from '../drafts/draft-ended.js';
 import { Clock } from '../clock.js';
 import type {
   DeclarationVersion,
@@ -52,8 +53,6 @@ import {
   sectionsOfVersion,
   type VersionAttachment,
 } from './amendment.js';
-import { deleteSuggestions } from '../suggestions/expiry.js';
-import { deleteConversations } from '../assistant/expiry.js';
 import { declarationAmendmentDiscarded, declarationAmendmentStarted } from './events.js';
 import { amendRefused } from './problems.js';
 
@@ -351,11 +350,10 @@ export class AmendmentService {
       }),
     );
     await this.relink(tx, declaration, prepared.attachments, prepared.sizes);
-    // Registry suggestions expire with the draft (spec 05b S7): a discarded amendment's go with
-    // it, and an amendment starts without any (the submit deleted them).
-    await deleteSuggestions(tx, declaration.id);
-    // Ask Adili's conversation goes with the draft too (spec 11 S7).
-    await deleteConversations(tx, declaration.id);
+    // Registry suggestions and the Ask Adili conversation expire with the draft (specs 05b and
+    // 11, S7): a discarded amendment's go with it, and an amendment starts without any (the submit
+    // deleted them).
+    await deleteWhatGoesWithTheDraft(tx, declaration.id);
     await tx
       .update(declarations)
       .set({ ...set, draftVersion })

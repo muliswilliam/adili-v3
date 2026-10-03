@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type {
@@ -23,7 +23,7 @@ import {
   type DeclarationsApi,
   startDeclarationsApi,
 } from '../support/declarations-api.js';
-import { answerLabel } from '../support/fake-ai-gateway.js';
+import { answerLabel, citingFirstPassage } from '../support/fake-ai-gateway.js';
 import { DUE_DAY, submissionFixtures } from '../support/submission.js';
 import { rosterRecord } from '../support/fake-directory.js';
 import { assetItem, household, incomeItem, SPOUSE_ID } from '../fixtures/sections.js';
@@ -354,18 +354,43 @@ describe('asking a question (S1, S2)', () => {
     expect(JSON.stringify(event)).not.toContain('salary');
   });
 
-  it('stores the messages encrypted with the Commission key', async () => {
+  it("stores each message encrypted with the conversation's Commission key, bound to the message", async () => {
     const draft = await givenDraft();
     const conversation = await opened(draft.id);
 
-    await ask(conversation.id, VEHICLE_QUESTION);
+    const { question, answer } = finalOf((await ask(conversation.id, VEHICLE_QUESTION)).body);
 
-    const { rows } = await api.asPerson(ACHIENG, (tx) =>
-      tx.execute<{ ciphertext: Buffer }>(sql`select ciphertext from assistant_messages`),
+    const rows = await api.asPerson(ACHIENG, (tx) =>
+      tx.select().from(assistantMessages).orderBy(assistantMessages.at),
     );
-    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.id)).toEqual([question.id, answer.id]);
     for (const row of rows) expect(row.ciphertext.toString('utf8')).not.toContain('matatu');
-    expect(api.cipher.calls.some((call) => call.tenant === 'psc')).toBe(true);
+    const sealed = api.cipher.calls.filter(
+      (call) => call.operation === 'encrypt' && call.recordId.startsWith('assistant-message/'),
+    );
+    expect(sealed).toEqual([
+      { operation: 'encrypt', tenant: 'psc', recordId: `assistant-message/${question.id}` },
+      { operation: 'encrypt', tenant: 'psc', recordId: `assistant-message/${answer.id}` },
+    ]);
+    // The ciphertext opens only as its own message: moved to another, it does not decrypt.
+    const [first] = rows;
+    if (!first) throw new Error('no message');
+    await expect(
+      api.cipher.decrypt({
+        tenant: 'psc',
+        recordId: `assistant-message/${answer.id}`,
+        ciphertext: first.ciphertext.toString('base64'),
+        envelope: first.envelope,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      api.cipher.decrypt({
+        tenant: 'tsc',
+        recordId: `assistant-message/${question.id}`,
+        ciphertext: first.ciphertext.toString('base64'),
+        envelope: first.envelope,
+      }),
+    ).rejects.toThrow();
   });
 
   it('sends earlier turns as history, without the reporting officer contact of a decline', async () => {
@@ -505,8 +530,18 @@ describe('grounded or silent (S3)', () => {
 });
 
 describe('Kiswahili (S4)', () => {
-  it('asks and answers in Swahili with the same citations', async () => {
+  it('asks and answers in Swahili with the same citations as in English', async () => {
     const draft = await givenDraft();
+    const english = await opened(draft.id, 'en');
+    await ask(
+      english.id,
+      'Do I declare a vehicle I co-own with my brother?',
+      'statement:officer',
+      achieng,
+      {
+        itemType: 'vehicle',
+      },
+    );
     const conversation = await opened(draft.id, 'sw');
     const question = 'Nitatangaza gari ninalomiliki pamoja na kaka yangu?';
 
@@ -514,8 +549,11 @@ describe('Kiswahili (S4)', () => {
       itemType: 'vehicle',
     });
 
-    const [input] = api.aiGateway.inputs();
+    const [inEnglish, input] = api.aiGateway.inputs();
     expect(input).toMatchObject({ language: 'sw', question });
+    const citationsOf = (each: typeof input) =>
+      new Set(each?.passages.map((passage) => passage.citation));
+    expect(citationsOf(input)).toEqual(citationsOf(inEnglish));
     expect(input?.passages.map((passage) => passage.citation)).toContain(
       'Act First Schedule, para. 8',
     );
@@ -667,6 +705,55 @@ describe('kept with the draft (S7)', () => {
     const fresh = await opened(null);
     expect(fresh.id).not.toBe(conversation.id);
     expect(fresh.messages).toEqual([]);
+  });
+
+  it("is held at the Commission of the declarant's latest obligation when there are two", async () => {
+    await givenObligation(ACHIENG, 'psc');
+    const tsc = await givenObligation(ACHIENG, 'tsc');
+    await api.asPlatform((tx) =>
+      tx
+        .update(filingObligations)
+        .set({ dueDate: '2028-06-30' })
+        .where(eq(filingObligations.id, tsc)),
+    );
+    api.directory.givenStaff('tsc', 'reporting-officer', [
+      { subject: randomUUID(), name: 'Peter Kamau', email: 'peter.kamau@tsc.go.ke' },
+    ]);
+    const conversation = await opened(null);
+
+    const declined = finalOf((await ask(conversation.id, 'What is the capital of France?')).body);
+    const answered = await ask(conversation.id, SALARY_QUESTION);
+
+    expect(answered.statusCode).toBe(200);
+    expect(api.aiGateway.requests[0]?.request.tenant).toBe('tsc');
+    expect(declined.answer.reportingOfficer).toMatchObject({ name: 'Peter Kamau' });
+    expect(api.directory.staffReads).toEqual(['tsc']);
+    const sealed = api.cipher.calls.filter((call) =>
+      call.recordId.startsWith('assistant-message/'),
+    );
+    expect(new Set(sealed.map((call) => call.tenant))).toEqual(new Set(['tsc']));
+  });
+
+  it('stores nothing when the conversation expires while the answer streams', async () => {
+    await givenObligation();
+    api.clock.setToday('2027-11-15');
+    const conversation = await opened(null);
+    api.aiGateway.answer((input) => {
+      // The answer ends after the 30 days have run out.
+      api.clock.setToday('2027-12-16');
+      return { kind: 'answer', output: citingFirstPassage(input) };
+    });
+    api.clock.setToday('2027-12-15');
+    api.clock.advance(-60 * 60 * 1000);
+
+    const response = await ask(conversation.id, SALARY_QUESTION);
+
+    expect(framesOf(response.body).at(-1)).toEqual({
+      event: 'error',
+      data: { code: 'assistant-unavailable' },
+    });
+    expect(await eventsOf('assistant.message.answered.v1')).toEqual([]);
+    expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(assistantMessages))).toEqual([]);
   });
 
   it('reads an expired conversation as gone before the sweep deletes it', async () => {

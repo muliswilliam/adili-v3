@@ -4,6 +4,8 @@ import { z } from 'zod';
 import {
   AiGatewayClient,
   AiGatewayUnavailable,
+  type AiJobReason,
+  type AiLabel,
   type AnswerFrame,
   type AnswerJob,
   type AnswerOutput,
@@ -34,6 +36,7 @@ export interface HttpAiGatewayClientOptions {
   timeouts?: { openMs?: number; deadlineMs?: number; idleMs?: number };
 }
 
+/** ai-gateway.yaml `AiLabel` of this task, as the generated type has it. */
 const label = z.object({
   aiAssisted: z.literal(true),
   task: z.literal('answer-declarant-question'),
@@ -42,7 +45,7 @@ const label = z.object({
   model: z.string(),
   generatedAt: z.string(),
   disclaimer: z.string(),
-});
+}) satisfies z.ZodType<AiLabel>;
 
 const sectionLink = z.object({ sectionKey: z.string(), fieldPath: z.string().nullable() });
 
@@ -72,7 +75,7 @@ const REASONS = [
   'provider-unavailable',
   'timeout',
   'cancelled',
-] as const;
+] as const satisfies readonly AiJobReason[];
 
 const frameSchemas = {
   delta: z.object({ text: z.string() }),

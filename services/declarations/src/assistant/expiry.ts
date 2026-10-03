@@ -14,9 +14,8 @@ import type { Transaction } from '../db/transaction.js';
 import { assistantConversations } from './schema.js';
 
 /**
- * Ask Adili's conversations go with the draft (spec 11 S7): in the transaction that discards the
- * draft, submits it (an amendment's resubmit included) or discards an amendment, the
- * declaration row locked, its conversation is deleted; its messages cascade.
+ * Ask Adili's conversation goes with the draft (spec 11 S7), by `deleteWhatGoesWithTheDraft`;
+ * its messages cascade.
  */
 export async function deleteConversations(tx: Transaction, declarationId: string): Promise<void> {
   await tx

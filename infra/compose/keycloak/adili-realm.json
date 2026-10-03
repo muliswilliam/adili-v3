@@ -1473,7 +1473,7 @@
     },
     {
       "name": "ai:internal",
-      "description": "Run AI tasks, read their jobs, rate their outputs and read a tenant's AI status through the ai-gateway (/internal/v1/tasks, /internal/v1/jobs, /internal/v1/jobs/{id}/feedback, /internal/v1/tenants/{tenant}/status, spec 07c)",
+      "description": "ai-gateway internal routes: run tasks and read their jobs, rate outputs, read a tenant's AI status (spec 07c), and stream Ask Adili's answers (/internal/v1/tasks/answer-declarant-question/stream, spec 11)",
       "protocol": "openid-connect",
       "attributes": {
         "include.in.token.scope": "true",

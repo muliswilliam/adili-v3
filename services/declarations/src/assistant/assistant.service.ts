@@ -1,5 +1,5 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
+import { Injectable, Logger } from '@nestjs/common';
+import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import {
   type Database,
   FieldCipher,
@@ -43,6 +43,7 @@ import { filingObligations } from '../obligations/schema.js';
 import { checkAnswer, DECLINE_TEXT } from './answer.js';
 import { boostTagsOf, householdCountsOf, residualsOf } from './context.js';
 import { assistantMessageAnswered } from './events.js';
+import { assistantUnavailable } from './problems.js';
 import {
   askRequestSchema,
   type AssistantAnswer,
@@ -105,15 +106,6 @@ interface Question {
   sectionKey: DeclarationSectionKey | null;
   at: Date;
 }
-
-/** 503: the ai-gateway cannot answer now; nothing was stored, and help search still works. */
-const unavailable = () =>
-  new ProblemException({
-    type: 'assistant-unavailable',
-    title: 'Assistant unavailable',
-    status: HttpStatus.SERVICE_UNAVAILABLE,
-    detail: 'Answers are unavailable right now; search the help instead.',
-  });
 
 /**
  * Ask Adili (spec 11, #333): the declarant's conversation with the assistant, one per draft (or
@@ -255,7 +247,7 @@ export class AssistantService {
     } catch (error) {
       if (error instanceof AiGatewayUnavailable) {
         this.logger.warn({ err: error }, 'The ai-gateway did not take a question');
-        throw unavailable();
+        throw assistantUnavailable();
       }
       throw error;
     }
@@ -456,7 +448,8 @@ export class AssistantService {
   /**
    * Stores the question and its answer (checked against the passages retrieved, or the decline
    * with the reporting officer's contact) in one transaction, with the event; both as the portal
-   * shows them. Null when the conversation went meanwhile (its draft was discarded or submitted).
+   * shows them. Null when the conversation went meanwhile (its draft was discarded or submitted,
+   * or it expired).
    */
   private async store(
     person: PersonContext,
@@ -505,12 +498,13 @@ export class AssistantService {
       this.seal(conversation.tenant, answerId, answerText),
     ]);
     const rows = await withPerson(this.db, person, async (tx) => {
+      // Gone with its draft, or expired, while the answer streamed: nothing is stored.
       const [live] = await tx
-        .select({ id: assistantConversations.id })
+        .select()
         .from(assistantConversations)
         .where(eq(assistantConversations.id, conversation.id))
         .for('update');
-      if (!live) return null;
+      if (!live || isExpired(live, answeredAt)) return null;
       const inserted = await tx
         .insert(assistantMessages)
         .values([
