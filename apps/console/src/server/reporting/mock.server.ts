@@ -15,8 +15,9 @@
  *   reviewed by Samuel Njoroge and confirmed by Joyce Wanjiku, with Part I and Part B filled.
  *   A preview compiled then has no biennial cycle and section 5 counts from access requests.
  *
- * `mockStoredReport` hands the store's report to the EACC intake mock (`eacc-mock.server.ts`),
- * which shows psc not reported until it is submitted; `submitMockReport` submits it on a day.
+ * The store and the day live in `mock-store.server.ts`, which the EACC intake mock
+ * (`eacc-mock.server.ts`) reads: psc is not reported there until it is submitted here;
+ * `submitMockReport` submits it on a day.
  *
  * Only the Commission's supervisor, commission-admin and reporting officer see it (anyone else,
  * and any other Commission, gets 404); only the supervisor compiles (403), from 1 April after the
@@ -38,25 +39,21 @@ import {
 import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
-import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
+import {
+  mockDay,
+  mockStoreSeeded,
+  seedMockStoreWith,
+  setMockDay,
+  storedReports,
+  type StoredReport,
+} from './mock-store.server';
+import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
 /** How long the mock's workflow takes to compile a draft. */
 const COMPILE_MS = 3000;
 
-interface Stored {
-  fy: number;
-  status: Exclude<ReportStatus, 'not-started'>;
-  compiledAt: string | null;
-  /** While compiling: when the compile started. */
-  compileStartedAt: number | null;
-  submittedAt: string | null;
-  late: boolean | null;
-  reference: string | null;
-  reviewedBy: Officer | null;
-  confirmedBy: Officer | null;
-  document: FormMV1 | null;
-}
+type Stored = StoredReport;
 
 const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
 const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
@@ -90,8 +87,7 @@ function confirmed(document: FormMV1, reviewedOn: string, confirmedOn: string): 
   };
 }
 
-const reports = new Map<number, Stored>();
-let today = '';
+const reports = storedReports;
 let latency = 1;
 let compileMs = COMPILE_MS;
 let corruptDocument = false;
@@ -118,7 +114,7 @@ export function resetReportingMock(
   day: string = nairobiToday(),
   options: { corruptDocument?: boolean; reviewed?: boolean } = {},
 ) {
-  today = day;
+  setMockDay(day);
   corruptDocument = options.corruptDocument ?? false;
   reports.clear();
   const current = financialYearOf(day);
@@ -157,12 +153,16 @@ export function setReportingMockLatency(factor: number, options: { compileMs?: n
 /** The day the mock takes as today: REPORTING_MOCK_TODAY, else today in Nairobi. */
 export function mockReportingToday(): string {
   ensureSeeded();
-  return today;
+  return mockDay();
 }
+
+seedMockStoreWith(() => {
+  resetReportingMock(env().REPORTING_MOCK_TODAY);
+});
 
 function ensureSeeded() {
   // The dev server's first request: seed from REPORTING_MOCK_TODAY. Tests seed explicitly.
-  if (today === '') resetReportingMock(env().REPORTING_MOCK_TODAY);
+  if (!mockStoreSeeded()) resetReportingMock(env().REPORTING_MOCK_TODAY);
 }
 
 const delay = (ms: number) =>
@@ -223,7 +223,7 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
     return input.method === 'GET' ? json(200, periods()) : notFound();
   }
   const fy = Number(fyText);
-  if (fy < FIRST_FINANCIAL_YEAR || fy > financialYearOf(today)) {
+  if (fy < FIRST_FINANCIAL_YEAR || fy > financialYearOf(mockDay())) {
     return problem(400, 'The financial year is not one reports exist for');
   }
   if (compile) {
@@ -241,7 +241,7 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
 }
 
 function periods(): ReportPeriod[] {
-  const current = financialYearOf(today);
+  const current = financialYearOf(mockDay());
   const years = new Set([current, current - 1, ...reports.keys()]);
   return [...years]
     .filter((fy) => fy >= FIRST_FINANCIAL_YEAR && fy <= current)
@@ -256,13 +256,13 @@ function periods(): ReportPeriod[] {
         reference: stored?.reference ?? null,
         submittedAt: stored?.submittedAt ?? null,
         late: stored?.late ?? null,
-        previewAvailable: today >= previewFromOf(fy) && stored?.status !== 'submitted',
+        previewAvailable: mockDay() >= previewFromOf(fy) && stored?.status !== 'submitted',
       };
     });
 }
 
 function startCompile(fy: number): Response {
-  if (today < previewFromOf(fy)) {
+  if (mockDay() < previewFromOf(fy)) {
     return problem(409, 'A preview of Form M opens on 1 April', 'preview-not-available');
   }
   const stored = reports.get(fy);
@@ -299,22 +299,10 @@ function advance(stored: Stored) {
   stored.compileStartedAt = null;
   // As at now, on the mock's day (its clock may be set to another day).
   const time = new Date().toISOString().slice(10);
-  stored.compiledAt = `${today}${time}`;
+  stored.compiledAt = `${mockDay()}${time}`;
   // A year compiled before it ends is a preview of today's data.
   stored.document =
-    today < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
-}
-
-/**
- * The Public Service Commission's report for `fy` as the store holds it now (null before its
- * first compile), for the EACC intake mock: EACC sees it once it is submitted.
- */
-export function mockStoredReport(fy: number): ComplianceReport | null {
-  ensureSeeded();
-  const stored = reports.get(fy);
-  if (!stored) return null;
-  advance(stored);
-  return view(stored);
+    mockDay() < finalCompileOf(stored.fy) ? previewDocument(stored.fy) : fullDocument(stored.fy);
 }
 
 /**
