@@ -263,6 +263,7 @@ Every `design-pending` ticket is built on the tokens above. A screen's own desig
 | Decision form with scope narrowing and `GroundsSelect`, package status | [#260](https://github.com/muliswilliam/adili-v3/issues/260) | `apps/console/prototype/10-access.prototype.html` | built from the prototype; the grounds hint names no decision letter (none is issued) |
 | Law enforcement requests tab, Law-enforcement workspace, Law-enforcement accounts in Platform settings | [#265](https://github.com/muliswilliam/adili-v3/issues/265) | `apps/console/prototype/10-access.prototype.html` | built from the prototype |
 | Record an in-person self-access application, issue its certified copy | [#304](https://github.com/muliswilliam/adili-v3/issues/304) | `apps/console/prototype/10-access.prototype.html` | built from the prototype; no postal address for dispatch (the contract has none) |
+| Roster > Coverage (declaration progress per reporting entity and cycle) | [#301](https://github.com/muliswilliam/adili-v3/issues/301) | `apps/console/prototype/02-roster.prototype.html` (`#coverage`, `cov-*` screens) | built from the prototype; Late is its own count (overdue, with a draft or not, as #300 counts it) rather than overlapping Not started and In progress, so the bar has a Late segment and the column of totals reads "Obligations"; the cycles are the biennial ones the endpoint lists (no initial or final options); 25 reporting entities a page |
 
 Add a row when a screen's design pass starts, and flip the status when it merges.
 
