@@ -408,6 +408,25 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
       expect(response.statusCode).toBe(400);
     });
 
+    it('refuses any data class but synthetic: the context holds no personal data (spec 11)', async () => {
+      const calls = provider.requests.length;
+      const sent = request(answerInput);
+
+      const response = await t.app.inject({
+        ...sent,
+        payload: { ...sent.payload, dataClass: 'restricted' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.body).toMatch(/dataClass/);
+      expect(provider.requests).toHaveLength(calls);
+      const [job] = await t.db
+        .select()
+        .from(jobs)
+        .where(eq(jobs.idempotencyKey, sent.headers['idempotency-key']));
+      expect(job).toBeUndefined();
+    });
+
     it('refuses a tenant the classification gate blocks, recording the blocked job', async () => {
       const response = await t.app.inject({
         ...request(answerInput),

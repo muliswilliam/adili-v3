@@ -106,7 +106,7 @@ export class JobsController {
   })
   @ApiProblemResponse(
     400,
-    'Request failed validation, an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing',
+    'Request failed validation (`answer-declarant-question` takes data class `synthetic` only), an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing',
   )
   @ApiProblemResponse(404, 'Unknown task')
   @ApiProblemResponse(422, 'Idempotency-Key reused with a different request')
@@ -173,7 +173,7 @@ export class JobsController {
   })
   @ApiProblemResponse(
     400,
-    'Request failed validation, a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing',
+    'Request failed validation (data class `synthetic` only), a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing',
   )
   @ApiProblemResponse(
     403,

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { z } from 'zod';
 
+import type { DataClass } from '../jobs/task-request.js';
 import type { JsonSchema } from '../providers/port.js';
 import type { Language } from './common.js';
 
@@ -129,6 +130,11 @@ interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
    * than as a job; the job endpoint refuses them, and the stream endpoint refuses the rest.
    */
   streamed?: (input: z.infer<TInput>) => boolean;
+  /**
+   * The one data class this task's input may be, when its schema decides it: a request naming
+   * another is refused as invalid, before any job.
+   */
+  dataClass?: DataClass;
   /** The label's disclaimer per language, when not the reviewer tasks' (`DISCLAIMERS`). */
   disclaimer?: Readonly<Record<Language, string>>;
   /**

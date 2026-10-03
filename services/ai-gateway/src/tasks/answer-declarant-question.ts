@@ -133,6 +133,8 @@ export const answerDeclarantQuestion = defineTask({
   // call (thinking included), so about 5,000.
   maxOutputTokens: (each) => (each.mode === 'answer' ? 2048 : 8192),
   streamed: (each) => each.mode === 'answer',
+  // The context is public law and field paths; the question is minimised (spec 11).
+  dataClass: 'synthetic',
   validate: (each, answer) =>
     each.mode === 'answer' ? answerViolations(each, answer) : hintViolations(each, answer),
   disclaimer: {

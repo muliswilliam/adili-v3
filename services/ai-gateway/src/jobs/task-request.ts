@@ -32,6 +32,11 @@ const requestFields = {
 export function taskRequestSchema(task: TaskDefinition) {
   return z.object({
     ...requestFields,
+    ...(task.dataClass && {
+      dataClass: dataClassSchema.refine((each) => each === task.dataClass, {
+        message: `Task ${task.name} takes data class ${task.dataClass} only`,
+      }),
+    }),
     input: task.input.refine((input) => !containsNul(input), {
       message: 'Text must not contain NUL (U+0000) characters',
     }),

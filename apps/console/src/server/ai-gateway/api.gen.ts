@@ -782,7 +782,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
-            /** @description Request failed validation, an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
+            /** @description Request failed validation (`answer-declarant-question` takes data class `synthetic` only), an input the task streams (`task-streamed`: `answer`-mode `answer-declarant-question`, sent to its stream endpoint), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -858,7 +858,7 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
-            /** @description Request failed validation, a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
+            /** @description Request failed validation (data class `synthetic` only), a `hints` input (`task-not-streamed`, run it as a job), Idempotency-Key missing or not a UUID, or X-Acting-Tenant missing */
             400: {
                 headers: {
                     [name: string]: unknown;
