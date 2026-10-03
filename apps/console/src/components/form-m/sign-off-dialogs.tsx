@@ -149,6 +149,7 @@ function reviewFailure(outcome: Extract<FormMResult<null>, { ok: false }>): stri
       return m.reviewedNotFound;
     case 'invalid':
       return m.reviewedInvalid;
+    // Not sent by this endpoint (no Idempotency-Key); as a failure to try again if it were.
     case 'busy':
       return m.reviewedFailed;
     case 'not-reviewed':
@@ -233,9 +234,11 @@ export function ConfirmDialog({
             </Alert>
           ) : null}
           {failed ? (
-            <Alert variant="destructive">
+            <Alert variant={failed === 'busy' ? 'warning' : 'destructive'}>
               <Icon icon={AlertCircleIcon} />
-              <AlertDescription>{m.confirmFailed}</AlertDescription>
+              <AlertDescription>
+                {failed === 'busy' ? m.confirmBusy : m.confirmFailed}
+              </AlertDescription>
             </Alert>
           ) : null}
           <CheckboxItem

@@ -30,9 +30,10 @@ export type ConfirmState =
   /**
    * The confirm dialog. `key` is its Idempotency-Key, kept on retry; the view opens it with the
    * key of an earlier attempt whose outcome is not known, else a new one (`sign-off.tsx`).
-   * `failed`: the last submit did not go through (nothing was sent twice).
+   * `failed`: why the last submit did not go through, if it did not: no answer (`error`), or
+   * the first attempt with the key still running (`busy`). Nothing is sent twice either way.
    */
-  | { step: 'confirm'; key: string; checked: boolean; failed: boolean }
+  | { step: 'confirm'; key: string; checked: boolean; failed: false | 'error' | 'busy' }
   /** The confirmation is in flight; the dialog cannot be closed. */
   | { step: 'submitting'; key: string }
   /** The service refused it: the dialog closed and the report reloads with a banner. */
@@ -99,9 +100,11 @@ function answered(key: string, answer: ConfirmOutcome): ConfirmState {
     case 'not-found':
     case 'invalid':
       return { step: 'refused', reason: answer.status };
-    // No answer: say it did not go through, and keep the key for another try.
+    // Not an answer yet: say so, and keep the key for another try.
+    case 'busy':
+      return { step: 'confirm', key, checked: true, failed: 'busy' };
     case 'unavailable':
-      return { step: 'confirm', key, checked: true, failed: true };
+      return { step: 'confirm', key, checked: true, failed: 'error' };
   }
 }
 

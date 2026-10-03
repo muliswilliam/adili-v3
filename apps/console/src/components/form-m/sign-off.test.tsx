@@ -701,6 +701,26 @@ describe('confirming with a step-up (S6, S7)', () => {
     ).toBeTruthy();
   });
 
+  it('says a confirmation still being processed, and keeps the dialog to try again', async () => {
+    await show(COMMISSION_ADMIN, {
+      seed: ready,
+      marker: 'done',
+      actions: mockActions(COMMISSION_ADMIN, {
+        confirm: () => Promise.resolve({ status: 'busy' }),
+      }),
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Confirm and submit Form M' });
+    fireEvent.click(within(dialog).getByLabelText('I confirm the information is correct'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and submit' }));
+    expect(
+      await within(dialog).findByText(
+        'Still being processed. Try again shortly; nothing will be sent twice.',
+      ),
+    ).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Try again' })).toBeTruthy();
+    expect(window.sessionStorage.length).toBe(1);
+  });
+
   it('points to Part I when the report is incomplete', async () => {
     await show(COMMISSION_ADMIN, {
       seed: ready,

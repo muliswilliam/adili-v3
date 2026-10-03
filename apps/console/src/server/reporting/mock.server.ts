@@ -25,8 +25,9 @@
  * The sign-off follows the service's rules: the supervisor edits remarks and marks the draft
  * reviewed, the commission-admin fills Part I and Part B and confirms, with a step-up token (`acr`
  * `step-up`, `auth_time` at most five minutes old: 403 `step-up-required`) and an
- * Idempotency-Key (a replay answers the same); 400 `not-reviewed` or `incomplete` with the paths;
- * 409 `report-compiling` or `report-submitted`. A confirmed report's PDF and receipt are issued
+ * Idempotency-Key, checked first as api-kit's interceptor does (a replay answers the same, another
+ * request under the key is 422 `idempotency-key-reused`; the in-flight 409 is not simulated);
+ * 400 `not-reviewed` or `incomplete` with the paths; 409 `report-compiling` or `report-submitted`. A confirmed report's PDF and receipt are issued
  * four seconds later.
  */
 import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';

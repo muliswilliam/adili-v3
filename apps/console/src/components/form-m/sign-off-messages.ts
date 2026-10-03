@@ -1,3 +1,15 @@
+import type { AutosaveFailure } from '@adili/ui';
+
+import type { SignOffRefusal } from '../../server/reporting/refusals';
+
+/** A save refused for good, by refusal; the others say the indicator's own words. */
+const SAVE_REFUSED: Partial<Record<SignOffRefusal, string>> = {
+  'already-submitted': 'Not saved: the report was submitted meanwhile. Reload the page.',
+  forbidden: 'Not saved: you can no longer edit this report.',
+  'not-found': 'Not saved: this report is no longer available. Reload the page.',
+  invalid: 'Not saved: the service refused this change. Reload the page.',
+};
+
 /** The Form M sign-off's copy (spec 09 FE comment and the #226 prototype screens). */
 export const en = {
   youFillThis: 'You fill this',
@@ -56,13 +68,7 @@ export const en = {
   reviewedSubmitted: 'This report was already submitted.',
   reviewedInvalid: 'Check the designation and try again.',
   reviewedNotFound: 'This report is no longer available. Reload the page to see how it stands.',
-  /** A save refused for good, by `SignOffRefusal`; others say the indicator's own words. */
-  saveRefused: {
-    'already-submitted': 'Not saved: the report was submitted meanwhile. Reload the page.',
-    forbidden: 'Not saved: you can no longer edit this report.',
-    'not-found': 'Not saved: this report is no longer available. Reload the page.',
-    invalid: 'Not saved: the service refused this change. Reload the page.',
-  } as Partial<Record<string, string>>,
+  saveRefused: SAVE_REFUSED,
   confirmAndSubmit: 'Confirm and submit',
   awaitingReview: 'Awaiting supervisor review',
   awaitingConfirmation: 'Awaiting confirmation by the commission administrator',
@@ -90,6 +96,7 @@ export const en = {
   },
   lateWarning: (due: string) => `Due ${due}. It will be recorded as late.`,
   confirmFailed: 'Form M was not submitted. Try again. Nothing was sent twice.',
+  confirmBusy: 'Still being processed. Try again shortly; nothing will be sent twice.',
   confirmCheckbox: 'I confirm the information is correct',
   tryAgain: 'Try again',
   submitting: 'Submitting…',
@@ -164,6 +171,11 @@ export const en = {
 function listed(items: string[]): string {
   if (items.length <= 1) return items.join('');
   return `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
+}
+
+/** Why an autosave stopped, from the refusal it failed with (`throwUnlessSaved`), if it says. */
+export function saveRefusedCopy(failure: AutosaveFailure | null): string | undefined {
+  return failure ? SAVE_REFUSED[failure.message as SignOffRefusal] : undefined;
 }
 
 /** Swahili translations, key by key; empty until reviewed. */

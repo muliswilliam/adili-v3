@@ -34,7 +34,7 @@ import {
   RefusedBanner,
   StepUpFailedBanner,
 } from './sign-off-dialogs';
-import { messages as m } from './sign-off-messages';
+import { messages as m, saveRefusedCopy } from './sign-off-messages';
 import { ComplaintsForm, PartIForm, type PartBValues, type PartIValues } from './sign-off-parts';
 import { SubmittedHeader } from './submitted-header';
 
@@ -138,9 +138,9 @@ function throwUnlessSaved(result: FormMResult<null>, onSignedOut: () => void): v
   // The network or a 5xx: passing, so retry.
   if (error.kind === 'unavailable') throw new Error('unavailable');
   const refusal = refusalOf(error.problem);
-  // A recompile running, or the save before still in flight: passing too.
-  if (refusal === 'compiling' || refusal === 'busy') throw new Error(refusal);
-  // The message is the refusal, for the indicator's copy (`saveRefused`).
+  // A recompile running: passing too.
+  if (refusal === 'compiling') throw new Error(refusal);
+  // The message is the refusal, for the indicator's copy (`saveRefusedCopy`).
   throw new AutosaveFailure('error', refusal);
 }
 
@@ -274,9 +274,7 @@ export function FormMSignOffView({
     !saving &&
     !unsaved;
   const reportId = report?.id ?? '';
-  const remarksRefused = remarksSave.failure
-    ? m.saveRefused[remarksSave.failure.message]
-    : undefined;
+  const remarksRefused = saveRefusedCopy(remarksSave.failure);
 
   // Back from the step-up: drop the marker, so a reload does not reopen the dialog. A failed one
   // says so; one that went through opens the dialog if the session holds a fresh step-up and the
@@ -314,7 +312,9 @@ export function FormMSignOffView({
       .confirm(fy, key)
       .catch((): ConfirmOutcome => ({ status: 'unavailable' }))
       .then((answer) => {
-        if (answer.status !== 'unavailable') pendingKeys.clear(reportId);
+        if (answer.status !== 'unavailable' && answer.status !== 'busy') {
+          pendingKeys.clear(reportId);
+        }
         dispatch({ type: 'answered', answer });
       });
   };

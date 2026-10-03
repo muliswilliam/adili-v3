@@ -233,7 +233,7 @@ describe('the commission-admin confirms with a step-up (S6, S7)', () => {
     expect(await confirmReport(steppedUp(), 'psc', 2019, key())).toEqual({ status: 'invalid' });
   });
 
-  it('retries a key still being processed (409 idempotency-key-in-use), keeping it', async () => {
+  it('says a key is still being processed (409 idempotency-key-in-use), to retry', async () => {
     resetReportingMock('2026-10-03', { reviewed: true, filled: true });
     const inUse = mockReportingClient([COMMISSION_ADMIN], {
       stepUpAt: Date.now(),
@@ -249,7 +249,7 @@ describe('the commission-admin confirms with a step-up (S6, S7)', () => {
           ),
         ),
     });
-    expect(await confirmReport(inUse, 'psc', 2025, key())).toEqual({ status: 'unavailable' });
+    expect(await confirmReport(inUse, 'psc', 2025, key())).toEqual({ status: 'busy' });
   });
 
   it('answers a replay of the key before asking for a step-up, as the service does', async () => {

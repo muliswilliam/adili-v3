@@ -101,6 +101,8 @@ export type ConfirmOutcome =
   | { status: 'invalid' }
   /** The session ended. */
   | { status: 'unauthenticated' }
+  /** 409 `idempotency-key-in-use`: the first attempt with this key is still running. Retry. */
+  | { status: 'busy' }
   /** Network or 5xx: the outcome is not known; retry with the same key. */
   | { status: 'unavailable' };
 
@@ -128,8 +130,6 @@ export async function confirmReport(
   if (error.kind === 'unauthenticated') return { status: 'unauthenticated' };
   if (error.kind === 'unavailable') return { status: 'unavailable' };
   const refusal = refusalOf(error.problem);
-  // Still being processed under this key (right after a timeout): not an answer yet.
-  if (refusal === 'busy') return { status: 'unavailable' };
   if (refusal === 'incomplete') {
     return { status: 'incomplete', paths: (error.problem.errors ?? []).map((each) => each.path) };
   }

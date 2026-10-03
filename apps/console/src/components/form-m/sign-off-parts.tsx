@@ -34,7 +34,7 @@ import { type SyntheticEvent, useId, useState } from 'react';
 import { Field, FORM_M_ANCHORS, Note, PartCard } from './form-m-document';
 import { emailTakes } from './manual-fields';
 import { messages as fm } from './messages';
-import { messages as m } from './sign-off-messages';
+import { messages as m, saveRefusedCopy } from './sign-off-messages';
 
 /**
  * The commission-admin's editable Part I and Part B of Form M (spec 09 FE-2, S5): the same cards
@@ -64,7 +64,7 @@ function Saving({
   messages: typeof m.partISaving;
 }) {
   // A refusal for good says why, from the code the save failed with (`throwUnlessSaved`).
-  const refused = autosave.failure ? m.saveRefused[autosave.failure.message] : undefined;
+  const refused = saveRefusedCopy(autosave.failure);
   return (
     <div className="flex justify-end">
       <SaveIndicator

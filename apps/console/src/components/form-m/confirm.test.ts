@@ -52,7 +52,7 @@ describe('confirming Form M with a step-up (S6)', () => {
       { type: 'submit-pressed' },
     ]);
     const failed = confirmReducer(sent, { type: 'answered', answer: { status: 'unavailable' } });
-    expect(failed).toEqual({ step: 'confirm', key: 'key-1', checked: true, failed: true });
+    expect(failed).toEqual({ step: 'confirm', key: 'key-1', checked: true, failed: 'error' });
     expect(confirmReducer(failed, { type: 'submit-pressed' })).toEqual({
       step: 'submitting',
       key: 'key-1',
@@ -74,6 +74,7 @@ describe('confirming Form M with a step-up (S6)', () => {
       { step: 'refused', reason: 'incomplete', paths: ['partI.emailAddress'] },
     ],
     [{ status: 'forbidden' }, { step: 'refused', reason: 'forbidden' }],
+    [{ status: 'busy' }, { step: 'confirm', key: 'key-1', checked: true, failed: 'busy' }],
     [{ status: 'key-reused' }, { step: 'refused', reason: 'key-reused' }],
     [{ status: 'not-found' }, { step: 'refused', reason: 'not-found' }],
     [{ status: 'invalid' }, { step: 'refused', reason: 'invalid' }],
