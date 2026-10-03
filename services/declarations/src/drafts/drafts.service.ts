@@ -19,6 +19,7 @@ import { commissionRefs, filingObligations } from '../obligations/schema.js';
 import { acknowledgementOf } from '../declaration/acknowledgement.js';
 import { declarations, declarationVersions, isEditable } from '../declaration/schema.js';
 import { amendRefusal, isLate, submitRefusal } from '../declaration/window.js';
+import { keptSources } from '../suggestions/item-sources.js';
 import { personOf } from './access.js';
 import { itemIds, keepAttachments } from './attachments.js';
 import { assessSections, type DraftSections, type SectionAssessment } from './completeness.js';
@@ -513,9 +514,10 @@ export class DraftsService {
    * Saves one section: `ifMatch` must be the draft version the client read (428 without it, 412
    * when another save came first). The body must be well formed for the section; missing fields
    * are completeness, not errors. Locked bio fields cannot change (400 `identity-locked-field`);
-   * a statement's person and dates are the service's. One transaction bumps the draft version,
-   * stores the encrypted section with its clear metadata and records the save (ADR-008: no
-   * change without its audit record), identifiers only.
+   * a statement's person and dates are the service's, and so is each item's `source`: kept as
+   * stored, without its verification result once the item changed where the registry spoke. One
+   * transaction bumps the draft version, stores the encrypted section with its clear metadata and
+   * records the save (ADR-008: no change without its audit record), identifiers only.
    */
   async saveSection(
     principal: Principal,
@@ -524,7 +526,10 @@ export class DraftsService {
     ifMatch: string | undefined,
     body: unknown,
   ): Promise<SectionSaveResult> {
-    return this.save(personOf(principal), declarationId, sectionKey, ifMatch, () => body);
+    // An item's source is the service's: kept as stored, never as sent (spec 05b story 16).
+    return this.save(personOf(principal), declarationId, sectionKey, ifMatch, (stored) =>
+      keptSources(sectionKey, stored, body),
+    );
   }
 
   /**

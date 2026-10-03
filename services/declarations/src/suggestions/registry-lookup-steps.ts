@@ -19,7 +19,7 @@ import {
   IntegrationGatewayClient,
   IntegrationGatewayUnavailable,
 } from '../integration-gateway/integration-gateway-client.js';
-import { decisionStands } from './decided.js';
+import { decisionStands, isDecided } from './decided.js';
 import { declarationSuggestionsReady } from './events.js';
 import { type Comparable, findMatchingItem, repeatsDecided } from './match-keys.js';
 import { savedHouseholdPerson } from './household.js';
@@ -172,19 +172,25 @@ export class RegistryLookupSteps {
       rows.filter((row) => row.status === 'accepted').map((row) => row.sectionKey),
     );
     const decisions = await Promise.all(
-      rows.map(async (row) => ({
-        itemType: row.itemType,
-        sectionKey: row.sectionKey,
-        // The query asked for these two only.
-        status: row.status === 'accepted' ? ('accepted' as const) : ('dismissed' as const),
-        acceptedItemId: row.acceptedItemId,
-        matchKeys: (await this.cipher.open(attempt.tenant, attempt.declarationId, row.id, row))
-          .matchKeys,
-      })),
+      rows.map(async ({ status, ...row }) =>
+        isDecided(status)
+          ? [
+              {
+                itemType: row.itemType,
+                sectionKey: row.sectionKey,
+                status,
+                acceptedItemId: row.acceptedItemId,
+                matchKeys: (
+                  await this.cipher.open(attempt.tenant, attempt.declarationId, row.id, row)
+                ).matchKeys,
+              },
+            ]
+          : [],
+      ),
     );
-    return decisions.filter((decision) =>
-      decisionStands(decision, sections.get(decision.sectionKey)),
-    );
+    return decisions
+      .flat()
+      .filter((decision) => decisionStands(decision, sections.get(decision.sectionKey)));
   }
 
   /**

@@ -6,6 +6,7 @@ import { filingObligations, rosterSnapshots } from '../../src/db/schema.js';
 import type { Declaration, SectionEnvelope } from '../../src/drafts/representation.js';
 import type { Caller, DeclarationsApi } from './declarations-api.js';
 import { rosterRecord } from './fake-directory.js';
+import { givenStoredSection } from './stored-sections.js';
 
 /**
  * Submitting through the HTTP API as a declarant would (spec 06): a PSC biennial obligation of
@@ -191,15 +192,18 @@ export function submissionFixtures(api: () => DeclarationsApi) {
     return draft;
   }
 
-  /** The draft's income and plot saved again as pre-filled (with `source`); the loan as typed. */
+  /**
+   * The draft's income and plot marked as pre-filled (with `source`), as accepting suggestions
+   * leaves them; the loan as typed. Written into the stored section, since a save keeps the
+   * sources the service set and takes none from the client.
+   */
   async function sourceItems(personId: string, id: string): Promise<void> {
-    const officer = await section(personId, id, 'statement:officer');
-    await save(personId, id, 'statement:officer', {
-      ...officer,
+    await givenStoredSection(api(), personId, id, 'statement:officer', (contents) => ({
+      ...contents,
       income: [{ ...INCOME, source: INCOME_SOURCE }],
       assets: [{ ...ASSET, source: ASSET_SOURCE }],
       liabilities: [LIABILITY],
-    });
+    }));
   }
 
   function submit(id: string, caller: Caller, key: string | null = randomUUID()) {

@@ -85,11 +85,19 @@ export function matchKeysFor(itemType: IdentifiedItemType, identifier: string): 
   return identifier ? ITEM_IDENTIFIERS[itemType].keys(identifier) : [];
 }
 
-/** The match keys of an item already in a financial statement; none for untyped identifiers. */
-export function matchKeysOfItem(item: StatementItem): MatchKey[] {
-  if (!('details' in item) || !item.details || !(item.type in ITEM_IDENTIFIERS)) return [];
-  const { detail } = ITEM_IDENTIFIERS[item.type as IdentifiedItemType];
-  return matchKeysFor(item.type as IdentifiedItemType, item.details[detail] ?? '');
+/**
+ * The match keys of an item in a financial statement, as saved (possibly partial); none for an
+ * item type without an identifier.
+ */
+export function matchKeysOfItem(item: { type?: unknown; details?: unknown }): MatchKey[] {
+  if (typeof item.type !== 'string' || !(item.type in ITEM_IDENTIFIERS)) return [];
+  const type = item.type as IdentifiedItemType;
+  const details = item.details;
+  const raw =
+    typeof details === 'object' && details !== null
+      ? (details as Record<string, unknown>)[ITEM_IDENTIFIERS[type].detail]
+      : undefined;
+  return matchKeysFor(type, typeof raw === 'string' ? raw : '');
 }
 
 type Directorship = RegistrableInterests['directorships'][number];

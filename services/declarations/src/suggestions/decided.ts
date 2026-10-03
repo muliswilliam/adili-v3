@@ -1,5 +1,5 @@
 import type { SectionContents } from '../drafts/sections.js';
-import { isRecord, recordOf } from '../guards.js';
+import { sectionItems, text } from './item-sources.js';
 import {
   type Comparable,
   companyKeys,
@@ -8,7 +8,6 @@ import {
   matchKeysOfItem,
   presentKeys,
 } from './match-keys.js';
-import { statementItems } from './persons.js';
 
 /**
  * Which of the declarant's decisions on a registry's suggestions still stand when the registry is
@@ -40,27 +39,18 @@ export function decisionStands(decision: Decision, section: SectionContents | un
 }
 
 /**
- * The identifiers of item `itemId` as the section holds it: a statement's income, asset or
- * liability, a paragraph 9 directorship, or a spouse in Household (their KRA PIN). Null when the
- * section holds no such item.
+ * The identifiers of item `itemId` as the section holds it (`sectionItems`): a statement item's
+ * own, a directorship's company, a spouse's KRA PIN. Null when the section holds no such item.
  */
 function itemKeys(sectionKey: string, section: SectionContents, itemId: string): MatchKey[] | null {
-  if (sectionKey.startsWith('statement:')) {
-    const item = statementItems(section).find((each) => each.id === itemId);
-    return item ? matchKeysOfItem(item) : null;
-  }
-  const items =
-    sectionKey === 'other'
-      ? recordOf(section.registrableInterests).directorships
-      : sectionKey === 'household'
-        ? recordOf(section.spouses).items
-        : undefined;
-  const item: unknown = Array.isArray(items)
-    ? (items as unknown[]).find((each) => isRecord(each) && each.id === itemId)
-    : undefined;
-  if (!isRecord(item)) return null;
-  if (sectionKey === 'other') {
-    return typeof item.company === 'string' ? companyKeys(item.company) : [];
-  }
-  return typeof item.kraPin === 'string' ? presentKeys(kraPinMatchKey(item.kraPin)) : [];
+  const item = sectionItems(sectionKey, section).find((each) => each.id === itemId);
+  if (!item) return null;
+  if (sectionKey === 'other') return companyKeys(text(item.company));
+  if (sectionKey === 'household') return presentKeys(kraPinMatchKey(text(item.kraPin)));
+  return matchKeysOfItem(item);
+}
+
+/** Whether a suggestion's status is a decision the declarant made. */
+export function isDecided(status: string): status is Decision['status'] {
+  return status === 'accepted' || status === 'dismissed';
 }

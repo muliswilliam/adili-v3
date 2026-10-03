@@ -690,6 +690,83 @@ describe('accepting a suggestion (S4)', () => {
   });
 });
 
+describe("an item's source after the declarant saves its section (story 16)", () => {
+  /** The officer's statement after accepting NTSA's Fielder; the item and its section. */
+  async function acceptedCar() {
+    const draft = await givenDraft();
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+    await accepted(draft.id, fielder);
+    const statement = await section(draft.id, 'statement:officer');
+    const [car] = itemsOf(statement, 'assets');
+    if (!car) throw new Error('No car accepted');
+    return { draft, fielder, statement, car };
+  }
+
+  async function savedCar(declarationId: string, contents: Record<string, unknown>) {
+    await save(declarationId, 'statement:officer', contents);
+    return itemsOf(await section(declarationId, 'statement:officer'), 'assets');
+  }
+
+  it("keeps NTSA's result while the declarant only values the car or rewords it", async () => {
+    const { draft, statement, car } = await acceptedCar();
+
+    const [saved] = await savedCar(draft.id, {
+      ...statement.contents,
+      assets: [{ ...car, description: 'The school-run car', value: { kesCents: 90_000_000 } }],
+    });
+
+    expect(saved?.source).toEqual(car.source);
+  });
+
+  it("drops NTSA's result once the declarant changes the registration, keeping the source", async () => {
+    const { draft, fielder, statement, car } = await acceptedCar();
+    const details = car.details as Record<string, unknown>;
+
+    const [saved] = await savedCar(draft.id, {
+      ...statement.contents,
+      assets: [{ ...car, details: { ...details, registration: 'KCA 128A' } }],
+    });
+
+    expect(saved?.source).toEqual({
+      kind: 'ntsa',
+      suggestionId: fielder.id,
+      at: expect.stringMatching(ISO) as unknown,
+    });
+  });
+
+  it('takes no source from the client: none on a new item, the stored one on an old', async () => {
+    const { draft, statement, car } = await acceptedCar();
+    const forged = {
+      kind: 'ardhisasa',
+      suggestionId: randomUUID(),
+      verificationResultId: randomUUID(),
+      at: '2027-01-01T00:00:00.000Z',
+    };
+    const typed = {
+      id: randomUUID(),
+      type: 'vehicle',
+      description: 'A motorbike',
+      details: { registration: 'KMDA 123A' },
+      value: { kesCents: 15_000_000 },
+      location: { inKenya: true },
+      joint: { isJoint: false },
+      change: { changed: false },
+    };
+
+    const saved = await savedCar(draft.id, {
+      ...statement.contents,
+      assets: [
+        { ...car, source: forged },
+        { ...typed, source: forged },
+      ],
+    });
+
+    expect(saved.map((item) => item.source)).toEqual([car.source, undefined]);
+  });
+});
+
 describe('dismissing, and checking again (S5)', () => {
   it('records the dismissal with its reason, announcing it with identifiers only', async () => {
     const draft = await givenDraft();

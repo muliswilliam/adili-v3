@@ -256,7 +256,12 @@ export class SuggestionsService {
       ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
       at: this.clock.now().toISOString(),
     };
-    const placement = placementOf({ ...row, fields: offered.fields }, accepted, source, uuidv7());
+    const placement = placementOf(
+      { ...row, fields: offered.fields, matchKeys: offered.matchKeys },
+      accepted,
+      source,
+      uuidv7(),
+    );
     let itemId = '';
     let decided: SuggestionRow | undefined;
     let saved: { draftVersion: number };

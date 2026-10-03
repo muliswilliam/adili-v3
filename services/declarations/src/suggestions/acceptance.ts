@@ -3,6 +3,8 @@ import type { DeclarationSectionKey, ItemSource } from '@adili/forms';
 import { validationProblem } from '../drafts/problems.js';
 import { recordOf } from '../guards.js';
 import type { SectionContents } from '../drafts/sections.js';
+import { type Item, text, unverified, valueAt, vouches } from './item-sources.js';
+import { companyKeys, type MatchKey, matchKeysOfItem } from './match-keys.js';
 
 /**
  * Accepting a suggestion (spec 05b, S4), pure: where each kind of suggestion lands in
@@ -20,8 +22,8 @@ import type { SectionContents } from '../drafts/sections.js';
  *
  * A new item carries the suggestion as its `source`. Applied to an existing item, a suggestion
  * fills only the fields the item leaves empty unless `overwrite` is set, and marks the item with
- * its `source` if it has none. The source names the registry's verification result only when the
- * item ends up holding what the registry said (`sourceFor`). Values (`value`, `amount`) are never
+ * its `source` if it has none (or takes this one with `overwrite`). The source names the
+ * registry's verification result only while the item holds what the registry said (`sourcing`). Values (`value`, `amount`) are never
  * written: valuing is the declarant's call. A spouse in Household has no `source` in
  * declaration.v1, so a PIN carries none.
  */
@@ -37,6 +39,8 @@ export interface SuggestionToAccept {
   itemType: string;
   /** The fields as the registry gave them (see `registry-mapping.ts`). */
   fields: Record<string, unknown>;
+  /** Its identifiers (`match-keys.ts`), as the registry gave them. */
+  matchKeys: readonly MatchKey[];
   sectionKey: DeclarationSectionKey;
   personKey: string;
 }
@@ -106,7 +110,8 @@ const NIL_FLAG = { assets: 'assetsNil', income: 'incomeNil' } as const;
 
 /**
  * Where the suggestion lands and how, or a 400 when it has no place in declaration.v1 (the
- * declarant's own KRA PIN, an item type the service does not know).
+ * declarant's own KRA PIN, an item type the service does not know), or it is applied without
+ * `overwrite` to an item that describes something else (another registration, parcel or company).
  */
 export function placementOf(
   suggestion: SuggestionToAccept,
@@ -117,7 +122,7 @@ export function placementOf(
   const statementItem = STATEMENT_ITEMS[suggestion.itemType];
   if (statementItem && suggestion.sectionKey.startsWith('statement:')) {
     const patch = statementItem.patch(accepted.fields);
-    const registryPatch = statementItem.patch(suggestion.fields);
+    const sourced = sourcing(suggestion, statementItem.patch(suggestion.fields), source, accepted);
     return {
       sectionKey: suggestion.sectionKey,
       apply: (stored) => {
@@ -130,27 +135,22 @@ export function placementOf(
             change: { changed: false },
             ...(statementItem.list === 'assets' ? { joint: { isJoint: false } } : {}),
           };
-          const added = patched(base, patch, true);
           return {
             contents: {
               ...stored,
               [NIL_FLAG[statementItem.list]]: false,
-              [statementItem.list]: [
-                ...items,
-                { ...added, source: sourceFor(added, registryPatch, source) },
-              ],
+              [statementItem.list]: [...items, sourced.added(patched(base, patch, true))],
             },
             itemId: newId,
           };
         }
         const target = existing(items, accepted.applyToItemId, statementItem.type);
+        sameThing(target, matchKeysOfItem(target), patch, suggestion, accepted);
         return {
           contents: {
             ...stored,
             [statementItem.list]: items.map((item) =>
-              item === target
-                ? filledFrom(item, patch, accepted.overwrite, registryPatch, source)
-                : item,
+              item === target ? sourced.applied(patched(item, patch, accepted.overwrite)) : item,
             ),
           },
           itemId: accepted.applyToItemId,
@@ -160,7 +160,7 @@ export function placementOf(
   }
   if (suggestion.itemType === 'directorship' && suggestion.sectionKey === 'other') {
     const patch = directorshipPatch(accepted.fields);
-    const registryPatch = directorshipPatch(suggestion.fields);
+    const sourced = sourcing(suggestion, directorshipPatch(suggestion.fields), source, accepted);
     return {
       sectionKey: 'other',
       apply: (stored) => {
@@ -169,15 +169,13 @@ export function placementOf(
         let next: Record<string, unknown>[];
         let itemId: string;
         if (accepted.applyToItemId === null) {
-          const added = patched({ id: newId }, patch, true);
-          next = [...directorships, { ...added, source: sourceFor(added, registryPatch, source) }];
+          next = [...directorships, sourced.added(patched({ id: newId }, patch, true))];
           itemId = newId;
         } else {
           const target = existing(directorships, accepted.applyToItemId, null);
+          sameThing(target, companyKeys(text(target.company)), patch, suggestion, accepted);
           next = directorships.map((each) =>
-            each === target
-              ? filledFrom(each, patch, accepted.overwrite, registryPatch, source)
-              : each,
+            each === target ? sourced.applied(patched(each, patch, accepted.overwrite)) : each,
           );
           itemId = accepted.applyToItemId;
         }
@@ -234,42 +232,56 @@ function directorshipPatch(fields: Record<string, unknown>): Patch {
 }
 
 /**
- * The suggestion's `source` for `item`, naming the registry's verification result only when the
- * item holds what the registry said wherever the suggestion writes (the description, the
- * mapping's wording rather than the registry's, aside), compared as letters and digits so that
- * "kca-123a" holds "KCA 123A". An item the declarant edited, or whose
- * own values were kept when the suggestion was applied to it, is not vouched for by the registry
- * (spec 05b story 16: a reviewer relies on the result not to flag a registry-sourced item).
+ * How the accepted item takes the suggestion as its `source`: an item added always; one it is
+ * applied to when it has none, or when `overwrite` replaced its values with the suggestion's (it
+ * then holds this suggestion's, not where it was first filled from). The source names the
+ * registry's verification result only while the item holds what the registry said
+ * (`vouches`): not once the declarant edited it, or kept values of their own the registry did
+ * not give.
  */
-function sourceFor(
-  item: Record<string, unknown>,
+function sourcing(
+  suggestion: SuggestionToAccept,
   registryPatch: Patch,
   source: ItemSource,
-): ItemSource {
-  const { verificationResultId, ...unverified } = source;
-  if (verificationResultId === undefined) return source;
-  const vouched = registryPatch.every(
-    ([path, value]) =>
-      path === 'description' ||
-      value === '' ||
-      comparable(valueAt(item, path)) === comparable(value),
-  );
-  return vouched ? source : unverified;
+  { overwrite }: AcceptedFields,
+): { added: (item: Item) => Item; applied: (item: Item) => Item } {
+  const said = patched({}, registryPatch, true);
+  const sourced = (item: Item): Item => ({
+    ...item,
+    source: vouches(suggestion.sectionKey, item, said) ? source : unverified(source),
+  });
+  return {
+    added: sourced,
+    applied: (item) => (overwrite || item.source === undefined ? sourced(item) : item),
+  };
 }
 
 /**
- * An existing item with the suggestion applied: its empty fields filled (all, with `overwrite`),
- * and the suggestion's source if it has none.
+ * Refuses (400) to apply the suggestion, without `overwrite`, to an item already holding another
+ * identifier than the suggestion's (or the declarant's edit of it): that item is another car,
+ * parcel or company, which filling its empty fields would mix up with this one.
  */
-function filledFrom(
-  item: Record<string, unknown>,
+function sameThing(
+  target: Item,
+  targetKeys: readonly MatchKey[],
   patch: Patch,
-  overwrite: boolean,
-  registryPatch: Patch,
-  source: ItemSource,
-): Record<string, unknown> {
-  const filled = patched(item, patch, overwrite);
-  return markedFrom(filled, sourceFor(filled, registryPatch, source));
+  suggestion: SuggestionToAccept,
+  accepted: AcceptedFields,
+): void {
+  if (accepted.overwrite || targetKeys.length === 0) return;
+  const sent = matchKeysOfItem(patched({ type: target.type }, patch, true));
+  const ours = new Set<string>([
+    ...suggestion.matchKeys,
+    ...sent,
+    ...(target.type === undefined ? companyKeys(text(accepted.fields.companyName)) : []),
+  ]);
+  if (targetKeys.some((key) => ours.has(key))) return;
+  throw validationProblem([
+    {
+      path: 'applyToItemId',
+      message: 'The item describes something else; overwrite it, or add the suggestion as new',
+    },
+  ]);
 }
 
 /** The item with `id` in `items`, of `type` when given; a 400 otherwise. */
@@ -302,11 +314,6 @@ function patched(
   return result;
 }
 
-/** The item keeps the source it has (where it was first filled from), or takes this one. */
-function markedFrom(item: Record<string, unknown>, source: ItemSource): Record<string, unknown> {
-  return item.source === undefined ? { ...item, source } : item;
-}
-
 function withValue(
   target: Record<string, unknown>,
   [head, ...rest]: string[],
@@ -317,31 +324,8 @@ function withValue(
   return { ...target, [head]: withValue(recordOf(target[head]), rest, value) };
 }
 
-function valueAt(target: Record<string, unknown>, path: string): unknown {
-  let current: unknown = target;
-  for (const key of path.split('.')) {
-    if (typeof current !== 'object' || current === null) return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
-}
-
 function isEmpty(value: unknown): boolean {
   return value === undefined || value === null || (typeof value === 'string' && !value.trim());
-}
-
-/** A field as text: trimmed strings and finite numbers; anything else is empty. */
-function text(value: unknown): string {
-  if (typeof value === 'string') return value.trim();
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return '';
-}
-
-/** A field as its letters and digits, upper-cased: how two values are told to say the same. */
-function comparable(value: unknown): string {
-  return text(value)
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '');
 }
 
 function joined(parts: string[], separator: string): string {

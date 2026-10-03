@@ -17,7 +17,11 @@ function asNew(fields: Record<string, unknown>): AcceptedFields {
   return { fields, applyToItemId: null, overwrite: false };
 }
 
-const officerStatement = { sectionKey: 'statement:officer' as const, personKey: 'officer' };
+const officerStatement = {
+  sectionKey: 'statement:officer' as const,
+  personKey: 'officer',
+  matchKeys: [],
+};
 
 function statement(assets: unknown[] = [], extra: Record<string, unknown> = {}) {
   return { incomeNil: false, income: [], assetsNil: false, assets, ...extra };
@@ -113,7 +117,7 @@ describe('accepting into a statement', () => {
     ]);
   });
 
-  it('adds an income hint as a salary with no amount', () => {
+  it('adds an income hint as a salary with no amount, which KRA does not vouch for', () => {
     const { contents } = placementOf(
       { ...officerStatement, itemType: 'income-hint', fields: { incomeType: 'salary-emoluments' } },
       asNew({ incomeType: 'salary-emoluments' }),
@@ -128,7 +132,8 @@ describe('accepting into a statement', () => {
         type: 'salary-emoluments',
         location: { inKenya: true },
         change: { changed: false },
-        source: { ...SOURCE, kind: 'kra' },
+        // KRA's figure is a hint, not what the item holds: no verification result.
+        source: { kind: 'kra', suggestionId: SOURCE.suggestionId, at: SOURCE.at },
       },
     ]);
   });
@@ -151,7 +156,7 @@ describe('accepting into a statement', () => {
     ]);
   });
 
-  it('overwrites when asked, but never the value, and keeps the source the item has', () => {
+  it("overwrites when asked, but never the value, taking this suggestion's source", () => {
     const earlier = { ...SOURCE, suggestionId: '0192f1a0-5a11-7000-8000-00000000c009' };
     const { contents } = placementOf(
       { ...officerStatement, itemType: 'vehicle', fields: fielder },
@@ -165,10 +170,58 @@ describe('accepting into a statement', () => {
         ...declaredCar,
         description: 'Toyota Fielder',
         details: { registration: 'KCA 123A', makeModel: 'Toyota Fielder, 2016' },
-        source: earlier,
+        source: SOURCE,
       },
     ]);
   });
+
+  it('keeps the source the item has when it only fills empty fields', () => {
+    const earlier = { ...SOURCE, suggestionId: '0192f1a0-5a11-7000-8000-00000000c009' };
+    const { contents } = placementOf(
+      { ...officerStatement, itemType: 'vehicle', fields: fielder },
+      { fields: fielder, applyToItemId: CAR_ID, overwrite: false },
+      SOURCE,
+      NEW_ID,
+    ).apply(statement([{ ...declaredCar, source: earlier }]));
+
+    expect((contents.assets as { source: unknown }[])[0]?.source).toEqual(earlier);
+  });
+
+  it.each([['another registration', { ...declaredCar, details: { registration: 'KDB 999Z' } }]])(
+    'refuses to fill, without overwrite, an item with %s (400)',
+    (_, car) => {
+      const placement = placementOf(
+        {
+          ...officerStatement,
+          itemType: 'vehicle',
+          fields: fielder,
+          matchKeys: ['registration:KCA123A'],
+        },
+        { fields: fielder, applyToItemId: CAR_ID, overwrite: false },
+        SOURCE,
+        NEW_ID,
+      );
+
+      expect(() => placement.apply(statement([car]))).toThrow(
+        expect.objectContaining({ problem: expect.objectContaining({ status: 400 }) as unknown }),
+      );
+      // Overwritten, it becomes the registry's car.
+      const { contents } = placementOf(
+        {
+          ...officerStatement,
+          itemType: 'vehicle',
+          fields: fielder,
+          matchKeys: ['registration:KCA123A'],
+        },
+        { fields: fielder, applyToItemId: CAR_ID, overwrite: true },
+        SOURCE,
+        NEW_ID,
+      ).apply(statement([car]));
+      expect(contents.assets).toMatchObject([
+        { details: { registration: 'KCA 123A' }, source: SOURCE },
+      ]);
+    },
+  );
 
   it.each([
     ['an item not in the section', '0192f1a0-5a11-7000-8000-00000000c0ff'],
@@ -206,6 +259,7 @@ describe('accepting outside the statements', () => {
         sectionKey: 'other',
         personKey: 'officer',
         fields: { companyName: 'Kimumu Transporters Limited', role: 'Director' },
+        matchKeys: [],
       },
       asNew({ companyName: 'Kimumu Transporters Limited', role: 'Director' }),
       { ...SOURCE, kind: 'brs' },
@@ -243,6 +297,7 @@ describe('accepting outside the statements', () => {
           sectionKey: 'household',
           personKey: `spouse:${SPOUSE_ID}`,
           fields: { kraPin: 'A005231876K' },
+          matchKeys: [],
         },
         { fields: { kraPin: 'a005231876k' }, applyToItemId: null, overwrite },
         { ...SOURCE, kind: 'kra' },
@@ -268,11 +323,17 @@ describe('accepting outside the statements', () => {
   it.each([
     [
       "the declarant's own KRA PIN",
-      { itemType: 'bio-tax', sectionKey: 'bio', personKey: 'officer', fields: {} },
+      { itemType: 'bio-tax', sectionKey: 'bio', personKey: 'officer', fields: {}, matchKeys: [] },
     ],
     [
       'an unknown item type',
-      { itemType: 'aircraft', sectionKey: 'statement:officer', personKey: 'officer', fields: {} },
+      {
+        itemType: 'aircraft',
+        sectionKey: 'statement:officer',
+        personKey: 'officer',
+        fields: {},
+        matchKeys: [],
+      },
     ],
   ] as const)('refuses %s (400)', (_, suggestion) => {
     expect(() => placementOf(suggestion, asNew({}), SOURCE, NEW_ID)).toThrow(
@@ -312,6 +373,37 @@ describe("naming the registry's verification result on the item's source", () =>
     ['a field left out', { ...fielder, model: undefined }],
   ])('leaves it off for %s', (_, fields) => {
     expect(sourceOf(asNew(fields))).toEqual(unverified);
+  });
+
+  it('tells a parcel or a size apart by its separators', () => {
+    const land = {
+      ...officerStatement,
+      itemType: 'land',
+      fields: { parcelNumber: 'Block 7/1234', size: '1.5 ha', location: 'Kitengela' },
+    };
+    const sourceOfLand = (fields: Record<string, unknown>) =>
+      (
+        placementOf(land, asNew(fields), SOURCE, NEW_ID).apply(statement()).contents.assets as {
+          source?: unknown;
+        }[]
+      )[0]?.source;
+
+    expect(sourceOfLand(land.fields)).toEqual(SOURCE);
+    expect(sourceOfLand({ ...land.fields, parcelNumber: 'block 7 / 1234' })).toEqual(SOURCE);
+    expect(sourceOfLand({ ...land.fields, parcelNumber: 'Block 71/234' })).toEqual(unverified);
+    expect(sourceOfLand({ ...land.fields, size: '15 ha' })).toEqual(unverified);
+  });
+
+  it('names it for a shareholding accepted as BRS gave it', () => {
+    const shares = {
+      ...officerStatement,
+      itemType: 'shareholding',
+      fields: { companyName: 'Kimumu Transporters Limited', shares: 150 },
+    };
+    const { contents } = placementOf(shares, asNew(shares.fields), SOURCE, NEW_ID).apply(
+      statement(),
+    );
+    expect((contents.assets as { source?: unknown }[])[0]?.source).toEqual(SOURCE);
   });
 
   it('ignores fields the suggestion never writes', () => {

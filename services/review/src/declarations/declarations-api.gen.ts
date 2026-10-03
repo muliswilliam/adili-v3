@@ -216,7 +216,7 @@ export interface paths {
         get: operations["getDeclarationSection"];
         /**
          * Save a section (autosave); requires If-Match with the current draft version
-         * @description The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out.
+         * @description The whole section is sent. Missing fields are saved and reported as completeness issues; a malformed body is refused. Locked bio fields may be left out. Each item's `source` is the service's (set by `acceptSuggestion`): kept as stored whatever is sent, none on an item that had none, and without `verificationResultId` once the item changes where the registry spoke.
          */
         put: operations["saveDeclarationSection"];
         post?: never;
@@ -813,7 +813,7 @@ export interface paths {
         put?: never;
         /**
          * Add the suggestion as an item, or apply it to an existing item (declarant); through the section save
-         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none. Values are never filled. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
+         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. Values are never filled. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
          */
         post: operations["acceptSuggestion"];
         delete?: never;
@@ -4202,7 +4202,7 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionAcceptance"];
                 };
             };
-            /** @description Validation failed: the fields do not fit the item, `applyToItemId` is not an item of the suggestion's type in its section, or the suggestion has no place in the declaration (the declarant's own KRA PIN) */
+            /** @description Validation failed: the fields do not fit the item, `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN) */
             400: {
                 headers: {
                     [name: string]: unknown;
