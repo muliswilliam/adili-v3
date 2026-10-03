@@ -1,5 +1,6 @@
 import type { SourceRef, SourceRefTarget } from '@adili/ui';
 
+import { highlightTarget } from '../../highlight-target';
 import { messages as t } from './messages';
 
 /**
@@ -212,23 +213,12 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
   };
 }
 
-/** How long the target of a source link stays highlighted. */
-export const HIGHLIGHT_MS = 2_400;
+export { HIGHLIGHT_MS } from '../../highlight-target';
 
 /**
- * Scrolls the declaration pane to a ref's target and highlights it (`data-target-highlight`,
- * which `@adili/ui` styles), for `HIGHLIGHT_MS`. Returns false when the pane does not have the
- * element, for instance while it shows another version.
+ * Scrolls the declaration pane to a ref's target and highlights it (`highlightTarget`). Returns
+ * false when the pane does not have the element, for instance while it shows another version.
  */
 export function highlightInDeclaration(anchorId: string, root: Document = document): boolean {
-  const element = root.getElementById(anchorId);
-  if (!element) return false;
-  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  element.setAttribute('data-target-highlight', '');
-  if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '-1');
-  element.focus({ preventScroll: true });
-  setTimeout(() => {
-    element.removeAttribute('data-target-highlight');
-  }, HIGHLIGHT_MS);
-  return true;
+  return highlightTarget(anchorId, root);
 }
