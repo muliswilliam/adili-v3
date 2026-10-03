@@ -9,10 +9,17 @@ export const envSchema = bffEnvSchema.extend({
   /** The integration-gateway's public routes: registry coverage for platform admins (spec 07b). */
   INTEGRATION_GATEWAY_API_URL: z.url(),
   ACCESS_API_URL: z.url(),
+  /** The reporting service: a Commission's Form M workspace (spec 09). */
+  REPORTING_API_URL: z.url(),
   /** The ai-gateway: AI policy, routing and usage for platform admins (spec 07c). */
   AI_GATEWAY_API_URL: z.url(),
   /** Base URL of the public API that Commissions' own systems (HR) call, shown in the API docs. */
   PUBLIC_API_URL: z.url(),
+  /**
+   * The portal's address, for links to its public pages (the open-data page, spec 09b). Without
+   * it the console leaves those links out.
+   */
+  PORTAL_URL: z.url().optional(),
   /**
    * Serve review cases, clarifications and their letter and attachment downloads from in-memory
    * fixtures until the review service implements spec 07a (#174). Honoured in `vite dev` and
@@ -25,6 +32,18 @@ export const envSchema = bffEnvSchema.extend({
    * production builds do not contain the mock.
    */
   ACCESS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve a Commission's Form M periods and reports (spec 09) from in-memory fixtures, for screens
+   * without the reporting service and its upstreams running. Honoured in `vite dev` and tests
+   * only; production builds do not contain the mock.
+   */
+  REPORTING_MOCK: z.stringbool().default(false),
+  /**
+   * With REPORTING_MOCK: the Commission open-data preview (spec 09b) the mock answers with, the
+   * latest `published` release by default, a `preview` built since, `none` built yet, or
+   * `unavailable` (object storage down).
+   */
+  REPORTING_MOCK_OPEN_DATA: z.enum(['published', 'preview', 'none', 'unavailable']).default('published'),
   /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.
