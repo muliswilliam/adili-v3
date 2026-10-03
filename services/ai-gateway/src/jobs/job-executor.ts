@@ -47,6 +47,10 @@ export type Outcome =
   | { status: 'succeeded'; output: Record<string, unknown>; violations?: OutputViolation[] }
   | { status: 'failed' | 'blocked'; reason: JobReason; violations?: OutputViolation[] };
 
+/** The document a job's task reads, before the call. */
+type DocumentReading =
+  { status: 'none' } | { status: 'read'; document: ReadDocument } | { status: 'failed' };
+
 /** What one provider call cost; absent when the job ends without a call. */
 export interface AttemptMetrics {
   usage: Usage | null;
@@ -162,8 +166,9 @@ export class JobExecutor {
       return;
     }
     // Fetched only once the gate admits the job: a refused job never touches the document.
-    const document = await this.read(job, task);
-    if (document === 'failed') return;
+    const reading = await this.read(job, task);
+    if (reading.status === 'failed') return;
+    const document = reading.status === 'read' ? reading.document : undefined;
     const provider = this.providers.get(job.provider);
     if (!provider) throw new Error(`Job ${jobId}: provider ${job.provider} vanished`);
     if (!this.breaker.tryAcquire(provider.name)) {
@@ -201,14 +206,17 @@ export class JobExecutor {
   }
 
   /**
-   * The document the job's task reads, fetched and read; undefined for a task that reads none,
+   * The document the job's task reads, fetched and read: `none` for a task that reads none,
    * `failed` once the job has been finished as failed because the document could not be read.
    */
-  private async read(job: Job, task: TaskDefinition): Promise<ReadDocument | undefined | 'failed'> {
-    if (!task.document) return undefined;
+  private async read(job: Job, task: TaskDefinition): Promise<DocumentReading> {
+    if (!task.document) return { status: 'none' };
     const ref = task.document(task.input.parse(job.input));
     try {
-      return await readDocument(await this.documents.fetch(ref), ref.contentType);
+      return {
+        status: 'read',
+        document: await readDocument(await this.documents.fetch(ref), ref.contentType),
+      };
     } catch (error) {
       if (!(error instanceof DocumentError)) throw error;
       // The kind and message name no content and no link.
@@ -218,7 +226,7 @@ export class JobExecutor {
       );
       const reason = error.kind === 'unavailable' ? 'document-unavailable' : 'document-unreadable';
       await this.finish(job, { status: 'failed', reason }, NO_CALL);
-      return 'failed';
+      return { status: 'failed' };
     }
   }
 
