@@ -15,9 +15,13 @@ export function useCaseComparison(caseId: string, currentVersion: number) {
   const [retrying, setRetrying] = useState(false);
   const key = `${caseId}:${String(currentVersion)}`;
   const loadedFor = useRef<string | null>(null);
+  /** The latest read; an answer to any earlier one (another case or version) is dropped. */
+  const latest = useRef(0);
 
   const read = useCallback(async () => {
+    const request = ++latest.current;
     const result = await getCaseComparison({ data: { caseId } }).catch(() => null);
+    if (request !== latest.current) return;
     if (!result?.ok) {
       // Turning Compare off and on again tries again too.
       loadedFor.current = null;

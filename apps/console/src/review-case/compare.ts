@@ -1,4 +1,4 @@
-import { DIFF_HIGHLIGHT_PERCENT, type DiffGroup, type DiffRow } from '@adili/ui';
+import { DIFF_HIGHLIGHT_PERCENT, type DiffGroup, diffPercent, type DiffRow } from '@adili/ui';
 
 import type { VersionComparison } from '../server/review/types';
 import { CATEGORIES, type Relation, relationOf } from './declaration';
@@ -56,17 +56,16 @@ const TYPE_LABELS: Record<Category, Record<string, string>> = {
 
 const typeLabel = (category: Category, type: string) => TYPE_LABELS[category][type] ?? type;
 
-const isBig = ({ previousCents, currentCents }: { previousCents: number; currentCents: number }) =>
-  previousCents !== 0 &&
-  (Math.abs(currentCents - previousCents) / Math.abs(previousCents)) * 100 >=
-    DIFF_HIGHLIGHT_PERCENT;
+/** A matched change the rules would flag and the table shades (`DIFF_HIGHLIGHT_PERCENT` or more). */
+const isBig = (item: { previousCents: number; currentCents: number }) =>
+  Math.abs(diffPercent({ id: '', label: '', ...item }) ?? 0) >= DIFF_HIGHLIGHT_PERCENT;
 
 function matchedRow(
   personKey: string,
   index: number,
   item: ComparedStatementInput['matched'][number],
 ): DiffRow {
-  // Whether the declarant marked it matters for a change the rules would flag (25% or more);
+  // Whether the declarant marked it matters for a change the rules would flag (`isBig`);
   // a mark on a smaller change or none is worth showing too. Other rows speak for themselves.
   const marked = item.flaggedByDeclarant;
   return {
@@ -101,7 +100,7 @@ function statementOf(statement: ComparedStatementInput): ComparedStatement {
           description: item.description,
           previousCents: null,
           currentCents: item.valueCents,
-          note: item.flaggedByDeclarant ? COMPARE_COPY.markedNew : COMPARE_COPY.notMarkedNew,
+          note: item.flaggedByDeclarant ? COMPARE_COPY.newMarked : COMPARE_COPY.newNotMarked,
         })),
       // The disposal itself is recorded in paragraph 9, which the comparison does not carry.
       ...statement.onlyPrevious

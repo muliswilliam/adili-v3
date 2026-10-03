@@ -11,7 +11,6 @@ import {
   Skeleton,
   Spinner,
   Switch,
-  Tooltip,
 } from '@adili/ui';
 import {
   ArrowDown01Icon,
@@ -20,7 +19,7 @@ import {
   Refresh01Icon,
   WifiDisconnected01Icon,
 } from '@hugeicons/core-free-icons';
-import { type ReactNode, useId } from 'react';
+import type { ReactNode } from 'react';
 
 import type { ComparedStatement, ComparisonView } from '../../../review-case/compare';
 import type { CaseDetail } from '../../../server/review/types';
@@ -41,10 +40,7 @@ export type ComparisonState =
   | { status: 'none' }
   | { status: 'ready'; view: ComparisonView };
 
-/**
- * "Compare with version 1": disabled, with why, for a first declaration on Adili. Blocked stays
- * focusable (aria-disabled) so keyboard and screen reader users reach it and hear the reason.
- */
+/** "Compare with version 1": blocked, with why, for a first declaration on Adili. */
 export function CompareSwitch({
   checked,
   onCheckedChange,
@@ -57,27 +53,13 @@ export function CompareSwitch({
   previousVersion: number | null;
   blocked: boolean;
 }) {
-  const reasonId = useId();
-  const label = t.compare.toggle(previousVersion);
-  if (!blocked) {
-    return <Switch checked={checked} onCheckedChange={onCheckedChange} label={label} />;
-  }
   return (
-    <>
-      <Tooltip content={t.compare.firstDeclaration}>
-        <Switch
-          checked={false}
-          onCheckedChange={() => undefined}
-          label={label}
-          aria-disabled="true"
-          aria-describedby={reasonId}
-          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
-        />
-      </Tooltip>
-      <span id={reasonId} className="sr-only">
-        {t.compare.firstDeclaration}
-      </span>
-    </>
+    <Switch
+      checked={checked && !blocked}
+      onCheckedChange={onCheckedChange}
+      label={t.compare.toggle(previousVersion)}
+      blockedReason={blocked ? t.compare.firstDeclaration : undefined}
+    />
   );
 }
 

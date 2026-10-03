@@ -1,3 +1,4 @@
+import { CATEGORIES } from '../../review-case/declaration';
 import { isRecord } from '../mock-http';
 import { MOCK_ITEM_IDS as I } from './copilot-mock.server';
 import type { VersionComparison } from './types';
@@ -11,7 +12,6 @@ import type { VersionComparison } from './types';
  */
 
 type Statement = VersionComparison['statements'][number];
-type Category = Statement['matched'][number]['category'];
 
 /** What each current item was worth in the previous version, in cents. */
 const PREVIOUS_CENTS: Record<string, number> = {
@@ -39,8 +39,6 @@ const ONLY_PREVIOUS: Record<string, Statement['onlyPrevious']> = {
     },
   ],
 };
-
-const CATEGORIES: Category[] = ['income', 'assets', 'liabilities'];
 
 const centsOf = (item: Record<string, unknown>): number => {
   const money = item.amount ?? item.value ?? item.outstanding;
