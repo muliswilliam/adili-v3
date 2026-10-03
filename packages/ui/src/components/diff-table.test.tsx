@@ -130,6 +130,24 @@ describe('DiffTable', () => {
     ).toBeTruthy();
   });
 
+  it("names the previous version's column apart, e.g. for the last cycle's declaration", () => {
+    render(
+      <DiffTable
+        caption="Changes for Wanjiku Kamau"
+        previousVersion={1}
+        currentVersion={1}
+        groups={groups}
+        messages={{ previousColumn: () => 'Previous (KES)' }}
+      />,
+    );
+    expect(
+      screen
+        .getAllByRole('columnheader')
+        .slice(1, 3)
+        .map((th) => th.textContent),
+    ).toEqual(['Previous (KES)', 'Version 1 (KES)']);
+  });
+
   it('shows signed deltas and percentages, and reads them out in words', () => {
     renderTable();
 

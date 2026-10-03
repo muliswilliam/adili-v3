@@ -68,6 +68,12 @@ export interface DiffTableMessages {
   item: string;
   /** A version's column: `2` → "Version 2 (KES)". */
   versionColumn: (version: number) => string;
+  /**
+   * The previous version's column, when `versionColumn` does not tell it apart (the previous
+   * version is the last cycle's declaration, numbered like the current one). Defaults to
+   * `versionColumn`.
+   */
+  previousColumn?: (version: number) => string;
   change: string;
   percent: string;
   match: string;
@@ -193,7 +199,7 @@ export function DiffTable({
               {copy.item}
             </th>
             <th scope="col" className={cn(head, 'text-right')}>
-              {copy.versionColumn(previousVersion)}
+              {(copy.previousColumn ?? copy.versionColumn)(previousVersion)}
             </th>
             <th scope="col" className={cn(head, 'text-right')}>
               {copy.versionColumn(currentVersion)}
