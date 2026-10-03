@@ -255,6 +255,14 @@ export {
   type HashDropZoneMessages,
   type HashDropZoneProps,
 } from './components/hash-drop-zone';
+export {
+  FIGURE_CHIP_MESSAGES,
+  FigureChip,
+  type FigureChipMessages,
+  type FigureChipProps,
+  type FigureFormatter,
+  type FigureLabel,
+} from './components/figure-chip';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
@@ -358,6 +366,17 @@ export {
   type OutcomeBadgeMessages,
   type OutcomeBadgeProps,
 } from './components/outcome-badge';
+export {
+  PATTERN_CARD_MESSAGES,
+  PATTERN_KIND_COPY,
+  PATTERN_KINDS,
+  PatternCard,
+  type PatternCardMessages,
+  type PatternCardProps,
+  PatternCardSkeleton,
+  type PatternKind,
+  type PatternKindCopy,
+} from './components/pattern-card';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export {
   PRIORITY_BADGE_MESSAGES,
