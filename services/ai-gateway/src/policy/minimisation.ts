@@ -27,6 +27,8 @@
  * rather than storing a placeholder as if it were the record.
  */
 
+import { documentIdentifiers } from './document-identifiers.js';
+
 export const IDENTIFIER_CLASSES = [
   'PERSON',
   'ID',
@@ -214,88 +216,11 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
  */
 const QUESTION_FIELDS = new Set(['question', 'history']);
 
-/** Fields holding a document's text layer, where labelled names are found (spec 05b). */
+/**
+ * Fields holding a document's text layer, where the identifiers its labels, titles and
+ * salutations introduce are found (`documentIdentifiers`, spec 05b).
+ */
 const DOCUMENT_TEXT_FIELDS = new Set(['textLayer']);
-
-/** Up to five capitalised words (WANJIRU, Akinyi, Ndung’u): a name as a page writes it. */
-const NAME = String.raw`\p{Lu}[\p{L}'’.-]*(?:[ \t]+\p{Lu}[\p{L}'’.-]*){0,4}`;
-/** Names joined by commas, `and`, `&` or (Swahili) `na`: joint proprietors, co-owners. */
-const NAMES = String.raw`(${NAME}(?:[ \t]*(?:,|&|and|na)[ \t]*${NAME})*)`;
-/** Labels a person's name follows on a page, as patterns. */
-const NAME_LABELS = [
-  String.raw`(?:full\s+)?names?`,
-  String.raw`(?:registered\s+)?proprietors?`,
-  String.raw`(?:registered\s+)?owners?(?:'s\s+name)?`,
-  'lessees?',
-  String.raw`employee(?:\s+name)?`,
-  String.raw`account\s+(?:name|holder)`,
-  String.raw`customer(?:\s+name)?`,
-  'borrowers?',
-  String.raw`(?:registered\s+)?holder`,
-  'shareholder',
-  String.raw`member(?:\s+name)?`,
-  String.raw`jina(?:\s+kamili)?`,
-  'majina',
-  'mmiliki',
-  'wamiliki',
-  'mwanachama',
-  // Parties, signatories and witnesses of deeds, charges, guarantees and letters.
-  String.raw`signed(?:\s+by)?`,
-  'signator(?:y|ies)',
-  String.raw`witness(?:es|ed\s+by)?`,
-  'lessors?',
-  'charg(?:ee|or)s?',
-  'guarantors?',
-  'transfer(?:ee|or)s?',
-  'vendors?',
-  'purchasers?',
-  'spouse',
-  'directors?',
-  'mdhamini',
-  'wadhamini',
-  'mkopaji',
-  'shahidi',
-];
-/**
- * What introduces a person's name on a title deed, logbook, payslip, letter or certificate, in
- * English or Swahili: a label and an optional colon (the name may be on the next line), a
- * courtesy title, or "certify that". The labels match in any case; the names only capitalised.
- */
-const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
-  new RegExp(
-    String.raw`(?<![\p{L}\p{N}])(?i:${NAME_LABELS.join('|')})[ \t]*[:\-]?[ \t]*\n?[ \t]*` + NAMES,
-    'gu',
-  ),
-  new RegExp(
-    String.raw`(?<![\p{L}\p{N}])(?:Mr|Mrs|Ms|Miss|Dr|Prof|Hon|Bw|Bi)\.?[ \t]+` + NAMES,
-    'gu',
-  ),
-  new RegExp(String.raw`(?i:certify\s+that)[ \t]+` + NAMES, 'gu'),
-  // A salutation without a title ("Dear Wanjiku,"); one with a title is found above.
-  new RegExp(
-    String.raw`(?<![\p{L}\p{N}])(?:Dear|Mpendwa)[ \t]+` + NAMES + String.raw`(?=[ \t]*[,:])`,
-    'gu',
-  ),
-];
-
-/**
- * A number a page labels as a person's (membership, payroll, staff, personal, customer or policy
- * number, in English or Swahili), with letters and digits both (UW-00781): a digits-only one is
- * an ID or account number by its shape already.
- */
-const DOCUMENT_NUMBER_PATTERN = new RegExp(
-  String.raw`(?<![\p{L}\p{N}])(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)\s+(?:no\.?|number)|nambari\s+ya\s+(?:uanachama|mwanachama|mshahara))[ \t]*[:\-]?[ \t]*(?!\d+(?:st|nd|rd|th)(?![\p{L}\p{N}]))((?=[A-Za-z0-9/-]*[A-Za-z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9][A-Za-z0-9/-]{2,})`,
-  'gu',
-);
-
-/**
- * What introduces an address on a page, at the start of a line, in English or Swahili; the rest
- * of the line is the address (a house, a plot, a street and a town), which no shape gives away.
- */
-const DOCUMENT_ADDRESS_PATTERN = new RegExp(
-  String.raw`^[ \t]*(?i:(?:physical|postal|residential|home)\s+address|address|residence|anwani(?:\s+ya\s+makazi)?|makazi)[ \t]*[:\-]?[ \t]*\n?[ \t]*([^\n]*[\p{L}\p{N}][^\n]*)$`,
-  'gmu',
-);
 
 const CURRENCY = String.raw`(?:KES|KShs?|Kshs?|Shs?|USD|US\$|\$|EUR|€|GBP|£)\.?`;
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
@@ -393,16 +318,8 @@ function collect(
     if (cls === 'PERSON') {
       collectName(value, known);
     } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
-      for (const pattern of DOCUMENT_NAME_PATTERNS) {
-        for (const match of value.matchAll(pattern)) collectParties(match[1] ?? '', known);
-      }
-      for (const match of value.matchAll(DOCUMENT_NUMBER_PATTERN)) {
-        const number = match[1] ?? '';
-        if (!known.has(number)) known.set(number, 'MEMBER_NUMBER');
-      }
-      for (const match of value.matchAll(DOCUMENT_ADDRESS_PATTERN)) {
-        const address = match[1]?.trim() ?? '';
-        if (address.length >= 2 && !known.has(address)) known.set(address, 'ADDRESS');
+      for (const { value: found, cls: foundClass } of documentIdentifiers(value)) {
+        if (!known.has(found)) known.set(found, foundClass);
       }
     } else if (cls !== undefined && value.trim().length >= 2) {
       known.set(value.trim(), cls);
@@ -428,70 +345,9 @@ function collect(
   }
 }
 
-/** Capitalised words a label may run into that are not names ("Owner PIN", "Member No."). */
-const NOT_NAMES = new Set([
-  ...['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of'],
-  // Courtesy titles and forms of address a salutation runs into ("Dear Mr. Ouma", "Dear Sir").
-  ...['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam'],
-  // An office a signatory's name runs into ("Kevin Odera Branch Manager").
-  ...['branch', 'manager', 'officer', 'secretary'],
-]);
-
-/** Words a company or society's name ends in: "Tumaini Fresh Produce Limited", "Upendo Group". */
-const ORGANISATION_WORDS = new Set([
-  ...['limited', 'ltd', 'ltd.', 'plc', 'company', 'co.', 'bank', 'sacco', 'society'],
-  ...['holdings', 'enterprises', 'cooperative', 'trust', 'group', 'chama'],
-]);
-/** Offices a name runs into ("Kevin Odera Sacco Secretary"), in English or Swahili. */
-const ROLE_WORDS = new Set([
-  ...['secretary', 'treasurer', 'chairperson', 'chairman', 'chairwoman', 'chair', 'manager'],
-  ...['officer', 'director', 'accountant', 'clerk', 'registrar', 'advocate', 'trustee'],
-  ...['katibu', 'mwenyekiti', 'mhazini', 'mweka'],
-]);
-/** Words that qualify an office rather than name anyone ("Branch Manager", "Senior Officer"). */
-const ROLE_QUALIFIERS = new Set(['branch', 'senior', 'deputy', 'assistant', 'chief', 'general']);
-/** What joins the parties a label names: commas, `&`, `and`, Swahili `na`. */
-const PARTY_JOINERS = /\s*(?:,|&|(?<![\p{L}])(?:and|na)(?![\p{L}]))\s*/u;
-
-/**
- * The parties a label names, each a person or an organisation. A party's office (and what
- * qualifies it: "Sacco Secretary", "Branch Manager") is dropped; a party whose name ends in a
- * company word is one organisation, tokenised whole, so a sole trader's "Wanjiku Njoki Trading
- * Company" is not sent either; any other party is a person, word by word. When in doubt, a word
- * is a name: privacy beats readability.
- */
-function collectParties(span: string, known: Map<string, IdentifierClass>): void {
-  for (const party of span.split(PARTY_JOINERS)) {
-    let words = party.split(/\s+/u).filter(Boolean);
-    const role = words.findIndex((word) => ROLE_WORDS.has(word.toLowerCase()));
-    if (role >= 0) {
-      words = words.slice(0, role);
-      while (
-        words.length > 0 &&
-        (ORGANISATION_WORDS.has(words.at(-1)?.toLowerCase() ?? '') ||
-          ROLE_QUALIFIERS.has(words.at(-1)?.toLowerCase() ?? ''))
-      ) {
-        words.pop();
-      }
-    }
-    if (words.length === 0) continue;
-    if (ORGANISATION_WORDS.has(words.at(-1)?.toLowerCase() ?? '')) {
-      const organisation = words.join(' ');
-      if (!known.has(organisation)) known.set(organisation, 'ORGANISATION');
-    } else {
-      collectName(words.join(' '), known, true);
-    }
-  }
-}
-
-/**
- * Each part of a name on its own, so it is found in free text in any order or form. Of names a
- * page lists (`capitalised`), only the capitalised words that are not label words: `and` or `na`
- * joins them, "PIN" or "No." follows a label.
- */
-function collectName(name: string, known: Map<string, IdentifierClass>, capitalised = false): void {
-  for (const word of name.split(/[\s,&]+/u)) {
-    if (capitalised && (!/^\p{Lu}/u.test(word) || NOT_NAMES.has(word.toLowerCase()))) continue;
+/** Each part of a name on its own, so it is found in free text in any order or form. */
+function collectName(name: string, known: Map<string, IdentifierClass>): void {
+  for (const word of name.split(/[\s,]+/u)) {
     if (word.length >= 2 && !known.has(word)) known.set(word, 'PERSON');
   }
 }
