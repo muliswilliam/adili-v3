@@ -149,6 +149,17 @@ describe('S2 draftNationalReportNarrative', () => {
     expect(retry.version).toBe(first.version);
   });
 
+  it('inserts once for two requests with the same key at once', async () => {
+    const key = crypto.randomUUID();
+    const [first, second] = await Promise.all([
+      draft({ section: 'overview', replaceAll: false }, key),
+      draft({ section: 'overview', replaceAll: false }, key),
+    ]);
+
+    expect(section(reportOf(second), 'overview')).toEqual(section(reportOf(first), 'overview'));
+    expect(section(reportOf(first), 'overview').filter((each) => each.aiDraft)).toHaveLength(2);
+  });
+
   it('S2 discards a draft that failed validation, inserting nothing', async () => {
     resetNarrativeDraftMock('validation');
     const before = await loadNationalReport(as(), 2025);

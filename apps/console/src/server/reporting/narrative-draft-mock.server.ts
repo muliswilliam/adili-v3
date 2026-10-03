@@ -51,6 +51,7 @@ import {
   type NationalAggregates,
   type Officer,
   type PatternCandidate,
+  sectionsDrafted,
 } from './types';
 
 export type NarrativeDraftMockSeed = Env['REPORTING_MOCK_NARRATIVE'];
@@ -60,11 +61,10 @@ interface Options {
   readyAfterMs?: number;
 }
 
+/** A request by Idempotency-Key: its body, and the answer it got (or is getting). */
 interface Job {
-  fy: number;
-  caller: string;
   body: string;
-  jobId: string;
+  answer: Promise<Response>;
 }
 
 let state: { seed: NarrativeDraftMockSeed; readyAfterMs: number; jobs: Map<string, Job> } | null =
@@ -125,15 +125,28 @@ export async function mockNarrativeDraftFetch(request: Request): Promise<Respons
     name: caller.name ?? caller.subject ?? 'unknown',
   };
 
-  // A retry reads the same job.
+  // A retry reads the same job: a refusal as it was, a draft as it stands now.
   const replayKey = `${String(fy)}:${officer.subject}:${key}`;
   const replay = data.jobs.get(replayKey);
   if (replay) {
     if (replay.body !== JSON.stringify(ask)) {
       return problem(422, 'Idempotency-Key reused with a different request body');
     }
-    return answer(report);
+    const original = await replay.answer;
+    return original.ok ? answer(report) : original.clone();
   }
+  // Kept before the job is written, so a retry meanwhile waits for it rather than asks again.
+  const answering = startDraft(report, officer, ask, data);
+  data.jobs.set(replayKey, { body: JSON.stringify(ask), answer: answering });
+  return (await answering).clone();
+}
+
+async function startDraft(
+  report: StoredReport,
+  officer: Officer,
+  ask: { section: NarrativeDraftSection; replaceAll: boolean },
+  data: NonNullable<typeof state>,
+): Promise<Response> {
   if (report.status === 'approved') return approvedConflict();
   const candidates = mockCandidatesOf(report.aggregates);
   if ((ask.section === 'findings' || ask.section === 'all') && candidates.length === 0) {
@@ -143,7 +156,6 @@ export async function mockNarrativeDraftFetch(request: Request): Promise<Respons
 
   await delay(1800);
   const jobId = crypto.randomUUID();
-  data.jobs.set(replayKey, { fy, caller: officer.subject, body: JSON.stringify(ask), jobId });
   if (!report.contributors.includes(officer.subject)) report.contributors.push(officer.subject);
   // A new request replaces a draft still being written, which is then never inserted.
   report.pendingDraft = null;
@@ -226,7 +238,7 @@ export function insertDraft(
   ask: { section: NarrativeDraftSection; replaceAll: boolean },
   fresh: (section: NarrativeSectionId) => NarrativeParagraph[],
 ): NarrativeParagraph[] {
-  const targets = ask.section === 'all' ? NARRATIVE_SECTION_IDS : [ask.section];
+  const targets = sectionsDrafted(ask.section);
   return NARRATIVE_SECTION_IDS.flatMap((section) => {
     const current = paragraphs
       .filter((each) => each.section === section)

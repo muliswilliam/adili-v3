@@ -37,6 +37,11 @@ export type NarrativeDraft = Schemas['NarrativeDraft'];
 /** What a narrative draft is asked for: one section or `all`. */
 export type NarrativeDraftSection = NarrativeDraft['section'];
 
+/** The sections a draft of `section` writes. */
+export function sectionsDrafted(section: NarrativeDraftSection): readonly NarrativeSectionId[] {
+  return section === 'all' ? NARRATIVE_SECTION_IDS : [section];
+}
+
 /**
  * reporting.yaml `NationalReport`, with its aggregates read. `narrativeDraft` is spec 09b's
  * (#338): the service's contract gains it with #491, so until then it may be missing, read as null.
