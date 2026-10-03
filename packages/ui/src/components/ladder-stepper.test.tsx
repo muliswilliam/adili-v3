@@ -80,6 +80,27 @@ describe('LadderStepper', () => {
     expect(within(notice).getByText('Responded 9 Aug 2026')).toBeTruthy();
   });
 
+  it('shows where a salary stoppage stands with payroll', () => {
+    render(
+      <LadderStepper
+        steps={[
+          ...STEPS.slice(0, 2),
+          {
+            id: 'salary-stoppage',
+            label: 'Salary stoppage',
+            status: 'stopped',
+            payroll: 'Payroll acknowledged 20 Aug 2026',
+          },
+          STEPS[3] as LadderStepperStep,
+        ]}
+      />,
+    );
+
+    const stoppage = items().getAllByRole('listitem')[2] as HTMLElement;
+    expect(within(stoppage).getByText('Payroll acknowledged 20 Aug 2026')).toBeTruthy();
+    expect(items().getAllByRole('listitem')[0]?.querySelector('[data-payroll]')).toBeNull();
+  });
+
   it('says a step that was not needed, declined or stopped a salary', () => {
     render(
       <LadderStepper

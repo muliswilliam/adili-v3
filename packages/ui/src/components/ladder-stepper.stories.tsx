@@ -73,6 +73,7 @@ export const SalaryStopped: Story = {
         windowEndsAt: '2026-10-31T09:00:00.000Z',
         windowLabel: (date) => `Stoppage window ends ${date}`,
         letter: 'ADM-TSC-2026-0000611-8',
+        payroll: 'Payroll acknowledged 1 Oct 2026',
       },
       { id: 'disciplinary-referral', label: 'Disciplinary referral', status: 'upcoming' },
     ],
