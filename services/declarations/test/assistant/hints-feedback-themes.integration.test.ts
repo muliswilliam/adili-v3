@@ -4,7 +4,12 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { AssistantMessage } from '../../src/assistant/representation.js';
-import { assistantMessages, commissionRefs, filingObligations } from '../../src/db/schema.js';
+import {
+  assistantMessages,
+  assistantThemeCounts,
+  commissionRefs,
+  filingObligations,
+} from '../../src/db/schema.js';
 import { assistantFixtures, declarantCaller, finalOf } from '../support/assistant.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
@@ -546,5 +551,41 @@ describe('question themes (S8)', () => {
     );
     expect((await themes('psc', achieng)).statusCode).toBe(404);
     expect((await themes('psc', { tenant: 'psc', roles: ['reviewer'] })).statusCode).toBe(404);
+    expect((await themes('psc', { tenant: 'tsc', roles: ['reporting-officer'] })).statusCode).toBe(
+      404,
+    );
+    expect(
+      (await themes('psc', { tenant: 'platform', roles: ['platform-admin'] })).statusCode,
+    ).toBe(404);
+  });
+
+  it('lets only a person transaction count, never a staff one', async () => {
+    api.clock.setToday('2027-11-15');
+    await answered(SALARY_QUESTION);
+    const row = {
+      tenant: 'psc',
+      month: '2027-11',
+      theme: 'land' as const,
+      count: 1,
+      unanswered: 0,
+    };
+
+    // The Commission's own staff see its obligations, yet may not count through them.
+    await expect(
+      api.asTenant('psc', (tx) => tx.insert(assistantThemeCounts).values(row)),
+    ).rejects.toThrow();
+    const bumped = await api.asTenant('psc', (tx) =>
+      tx
+        .update(assistantThemeCounts)
+        .set({ count: 99 })
+        .where(eq(assistantThemeCounts.tenant, 'psc'))
+        .returning(),
+    );
+    expect(bumped).toEqual([]);
+    // Another Commission's staff do not read them.
+    expect(await api.asTenant('tsc', (tx) => tx.select().from(assistantThemeCounts))).toEqual([]);
+    expect((await themes()).json()).toEqual([
+      { month: '2027-11', theme: 'income', count: 1, unanswered: 0 },
+    ]);
   });
 });
