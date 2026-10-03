@@ -23,7 +23,11 @@
 import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
 import { addDays, INTAKE_STATUSES } from '@adili/ui';
 
-import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
+import {
+  dueDateOf,
+  FIRST_FINANCIAL_YEAR,
+  nairobiToday,
+} from '../../components/form-m/financial-year';
 import { json, type MockCaller, mockCallerOf, problem } from '../mock-http';
 import { mockReportingToday, mockStoredReport } from './mock.server';
 import type { Intake, IntakeOutlier, IntakeRow, ReportSource, SubmittedReport } from './types';
@@ -42,8 +46,11 @@ interface Fixture {
   /** Days after 31 July it files (negative: before); null when it has not reported. */
   filedAfterDue: number | null;
   source: ReportSource;
-  /** Expected and declared per section, in a year with a biennial cycle. */
-  counts: Record<SectionKey, readonly [expected: number, declared: number]>;
+  /**
+   * Expected and declared per section, in a year with a biennial cycle; null for the Commission
+   * whose counts are its filed document's in the Form M workspace mock.
+   */
+  counts: Record<SectionKey, readonly [expected: number, declared: number]> | null;
   contact: { phone: string; address: string; email: string };
   officers: { compiledBy: string; confirmedBy: string };
 }
@@ -147,9 +154,9 @@ const COMMISSIONS: readonly Fixture[] = (
     fixture(
       'psc',
       'Public Service Commission',
-      // Filed when the Form M workspace mock submits it (see `filingOf`).
+      // Filed when the Form M workspace mock submits it, with its counts (see `filingOf`).
       null,
-      { initial: [12, 10], biennial: [100, 95], final: [4, 3] },
+      null,
     ),
     fixture(
       'tsc',
@@ -211,17 +218,15 @@ interface Filing {
 
 /** `commission`'s report for the year as EACC has it by today; null when it has not reported. */
 function filingOf(commission: Fixture, fy: number): Filing | null {
-  if (commission.slug === 'psc') {
+  if (commission.counts === null) {
     const stored = mockStoredReport(fy);
-    if (stored?.status !== 'submitted' || !stored.submittedAt || !stored.document) return null;
-    const day = stored.submittedAt.slice(0, 10);
-    return {
-      day,
-      submittedAt: stored.submittedAt,
-      late: stored.late ?? day > dueDateOf(fy),
-      reference: stored.reference ?? referenceOf(commission, fy),
-      document: stored.document,
-    };
+    if (stored?.status !== 'submitted') return null;
+    // A submitted report has all four (the workspace mock's `submitted`); the types allow null.
+    const { submittedAt, late, reference, document } = stored;
+    if (submittedAt === null || late === null || reference === null || document === null) {
+      return null;
+    }
+    return { day: nairobiToday(new Date(submittedAt)), submittedAt, late, reference, document };
   }
   if (commission.filedAfterDue === null) return null;
   const day = plusDays(dueDateOf(fy), commission.filedAfterDue);
@@ -265,6 +270,7 @@ function sectionCounts(
 ) {
   if (filing?.document) return filing.document.partII[section];
   if (section === 'biennial' && !hasBiennialCycle(fy)) return { expected: 0, declared: 0 };
+  if (!commission.counts) throw new Error(`${commission.slug} counts come from its filed report`);
   const [expected, declared] = commission.counts[section];
   return { expected, declared };
 }
@@ -274,7 +280,13 @@ const rateOf = (declared: number, expected: number) =>
 
 const SECTIONS: readonly SectionKey[] = ['initial', 'biennial', 'final'];
 
-function outliersOf(rates: IntakeRow['rates'], fy: number): IntakeOutlier[] {
+/** Whether the year had a biennial cycle: as the filed document says, else by the year. */
+const biennialCycleOf = (fy: number, filing: Filing | null) =>
+  filing?.document
+    ? filing.document.partII.biennial.noCycleInPeriod !== true
+    : hasBiennialCycle(fy);
+
+function outliersOf(rates: IntakeRow['rates'], biennialCycle: boolean): IntakeOutlier[] {
   const outliers: IntakeOutlier[] = [];
   for (const section of SECTIONS) {
     const rate = rates[section]?.rate;
@@ -282,7 +294,7 @@ function outliersOf(rates: IntakeRow['rates'], fy: number): IntakeOutlier[] {
       outliers.push(`low-${section}-rate`);
     }
   }
-  if (hasBiennialCycle(fy) && rates.biennial?.expected === 0) outliers.push('section-missing');
+  if (biennialCycle && rates.biennial?.expected === 0) outliers.push('section-missing');
   return outliers;
 }
 
@@ -333,7 +345,7 @@ function intakeRow(commission: Fixture, index: number, fy: number): IntakeRow {
     reference: filing.reference,
     submittedAt: filing.submittedAt,
     rates,
-    outliers: outliersOf(rates, fy),
+    outliers: outliersOf(rates, biennialCycleOf(fy, filing)),
     formMDocumentId: formMDocumentIdOf(index, fy),
     receiptDocumentId: receiptDocumentIdOf(index, fy),
   };
@@ -527,7 +539,7 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
     document,
     counts: {
       initial: counts('initial'),
-      biennial: { ...counts('biennial'), noCycleInPeriod: !hasBiennialCycle(fy) },
+      biennial: { ...counts('biennial'), noCycleInPeriod: !biennialCycleOf(fy, filing) },
       final: counts('final'),
       clarifications: document.partII.clarifications.items.length,
       accessRequests: {

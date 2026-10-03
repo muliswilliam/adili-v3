@@ -15,6 +15,9 @@
  *   reviewed by Samuel Njoroge and confirmed by Joyce Wanjiku, with Part I and Part B filled.
  *   A preview compiled then has no biennial cycle and section 5 counts from access requests.
  *
+ * `mockStoredReport` hands the store's report to the EACC intake mock (`eacc-mock.server.ts`),
+ * which shows psc not reported until it is submitted; `submitMockReport` submits it on a day.
+ *
  * Only the Commission's supervisor, commission-admin and reporting officer see it (anyone else,
  * and any other Commission, gets 404); only the supervisor compiles (403), from 1 April after the
  * year (409 `preview-not-available`) and until the report is submitted (409 `report-submitted`).
@@ -100,6 +103,9 @@ function plusDays(date: string, days: number): string {
   return at.toISOString().slice(0, 10);
 }
 
+/** The Nairobi day (`YYYY-MM-DD`) of an instant. */
+const nairobiDayOf = (iso: string) => nairobiToday(new Date(iso));
+
 /** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
 const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
@@ -119,20 +125,7 @@ export function resetReportingMock(
   const last = current - 1;
   if (last < FIRST_FINANCIAL_YEAR) return;
   if (day >= previewFromOf(current)) {
-    const submittedOn = plusDays(dueDateOf(last), 57);
-    const reviewedOn = plusDays(submittedOn, -1);
-    reports.set(last, {
-      fy: last,
-      status: 'submitted',
-      compiledAt: sixAm(finalCompileOf(last)),
-      compileStartedAt: null,
-      submittedAt: `${submittedOn}T11:42:00.000Z`,
-      late: true,
-      reference: `RPT-PSC-${String(last + 1)}-0000001-K`,
-      reviewedBy: SUPERVISOR_OFFICER,
-      confirmedBy: ADMIN_OFFICER,
-      document: confirmed(fullDocument(last), reviewedOn, submittedOn),
-    });
+    reports.set(last, submitted(last, `${plusDays(dueDateOf(last), 57)}T11:42:00.000Z`));
     return;
   }
   const yearStart = finalCompileOf(last);
@@ -325,23 +318,30 @@ export function mockStoredReport(fy: number): ComplianceReport | null {
 }
 
 /**
- * Submits the year's report on `day` as the commission-admin's confirmation does (tests and
- * the EACC demo): reference allocated, Part III filled, late after 31 July.
+ * The year's report as the commission-admin's confirmation leaves it at `submittedAt`: reference
+ * allocated, reviewed the day before, Part I, Part B and Part III filled, late when its Nairobi
+ * day is after 31 July. The seed (April to June) and `submitMockReport` both build it here.
  */
-export function submitMockReport(fy: number, day: string) {
-  ensureSeeded();
-  reports.set(fy, {
+function submitted(fy: number, submittedAt: string): Stored {
+  const day = nairobiDayOf(submittedAt);
+  return {
     fy,
     status: 'submitted',
     compiledAt: sixAm(finalCompileOf(fy)),
     compileStartedAt: null,
-    submittedAt: `${day}T08:20:00.000Z`,
+    submittedAt,
     late: day > dueDateOf(fy),
     reference: `RPT-PSC-${String(fy + 1)}-0000001-K`,
     reviewedBy: SUPERVISOR_OFFICER,
     confirmedBy: ADMIN_OFFICER,
     document: confirmed(fullDocument(fy), plusDays(day, -1), day),
-  });
+  };
+}
+
+/** Submits the year's report on `day` at 11:20 in Nairobi (tests and the EACC intake demo). */
+export function submitMockReport(fy: number, day: string) {
+  ensureSeeded();
+  reports.set(fy, submitted(fy, `${day}T08:20:00.000Z`));
 }
 
 function countsOf(document: FormMV1): ReportCounts {
