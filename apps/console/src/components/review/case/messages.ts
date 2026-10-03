@@ -96,13 +96,13 @@ export const en = {
     firstDeclaration: 'First declaration on Adili: nothing to compare.',
     loading: 'Loading the comparison',
     matched: (count: number) => `${String(count)} matched`,
-    changedBig: (count: number) => `${String(count)} changed ${String(DIFF_HIGHLIGHT_PERCENT)}%+`,
+    rulesFlagged: (count: number) => `${String(count)} changed ${String(DIFF_HIGHLIGHT_PERCENT)}%+`,
     oneVersionOnly: (count: number) => `${String(count)} in one version only`,
     span: (previous: string, current: string) => `${previous} → ${current}`,
     versionOn: (version: number, date: string | null) =>
       date ? `v${String(version)} ${date}` : `v${String(version)}`,
     howMatched: 'How items are matched',
-    howMatchedBody: `Items are matched by person, category, type and description. "Not marked" means the declarant did not mark the change or the new item. Changes of ${String(DIFF_HIGHLIGHT_PERCENT)}% or more are shaded. Disposals are recorded under Other information.`,
+    howMatchedBody: `Items are matched by person, category, type and description. "Not marked" means the declarant did not mark the change or the new item. Changes of ${String(DIFF_HIGHLIGHT_PERCENT)}% or more are shaded. An item up from nothing shows n/a for the percentage and counts as changed. Disposals are recorded under Other information.`,
     caption: (name: string, previous: number | null, current: number) =>
       `Changes for ${name} between ${previous === null ? 'the previous declaration' : `version ${String(previous)}`} and version ${String(current)}`,
     previousDeclaration: 'Previous declaration',

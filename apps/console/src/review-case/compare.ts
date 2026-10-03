@@ -43,7 +43,7 @@ export interface ComparisonView {
   counts: {
     matched: number;
     /** Matched items the rules flag: changed by `DIFF_HIGHLIGHT_PERCENT` or more, or up from nothing. */
-    changedBig: number;
+    rulesFlagged: number;
     oneVersionOnly: number;
   };
 }
@@ -61,7 +61,7 @@ const typeLabel = (category: Category, type: string) => TYPE_LABELS[category][ty
  * and shades (`diffHighlighted`), or up from nothing, which the rules count as more than any
  * percentage (the table shows n/a there, unshaded).
  */
-const isBig = (row: DiffRow) =>
+const isRulesFlagged = (row: DiffRow) =>
   diffKind(row) === 'matched' &&
   (diffHighlighted(row) || (row.previousCents === 0 && row.currentCents !== 0));
 
@@ -70,7 +70,7 @@ function matchedRow(
   index: number,
   item: ComparedStatementInput['matched'][number],
 ): DiffRow {
-  // Whether the declarant marked it matters for a change the rules would flag (`isBig`);
+  // Whether the declarant marked it matters for a change the rules would flag (`isRulesFlagged`);
   // a mark on a smaller change or none is worth showing too. Other rows speak for themselves.
   const marked = item.flaggedByDeclarant;
   const row: DiffRow = {
@@ -83,7 +83,8 @@ function matchedRow(
     // to one decimal (the service rounds to whole percent).
     ...(item.deltaPercent === null ? { deltaPercent: null } : {}),
   };
-  if (marked || isBig(row)) row.note = marked ? COMPARE_COPY.marked : COMPARE_COPY.notMarked;
+  if (marked || isRulesFlagged(row))
+    row.note = marked ? COMPARE_COPY.marked : COMPARE_COPY.notMarked;
   return row;
 }
 
@@ -141,7 +142,7 @@ export function comparisonView(comparison: VersionComparison): ComparisonView {
     statements,
     counts: {
       matched: matchedRows.length,
-      changedBig: matchedRows.filter(isBig).length,
+      rulesFlagged: matchedRows.filter(isRulesFlagged).length,
       oneVersionOnly: rows.length - matchedRows.length,
     },
   };

@@ -144,7 +144,7 @@ function Comparison({
       <div className="border-b px-5 py-[18px]">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="success">{t.compare.matched(counts.matched)}</Badge>
-          <Badge variant="warning">{t.compare.changedBig(counts.changedBig)}</Badge>
+          <Badge variant="warning">{t.compare.rulesFlagged(counts.rulesFlagged)}</Badge>
           <Badge variant="warning">{t.compare.oneVersionOnly(counts.oneVersionOnly)}</Badge>
           <span className="ml-auto text-[13px] text-muted-foreground">
             {t.compare.span(
