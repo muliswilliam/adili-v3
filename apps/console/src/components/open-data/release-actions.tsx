@@ -35,6 +35,7 @@ import { WITHDRAW_REASON_MAX } from '../../server/open-data-limits';
 import type { OpenDataReleaseView, ReleasesResult } from '../../server/open-data-releases.server';
 import type { OpenDataRelease } from '../../server/reporting/types';
 import { messages as m } from './messages';
+import { type PendingKey, usePendingKey } from './pending-key';
 import { buildFailure, isProblem, mayBeRecorded, type ReleasesFailure } from './problems';
 import { releaseName } from './release-parts';
 
@@ -113,38 +114,6 @@ export function ReleaseActions(props: ReleaseActionsProps) {
       ) : null}
     </>
   );
-}
-
-interface PendingKey {
-  /** The key to send: the pending one of this release, else a new one. */
-  keyFor: () => string;
-  /** What was typed with the pending key (a withdrawal's reason); empty without one. */
-  draft: string;
-  /**
-   * After an answer: keep `key` (and `draft`) while the outcome is unknown (`mayBeRecorded`), so
-   * the retry or the next opening replays it; otherwise drop it.
-   */
-  settle: (key: string, recorded: boolean, draft?: string) => void;
-}
-
-/**
- * One action's pending Idempotency-Key, as #560's build keeps its year's: null until a request
- * may have been recorded, then `{ key, releaseId }`. The route keeps the page mounted when a
- * Versions link opens another release; that release's action is another request, so it gets a
- * new key rather than one the service has seen (422).
- */
-function usePendingKey(releaseId: string): PendingKey {
-  const [pending, setPending] = useState<{ key: string; releaseId: string; draft: string } | null>(
-    null,
-  );
-  const mine = pending?.releaseId === releaseId ? pending : null;
-  return {
-    keyFor: () => mine?.key ?? crypto.randomUUID(),
-    draft: mine?.draft ?? '',
-    settle: (key, recorded, draft = '') => {
-      setPending(recorded ? { key, releaseId, draft } : null);
-    },
-  };
 }
 
 /** How a dialog's action ended, when it did not succeed. */

@@ -520,6 +520,28 @@ describe('#353 S7 version history', () => {
     expect(await screen.findByText('v3 built. Preview only.')).toBeTruthy();
   });
 
+  it('retries a rebuild that got no answer with the same key', async () => {
+    resetNcrMock('draft');
+    await withdrawOpenDataRelease(supervisor(), PUBLISHED_V2, 'Wrong.', crypto.randomUUID());
+    const { rebuild, onRebuilt } = await renderRelease(PUBLISHED_V2);
+    // The first build went through, but its answer never came back.
+    rebuild.mockImplementationOnce(async (fy, kind, key) => {
+      await buildOpenDataRelease(supervisor(), fy, kind, key);
+      return { ok: false, error: { kind: 'unavailable', detail: null } };
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Build v3' }));
+    expect(await screen.findByText('v3 was not built.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Build v3' }));
+
+    await waitFor(() => {
+      expect(onRebuilt).toHaveBeenCalled();
+    });
+    expect(rebuild.mock.calls[1]?.[2]).toBe(rebuild.mock.calls[0]?.[2]);
+    // Replayed: the version built the first time, not a fourth.
+    expect(onRebuilt.mock.calls[0]?.[0]).toMatchObject({ version: 3 });
+  });
+
   it('says why a rebuild stopped', async () => {
     await withdrawOpenDataRelease(supervisor(), PUBLISHED_V2, 'Wrong.', crypto.randomUUID());
     resetReleasesMock('reconciliation-failed', { keep: true });
