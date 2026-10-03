@@ -421,6 +421,21 @@ export const extractSuite: EvalSuite<Expected> = {
       },
     ),
     golden(
+      'barua ya salio la mkopo kwa Kiswahili',
+      'sacco-barua-ya-salio.pdf',
+      'bank-letter',
+      { section: 'liabilities', itemType: 'loan' },
+      'sw',
+      {
+        detectedKind: 'bank-letter',
+        pageCount: 1,
+        fields: { creditor: /bidii wakulima sacco/iu, 'outstanding.kesCents': 14_550_000 },
+        allowed: ANYWHERE,
+        absent: ['location.country'],
+        identifiers: [],
+      },
+    ),
+    golden(
       'loan letter with planted instructions',
       'bank-letter-planted.pdf',
       'bank-letter',

@@ -47,7 +47,7 @@ Soft scorers are averaged over a task's cases against its threshold: `coverage` 
 - The narrative golden set (`golden/narrate-compliance-report.ts`) is six English cases over one synthetic dataset: six Commissions, FY2024 to FY2026, with a doubled non-filer rate, a three-year late reporter, a non-filer threshold breach and a clarification-ratio outlier. It has no Swahili cases (spec 09b: English report) and no planted-instructions case, since its input has no declarant text.
 
 - The documents are committed as generated, not generated in CI: fixtures key on the exact bytes the provider receives, and a scan rendered on another machine would differ by a pixel. A digital PDF is sent as its minimised text layer, so its fixture holds no name, ID number, parcel number or registration; a scan is sent as it is, so its fixture holds the image. Both are synthetic.
-- Document reading has sixteen cases, four of them requested in Kiswahili (the documents are in English, as Kenyan title deeds, logbooks and bank letters are; the warnings are written in the request's language).
+- Document reading has seventeen cases, five of them requested in Kiswahili. One document, a SACCO's loan balance letter, is written in Kiswahili (user story 10); the others are in English, as Kenyan title deeds, logbooks and bank letters are, and the warnings are written in the request's language.
 
 ## Changing a prompt or the model
 

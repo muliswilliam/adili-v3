@@ -408,6 +408,35 @@ export const DOCUMENTS: readonly SyntheticDocument[] = [
     ],
   },
   {
+    file: 'sacco-barua-ya-salio.pdf',
+    output: 'pdf',
+    pages: [
+      [
+        { kind: 'text', bold: true, size: 14, text: 'Bidii Wakulima SACCO Society Limited' },
+        { kind: 'text', size: 9, text: 'Jengo la Bidii, Barabara ya Kenyatta, Nyeri' },
+        { kind: 'rule' },
+        { kind: 'text', text: 'Tarehe: 3 Julai 2026' },
+        { kind: 'text', bold: true, text: 'BARUA YA KUTHIBITISHA SALIO LA MKOPO' },
+        { kind: 'field', label: 'Mwanachama', value: 'Rehema Achieng Otieno' },
+        { kind: 'field', label: 'Nambari ya uanachama', value: 'BW-02214' },
+        { kind: 'field', label: 'Aina ya mkopo', value: 'Mkopo wa elimu' },
+        {
+          kind: 'field',
+          label: 'Kiasi kilichotolewa',
+          value: 'KES 250,000.00 tarehe 10 Januari 2025',
+        },
+        { kind: 'field', label: 'Salio kufikia 30/06/2026', value: 'KES 145,500.00' },
+        { kind: 'gap', size: 8 },
+        {
+          kind: 'text',
+          text: 'Tunathibitisha kwamba salio lililotajwa hapo juu ni sahihi kulingana na kumbukumbu zetu. Barua hii imetolewa kwa ombi la mwanachama.',
+        },
+        { kind: 'gap', size: 10 },
+        { kind: 'text', text: 'Kwa niaba ya: Meneja wa Mikopo' },
+      ],
+    ],
+  },
+  {
     file: 'bank-letter-planted.pdf',
     output: 'pdf',
     pages: [
