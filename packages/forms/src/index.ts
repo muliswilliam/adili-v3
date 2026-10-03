@@ -29,6 +29,7 @@ export type {
 } from './declaration.v1.gen.js';
 export {
   ASSET_TYPES,
+  AssetItemSchema,
   ATTESTATION_TEXT,
   CHANGE_KINDS,
   DECLARATION_TYPES,
@@ -36,8 +37,10 @@ export {
   EMPLOYMENT_NATURES,
   INCOME_PERIOD_SOURCES,
   INCOME_TYPES,
+  IncomeItemSchema,
   ITEM_SOURCE_KINDS,
   LIABILITY_TYPES,
+  LiabilityItemSchema,
   MARITAL_STATUSES,
   MATERIAL_CHANGE_KINDS,
   MEMBERSHIP_KINDS,
