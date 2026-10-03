@@ -34,6 +34,11 @@ export type ProgressBarProps = Omit<ComponentProps<'div'>, 'children'> & {
    * a positive number.
    */
   announceEvery?: number;
+  /**
+   * Set false when the bar's owner announces progress in its own words (a batch that announces
+   * each chunk), so screen readers do not hear it twice. Defaults to true.
+   */
+  announce?: boolean;
 };
 
 /**
@@ -52,6 +57,7 @@ export function ProgressBar({
   size = 'default',
   tone = 'default',
   announceEvery = DEFAULT_ANNOUNCE_EVERY,
+  announce = true,
   className,
   ...props
 }: ProgressBarProps) {
@@ -112,9 +118,11 @@ export function ProgressBar({
           ) : null}
         </div>
       ) : null}
-      <div role="status" className="sr-only">
-        {announcement.text}
-      </div>
+      {announce ? (
+        <div role="status" className="sr-only">
+          {announcement.text}
+        </div>
+      ) : null}
     </div>
   );
 }

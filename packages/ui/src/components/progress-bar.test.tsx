@@ -95,6 +95,13 @@ describe('ProgressBar', () => {
     expect(status.textContent).toBe('30 of 100 rows');
   });
 
+  it('leaves announcing to its owner when told to', () => {
+    render(<ProgressBar label="Approving" value={60} announce={false} />);
+
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('60');
+  });
+
   it('colours the bar by tone and sizes it', () => {
     const { rerender } = render(
       <ProgressBar label="Import" value={100} tone="success" size="sm" />,
