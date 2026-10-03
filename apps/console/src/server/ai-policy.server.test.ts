@@ -161,12 +161,13 @@ describe('routedClasses', () => {
     configured: false,
   });
 
-  it("reads a Commission's own tasks only, not EACC's narrate-compliance-report", () => {
+  it("reads a Commission's reviewer tasks only, not EACC's narrate-compliance-report or Ask Adili", () => {
     const routes = [
       route('summarize-declaration', 'self-hosted'),
       route('explain-flags', 'self-hosted'),
       route('draft-clarification', 'self-hosted'),
       route('narrate-compliance-report', 'external'),
+      route('answer-declarant-question', 'external'),
     ];
 
     expect(routedClasses(routes, 'psc')).toEqual(['self-hosted']);
