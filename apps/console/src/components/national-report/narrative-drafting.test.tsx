@@ -270,6 +270,41 @@ describe('Draft narrative', () => {
     expect(within(sectionOf('Overview')).getAllByRole('textbox')).toHaveLength(2);
   });
 
+  it('saves edits not saved yet before asking, so the draft keeps them, and holds the editor meanwhile', async () => {
+    const { ask } = await renderPage();
+    const findings = sectionOf('Findings');
+    const edited = 'The Nairobi City board explained its biennial rate.';
+    fireEvent.change(within(findings).getByRole('textbox', { name: 'Findings, paragraph 2' }), {
+      target: { value: edited },
+    });
+
+    pick('Recommendations');
+
+    // The draft waits for the save; the paragraphs cannot change meanwhile.
+    await waitFor(() => {
+      expect(
+        within(findings)
+          .getByRole('textbox', { name: 'Findings, paragraph 2' })
+          .hasAttribute('readonly'),
+      ).toBe(true);
+    });
+    expect(ask).not.toHaveBeenCalled();
+    await waitFor(
+      () => {
+        expect(ask).toHaveBeenCalled();
+      },
+      { timeout: 4000 },
+    );
+    await waitFor(() => {
+      expect(aiLabels('Recommendations')).toHaveLength(2);
+    });
+    const kept = within(sectionOf('Findings')).getByRole<HTMLTextAreaElement>('textbox', {
+      name: 'Findings, paragraph 2',
+    });
+    expect(kept.value).toBe(edited);
+    expect(kept.hasAttribute('readonly')).toBe(false);
+  });
+
   it('labels an AI-draft paragraph Edited once the analyst changes it', async () => {
     await renderPage();
     const findings = sectionOf('Findings');

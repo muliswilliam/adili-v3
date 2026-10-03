@@ -3,7 +3,10 @@ import { z } from 'zod';
 
 import { ComplianceReportsTabs } from '../../../components/eacc-intake/reports-tabs';
 import { messages as m } from '../../../components/national-report/messages';
-import { NationalReportView } from '../../../components/national-report/national-report-view';
+import {
+  type NcrExtensions,
+  NationalReportView,
+} from '../../../components/national-report/national-report-view';
 import {
   type NarrativeDraftAsk,
   type NationalReportLoad,
@@ -97,10 +100,10 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
     draft: draftNarrative,
     load: loadReport,
     onUnauthenticated: goToSignIn,
-    // The figure chips follow the "Edited" label.
+    // Its paragraphMeta renders the figure chips after the "Edited" label.
     figures: patterns.paragraphMeta,
   });
-  const extensions = { ...patterns, ...drafting };
+  const extensions: NcrExtensions = { patterns: patterns.patterns, ...drafting };
   return (
     <NationalReportView
       fy={fy ?? 0}

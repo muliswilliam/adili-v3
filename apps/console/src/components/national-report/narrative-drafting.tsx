@@ -41,6 +41,7 @@ import {
   type NarrativeDraftSection,
   type NarrativeSectionId,
   type NationalReport,
+  sectionsDrafted,
 } from '../../server/reporting/types';
 import type { ServiceError } from '../../server/service-call';
 import { messages as m } from './messages';
@@ -71,11 +72,14 @@ export interface NcrDraftingOptions {
   polls?: number;
 }
 
-/** Where the analyst's latest ask stands. */
+/**
+ * Where the analyst's latest ask stands. While drafting: `saving`, edits not saved yet are being
+ * saved first (the draft's answer replaces the narrative being edited); `asking`, the request is
+ * out; `polling`, the job is being written and the report is read until it ends.
+ */
 type DraftState =
   | { status: 'idle' }
-  /** The request is out, or the job is being written and the report is read until it ends. */
-  | { status: 'drafting'; ask: NarrativeDraftRequest; polling: boolean }
+  | { status: 'drafting'; ask: NarrativeDraftRequest; phase: 'saving' | 'asking' | 'polling' }
   | { status: 'failed'; ask: NarrativeDraftRequest; message: string };
 
 const SECTION_LABELS: Record<NarrativeSectionId, string> = Object.fromEntries(
@@ -86,12 +90,8 @@ const POLL_MS = 2_000;
 /** About two minutes of a job being written before the page says it is taking long. */
 const POLLS = 60;
 
-function targetsOf(section: NarrativeDraftSection): readonly NarrativeSectionId[] {
-  return section === 'all' ? NARRATIVE_SECTION_IDS : [section];
-}
-
 /** "all sections" or "findings", as the toast and the redraft dialog name what was drafted. */
-function whatOf(section: NarrativeDraftSection): string {
+function draftedName(section: NarrativeDraftSection): string {
   return section === 'all' ? m.allSectionsLower : SECTION_LABELS[section].toLowerCase();
 }
 
@@ -108,6 +108,10 @@ function reasonMessage(reason: string | null | undefined): string {
       return m.draftNoCandidates;
     case 'aggregates-rebuilt':
       return m.draftRebuilt;
+    case 'budget':
+      return m.draftBudget;
+    case 'invalid-output':
+      return m.draftUnreadable;
     default:
       return m.draftUnavailable;
   }
@@ -154,68 +158,71 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
     toast({ title: message, urgency: 'assertive' });
   };
 
-  /** The report the service answered: the draft inserted, or discarded with its reason. */
-  const ended = (
+  // Approved meanwhile: the reloaded page shows it frozen; nothing failed.
+  const approvedMeanwhile = () => {
+    setState({ status: 'idle' });
+    void router.invalidate();
+  };
+
+  /** The report the service answered once the job ended: the draft inserted, or discarded. */
+  const onDraftEnded = (
     ask: NarrativeDraftRequest,
     answered: NationalReport,
     context: NcrExtensionContext,
   ) => {
-    const job = answered.narrativeDraft;
-    if (job?.status === 'failed') {
-      if (job.failureReason === 'ncr-approved') {
-        setState({ status: 'idle' });
-        void router.invalidate();
-        return;
-      }
-      fail(ask, reasonMessage(job.failureReason));
+    const outcome = answered.narrativeDraft;
+    if (outcome?.status === 'failed') {
+      if (outcome.failureReason === 'ncr-approved') approvedMeanwhile();
+      else fail(ask, reasonMessage(outcome.failureReason));
       return;
     }
     setDrafted((ids) => aiDraftIds(answered, ids));
     context.adoptReport(answered);
     setState({ status: 'idle' });
     const count = answered.narrativeParagraphs.filter(
-      (each) => each.aiDraft && targetsOf(ask.section).includes(each.section),
+      (each) => each.aiDraft && sectionsDrafted(ask.section).includes(each.section),
     ).length;
-    toast({ title: m.drafted(whatOf(ask.section), count) });
+    toast({ title: m.drafted(draftedName(ask.section), count) });
   };
 
-  const refused = (ask: NarrativeDraftRequest, error: ServiceError) => {
+  const onDraftRefused = (ask: NarrativeDraftRequest, error: ServiceError) => {
     if (error.kind === 'unauthenticated') {
       setState({ status: 'idle' });
       onUnauthenticated();
       return;
     }
-    if (error.kind === 'problem') {
-      // The contract's codes for drafts (#338) are not all registered with api-kit yet.
-      const code: string | undefined = (error.problem as { code?: string }).code;
-      if (code === 'ncr-approved') {
-        setState({ status: 'idle' });
-        void router.invalidate();
-        return;
-      }
-      if (error.problem.status === 403) {
-        fail(ask, m.draftForbidden);
-        return;
-      }
-      fail(ask, reasonMessage(code));
+    if (error.kind !== 'problem') {
+      fail(ask, m.draftUnavailable);
       return;
     }
-    fail(ask, m.draftUnavailable);
+    // The contract's codes for drafts (#338) are not registered with api-kit yet.
+    const code: string | undefined = (error.problem as { code?: string }).code;
+    if (code === 'ncr-approved') approvedMeanwhile();
+    else if (error.problem.status === 403) fail(ask, m.draftForbidden);
+    else fail(ask, reasonMessage(code));
   };
 
-  const run = async (ask: NarrativeDraftRequest, context: NcrExtensionContext) => {
-    setState({ status: 'drafting', ask, polling: false });
+  const send = async (ask: NarrativeDraftRequest, context: NcrExtensionContext) => {
+    setState({ status: 'drafting', ask, phase: 'asking' });
     const result = await draft(fy, ask, crypto.randomUUID());
     if (!result.ok) {
-      refused(ask, result.error);
+      onDraftRefused(ask, result.error);
       return;
     }
     if (result.data.narrativeDraft?.status === 'drafting') {
       setJob(result.data.narrativeDraft.jobId);
-      setState({ status: 'drafting', ask, polling: true });
+      setState({ status: 'drafting', ask, phase: 'polling' });
       return;
     }
-    ended(ask, result.data, context);
+    onDraftEnded(ask, result.data, context);
+  };
+
+  /** Asks for the draft once the edits on screen are saved, so the draft's answer keeps them. */
+  const ask = (request: NarrativeDraftRequest, context: NcrExtensionContext) => {
+    if (context.unsaved === 'failed') fail(request, m.draftUnsaved);
+    else if (context.unsaved === 'saving') {
+      setState({ status: 'drafting', ask: request, phase: 'saving' });
+    } else void send(request, context);
   };
 
   const drafting = state.status === 'drafting' ? state.ask : null;
@@ -227,24 +234,33 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
           state={state}
           context={context}
           options={options}
-          onAsk={(ask) => {
-            void run(ask, context);
+          onAsk={(request) => {
+            ask(request, context);
+          }}
+          onSaved={() => {
+            if (state.status !== 'drafting' || state.phase !== 'saving') return;
+            if (context.unsaved === 'none') void send(state.ask, context);
+            else if (context.unsaved === 'failed') fail(state.ask, m.draftUnsaved);
           }}
           onEnded={(answered) => {
-            if (state.status === 'drafting') ended(state.ask, answered, context);
+            if (state.status !== 'drafting') return;
+            if (answered.narrativeDraft) onDraftEnded(state.ask, answered, context);
+            // A report without its draft: the service does not keep drafts.
+            else fail(state.ask, m.draftUnavailable);
           }}
         />
       ) : null,
     sectionBody: (section, context) =>
-      context.canEdit && drafting && targetsOf(drafting.section).includes(section) ? (
+      context.canEdit && drafting && sectionsDrafted(drafting.section).includes(section) ? (
         <DraftingSection label={SECTION_LABELS[section]} />
       ) : null,
+    narrativeBusy: (context) => context.canEdit && state.status === 'drafting',
     narrativeNotice: (context) =>
       context.canEdit && state.status === 'failed' ? (
         <DraftError
           message={state.message}
           onRetry={() => {
-            void run(state.ask, context);
+            ask(state.ask, context);
           }}
           onDismiss={() => {
             setState({ status: 'idle' });
@@ -274,7 +290,7 @@ function followed(report: NationalReport | null): DraftState | null {
   return {
     status: 'drafting',
     ask: { section: job.section, replaceAll: job.replaceAll },
-    polling: true,
+    phase: 'polling',
   };
 }
 
@@ -299,25 +315,33 @@ function DraftNarrativeMenu({
   context,
   options,
   onAsk,
+  onSaved,
   onEnded,
 }: {
   state: DraftState;
   context: NcrExtensionContext;
   options: NcrDraftingOptions;
   onAsk: (ask: NarrativeDraftRequest) => void;
+  /** The edits being saved before the ask are saved, or were refused. */
+  onSaved: () => void;
   onEnded: (report: NationalReport) => void;
 }) {
   const [redraft, setRedraft] = useState<NarrativeDraftSection | null>(null);
-  const polling = state.status === 'drafting' && state.polling;
-  const slow = useDraftPoll(polling, options, onEnded);
+  const phase = state.status === 'drafting' ? state.phase : null;
+  const poll = useDraftPoll(phase === 'polling', options, onEnded);
+  const saved = useEffectEvent(onSaved);
+  const { unsaved } = context;
+  useEffect(() => {
+    if (phase === 'saving' && unsaved !== 'saving') saved();
+  }, [phase, unsaved]);
 
   if (state.status === 'drafting') {
     return (
       <span className="flex items-center gap-2.5">
-        {slow.exhausted ? (
+        {poll.exhausted ? (
           <>
             <span className="text-[13px] text-muted-foreground">{m.draftSlow}</span>
-            <Button variant="secondary" size="sm" onClick={slow.restart}>
+            <Button variant="secondary" size="sm" onClick={poll.restart}>
               <Icon icon={RefreshIcon} />
               {m.checkAgain}
             </Button>
@@ -331,8 +355,8 @@ function DraftNarrativeMenu({
     );
   }
 
-  const ask = (section: NarrativeDraftSection) => {
-    if (writtenIn(context.narrative, targetsOf(section)).total > 0) setRedraft(section);
+  const pick = (section: NarrativeDraftSection) => {
+    if (writtenIn(context.narrative, sectionsDrafted(section)).total > 0) setRedraft(section);
     else onAsk({ section, replaceAll: false });
   };
 
@@ -351,7 +375,7 @@ function DraftNarrativeMenu({
             <MenuItem
               key={section}
               onSelect={() => {
-                ask(section);
+                pick(section);
               }}
             >
               {section === 'all' ? m.draftAll : SECTION_LABELS[section]}
@@ -436,7 +460,7 @@ function RedraftDialog({
   onRedraft: (replaceAll: boolean) => void;
 }) {
   const [replaceAll, setReplaceAll] = useState(false);
-  const { total, mine } = writtenIn(narrative, targetsOf(section));
+  const { total, mine } = writtenIn(narrative, sectionsDrafted(section));
   return (
     <Dialog
       open
@@ -449,7 +473,7 @@ function RedraftDialog({
           <IconTile tone="ai">
             <Icon icon={SparklesIcon} />
           </IconTile>
-          <DialogTitle>{m.redraftTitle(whatOf(section))}</DialogTitle>
+          <DialogTitle>{m.redraftTitle(draftedName(section))}</DialogTitle>
         </DialogHeader>
         <DialogBody>
           <RadioGroup legend={m.redraftLegend} legendHidden>
