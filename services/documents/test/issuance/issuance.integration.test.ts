@@ -1,6 +1,6 @@
 import { createHash, createPublicKey, randomUUID, verify } from 'node:crypto';
 
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { withTenant } from '@adili/data-access';
 import { VERIFICATION_ID_PATTERN } from '@adili/events/contracts';
 import {
@@ -22,7 +22,6 @@ import { componentSchema, contractErrors, okResponse } from '../support/contract
 import {
   type Caller,
   type DocumentsApi,
-  listKeys,
   requireEnv,
   startDocumentsApi,
   testOpenBao,
@@ -752,7 +751,9 @@ describe('a dependency down', () => {
     const down = await startDocumentsApi({ openbaoUrl: 'http://127.0.0.1:9' });
     try {
       const body = issueBody();
-      const stored = await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/');
+      // The suite's own client: the bucket is shared with suites running alongside, whose
+      // objects come and go while this one runs.
+      const send = vi.spyOn(down.s3, 'send');
       const response = await down.post('/internal/v1/documents/issue', body, DECLARATIONS, {
         idempotencyKey: null,
         headers: { 'x-acting-tenant': 'psc' },
@@ -760,7 +761,8 @@ describe('a dependency down', () => {
       expect(response.statusCode).toBe(502);
       expect(response.json<Problem>().type).toBe('signer-unavailable');
       await nothingRegistered(down, body.subjectRef);
-      expect(await listKeys(down.s3, requireEnv('S3_BUCKET_ISSUED'), 'issued/')).toEqual(stored);
+      const puts = send.mock.calls.filter(([command]) => command instanceof PutObjectCommand);
+      expect(puts).toEqual([]);
     } finally {
       await down.close();
     }

@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
-import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, S3Client } from '@aws-sdk/client-s3';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { TokenVerifier } from '@adili/api-kit';
@@ -329,12 +329,6 @@ async function deleteObjects(s3: S3Client, bucket: string, keys: string[]): Prom
       }),
     );
   }
-}
-
-/** Keys of the objects under `prefix` in `bucket`, e.g. to assert nothing was stored. */
-export async function listKeys(s3: S3Client, bucket: string, prefix: string): Promise<string[]> {
-  const listed = await s3.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix }));
-  return (listed.Contents ?? []).flatMap(({ Key }) => (Key ? [Key] : []));
 }
 
 /** OpenBao as the tests reach it (`TEST_OPENBAO_URL`, `TEST_OPENBAO_TOKEN`), or at `url`. */
