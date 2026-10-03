@@ -12,7 +12,7 @@ ADR-013 §8.12 and §8.13 record the registry lookups' calls and why accept and 
 | `internal/ai-gateway.yaml` | exported | none (`drafts/ai-gateway.yaml` deleted by #314: `extract-document`'s input and output come from its Zod schemas) | same |
 | `internal/integration-gateway.yaml` | exported | none | same |
 | `internal/directory.yaml` | exported | none | same |
-| `forms/declaration.v1.json` | hand-written | n/a | `pnpm --filter @adili/schemas lint:forms`; `ItemSource` fixtures in `forms/fixtures/declaration.v1` (`valid/biennial-prefilled.json` with a source of each registry and a document, `invalid/p8-statement-item-source-unknown-kind.json`), and `declaration-sections.test.ts` checks `ITEM_SOURCE_KINDS` against the schema's enum |
+| `forms/declaration.v1.json` | hand-written | n/a | `pnpm --filter @adili/schemas lint:forms`; `ItemSource` fixtures in `forms/fixtures/declaration.v1` (`valid/biennial-prefilled.json` with KRA, ArdhiSasa, NTSA and document sources, `invalid/p8-statement-item-source-unknown-kind.json`), and `declaration-sections.test.ts` checks `ITEM_SOURCE_KINDS` against the schema's enum |
 
 No spec 05b operation is left in any draft. Every operation `bde37c16` drafted is built under the operation id and path it drafted: 5 in declarations, 1 task in the ai-gateway.
 CI runs `pnpm contracts:drift` in the TypeScript job: a service whose export differs from its committed file, or a client (`*.gen.ts`) generated from a stale contract, fails it.
@@ -41,9 +41,10 @@ Operations changed:
   - Registry suggestions never set a value field; a document's reading does write its amounts, at their declaration.v1 paths within the item, since the declarant reviews each one (#315).
   - Where each type lands is documented: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household`. The declarant's own `bio-tax` has no field yet: 400 (#474).
   - `ItemSource.verificationResultId` is named only when the item ends up holding what the registry gave.
+- `acceptSuggestion` and `dismissSuggestion` are audited reads of the suggestion (`declaration.suggestion.read`).
 - `dismissSuggestion` (#311): body named `DismissSuggestionRequest`. Dismissing again answers the suggestion as it is (first reason kept, no second event). 409 `not-new` covers accepted and superseded; 400 for a reason over 200 characters.
 - `extractAttachment` (#315):
-  - `targetItemType` is gone from the body. The target is the item the document is attached to: its statement list and type, sent to the gateway as `target: {section, itemType}` (see the ai-gateway below). The body is the named `ExtractAttachmentRequest`, `{documentKindHint, language}`, and may be left out entirely.
+  - `targetItemType` is gone from the body. The target is the item the document is attached to: its statement list and type, sent to the gateway as `target: {section, itemType}` (see the ai-gateway below). The body is the named `ExtractAttachmentRequest`, `{documentKindHint, language}`, as drafted otherwise (`language` defaults to `en`).
   - `Idempotency-Key` is required.
   - Not enabled is a `not-enabled` set (202), not the draft's 409 `not-enabled`: the gateway decides by policy when the job is created and records a `blocked` job in its audit, so there is no pre-check.
   - Problems: 400 for an unknown kind or language, or an attached item with no type; 409 `upload-not-clean`, `declaration-not-draft`; 422 for a reused key; 503 `documents-unavailable` or `ai-gateway-unavailable`, with no reading recorded.
@@ -60,7 +61,7 @@ Schemas changed:
   - `sourceRef` is documented: a registry's identifiers and facts that do not become fields; for a document `documentKind`, `fields: [{name, confidence, page}]`, `warnings` and `attachmentId`.
   - `confidence` is a document reading's least sure field's; `matchItemId` is, for a document, the item it is attached to.
 - New: `RegistryLookupRequest`, `AcceptSuggestionRequest`, `SuggestionAcceptance`, `DismissSuggestionRequest`, `ExtractAttachmentRequest`.
-- Bio sections (#318): `DeclarationSection.prefilledFields` and `SectionSaveResult.prefilledFields`, the JSON pointers of the bio fields pre-filled from the roster that still hold its value. A save that changes one drops it.
+- Bio sections (#318): `SectionEnvelope.prefilledFields` and `SectionSaveResult.prefilledFields`, the JSON pointers of the bio fields pre-filled from the roster that still hold its value. A save that changes one drops it.
 - Problem codes `consent-required`, `no-id` and `not-new` join the shared list (every exported contract carries it).
 - Nullables are `anyOf [..., null]` rather than `type: [..., 'null']` (code-first export).
 

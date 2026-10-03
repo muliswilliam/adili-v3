@@ -8,7 +8,7 @@ Each difference below was decided in the ticket named; the generated contract in
 | Contract | Source | Drafts left | Drift check |
 |---|---|---|---|
 | `internal/access.yaml` | exported from `services/access` (`pnpm --filter @adili/access contracts`) | none (`drafts/access.yaml` deleted: every operation is built) | `pnpm contracts:drift` |
-| `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: specs 05b and 11 only (suggestions, extraction, assistant, hints, help themes) | same |
+| `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: spec 11 only (assistant, hints, help themes); spec 05b converged in [05b-prefill-extraction.md](05b-prefill-extraction.md) | same |
 | `internal/directory.yaml` | exported | none (`drafts/directory.yaml` deleted by #246 and #263) | same |
 | `internal/documents.yaml` | exported | none (`drafts/documents.yaml` deleted: #194 built spec 08's `internalGetDocument`, #470 spec 07a's `revokeDocument`) | same |
 | `internal/notifications.yaml` | exported | none | same |
