@@ -18,7 +18,7 @@ import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
 import { etag } from '../http.js';
-import { editsRegistryFields, placementOf } from './acceptance.js';
+import { placementOf } from './acceptance.js';
 import {
   declarationLookupRequested,
   declarationSuggestionAccepted,
@@ -225,9 +225,9 @@ export class SuggestionsService {
   /**
    * Accepts a `new` suggestion (S4): the section read-modify-write of the section save, with
    * `If-Match`, adding the item with the suggestion as its `source` or filling the item it is
-   * applied to (`acceptance.ts`). The source names the registry's verification result only when
-   * the declarant accepted the fields as the registry gave them. In the save's transaction the suggestion becomes `accepted` with
-   * the item, re-checked under a row lock, and `declaration.suggestion-accepted.v1` is recorded
+   * applied to (`acceptance.ts`), whose source names the registry's verification result only
+   * when the item holds what the registry said. In the save's transaction the suggestion becomes
+   * `accepted` with the item, re-checked under a row lock, and `declaration.suggestion-accepted.v1` is recorded
    * beside the save's own `declaration.section-saved.v1`. 409 `not-new` when it was decided or
    * superseded already, 409 `draft-version-mismatch` when the draft changed since `If-Match`
    * (428 without it), 400 for fields the item cannot take or a suggestion with no place in
@@ -246,9 +246,7 @@ export class SuggestionsService {
     if (!parsed.success) throw validationProblem(fieldErrors(parsed.error.issues));
     const accepted = { ...parsed.data, overwrite: parsed.data.overwrite === true };
     const offered = await this.cipher.open(declaration.tenant, declaration.id, row.id, row);
-    const verificationResultId = editsRegistryFields(offered.fields, accepted.fields)
-      ? null
-      : (row.verificationResultId ?? set.verificationResultId);
+    const verificationResultId = row.verificationResultId ?? set.verificationResultId;
     const source = {
       kind: set.source,
       suggestionId: row.id,
@@ -256,7 +254,7 @@ export class SuggestionsService {
       ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
       at: this.clock.now().toISOString(),
     };
-    const placement = placementOf(row, accepted, source, uuidv7());
+    const placement = placementOf({ ...row, fields: offered.fields }, accepted, source, uuidv7());
     let itemId = '';
     let decided: SuggestionRow | undefined;
     let saved: { draftVersion: number };

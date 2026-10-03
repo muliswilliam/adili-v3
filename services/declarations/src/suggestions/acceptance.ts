@@ -18,12 +18,12 @@ import type { SectionContents } from '../drafts/sections.js';
  * - `bio-tax` for a spouse: the spouse's KRA PIN in Household. The declarant's has no field in
  *   declaration.v1, so it cannot be accepted.
  *
- * A new item carries the suggestion as its `source`, with the registry's verification result
- * unless the declarant edited what the registry said (`editsRegistryFields`). Applied to an existing item, a suggestion
+ * A new item carries the suggestion as its `source`. Applied to an existing item, a suggestion
  * fills only the fields the item leaves empty unless `overwrite` is set, and marks the item with
- * its `source` if it has none. Values (`value`, `amount`) are never written: valuing is the
- * declarant's call. A spouse in Household has no `source` in declaration.v1, so a PIN carries
- * none.
+ * its `source` if it has none. The source names the registry's verification result only when the
+ * item ends up holding what the registry said (`sourceFor`). Values (`value`, `amount`) are never
+ * written: valuing is the declarant's call. A spouse in Household has no `source` in
+ * declaration.v1, so a PIN carries none.
  */
 
 export interface AcceptedFields {
@@ -35,6 +35,8 @@ export interface AcceptedFields {
 
 export interface SuggestionToAccept {
   itemType: string;
+  /** The fields as the registry gave them (see `registry-mapping.ts`). */
+  fields: Record<string, unknown>;
   sectionKey: DeclarationSectionKey;
   personKey: string;
 }
@@ -115,6 +117,7 @@ export function placementOf(
   const statementItem = STATEMENT_ITEMS[suggestion.itemType];
   if (statementItem && suggestion.sectionKey.startsWith('statement:')) {
     const patch = statementItem.patch(accepted.fields);
+    const registryPatch = statementItem.patch(suggestion.fields);
     return {
       sectionKey: suggestion.sectionKey,
       apply: (stored) => {
@@ -127,11 +130,15 @@ export function placementOf(
             change: { changed: false },
             ...(statementItem.list === 'assets' ? { joint: { isJoint: false } } : {}),
           };
+          const added = patched(base, patch, true);
           return {
             contents: {
               ...stored,
               [NIL_FLAG[statementItem.list]]: false,
-              [statementItem.list]: [...items, { ...patched(base, patch, true), source }],
+              [statementItem.list]: [
+                ...items,
+                { ...added, source: sourceFor(added, registryPatch, source) },
+              ],
             },
             itemId: newId,
           };
@@ -141,7 +148,9 @@ export function placementOf(
           contents: {
             ...stored,
             [statementItem.list]: items.map((item) =>
-              item === target ? markedFrom(patched(item, patch, accepted.overwrite), source) : item,
+              item === target
+                ? filledFrom(item, patch, accepted.overwrite, registryPatch, source)
+                : item,
             ),
           },
           itemId: accepted.applyToItemId,
@@ -150,10 +159,8 @@ export function placementOf(
     };
   }
   if (suggestion.itemType === 'directorship' && suggestion.sectionKey === 'other') {
-    const patch: Patch = [
-      ['company', text(accepted.fields.companyName)],
-      ['role', text(accepted.fields.role)],
-    ];
+    const patch = directorshipPatch(accepted.fields);
+    const registryPatch = directorshipPatch(suggestion.fields);
     return {
       sectionKey: 'other',
       apply: (stored) => {
@@ -162,12 +169,15 @@ export function placementOf(
         let next: Record<string, unknown>[];
         let itemId: string;
         if (accepted.applyToItemId === null) {
-          next = [...directorships, { ...patched({ id: newId }, patch, true), source }];
+          const added = patched({ id: newId }, patch, true);
+          next = [...directorships, { ...added, source: sourceFor(added, registryPatch, source) }];
           itemId = newId;
         } else {
           const target = existing(directorships, accepted.applyToItemId, null);
           next = directorships.map((each) =>
-            each === target ? markedFrom(patched(each, patch, accepted.overwrite), source) : each,
+            each === target
+              ? filledFrom(each, patch, accepted.overwrite, registryPatch, source)
+              : each,
           );
           itemId = accepted.applyToItemId;
         }
@@ -216,19 +226,50 @@ export function placementOf(
   ]);
 }
 
+function directorshipPatch(fields: Record<string, unknown>): Patch {
+  return [
+    ['company', text(fields.companyName)],
+    ['role', text(fields.role)],
+  ];
+}
+
 /**
- * Whether the declarant changed what the registry said before accepting: any field but the
- * description (the mapping's wording, not the registry's), compared as text. The item they add
- * keeps its `source`, but not the registry's verification result, which no longer vouches for it
- * (spec 05b story 16: a reviewer relies on it not to flag a registry-sourced item).
+ * The suggestion's `source` for `item`, naming the registry's verification result only when the
+ * item holds what the registry said wherever the suggestion writes (the description, the
+ * mapping's wording rather than the registry's, aside), compared as letters and digits so that
+ * "kca-123a" holds "KCA 123A". An item the declarant edited, or whose
+ * own values were kept when the suggestion was applied to it, is not vouched for by the registry
+ * (spec 05b story 16: a reviewer relies on the result not to flag a registry-sourced item).
  */
-export function editsRegistryFields(
-  registry: Record<string, unknown>,
-  accepted: Record<string, unknown>,
-): boolean {
-  const keys = new Set([...Object.keys(registry), ...Object.keys(accepted)]);
-  keys.delete('description');
-  return [...keys].some((key) => text(registry[key]) !== text(accepted[key]));
+function sourceFor(
+  item: Record<string, unknown>,
+  registryPatch: Patch,
+  source: ItemSource,
+): ItemSource {
+  const { verificationResultId, ...unverified } = source;
+  if (verificationResultId === undefined) return source;
+  const vouched = registryPatch.every(
+    ([path, value]) =>
+      path === 'description' ||
+      value === '' ||
+      comparable(valueAt(item, path)) === comparable(value),
+  );
+  return vouched ? source : unverified;
+}
+
+/**
+ * An existing item with the suggestion applied: its empty fields filled (all, with `overwrite`),
+ * and the suggestion's source if it has none.
+ */
+function filledFrom(
+  item: Record<string, unknown>,
+  patch: Patch,
+  overwrite: boolean,
+  registryPatch: Patch,
+  source: ItemSource,
+): Record<string, unknown> {
+  const filled = patched(item, patch, overwrite);
+  return markedFrom(filled, sourceFor(filled, registryPatch, source));
 }
 
 /** The item with `id` in `items`, of `type` when given; a 400 otherwise. */
@@ -294,6 +335,13 @@ function text(value: unknown): string {
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   return '';
+}
+
+/** A field as its letters and digits, upper-cased: how two values are told to say the same. */
+function comparable(value: unknown): string {
+  return text(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
 }
 
 function joined(parts: string[], separator: string): string {

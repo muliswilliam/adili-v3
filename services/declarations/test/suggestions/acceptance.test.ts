@@ -1,11 +1,7 @@
 import type { ItemSource } from '@adili/forms';
 import { describe, expect, it } from 'vitest';
 
-import {
-  type AcceptedFields,
-  editsRegistryFields,
-  placementOf,
-} from '../../src/suggestions/acceptance.js';
+import { type AcceptedFields, placementOf } from '../../src/suggestions/acceptance.js';
 
 const SOURCE: ItemSource = {
   kind: 'ntsa',
@@ -49,7 +45,7 @@ const fielder = {
 describe('accepting into a statement', () => {
   it('adds a vehicle with its source, its nil answer withdrawn, and no value', () => {
     const placement = placementOf(
-      { ...officerStatement, itemType: 'vehicle' },
+      { ...officerStatement, itemType: 'vehicle', fields: fielder },
       asNew(fielder),
       SOURCE,
       NEW_ID,
@@ -76,7 +72,11 @@ describe('accepting into a statement', () => {
 
   it('describes land by its location when the registry county is not a county code', () => {
     const { contents } = placementOf(
-      { ...officerStatement, itemType: 'land' },
+      {
+        ...officerStatement,
+        itemType: 'land',
+        fields: { parcelNumber: 'LR 209/1234', size: '1.25 ha', location: 'Coast Province' },
+      },
       asNew({ parcelNumber: 'LR 209/1234', size: '1.25 ha', location: 'Coast Province' }),
       SOURCE,
       NEW_ID,
@@ -94,7 +94,11 @@ describe('accepting into a statement', () => {
 
   it('names a shareholding by the company number when the name is missing', () => {
     const { contents } = placementOf(
-      { ...officerStatement, itemType: 'shareholding' },
+      {
+        ...officerStatement,
+        itemType: 'shareholding',
+        fields: { registrationNumber: 'CPR/2009/12345', shares: 150 },
+      },
       asNew({ registrationNumber: 'CPR/2009/12345', shares: 150 }),
       SOURCE,
       NEW_ID,
@@ -111,7 +115,7 @@ describe('accepting into a statement', () => {
 
   it('adds an income hint as a salary with no amount', () => {
     const { contents } = placementOf(
-      { ...officerStatement, itemType: 'income-hint' },
+      { ...officerStatement, itemType: 'income-hint', fields: { incomeType: 'salary-emoluments' } },
       asNew({ incomeType: 'salary-emoluments' }),
       { ...SOURCE, kind: 'kra' },
       NEW_ID,
@@ -131,7 +135,7 @@ describe('accepting into a statement', () => {
 
   it('fills only the empty fields of the item it is applied to, and marks it', () => {
     const { contents, itemId } = placementOf(
-      { ...officerStatement, itemType: 'vehicle' },
+      { ...officerStatement, itemType: 'vehicle', fields: fielder },
       { fields: fielder, applyToItemId: CAR_ID, overwrite: false },
       SOURCE,
       NEW_ID,
@@ -150,7 +154,7 @@ describe('accepting into a statement', () => {
   it('overwrites when asked, but never the value, and keeps the source the item has', () => {
     const earlier = { ...SOURCE, suggestionId: '0192f1a0-5a11-7000-8000-00000000c009' };
     const { contents } = placementOf(
-      { ...officerStatement, itemType: 'vehicle' },
+      { ...officerStatement, itemType: 'vehicle', fields: fielder },
       { fields: { ...fielder, value: 1 }, applyToItemId: CAR_ID, overwrite: true },
       SOURCE,
       NEW_ID,
@@ -171,7 +175,7 @@ describe('accepting into a statement', () => {
     ['an item of another type', CAR_ID],
   ])('refuses to apply a land suggestion to %s', (_, applyToItemId) => {
     const placement = placementOf(
-      { ...officerStatement, itemType: 'land' },
+      { ...officerStatement, itemType: 'land', fields: { parcelNumber: 'X/1' } },
       { fields: { parcelNumber: 'X/1' }, applyToItemId, overwrite: false },
       SOURCE,
       NEW_ID,
@@ -197,7 +201,12 @@ describe('accepting outside the statements', () => {
 
   it("adds the officer's directorship to paragraph 9 with an id and its source", () => {
     const placement = placementOf(
-      { itemType: 'directorship', sectionKey: 'other', personKey: 'officer' },
+      {
+        itemType: 'directorship',
+        sectionKey: 'other',
+        personKey: 'officer',
+        fields: { companyName: 'Kimumu Transporters Limited', role: 'Director' },
+      },
       asNew({ companyName: 'Kimumu Transporters Limited', role: 'Director' }),
       { ...SOURCE, kind: 'brs' },
       NEW_ID,
@@ -229,7 +238,12 @@ describe('accepting outside the statements', () => {
     };
     const accept = (stored: typeof household, overwrite = false) =>
       placementOf(
-        { itemType: 'bio-tax', sectionKey: 'household', personKey: `spouse:${SPOUSE_ID}` },
+        {
+          itemType: 'bio-tax',
+          sectionKey: 'household',
+          personKey: `spouse:${SPOUSE_ID}`,
+          fields: { kraPin: 'A005231876K' },
+        },
         { fields: { kraPin: 'a005231876k' }, applyToItemId: null, overwrite },
         { ...SOURCE, kind: 'kra' },
         NEW_ID,
@@ -252,10 +266,13 @@ describe('accepting outside the statements', () => {
   });
 
   it.each([
-    ["the officer's KRA PIN", { itemType: 'bio-tax', sectionKey: 'bio', personKey: 'officer' }],
+    [
+      "the declarant's own KRA PIN",
+      { itemType: 'bio-tax', sectionKey: 'bio', personKey: 'officer', fields: {} },
+    ],
     [
       'an unknown item type',
-      { itemType: 'aircraft', sectionKey: 'statement:officer', personKey: 'officer' },
+      { itemType: 'aircraft', sectionKey: 'statement:officer', personKey: 'officer', fields: {} },
     ],
   ] as const)('refuses %s (400)', (_, suggestion) => {
     expect(() => placementOf(suggestion, asNew({}), SOURCE, NEW_ID)).toThrow(
@@ -264,26 +281,51 @@ describe('accepting outside the statements', () => {
   });
 });
 
-describe('whether the declarant edited what the registry said', () => {
-  const ntsa = {
-    description: 'Toyota Fielder',
-    registration: 'KCA 123A',
-    make: 'Toyota',
-    year: 2016,
+describe("naming the registry's verification result on the item's source", () => {
+  const vehicle = { ...officerStatement, itemType: 'vehicle', fields: fielder };
+  const unverified = { kind: SOURCE.kind, suggestionId: SOURCE.suggestionId, at: SOURCE.at };
+  const applied = { fields: fielder, applyToItemId: CAR_ID, overwrite: false };
+  const car2017 = {
+    ...declaredCar,
+    details: { ...declaredCar.details, makeModel: 'Toyota Fielder, 2017' },
   };
 
-  it('is not an edit to accept the fields as they came, or to reword the description', () => {
-    expect(editsRegistryFields(ntsa, { ...ntsa })).toBe(false);
-    expect(editsRegistryFields(ntsa, { ...ntsa, description: 'The school-run car' })).toBe(false);
-    expect(editsRegistryFields(ntsa, { ...ntsa, year: '2016', make: ' Toyota ' })).toBe(false);
+  /** The source of the item the suggestion went into. */
+  function sourceOf(accepted: AcceptedFields, assets: unknown[] = []): unknown {
+    const { contents, itemId } = placementOf(vehicle, accepted, SOURCE, NEW_ID).apply(
+      statement(assets),
+    );
+    return (contents.assets as { id: string; source?: unknown }[]).find(
+      (item) => item.id === itemId,
+    )?.source;
+  }
+
+  it('names it for the fields as they came, reworded only in the description', () => {
+    expect(sourceOf(asNew(fielder))).toEqual(SOURCE);
+    expect(sourceOf(asNew({ ...fielder, description: 'The school-run car' }))).toEqual(SOURCE);
+    expect(sourceOf(asNew({ ...fielder, year: '2016', make: ' Toyota ' }))).toEqual(SOURCE);
   });
 
   it.each([
-    ['a changed field', { ...ntsa, year: 2017 }],
-    ['a cleared field', { ...ntsa, registration: '' }],
-    ['a field left out', { description: ntsa.description, make: 'Toyota', year: 2016 }],
-    ['a field the registry did not give', { ...ntsa, model: 'Fielder' }],
-  ])('is an edit: %s', (_, accepted) => {
-    expect(editsRegistryFields(ntsa, accepted)).toBe(true);
+    ['a changed field', { ...fielder, year: 2017 }],
+    ['a cleared field', { ...fielder, registration: '' }],
+    ['a field left out', { ...fielder, model: undefined }],
+  ])('leaves it off for %s', (_, fields) => {
+    expect(sourceOf(asNew(fields))).toEqual(unverified);
+  });
+
+  it('ignores fields the suggestion never writes', () => {
+    expect(sourceOf(asNew({ ...fielder, colour: 'Silver' }))).toEqual(SOURCE);
+  });
+
+  it('names it on an item applied to whose own values say what the registry said', () => {
+    // "kca-123a" is the registry's KCA 123A, written another way.
+    expect(sourceOf(applied, [declaredCar])).toEqual(SOURCE);
+  });
+
+  it('leaves it off an item applied to that keeps a value the registry did not give', () => {
+    expect(sourceOf(applied, [car2017])).toEqual(unverified);
+    // Overwritten with the registry's values, the item says what the registry said again.
+    expect(sourceOf({ ...applied, overwrite: true }, [car2017])).toEqual(SOURCE);
   });
 });

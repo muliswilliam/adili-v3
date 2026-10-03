@@ -381,6 +381,32 @@ describe('accepting a suggestion (S4)', () => {
     expect(event?.data).toMatchObject({ itemId: carId, applied: true });
   });
 
+  it("names NTSA's result on the matched item only while it holds what NTSA said", async () => {
+    const draft = await givenDraft();
+    const carId = await givenDeclaredCar(draft.id);
+    const statement = await section(draft.id, 'statement:officer');
+    const [car] = itemsOf(statement, 'assets');
+    await save(draft.id, 'statement:officer', {
+      ...statement.contents,
+      assets: [
+        { ...car, details: { registration: 'kca-123a', makeModel: 'Toyota Fielder, 2017' } },
+      ],
+    });
+    givenOfficerRegistries();
+    const [set] = await checked(draft.id, achieng, 'officer', ['ntsa']);
+    const fielder = suggestionOf(set, 'vehicle');
+
+    await accepted(draft.id, fielder, { applyToItemId: carId });
+
+    // The declarant's 2017 stands, which NTSA (2016) does not vouch for.
+    const [item] = itemsOf(await section(draft.id, 'statement:officer'), 'assets');
+    expect(item?.source).toEqual({
+      kind: 'ntsa',
+      suggestionId: fielder.id,
+      at: expect.stringMatching(ISO) as unknown,
+    });
+  });
+
   it("overwrites the matching item's fields when the declarant asks", async () => {
     const draft = await givenDraft();
     const carId = await givenDeclaredCar(draft.id);
