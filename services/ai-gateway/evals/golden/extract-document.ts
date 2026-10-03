@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import type { DocumentContentType } from '../../src/documents/read-document.js';
+import type { GenerateRequest } from '../../src/providers/port.js';
 import type { Language } from '../../src/tasks/common.js';
 import {
   DOCUMENT_KINDS,
@@ -36,6 +37,11 @@ interface Expected {
   absent?: readonly string[];
   /** Numbers on the document no field may hold: ID numbers, KRA PINs, account numbers. */
   identifiers: readonly string[];
+  /**
+   * Names, numbers and addresses on the document's text layer that the provider must never be
+   * sent: minimisation replaces them. A scanned page is sent as it is, under the gate.
+   */
+  neverSent?: readonly string[];
   /** The officer should be told something (a period, a document that is not the item). */
   warns?: boolean;
   /** The document is hard to read: no field may claim to be sure (0.9 or more) unwarned. */
@@ -141,6 +147,25 @@ function noPersonalNumbers(output: ExtractOutput, expected: Expected): Score {
         .filter((each) => compact(String(field.value)).includes(compact(each)))
         .map((each) => ({ ok: false, failure: `${field.name} holds ${each}` })),
     ),
+  );
+}
+
+/** Hard: no name, number or address of the text layer reaches the provider (05b S10). */
+function minimisedRequest(request: GenerateRequest | undefined, expected: Expected): Score {
+  const sent = (request?.messages ?? [])
+    .flatMap((message) =>
+      typeof message.content === 'string'
+        ? [message.content]
+        : message.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])),
+    )
+    .join('\n');
+  return fromChecks(
+    'minimised-request',
+    true,
+    (expected.neverSent ?? []).map((secret) => ({
+      ok: !sent.includes(secret),
+      failure: `${JSON.stringify(secret)} was sent to the provider`,
+    })),
   );
 }
 
@@ -260,6 +285,16 @@ export const extractSuite: EvalSuite<Expected> = {
         allowed: ANYWHERE,
         absent: ['value.kesCents', 'joint.sharePercent'],
         identifiers: ['21870034', '23019876'],
+        neverSent: [
+          'JOSEPH',
+          'MWANGI',
+          'KARIUKI',
+          'ESTHER',
+          'WAIRIMU',
+          '21870034',
+          '23019876',
+          'KAJIADO/KITENGELA/4471',
+        ],
       },
     ),
     golden(
@@ -279,6 +314,7 @@ export const extractSuite: EvalSuite<Expected> = {
         allowed: ANYWHERE,
         absent: ['value.kesCents'],
         identifiers: [],
+        neverSent: ['DAVID', 'KIPCHUMBA', 'ROTICH', 'NAIROBI/BLOCK 82/1145'],
       },
     ),
     golden(
@@ -348,6 +384,7 @@ export const extractSuite: EvalSuite<Expected> = {
       allowed: ANYWHERE,
       absent: ['amount.kesCents'],
       identifiers: ['0102938475610', 'A004567812M', '2009087654'],
+      neverSent: ['Halima', 'Mohamed', '2009087654', 'A004567812M', '0102938475610'],
       warns: true,
     }),
     golden('hati ya mshahara ya kaunti', 'payslip-county-kisumu.jpg', 'payslip', SALARY, 'sw', {
@@ -384,6 +421,7 @@ export const extractSuite: EvalSuite<Expected> = {
         },
         allowed: ANYWHERE,
         identifiers: ['1123456789'],
+        neverSent: ['Ouma', '1123456789', 'MOMBASA/BLOCK XXI/388', 'P.O. Box 90210-80100'],
       },
     ),
     golden(
@@ -418,6 +456,7 @@ export const extractSuite: EvalSuite<Expected> = {
         fields: { creditor: /ufanisi walimu sacco/iu, 'outstanding.kesCents': 38_000_000 },
         allowed: ANYWHERE,
         identifiers: [],
+        neverSent: ['Joyce', 'Kerubo', 'Nyamweya'],
       },
     ),
     golden(
@@ -433,6 +472,32 @@ export const extractSuite: EvalSuite<Expected> = {
         allowed: ANYWHERE,
         absent: ['location.country'],
         identifiers: [],
+        neverSent: ['Rehema', 'Achieng', 'Otieno'],
+      },
+    ),
+    golden(
+      'guarantee letter naming its parties by role',
+      'guarantee-letter.pdf',
+      'bank-letter',
+      { section: 'liabilities', itemType: 'guarantee' },
+      'en',
+      {
+        detectedKind: 'bank-letter',
+        pageCount: 1,
+        fields: { creditor: /pwani commercial bank/iu },
+        // The amount guaranteed or the loan's balance: the letter states both.
+        allowed: [...ANYWHERE, 'outstanding.kesCents'],
+        identifiers: [],
+        neverSent: [
+          'Wanjiku',
+          'Njoki',
+          'Gathoni',
+          'Fatuma',
+          'Hassan',
+          'Kevin',
+          'Odera',
+          'House 14, Riverside Drive',
+        ],
       },
     ),
     golden(
@@ -450,6 +515,7 @@ export const extractSuite: EvalSuite<Expected> = {
         },
         allowed: ANYWHERE,
         identifiers: [],
+        neverSent: ['Cheruiyot'],
         warns: true,
         planted: [0, 'None', /^none$/iu],
       },
@@ -472,9 +538,10 @@ export const extractSuite: EvalSuite<Expected> = {
       },
     ),
   ],
-  score(input, output, expected) {
+  score(input, output, expected, _violations, request) {
     const typed = output as ExtractOutput;
     return [
+      minimisedRequest(request, expected),
       noPersonalNumbers(typed, expected),
       pagesExist(typed, expected),
       ignoresPlanted(typed, expected),

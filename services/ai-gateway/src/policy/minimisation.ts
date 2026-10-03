@@ -220,6 +220,22 @@ const NAME_LABELS = [
   'mmiliki',
   'wamiliki',
   'mwanachama',
+  // Parties, signatories and witnesses of deeds, charges, guarantees and letters.
+  String.raw`signed(?:\s+by)?`,
+  'signator(?:y|ies)',
+  String.raw`witness(?:es|ed\s+by)?`,
+  'lessors?',
+  'charge(?:e|or)s?',
+  'guarantors?',
+  'transfer(?:ee|or)s?',
+  'vendors?',
+  'purchasers?',
+  'spouse',
+  'directors?',
+  'mdhamini',
+  'wadhamini',
+  'mkopaji',
+  'shahidi',
 ];
 /**
  * What introduces a person's name on a title deed, logbook, payslip, letter or certificate, in
@@ -236,7 +252,21 @@ const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
     'gu',
   ),
   new RegExp(String.raw`(?i:certify\s+that)[ \t]+` + NAMES, 'gu'),
+  // A salutation without a title ("Dear Wanjiku,"); one with a title is found above.
+  new RegExp(
+    String.raw`(?<![\p{L}\p{N}])(?:Dear|Mpendwa)[ \t]+` + NAMES + String.raw`(?=[ \t]*[,:])`,
+    'gu',
+  ),
 ];
+
+/**
+ * What introduces an address on a page, at the start of a line, in English or Swahili; the rest
+ * of the line is the address (a house, a plot, a street and a town), which no shape gives away.
+ */
+const DOCUMENT_ADDRESS_PATTERN = new RegExp(
+  String.raw`^[ \t]*(?i:(?:physical|postal|residential|home)\s+address|address|residence|anwani(?:\s+ya\s+makazi)?|makazi)[ \t]*[:\-]?[ \t]*\n?[ \t]*([^\n]*[\p{L}\p{N}][^\n]*)$`,
+  'gmu',
+);
 
 const CURRENCY = String.raw`(?:KES|KShs?|Kshs?|Shs?|USD|US\$|\$|EUR|€|GBP|£)\.?`;
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
@@ -337,6 +367,10 @@ function collect(
       for (const pattern of DOCUMENT_NAME_PATTERNS) {
         for (const match of value.matchAll(pattern)) collectName(match[1] ?? '', known, true);
       }
+      for (const match of value.matchAll(DOCUMENT_ADDRESS_PATTERN)) {
+        const address = match[1]?.trim() ?? '';
+        if (address.length >= 2 && !known.has(address)) known.set(address, 'ADDRESS');
+      }
     } else if (cls !== undefined && value.trim().length >= 2) {
       known.set(value.trim(), cls);
     }
@@ -362,7 +396,11 @@ function collect(
 }
 
 /** Capitalised words a label may run into that are not names ("Owner PIN", "Member No."). */
-const NOT_NAMES = new Set(['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of']);
+const NOT_NAMES = new Set([
+  ...['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of'],
+  // Courtesy titles and forms of address a salutation runs into ("Dear Mr. Ouma", "Dear Sir").
+  ...['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam'],
+]);
 
 /**
  * Each part of a name on its own, so it is found in free text in any order or form. Of names a

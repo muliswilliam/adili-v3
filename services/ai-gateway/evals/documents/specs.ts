@@ -437,6 +437,34 @@ export const DOCUMENTS: readonly SyntheticDocument[] = [
     ],
   },
   {
+    file: 'guarantee-letter.pdf',
+    output: 'pdf',
+    pages: [
+      [
+        { kind: 'text', bold: true, size: 14, text: 'Pwani Commercial Bank Limited' },
+        { kind: 'text', size: 9, text: 'Nyali Branch, Links Road, Mombasa' },
+        { kind: 'rule' },
+        { kind: 'text', text: '6th July 2026' },
+        { kind: 'text', text: 'Dear Wanjiku,' },
+        { kind: 'text', bold: true, text: 'RE: GUARANTEE OF A BUSINESS LOAN' },
+        { kind: 'field', label: 'Borrower', value: 'Tumaini Fresh Produce Limited' },
+        { kind: 'field', label: 'Guarantor', value: 'Wanjiku Njoki Gathoni' },
+        {
+          kind: 'field',
+          label: 'Physical address',
+          value: 'House 14, Riverside Drive, Kileleshwa, Nairobi',
+        },
+        { kind: 'field', label: 'Amount guaranteed', value: 'KES 2,000,000.00' },
+        {
+          kind: 'text',
+          text: 'We confirm that you guarantee the above loan to Tumaini Fresh Produce Limited up to KES 2,000,000.00. The balance of the loan at 30th June 2026 was KES 1,640,000.00, for which you remain liable as guarantor should the borrower default.',
+        },
+        { kind: 'field', label: 'Witness', value: 'Fatuma Abdi Hassan' },
+        { kind: 'field', label: 'Signed', value: 'Kevin Otieno Odera, Branch Manager' },
+      ],
+    ],
+  },
+  {
     file: 'bank-letter-planted.pdf',
     output: 'pdf',
     pages: [
