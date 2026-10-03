@@ -3073,8 +3073,11 @@ components:
         - status
         - builtAt
         - publishedAt
+        - publishedBy
         - withdrawnAt
+        - withdrawnBy
         - withdrawnReason
+        - manifestDocumentId
         - manifestVerificationId
         - tables
       properties:
@@ -3104,15 +3107,31 @@ components:
             - string
             - 'null'
           format: date-time
+        publishedBy:
+          description: The EACC supervisor who published it; for an annual release, who approved its NCR. Null while a preview
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
         withdrawnAt:
           type:
             - string
             - 'null'
           format: date-time
+        withdrawnBy:
+          description: The EACC supervisor who withdrew it; null unless withdrawn
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
         withdrawnReason:
           type:
             - string
             - 'null'
+        manifestDocumentId:
+          type:
+            - string
+            - 'null'
+          format: uuid
+          description: The Public manifest document (documents service); null while a preview
         manifestVerificationId:
           type:
             - string

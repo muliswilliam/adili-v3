@@ -1112,9 +1112,18 @@ export interface components {
             builtAt: string;
             /** Format: date-time */
             publishedAt: string | null;
+            /** @description The EACC supervisor who published it; for an annual release, who approved its NCR. Null while a preview */
+            publishedBy: components["schemas"]["Officer"] | null;
             /** Format: date-time */
             withdrawnAt: string | null;
+            /** @description The EACC supervisor who withdrew it; null unless withdrawn */
+            withdrawnBy: components["schemas"]["Officer"] | null;
             withdrawnReason: string | null;
+            /**
+             * Format: uuid
+             * @description The Public manifest document (documents service); null while a preview
+             */
+            manifestDocumentId: string | null;
             /** @description Verification code of the Public manifest document */
             manifestVerificationId: string | null;
             tables: {
