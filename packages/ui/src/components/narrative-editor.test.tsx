@@ -495,6 +495,10 @@ describe('NarrativeEditor', () => {
   it('keeps the paragraphs from changing while busy, e.g. while AI drafts the narrative', () => {
     render(<Editor busy />);
 
+    expect(screen.getByRole('region', { name: 'Narrative' }).getAttribute('aria-busy')).toBe(
+      'true',
+    );
+
     const field = screen.getByRole('textbox', { name: 'Overview, paragraph 1' });
     expect(field.hasAttribute('readonly')).toBe(true);
     expect(

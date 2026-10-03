@@ -268,6 +268,7 @@ export function NarrativeEditor<P extends NarrativeEditorParagraph = NarrativeEd
   return (
     <section
       aria-labelledby={headingId}
+      aria-busy={busy || undefined}
       className={cn('rounded-2xl bg-card text-card-foreground shadow-card', className)}
       ref={root}
       {...props}
