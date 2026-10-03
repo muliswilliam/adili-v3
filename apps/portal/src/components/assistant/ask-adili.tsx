@@ -37,6 +37,7 @@ import type { Category } from '../../declaration/statement';
 import { TYPE_LABELS } from '../../declaration/labels';
 import { rateAssistantAnswer } from '../../server/assistant';
 import { getDeclarationSection } from '../../server/declarations';
+import type { SectionContents } from '../../server/declarations.server';
 import type {
   AssistantMessage as Message,
   DeclarationSection,
@@ -201,20 +202,15 @@ function Panel({
     reload,
   } = useConversation({ declarationId, language, active: true });
 
-  // Answers linking to the same section read it once while the panel is open.
-  const sectionReads = useRef(new Map<string, Promise<SectionContents | null>>());
+  // Each answer that links to an item reads the section as it is now (no cache: it changes as
+  // the declarant edits it).
   const readSection = useCallback(
-    (sectionKey: string) => {
-      if (!declarationId) return Promise.resolve(null);
-      let read = sectionReads.current.get(sectionKey);
-      if (!read) {
-        read = getDeclarationSection({ data: { declarationId, sectionKey } })
-          .then((result) => (result.status === 'ok' ? result.section.contents : null))
-          .catch(() => null);
-        sectionReads.current.set(sectionKey, read);
-      }
-      return read;
-    },
+    (sectionKey: string): Promise<SectionContents | null> =>
+      declarationId
+        ? getDeclarationSection({ data: { declarationId, sectionKey } })
+            .then((result) => (result.status === 'ok' ? result.section.contents : null))
+            .catch(() => null)
+        : Promise.resolve(null),
     [declarationId],
   );
 
@@ -482,11 +478,6 @@ function keepFocusInside(container: HTMLElement, event: KeyboardEvent) {
     first.focus();
   }
 }
-
-type SectionContents = Extract<
-  Awaited<ReturnType<typeof getDeclarationSection>>,
-  { status: 'ok' }
->['section']['contents'];
 
 /** A draft section's contents, read once per panel; null when it cannot be read. */
 type ReadSection = (sectionKey: string) => Promise<SectionContents | null>;

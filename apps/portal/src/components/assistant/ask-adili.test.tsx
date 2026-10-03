@@ -359,6 +359,42 @@ describe('Ask Adili panel (S12)', () => {
     );
   });
 
+  it('reads the section afresh for each answer, so a failed read does not stick', async () => {
+    sectionMock.mockResolvedValueOnce({ status: 'unavailable' });
+    openMock.mockResolvedValue({
+      status: 'ok',
+      feedback: true,
+      conversation: conversation({ messages: [question, answer] }),
+    });
+    renderPanel();
+    const panel = await openPanel();
+    expect(await within(panel).findByRole('button', { name: 'Open Assets → value' })).toBeTruthy();
+
+    sectionMock.mockResolvedValue({
+      status: 'ok',
+      etag: '"2"',
+      section: {
+        key: 'statement:officer',
+        completeness: 'incomplete',
+        draftVersion: 2,
+        issues: [],
+        contents: { assets: [{ id: 'a1', type: 'vehicle' }] },
+      },
+    });
+    const stream = controlledStream();
+    fetchMock.mockResolvedValue(stream.response);
+    ask(QUESTION);
+    act(() => {
+      stream.send('final', {
+        question: msg({ role: 'user', text: QUESTION }),
+        answer: { ...answer, id: crypto.randomUUID() },
+      });
+      stream.close();
+    });
+    expect(await within(panel).findByRole('button', { name: 'Open Vehicle → value' })).toBeTruthy();
+    expect(sectionMock).toHaveBeenCalledTimes(2);
+  });
+
   it('opens the section and the field the answer links to, naming the item', async () => {
     sectionMock.mockResolvedValue({
       status: 'ok',
