@@ -258,6 +258,18 @@ export {
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
+  FORM_M_DECLARATION_SECTIONS,
+  FORM_M_SECTION_COPY,
+  FORM_M_SECTION_MESSAGES,
+  type FormMDeclarationSection,
+  type FormMDeclarationSectionKey,
+  type FormMNonFiler,
+  FormMSection,
+  type FormMSectionCopy,
+  type FormMSectionMessages,
+  type FormMSectionProps,
+} from './components/form-m-section';
+export {
   type Ground,
   GroundsSelect,
   type GroundsSelectProps,
@@ -266,7 +278,16 @@ export {
 } from './components/grounds-select';
 export { Icon, type IconProps } from './components/icon';
 export { IconTile, type IconTileProps, iconTileVariants } from './components/icon-tile';
+export { InfoTip, type InfoTipProps } from './components/info-tip';
 export { controlClassName, Input } from './components/input';
+export {
+  INTAKE_STATUS_BADGE_MESSAGES,
+  INTAKE_STATUSES,
+  type IntakeStatus,
+  IntakeStatusBadge,
+  type IntakeStatusBadgeMessages,
+  type IntakeStatusBadgeProps,
+} from './components/intake-status-badge';
 export { Label } from './components/label';
 export {
   LADDER_STEP_STATUSES,
@@ -308,6 +329,15 @@ export {
 } from './components/menu';
 export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
+export {
+  NARRATIVE_EDITOR_MESSAGES,
+  NarrativeEditor,
+  type NarrativeEditorMessages,
+  type NarrativeEditorProps,
+  type NarrativeParagraph,
+  type NarrativeSection,
+  type NarrativeValue,
+} from './components/narrative-editor';
 export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
 export { OfficerReference } from './components/officer-reference';
@@ -345,6 +375,14 @@ export {
   RadioGroup,
   type RadioGroupProps,
 } from './components/radio';
+export {
+  RATE_BAR_MESSAGES,
+  RateBar,
+  type RateBarMessages,
+  type RateBarProps,
+  type RateTone,
+  rateTone,
+} from './components/rate-bar';
 export {
   DECLARATION_REFERENCE_COPY,
   type DeclarationReferenceCopy,
@@ -588,6 +626,12 @@ export {
 } from './lib/format-date';
 export { type IdempotencyKeys, useIdempotencyKey } from './lib/use-idempotency-key';
 export { useToday } from './lib/use-today';
+export {
+  type Autosave,
+  type AutosaveOptions,
+  type AutosaveStatus,
+  useAutosave,
+} from './lib/use-autosave';
 export {
   obligationCycleLabel,
   obligationMessages,
