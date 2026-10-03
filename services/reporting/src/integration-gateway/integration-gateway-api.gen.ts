@@ -645,9 +645,9 @@ export interface operations {
                 "X-Acting-Tenant": string;
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
+                /** @description The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                /** @description Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
             path?: never;
@@ -705,9 +705,9 @@ export interface operations {
                 "X-Acting-Tenant": string;
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
+                /** @description The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                /** @description Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
             path?: never;
@@ -765,9 +765,9 @@ export interface operations {
                 "X-Acting-Tenant": string;
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
+                /** @description The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                /** @description Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
             path?: never;
@@ -825,9 +825,9 @@ export interface operations {
                 "X-Acting-Tenant": string;
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
+                /** @description The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                /** @description Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
             path?: never;
@@ -887,9 +887,9 @@ export interface operations {
                 "X-Acting-Tenant": string;
                 /** @description Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b or act-s35-5 (review's), or declarant-request (the declarations service's); another service's basis is 403 */
                 "X-Legal-Basis": "regs-r20-1-b" | "act-s35-5" | "declarant-request";
-                /** @description Review case the lookup is for; recorded on the result and the audit event */
+                /** @description The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event */
                 "X-Case-Ref": string;
-                /** @description Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data */
+                /** @description Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data */
                 "X-Subject-Person"?: string;
             };
             path: {
