@@ -46,6 +46,19 @@ export const envSchema = bffEnvSchema.extend({
    * Honoured in `vite dev` and tests only, like the other mocks.
    */
   ACCESS_MOCK: z.stringbool().default(false),
+  /** The reporting service, whose public open-data API (spec 09b) the Open data page reads. */
+  REPORTING_API_URL: z.url(),
+  /**
+   * Where the public reaches that API (the public gateway path), as the About this data page
+   * documents it. Defaults to REPORTING_API_URL.
+   */
+  OPEN_DATA_API_PUBLIC_URL: z.url().optional(),
+  /**
+   * Serve the open-data releases and their tables from in-memory fixtures, to work on the Open
+   * data page without the reporting service. Honoured in `vite dev` and tests only, like the
+   * other mocks.
+   */
+  OPEN_DATA_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;
