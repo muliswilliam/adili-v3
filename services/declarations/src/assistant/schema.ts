@@ -12,6 +12,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import type { AiLabel } from '../ai-gateway/ai-gateway-client.js';
 import { bytea, declarations } from '../declaration/schema.js';
 
 /**
@@ -99,11 +100,10 @@ export const assistantMessages = pgTable(
     /** The ai-gateway job the answer came from; null for a question, or a decline made here. */
     jobId: uuid(),
     declined: boolean().notNull().default(false),
-    /** The ai-gateway's AiLabel of an answer. */
-    label: jsonb().$type<Record<string, unknown>>(),
-    /** The declarant's rating of an answer (#339). */
+    /** The ai-gateway's AiLabel of an answer from the AI; null for a question or a decline made here. */
+    label: jsonb().$type<AiLabel>(),
+    /** The declarant's rating of an answer (#339); null until rated. */
     rating: text({ enum: ['helpful', 'not-helpful'] }),
-    reason: text(),
     at: timestamp({ withTimezone: true }).notNull(),
   },
   (table) => [

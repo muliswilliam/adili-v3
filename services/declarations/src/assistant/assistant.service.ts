@@ -198,6 +198,9 @@ export class AssistantService {
         language,
         date: nairobiDate(now),
         boost: boostTagsOf(sectionKey, request.itemType),
+        // The platform's articles and the conversation's Commission's: an answer about a PSC
+        // draft never rests on another Commission's practice.
+        tenant: conversation.tenant,
       },
     );
     const retrieved = new Set(passages.map((passage) => passage.id));
@@ -528,7 +531,7 @@ export class AssistantService {
             sectionLink,
             jobId: answered.jobId,
             declined: checked.declined,
-            label: (answered.output?.label as Record<string, unknown> | undefined) ?? null,
+            label: answered.output?.label ?? null,
             at: answeredAt,
           },
         ])
@@ -620,7 +623,8 @@ function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   );
 }
 
-function unavailableFrame(): AssistantFrame {
+/** The last frame of an answer that could not be had: nothing was stored. */
+export function unavailableFrame(): AssistantFrame {
   return { event: 'error', data: { code: 'assistant-unavailable' } };
 }
 

@@ -673,7 +673,7 @@ export interface paths {
         put?: never;
         /**
          * Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion
-         * @description Declarants, on their own conversation. The ai-gateway gets the question, the declaration's type and statement date, the household as counts, the section and what the completeness check still reports (rule ids and field paths), and the passages of the Act, Regulations and help articles retrieved for it: never amounts, names, identifiers or descriptions. Events: `delta` {text}, the answer's prose as it is written, provisional until the end; then `final` {question, answer}, both turns as stored, whose answer replaces the deltas (an answer whose blocks do not all cite the passages retrieved is stored as a decline, with the reporting officer's contact); or `error` {code: assistant-unavailable}, after which nothing is stored. A `: ping` comment is sent every 15 s. A caller that disconnects ends the answer, and nothing is stored. Records `assistant.message.answered.v1`.
+         * @description Declarants, on their own conversation. The ai-gateway gets the question, the declaration's type and statement date, the household as counts, the section and what the completeness check still reports (rule ids and field paths), and the passages of the Act, Regulations and help articles retrieved for it (the platform's and the conversation's Commission's). Nothing the service adds carries amounts, names, identifiers or descriptions; the question and earlier turns are the declarant's words, which the gateway minimises. Events: `delta` {text}, the answer's prose as it is written, provisional until the end; then `final` {question, answer}, both turns as stored, whose answer replaces the deltas (an answer whose blocks do not all cite the passages retrieved is stored as a decline, with the reporting officer's contact); or `error` {code: assistant-unavailable}, after which nothing is stored. A `: ping` comment is sent every 15 s. A caller that disconnects ends the answer, and nothing is stored. Records `assistant.message.answered.v1`.
          */
         post: operations["askAssistant"];
         delete?: never;
@@ -1748,6 +1748,20 @@ export interface components {
             /** @description The statement item type the declarant is on; passages about it rank higher */
             itemType?: ("land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "mortgage" | "loan" | "guarantee" | "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy") | null;
         };
+        /** @description Labels an answer from the AI: AI-assisted, which model, not legal advice */
+        AssistantAiLabel: {
+            /** @constant */
+            aiAssisted: true;
+            /** @constant */
+            task: "answer-declarant-question";
+            promptVersion: number;
+            provider: string;
+            model: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description Fixed text per language: not legal advice */
+            disclaimer: string;
+        };
         /** @description The Commission's reporting officer, whom a declined answer sends the declarant to */
         ReportingOfficerContact: {
             name: string;
@@ -1772,10 +1786,8 @@ export interface components {
             declined: boolean;
             /** @description On a declined answer, whom to ask instead; null when the Commission has none on record */
             reportingOfficer: components["schemas"]["ReportingOfficerContact"] | null;
-            /** @description ai-gateway AiLabel for assistant turns from the AI; null for a question */
-            label: {
-                [key: string]: unknown;
-            } | null;
+            /** @description How an answer from the AI is labelled (ai-gateway AiLabel); null for a question, and for a decline made without asking the AI */
+            label: components["schemas"]["AssistantAiLabel"] | null;
             rating: ("helpful" | "not-helpful") | null;
             /** Format: date-time */
             at: string;

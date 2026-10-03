@@ -24,7 +24,6 @@ CREATE TABLE "assistant_messages" (
 	"declined" boolean DEFAULT false NOT NULL,
 	"label" jsonb,
 	"rating" text,
-	"reason" text,
 	"at" timestamp with time zone NOT NULL,
 	CONSTRAINT "assistant_messages_role_check" CHECK ("assistant_messages"."role" in ('user', 'assistant')),
 	CONSTRAINT "assistant_messages_rating_check" CHECK ("assistant_messages"."rating" is null or "assistant_messages"."rating" in ('helpful', 'not-helpful'))

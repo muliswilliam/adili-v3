@@ -36,6 +36,11 @@ export interface RetrievalQuery {
   /** Tags to boost: the section kind and the statement item types the declarant is on. */
   boost: readonly CorpusTag[];
   limit: number;
+  /**
+   * Only this Commission's articles beside the platform's (the assistant, for the Commission of
+   * the draft); left out, every article the transaction may read (help search).
+   */
+  tenant?: string;
 }
 
 export interface RetrievedPassage {
@@ -169,6 +174,7 @@ export async function retrieve(
         ${boosted('a')}
       from help_articles a, q
       where a.published and ${matches('a')} and ${inForce('a')}
+        ${query.tenant === undefined ? sql`` : sql`and (a.tenant is null or a.tenant = ${query.tenant})`}
     ),
     top as (
       select * from hits

@@ -2,14 +2,20 @@ import type { components } from './ai-gateway-api.gen.js';
 
 type Schemas = components['schemas'];
 
-/** ai-gateway.yaml `AnswerDeclarantQuestionInput`: what Ask Adili sends; never personal data. */
+/**
+ * ai-gateway.yaml `AnswerDeclarantQuestionInput`: what Ask Adili sends. The context the service
+ * builds holds no amounts, names, identifiers or descriptions; the question and earlier turns are
+ * the declarant's own words, which the gateway minimises before a provider sees them.
+ */
 export type AnswerInput = Schemas['AnswerDeclarantQuestionInput'];
 
-/** ai-gateway.yaml `AnswerDeclarantQuestionOutput`: blocks citing the input's passages, or a decline. */
-export type AnswerOutput = Schemas['AnswerDeclarantQuestionOutput'];
+/** ai-gateway.yaml `AiLabel`, of this task: what an AI-assisted answer is labelled with. */
+export type AiLabel = Omit<Schemas['AiLabel'], 'task'> & { task: 'answer-declarant-question' };
 
-/** ai-gateway.yaml `AiLabel`: what an AI-assisted answer is labelled with. */
-export type AiLabel = Schemas['AiLabel'];
+/** ai-gateway.yaml `AnswerDeclarantQuestionOutput`: blocks citing the input's passages, or a decline. */
+export type AnswerOutput = Omit<Schemas['AnswerDeclarantQuestionOutput'], 'label'> & {
+  label: AiLabel;
+};
 
 /** ai-gateway.yaml `JobReason`. */
 export type AiJobReason = Schemas['JobReason'];

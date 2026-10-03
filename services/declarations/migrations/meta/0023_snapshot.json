@@ -1,6 +1,6 @@
 {
-  "id": "183e383c-b181-43cc-b427-aa26cc513455",
-  "prevId": "22ca5455-4a7f-4d32-bb71-859e6448cc0a",
+  "id": "62a112ad-a981-4c75-a59b-d2b1bdcbcf9d",
+  "prevId": "c01c20f4-3c3b-4567-8def-1c0edf42ca6a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -453,12 +453,6 @@
         },
         "rating": {
           "name": "rating",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
           "type": "text",
           "primaryKey": false,
           "notNull": false

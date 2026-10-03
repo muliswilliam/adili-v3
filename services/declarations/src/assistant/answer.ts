@@ -1,5 +1,6 @@
 import type { AnswerOutput } from '../ai-gateway/ai-gateway-client.js';
 import { SECTION_KEY } from '../drafts/sections.js';
+import { FIELD_PATH } from './context.js';
 import type { AssistantLanguage, StoredSectionLink } from './schema.js';
 
 /**
@@ -14,9 +15,6 @@ export const DECLINE_TEXT: Record<AssistantLanguage, string> = {
   en: 'I could not find this in the Act or Regulations. Ask your reporting officer.',
   sw: 'Sikupata jambo hili katika Sheria wala Kanuni. Muulize afisa wako wa kuripoti.',
 };
-
-/** ai-gateway.yaml residual `fieldPath`: what a link may point at within a section. */
-const FIELD_PATH = /^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$/;
 
 export type CheckedAnswer =
   | { declined: true }

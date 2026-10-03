@@ -17,7 +17,7 @@ import {
 import type { FastifyReply } from 'fastify';
 
 import { ASSISTANT_RATE_LIMIT } from '../config.js';
-import { AssistantService } from './assistant.service.js';
+import { AssistantService, unavailableFrame } from './assistant.service.js';
 import type { AssistantConversation } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
@@ -63,7 +63,7 @@ export class AssistantController {
     summary:
       'Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion',
     description:
-      "Declarants, on their own conversation. The ai-gateway gets the question, the declaration's type and statement date, the household as counts, the section and what the completeness check still reports (rule ids and field paths), and the passages of the Act, Regulations and help articles retrieved for it: never amounts, names, identifiers or descriptions. Events: `delta` {text}, the answer's prose as it is written, provisional until the end; then `final` {question, answer}, both turns as stored, whose answer replaces the deltas (an answer whose blocks do not all cite the passages retrieved is stored as a decline, with the reporting officer's contact); or `error` {code: assistant-unavailable}, after which nothing is stored. A `: ping` comment is sent every 15 s. A caller that disconnects ends the answer, and nothing is stored. Records `assistant.message.answered.v1`.",
+      "Declarants, on their own conversation. The ai-gateway gets the question, the declaration's type and statement date, the household as counts, the section and what the completeness check still reports (rule ids and field paths), and the passages of the Act, Regulations and help articles retrieved for it (the platform's and the conversation's Commission's). Nothing the service adds carries amounts, names, identifiers or descriptions; the question and earlier turns are the declarant's words, which the gateway minimises. Events: `delta` {text}, the answer's prose as it is written, provisional until the end; then `final` {question, answer}, both turns as stored, whose answer replaces the deltas (an answer whose blocks do not all cite the passages retrieved is stored as a decline, with the reporting officer's contact); or `error` {code: assistant-unavailable}, after which nothing is stored. A `: ping` comment is sent every 15 s. A caller that disconnects ends the answer, and nothing is stored. Records `assistant.message.answered.v1`.",
   })
   @ApiBody({ required: true, schema: schemaRef('AskAssistantRequest') })
   @ApiResponse({
@@ -113,7 +113,8 @@ export class AssistantController {
       // Every ending the stream knows is a frame; this is a bug.
       this.logger.error({ err: error }, 'Answer stream failed');
       if (!left.signal.aborted) {
-        raw.write(`event: error\ndata: {"code":"assistant-unavailable"}\n\n`);
+        const frame = unavailableFrame();
+        raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
       }
     } finally {
       clearInterval(ping);

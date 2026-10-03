@@ -1,5 +1,5 @@
 {
-  "id": "22ca5455-4a7f-4d32-bb71-859e6448cc0a",
+  "id": "c01c20f4-3c3b-4567-8def-1c0edf42ca6a",
   "prevId": "bd2cfe02-78c2-4a7a-9dca-fb38ba31a528",
   "version": "7",
   "dialect": "postgresql",
@@ -453,12 +453,6 @@
         },
         "rating": {
           "name": "rating",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "reason": {
-          "name": "reason",
           "type": "text",
           "primaryKey": false,
           "notNull": false

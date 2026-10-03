@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 
 import {
+  aiLabelSchema,
   askRequestSchema,
   assistantAnswerSchema,
   assistantConversationSchema,
@@ -164,6 +165,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   CorpusImportResult: corpusImportResultSchema,
   OpenAssistantConversationRequest: openConversationRequestSchema,
   AskAssistantRequest: askRequestSchema,
+  AssistantAiLabel: aiLabelSchema,
   ReportingOfficerContact: reportingOfficerContactSchema,
   AssistantMessage: assistantMessageSchema,
   AssistantConversation: assistantConversationSchema,

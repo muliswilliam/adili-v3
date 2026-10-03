@@ -24,7 +24,7 @@ export const MAX_RESIDUALS = 20;
 const RULE_ID = /^[a-z][A-Za-z0-9]*(-[a-z0-9]+)*$/;
 
 /** ai-gateway.yaml residual `fieldPath`: field names and indexes only. */
-const FIELD_PATH = /^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$/;
+export const FIELD_PATH = /^(\/([a-z][A-Za-z0-9]*|0|[1-9][0-9]*))*$/;
 
 /**
  * The draft's blocking issues as residuals, the current section's first (they are what the

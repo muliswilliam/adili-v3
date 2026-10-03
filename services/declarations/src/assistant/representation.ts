@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import type { AiLabel } from '../ai-gateway/ai-gateway-client.js';
 import { SECTION_KEY } from '../drafts/sections.js';
 import { ITEM_TYPE_TAGS } from '../help/corpus.js';
 import { helpLanguageSchema, helpPassageSchema } from '../help/representation.js';
@@ -40,6 +41,21 @@ export const sectionLinkSchema = z
   })
   .meta({ description: 'Where in the draft the answer is about: a section of it, and a field' });
 
+/** ai-gateway.yaml `AiLabel`: an AI-assisted answer, not legal advice. */
+export const aiLabelSchema = z
+  .object({
+    aiAssisted: z.literal(true),
+    task: z.literal('answer-declarant-question'),
+    promptVersion: z.int(),
+    provider: z.string(),
+    model: z.string(),
+    generatedAt: z.iso.datetime({ offset: true }),
+    disclaimer: z.string().meta({ description: 'Fixed text per language: not legal advice' }),
+  })
+  .meta({
+    description: 'Labels an answer from the AI: AI-assisted, which model, not legal advice',
+  }) satisfies z.ZodType<AiLabel>;
+
 export const reportingOfficerContactSchema = z
   .object({
     name: z.string(),
@@ -72,8 +88,9 @@ export const assistantMessageSchema = z.object({
     description:
       'On a declined answer, whom to ask instead; null when the Commission has none on record',
   }),
-  label: z.record(z.string(), z.unknown()).nullable().meta({
-    description: 'ai-gateway AiLabel for assistant turns from the AI; null for a question',
+  label: aiLabelSchema.nullable().meta({
+    description:
+      'How an answer from the AI is labelled (ai-gateway AiLabel); null for a question, and for a decline made without asking the AI',
   }),
   rating: z.enum(['helpful', 'not-helpful']).nullable(),
   at: z.iso.datetime({ offset: true }),

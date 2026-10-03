@@ -61,15 +61,15 @@ beforeEach(async () => {
   ]);
 });
 
-/** A due biennial obligation of the person's at the PSC, with its roster record. */
-async function givenObligation(personId = ACHIENG): Promise<string> {
-  const record = rosterRecord('psc', { personId, fullName: 'Achieng Wambui Otieno' });
+/** A due biennial obligation of the person's (at the PSC by default), with its roster record. */
+async function givenObligation(personId = ACHIENG, tenant = 'psc'): Promise<string> {
+  const record = rosterRecord(tenant, { personId, fullName: 'Achieng Wambui Otieno' });
   api.directory.givenRecords([record]);
   const obligationId = randomUUID();
   await api.asPlatform(async (tx) => {
     await tx.insert(rosterSnapshots).values({
       rosterRecordId: record.id,
-      tenant: 'psc',
+      tenant,
       personnelFileNumber: record.personnelFileNumber,
       fullName: record.fullName,
       state: 'onboarded',
@@ -79,7 +79,7 @@ async function givenObligation(personId = ACHIENG): Promise<string> {
     });
     await tx.insert(filingObligations).values({
       id: obligationId,
-      tenant: 'psc',
+      tenant,
       rosterRecordId: record.id,
       personId,
       type: 'biennial',
@@ -724,5 +724,40 @@ describe('authorisation (S10)', () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+});
+
+describe("the Commission's own articles (S6, S9)", () => {
+  it("cites the platform's and the draft's Commission's articles, never another Commission's", async () => {
+    const draft = await givenDraft();
+    // Achieng also has an obligation with the TSC, whose articles her help search may read.
+    await givenObligation(ACHIENG, 'tsc');
+    for (const slug of ['psc', 'tsc']) {
+      const created = await api.request(
+        'POST',
+        `/v1/commissions/${slug}/help/articles`,
+        { tenant: slug, roles: ['commission-admin'] },
+        {
+          headers: { 'idempotency-key': randomUUID() },
+          body: {
+            title: `${slug.toUpperCase()} guidance on a spouse's salary`,
+            bodyEn: "Declare your wife's salary in her own statement, as our HR office advises.",
+            bodySw: null,
+            tags: ['income', 'spouse'],
+            effectiveFrom: '2026-01-01',
+            effectiveTo: null,
+            published: true,
+          },
+        },
+      );
+      expect(created.statusCode).toBe(201);
+    }
+    const conversation = await opened(draft.id);
+
+    await ask(conversation.id, SALARY_QUESTION);
+
+    const citations = api.aiGateway.inputs()[0]?.passages.map((passage) => passage.citation);
+    expect(citations).toContain("Help: PSC guidance on a spouse's salary");
+    expect(citations).not.toContain("Help: TSC guidance on a spouse's salary");
   });
 });
