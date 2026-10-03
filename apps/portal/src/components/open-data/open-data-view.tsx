@@ -476,6 +476,8 @@ function CommissionChart({
         suppressedLabel={<Unshown kind="suppressed" threshold={threshold} language={language} />}
         missingLabel={<Unshown kind="not-reported" threshold={threshold} language={language} />}
         showTable={table}
+        // The table takes the drawing's place, as in the prototype.
+        className={table ? '[&_[data-chart-plot]]:hidden' : undefined}
       />
       <p className="text-[12.5px] text-muted-foreground">
         {copy.chartNote}
@@ -555,6 +557,8 @@ function TrendChart({
             />
           }
           showTable={table}
+          // The table takes the drawing's place, as in the prototype.
+          className={table ? '[&_[data-chart-plot]]:hidden' : undefined}
         />
       ) : (
         <EmptyState
