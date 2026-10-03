@@ -181,6 +181,7 @@ describe('admin API', { timeout: 90_000 }, () => {
             dataClass: 'synthetic',
             providerClass: 'external',
             allowed: false,
+            tasks: null,
             approvalRef: 'EACC/AI/2026/014',
             changedBy: 'platform-admin-1',
             changedByName: 'Amina Odhiambo',
@@ -190,6 +191,7 @@ describe('admin API', { timeout: 90_000 }, () => {
             dataClass: 'restricted',
             providerClass: 'external',
             allowed: true,
+            tasks: null,
             approvalRef: 'EACC/AI/2026/014',
             changedBy: 'platform-admin-1',
             changedByName: 'Amina Odhiambo',
@@ -710,6 +712,19 @@ describe('admin API', { timeout: 90_000 }, () => {
         provider: 'scripted',
         dataClasses: [],
       });
+    });
+
+    it("leaves out a rule scoped to tasks that are not the Commission's reviewer tasks", async () => {
+      await setGate('docsonly', [
+        {
+          dataClass: 'highly-confidential',
+          providerClass: 'external',
+          allowed: true,
+          tasks: ['extract-document'],
+        },
+      ]);
+
+      expect(await status('docsonly')).toMatchObject({ enabled: false, dataClasses: [] });
     });
 
     it('names the routed provider class; mixed routes read as external', async () => {

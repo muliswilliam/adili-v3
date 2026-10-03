@@ -21,8 +21,8 @@ describe('golden sets', () => {
     'narrate-compliance-report': { cases: 6, swahili: 0 },
     // 60 questions, 10 declines and 8 hint sets, each in English and Kiswahili (spec 11 S11).
     'answer-declarant-question': { cases: 156, swahili: 78 },
-    // Seventeen readings of synthetic documents, five asked in Kiswahili, one written in it (05b S10).
-    'extract-document': { cases: 17, swahili: 5 },
+    // Eighteen readings of synthetic documents, five asked in Kiswahili, one written in it (05b S10).
+    'extract-document': { cases: 18, swahili: 5 },
   };
 
   for (const suite of SUITES) {
@@ -62,6 +62,30 @@ describe('golden sets', () => {
         golden.name,
       ).toEqual([]);
     }
+  });
+
+  describe('document reading', () => {
+    const suite = SUITES.find((each) => each.task.name === 'extract-document');
+    const found = suite?.cases.find(
+      (each) => each.name === 'guarantee letter naming its parties by role',
+    );
+    const reading = { detectedKind: 'bank-letter', fields: [], warnings: [] };
+    const sent = (text: string) => ({
+      model: 'model',
+      messages: [{ role: 'user' as const, content: text }],
+      maxOutputTokens: 1,
+    });
+    const failures = (text: string) => {
+      if (!suite || !found) throw new Error('No guarantee letter case');
+      return hardFailures(suite.score(found.input, reading, found.expected, [], sent(text)));
+    };
+
+    it('fails a request that sends a name of the text layer to the provider', () => {
+      expect(failures('Guarantor: [[PERSON_1]] [[PERSON_2]] [[PERSON_3]]')).toEqual([]);
+      expect(failures('Witness: Fatuma [[PERSON_5]] [[PERSON_6]]')).toEqual([
+        'minimised-request: "Fatuma" was sent to the provider',
+      ]);
+    });
   });
 
   describe('Ask Adili', () => {

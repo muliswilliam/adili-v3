@@ -222,6 +222,12 @@ describe('S16 saveGatePolicy', () => {
     ).toEqual([
       ['synthetic', false, 'EACC/AI/2026/030'],
       ['restricted', true, 'EACC/AI/2026/030'],
+      // The demo's approval for reading documents into the form, untouched (spec 05b).
+      [
+        'highly-confidential',
+        true,
+        'Demo set-up: synthetic documents read into the form only (spec 05b)',
+      ],
     ]);
     // Nothing is routed to a self-hosted provider, so PSC's synthetic data has nowhere to go.
     expect(mockTenantAiStatus('psc')).toEqual({

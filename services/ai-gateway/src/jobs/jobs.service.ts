@@ -199,7 +199,12 @@ export class JobsService {
           extensions: { retryAfterSeconds: limit.retryAfterSeconds },
         });
       }
-      const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
+      const ending = await this.admission.refusal(
+        tenant,
+        request.dataClass,
+        route.provider,
+        task.name,
+      );
       const created = await asCaller(async (tx) => {
         const [job] = await tx
           .insert(jobs)

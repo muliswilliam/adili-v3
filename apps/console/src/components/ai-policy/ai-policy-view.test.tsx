@@ -19,6 +19,7 @@ const allowSynthetic: GateRule = {
   dataClass: 'synthetic',
   providerClass: 'external',
   allowed: true,
+  tasks: null,
   approvalRef: 'EACC/AI/2026/014',
   changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
   changedByName: 'Amina Wanjiru',

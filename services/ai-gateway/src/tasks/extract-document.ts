@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { DOCUMENT_CONTENT_TYPES, type ReadDocument } from '../documents/read-document.js';
+import { holdsAccountNumber } from '../policy/minimisation.js';
 import { language } from './common.js';
 import { type ItemTarget, itemFields, itemTarget } from './item-fields.js';
 import { defineTask, type OutputViolation } from './task.js';
@@ -88,19 +89,14 @@ const input = z.object({
 export type ExtractInput = z.infer<typeof input>;
 export type ExtractOutput = z.infer<typeof output>;
 
-/**
- * A bank account number (declaration.v1 holds none), as minimisation finds one: ten to sixteen
- * digits in a run, or three or four groups of four. A chassis or title number's digits are not.
- */
-const ACCOUNT_NUMBER = /(?<![\d-])(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\d-])/u;
-
 /** A reading fails when it names a field twice or holds an account number anywhere. */
 function validate(_input: ExtractInput, { fields }: ExtractOutput): OutputViolation[] {
   const seen = new Set<string>();
   return fields.flatMap((field, index): OutputViolation[] => {
     if (seen.has(field.name)) return [{ kind: 'duplicate-field', field: index }];
     seen.add(field.name);
-    if (typeof field.value === 'string' && ACCOUNT_NUMBER.test(field.value)) {
+    // declaration.v1 holds no account number.
+    if (typeof field.value === 'string' && holdsAccountNumber(field.value)) {
       return [{ kind: 'account-number', field: index }];
     }
     return [];

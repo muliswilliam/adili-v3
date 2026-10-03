@@ -9,6 +9,7 @@ import { asPlatform, asTenant, type GatewayDatabase } from '../db/context.js';
 import { type GatePolicy, gatePolicies } from '../db/schema.js';
 import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-request.js';
 import { PROVIDER_CLASSES, type ProviderClass, providerClassSchema } from '../providers/port.js';
+import { type TaskName, taskNameSchema } from '../tasks/task.js';
 import { auditChange } from './audit.js';
 
 /**
@@ -29,16 +30,39 @@ export const gateCellSchema = z.strictObject({
 });
 export type GateCell = z.infer<typeof gateCellSchema>;
 
+/**
+ * The tasks a rule is for, or null for every task. A task the rule does not name follows the
+ * gate's default for the pair, so an approval for one task (the demo reading synthetic documents
+ * into the form) opens no other.
+ */
+const ruleTasks = z.array(taskNameSchema).min(1).nullable().meta({
+  description:
+    "The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair",
+});
+
+/** Contract `GateRuleInput`: a cell of the gate, for every task or only the ones named. */
+export const gateRuleInputSchema = z.strictObject({
+  ...gateCellSchema.shape,
+  tasks: ruleTasks.optional(),
+});
+export type GateRuleInput = z.input<typeof gateRuleInputSchema>;
+
 /** Contract `GatePolicyInput`: rules applied together, on one approval. */
 export interface GateChange {
-  rules: GateCell[];
+  rules: GateRuleInput[];
   approvalRef: string;
+}
+
+/** Whether `rule` decides for `task`: it names no tasks, or names this one. */
+function decidesFor(rule: { tasks: readonly TaskName[] | null }, task: TaskName): boolean {
+  return rule.tasks === null || rule.tasks.includes(task);
 }
 
 /** Contract `GateRule`: an explicit rule with who decided it and on which approval. */
 export const gateRuleSchema = z
   .object({
     ...gateCellSchema.shape,
+    tasks: ruleTasks,
     approvalRef: z.string(),
     changedBy: z.string().meta({ description: '`sub` of the platform admin who made the change' }),
     changedByName: z
@@ -102,14 +126,16 @@ export class GatePolicies {
     private readonly events: EventPublisher,
   ) {}
 
+  /** Whether `task`'s jobs for `tenant` may send `dataClass` to `providerClass`. */
   async admits(
     tenant: string,
     dataClass: DataClass,
     providerClass: ProviderClass,
+    task: TaskName,
   ): Promise<boolean> {
     const [rule] = await asTenant(this.db, tenant, (tx) =>
       tx
-        .select({ allowed: gatePolicies.allowed })
+        .select({ allowed: gatePolicies.allowed, tasks: gatePolicies.tasks })
         .from(gatePolicies)
         .where(
           and(
@@ -119,18 +145,26 @@ export class GatePolicies {
           ),
         ),
     );
-    return rule ? rule.allowed : defaultGateAdmits(providerClass);
+    return rule && decidesFor(rule, task) ? rule.allowed : defaultGateAdmits(providerClass);
   }
 
-  /** The tenant's gate for every pair: its rule where it has one, else the default. */
-  async effective(tenant: string): Promise<GateCell[]> {
+  /**
+   * The tenant's gate for every pair, for every one of `tasks`: its rule where it has one that
+   * decides for them all, else the default.
+   */
+  async effective(tenant: string, tasks: readonly TaskName[]): Promise<GateCell[]> {
     const rules = await this.rules(tenant);
-    return defaultGate().map(
-      (cell) =>
-        rules.find(
-          (rule) => rule.dataClass === cell.dataClass && rule.providerClass === cell.providerClass,
-        ) ?? cell,
-    );
+    return defaultGate().map((cell) => {
+      const rule = rules.find(
+        (each) => each.dataClass === cell.dataClass && each.providerClass === cell.providerClass,
+      );
+      if (!rule || !tasks.every((task) => decidesFor(rule, task))) return cell;
+      return {
+        dataClass: rule.dataClass,
+        providerClass: rule.providerClass,
+        allowed: rule.allowed,
+      };
+    });
   }
 
   /** The tenant's explicit rules; pairs without one follow `defaultGateAdmits`. */
@@ -171,8 +205,10 @@ export class GatePolicies {
             eq(gatePolicies.providerClass, input.providerClass),
           );
           const [before] = await tx.select().from(gatePolicies).where(key);
+          const tasks = input.tasks ?? null;
           const decision = {
             allowed: input.allowed,
+            tasks,
             approvalRef: change.approvalRef,
             changedBy: actor.subject,
             changedByName: actor.name,
@@ -200,12 +236,14 @@ export class GatePolicies {
               dataClass: input.dataClass,
               providerClass: input.providerClass,
               allowed: before ? before.allowed : defaultGateAdmits(input.providerClass),
+              tasks: before?.tasks ?? null,
               explicit: before !== undefined,
             },
             after: {
               dataClass: input.dataClass,
               providerClass: input.providerClass,
               allowed: after.allowed,
+              tasks: after.tasks,
               explicit: true,
             },
           });
@@ -231,6 +269,7 @@ function toRule(row: GatePolicy): GateRule {
     dataClass: row.dataClass,
     providerClass: row.providerClass,
     allowed: row.allowed,
+    tasks: row.tasks,
     approvalRef: row.approvalRef,
     changedBy: row.changedBy,
     changedByName: row.changedByName,

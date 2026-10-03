@@ -9,6 +9,7 @@ import {
   budgetErrors,
   budgetResetsOn,
   changedByText,
+  changeText,
   confirmText,
   filterCounts,
   filterRows,
@@ -32,6 +33,7 @@ function rule(overrides: Partial<GateRule> = {}): GateRule {
     dataClass: 'synthetic',
     providerClass: 'external',
     allowed: true,
+    tasks: null,
     approvalRef: 'EACC/AI/2026/014',
     changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
     changedByName: 'Amina Wanjiru',
@@ -104,6 +106,17 @@ describe('accessText', () => {
     expect(accessText(accessOf(routedTo(rules)))).toBe(
       'External provider, synthetic and restricted data; self-hosted provider, highly confidential data',
     );
+  });
+
+  it("leaves out a rule for some tasks only: it is not the Commission's AI assistance", () => {
+    const documents = rule({ dataClass: 'highly-confidential', tasks: ['extract-document'] });
+    expect(accessText(accessOf(routedTo([rule(), documents])))).toBe(
+      'External provider, synthetic data only',
+    );
+    expect(gate([documents]).find((cell) => cell.rule)).toMatchObject({
+      allowed: false,
+      rule: documents,
+    });
   });
 
   it('is null when nothing is allowed, blocked rules included', () => {
@@ -193,6 +206,13 @@ describe('the edit dialog', () => {
     const older = rule({ changedAt: '2026-08-01T00:00:00Z' });
     const newer = rule({ dataClass: 'restricted', changedAt: '2026-09-20T00:00:00Z' });
     expect(gateHistory(gate([older, newer]))).toEqual([newer, older]);
+  });
+
+  it('says which tasks a rule for some tasks only is for', () => {
+    expect(changeText(rule())).toBe('Allowed external providers for synthetic data');
+    expect(
+      changeText(rule({ dataClass: 'highly-confidential', tasks: ['extract-document'] })),
+    ).toBe('Allowed external providers for highly confidential data, for extract-document only');
   });
 
   it('names who changed a cell, or their account id when the gateway has no name', () => {

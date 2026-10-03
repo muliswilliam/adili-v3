@@ -1965,6 +1965,28 @@ components:
           $ref: '#/components/schemas/ProviderClass'
         allowed:
           type: boolean
+        tasks:
+          anyOf:
+            - minItems: 1
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskName'
+            - type: 'null'
+          description: The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair
+      required:
+        - dataClass
+        - providerClass
+        - allowed
+      additionalProperties: false
+    GateCell:
+      type: object
+      properties:
+        dataClass:
+          $ref: '#/components/schemas/DataClass'
+        providerClass:
+          $ref: '#/components/schemas/ProviderClass'
+        allowed:
+          type: boolean
       required:
         - dataClass
         - providerClass
@@ -1998,6 +2020,14 @@ components:
           $ref: '#/components/schemas/ProviderClass'
         allowed:
           type: boolean
+        tasks:
+          anyOf:
+            - minItems: 1
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskName'
+            - type: 'null'
+          description: The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair
         approvalRef:
           type: string
         changedBy:
@@ -2015,6 +2045,7 @@ components:
         - dataClass
         - providerClass
         - allowed
+        - tasks
         - approvalRef
         - changedBy
         - changedByName
@@ -2039,7 +2070,7 @@ components:
         defaults:
           type: array
           items:
-            $ref: '#/components/schemas/GateRuleInput'
+            $ref: '#/components/schemas/GateCell'
           description: "The gate of every (data class, provider class) pair a tenant has no rule for: self-hosted providers may see every data class, external providers none, so a new tenant sends nothing outside the platform until a platform admin records an approved rule (the demo tenant's synthetic rule is seeded that way)"
         tenants:
           type: array

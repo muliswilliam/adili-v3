@@ -333,12 +333,42 @@ describe('minimise a text layer', () => {
     ['Proprietors: JOSEPH MWANGI and ESTHER WAIRIMU', 'JOSEPH MWANGI ESTHER WAIRIMU'],
     ['Wamiliki: Juma Hassan na Amina Said', 'Juma Hassan Amina Said'],
     ['Mwanachama: Rehema Achieng Otieno', 'Rehema Achieng Otieno'],
+    ['Signed: Daniel Mutiso Kyalo', 'Daniel Mutiso Kyalo'],
+    ['Signatory\nAUMA NAFULA WEKESA', 'AUMA NAFULA WEKESA'],
+    ['Witness: Fatuma Abdi Hassan', 'Fatuma Abdi Hassan'],
+    ['Lessor: Joseph Kiprop Rono', 'Joseph Kiprop Rono'],
+    ['Chargee: Moses Wafula Simiyu', 'Moses Wafula Simiyu'],
+    ['Guarantor: Lucy Chebet Koech', 'Lucy Chebet Koech'],
+    ['Transferee: Ibrahim Noor Adan', 'Ibrahim Noor Adan'],
+    ['Spouse: Janet Moraa Nyaboke', 'Janet Moraa Nyaboke'],
+    ['Director: Kevin Otieno Odera', 'Kevin Otieno Odera'],
+    ['Mdhamini: Saida Omar Bakari', 'Saida Omar Bakari'],
+    ['Mkopaji: Hassan Juma Mwinyi', 'Hassan Juma Mwinyi'],
+    ['Dear Wanjiku,', 'Wanjiku'],
   ])('finds the name in %j', (line, name) => {
     const { input } = minimise({ textLayer: line });
 
     for (const word of name.split(' ').filter(Boolean)) {
       expect(input.textLayer).not.toContain(word);
     }
+  });
+
+  it.each([
+    [
+      'Physical address: House 14, Riverside Drive, Kileleshwa, Nairobi',
+      'House 14, Riverside Drive, Kileleshwa, Nairobi',
+    ],
+    ['Residence: Plot 7, Milimani Estate, Kisumu', 'Plot 7, Milimani Estate, Kisumu'],
+    ['Address\nApartment 3B, Ngong Road, Nairobi', 'Apartment 3B, Ngong Road, Nairobi'],
+    [
+      'Anwani ya makazi: Nyumba 22, Barabara ya Moi, Mombasa',
+      'Nyumba 22, Barabara ya Moi, Mombasa',
+    ],
+  ])('finds the address in %j', (line, address) => {
+    const { input } = minimise({ textLayer: line });
+
+    expect(input.textLayer).not.toContain(address);
+    expect(input.textLayer).toMatch(/\[\[ADDRESS_1\]\]$/u);
   });
 
   it('keeps the words that join two names readable', () => {

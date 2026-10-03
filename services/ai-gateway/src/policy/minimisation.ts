@@ -124,6 +124,19 @@ const UNTOUCHED_FIELDS = new Set([
   'language',
 ]);
 
+/**
+ * A bank account number: a run of ten to sixteen digits, or three or four groups of four. An
+ * amount after a currency, or with separators or decimals, is not one, nor are a longer code's
+ * digits (a chassis number's).
+ */
+const ACCOUNT_NUMBER =
+  /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/u;
+
+/** Whether `text` holds a bank account number, as minimisation finds one. */
+export function holdsAccountNumber(text: string): boolean {
+  return ACCOUNT_NUMBER.test(text);
+}
+
 /** Shapes of identifiers anywhere in text. `L` and `N` boundaries keep them off longer codes. */
 const EDGE_BEFORE = String.raw`(?<![\p{L}\p{N}])`;
 const EDGE_AFTER = String.raw`(?![\p{L}\p{N}])`;
@@ -174,11 +187,7 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   },
   // Bank account numbers: a run of ten to sixteen digits, or three or four groups of four.
   // Amounts after a currency, or with separators or decimals, are left alone as below.
-  {
-    cls: 'ACCOUNT',
-    pattern:
-      /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/gu,
-  },
+  { cls: 'ACCOUNT', pattern: new RegExp(ACCOUNT_NUMBER.source, 'gu') },
   // A bare seven- or eight-digit number is shaped like a national ID. Amounts stay readable:
   // one after a currency, or with separators, decimals or a percent sign, is left alone, as is
   // a part of a longer code (a UUID's group).
@@ -220,6 +229,22 @@ const NAME_LABELS = [
   'mmiliki',
   'wamiliki',
   'mwanachama',
+  // Parties, signatories and witnesses of deeds, charges, guarantees and letters.
+  String.raw`signed(?:\s+by)?`,
+  'signator(?:y|ies)',
+  String.raw`witness(?:es|ed\s+by)?`,
+  'lessors?',
+  'charge(?:e|or)s?',
+  'guarantors?',
+  'transfer(?:ee|or)s?',
+  'vendors?',
+  'purchasers?',
+  'spouse',
+  'directors?',
+  'mdhamini',
+  'wadhamini',
+  'mkopaji',
+  'shahidi',
 ];
 /**
  * What introduces a person's name on a title deed, logbook, payslip, letter or certificate, in
@@ -236,7 +261,21 @@ const DOCUMENT_NAME_PATTERNS: readonly RegExp[] = [
     'gu',
   ),
   new RegExp(String.raw`(?i:certify\s+that)[ \t]+` + NAMES, 'gu'),
+  // A salutation without a title ("Dear Wanjiku,"); one with a title is found above.
+  new RegExp(
+    String.raw`(?<![\p{L}\p{N}])(?:Dear|Mpendwa)[ \t]+` + NAMES + String.raw`(?=[ \t]*[,:])`,
+    'gu',
+  ),
 ];
+
+/**
+ * What introduces an address on a page, at the start of a line, in English or Swahili; the rest
+ * of the line is the address (a house, a plot, a street and a town), which no shape gives away.
+ */
+const DOCUMENT_ADDRESS_PATTERN = new RegExp(
+  String.raw`^[ \t]*(?i:(?:physical|postal|residential|home)\s+address|address|residence|anwani(?:\s+ya\s+makazi)?|makazi)[ \t]*[:\-]?[ \t]*\n?[ \t]*([^\n]*[\p{L}\p{N}][^\n]*)$`,
+  'gmu',
+);
 
 const CURRENCY = String.raw`(?:KES|KShs?|Kshs?|Shs?|USD|US\$|\$|EUR|€|GBP|£)\.?`;
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
@@ -337,6 +376,10 @@ function collect(
       for (const pattern of DOCUMENT_NAME_PATTERNS) {
         for (const match of value.matchAll(pattern)) collectName(match[1] ?? '', known, true);
       }
+      for (const match of value.matchAll(DOCUMENT_ADDRESS_PATTERN)) {
+        const address = match[1]?.trim() ?? '';
+        if (address.length >= 2 && !known.has(address)) known.set(address, 'ADDRESS');
+      }
     } else if (cls !== undefined && value.trim().length >= 2) {
       known.set(value.trim(), cls);
     }
@@ -362,7 +405,11 @@ function collect(
 }
 
 /** Capitalised words a label may run into that are not names ("Owner PIN", "Member No."). */
-const NOT_NAMES = new Set(['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of']);
+const NOT_NAMES = new Set([
+  ...['pin', 'no', 'no.', 'nos', 'nos.', 'number', 'id', 'kra', 'the', 'of'],
+  // Courtesy titles and forms of address a salutation runs into ("Dear Mr. Ouma", "Dear Sir").
+  ...['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam'],
+]);
 
 /**
  * Each part of a name on its own, so it is found in free text in any order or form. Of names a
