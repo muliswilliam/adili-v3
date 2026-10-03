@@ -33,6 +33,7 @@ import createClient from 'openapi-fetch';
 import type { paths as documentsPaths } from '../documents/api.gen';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
+import { isCandidatesPath, mockCandidatesFetch } from './candidates-mock.server';
 import { isEacc, mockEaccIntake, mockHasBiennialCycle } from './eacc-mock.server';
 import {
   type CommissionAggregate,
@@ -377,11 +378,6 @@ function saveSection(
 
 const NOT_BUILT = 'The national consolidated report for the year has not been built yet.';
 
-/** The aggregates of the year's report as last built, or null before its first build. */
-export function ncrMockAggregates(fy: number): NationalAggregates | null {
-  return ensureSeeded().reports.get(fy)?.aggregates ?? null;
-}
-
 const approvedConflict = () =>
   problem(409, 'The report is approved and can no longer change.', 'ncr-approved');
 
@@ -389,6 +385,10 @@ const approvedConflict = () =>
 export async function mockNcrFetch(request: Request): Promise<Response> {
   const data = ensureSeeded();
   const url = new URL(request.url);
+  // The year's pattern candidates (#331), from the report as last built.
+  if (isCandidatesPath(url.pathname)) {
+    return mockCandidatesFetch(request, (fy) => data.reports.get(fy)?.aggregates ?? null);
+  }
   const caller = mockCallerOf(request);
   if (!isEacc(caller)) {
     return problem(

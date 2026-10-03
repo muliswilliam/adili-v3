@@ -1,5 +1,5 @@
 /**
- * The pattern candidates part of the reporting mock (`mock.server.ts` hands it
+ * The pattern candidates part of the reporting mock (`ncr-mock.server.ts` hands it
  * `GET /v1/eacc/national-reports/{fy}/candidates`, reporting.yaml `getNationalReportCandidates`):
  * the year's notable patterns computed from its report as last built (`ncr-mock.server.ts`) and a
  * fixture of the two years before, at the service's default thresholds, by its rules
@@ -32,7 +32,6 @@ import {
 } from './aggregate-keys';
 import { type Env, envSchema } from '../env.server';
 import { json, mockCallerOf, problem } from '../mock-http';
-import { ncrMockAggregates } from './ncr-mock.server';
 import type { NationalAggregates, PatternCandidate } from './types';
 
 export type CandidatesMockSeed = Env['REPORTING_MOCK_CANDIDATES'];
@@ -112,7 +111,14 @@ export function isCandidatesPath(pathname: string): boolean {
   return CANDIDATES_PATH.test(pathname);
 }
 
-export async function mockCandidatesFetch(request: Request): Promise<Response> {
+/**
+ * Answers the candidates of the report the NCR mock part (which hands this the request) has
+ * built for the year: `aggregates`, or null before its first build.
+ */
+export async function mockCandidatesFetch(
+  request: Request,
+  aggregatesOf: (fy: number) => NationalAggregates | null,
+): Promise<Response> {
   const caller = mockCallerOf(request);
   if (!caller.roles.includes('eacc-analyst') && !caller.roles.includes('eacc-supervisor')) {
     return problem(403, 'Only EACC analysts and supervisors see the pattern candidates.');
@@ -121,7 +127,7 @@ export async function mockCandidatesFetch(request: Request): Promise<Response> {
   if (request.method !== 'GET') return problem(405, 'Method not allowed');
   await delay(700);
   if (seedOf() === 'error') return problem(503, 'The reporting service is unavailable');
-  const aggregates = ncrMockAggregates(fy);
+  const aggregates = aggregatesOf(fy);
   if (!aggregates) {
     return problem(404, 'The national consolidated report for the year has not been built yet.');
   }

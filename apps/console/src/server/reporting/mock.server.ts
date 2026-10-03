@@ -38,7 +38,6 @@ import {
 import { env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
 import type { paths } from './api.gen';
-import { isCandidatesPath, mockCandidatesFetch } from './candidates-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod, ReportStatus } from './types';
 
 const PSC = { slug: 'psc', issuerCode: 'PSC', name: 'Public Service Commission' };
@@ -197,8 +196,6 @@ export function mockReportingClient(
 const notFound = () => problem(404, 'Not found');
 
 export async function mockReportingFetch(input: Request): Promise<Response> {
-  // The national report's pattern candidates (#331).
-  if (isCandidatesPath(new URL(input.url).pathname)) return mockCandidatesFetch(input);
   // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
   if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
     return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
