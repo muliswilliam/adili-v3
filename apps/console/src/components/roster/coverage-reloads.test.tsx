@@ -10,7 +10,7 @@ import {
 import { act, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { PROGRESS_ROUTE_LOADING } from './declaration-progress';
+import { coverageRouteSearch } from './declaration-progress';
 
 /** A coverage route as the console's: its loader records the cycle each load counts. */
 function renderCoverage() {
@@ -20,7 +20,7 @@ function renderCoverage() {
   const coverage = createRoute({
     getParentRoute: () => root,
     path: '/coverage',
-    ...PROGRESS_ROUTE_LOADING,
+    ...coverageRouteSearch,
     loader: ({ deps }) => {
       loads.push(deps.cycle);
       return `counts for ${deps.cycle ?? 'the current cycle'} (load ${String(loads.length)})`;

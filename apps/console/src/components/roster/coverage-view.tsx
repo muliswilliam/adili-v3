@@ -52,6 +52,7 @@ import {
   hasProgress,
   matchingRows,
   obligationTotal,
+  PROGRESS_KEYS,
   PROGRESS_SEARCH_MAX,
   progressCycles,
   progressPage,
@@ -59,6 +60,7 @@ import {
   progressTotals,
   sharePercent,
 } from './declaration-progress';
+import { messages as obligationsMessages } from '../obligations/messages';
 import { messages as m } from './messages';
 import { Tile, TileValue, WARNING_TILE } from './tile';
 
@@ -145,11 +147,12 @@ export function CoverageView(props: CoverageViewProps) {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          {progress && !progress.cycle.opened ? (
+          {/* With nothing counted, the empty state says when the cycle opens. */}
+          {progress && !progress.cycle.opened && hasProgress(progress) ? (
             <Alert variant="info" role="status">
               <Icon icon={InformationCircleIcon} />
               <AlertDescription>
-                {m.coverageNotOpen(
+                {obligationsMessages.cycleNotOpenNotice(
                   cycleLabel(progress.cycle.key),
                   formatDate(progress.cycle.opensOn),
                 )}
@@ -232,18 +235,17 @@ function CoverageActions({
           </SelectItem>
         ))}
       </Select>
-      <span
-        aria-live="polite"
-        className="inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap text-muted-foreground"
-      >
-        {refreshing ? (
-          <>
-            <Spinner className="size-3" />
-            {m.coverageUpdating}
-          </>
-        ) : loadedAt ? (
-          m.coverageUpdated(formatTime(loadedAt))
-        ) : null}
+      <span className="inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap text-muted-foreground">
+        <span aria-live="polite" className="inline-flex items-center gap-1.5">
+          {refreshing ? (
+            <>
+              <Spinner className="size-3" />
+              {m.coverageUpdating}
+            </>
+          ) : loadedAt ? (
+            m.coverageUpdated(formatTime(loadedAt))
+          ) : null}
+        </span>
         <Tooltip content={m.coverageRefresh}>
           <Button
             variant="ghost"
@@ -300,7 +302,7 @@ const BUCKET: Record<Bucket['key'], Bucket> = {
 };
 
 /** The tiles' and columns' order. */
-const BUCKETS = [BUCKET.notStarted, BUCKET.inProgress, BUCKET.submitted, BUCKET.late];
+const BUCKETS = PROGRESS_KEYS.map((key) => BUCKET[key]);
 
 /** The bar's segments, in the order they fill it; not started is what is left. */
 const BAR = [BUCKET.submitted, BUCKET.inProgress, BUCKET.late];

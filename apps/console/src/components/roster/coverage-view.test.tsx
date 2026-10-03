@@ -206,6 +206,8 @@ describe('#301 roster coverage', () => {
     expect(screen.queryByRole('table')).toBeNull();
     expect(document.body.textContent).toContain('Nothing due in Biennial 2027 yet');
     expect(document.body.textContent).toContain('Obligations open on 4 Jul 2027.');
+    // Said once: no notice above the empty state.
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('says nobody has an obligation in an opened cycle that counts none', () => {

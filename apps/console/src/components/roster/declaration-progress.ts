@@ -8,6 +8,7 @@ import type {
 } from '../../server/declarations/client';
 import { cycleLabel } from '../obligations/obligations-query';
 import { type ClientPage, clientPage } from '../paging';
+import { messages as m } from './messages';
 
 /** Reporting entities per page of the coverage table. */
 export const PROGRESS_PAGE_SIZE = 25;
@@ -15,15 +16,15 @@ export const PROGRESS_PAGE_SIZE = 25;
 /** The longest reporting entity search the page takes. */
 export const PROGRESS_SEARCH_MAX = 100;
 
+/** A biennial cycle key as the declarations service takes it, e.g. `biennial:2027`. */
+export const progressCycleKey = z.string().regex(/^biennial:\d{4}$/);
+
 /**
  * The coverage page's cycle, search and page, kept in the URL so a view can be shared, reloaded
  * and reached with Back. The cycle is the declarations service's to count; the search and the page
  * are applied in the browser. Values left at their default are absent; wrong ones are dropped
  * rather than failing.
  */
-/** A biennial cycle key as the declarations service takes it, e.g. `biennial:2027`. */
-export const progressCycleKey = z.string().regex(/^biennial:\d{4}$/);
-
 export const progressSearchSchema = z.object({
   cycle: progressCycleKey.optional().catch(undefined),
   search: z.string().trim().min(1).max(PROGRESS_SEARCH_MAX).optional().catch(undefined),
@@ -38,16 +39,22 @@ export type ProgressSearch = z.infer<typeof progressSearchSchema>;
  * a search or page change keeps the counts in hand. No `shouldReload`: one returning false for a
  * route already on show would serve a cycle's earlier counts when it is chosen again.
  */
-export const PROGRESS_ROUTE_LOADING = {
+export const coverageRouteSearch = {
   validateSearch: progressSearchSchema,
   loaderDeps: ({ search }: { search: ProgressSearch }) => ({ cycle: search.cycle }),
 };
 
-const KEYS = ['notStarted', 'inProgress', 'submitted', 'late'] as const;
+/** The four counts, in the order the page shows them. */
+export const PROGRESS_KEYS = ['notStarted', 'inProgress', 'submitted', 'late'] as const;
+
+/** Every count at 0. */
+function noCounts(): ProgressCounts {
+  return Object.fromEntries(PROGRESS_KEYS.map((key) => [key, 0])) as ProgressCounts;
+}
 
 /** Obligations counted: the four counts do not overlap (late is overdue, with a draft or not). */
 export function obligationTotal(counts: ProgressCounts): number {
-  return KEYS.reduce((sum, key) => sum + counts[key], 0);
+  return PROGRESS_KEYS.reduce((sum, key) => sum + counts[key], 0);
 }
 
 /** `part` as a whole percentage of `whole`, rounded down so 100% means all; 0 of nothing. */
@@ -78,8 +85,8 @@ export function progressTotals(
 ): ProgressTotals {
   if (!search?.trim()) return { counts: progress.total, matching: null };
   const rows = matchingRows(progress.reportingEntities, search);
-  const counts: ProgressCounts = { notStarted: 0, inProgress: 0, submitted: 0, late: 0 };
-  for (const row of rows) for (const key of KEYS) counts[key] += row.counts[key];
+  const counts = noCounts();
+  for (const row of rows) for (const key of PROGRESS_KEYS) counts[key] += row.counts[key];
   return { counts, matching: rows.length };
 }
 
@@ -117,6 +124,6 @@ export function progressCycles(progress: DeclarationProgress): ProgressCycle[] {
     key: cycle.key,
     label: cycle.opened
       ? cycleLabel(cycle.key)
-      : `${cycleLabel(cycle.key)} (opens ${formatDate(cycle.opensOn)})`,
+      : m.coverageCycleOpens(cycleLabel(cycle.key), formatDate(cycle.opensOn)),
   }));
 }

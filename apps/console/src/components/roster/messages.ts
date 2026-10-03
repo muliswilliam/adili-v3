@@ -572,6 +572,7 @@ export const en = {
   coverageTitle: 'Coverage',
   coverageLink: 'Coverage',
   coverageCycle: 'Cycle',
+  coverageCycleOpens: (cycle: string, opens: string) => `${cycle} (opens ${opens})`,
   coverageUpdated: (time: string) => `Updated ${time}`,
   coverageUpdating: 'Updating…',
   coverageRefresh: 'Refresh counts',
@@ -606,8 +607,6 @@ export const en = {
   coverageEmptyTitle: (cycle: string) => `Nothing due in ${cycle} yet`,
   coverageEmptyNotOpen: (opensOn: string) => `Obligations open on ${opensOn}.`,
   coverageEmptyText: 'No declarants have an obligation in this cycle right now.',
-  coverageNotOpen: (cycle: string, opens: string) =>
-    `${cycle} opens on ${opens}. Until then, counts cover initial and final declarations.`,
   coverageNoRosterText: 'Coverage appears once the roster is imported.',
   coverageErrorTitle: 'Counts could not be loaded',
   coverageNotFoundTitle: 'Page not found',

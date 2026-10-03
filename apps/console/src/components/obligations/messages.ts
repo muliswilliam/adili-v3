@@ -109,7 +109,7 @@ export const en = {
   nationalTitle: 'National obligations',
   nationalDescription: 'Due and overdue counts per Commission.',
   nationalCycle: (cycle: string, due: string) => `${cycle} · due ${due}`,
-  nationalNotOpen: (cycle: string, opens: string) =>
+  cycleNotOpenNotice: (cycle: string, opens: string) =>
     `${cycle} opens on ${opens}. Until then, counts cover initial and final declarations.`,
   nationalCaption: (cycle: string) => `Obligations per Commission, ${cycle}`,
   nationalLoadingCaption: 'Obligations per Commission (loading)',

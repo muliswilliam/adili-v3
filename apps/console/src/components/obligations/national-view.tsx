@@ -119,7 +119,7 @@ export function NationalView(props: NationalViewProps) {
           <Alert variant="info" role="status">
             <Icon icon={InformationCircleIcon} />
             <AlertDescription>
-              {m.nationalNotOpen(cycleLabel(cycle.key), formatDate(cycle.opensOn))}
+              {m.cycleNotOpenNotice(cycleLabel(cycle.key), formatDate(cycle.opensOn))}
             </AlertDescription>
           </Alert>
         ) : null}
