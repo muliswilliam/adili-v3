@@ -1,3 +1,5 @@
+import { HttpStatus } from '@nestjs/common';
+import { type Principal, ProblemException } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { TASKS } from '../tasks/registry.js';
@@ -57,3 +59,38 @@ function containsNul(value: unknown): boolean {
 }
 
 export type TaskRequest = z.infer<ReturnType<typeof taskRequestSchema>>;
+
+/** Who sends a task request: the tenant it acts for, the calling service, and its key. */
+export interface TaskCaller {
+  tenant: string;
+  principal: Principal;
+  idempotencyKey: string;
+}
+
+/**
+ * Refuses an input sent to the other endpoint: one the task streams (ADR-019) sent as a job
+ * (`task-streamed`), or one it runs as a job sent to its stream (`task-not-streamed`).
+ */
+export function requireEndpoint(
+  task: TaskDefinition,
+  request: TaskRequest,
+  endpoint: 'job' | 'stream',
+): void {
+  const streamed = task.streamed?.(request.input) ?? false;
+  if (streamed === (endpoint === 'stream')) return;
+  throw new ProblemException(
+    streamed
+      ? {
+          type: 'task-streamed',
+          title: 'Streamed task input',
+          status: HttpStatus.BAD_REQUEST,
+          detail: `Task ${task.name} answers this input over its stream endpoint, not as a job.`,
+        }
+      : {
+          type: 'task-not-streamed',
+          title: 'Task input not streamed',
+          status: HttpStatus.BAD_REQUEST,
+          detail: `Task ${task.name} runs this input as a job: POST /internal/v1/tasks/${task.name}.`,
+        },
+  );
+}

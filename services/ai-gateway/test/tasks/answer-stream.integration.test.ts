@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { auditRecords, jobs } from '../../src/db/schema.js';
-import { TaskStreams } from '../../src/jobs/task-streams.js';
+import { AnswerStreams } from '../../src/jobs/answer-streams.js';
 import { Budgets } from '../../src/policy/budgets.js';
 import { ProviderError } from '../../src/providers/port.js';
 import type { AnswerInput } from '../../src/tasks/answer-declarant-question.js';
@@ -88,6 +88,26 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const response = await t.app.inject(request(input, key, subjectRef));
     return { response, frames: frames(response.body) };
   };
+
+  /** Opens a stream in the service, so a test controls when the caller leaves. */
+  const open = (key: string) =>
+    t.app.get(AnswerStreams).open(request(answerInput, key).payload, {
+      tenant: 'demo',
+      principal: {
+        subject: randomUUID(),
+        tenant: null,
+        roles: [],
+        scopes: [],
+        clientId: 'declarations',
+        name: null,
+        issuedAt: null,
+        personId: null,
+        acr: null,
+        authTime: null,
+        tokenId: null,
+      },
+      idempotencyKey: key,
+    });
 
   const row = async (id: string) => (await t.db.select().from(jobs).where(eq(jobs.id, id)))[0];
 
@@ -229,6 +249,29 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
 
     expect(finalJob(all).status).toBe('succeeded');
     expect(provider.requests.length - calls).toBe(2);
+  });
+
+  it('ends at once when the caller leaves during the retry backoff, failing the job as cancelled', async () => {
+    const unavailable = new ProviderError('unavailable', 'scripted', 'overloaded');
+    provider.scripts = [{ chunks: [], end: { error: unavailable } }, answered()];
+    const calls = provider.requests.length;
+    const key = randomUUID();
+    const opened = await open(key);
+    const caller = new AbortController();
+    // The first retry waits 500 ms; the caller leaves well before.
+    setTimeout(() => {
+      caller.abort();
+    }, 50);
+
+    const started = performance.now();
+    const sent = [];
+    for await (const frame of opened.frames(caller.signal)) sent.push(frame);
+
+    expect(performance.now() - started).toBeLessThan(400);
+    expect(sent).toEqual([]);
+    expect(provider.requests.length - calls).toBe(1);
+    const [job] = await t.db.select().from(jobs).where(eq(jobs.idempotencyKey, key));
+    expect(job).toMatchObject({ status: 'failed', reason: 'cancelled' });
   });
 
   it('fails with an error frame when the provider fails mid-stream, without retrying', async () => {
@@ -384,25 +427,7 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const budgets = t.app.get(Budgets);
     const before = await budgets.usage('demo');
     const key = randomUUID();
-    const opened = await t.app.get(TaskStreams).open(
-      'answer-declarant-question',
-      request(answerInput, key).payload,
-      'demo',
-      {
-        subject: randomUUID(),
-        tenant: null,
-        roles: [],
-        scopes: [],
-        clientId: 'declarations',
-        name: null,
-        issuedAt: null,
-        personId: null,
-        acr: null,
-        authTime: null,
-        tokenId: null,
-      },
-      key,
-    );
+    const opened = await open(key);
     const caller = new AbortController();
     caller.abort();
 

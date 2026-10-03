@@ -1,7 +1,7 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { type Principal, ProblemException } from '@adili/api-kit';
+import { ProblemException } from '@adili/api-kit';
 import { InjectDatabase } from '@adili/data-access';
 import { eq } from 'drizzle-orm';
 
@@ -20,9 +20,13 @@ import {
   type Usage,
 } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
-import { findTask } from '../tasks/registry.js';
-import { TaggedAnswerReader } from '../tasks/tagged-answer.js';
-import type { OutputViolation, TaskDefinition } from '../tasks/task.js';
+import {
+  type AnswerOutput,
+  answerDeclarantQuestion,
+  DECLINED_ANSWER,
+} from '../tasks/answer-declarant-question.js';
+import { answerProse, type ReadAnswer, TaggedAnswerReader } from '../tasks/tagged-answer.js';
+import type { OutputViolation } from '../tasks/task.js';
 import {
   type AttemptMetrics,
   JobExecutor,
@@ -35,16 +39,16 @@ import { toJobView, type JobView } from './job-view.js';
 import { GRACE_SECONDS } from './jobs-janitor.js';
 import { JobsService } from './jobs.service.js';
 import { parseParams } from './routing.js';
-import { taskRequestSchema } from './task-request.js';
+import { requireEndpoint, type TaskCaller, taskRequestSchema } from './task-request.js';
 
-/** One server-sent event of a task stream. */
+/** One server-sent event of an answer stream. */
 export type StreamFrame =
   | { event: 'delta'; data: { text: string } }
   | { event: 'final'; data: { job: JobView } }
   | { event: 'error'; data: { reason: JobReason } };
 
-/** An opened task stream: its frames, read until the caller goes away (`signal`). */
-export interface TaskStream {
+/** An opened answer stream: its frames, read until the caller goes away (`signal`). */
+export interface AnswerStream {
   frames(signal: AbortSignal): AsyncGenerator<StreamFrame>;
 }
 
@@ -57,25 +61,46 @@ const STREAM_DEADLINE_MS = (GRACE_SECONDS - 15) * 1000;
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 500;
 
+const task = answerDeclarantQuestion;
+
 /** The caller went away: the job ends, and nothing more is sent. */
 class CallerGone extends Error {
   override readonly name = 'CallerGone';
 }
 
+/** One stream's provider call, as every attempt makes it. */
+interface StreamCall {
+  job: Job;
+  provider: ModelProvider;
+  prompt: PreparedPrompt;
+  request: GenerateRequest;
+  /** The caller's: aborted when it disconnects. */
+  signal: AbortSignal;
+  deadline: AbortSignal;
+  startedAt: number;
+}
+
+/** How an attempt ended: the job's outcome, the caller gone, or another attempt to make. */
+type Attempted =
+  | { kind: 'ended'; outcome: Outcome; metrics: AttemptMetrics }
+  | { kind: 'gone'; metrics: AttemptMetrics }
+  | { kind: 'retry' };
+
 /**
- * Streamed tasks (ADR-019): a job created and run in the request, its output's prose sent as
- * text deltas while the model writes, then the job itself once its output is validated. The same
- * policy as a job: idempotency key, cache, rate limit, classification gate, budget and breaker;
- * the input minimised and wrapped as untrusted; every ending recorded with its audit and event.
+ * Ask Adili's streamed answers (ADR-019): an `answer`-mode `answer-declarant-question` job created
+ * and run in the request, its blocks' prose sent as text deltas while the model writes, then the
+ * job itself once its output is validated. The same policy as a job: idempotency key, cache, rate
+ * limit, classification gate, budget and breaker; the input minimised and wrapped as untrusted;
+ * every ending recorded with its audit and event.
  *
- * An output that fails its checks (the grammar, its schema, the task's own checks) is replaced by
+ * An answer that fails its checks (the grammar, its schema, the task's own checks) is replaced by
  * a decline, and the job succeeds with the violations recorded: the caller shows its decline text,
  * and the deltas it already showed are provisional until the final frame. Such a decline is not
  * cached (`servesCache`): an equal request calls the provider again.
  */
 @Injectable()
-export class TaskStreams {
-  private readonly logger = new Logger(TaskStreams.name);
+export class AnswerStreams {
+  private readonly logger = new Logger(AnswerStreams.name);
 
   constructor(
     @InjectDatabase() private readonly db: GatewayDatabase,
@@ -91,47 +116,20 @@ export class TaskStreams {
    * (validation, a reused or running key, rate limit, gate, budget). A finished key or an equal
    * succeeded request replays as frames without a provider call.
    */
-  async open(
-    taskName: string,
-    body: unknown,
-    tenant: string,
-    principal: Principal,
-    idempotencyKey: string,
-  ): Promise<TaskStream> {
-    const task = findTask(taskName);
-    if (!task) throw new Error(`No task ${taskName}`);
+  async open(body: unknown, caller: TaskCaller): Promise<AnswerStream> {
     const request = taskRequestSchema(task).parse(body);
-    if (!task.streamed?.(request.input)) {
-      throw new ProblemException({
-        type: 'task-not-streamed',
-        title: 'Task input not streamed',
-        status: HttpStatus.BAD_REQUEST,
-        detail: `Task ${task.name} runs this input as a job: POST /internal/v1/tasks/${task.name}.`,
-      });
-    }
-    const { kind, job } = await this.jobs.findOrCreate(
-      task,
-      request,
-      tenant,
-      principal,
-      idempotencyKey,
-      'running',
-    );
+    requireEndpoint(task, request, 'stream');
+    const { kind, job } = await this.jobs.findOrCreate(task, request, caller, 'running');
     if (kind !== 'created') return replay(job, kind === 'cached');
     if (isTerminal(job.status)) throw refused(job);
-    return { frames: (signal) => this.run(job, task, signal) };
+    return { frames: (signal) => this.run(job, signal) };
   }
 
   /** Calls the provider and streams; every ending is recorded and ends the frames. */
-  private async *run(
-    job: Job,
-    task: TaskDefinition,
-    signal: AbortSignal,
-  ): AsyncGenerator<StreamFrame> {
+  private async *run(job: Job, signal: AbortSignal): AsyncGenerator<StreamFrame> {
     // Gone before the call: it would be paid for and its answer never read.
     if (signal.aborted) {
-      this.logger.log({ jobId: job.id }, 'The caller left before the call; failing the job');
-      await this.executor.finish(job, { status: 'failed', reason: 'cancelled' }, NO_CALL);
+      await this.cancel(job, NO_CALL);
       return;
     }
     const provider = this.providers.get(job.provider);
@@ -146,111 +144,137 @@ export class TaskStreams {
       job.model,
       parseParams(job.params, `job ${job.id}`),
     );
-    const request = streamedRequest(prompt.request);
     this.telemetry.identifiersMinimised(job, prompt.counts);
-    const deadline = AbortSignal.timeout(STREAM_DEADLINE_MS);
-    const startedAt = performance.now();
+    const call: StreamCall = {
+      job,
+      provider,
+      prompt,
+      request: streamedRequest(prompt.request),
+      signal,
+      deadline: AbortSignal.timeout(STREAM_DEADLINE_MS),
+      startedAt: performance.now(),
+    };
+    for (let attempt = 1; ; attempt++) {
+      const attempted = yield* this.attempt(call, attempt);
+      if (attempted.kind === 'retry') continue;
+      if (attempted.kind === 'gone') await this.cancel(job, attempted.metrics);
+      else yield* this.end(job, attempted.outcome, attempted.metrics);
+      return;
+    }
+  }
+
+  /**
+   * One provider call: its prose streamed as it arrives, then how it ended. A transient failure
+   * before anything has streamed asks for another attempt, after a backoff the caller may cut short.
+   */
+  private async *attempt(
+    { job, provider, prompt, request, signal, deadline, startedAt }: StreamCall,
+    attempt: number,
+  ): AsyncGenerator<StreamFrame, Attempted> {
     const metrics = (result?: GenerateResult): AttemptMetrics => ({
       usage: result?.usage ?? null,
       model: result?.model ?? null,
       latencyMs: Math.round(performance.now() - startedAt),
     });
-
-    for (let attempt = 1; ; attempt++) {
-      const reader = new TaggedAnswerReader();
-      let streamed = false;
-      /** Characters the provider sent this attempt, for `estimated`. */
-      let received = 0;
-      // An attempt that ends without the final result has no usage: it is charged an estimate.
-      const estimated = (): AttemptMetrics => ({
-        ...metrics(),
-        usage: estimatedUsage(request, received),
-      });
-      const span = this.telemetry.begin({
-        jobId: job.id,
-        tenant: job.tenant,
-        task: job.task,
-        promptVersion: job.promptVersion,
-        provider: provider.name,
-        model: job.model,
-        maxOutputTokens: request.maxOutputTokens,
-      });
-      let result: GenerateResult | undefined;
-      try {
-        for await (const event of until(provider, request, signal, deadline)) {
-          if (event.type === 'final') {
-            result = event.result;
-            continue;
-          }
-          received += event.text.length;
-          const text = reader.push(event.text);
-          if (text === '') continue;
-          streamed = true;
-          yield { event: 'delta', data: { text: prompt.restore(text) } };
+    const reader = new TaggedAnswerReader();
+    let streamed = false;
+    /** Characters the provider sent this attempt, for `estimated`. */
+    let received = 0;
+    // An attempt that ends without the final result has no usage: it is charged an estimate.
+    const estimated = (): AttemptMetrics => ({
+      ...metrics(),
+      usage: estimatedUsage(request, received),
+    });
+    const span = this.telemetry.begin({
+      jobId: job.id,
+      tenant: job.tenant,
+      task: job.task,
+      promptVersion: job.promptVersion,
+      provider: provider.name,
+      model: job.model,
+      maxOutputTokens: request.maxOutputTokens,
+    });
+    let result: GenerateResult | undefined;
+    try {
+      for await (const event of until(provider, request, signal, deadline)) {
+        if (event.type === 'final') {
+          result = event.result;
+          continue;
         }
-        if (!result) throw new ProviderError('invalid-response', provider.name, 'No final event');
-      } catch (error) {
-        span.failed(error);
-        if (error instanceof CallerGone) {
-          this.breaker.release(provider.name);
-          this.logger.log({ jobId: job.id }, 'The caller left mid-stream; failing the job');
-          await this.executor.finish(job, { status: 'failed', reason: 'cancelled' }, estimated());
-          return;
-        }
-        if (error instanceof UnknownTokenError) {
-          this.breaker.release(provider.name);
-          yield* this.end(job, this.unknownToken(job, task, error), estimated());
-          return;
-        }
-        const retryable = error instanceof ProviderError && error.retryable;
-        if (retryable) this.breaker.recordFailure(provider.name);
-        else this.breaker.release(provider.name);
-        if (retryable && !streamed && attempt < MAX_ATTEMPTS && !deadline.aborted) {
-          await sleep(RETRY_DELAY_MS * attempt);
-          if (this.breaker.tryAcquire(provider.name)) continue;
-        }
-        if (!(error instanceof ProviderError)) {
-          this.logger.error({ err: error, jobId: job.id }, 'Stream failed');
-        }
-        const reason: JobReason =
-          error instanceof ProviderError && error.kind === 'timeout' ? 'timeout' : 'provider';
-        yield* this.end(job, { status: 'failed', reason }, received > 0 ? estimated() : metrics());
-        return;
+        received += event.text.length;
+        const text = reader.push(event.text);
+        if (text === '') continue;
+        streamed = true;
+        yield { event: 'delta', data: { text: prompt.restore(text) } };
       }
-      span.succeeded(result);
-      this.breaker.recordSuccess(provider.name);
-      if (result.status === 'refused') {
-        yield* this.end(job, { status: 'failed', reason: 'refused' }, metrics(result));
-        return;
+      if (!result) throw new ProviderError('invalid-response', provider.name, 'No final event');
+    } catch (error) {
+      span.failed(error);
+      // The caller leaving or a token the input never had says nothing of the provider's health:
+      // a half-open probe is given back, as for a job that made no call.
+      if (error instanceof CallerGone) {
+        this.breaker.release(provider.name);
+        return { kind: 'gone', metrics: estimated() };
       }
-      const { delta, answer } = reader.end();
-      if (result.status === 'truncated') {
-        yield* this.end(job, this.decline(job, task, [{ kind: 'truncated' }]), metrics(result));
-        return;
+      if (error instanceof UnknownTokenError) {
+        this.breaker.release(provider.name);
+        return { kind: 'ended', outcome: this.unknownToken(job, error), metrics: estimated() };
       }
-      let last: string;
-      try {
-        last = delta === '' ? '' : prompt.restore(delta);
-      } catch (error) {
-        if (!(error instanceof UnknownTokenError)) throw error;
-        yield* this.end(job, this.unknownToken(job, task, error), metrics(result));
-        return;
+      const retryable = error instanceof ProviderError && error.retryable;
+      if (retryable) this.breaker.recordFailure(provider.name);
+      else this.breaker.release(provider.name);
+      if (retryable && !streamed && attempt < MAX_ATTEMPTS && !deadline.aborted) {
+        try {
+          await sleep(RETRY_DELAY_MS * attempt, undefined, { signal });
+        } catch {
+          return { kind: 'gone', metrics: estimated() };
+        }
+        if (this.breaker.tryAcquire(provider.name)) return { kind: 'retry' };
       }
-      if (last !== '') yield { event: 'delta', data: { text: last } };
-      yield* this.end(job, this.judge(job, task, answer, result, prompt), metrics(result));
-      return;
+      if (!(error instanceof ProviderError)) {
+        this.logger.error({ err: error, jobId: job.id }, 'Stream failed');
+      }
+      const reason: JobReason =
+        error instanceof ProviderError && error.kind === 'timeout' ? 'timeout' : 'provider';
+      return {
+        kind: 'ended',
+        outcome: { status: 'failed', reason },
+        metrics: received > 0 ? estimated() : metrics(),
+      };
     }
+    span.succeeded(result);
+    this.breaker.recordSuccess(provider.name);
+    if (result.status === 'refused') {
+      return {
+        kind: 'ended',
+        outcome: { status: 'failed', reason: 'refused' },
+        metrics: metrics(result),
+      };
+    }
+    const { delta, answer } = reader.end(result.status);
+    let last: string;
+    try {
+      last = delta === '' ? '' : prompt.restore(delta);
+    } catch (error) {
+      if (!(error instanceof UnknownTokenError)) throw error;
+      return { kind: 'ended', outcome: this.unknownToken(job, error), metrics: metrics(result) };
+    }
+    if (last !== '') yield { event: 'delta', data: { text: last } };
+    return {
+      kind: 'ended',
+      outcome: this.judge(job, answer, result, prompt),
+      metrics: metrics(result),
+    };
   }
 
   /** The job's ending for a read answer: validated as a job's output, else a decline. */
   private judge(
     job: Job,
-    task: TaskDefinition,
-    answer: ReturnType<TaggedAnswerReader['end']>['answer'],
+    answer: ReadAnswer,
     result: GenerateResult,
     prompt: Pick<PreparedPrompt, 'restore'>,
   ): Outcome {
-    if (!answer.ok) return this.decline(job, task, answer.problems);
+    if (!answer.ok) return this.decline(job, answer.problems);
     const outcome = this.executor.outcome(
       job,
       task,
@@ -258,19 +282,19 @@ export class TaskStreams {
       prompt,
     );
     if (outcome.status === 'succeeded') return outcome;
-    return this.decline(job, task, outcome.violations ?? [{ kind: 'invalid-output' }]);
+    return this.decline(job, outcome.violations ?? [{ kind: 'invalid-output' }]);
   }
 
   /** Streamed text holding a token the input never had: a failed check, so a decline. */
-  private unknownToken(job: Job, task: TaskDefinition, error: UnknownTokenError): Outcome {
+  private unknownToken(job: Job, error: UnknownTokenError): Outcome {
     this.logger.warn(
       { jobId: job.id, unknownTokens: error.unknownTokens },
       'Streamed text holds identifier tokens the input never had',
     );
-    return this.decline(job, task, [{ kind: 'unknown-token' }]);
+    return this.decline(job, [{ kind: 'unknown-token' }]);
   }
 
-  private decline(job: Job, task: TaskDefinition, found: OutputViolation[]): Outcome {
+  private decline(job: Job, found: OutputViolation[]): Outcome {
     const violations = found.slice(0, MAX_STORED_VIOLATIONS);
     this.logger.warn(
       { jobId: job.id, task: job.task, count: found.length, violations },
@@ -278,9 +302,15 @@ export class TaskStreams {
     );
     return {
       status: 'succeeded',
-      output: { label: this.executor.label(job, task), declined: true, blocks: [], followUps: [] },
+      output: { label: this.executor.label(job, task), ...DECLINED_ANSWER },
       violations,
     };
+  }
+
+  /** The caller went away: the job fails, and nothing is sent. */
+  private async cancel(job: Job, metrics: AttemptMetrics): Promise<void> {
+    this.logger.log({ jobId: job.id }, 'The caller left; failing the job');
+    await this.executor.finish(job, { status: 'failed', reason: 'cancelled' }, metrics);
   }
 
   /** Records the ending and sends it: the job, or the reason it failed. */
@@ -372,7 +402,7 @@ function estimatedUsage(request: GenerateRequest, received: number): Usage {
 }
 
 /** Frames for a job that already exists: its ending, or 409 while it still runs. */
-function replay(job: Job, cached: boolean): TaskStream {
+function replay(job: Job, cached: boolean): AnswerStream {
   if (!isTerminal(job.status)) {
     throw new ProblemException({
       type: 'job-in-progress',
@@ -391,17 +421,12 @@ function replay(job: Job, cached: boolean): TaskStream {
         yield { event: 'error', data: { reason: job.reason ?? 'provider' } };
         return;
       }
-      const text = cached ? prose(view.output) : '';
+      // A stored output is the task's, validated when the job succeeded.
+      const text = cached ? answerProse(view.output as AnswerOutput) : '';
       if (text !== '') yield { event: 'delta', data: { text } };
       yield { event: 'final', data: { job: view } };
     },
   };
-}
-
-/** A stored answer's blocks as the deltas streamed them: paragraphs, blank-line separated. */
-function prose(output: JobView['output']): string {
-  const blocks = (output as { blocks?: { text: string }[] } | null)?.blocks ?? [];
-  return blocks.map((block) => block.text).join('\n\n');
 }
 
 /** The problem for a job ended before any provider call: gate, budget, or no provider. */

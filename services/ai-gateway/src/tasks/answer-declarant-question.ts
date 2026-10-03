@@ -113,6 +113,12 @@ export type AnswerInput = z.infer<typeof input>;
 export type AnswerOutput = z.infer<typeof output>;
 
 /**
+ * What a streamed answer that failed its checks is stored as (ADR-019): a decline, with no blocks,
+ * so the caller shows its decline text.
+ */
+export const DECLINED_ANSWER: AnswerOutput = { declined: true, blocks: [], followUps: [] };
+
+/**
  * Ask Adili (spec 11): an answer from the retrieved passages only, every block citing them, or a
  * decline; in hints mode, one plain-language hint per completeness residual.
  */

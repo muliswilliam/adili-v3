@@ -18,7 +18,12 @@ import { JobWorkflows } from './job-workflows.js';
 import { isTerminal } from './job-states.js';
 import { toJobView, type JobView } from './job-view.js';
 import { type Route, Routing } from './routing.js';
-import { type TaskRequest, taskRequestSchema } from './task-request.js';
+import {
+  requireEndpoint,
+  type TaskCaller,
+  type TaskRequest,
+  taskRequestSchema,
+} from './task-request.js';
 
 export interface RunTaskResult {
   job: JobView;
@@ -56,10 +61,8 @@ function promptVersionFor(task: TaskDefinition, pinned: number | null): number {
 function jobKey(
   task: TaskDefinition,
   request: Pick<TaskRequest, 'dataClass' | 'subjectRef' | 'promptVersion' | 'input'>,
-  promptVersion: number,
   route: Pick<Route, 'provider' | 'model'>,
-  tenant: string,
-  principal: Principal,
+  { tenant, principal }: Pick<TaskCaller, 'tenant' | 'principal'>,
 ): { fields: Pick<Job, (typeof CACHE_KEY)[number]>; requestHash: string } {
   return {
     fields: {
@@ -68,7 +71,7 @@ function jobKey(
       subjectRef: request.subjectRef,
       dataClass: request.dataClass,
       task: task.name,
-      promptVersion,
+      promptVersion: promptVersionFor(task, request.promptVersion),
       provider: route.provider,
       model: route.model,
       inputHash: hashJson(request.input),
@@ -120,13 +123,7 @@ export class JobsService {
    * retry with that key runs a new job rather than returning the failed one: the retry of a
    * request whose outcome the caller never saw gets a fresh attempt instead of a failure.
    */
-  async run(
-    taskName: string,
-    body: unknown,
-    tenant: string,
-    principal: Principal,
-    idempotencyKey: string,
-  ): Promise<RunTaskResult> {
+  async run(taskName: string, body: unknown, caller: TaskCaller): Promise<RunTaskResult> {
     const task = findTask(taskName);
     if (!task) {
       throw new ProblemException({
@@ -137,22 +134,8 @@ export class JobsService {
       });
     }
     const request = taskRequestSchema(task).parse(body);
-    if (task.streamed?.(request.input)) {
-      throw new ProblemException({
-        type: 'task-streamed',
-        title: 'Streamed task input',
-        status: HttpStatus.BAD_REQUEST,
-        detail: `Task ${task.name} answers this input over its stream endpoint, not as a job.`,
-      });
-    }
-    const found = await this.findOrCreate(
-      task,
-      request,
-      tenant,
-      principal,
-      idempotencyKey,
-      'queued',
-    );
+    requireEndpoint(task, request, 'job');
+    const found = await this.findOrCreate(task, request, caller, 'queued');
     return {
       job: await this.startAndWait(found.job, request.waitSeconds),
       replayed: found.kind === 'previous',
@@ -169,14 +152,12 @@ export class JobsService {
   async findOrCreate(
     task: TaskDefinition,
     request: TaskRequest,
-    tenant: string,
-    principal: Principal,
-    idempotencyKey: string,
+    caller: TaskCaller,
     initialStatus: 'queued' | 'running',
   ): Promise<FoundJob> {
-    const promptVersion = promptVersionFor(task, request.promptVersion);
+    const { tenant, idempotencyKey } = caller;
     const route = await this.routing.route(tenant, task.name);
-    const { fields, requestHash } = jobKey(task, request, promptVersion, route, tenant, principal);
+    const { fields, requestHash } = jobKey(task, request, route, caller);
 
     // The caller's transactions see the acting tenant's jobs only (row-level security).
     const asCaller = <T>(work: (tx: GatewayTransaction) => Promise<T>) =>

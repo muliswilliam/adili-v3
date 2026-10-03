@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { JobsController } from '../../src/jobs/jobs.controller.js';
 import type { JobsService } from '../../src/jobs/jobs.service.js';
-import type { StreamFrame, TaskStreams } from '../../src/jobs/task-streams.js';
+import type { AnswerStreams, StreamFrame } from '../../src/jobs/answer-streams.js';
 
 /** The response of a caller that left while the stream was opening: its socket already closed. */
 function closedResponse() {
@@ -32,7 +32,7 @@ describe('JobsController stream', () => {
             if (!caller.aborted) yield { event: 'error', data: { reason: 'provider' } };
           },
         }),
-    } as unknown as TaskStreams;
+    } as unknown as AnswerStreams;
     const controller = new JobsController({} as JobsService, streams);
     const reply = closedResponse();
 

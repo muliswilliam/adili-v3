@@ -10,6 +10,7 @@ import { DEFAULT_AI_MODEL, providerEnvSchema } from '../../src/providers/provide
 import { createModelProvider } from '../../src/providers/providers.module.js';
 import { UnknownTokenError } from '../../src/policy/minimisation.js';
 import { type PreparedPrompt, preparePrompt, streamedRequest } from '../../src/policy/prompt.js';
+import { DECLINED_ANSWER } from '../../src/tasks/answer-declarant-question.js';
 import { TaggedAnswerReader } from '../../src/tasks/tagged-answer.js';
 import type { OutputViolation, TaskDefinition } from '../../src/tasks/task.js';
 import type { CaseResult, SoftResult } from './score.js';
@@ -24,7 +25,7 @@ export function evalPrompt(task: TaskDefinition, input: unknown, model: string):
 }
 
 /**
- * The provider request a job for this golden input makes: a streamed task's input (ADR-0019) asks
+ * The provider request a job for this golden input makes: a streamed task's input (ADR-019) asks
  * for tagged text, without the output schema.
  */
 export function evalRequest(
@@ -47,9 +48,6 @@ export interface CaseOutput {
   /** The task's own checks, or why a streamed answer could not be read (a decline then). */
   violations: OutputViolation[];
 }
-
-/** A streamed answer the gateway could not read, or that was cut off, is stored as a decline. */
-const DECLINED = { declined: true, blocks: [], followUps: [] };
 
 /** Runs a case as the gateway would: streamed when the task streams the input, else as a job. */
 export async function runCase(
@@ -82,20 +80,19 @@ export async function runStreamed(
     if (event.type === 'delta') reader.push(event.text);
     else result = event.result;
   }
-  if (result?.status === 'truncated')
-    return { output: DECLINED, violations: [{ kind: 'truncated' }] };
-  if (result?.status !== 'completed') {
+  if (result?.status !== 'completed' && result?.status !== 'truncated') {
     throw new Error(`${task.name}: the provider returned ${result?.status ?? 'no result'}`);
   }
-  const { answer } = reader.end();
-  if (!answer.ok) return { output: DECLINED, violations: answer.problems };
+  // Cut off, or not read: the gateway stores a decline, with the reasons as violations.
+  const { answer } = reader.end(result.status);
+  if (!answer.ok) return { output: DECLINED_ANSWER, violations: answer.problems };
   let restored: unknown;
   try {
     restored = prompt.restore(task.output.parse(answer.answer));
   } catch (error) {
     // A token the input never had: the gateway declines it, as any failed check (ADR-019).
     if (!(error instanceof UnknownTokenError)) throw error;
-    return { output: DECLINED, violations: [{ kind: 'unknown-token' }] };
+    return { output: DECLINED_ANSWER, violations: [{ kind: 'unknown-token' }] };
   }
   const output = task.output.parse(restored);
   return { output, violations: checks(task, input, output) };

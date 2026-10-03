@@ -6,7 +6,7 @@ import { TaggedAnswerReader } from '../../src/tasks/tagged-answer.js';
 function read(...chunks: string[]) {
   const reader = new TaggedAnswerReader();
   const deltas = chunks.map((chunk) => reader.push(chunk));
-  const end = reader.end();
+  const end = reader.end('completed');
   return { prose: [...deltas, end.delta].join(''), answer: end.answer };
 }
 
@@ -47,12 +47,22 @@ describe('tagged answer reader', () => {
       const chunks = ANSWER.match(new RegExp(`[\\s\\S]{1,${size}}`, 'g')) ?? [];
       const reader = new TaggedAnswerReader();
       const deltas = chunks.map((chunk) => reader.push(chunk));
-      const end = reader.end();
+      const end = reader.end('completed');
 
       expect([...deltas, end.delta].join(''), `chunks of ${size}`).toBe(whole.prose);
       expect(end.answer).toEqual(whole.answer);
       expect(deltas.join(''), `no tag text streamed in chunks of ${size}`).not.toMatch(/[<>]/);
     }
+  });
+
+  it('reads a cut-off text as truncated, not as the answer it holds so far', () => {
+    const reader = new TaggedAnswerReader();
+    reader.push(ANSWER);
+
+    expect(reader.end('truncated').answer).toEqual({
+      ok: false,
+      problems: [{ kind: 'truncated' }],
+    });
   });
 
   it('holds back an identifier token until it is whole, so it can be restored', () => {

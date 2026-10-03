@@ -25,7 +25,7 @@ export interface JanitorOptions {
 const SWEEP_INTERVAL_MS = 60_000;
 /**
  * Younger live jobs are left alone: their workflow may be starting or just ending, or they are
- * streaming (`TaskStreams`, which have no workflow and end within this window).
+ * streaming (`AnswerStreams`, which have no workflow and end within this window).
  */
 export const GRACE_SECONDS = 60;
 const PAGE_SIZE = 100;

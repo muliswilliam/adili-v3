@@ -41,7 +41,7 @@ import { AI_SCOPE } from '../internal-api.js';
 import { isTerminal } from './job-states.js';
 import type { JobView } from './job-view.js';
 import { JobsService } from './jobs.service.js';
-import { TaskStreams } from './task-streams.js';
+import { AnswerStreams } from './answer-streams.js';
 
 const idempotencyKey = z.uuid();
 
@@ -73,7 +73,7 @@ export class JobsController {
 
   constructor(
     private readonly jobs: JobsService,
-    private readonly streams: TaskStreams,
+    private readonly streams: AnswerStreams,
   ) {}
 
   @Post('tasks/:task')
@@ -131,7 +131,7 @@ export class JobsController {
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<JobView> {
     const { job, replayed } = await this.jobs
-      .run(task, body, tenant, caller, readKey(key))
+      .run(task, body, { tenant, principal: caller, idempotencyKey: readKey(key) })
       .catch((error: unknown) => {
         if (ProblemException.hasCode(error, ['rate-limit-exceeded'])) {
           const retryAfter = error.extensions.retryAfterSeconds;
@@ -199,7 +199,7 @@ export class JobsController {
     @Res() reply: FastifyReply,
   ): Promise<void> {
     const stream = await this.streams
-      .open('answer-declarant-question', body, tenant, caller, readKey(key))
+      .open(body, { tenant, principal: caller, idempotencyKey: readKey(key) })
       .catch((error: unknown) => {
         if (ProblemException.hasCode(error, ['rate-limit-exceeded'])) {
           const retryAfter = error.extensions.retryAfterSeconds;

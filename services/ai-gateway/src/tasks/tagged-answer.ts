@@ -1,3 +1,4 @@
+import type { AnswerOutput } from './answer-declarant-question.js';
 import type { OutputViolation } from './task.js';
 
 /**
@@ -16,21 +17,14 @@ import type { OutputViolation } from './task.js';
  * whole; `end` reads the whole answer, or says what broke the grammar.
  */
 
-export interface AnswerBlock {
-  text: string;
-  passageIds: string[];
-  sectionLink: { sectionKey: string; fieldPath: string | null } | null;
-}
+type AnswerBlock = AnswerOutput['blocks'][number];
 
-export interface TaggedAnswer {
-  declined: boolean;
-  blocks: AnswerBlock[];
-  followUps: string[];
-}
-
-/** The answer, or why the text is not one: kinds and block indexes, never what was written. */
+/**
+ * The answer, or why the text is not one: kinds and block indexes, never what was written. A read
+ * answer is checked against the output schema still (the reader takes any section key).
+ */
 export type ReadAnswer =
-  { ok: true; answer: TaggedAnswer } | { ok: false; problems: OutputViolation[] };
+  { ok: true; answer: AnswerOutput } | { ok: false; problems: OutputViolation[] };
 
 const TAG = /^<(\/?)([a-z]+)((?:\s+[a-z]+="[^"]*")*)\s*\/?>$/;
 const ATTRIBUTE = /([a-z]+)="([^"]*)"/g;
@@ -67,9 +61,14 @@ export class TaggedAnswerReader {
     return this.consume(false);
   }
 
-  /** Reads what is left: the last prose to stream, and the answer. */
-  end(): { delta: string; answer: ReadAnswer } {
+  /**
+   * Reads what is left: the last prose to stream, and the answer. A `truncated` text (the output
+   * limit cut it off) is not an answer, whatever it holds.
+   */
+  end(status: 'completed' | 'truncated'): { delta: string; answer: ReadAnswer } {
     const delta = this.consume(true);
+    if (status === 'truncated')
+      return { delta, answer: { ok: false, problems: [{ kind: 'truncated' }] } };
     if (this.open) {
       this.problem('unclosed-block', this.blocks.length);
       this.open = undefined;
@@ -255,6 +254,11 @@ export class TaggedAnswerReader {
   private problem(kind: string, block?: number): void {
     this.problems.push(block === undefined ? { kind } : { kind, block });
   }
+}
+
+/** A stored answer's blocks as the deltas streamed them: paragraphs, blank-line separated. */
+export function answerProse(answer: Pick<AnswerOutput, 'blocks'>): string {
+  return answer.blocks.map((block) => block.text).join(PARAGRAPH);
 }
 
 /**
