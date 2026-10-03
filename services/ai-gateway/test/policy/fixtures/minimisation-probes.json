@@ -1933,5 +1933,527 @@
     "input": "Shareholder: Grace Wanjiru",
     "mustHide": ["Grace", "Wanjiru"],
     "mustKeep": ["Shareholder:"]
+  },
+  {
+    "id": "r19-std-1",
+    "input": "Proprietor: ID 12345678 John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "r19-std-2",
+    "input": "Borrower: John Kamau 0712345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-3",
+    "input": "Borrower: John Kamau P.O. Box 123 Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower", "Nakuru"]
+  },
+  {
+    "id": "r19-std-4",
+    "input": "Parties: John Kamau P.O. Box 123 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Parties"]
+  },
+  {
+    "id": "r19-std-5",
+    "input": "Shareholder: Peter Ordinary",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Shareholder"]
+  },
+  {
+    "id": "r19-std-6",
+    "input": "Director: Jane Founder",
+    "mustHide": ["Jane"],
+    "mustKeep": ["Director"]
+  },
+  {
+    "id": "r19-std-7",
+    "input": "Shareholders:\n(a) John Kamau Ordinary Shares 500\n(b) Mary Wanjiru Preference Shares 200",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Ordinary Shares 500", "Preference Shares 200"]
+  },
+  {
+    "id": "r19-std-8",
+    "input": "Vehicles:\n(a) Premio Year 2015\n(b) Ana Prado",
+    "mustHide": ["Ana", "Prado"],
+    "mustKeep": ["Premio Year 2015"]
+  },
+  {
+    "id": "r19-std-9",
+    "input": "Owners:\n(a) Prado Kamau\n(b) Fielder Otieno",
+    "mustHide": ["Kamau", "Otieno"],
+    "mustKeep": ["Owners"]
+  },
+  {
+    "id": "r19-std-10",
+    "input": "Borrower: John Kamau john@example.com Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-11",
+    "input": "Guarantor: Mary Wanjiru PO Box 55 Thika",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Guarantor", "Thika"]
+  },
+  {
+    "id": "r19-std-12",
+    "input": "Guarantor: Mary Wanjiru Post Office Box 55",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Guarantor"]
+  },
+  {
+    "id": "r19-std-13",
+    "input": "Borrower: John Kamau, ID 12345678, and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-14",
+    "input": "Signed by: John Kamau 0712345678\nWitness: Peter Otieno",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno"],
+    "mustKeep": ["Signed", "Witness"]
+  },
+  {
+    "id": "r19-std-15",
+    "input": "Borrower: John P.O Box 9 Kamau",
+    "mustHide": ["John"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-16",
+    "input": "Shares:\n(a) Redeemable Shares 100",
+    "mustHide": [],
+    "mustKeep": ["Redeemable Shares 100"]
+  },
+  {
+    "id": "r19-std-17",
+    "input": "Postal: Box 99 Nairobi. Signed: Peter Box",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Box 99"]
+  },
+  {
+    "id": "r19-std-18",
+    "input": "Directors: John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "r19-std-19",
+    "input": "Members:\n(a) Ana Prado\n(b) John Kamau",
+    "mustHide": ["Ana", "Prado", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-std-20",
+    "input": "(a) Ana Prado\n(b) John Kamau",
+    "mustHide": ["Ana", "Prado", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-std-21",
+    "input": "Borrower: John Kamau P.O. Box 123 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-22",
+    "input": "Borrowers: John Kamau (ID 12345678) and Mary Wanjiru (ID 23456789)",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrowers"]
+  },
+  {
+    "id": "r19-std-23",
+    "input": "Chargor: John Kamau of P.O. Box 123 Nairobi and Mary Wanjiru of P.O. Box 9 Thika",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Chargor"]
+  },
+  {
+    "id": "r19-std-24",
+    "input": "Shareholders: John Kamau 0712345678; Mary Wanjiru 0722345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Shareholders"]
+  },
+  {
+    "id": "r19-std-25",
+    "input": "Proprietor: ID 12345678 John Kamau and ID 23456789 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "r19-std-26",
+    "input": "Shareholder: Grace Ordinary Shares 500",
+    "mustHide": ["Grace"],
+    "mustKeep": ["Shares 500"]
+  },
+  {
+    "id": "r19-std-27",
+    "input": "Directors:\n1. Peter Founder\n2. Mary Wanjiru",
+    "mustHide": ["Peter", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "r19-std-28",
+    "input": "Members:\n(a) Ana Wanjiru\n(b) John Kamau",
+    "mustHide": ["Ana", "Wanjiru", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-std-29",
+    "input": "Shareholders:\n(a) Ana Prado\n(b) John Kamau",
+    "mustHide": ["Ana", "Prado", "John", "Kamau"],
+    "mustKeep": ["Shareholders"]
+  },
+  {
+    "id": "r19-spec-1",
+    "input": "Shareholders:\n(a) Mary Prado 40%\n(b) John Kamau 60%",
+    "mustHide": ["Mary", "Prado", "John", "Kamau"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r19-spec-2",
+    "input": "Children:\n(a) Ana Prado\n(b) Peter Otieno",
+    "mustHide": ["Ana", "Prado", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-3",
+    "input": "Beneficiaries:\n(a) Grace Fielder\n(b) John Kamau",
+    "mustHide": ["Grace", "Fielder", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-4",
+    "input": "Vehicles:\n1. Toyota Prado KBC 123A",
+    "mustHide": [],
+    "mustKeep": ["Toyota Prado"]
+  },
+  {
+    "id": "r19-spec-5",
+    "input": "Vehicles:\n1. Prado KBC 123A\n2. Fielder KCA 456B",
+    "mustHide": [],
+    "mustKeep": ["Prado", "Fielder"]
+  },
+  {
+    "id": "r19-spec-6",
+    "input": "Make: Toyota Model: Prado",
+    "mustHide": [],
+    "mustKeep": ["Make: Toyota Model: Prado"]
+  },
+  {
+    "id": "r19-spec-7",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-8",
+    "input": "Owner: John Kamau P.O. Box 123 Kisumu\nCounty: Kisumu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Kisumu"]
+  },
+  {
+    "id": "r19-spec-9",
+    "input": "Owner: John Kamau 0712345678 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-10",
+    "input": "Owner: John Kamau P.O Box 55 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-11",
+    "input": "Owner: John Kamau PO Box 55 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-12",
+    "input": "Owner: John Kamau Post Office Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-13",
+    "input": "Shareholders:\n1. John Kamau Ordinary Shares 500\n(a) Mary Achieng Preference Shares 200",
+    "mustHide": ["John", "Kamau", "Mary", "Achieng"],
+    "mustKeep": ["Ordinary Shares 500", "Preference Shares 200"]
+  },
+  {
+    "id": "r19-spec-14",
+    "input": "Borrowers: John Kamau 0712345678 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-15",
+    "input": "Directors: John Kamau ID 12345678, Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-16",
+    "input": "Proprietor: ID 12345678 John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-17",
+    "input": "Proprietor: P.O. Box 1 John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-18",
+    "input": "Borrowers: John Kamau jkamau@example.com and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-19",
+    "input": "Directors: John Kamau A123456789Z, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-20",
+    "input": "Borrower: John Kamau 0712345678\nOtieno",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-21",
+    "input": "Borrower: John 0712345678 Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-22",
+    "input": "Guarantors:\n1. John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-23",
+    "input": "Proprietor: Mary Ordinary",
+    "mustHide": ["Mary", "Ordinary"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-24",
+    "input": "Shareholders:\n1. John Kamau Founder Shares 100",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Founder Shares 100"]
+  },
+  {
+    "id": "r19-spec-25",
+    "input": "Shareholders:\n(a) Prado Achieng 40%",
+    "mustHide": ["Prado", "Achieng"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r19-spec-26",
+    "input": "Vehicles:\n(a) Premio Year 2015 KBC 123A",
+    "mustHide": [],
+    "mustKeep": ["Premio Year 2015"]
+  },
+  {
+    "id": "r19-spec-27",
+    "input": "Owner: Mary Wanjiru, P.O. Box 1, Nairobi\nCounty: Nairobi\nBank: Equity Bank",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["County: Nairobi", "Equity Bank"]
+  },
+  {
+    "id": "r19-spec-28",
+    "input": "Chargors: John Kamau (ID 12345678) and Mary Wanjiru (ID 23456789)",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-29",
+    "input": "Guarantor: Mary Wanjiru 0722000000 Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-30",
+    "input": "Borrower: John Kamau 0712345678 Otieno",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-31",
+    "input": "Proprietors: John Kamau, ID 12345678; Mary Wanjiru, ID 23456789; Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-32",
+    "input": "Employer: Safaricom PLC\nEmployee: John Kamau 0712345678",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Safaricom PLC"]
+  },
+  {
+    "id": "r19-spec-33",
+    "input": "Applicant: John Kamau ID No. 12345678 of P.O. Box 100 Thika and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-34",
+    "input": "Directors: John Kamau KRA PIN A123456789Z and Mary Wanjiru KRA PIN A987654321B",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-35",
+    "input": "Shareholders:\n1. Mary Wanjiru 0712345678 Ordinary Shares 500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Ordinary Shares 500"]
+  },
+  {
+    "id": "r19-spec-36",
+    "input": "Proprietor: John Kamau 0712345678\nLand Use: Agricultural\nTenure: Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Agricultural", "Tenure: Freehold"]
+  },
+  {
+    "id": "r19-spec-37",
+    "input": "Owner: John Kamau P.O. Box 123-20100 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-38",
+    "input": "Account Holder: John Kamau 0712345678\nBank: KCB\nBranch: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: KCB", "Branch: Nakuru"]
+  },
+  {
+    "id": "r19-spec-39",
+    "input": "Vehicles:\n1. Toyota Fielder KCB 111C\n2. Nissan Tiida KCD 222D",
+    "mustHide": [],
+    "mustKeep": ["Toyota Fielder", "Nissan Tiida"]
+  },
+  {
+    "id": "r19-spec-40",
+    "input": "Shareholding:\nCompany: Kamau Holdings Ltd\nClass: Founder Shares\nShares: 100",
+    "mustHide": [],
+    "mustKeep": ["Class: Founder Shares", "Shares: 100"]
+  },
+  {
+    "id": "r19-spec-41",
+    "input": "Borrowers: John Kamau, 0712345678, Mary Wanjiru, 0722345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-42",
+    "input": "Proprietor: Mr. John Kamau of P.O. Box 5 Nyeri and Mrs. Mary Wanjiru of P.O. Box 6 Nyeri",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-43",
+    "input": "Shareholders:\n1. John Kamau 0712345678\n2. Mary Wanjiru 0722345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-44",
+    "input": "Directors:\n1. John Kamau, ID 12345678, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-45",
+    "input": "Borrower: John Kamau +254712345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-46",
+    "input": "Witnesses: John Kamau jk@example.com, Mary Wanjiru mw@example.com",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-47",
+    "input": "Proprietor: John Kamau P.O. Box 1 Nakuru\nLand Use: Residential\nParcel: Nakuru/Municipality/123",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Residential", "Nakuru/Municipality/123"]
+  },
+  {
+    "id": "r19-spec-48",
+    "input": "Vehicle: Toyota Prado\nOwner: Ana Prado",
+    "mustHide": ["Ana"],
+    "mustKeep": ["Toyota Prado"]
+  },
+  {
+    "id": "r19-spec-49",
+    "input": "Shareholders:\n(a) Mary Ordinary 40%",
+    "mustHide": ["Mary", "Ordinary"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r19-spec-50",
+    "input": "Shares:\n(a) Ordinary Shares 500\n(b) Founder Shares 50",
+    "mustHide": [],
+    "mustKeep": ["Ordinary Shares 500", "Founder Shares 50"]
+  },
+  {
+    "id": "r19-spec-51",
+    "input": "Borrower: John Kamau of ID 12345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-52",
+    "input": "Proprietor: John Kamau P.O. Box 9 Box Hill",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-53",
+    "input": "Shareholders:\n(a) Ana Prado\n(b) Peter Otieno",
+    "mustHide": ["Ana", "Prado", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-54",
+    "input": "Directors:\n(a) Grace Fielder\n(b) John Kamau",
+    "mustHide": ["Grace", "Fielder", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-55",
+    "input": "Vehicles:\n1. Prado KBC 123A\nOwner: Ana Prado",
+    "mustHide": ["Ana"],
+    "mustKeep": ["1. Prado"]
+  },
+  {
+    "id": "r19-spec-56",
+    "input": "Borrower: John Kamau ID 12345678\nGuarantor: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-57",
+    "input": "Shareholders:\n1. John Kamau 0712345678 and Mary Wanjiru 40%",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r19-spec-58",
+    "input": "Proprietor: John Kamau 0712345678 Mary",
+    "mustHide": ["John", "Kamau", "Mary"],
+    "mustKeep": []
   }
 ]
