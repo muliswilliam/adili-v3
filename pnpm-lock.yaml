@@ -2084,6 +2084,9 @@ importers:
       '@adili/api-kit':
         specifier: workspace:*
         version: link:../../packages/api-kit
+      '@adili/cache':
+        specifier: workspace:*
+        version: link:../../packages/cache
       '@adili/data-access':
         specifier: workspace:*
         version: link:../../packages/data-access

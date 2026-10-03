@@ -165,7 +165,7 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
       expect(body, table).toEqual(expected[table]);
       expect(
         contractErrors(
-          okResponse('/open-data/v1/releases/{fy}/{version}/tables/{table}', 'get'),
+          okResponse('/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}', 'get'),
           body,
         ),
       ).toEqual([]);

@@ -1008,70 +1008,122 @@ paths:
       tags: [open-data]
       operationId: listOpenDataReleases
       summary: Published and withdrawn releases (public; cached; rate-limited)
+      description: >-
+        Spec 09b S8. No token; any origin (`Access-Control-Allow-Origin: *`); a budget per client
+        IP. The latest year first, then by kind and the latest version first. Previews are never
+        listed. The ETag is the body's SHA-256: `If-None-Match` (or `If-Modified-Since`) with a
+        current copy gets 304.
       security: []
       responses:
         '200':
           description: Releases
           headers:
             ETag:
-              schema:
-                type: string
+              $ref: '#/components/headers/ETag'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
             Cache-Control:
-              schema:
-                type: string
+              $ref: '#/components/headers/PublicCacheControl'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/OpenDataRelease'
+                  $ref: '#/components/schemas/PublicOpenDataRelease'
+        '304':
+          $ref: '#/components/responses/PublicNotModified'
         '429':
-          description: Rate limited
-  /open-data/v1/releases/{fy}/{version}:
+          $ref: '#/components/responses/PublicRateLimited'
+  /open-data/v1/releases/{fy}/{kind}/{version}:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
-      - name: version
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
+      - $ref: '#/components/parameters/ReleaseKind'
+      - $ref: '#/components/parameters/ReleaseVersion'
     get:
       tags: [open-data]
       operationId: getOpenDataRelease
-      summary: A release with its tables' metadata, hashes and verification link (public)
+      summary: A release with its tables' metadata, hashes and manifest verification link (public)
+      description: >-
+        Spec 09b S7, S8. A published or withdrawn release (a preview is 404); a withdrawn one
+        carries when and why, and the version correcting it once published. Cached and
+        conditional as `listOpenDataReleases`.
       security: []
       responses:
         '200':
           description: Release
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OpenDataRelease'
+                $ref: '#/components/schemas/PublicOpenDataRelease'
+        '304':
+          $ref: '#/components/responses/PublicNotModified'
+        '400':
+          $ref: '#/components/responses/PublicBadRequest'
         '404':
-          description: Not found
-  /open-data/v1/releases/{fy}/{version}/tables/{table}:
+          $ref: '#/components/responses/PublicNotFound'
+        '429':
+          $ref: '#/components/responses/PublicRateLimited'
+  /open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
-      - name: version
-        in: path
-        required: true
-        schema:
-          type: integer
-          minimum: 1
-      - name: table
-        in: path
-        required: true
-        schema:
-          $ref: '#/components/schemas/OpenDataTable'
+      - $ref: '#/components/parameters/ReleaseKind'
+      - $ref: '#/components/parameters/ReleaseVersion'
+      - $ref: '#/components/parameters/OpenDataTableName'
     get:
       tags: [open-data]
       operationId: getOpenDataTable
-      summary: A table as JSON rows or CSV (Accept header or `.csv` suffix); suppressed cells are null with a marker (public)
+      summary: A table as JSON or CSV by the Accept header; suppressed cells are null with a marker (public)
+      description: >-
+        Spec 09b S7, S8. The table's file as stored, byte for byte: its SHA-256 is the release's
+        `sha256Json` or `sha256Csv` and the ETag. `text/csv` rated above `application/json` in
+        Accept gives CSV, otherwise JSON (`Vary: Accept`); Accept naming neither is 406. Also
+        served for a withdrawn release. Cached and conditional as `listOpenDataReleases`.
       security: []
       responses:
         '200':
           description: Table
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+            Vary:
+              schema:
+                type: string
+                const: Accept
           content:
             application/json:
               schema:
@@ -1100,8 +1152,74 @@ paths:
             text/csv:
               schema:
                 type: string
+                description: Header row of the columns, the marker column as `_suppressed` (`true`/`false`); a suppressed figure is an empty cell. RFC 4180, CRLF line ends, UTF-8.
+        '304':
+          $ref: '#/components/responses/PublicNotModified'
+        '400':
+          $ref: '#/components/responses/PublicBadRequest'
         '404':
-          description: Not found
+          $ref: '#/components/responses/PublicNotFound'
+        '406':
+          description: Accept names neither application/json nor text/csv
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/PublicRateLimited'
+        '503':
+          $ref: '#/components/responses/PublicStorageUnavailable'
+  /open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}.csv:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+      - $ref: '#/components/parameters/ReleaseKind'
+      - $ref: '#/components/parameters/ReleaseVersion'
+      - $ref: '#/components/parameters/OpenDataTableName'
+    get:
+      tags: [open-data]
+      operationId: getOpenDataTableCsv
+      summary: A table as CSV, whatever the Accept header (public; a download link)
+      description: >-
+        Spec 09b S8. As `getOpenDataTable` in CSV, with `Content-Disposition: attachment` and a
+        file name of the year, kind, version and table.
+      security: []
+      responses:
+        '200':
+          description: Table as CSV
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Last-Modified:
+              $ref: '#/components/headers/LastModified'
+            Cache-Control:
+              $ref: '#/components/headers/PublicCacheControl'
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimitLimit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimitRemaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimitReset'
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="adili-open-data-2027-annual-v1-filing-by-commission.csv"
+          content:
+            text/csv:
+              schema:
+                type: string
+                description: Header row of the columns, the marker column as `_suppressed` (`true`/`false`); a suppressed figure is an empty cell. RFC 4180, CRLF line ends, UTF-8.
+        '304':
+          $ref: '#/components/responses/PublicNotModified'
+        '400':
+          $ref: '#/components/responses/PublicBadRequest'
+        '404':
+          $ref: '#/components/responses/PublicNotFound'
+        '429':
+          $ref: '#/components/responses/PublicRateLimited'
+        '503':
+          $ref: '#/components/responses/PublicStorageUnavailable'
   /v1/eacc/ai-usage/{fy}:
     parameters:
       - $ref: '#/components/parameters/FinancialYear'
@@ -1256,6 +1374,28 @@ components:
       schema:
         type: integer
         minimum: 2025
+    ReleaseKind:
+      name: kind
+      in: path
+      required: true
+      description: '`annual` (published on NCR approval) or `snapshot` (published mid-year by EACC)'
+      schema:
+        type: string
+        enum: [annual, snapshot]
+    ReleaseVersion:
+      name: version
+      in: path
+      required: true
+      description: 1, 2, ... per financial year and kind; a corrected release is the next version
+      schema:
+        type: integer
+        minimum: 1
+    OpenDataTableName:
+      name: table
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/OpenDataTable'
     ReleaseId:
       name: releaseId
       in: path
@@ -1270,7 +1410,94 @@ components:
       schema:
         type: string
         format: uuid
+  headers:
+    ETag:
+      description: Strong entity tag, the body's SHA-256 in quotes
+      schema:
+        type: string
+    LastModified:
+      description: When the release last changed (tables, when it was built)
+      schema:
+        type: string
+    PublicCacheControl:
+      schema:
+        type: string
+        const: public, max-age=3600
+    AccessControlAllowOrigin:
+      description: Any origin may read the public open-data API (also on errors and 429)
+      schema:
+        type: string
+        const: '*'
+    RateLimitLimit:
+      description: Requests the client IP's budget holds when full
+      schema:
+        type: integer
+    RateLimitRemaining:
+      description: Requests left in the budget after this one
+      schema:
+        type: integer
+    RateLimitReset:
+      description: Seconds until the budget is full again
+      schema:
+        type: integer
   responses:
+    PublicNotModified:
+      description: The client's copy (If-None-Match, or If-Modified-Since) is current; no body
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+        Last-Modified:
+          $ref: '#/components/headers/LastModified'
+        Cache-Control:
+          $ref: '#/components/headers/PublicCacheControl'
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/AccessControlAllowOrigin'
+    PublicBadRequest:
+      description: A path parameter is malformed
+      headers:
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/AccessControlAllowOrigin'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PublicNotFound:
+      description: No published or withdrawn release has this year, kind and version
+      headers:
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/AccessControlAllowOrigin'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PublicRateLimited:
+      description: "Problem code `rate-limit-exceeded`: the client IP's budget is spent; retry after the seconds in `retryAfterSeconds` and Retry-After"
+      headers:
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/AccessControlAllowOrigin'
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimitLimit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimitRemaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimitReset'
+        Retry-After:
+          description: Seconds until the next request would be allowed
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    PublicStorageUnavailable:
+      description: Problem type `storage-unavailable`; object storage could not be reached
+      headers:
+        Access-Control-Allow-Origin:
+          $ref: '#/components/headers/AccessControlAllowOrigin'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
     NotFound:
       description: Not found, or not visible to the caller
       content:
@@ -1808,6 +2035,86 @@ components:
                 type: string
               sha256Csv:
                 type: string
+    PublicOpenDataRelease:
+      type: object
+      description: >-
+        A published or withdrawn release as the public sees it. Never who built, published or
+        withdrew it, nor the manifest's document id: the manifest is checked through its
+        verification code on the verify app.
+      required:
+        [
+          id,
+          fy,
+          kind,
+          version,
+          status,
+          builtAt,
+          publishedAt,
+          withdrawnAt,
+          withdrawnReason,
+          correctedVersion,
+          manifestVerificationId,
+          verifyUrl,
+          tables,
+        ]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+        fy:
+          type: integer
+          description: Financial year start year
+        kind:
+          type: string
+          enum: [annual, snapshot]
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [published, withdrawn]
+        builtAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+        withdrawnAt:
+          type: [string, 'null']
+          format: date-time
+        withdrawnReason:
+          type: [string, 'null']
+          description: Why EACC withdrew it (the withdrawn banner); null unless withdrawn
+        correctedVersion:
+          type: [integer, 'null']
+          description: >-
+            For a withdrawn release, the latest published version of the same year and kind that
+            corrects it; null otherwise or until one is published
+        manifestVerificationId:
+          type: string
+          description: Verification code of the release manifest (a Public verifiable document)
+        verifyUrl:
+          type: string
+          format: uri
+          description: The manifest's verify page (`<verify app>/v/<code>`)
+        tables:
+          type: array
+          items:
+            type: object
+            required: [table, rows, sha256Json, sha256Csv]
+            additionalProperties: false
+            properties:
+              table:
+                $ref: '#/components/schemas/OpenDataTable'
+              rows:
+                type: integer
+              sha256Json:
+                type: string
+                description: SHA-256 (hex) of the table's JSON as `getOpenDataTable` serves it
+              sha256Csv:
+                type: string
+                description: SHA-256 (hex) of the table's CSV
     NationalReport:
       type: object
       required:

@@ -1,9 +1,12 @@
-import { baseEnvSchema, loadConfig } from '@adili/api-kit';
+import { baseEnvSchema, loadConfig, rateLimitsSchema } from '@adili/api-kit';
 import { z } from 'zod';
 
 export const SERVICE_NAME = 'reporting';
 export const SERVICE_DESCRIPTION =
   'Form M compliance reports, national consolidation, read models and open-data aggregates.';
+
+/** The public open-data API's per client IP budget (`RATE_LIMITS`). */
+export const OPEN_DATA_RATE_LIMIT = 'open-data';
 
 export const envSchema = baseEnvSchema.extend({
   DATABASE_URL: z.url(),
@@ -97,6 +100,25 @@ export const envSchema = baseEnvSchema.extend({
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_BUCKET_OPEN_DATA: z.string().min(1).default('open-data'),
+  /**
+   * Valkey, where the public open-data API counts each client IP's requests, so the budget holds
+   * across replicas and restarts. While it is down the API answers unlimited.
+   */
+  VALKEY_URL: z.url(),
+  /**
+   * Rate limits as `<group>=<limit>/<seconds>s` entries: `open-data`, requests to the public
+   * open-data API per client IP.
+   */
+  RATE_LIMITS: rateLimitsSchema
+    .prefault(`${OPEN_DATA_RATE_LIMIT}=60/60s`)
+    .refine((groups) => OPEN_DATA_RATE_LIMIT in groups, {
+      message: `Configure the group ${OPEN_DATA_RATE_LIMIT}`,
+    }),
+  /**
+   * Origin of the public verify app: a public release links its manifest's verify page,
+   * `<origin>/v/<code>`, as documents prints it on the manifest's QR code.
+   */
+  VERIFY_BASE_URL: z.url(),
   /** Confidential Keycloak client whose service account calls other services' internal APIs. */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('reporting'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

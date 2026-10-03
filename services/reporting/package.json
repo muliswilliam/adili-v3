@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
+    "@adili/cache": "workspace:*",
     "@adili/data-access": "workspace:*",
     "@adili/events": "workspace:*",
     "@adili/forms": "workspace:*",

@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { TokenVerifier } from '@adili/api-kit';
+import { RATE_LIMIT_CLOCK, TokenVerifier, TRUSTED_PROXIES_DEFAULT } from '@adili/api-kit';
+import { createValkey, VALKEY } from '@adili/cache';
 import {
   createDatabase,
   DATABASE,
@@ -102,6 +103,20 @@ export interface ReportingApi {
   /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
   deliver(event: EventEnvelope): Promise<boolean>;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
+  /**
+   * A request without a token, as anyone on the internet sends it to the public open-data API:
+   * from `ip` (a fresh documentation-range address per call unless given), with `headers`.
+   */
+  anonymous(
+    url: string,
+    options?: {
+      method?: 'GET' | 'HEAD' | 'OPTIONS';
+      ip?: string;
+      headers?: Record<string, string>;
+    },
+  ): ReturnType<NestFastifyApplication['inject']>;
+  /** The rate limiter's clock: real time until a test moves it on. */
+  rateLimitClock: RateLimitClock;
   /** A request with a JSON body (when given) and extra headers as `caller`. */
   send(
     method: 'POST' | 'PATCH',
@@ -113,6 +128,31 @@ export interface ReportingApi {
   /** Empties every table and forgets what the fakes were given. */
   reset(): Promise<void>;
   close(): Promise<void>;
+}
+
+/** The rate limiter's clock: real time plus what a test moved it on by. */
+export class RateLimitClock {
+  private offsetMs = 0;
+
+  now(): number {
+    return Date.now() + this.offsetMs;
+  }
+
+  advance(ms: number): void {
+    this.offsetMs += ms;
+  }
+
+  reset(): void {
+    this.offsetMs = 0;
+  }
+}
+
+let addresses = 0;
+
+/** A documentation-range address (RFC 5737), different on every call. */
+export function randomPublicIp(): string {
+  addresses += 1;
+  return `198.51.${String(100 + Math.floor(addresses / 250))}.${String((addresses % 250) + 1)}`;
 }
 
 /** An event the service recorded in its outbox. */
@@ -150,7 +190,8 @@ const HANDLERS: Record<string, keyof ProjectionsConsumer> = {
  * The reporting service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied.
  * Declarations, review, the directory, notifications, documents, the integration-gateway, the
- * open-data bucket and the ai-gateway are fakes, the cipher is the in-memory one, tokens are signed
+ * open-data bucket and the ai-gateway are fakes, the rate limiter counts in a real Valkey
+ * (`TEST_VALKEY_URL`) under the suite's own key prefix, the cipher is the in-memory one, tokens are signed
  * locally and the outbox relay is off (events stay in the outbox for assertions). Workflows run
  * on the compose Temporal through the service's own worker, polling the suite's own task queue
  * (test/support/temporal-task-queue.ts). The test role owns the tables, so FORCE row-level
@@ -180,6 +221,8 @@ export async function startReportingApi(): Promise<ReportingApi> {
   const ai = new FakeAiGateway();
   const cipher = new FakeCipher();
   const clock = new FakeClock();
+  const rateLimitClock = new RateLimitClock();
+  const valkey = createValkey({ url: requireEnv('TEST_VALKEY_URL'), keyPrefix: `${pgSchema}:` });
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -205,18 +248,30 @@ export async function startReportingApi(): Promise<ReportingApi> {
     .useValue(cipher)
     .overrideProvider(Clock)
     .useValue(clock)
+    .overrideProvider(VALKEY)
+    .useValue(valkey)
+    .overrideProvider(RATE_LIMIT_CLOCK)
+    .useValue(() => rateLimitClock.now())
     .overrideProvider(OutboxRelay)
     .useValue({})
     .overrideProvider(WorkflowBundler)
     .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();
-  const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
-    logger: ['fatal'],
-  });
+  // Proxies trusted as `createService` trusts them: the client address is the socket's.
+  const app = moduleRef.createNestApplication<NestFastifyApplication>(
+    new FastifyAdapter({ trustProxy: TRUSTED_PROXIES_DEFAULT }),
+    { logger: ['fatal'] },
+  );
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
   await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
+
+  /** Forgets the rate limiter's counts: this suite's keys (stored with their prefix). */
+  async function forgetKeys(): Promise<void> {
+    const keys = await valkey.keys(`${pgSchema}:*`);
+    if (keys.length > 0) await valkey.del(...keys.map((key) => key.slice(`${pgSchema}:`.length)));
+  }
 
   const consumer = app.get(ProjectionsConsumer);
   return {
@@ -233,6 +288,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
     ai,
     cipher,
     clock,
+    rateLimitClock,
     temporal: app.get<Client>(TEMPORAL_CLIENT),
     consumer,
     activities: app.get(ComplianceReportActivities),
@@ -266,6 +322,9 @@ export async function startReportingApi(): Promise<ReportingApi> {
         headers: { authorization: `Bearer ${token}` },
       });
     },
+    anonymous(path, { method = 'GET', ip = randomPublicIp(), headers = {} } = {}) {
+      return app.inject({ method, url: path, remoteAddress: ip, headers });
+    },
     async send(method, path, caller, body, headers = {}) {
       const token = await signer(caller);
       return app.inject({
@@ -291,10 +350,14 @@ export async function startReportingApi(): Promise<ReportingApi> {
       ai.reset();
       cipher.calls.length = 0;
       clock.reset();
+      rateLimitClock.reset();
+      await forgetKeys();
     },
     async close() {
-      // Closing the app ends the pool (DatabaseModule lifecycle), so drop the schema first.
+      // Closing the app ends the pool (DatabaseModule lifecycle) and Valkey, so drop the schema
+      // and this suite's keys first.
       await db.execute(sql.raw(`drop schema if exists ${pgSchema} cascade`));
+      await forgetKeys();
       await app.close();
     },
   };
