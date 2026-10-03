@@ -331,7 +331,8 @@
         "directory:person-national-id",
         "messages",
         "documents:internal",
-        "registry"
+        "registry",
+        "ai:internal"
       ],
       "optionalClientScopes": []
     },
