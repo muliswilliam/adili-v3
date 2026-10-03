@@ -47,6 +47,14 @@ function evidenceCounts(
   ].flatMap(({ icon, count, label }) => (count > 0 ? [{ icon, label: label(count) }] : []));
 }
 
+/** review cuts the narrative at this many characters for the inbox (`NARRATIVE_EXCERPT`). */
+const NARRATIVE_EXCERPT = 200;
+
+/** The narrative's start, with an ellipsis where review cut it. */
+function excerpt(text: string): string {
+  return text.length >= NARRATIVE_EXCERPT ? `${text.trimEnd()}…` : text;
+}
+
 function subjectOf(item: ReferralApprovalItem): ReferralSubject {
   return {
     id: item.subjectId,
@@ -120,7 +128,7 @@ export function ReferralApproval({
         now={now}
         summary={
           <div className="grid gap-2">
-            <p className="whitespace-pre-line">{summary.narrativeExcerpt}</p>
+            <p className="whitespace-pre-line">{excerpt(summary.narrativeExcerpt)}</p>
             {evidence.length > 0 ? (
               <ul
                 aria-label={t.evidence.label}

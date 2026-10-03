@@ -7,6 +7,7 @@ import type {
   Referral,
   ReferralGrounds,
   ReferralInput,
+  ReferralManifestKind,
   ReferralStatus,
 } from '../server/review/types';
 
@@ -44,25 +45,34 @@ export const NARRATIVE_MAX_LENGTH = 8000;
 export const DECLINE_NOTE_MAX_LENGTH = 2000;
 
 /**
- * The flags an assets referral rests on: the registry cross-checks (spec 07b) and the
- * comparisons with the previous declaration that point at undeclared or unexplained assets, as
- * the review service checks them (`ASSET_RULES` in services/review, a 400 for any other).
+ * The flags an assets referral rests on, each with what its rule found as the referral names it:
+ * the registry cross-checks (spec 07b) and the comparisons with the previous declaration that
+ * point at undeclared or unexplained assets, as the review service checks them (`ASSET_RULES` in
+ * services/review, a 400 for any other).
  */
-export const ASSET_RULES: ReadonlySet<Flag['ruleId']> = new Set<Flag['ruleId']>([
-  'value-change-25',
-  'acquisition-unflagged',
-  'disposal-unflagged',
-  'change-flag-mismatch',
-  'income-vs-asset-growth',
-  'nil-after-populated',
-  'registry-parcel-undeclared',
-  'declared-parcel-not-found',
-  'registry-vehicle-undeclared',
-  'declared-vehicle-not-found',
-  'registry-directorship-undeclared',
-  'declared-company-not-found',
-  'directorship-employer-supplier',
-]);
+export const ASSET_RULE_LABELS = {
+  'value-change-25': 'Value changed by more than 25%',
+  'acquisition-unflagged': 'New item not marked as acquired',
+  'disposal-unflagged': 'Item gone without a disposal mark',
+  'change-flag-mismatch': 'Change mark does not match the values',
+  'income-vs-asset-growth': 'Assets grew faster than income',
+  'nil-after-populated': 'Nil where items were declared before',
+  'registry-parcel-undeclared': 'Land parcel not declared',
+  'declared-parcel-not-found': 'Declared parcel not found in the registry',
+  'registry-vehicle-undeclared': 'Motor vehicle not declared',
+  'declared-vehicle-not-found': 'Declared vehicle not found in the registry',
+  'registry-directorship-undeclared': 'Company directorship not declared',
+  'declared-company-not-found': 'Declared company not found in the registry',
+  'directorship-employer-supplier': 'Directorship of a supplier to the employer',
+} as const satisfies Partial<Record<Flag['ruleId'], string>>;
+
+type AssetRule = keyof typeof ASSET_RULE_LABELS;
+
+export const ASSET_RULES: ReadonlySet<string> = new Set(Object.keys(ASSET_RULE_LABELS));
+
+function isAssetRule(value: string): value is AssetRule {
+  return ASSET_RULES.has(value);
+}
 
 /** The case's flags a referral can include: asset flags that still count. */
 export function referableFlags<F extends Flag>(flags: F[]): F[] {
@@ -148,4 +158,23 @@ export function obligationLabel(cycleKey: string): string {
   const [type, period] = cycleKey.split(':');
   const label = type ? OBLIGATION_TYPES[type] : undefined;
   return label && period ? `${label} declaration ${period}` : cycleKey;
+}
+
+/**
+ * An evidence item as the referral screens read it: a flag by what its rule found, with its
+ * case's reference beside it (review references a flag as `<case reference> <rule id>`); an
+ * obligation by its type and cycle; anything else by its reference.
+ */
+export function evidenceLabel(
+  kind: ReferralManifestKind,
+  reference: string,
+): { text: string; detail: string | null } {
+  if (kind === 'obligation') return { text: obligationLabel(reference), detail: null };
+  if (kind === 'flag') {
+    const [caseReference, rule] = reference.split(' ');
+    if (caseReference && rule && isAssetRule(rule)) {
+      return { text: ASSET_RULE_LABELS[rule], detail: caseReference };
+    }
+  }
+  return { text: reference, detail: null };
 }

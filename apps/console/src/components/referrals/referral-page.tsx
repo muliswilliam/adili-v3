@@ -38,7 +38,7 @@ import {
 import { Link, useRouter } from '@tanstack/react-router';
 import { type ReactNode, useCallback, useState } from 'react';
 
-import { approvalPanel, obligationLabel, referralPhase, referralTitle } from '../../referral/view';
+import { approvalPanel, evidenceLabel, referralPhase, referralTitle } from '../../referral/view';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
 import { getReferralPackageLink } from '../../server/referrals';
 import type { Assignee, Referral, ReferralManifestKind } from '../../server/review/types';
@@ -80,9 +80,21 @@ const EVIDENCE_ICON: Record<ReferralManifestKind, IconProps['icon']> = {
   letter: Mail01Icon,
 };
 
-/** An evidence item's reference as people read it: obligations by their type and cycle. */
-function evidenceReference(kind: ReferralManifestKind, reference: string): string {
-  return kind === 'obligation' ? obligationLabel(reference) : reference;
+/** An evidence item: what it is, and its case's reference beside a flag. */
+function EvidenceText({ kind, reference }: { kind: ReferralManifestKind; reference: string }) {
+  const { text, detail } = evidenceLabel(kind, reference);
+  // A reference reads in mono; a name (a flag's finding, an obligation) as text.
+  const named = text !== reference;
+  return (
+    <>
+      <span className={named ? '' : 'font-mono text-[13px] break-all'}>{text}</span>
+      {detail ? (
+        <span className="ml-2 font-mono text-[12.5px] whitespace-nowrap text-muted-foreground">
+          {detail}
+        </span>
+      ) : null}
+    </>
+  );
 }
 
 /** Why the viewer was refused a decision, after the page loaded. */
@@ -239,9 +251,7 @@ export function ReferralPage({
                     />
                     <span className="min-w-0">
                       <span className="font-medium">{t.evidence[each.kind]}</span>{' '}
-                      <span className="font-mono text-[13px] break-all">
-                        {evidenceReference(each.kind, each.reference)}
-                      </span>
+                      <EvidenceText kind={each.kind} reference={each.reference} />
                     </span>
                   </li>
                 ))}
@@ -512,8 +522,8 @@ function PackageCard({
             // The manifest's order is the package's; rows are never reordered.
             <TableRow key={index}>
               <TableCell>{t.manifest[each.kind]}</TableCell>
-              <TableCell className="font-mono text-[13px]">
-                {evidenceReference(each.kind, each.reference)}
+              <TableCell>
+                <EvidenceText kind={each.kind} reference={each.reference} />
               </TableCell>
               {pack ? (
                 <TableCell

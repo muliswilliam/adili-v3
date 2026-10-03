@@ -4,6 +4,7 @@ import { mockFlags } from '../server/review/copilot-mock.server';
 import type { Clarification, Referral } from '../server/review/types';
 import {
   approvalPanel,
+  evidenceLabel,
   obligationLabel,
   referableClarifications,
   referableFlags,
@@ -127,5 +128,29 @@ describe('obligationLabel', () => {
     expect(obligationLabel('biennial:2024')).toBe('Biennial declaration 2024');
     expect(obligationLabel('initial:2025-03-01')).toBe('Initial declaration 2025-03-01');
     expect(obligationLabel('0199-uuid')).toBe('0199-uuid');
+  });
+});
+
+describe('evidenceLabel', () => {
+  it('names a flag by what its rule found, and keeps the case it is on', () => {
+    expect(evidenceLabel('flag', 'DCB-TSC-2026-0002210-X registry-parcel-undeclared')).toEqual({
+      text: 'Land parcel not declared',
+      detail: 'DCB-TSC-2026-0002210-X',
+    });
+  });
+
+  it('names an obligation by its type and cycle, and keeps other references as they are', () => {
+    expect(evidenceLabel('obligation', 'biennial:2024')).toEqual({
+      text: 'Biennial declaration 2024',
+      detail: null,
+    });
+    expect(evidenceLabel('letter', 'ADM-TSC-2026-0000301-8')).toEqual({
+      text: 'ADM-TSC-2026-0000301-8',
+      detail: null,
+    });
+    expect(evidenceLabel('flag', 'DCB-TSC-2026-0002210-X some-new-rule')).toEqual({
+      text: 'DCB-TSC-2026-0002210-X some-new-rule',
+      detail: null,
+    });
   });
 });
