@@ -143,17 +143,44 @@ export const answerDeclarantQuestion = defineTask({
   },
 });
 
-/** Every block rests on passages from the input; a decline has no blocks (spec 11 S3). */
+/**
+ * Every block rests on passages from the input, and links only to the declarant's section or a
+ * residual; a decline has no blocks (spec 11 S3).
+ */
 function answerViolations(each: AnswerInput, answer: AnswerOutput): OutputViolation[] {
   if (answer.declined) return [];
   if (answer.blocks.length === 0) return [{ kind: 'empty-answer' }];
   const known = new Set(each.passages.map((passage) => passage.id));
-  return answer.blocks.flatMap((block, index): OutputViolation[] => {
-    if (block.passageIds.length === 0) return [{ kind: 'uncited-block', block: index }];
-    return block.passageIds.some((id) => !known.has(id))
-      ? [{ kind: 'unknown-passage', block: index }]
-      : [];
-  });
+  const linkable = linkablePlaces(each.context);
+  return answer.blocks.flatMap((block, index): OutputViolation[] => [
+    ...(block.passageIds.length === 0
+      ? [{ kind: 'uncited-block' as const, block: index }]
+      : block.passageIds.some((id) => !known.has(id))
+        ? [{ kind: 'unknown-passage' as const, block: index }]
+        : []),
+    ...(block.sectionLink && !linkable(block.sectionLink)
+      ? [{ kind: 'unknown-link' as const, block: index }]
+      : []),
+  ]);
+}
+
+/**
+ * Where an answer may link (prompt v1): a whole section, the declarant's or a residual's, or a
+ * residual's own field.
+ */
+function linkablePlaces(
+  context: AnswerInput['context'],
+): (link: NonNullable<AnswerOutput['blocks'][number]['sectionLink']>) => boolean {
+  const place = (sectionKey: string, fieldPath: string) => `${sectionKey}\u0000${fieldPath}`;
+  const sections = new Set(context.residuals.map((residual) => residual.sectionKey));
+  if (context.sectionKey !== null) sections.add(context.sectionKey);
+  const fields = new Set(
+    context.residuals.map((residual) => place(residual.sectionKey, residual.fieldPath)),
+  );
+  return (link) =>
+    link.fieldPath === null
+      ? sections.has(link.sectionKey)
+      : fields.has(place(link.sectionKey, link.fieldPath));
 }
 
 /** One hint per residual, in order, linked to it; any citation from the input (spec 11 S5). */

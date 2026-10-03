@@ -87,6 +87,7 @@ export const VIOLATION_KINDS = [
   'empty-answer',
   'uncited-block',
   'unknown-passage',
+  'unknown-link',
   'declined-hints',
   'hint-follow-ups',
   'hint-count',

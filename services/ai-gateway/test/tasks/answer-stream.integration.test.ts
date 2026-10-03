@@ -50,7 +50,7 @@ const finalJob = (all: Frame[]) => {
 const ANSWER = [
   '<block>Yes. Joint assets should be declared',
   ', including a vehicle you co-own. <cite ids="p-note-13"/>',
-  ' <link section="statement:officer" field="/assets"/></block>',
+  ' <link section="statement:officer" field="/assets/1/value"/></block>',
   '<followup>How do I show my share?</followup>',
 ];
 
@@ -131,7 +131,7 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
           {
             text: 'Yes. Joint assets should be declared, including a vehicle you co-own.',
             passageIds: ['p-note-13'],
-            sectionLink: { sectionKey: 'statement:officer', fieldPath: '/assets' },
+            sectionLink: { sectionKey: 'statement:officer', fieldPath: '/assets/1/value' },
           },
         ],
         followUps: ['How do I show my share?'],
@@ -199,6 +199,18 @@ describe('answer-declarant-question stream', { timeout: 90_000 }, () => {
     const [audit] = await t.db.select().from(auditRecords).where(eq(auditRecords.jobId, job.id));
     expect(audit).toMatchObject({ outcome: 'succeeded', violations });
     expect(JSON.stringify(audit)).not.toContain('p-77');
+  });
+
+  it('declines an answer linking to a place the context does not name', async () => {
+    provider.scripts = [
+      answered(['<block>Declare it. <cite ids="p-note-13"/> <link section="household"/></block>']),
+    ];
+
+    const { frames: all } = await stream();
+
+    const job = finalJob(all);
+    expect(job).toMatchObject({ status: 'succeeded', output: { declined: true, blocks: [] } });
+    expect((await row(job.id))?.violations).toEqual([{ kind: 'unknown-link', block: 0 }]);
   });
 
   it('declines text that breaks the grammar, and a cut-off answer', async () => {

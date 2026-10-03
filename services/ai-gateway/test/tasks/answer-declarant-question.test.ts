@@ -130,6 +130,26 @@ describe('answer-declarant-question', () => {
       expect(validate(answerInput, output)).toEqual([{ kind: 'unknown-passage', block: 1 }]);
     });
 
+    it("links a block to the declarant's section or a residual, never a place the model made up", () => {
+      const linked = (sectionLink: AnswerOutput['blocks'][number]['sectionLink']) =>
+        validate(answerInput, {
+          declined: false,
+          blocks: [{ ...cited(['p-31']), sectionLink }],
+          followUps: [],
+        });
+
+      // The section the declarant is on, or a residual's own section and field.
+      expect(linked({ sectionKey: 'statement:officer', fieldPath: null })).toEqual([]);
+      expect(linked({ sectionKey: 'statement:officer', fieldPath: '/assets/1/value' })).toEqual([]);
+      // Another section, or a field no residual names.
+      expect(linked({ sectionKey: 'household', fieldPath: null })).toEqual([
+        { kind: 'unknown-link', block: 0 },
+      ]);
+      expect(linked({ sectionKey: 'statement:officer', fieldPath: '/assets/7/value' })).toEqual([
+        { kind: 'unknown-link', block: 0 },
+      ]);
+    });
+
     it('fails a block that cites nothing', () => {
       expect(
         validate(answerInput, { declined: false, blocks: [cited([])], followUps: [] }),
