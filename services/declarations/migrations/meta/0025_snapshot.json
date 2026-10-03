@@ -1,6 +1,6 @@
 {
-  "id": "ecb1f973-88d4-421e-a550-332a51218252",
-  "prevId": "380fe228-015a-4f75-abf3-741c7aeea7de",
+  "id": "4478b5e3-43dc-45df-ae71-d1fc472d427d",
+  "prevId": "7f62a533-4468-4ca8-a20d-41810e2052f5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -651,7 +651,7 @@
       "checkConstraints": {
         "assistant_theme_counts_month_check": {
           "name": "assistant_theme_counts_month_check",
-          "value": "\"assistant_theme_counts\".\"month\" ~ '^[0-9]{4}-[0-9]{2}$'"
+          "value": "\"assistant_theme_counts\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
         },
         "assistant_theme_counts_unanswered_check": {
           "name": "assistant_theme_counts_unanswered_check",

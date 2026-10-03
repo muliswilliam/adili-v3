@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
@@ -11,12 +11,31 @@ import type { QuestionThemeCount, ThemesQuery } from './representation.js';
 import { assistantThemeCounts } from './schema.js';
 import { type QuestionTheme, themeOf } from './themes.js';
 
-/** Counts the question at the conversation's Commission; returns its theme. */
+const logger = new Logger('ThemeCounts');
+
+/**
+ * Counts the question at the conversation's Commission, in a savepoint of the transaction that
+ * stores it: a count refused (the person no longer has an obligation there, as the row-level
+ * security requires) is logged and skipped rather than losing the answer. Returns its theme.
+ */
 export async function countQuestion(
   tx: Transaction,
   question: { tenant: string; text: string; at: Date; declined: boolean },
 ): Promise<QuestionTheme> {
   const theme = themeOf(question.text);
+  try {
+    await tx.transaction((savepoint) => upsertCount(savepoint, question, theme));
+  } catch (error) {
+    logger.warn({ err: error }, 'A question could not be counted');
+  }
+  return theme;
+}
+
+async function upsertCount(
+  tx: Transaction,
+  question: { tenant: string; at: Date; declined: boolean },
+  theme: QuestionTheme,
+): Promise<void> {
   const unanswered = question.declined ? 1 : 0;
   await tx
     .insert(assistantThemeCounts)
@@ -34,7 +53,6 @@ export async function countQuestion(
         unanswered: sql`${assistantThemeCounts.unanswered} + ${unanswered}`,
       },
     });
-  return theme;
 }
 
 /**

@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { AssistantMessage } from '../../src/assistant/representation.js';
-import { assistantMessages, commissionRefs } from '../../src/db/schema.js';
+import { assistantMessages, commissionRefs, filingObligations } from '../../src/db/schema.js';
 import { assistantFixtures, declarantCaller, finalOf } from '../support/assistant.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
@@ -60,7 +60,10 @@ beforeEach(async () => {
   ]);
 });
 
-const { givenDraft, save, opened, ask, eventsOf } = assistantFixtures(() => api, ACHIENG);
+const { givenObligation, givenDraft, save, opened, ask, eventsOf } = assistantFixtures(
+  () => api,
+  ACHIENG,
+);
 const filing = submissionFixtures(() => api);
 
 function hints(declarationId: string, language = 'en', caller = achieng) {
@@ -305,7 +308,7 @@ async function answered(question = VEHICLE_QUESTION) {
 }
 
 describe('feedback (S8)', () => {
-  it("records the rating and forwards it, with the reason and note, to the answer's job", async () => {
+  it("records the rating and forwards it with the reason, never the note, to the answer's job", async () => {
     const { draft, conversation, answer } = await answered();
 
     const response = await rate(conversation.id, answer.id, {
@@ -327,7 +330,7 @@ describe('feedback (S8)', () => {
           block: null,
           rating: 'not-helpful',
           reason: 'missed-something',
-          note: 'It did not say how to value my share',
+          note: null,
         },
       },
     ]);
@@ -489,6 +492,19 @@ describe('question themes (S8)', () => {
 
     await ask(conversation.id, SALARY_QUESTION);
 
+    expect((await themes()).json()).toEqual([]);
+  });
+
+  it('still stores the answer when the question cannot be counted at the Commission', async () => {
+    await givenObligation();
+    const conversation = await opened(null);
+    // The obligation goes (the count's row-level security needs one), the conversation stays.
+    await api.asPlatform((tx) => tx.delete(filingObligations));
+
+    const response = await ask(conversation.id, SALARY_QUESTION, null);
+
+    expect(finalOf(response.body).answer.declined).toBe(false);
+    expect((await opened(null)).messages).toHaveLength(2);
     expect((await themes()).json()).toEqual([]);
   });
 

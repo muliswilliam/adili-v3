@@ -170,7 +170,7 @@ export const assistantThemeCounts = pgTable(
   },
   (table) => [
     primaryKey({ columns: [table.tenant, table.month, table.theme] }),
-    check('assistant_theme_counts_month_check', sql`${table.month} ~ '^[0-9]{4}-[0-9]{2}$'`),
+    check('assistant_theme_counts_month_check', sql`${table.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
     check(
       'assistant_theme_counts_unanswered_check',
       sql`${table.unanswered} >= 0 and ${table.unanswered} <= ${table.count}`,

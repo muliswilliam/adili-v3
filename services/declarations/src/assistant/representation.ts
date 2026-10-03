@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { AiLabel } from '../ai-gateway/ai-gateway-client.js';
+import type { AiLabel, FeedbackInput } from '../ai-gateway/ai-gateway-client.js';
 import { completenessIssueSchema } from '../drafts/representation.js';
 import { SECTION_KEY } from '../drafts/sections.js';
 import { ITEM_TYPE_TAGS } from '../help/corpus.js';
@@ -128,7 +128,7 @@ export const FEEDBACK_REASONS = [
   'unclear',
   'too-long',
   'other',
-] as const;
+] as const satisfies readonly NonNullable<FeedbackInput['reason']>[];
 
 export const rateMessageRequestSchema = z.object({
   rating: z.enum(['helpful', 'not-helpful']),
@@ -140,7 +140,7 @@ export const rateMessageRequestSchema = z.object({
     .nullable()
     .optional()
     .transform((note) => (note === undefined || note === null || note === '' ? null : note))
-    .meta({ description: "The declarant's own words; kept encrypted, sent to the AI gateway" }),
+    .meta({ description: "The declarant's own words; kept encrypted, never sent on" }),
 });
 
 export type RateMessageRequest = z.infer<typeof rateMessageRequestSchema>;
@@ -167,7 +167,8 @@ export const completenessHintsSchema = z.object({
   }),
   label: aiLabelSchema.nullable().meta({ description: 'How the hints are labelled; null without' }),
   residuals: z.array(completenessHintSchema).meta({
-    description: "The summary's `blocking`, in its order, each with its hint",
+    description:
+      "The summary's `blocking`, in its order, each with its hint; only the first 20 residuals that are rule ids and field paths get one",
   }),
 });
 

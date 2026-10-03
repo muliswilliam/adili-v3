@@ -692,7 +692,7 @@ export interface paths {
         get?: never;
         /**
          * Rate an answer, with why and a note
-         * @description Declarants, on an answer in their own conversation. Forwarded to the ai-gateway job the answer came from (rating, reason and note), then kept on the answer, the reason and note encrypted; a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.
+         * @description Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.
          */
         put: operations["rateAssistantMessage"];
         post?: never;
@@ -1812,7 +1812,7 @@ export interface components {
             /** @enum {string} */
             rating: "helpful" | "not-helpful";
             reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
-            /** @description The declarant's own words; kept encrypted, sent to the AI gateway */
+            /** @description The declarant's own words; kept encrypted, never sent on */
             note?: string | null;
         };
         CompletenessHint: {
@@ -1832,7 +1832,7 @@ export interface components {
             status: "ready" | "pending" | "unavailable";
             /** @description How the hints are labelled; null without */
             label: components["schemas"]["AssistantAiLabel"] | null;
-            /** @description The summary's `blocking`, in its order, each with its hint */
+            /** @description The summary's `blocking`, in its order, each with its hint; only the first 20 residuals that are rule ids and field paths get one */
             residuals: components["schemas"]["CompletenessHint"][];
         };
         /**

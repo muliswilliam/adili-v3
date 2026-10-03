@@ -22,8 +22,11 @@ import { HINTS_PROMPT_VERSION, hintsJobKey, hintsOf, type HintsPlan, planHints }
 import type { CompletenessHints, HintsQuery } from './representation.js';
 import { assistantHintCache } from './schema.js';
 
+/** Hints written for a plan (none when nothing is left to complete), or why there are none. */
+/** Hints written for a plan (none when nothing is left to complete), or why there are none. */
 type Written =
-  { status: 'ready'; hints: string[]; label: AiLabel } | { status: 'pending' | 'unavailable' };
+  | { status: 'ready'; hints: string[]; label: AiLabel | null }
+  | { status: 'pending' | 'unavailable' };
 
 /**
  * Summary hints (spec 11 S5): on the summary of a draft, a plain-language hint from the
@@ -73,23 +76,13 @@ export class HintsService {
       },
       query.language,
     );
-    if (plan.input.context.residuals.length === 0) {
-      return { status: 'ready', label: null, residuals: withHints(review.blocking, plan, []) };
-    }
-    const written =
-      (await this.cached(plan)) ?? (await this.write(declaration.tenant, declarationId, plan));
-    if (written.status !== 'ready') {
-      return {
-        status: written.status,
-        label: null,
-        residuals: withHints(review.blocking, plan, []),
-      };
-    }
-    return {
-      status: 'ready',
-      label: written.label,
-      residuals: withHints(review.blocking, plan, written.hints),
-    };
+    const written: Written =
+      plan.input.context.residuals.length === 0
+        ? { status: 'ready', hints: [], label: null }
+        : ((await this.cached(plan)) ??
+          (await this.write(declaration.tenant, declarationId, plan)));
+    const { hints, label } = written.status === 'ready' ? written : { hints: [], label: null };
+    return { status: written.status, label, residuals: withHints(review.blocking, plan, hints) };
   }
 
   private async cached(plan: HintsPlan): Promise<Written | null> {

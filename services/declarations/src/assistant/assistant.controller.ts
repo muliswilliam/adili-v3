@@ -139,7 +139,7 @@ export class AssistantController {
     operationId: 'rateAssistantMessage',
     summary: 'Rate an answer, with why and a note',
     description:
-      "Declarants, on an answer in their own conversation. Forwarded to the ai-gateway job the answer came from (rating, reason and note), then kept on the answer, the reason and note encrypted; a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.",
+      "Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.",
   })
   @ApiBody({ required: true, schema: schemaRef('RateAssistantMessageRequest') })
   @ApiOkResponse({ description: 'The answer, rated', schema: schemaRef('AssistantMessage') })

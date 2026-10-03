@@ -296,9 +296,9 @@ export class AssistantService {
   }
 
   /**
-   * The declarant's rating of an answer (spec 11 S8), with why and a note: forwarded to the
-   * ai-gateway's job first (an answer from the AI), then kept on the answer, the reason and note
-   * encrypted, with `assistant.feedback.recorded.v1`. A second rating replaces the first, in both
+   * The declarant's rating of an answer (spec 11 S8), with why and a note: the rating and reason
+   * forwarded to the ai-gateway's job first (an answer from the AI), then kept on the answer, the
+   * reason and note encrypted (the note never leaves the messages table), with `assistant.feedback.recorded.v1`. A second rating replaces the first, in both
    * places. A decline made without asking the AI has no job, so its rating is kept only. 400 for
    * a bad body, 404 for anything but an answer in the caller's live conversation, 503 when the
    * gateway cannot take the rating (nothing is kept).
@@ -338,7 +338,8 @@ export class AssistantService {
           block: null,
           rating: request.rating,
           reason: request.reason,
-          note: request.note,
+          // The declarant's own words stay in the messages table (spec 11 S8).
+          note: null,
         });
       } catch (error) {
         if (error instanceof AiGatewayUnavailable) {
@@ -359,6 +360,8 @@ export class AssistantService {
       plaintext: JSON.stringify(feedback),
     });
     const updated = await withPerson(this.db, person, async (tx) => {
+      // Gone with its draft, or expired, while the rating was forwarded: nothing is kept.
+      if (!(await this.live(tx, conversation.id, this.clock.now()))) return null;
       const [row] = await tx
         .update(assistantMessages)
         .set({
@@ -382,7 +385,6 @@ export class AssistantService {
       );
       return row;
     });
-    // Gone with its draft while the rating was forwarded.
     return this.toMessage(conversation.tenant, notFoundIfInvisible(updated));
   }
 
