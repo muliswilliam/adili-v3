@@ -117,9 +117,12 @@
   --elevation-control-focus:
     0 0 0 1px var(--ring), 0 0 0 4px color-mix(in oklch, var(--ring) 8%, transparent);
   --elevation-control-error: 0 0 0 1.5px var(--destructive);
-  /* A field holding an AI draft nobody has edited yet (the kit's .ai-filled). */
+  /* A field holding an AI draft nobody has edited yet (the kit's .ai-filled). Mixed in sRGB:
+     in oklch the ring drifts from violet towards pink against the achromatic card. */
   --elevation-control-ai:
     0 0 0 1px color-mix(in srgb, var(--ai) 35%, var(--card)), 0 0 0 4px var(--ai-subtle);
+  /* A field someone changed over what was compiled (a Form M remark; the kit's .remark.edited). */
+  --elevation-control-edited: 0 0 0 1px var(--input), 0 0 0 3px var(--muted);
   /* A chosen option card, e.g. a checked ground (the kit's .gr:has(input:checked)). */
   --elevation-control-selected: 0 0 0 1.5px var(--ring);
   --elevation-control-error-focus:
@@ -299,6 +302,7 @@
   --shadow-control-focus: var(--elevation-control-focus);
   --shadow-control-error: var(--elevation-control-error);
   --shadow-control-ai: var(--elevation-control-ai);
+  --shadow-control-edited: var(--elevation-control-edited);
   --shadow-control-error-focus: var(--elevation-control-error-focus);
   --shadow-control-selected: var(--elevation-control-selected);
   --shadow-card: var(--elevation-card);

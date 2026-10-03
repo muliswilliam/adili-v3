@@ -101,8 +101,8 @@ export interface FormMSectionMessages {
   officer: string;
   actionTaken: string;
   remarks: string;
-  /** Names a row's remark field: "Remarks for Jane Wanjiru". */
-  remarksFor: (name: string) => string;
+  /** Names a row's remark field: "Remarks for Jane Wanjiru (PSC/2025/0412)", unique per row. */
+  remarksFor: (name: string, identifier: string) => string;
   noRemarks: string;
   editedBy: (name: string) => string;
   actions: Record<FormMNonFiler['actionTaken'], string>;
@@ -122,7 +122,7 @@ export const FORM_M_SECTION_MESSAGES: FormMSectionMessages = {
   officer: 'Officer',
   actionTaken: 'Action taken / complied',
   remarks: 'Remarks',
-  remarksFor: (name) => `Remarks for ${name}`,
+  remarksFor: (name, identifier) => `Remarks for ${name} (${identifier})`,
   noRemarks: '-',
   editedBy: (name) => `Edited by ${name}`,
   actions: {
@@ -141,8 +141,11 @@ export const FORM_M_SECTION_MESSAGES: FormMSectionMessages = {
   retrying: 'Could not save, retrying',
 };
 
+/** A remark's limit in `form-m.v1` (`NonFilerRow.remarks`). */
+export const FORM_M_REMARKS_MAX_LENGTH = 500;
+
 const COMPLIED = {
-  yes: { variant: 'success', icon: Tick02Icon, strokeWidth: 2.6 },
+  yes: { variant: 'success', icon: Tick02Icon, strokeWidth: 2.4 },
   pending: { variant: 'warning', icon: Clock01Icon, strokeWidth: 2.2 },
   no: { variant: 'destructive', icon: Cancel01Icon, strokeWidth: 2.4 },
 } as const;
@@ -316,12 +319,12 @@ export function FormMSection({
                               <Textarea
                                 autoGrow
                                 rows={2}
-                                maxLength={500}
-                                aria-label={copy.remarksFor(row.name)}
+                                maxLength={FORM_M_REMARKS_MAX_LENGTH}
+                                aria-label={copy.remarksFor(row.name, row.identifier)}
                                 value={row.remarks ?? ''}
                                 className={cn(
                                   'min-h-0 min-w-[220px] px-2.5 py-[7px] text-[13.5px] leading-[1.4]',
-                                  editedBy && 'shadow-control-hover',
+                                  editedBy && 'shadow-control-edited',
                                 )}
                                 onChange={(event) => {
                                   onRemarkChange(row, event.target.value);

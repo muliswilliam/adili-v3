@@ -259,6 +259,7 @@ export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
   FORM_M_DECLARATION_SECTIONS,
+  FORM_M_REMARKS_MAX_LENGTH,
   FORM_M_SECTION_COPY,
   FORM_M_SECTION_MESSAGES,
   type FormMDeclarationSection,
@@ -331,12 +332,14 @@ export { Meter, type MeterProps } from './components/meter';
 export { MoneyInput, type MoneyInputProps } from './components/money-input';
 export {
   NARRATIVE_EDITOR_MESSAGES,
+  NARRATIVE_PARAGRAPH_SEPARATOR,
   NarrativeEditor,
   type NarrativeEditorMessages,
+  type NarrativeEditorParagraph,
   type NarrativeEditorProps,
-  type NarrativeParagraph,
   type NarrativeSection,
   type NarrativeValue,
+  narrativeSectionText,
 } from './components/narrative-editor';
 export { type CaseNote, NoteList, type NoteListProps } from './components/note-list';
 export { OtpInput, type OtpInputProps } from './components/otp-input';
@@ -665,7 +668,7 @@ export {
   sha256Hex,
   Sha256UnavailableError,
 } from './lib/sha256';
-export { formatNumber } from './lib/format-number';
+export { formatNumber, formatPercent } from './lib/format-number';
 export {
   formatMoney,
   type MoneyInvalidReason,

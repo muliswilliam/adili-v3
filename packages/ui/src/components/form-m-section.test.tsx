@@ -95,10 +95,12 @@ describe('FormMSection', () => {
     const onRemarkChange = vi.fn();
     render(<FormMSection section="initial" data={INITIAL} onRemarkChange={onRemarkChange} />);
 
-    const field = screen.getByRole('textbox', { name: 'Remarks for Jane Wanjiru' });
+    const field = screen.getByRole('textbox', { name: 'Remarks for Jane Wanjiru (PSC/2025/0412)' });
     expect((field as HTMLTextAreaElement).value).toBe('Warning issued 12 May 2026.');
     expect(field.getAttribute('maxlength')).toBe('500');
-    expect(screen.getByRole('textbox', { name: 'Remarks for Peter Otieno' })).toBeTruthy();
+    expect(
+      screen.getByRole('textbox', { name: 'Remarks for Peter Otieno (PSC/2025/0533)' }),
+    ).toBeTruthy();
 
     fireEvent.change(field, { target: { value: 'Warning issued; responded late.' } });
 

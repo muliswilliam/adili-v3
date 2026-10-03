@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 
 import { cn } from '../lib/cn';
-import { formatNumber } from '../lib/format-number';
+import { formatNumber, formatPercent } from '../lib/format-number';
 
 /** `ok` at or above the threshold, `low` below it, `critical` below the critical rate. */
 export type RateTone = 'ok' | 'low' | 'critical';
@@ -40,8 +40,6 @@ export type RateBarProps = Omit<ComponentProps<'div'>, 'children'> & {
   criticalBelow?: number;
   messages?: Partial<RateBarMessages>;
 };
-
-const PERCENT_FORMAT = new Intl.NumberFormat('en-KE', { maximumFractionDigits: 1 });
 
 /**
  * A rate to one decimal place. It never rounds up to 100 while someone has not declared, so a
@@ -106,7 +104,7 @@ export function RateBar({
           data-slot="rate-track"
           aria-hidden="true"
           className={cn(
-            'relative min-w-12 flex-1 overflow-hidden rounded-full bg-muted shadow-[inset_0_0_0_1px_rgb(0_0_0/0.03)]',
+            'relative min-w-12 flex-1 overflow-hidden rounded-full bg-muted',
             size === 'lg' ? 'h-2' : 'h-1.5',
           )}
         >
@@ -122,7 +120,7 @@ export function RateBar({
             TONE[tone].text,
           )}
         >
-          {`${PERCENT_FORMAT.format(percent)}%`}
+          {formatPercent(percent)}
         </span>
         <span className="sr-only">{` ${copy.declared}, `}</span>
         {showCounts ? null : <span className="sr-only">{counts}</span>}
