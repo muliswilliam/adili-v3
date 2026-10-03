@@ -9,14 +9,12 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import type { ReferralSummary } from '../../approvals/kinds';
-import { approveCaseReferral, declineCaseReferral } from '../../server/referrals';
 import {
   REFERRAL_REFUSAL_STATUS,
   type ReferralDecisionRefusal,
-  type ReferralResult,
 } from '../../server/referrals.server';
 import type { Referral } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
@@ -27,10 +25,11 @@ import {
   DeclineReferralDialog,
   type ReferralSubject,
 } from '../referrals/decision-dialogs';
-import { messages as r } from '../referrals/messages';
+import { messages as referrals } from '../referrals/messages';
+import { type ReferralDecision, useReferralDecisions } from '../referrals/use-referral-decisions';
 import { proposerName, ReassignActions } from './approval-parts';
 import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
-import { messages as m } from './messages';
+import { messages as inbox } from './messages';
 import { messages as t } from './referral-messages';
 
 export type ReferralApprovalItem = ItemOf<'referral'>;
@@ -43,8 +42,8 @@ function evidenceCounts(
     { icon: Flag02Icon, count: evidence.flags, label: t.evidence.flags },
     { icon: Message01Icon, count: evidence.clarifications, label: t.evidence.clarifications },
     { icon: Calendar03Icon, count: evidence.obligations, label: t.evidence.obligations },
-    // The ladder's issued steps go in as their letters.
-    { icon: Mail01Icon, count: evidence.actions, label: t.evidence.letters },
+    // The ladder's issued steps (actions) go in as their letters.
+    { icon: Mail01Icon, count: evidence.actions, label: t.evidence.actionLetters },
   ].flatMap(({ icon, count, label }) => (count > 0 ? [{ icon, label: label(count) }] : []));
 }
 
@@ -75,13 +74,12 @@ export function ReferralApproval({
 }: KindApprovalProps<ReferralApprovalItem>) {
   const { summary } = item;
   const [dialog, setDialog] = useState<'approve' | 'decline' | null>(null);
-  // One key per approval, reused on retry after a failure, so a retry cannot approve twice.
-  const approvalKey = useRef<string | null>(null);
+  const decisions = useReferralDecisions(item.subjectId, newKey);
   const evidence = evidenceCounts(summary.evidence);
 
   /** Settles a call: a refusal or a decision made first becomes a notice. */
   async function settle(
-    result: ReferralResult<Referral, ReferralDecisionRefusal>,
+    result: ReferralDecision,
     success: (data: Referral) => string,
   ): Promise<FailureText | null> {
     if (result.ok) {
@@ -98,17 +96,11 @@ export function ReferralApproval({
   }
 
   async function approve(): Promise<FailureText | null> {
-    approvalKey.current ??= newKey();
-    const result = await approveCaseReferral({
-      data: { referralId: item.subjectId, idempotencyKey: approvalKey.current },
-    });
-    if (result.ok || result.refusal) approvalKey.current = null;
-    return settle(result, (data) => r.toasts.approved(data.reference));
+    return settle(await decisions.approve(), (data) => referrals.toasts.approved(data.reference));
   }
 
   async function decline(_: ReferralSubject, note: string): Promise<FailureText | null> {
-    const result = await declineCaseReferral({ data: { referralId: item.subjectId, note } });
-    return settle(result, () => r.toasts.declined);
+    return settle(await decisions.decline(note), () => referrals.toasts.declined);
   }
 
   return (
@@ -227,13 +219,15 @@ export function referralNoticeOf(refusal: ReferralDecisionRefusal): ApprovalNoti
 
 /** A failed call, in the open dialog. */
 function failureOf(error: ServiceError): FailureText {
-  return { title: error.kind === 'unauthenticated' ? m.toasts.sessionEnded : m.toasts.failed };
+  return {
+    title: error.kind === 'unauthenticated' ? inbox.toasts.sessionEnded : inbox.toasts.failed,
+  };
 }
 
 /** The referrals tab (spec 08 FE-3). */
 export const referralKind: InboxKindView<'referral'> = {
   label: t.tab,
   icon: Flag02Icon,
-  subject: (item) => `${item.summary.declarantName} · ${r.grounds[item.summary.grounds]}`,
+  subject: (item) => `${item.summary.declarantName} · ${referrals.grounds[item.summary.grounds]}`,
   Approval: ReferralApproval,
 };

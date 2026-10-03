@@ -13,7 +13,8 @@ export const messages = {
     flags: (count: number) => plural(count, 'flag'),
     clarifications: (count: number) => plural(count, 'clarification'),
     obligations: (count: number) => plural(count, 'obligation'),
-    letters: (count: number) => plural(count, 'letter'),
+    /** The ladder's issued steps a referral includes, counted by their letters. */
+    actionLetters: (count: number) => plural(count, 'letter'),
   },
   /** 403 from approve or decline, after the inbox said the viewer could. */
   refused: {

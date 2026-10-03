@@ -22,6 +22,7 @@ import { type ReactNode, useId, useState } from 'react';
 
 import { CLARIFICATION_STATUSES } from '../../clarification/labels';
 import {
+  ASSETS_GROUNDS,
   NARRATIVE_MAX_LENGTH,
   type ReferralErrors,
   type ReferralForm,
@@ -50,10 +51,10 @@ export interface ReferDialogProps {
 
 const EMPTY: ReferralForm = { grounds: null, flagIds: [], clarificationIds: [], narrative: '' };
 
-const GROUNDS = [
-  { value: 'undeclared-assets', hint: t.refer.undeclaredHint },
-  { value: 'unexplained-assets', hint: t.refer.unexplainedHint },
-] as const;
+const GROUND_HINTS: Record<(typeof ASSETS_GROUNDS)[number], string> = {
+  'undeclared-assets': t.refer.undeclaredHint,
+  'unexplained-assets': t.refer.unexplainedHint,
+};
 
 /** One of `ids` toggled, kept in the order of `all`. */
 function toggled(ids: string[], id: string, all: readonly { id: string }[]): string[] {
@@ -135,44 +136,40 @@ export function ReferDialog({
           <DialogBody className="gap-5">
             <DialogFailure failure={failure} />
             <RadioGroup legend={t.refer.grounds} columns={2} error={errors.grounds}>
-              {GROUNDS.map((each) => (
+              {ASSETS_GROUNDS.map((each) => (
                 <RadioCard
-                  key={each.value}
+                  key={each}
                   name={`${id}-grounds`}
-                  value={each.value}
-                  label={t.grounds[each.value]}
-                  description={each.hint}
-                  checked={form.grounds === each.value}
+                  value={each}
+                  label={t.grounds[each]}
+                  description={GROUND_HINTS[each]}
+                  checked={form.grounds === each}
                   disabled={busy}
                   onChange={() => {
-                    change({ grounds: each.value }, 'grounds');
+                    change({ grounds: each }, 'grounds');
                   }}
                 />
               ))}
             </RadioGroup>
 
             <CheckList legend={t.refer.flags} error={errors.evidence} errorId={`${id}-evidence`}>
-              {flags.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t.refer.noFlags}</p>
-              ) : (
-                flags.map((flag) => (
-                  <CheckCard
-                    key={flag.id}
-                    checked={form.flagIds.includes(flag.id)}
-                    disabled={busy}
-                    onChange={() => {
-                      change({ flagIds: toggled(form.flagIds, flag.id, flags) }, 'evidence');
-                    }}
-                    title={
-                      <span className="flex flex-wrap items-center gap-2">
-                        <SeverityBadge severity={flag.severity} size="sm" />
-                        <span className="font-medium">{flag.title}</span>
-                      </span>
-                    }
-                    detail={flag.indicator}
-                  />
-                ))
-              )}
+              {flags.map((flag) => (
+                <CheckCard
+                  key={flag.id}
+                  checked={form.flagIds.includes(flag.id)}
+                  disabled={busy}
+                  onChange={() => {
+                    change({ flagIds: toggled(form.flagIds, flag.id, flags) }, 'evidence');
+                  }}
+                  title={
+                    <span className="flex flex-wrap items-center gap-2">
+                      <SeverityBadge severity={flag.severity} size="sm" />
+                      <span className="font-medium">{flag.title}</span>
+                    </span>
+                  }
+                  detail={flag.indicator}
+                />
+              ))}
             </CheckList>
 
             {clarifications.length > 0 ? (

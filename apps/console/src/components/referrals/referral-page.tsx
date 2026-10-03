@@ -36,16 +36,11 @@ import {
   ViewOffSlashIcon,
 } from '@hugeicons/core-free-icons';
 import { Link, useRouter } from '@tanstack/react-router';
-import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useState } from 'react';
 
 import { approvalPanel, obligationLabel, referralPhase, referralTitle } from '../../referral/view';
 import { getSupervisors, reassignToSupervisor } from '../../server/approvals';
-import {
-  approveCaseReferral,
-  declineCaseReferral,
-  getReferralPackageLink,
-} from '../../server/referrals';
-import type { ReferralDecisionRefusal, ReferralResult } from '../../server/referrals.server';
+import { getReferralPackageLink } from '../../server/referrals';
 import type { Assignee, Referral, ReferralManifestKind } from '../../server/review/types';
 import { ReassignDialog, type ReassignTarget } from '../approvals/reassign-dialog';
 import type { FailureText } from '../dialog-parts';
@@ -59,6 +54,7 @@ import {
   type ReferralSubject,
 } from './decision-dialogs';
 import { messages as t } from './messages';
+import { type ReferralDecision, useReferralDecisions } from './use-referral-decisions';
 
 export interface ReferralPageProps {
   referral: Referral;
@@ -114,7 +110,7 @@ export function ReferralPage({
   const [reassigning, setReassigning] = useState<ReassignTarget | null>(null);
   const [refused, setRefused] = useState<Refused | null>(null);
   const [downloading, setDownloading] = useState(false);
-  const approvalKey = useRef<string | null>(null);
+  const decisions = useReferralDecisions(referral.id, newKey);
   const phase = referralPhase(referral);
   const poll = usePollWhile(phase === 'assembling', POLL_MS, POLL_TIMES);
   const evidence = referral.evidence ?? [];
@@ -130,7 +126,7 @@ export function ReferralPage({
 
   /** Settles a decision: a refusal by the rule says why on the page; another's decision reloads. */
   async function settle(
-    result: ReferralResult<Referral, ReferralDecisionRefusal>,
+    result: ReferralDecision,
     success: (data: Referral) => string,
   ): Promise<FailureText | null> {
     if (result.ok) {
@@ -157,18 +153,11 @@ export function ReferralPage({
   }
 
   async function approve(): Promise<FailureText | null> {
-    // One key per approval, reused on retry after a failure, so a retry cannot approve twice.
-    approvalKey.current ??= newKey();
-    const result = await approveCaseReferral({
-      data: { referralId: referral.id, idempotencyKey: approvalKey.current },
-    });
-    if (result.ok || result.refusal) approvalKey.current = null;
-    return settle(result, (data) => t.toasts.approved(data.reference));
+    return settle(await decisions.approve(), (data) => t.toasts.approved(data.reference));
   }
 
   async function decline(_: ReferralSubject, note: string): Promise<FailureText | null> {
-    const result = await declineCaseReferral({ data: { referralId: referral.id, note } });
-    return settle(result, () => t.toasts.declined);
+    return settle(await decisions.decline(note), () => t.toasts.declined);
   }
 
   async function reassign(target: ReassignTarget, to: Assignee): Promise<FailureText | null> {
@@ -308,11 +297,6 @@ export function ReferralPage({
           </div>
         </Section>
       </div>
-
-      <p className="mt-[22px] flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
-        <Icon icon={SquareLock02Icon} className="size-3.5" />
-        Every view of this referral is recorded.
-      </p>
 
       <ApproveReferralDialog
         subject={approving}

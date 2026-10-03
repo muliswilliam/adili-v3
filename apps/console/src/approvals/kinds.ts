@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { REFERRAL_GROUNDS } from '../referral/view';
 import type { ApprovalKind } from '../server/review/types';
 
 /**
@@ -39,12 +40,7 @@ export type DeterminationSummary = z.infer<typeof determinationSummary>;
  * narrative's start and how much evidence it rests on. `caseId` is null for two missed cycles.
  */
 const referralSummary = z.object({
-  grounds: z.enum([
-    'undeclared-assets',
-    'unexplained-assets',
-    'two-missed-cycles',
-    'unanswered-clarification',
-  ]),
+  grounds: z.enum(REFERRAL_GROUNDS),
   caseId: z.uuid().nullable(),
   cycleYear: z.number().int(),
   declarantName: z.string(),

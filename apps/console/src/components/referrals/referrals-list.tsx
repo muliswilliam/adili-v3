@@ -6,6 +6,7 @@ import {
   FilterChip,
   formatDate,
   Icon,
+  ReferenceChip,
   Skeleton,
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import {
 import { ComputerIcon, Flag02Icon, Search01Icon } from '@hugeicons/core-free-icons';
 import type { ReactNode } from 'react';
 
+import { REFERRAL_STATUSES } from '../../referral/view';
 import type { ReferralsPage } from '../../server/referrals.server';
 import type { Referral } from '../../server/review/types';
 import type { ServiceResult } from '../../server/service-call';
@@ -25,7 +27,7 @@ import { LoadError } from '../load-error';
 import { ConfidentialBadge, GroundsBadge, ReferralStatusBadge } from './badges';
 import { messages as t } from './messages';
 
-export const REFERRAL_FILTERS = ['all', 'proposed', 'approved', 'sent', 'declined'] as const;
+export const REFERRAL_FILTERS = ['all', ...REFERRAL_STATUSES] as const;
 export type ReferralFilter = (typeof REFERRAL_FILTERS)[number];
 
 export interface ReferralsListProps {
@@ -35,7 +37,7 @@ export interface ReferralsListProps {
   onFilterChange: (filter: ReferralFilter) => void;
   /** Whether this is the first page (an empty later page is not "no referrals"). */
   firstPage: boolean;
-  /** The referral's reference (or "Proposed") as a link to its page. */
+  /** The referral's declarant, `label`, as a link to its page. */
   referralLink: (referral: Referral, label: ReactNode) => ReactNode;
   /** Previous and Next, under the rows. */
   pager?: ReactNode;
@@ -127,19 +129,20 @@ export function ReferralsList({
             <TableBody>
               {result.data.items.map((referral) => (
                 <TableRow key={referral.id}>
-                  <TableCell className="font-mono text-[13px] font-medium whitespace-nowrap">
-                    {referralLink(
-                      referral,
-                      referral.reference ?? (
-                        <span className="font-sans font-normal">{t.list.noReference}</span>
-                      ),
+                  <TableCell className="whitespace-nowrap">
+                    {referral.reference ? (
+                      <ReferenceChip reference={referral.reference} size="sm" />
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                   <TableCell>
                     <GroundsBadge grounds={referral.grounds} />
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">{referral.declarantName}</div>
+                    <div className="font-medium">
+                      {referralLink(referral, referral.declarantName)}
+                    </div>
                     {referral.personnelFileNumber ? (
                       <Sub>{t.list.file(referral.personnelFileNumber)}</Sub>
                     ) : null}

@@ -1,12 +1,42 @@
 import { formatNumber } from '@adili/ui';
 
-import type { Assignee, Clarification, Flag, Referral } from '../server/review/types';
+import type {
+  Assignee,
+  Clarification,
+  Flag,
+  Referral,
+  ReferralGrounds,
+  ReferralInput,
+  ReferralStatus,
+} from '../server/review/types';
 
 /**
  * What the referral screens derive from review.yaml's `Referral` and a case (spec 08 FE-6; S12,
  * S13): which flags and clarifications a referral can rest on, the Refer to EACC dialog's
  * checks, and where a referral stands for the viewer. Pure, so the screens and tests share it.
  */
+
+/** review.yaml `ReferralGrounds`: every ground a referral rests on. */
+export const REFERRAL_GROUNDS = [
+  'undeclared-assets',
+  'unexplained-assets',
+  'two-missed-cycles',
+  'unanswered-clarification',
+] as const satisfies readonly ReferralGrounds[];
+
+/** The grounds a reviewer refers a case on (`ReferralInput.grounds`); the system proposes the rest. */
+export const ASSETS_GROUNDS = [
+  'undeclared-assets',
+  'unexplained-assets',
+] as const satisfies readonly ReferralInput['grounds'][];
+
+/** review.yaml `ReferralStatus`, in the order the list filters them. */
+export const REFERRAL_STATUSES = [
+  'proposed',
+  'approved',
+  'sent',
+  'declined',
+] as const satisfies readonly ReferralStatus[];
 
 /** review.yaml `ReferralInput.narrative`. */
 export const NARRATIVE_MAX_LENGTH = 8000;
@@ -47,7 +77,7 @@ export function referableClarifications(clarifications: Clarification[]): Clarif
 }
 
 export interface ReferralForm {
-  grounds: 'undeclared-assets' | 'unexplained-assets' | null;
+  grounds: ReferralInput['grounds'] | null;
   flagIds: string[];
   clarificationIds: string[];
   narrative: string;

@@ -14,6 +14,7 @@ import {
 import { messages as t } from '../../components/referrals/messages';
 import { ReferralsList } from '../../components/referrals/referrals-list';
 import { signInRedirect } from '../../components/sign-in-redirect';
+import { REFERRAL_STATUSES } from '../../referral/view';
 import type { ReferralsPage } from '../../server/referrals.server';
 import { getReferrals } from '../../server/referrals';
 import { SERVICE_UNAVAILABLE, type ServiceResult } from '../../server/service-call';
@@ -26,7 +27,7 @@ declare module '@tanstack/react-router' {
 }
 
 const searchSchema = z.object({
-  status: z.enum(['proposed', 'approved', 'sent', 'declined']).optional(),
+  status: z.enum(REFERRAL_STATUSES).optional(),
   cursor: z.string().max(500).optional(),
 });
 type ReferralsSearch = z.infer<typeof searchSchema>;

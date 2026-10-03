@@ -1,7 +1,12 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { DECLINE_NOTE_MAX_LENGTH, NARRATIVE_MAX_LENGTH } from '../referral/view';
+import {
+  ASSETS_GROUNDS,
+  DECLINE_NOTE_MAX_LENGTH,
+  NARRATIVE_MAX_LENGTH,
+  REFERRAL_STATUSES,
+} from '../referral/view';
 import { asReviewer, withReviewer } from './as-viewer.server';
 import { SLUG_PATTERN } from './directory/contract';
 import { letterDocumentsClient } from './documents/letter-client.server';
@@ -35,7 +40,7 @@ const signedOut = <T>(): ReferralResult<T> => ({
 
 /** review.yaml `ReferralInput`, as the Refer to EACC dialog sends it. */
 export const referralInput = z.object({
-  grounds: z.enum(['undeclared-assets', 'unexplained-assets']),
+  grounds: z.enum(ASSETS_GROUNDS),
   narrative: z.string().trim().min(1).max(NARRATIVE_MAX_LENGTH),
   flagIds: z.array(id).min(1).max(100),
   clarificationIds: z.array(id).max(50),
@@ -54,7 +59,7 @@ export const getReferrals = createServerFn({ method: 'GET' })
   .validator(
     z.object({
       slug: z.string().regex(SLUG_PATTERN),
-      status: z.enum(['proposed', 'approved', 'declined', 'sent']).optional(),
+      status: z.enum(REFERRAL_STATUSES).optional(),
       cursor: z.string().max(500).optional(),
     }),
   )
