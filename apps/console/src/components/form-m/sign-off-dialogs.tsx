@@ -41,6 +41,7 @@ export function MarkReviewedDialog({
   today,
   onClose,
   onMark,
+  onSignedOut,
 }: {
   name: string;
   /** Today in Nairobi, `YYYY-MM-DD`. */
@@ -48,6 +49,8 @@ export function MarkReviewedDialog({
   onClose: () => void;
   /** Marks the draft reviewed; the dialog closes once it is. */
   onMark: (designation: string) => Promise<FormMResult<null>>;
+  /** The session ended: sign in again. */
+  onSignedOut: () => void;
 }) {
   const formId = useId();
   const [designation, setDesignation] = useState('');
@@ -64,7 +67,8 @@ export function MarkReviewedDialog({
     const outcome = await onMark(designation.trim());
     setBusy(false);
     if (outcome.ok) onClose();
-    else setFailure(outcome.error.kind === 'problem' ? m.reviewedRefused : m.reviewedFailed);
+    else if (outcome.error.kind === 'unauthenticated') onSignedOut();
+    else setFailure(reviewFailure(outcome));
   };
   return (
     <Dialog
@@ -126,6 +130,18 @@ export function MarkReviewedDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/** What a refused or failed "Mark reviewed" means for the supervisor. */
+function reviewFailure(outcome: Extract<FormMResult<null>, { ok: false }>): string {
+  const { error } = outcome;
+  if (error.kind !== 'problem') return m.reviewedFailed;
+  const { status, code } = error.problem;
+  if (status === 403) return m.reviewedForbidden;
+  if (code === 'report-compiling') return m.reviewedCompiling;
+  if (code === 'report-submitted') return m.reviewedSubmitted;
+  if (status === 400) return m.reviewedInvalid;
+  return m.reviewedRefused;
 }
 
 function Consequence({ icon, children }: { icon: IconProps['icon']; children: ReactNode }) {

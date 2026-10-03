@@ -51,6 +51,10 @@ export const en = {
   designationRequired: 'Enter your designation',
   reviewedFailed: 'The draft was not marked reviewed. Try again.',
   reviewedRefused: 'The draft changed meanwhile. Close this and look again.',
+  reviewedForbidden: 'Only a supervisor of your Commission can mark Form M reviewed.',
+  reviewedCompiling: 'The draft is being recompiled. Try again once it is ready.',
+  reviewedSubmitted: 'This report was already submitted.',
+  reviewedInvalid: 'Check the designation and try again.',
   confirmAndSubmit: 'Confirm and submit',
   awaitingReview: 'Awaiting supervisor review',
   awaitingConfirmation: 'Awaiting confirmation by the commission administrator',
@@ -62,6 +66,9 @@ export const en = {
       .filter(Boolean)
       .join(' · '),
   saving: 'Saving your changes…',
+  unsaved: 'Some changes were not saved. Edit them again, or reload the page.',
+  /** Spec 06's note before a legal act that needs a step-up. */
+  stepUpNote: 'You will confirm your identity with a one-time code before submitting.',
   confirmTitle: 'Confirm and submit Form M',
   confirmText: (fy: string) =>
     `Confirm and submit Form M for ${fy} to EACC? The report is frozen and receives its reference.`,
@@ -97,6 +104,18 @@ export const en = {
     forbidden: {
       title: 'Form M was not submitted.',
       text: 'Only the commission administrator of your Commission can confirm Form M.',
+    },
+    'key-reused': {
+      title: 'Form M was not submitted.',
+      text: 'This confirmation was sent before with other details. Reload the page and confirm again.',
+    },
+    'not-found': {
+      title: 'Form M was not submitted.',
+      text: 'This report is no longer available. Reload the page to see how it stands.',
+    },
+    invalid: {
+      title: 'Form M was not submitted.',
+      text: 'The service could not take this confirmation. Reload the page and confirm again.',
     },
     incomplete: { title: 'Form M is not complete.' },
   },

@@ -11,7 +11,14 @@ import type { ConfirmOutcome } from '../../server/form-m-sign-off.server';
 
 /** Why the service did not take the confirmation, shown as a banner over the report. */
 export type ConfirmRefusal =
-  'not-reviewed' | 'incomplete' | 'already-submitted' | 'compiling' | 'forbidden';
+  | 'not-reviewed'
+  | 'incomplete'
+  | 'already-submitted'
+  | 'compiling'
+  | 'forbidden'
+  | 'key-reused'
+  | 'not-found'
+  | 'invalid';
 
 export type ConfirmState =
   /** The report; "Confirm and submit" is enabled once it is reviewed and Part I and B filled. */
@@ -21,8 +28,9 @@ export type ConfirmState =
   /** The step-up failed or expired (`stepUp=failed`, or 403 `step-up-required`). */
   | { step: 'step-up-failed' }
   /**
-   * The confirm dialog. `key` is the Idempotency-Key of this dialog: kept on retry, dropped when
-   * it closes. `failed`: the last submit did not go through (nothing was sent twice).
+   * The confirm dialog. `key` is its Idempotency-Key, kept on retry; the view opens it with the
+   * key of an earlier attempt whose outcome is not known, else a new one (`sign-off.tsx`).
+   * `failed`: the last submit did not go through (nothing was sent twice).
    */
   | { step: 'confirm'; key: string; checked: boolean; failed: boolean }
   /** The confirmation is in flight; the dialog cannot be closed. */
@@ -87,6 +95,9 @@ function answered(key: string, answer: ConfirmOutcome): ConfirmState {
     case 'already-submitted':
     case 'compiling':
     case 'forbidden':
+    case 'key-reused':
+    case 'not-found':
+    case 'invalid':
       return { step: 'refused', reason: answer.status };
     // No answer: say it did not go through, and keep the key for another try.
     case 'unavailable':

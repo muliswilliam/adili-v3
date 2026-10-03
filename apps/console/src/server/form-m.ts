@@ -115,13 +115,13 @@ export const markFormMReviewed = createServerFn({ method: 'POST' })
 /** The commission-admin confirms and submits, on the session's step-up token. */
 export const confirmFormM = createServerFn({ method: 'POST' })
   .validator(report.extend({ idempotencyKey: z.uuid() }))
-  .handler(
-    async ({ data }): Promise<ConfirmOutcome> =>
-      await asReportingViewer(async (client) => ({
-        ok: true as const,
-        outcome: await confirmReport(client, data.slug, data.fy, data.idempotencyKey),
-      })).then((result) => (result.ok ? result.outcome : { status: 'unauthenticated' })),
-  );
+  .handler(async ({ data }): Promise<ConfirmOutcome> => {
+    const outcome = await asReportingViewer((client) =>
+      confirmReport(client, data.slug, data.fy, data.idempotencyKey),
+    );
+    // No session: `asReportingViewer`'s own answer, in the confirm flow's words.
+    return 'status' in outcome ? outcome : { status: 'unauthenticated' };
+  });
 
 /** A short-lived link to a submitted report's Form M PDF or receipt. */
 export const getFormMDocumentLink = createServerFn({ method: 'GET' })

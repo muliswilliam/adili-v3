@@ -587,15 +587,23 @@ function ReportView({
         <WorkspaceFooter
           report={report}
           today={today}
-          note={
-            (preview ? undefined : extensions.footerNote?.(report)) ??
-            footerNote(report, preview, capabilities)
-          }
+          note={noteOf(report, preview, capabilities, extensions)}
           actions={preview ? null : extensions.footerActions?.(report)}
         />
       )}
     </>
   );
+}
+
+/** The footer's note: the extension's, null included, unless it has none (undefined). */
+function noteOf(
+  report: CompiledReport,
+  preview: boolean,
+  capabilities: FormMCapabilities,
+  extensions: FormMReportExtensions,
+): string | null {
+  const extended = preview ? undefined : extensions.footerNote?.(report);
+  return extended === undefined ? footerNote(report, preview, capabilities) : extended;
 }
 
 /** Why the footer has no action for the viewer, if it says anything. */

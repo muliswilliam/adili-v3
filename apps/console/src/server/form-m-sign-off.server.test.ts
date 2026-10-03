@@ -216,6 +216,23 @@ describe('the commission-admin confirms with a step-up (S6, S7)', () => {
     });
   });
 
+  it('refuses a key sent again with another request (422) for good', async () => {
+    resetReportingMock('2026-10-03', { reviewed: true, filled: true });
+    const same = key();
+    await confirmReport(steppedUp(), 'psc', 2025, same);
+    expect(await confirmReport(steppedUp(), 'psc', 2026, same)).toEqual({ status: 'key-reused' });
+  });
+
+  it('says the report is gone (404), for good', async () => {
+    resetReportingMock('2026-10-03', { reviewed: true, filled: true });
+    expect(await confirmReport(steppedUp(), 'tsc', 2025, key())).toEqual({ status: 'not-found' });
+  });
+
+  it('takes any other 400 as a refusal, not a retry', async () => {
+    resetReportingMock('2026-10-03', { reviewed: true, filled: true });
+    expect(await confirmReport(steppedUp(), 'psc', 2019, key())).toEqual({ status: 'invalid' });
+  });
+
   it('answers unavailable when the service fails, so the same key can be sent again', async () => {
     resetReportingMock('2026-10-03', { reviewed: true, filled: true });
     failNextReportingConfirms();

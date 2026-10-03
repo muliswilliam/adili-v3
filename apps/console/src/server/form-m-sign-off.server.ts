@@ -13,6 +13,13 @@ import type { FormMResult } from './form-m.server';
  * refusal means for them.
  */
 
+/** One sign-off call that answers no body (or one the screens do not read), as a result. */
+function callWithoutBody(
+  request: () => Promise<{ error?: unknown; response: Response }>,
+): Promise<FormMResult<null>> {
+  return callService<null, ReportingProblem>(async () => ({ ...(await request()), data: null }));
+}
+
 /** Remarks by obligation id, as the supervisor left them. */
 export type Remarks = Readonly<Record<string, string>>;
 
@@ -23,8 +30,8 @@ export function saveRemarks(
   fy: number,
   remarks: Remarks,
 ): Promise<FormMResult<null>> {
-  return callService<null, ReportingProblem>(async () => {
-    const outcome = await client.PATCH('/v1/commissions/{slug}/compliance-reports/{fy}/remarks', {
+  return callWithoutBody(() =>
+    client.PATCH('/v1/commissions/{slug}/compliance-reports/{fy}/remarks', {
       params: { path: { slug, fy } },
       body: {
         remarks: Object.entries(remarks).map(([obligationId, remark]) => ({
@@ -32,9 +39,8 @@ export function saveRemarks(
           remark,
         })),
       },
-    });
-    return { ...outcome, data: null };
-  });
+    }),
+  );
 }
 
 /** reporting.yaml `ManualFields`: Part I contact details and Part B; null clears a field. */
@@ -47,13 +53,12 @@ export function saveManualFields(
   fy: number,
   fields: ManualFields,
 ): Promise<FormMResult<null>> {
-  return callService<null, ReportingProblem>(async () => {
-    const outcome = await client.PATCH('/v1/commissions/{slug}/compliance-reports/{fy}/manual', {
+  return callWithoutBody(() =>
+    client.PATCH('/v1/commissions/{slug}/compliance-reports/{fy}/manual', {
       params: { path: { slug, fy } },
       body: fields,
-    });
-    return { ...outcome, data: null };
-  });
+    }),
+  );
 }
 
 /** `POST .../reviewed`: Part III "Compiled by" names the supervisor with `designation`. */
@@ -63,13 +68,12 @@ export function markReviewed(
   fy: number,
   designation: string,
 ): Promise<FormMResult<null>> {
-  return callService<null, ReportingProblem>(async () => {
-    const outcome = await client.POST('/v1/commissions/{slug}/compliance-reports/{fy}/reviewed', {
+  return callWithoutBody(() =>
+    client.POST('/v1/commissions/{slug}/compliance-reports/{fy}/reviewed', {
       params: { path: { slug, fy } },
       body: { designation },
-    });
-    return { ...outcome, data: null };
-  });
+    }),
+  );
 }
 
 /** What became of a confirmation, as the confirm flow acts on it. */
@@ -88,9 +92,15 @@ export type ConfirmOutcome =
   | { status: 'already-submitted' }
   /** 409 `report-compiling`: a recompile started meanwhile. */
   | { status: 'compiling' }
+  /** 422: the key was sent before with another request; this one was not taken. */
+  | { status: 'key-reused' }
+  /** 404: the report is gone, or no longer the officer's to see. */
+  | { status: 'not-found' }
+  /** Any other 4xx: the service refused the request itself; sending it again changes nothing. */
+  | { status: 'invalid' }
   /** The session ended. */
   | { status: 'unauthenticated' }
-  /** Network, 5xx or an answer the flow cannot act on: nothing submitted; retry with the key. */
+  /** Network or 5xx: the outcome is not known; retry with the same key. */
   | { status: 'unavailable' };
 
 /**
@@ -126,7 +136,10 @@ export async function confirmReport(
   }
   if (status === 409 && code === 'report-submitted') return { status: 'already-submitted' };
   if (status === 409 && code === 'report-compiling') return { status: 'compiling' };
-  return { status: 'unavailable' };
+  if (status === 422) return { status: 'key-reused' };
+  if (status === 404) return { status: 'not-found' };
+  // A 4xx is an answer: the service took nothing, and the same request meets the same refusal.
+  return { status: 'invalid' };
 }
 
 /** A presigned link to an issued document, valid for minutes: fetch one per download. */

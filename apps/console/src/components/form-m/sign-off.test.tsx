@@ -12,6 +12,7 @@ import {
 } from '../../server/form-m.server';
 import {
   confirmReport,
+  type Remarks,
   type ConfirmOutcome,
   documentLink,
   markReviewed,
@@ -28,6 +29,7 @@ import {
 } from '../../server/reporting/mock.server';
 import { formMCapabilities } from '../workspaces';
 import type { StepUpMarker } from './confirm';
+import { FormMWorkspaceView } from './form-m-workspace';
 import { FormMSignOffView, type SignOffActions, type SignOffNavigation } from './sign-off';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -41,6 +43,7 @@ afterAll(() => {
 });
 beforeEach(() => {
   invalidate.mockClear();
+  window.sessionStorage.clear();
 });
 
 const NAMES: Record<string, string> = {
@@ -90,14 +93,17 @@ async function show(
     seed = {},
     marker = null,
     actions,
+    reset = true,
   }: {
     today?: string;
     seed?: ReportingMockSeed;
     marker?: StepUpMarker | null;
     actions?: SignOffActions;
+    /** Seeds the mock afresh (else it stays as the last test step left it). */
+    reset?: boolean;
   } = {},
 ) {
-  resetReportingMock(today, seed);
+  if (reset) resetReportingMock(today, seed);
   const nav = navigation();
   const element = async () => (
     <ToastProvider>
@@ -118,6 +124,7 @@ async function show(
   const view = render(await element());
   return {
     nav,
+    unmount: view.unmount,
     /** Renders again from the mock as it now stands, as `router.invalidate` would. */
     reload: async () => {
       view.rerender(await element());
@@ -179,6 +186,107 @@ describe('the supervisor reviews the draft (S3, S5)', () => {
     expect((await report()).document?.partIII.compiledBy).toMatchObject({
       name: 'Samuel Njoroge',
       designation: 'Deputy Director, HRM',
+    });
+  });
+
+  it.each<[FormMResult<null>, string]>([
+    [
+      { ok: false, error: { kind: 'problem', problem: { type: 'x', title: 'x', status: 403 } } },
+      'Only a supervisor of your Commission can mark Form M reviewed.',
+    ],
+    [
+      {
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'x', title: 'x', status: 409, code: 'report-compiling' },
+        },
+      },
+      'The draft is being recompiled. Try again once it is ready.',
+    ],
+    [
+      {
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'x', title: 'x', status: 409, code: 'report-submitted' },
+        },
+      },
+      'This report was already submitted.',
+    ],
+    [
+      { ok: false, error: { kind: 'problem', problem: { type: 'x', title: 'x', status: 400 } } },
+      'Check the designation and try again.',
+    ],
+    [
+      { ok: false, error: { kind: 'unavailable', detail: null } },
+      'The draft was not marked reviewed. Try again.',
+    ],
+  ])('says why Mark reviewed did not go through', async (answer, copy) => {
+    await show(SUPERVISOR, {
+      actions: mockActions(SUPERVISOR, { markReviewed: () => Promise.resolve(answer) }),
+    });
+    fireEvent.click(within(footer()).getByRole('button', { name: 'Mark reviewed' }));
+    const dialog = screen.getByRole('dialog', { name: 'Mark Form M reviewed' });
+    fireEvent.change(within(dialog).getByLabelText('Designation'), {
+      target: { value: 'Director' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mark reviewed' }));
+    expect(await within(dialog).findByText(copy)).toBeTruthy();
+  });
+
+  it('sends a signed-out supervisor to sign in, from Mark reviewed or a remark save', async () => {
+    const signedOut = () =>
+      Promise.resolve({ ok: false, error: { kind: 'unauthenticated' } } as const);
+    const { nav } = await show(SUPERVISOR, {
+      actions: mockActions(SUPERVISOR, { markReviewed: signedOut, saveRemarks: signedOut }),
+    });
+    const field = screen.getByRole('textbox', {
+      name: 'Remarks for Peter Mwangi Githinji (PSC/2011/0217)',
+    });
+    fireEvent.change(field, { target: { value: 'x' } });
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(nav.signIn).toHaveBeenCalledWith('/form-m?fy=2025');
+    });
+    nav.signIn.mockClear();
+    fireEvent.click(within(footer()).getByRole('button', { name: 'Mark reviewed' }));
+    const dialog = screen.getByRole('dialog', { name: 'Mark Form M reviewed' });
+    fireEvent.change(within(dialog).getByLabelText('Designation'), {
+      target: { value: 'Director' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mark reviewed' }));
+    await waitFor(() => {
+      expect(nav.signIn).toHaveBeenCalledWith('/form-m?fy=2025');
+    });
+  });
+
+  it('saves remarks from two sections in one running map', async () => {
+    const sent: Remarks[] = [];
+    const base = mockActions(SUPERVISOR);
+    await show(SUPERVISOR, {
+      actions: {
+        ...base,
+        saveRemarks: (fy, remarks) => {
+          sent.push(remarks);
+          return base.saveRemarks(fy, remarks);
+        },
+      },
+    });
+    const peter = screen.getByRole('textbox', {
+      name: 'Remarks for Peter Mwangi Githinji (PSC/2011/0217)',
+    });
+    const lucy = screen.getByRole('textbox', {
+      name: 'Remarks for Lucy Atieno Odhiambo (PSC/2004/0061)',
+    });
+    fireEvent.change(peter, { target: { value: 'On sick leave' } });
+    fireEvent.change(lucy, { target: { value: 'Retired abroad' } });
+    fireEvent.blur(lucy);
+    await waitFor(() => {
+      expect(sent.at(-1)).toEqual({
+        '0199b000-0000-7000-8000-000000000201': 'On sick leave',
+        '0199b000-0000-7000-8000-000000000301': 'Retired abroad',
+      });
     });
   });
 
@@ -396,6 +504,21 @@ describe('confirming with a step-up (S6, S7)', () => {
       'Only the commission administrator of your Commission can confirm Form M.',
     ],
     [
+      { status: 'key-reused' },
+      'Form M was not submitted.',
+      'This confirmation was sent before with other details. Reload the page and confirm again.',
+    ],
+    [
+      { status: 'not-found' },
+      'Form M was not submitted.',
+      'This report is no longer available. Reload the page to see how it stands.',
+    ],
+    [
+      { status: 'invalid' },
+      'Form M was not submitted.',
+      'The service could not take this confirmation. Reload the page and confirm again.',
+    ],
+    [
       { status: 'not-reviewed' },
       'Form M was not submitted.',
       'The draft was recompiled since it was reviewed. Your supervisor must review it again.',
@@ -413,6 +536,76 @@ describe('confirming with a step-up (S6, S7)', () => {
     if (text) expect(within(banner).getByText(text)).toBeTruthy();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(invalidate).toHaveBeenCalled();
+  });
+
+  it('sends the same key after a timeout, the dialog closed and the step-up done again', async () => {
+    const keys: string[] = [];
+    const base = mockActions(COMMISSION_ADMIN);
+    const actions: SignOffActions = {
+      ...base,
+      confirm: (fy, key) => {
+        keys.push(key);
+        return keys.length === 1
+          ? Promise.resolve({ status: 'unavailable' })
+          : base.confirm(fy, key);
+      },
+    };
+    const first = await show(COMMISSION_ADMIN, { seed: ready, marker: 'done', actions });
+    let dialog = await screen.findByRole('dialog', { name: 'Confirm and submit Form M' });
+    fireEvent.click(within(dialog).getByLabelText('I confirm the information is correct'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and submit' }));
+    await within(dialog).findByText('Form M was not submitted. Try again. Nothing was sent twice.');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    first.unmount();
+
+    // Back from another step-up: a new page, the same tab.
+    await show(COMMISSION_ADMIN, { marker: 'done', actions, reset: false });
+    dialog = await screen.findByRole('dialog', { name: 'Confirm and submit Form M' });
+    fireEvent.click(within(dialog).getByLabelText('I confirm the information is correct'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm and submit' }));
+    await waitFor(() => {
+      expect(keys).toHaveLength(2);
+    });
+    expect(keys[1]).toBe(keys[0]);
+    await waitFor(async () => {
+      expect((await report()).status).toBe('submitted');
+    });
+    // Known now: the next confirmation gets a key of its own.
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it('says a one-time code comes first once the report is ready', async () => {
+    await show(COMMISSION_ADMIN, { seed: ready });
+    expect(
+      within(footer()).getByText(
+        'You will confirm your identity with a one-time code before submitting.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('holds Confirm and submit back while a Part I change was refused', async () => {
+    const base = mockActions(COMMISSION_ADMIN);
+    await show(COMMISSION_ADMIN, {
+      seed: ready,
+      actions: {
+        ...base,
+        saveManualFields: () =>
+          Promise.resolve({
+            ok: false,
+            error: { kind: 'problem', problem: { type: 'about:blank', title: 'No', status: 400 } },
+          }),
+      },
+    });
+    const contact = screen.getByLabelText('(ii) Contact details');
+    fireEvent.change(contact, { target: { value: '+254 20 000 0000' } });
+    fireEvent.blur(contact);
+    expect(await screen.findByText('Could not save Part I')).toBeTruthy();
+    expect(confirmButton()).toHaveProperty('disabled', true);
+    expect(
+      within(footer()).getByText(
+        'Some changes were not saved. Edit them again, or reload the page.',
+      ),
+    ).toBeTruthy();
   });
 
   it('points to Part I when the report is incomplete', async () => {
@@ -490,6 +683,28 @@ describe('the submitted report (S6, S15)', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Download Form M (PDF)' }));
     expect(await screen.findByText('We could not download the file. Try again.')).toBeTruthy();
+  });
+});
+
+describe("the footer note's extension", () => {
+  it('says nothing when the extension says null, and the default when it says undefined', async () => {
+    resetReportingMock('2026-10-03');
+    const result = await load('2026-10-03', REPORTING_OFFICER);
+    const view = (note: null | undefined) => (
+      <TooltipProvider>
+        <FormMWorkspaceView
+          result={result}
+          capabilities={formMCapabilities([REPORTING_OFFICER])}
+          onSelect={vi.fn()}
+          onCompile={vi.fn(() => Promise.resolve({ ok: true, data: null } as const))}
+          extensions={{ footerNote: () => note }}
+        />
+      </TooltipProvider>
+    );
+    const { rerender } = render(view(null));
+    expect(within(footer()).queryByText('Read only')).toBeNull();
+    rerender(view(undefined));
+    expect(within(footer()).getByText('Read only')).toBeTruthy();
   });
 });
 

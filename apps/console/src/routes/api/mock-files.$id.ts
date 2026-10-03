@@ -12,17 +12,7 @@ import { env } from '../../server/env.server';
  */
 async function file(id: string, inline: boolean): Promise<Response> {
   const { placeholderPdf } = await import('../../server/mock-pdf');
-  const config = env();
-  const title =
-    (config.REVIEW_MOCK
-      ? (await import('../../server/review/mock.server')).mockFileTitle(id)
-      : null) ??
-    (config.ACCESS_MOCK
-      ? (await import('../../server/access/mock.server')).mockAccessFileTitle(id)
-      : null) ??
-    (config.REPORTING_MOCK
-      ? (await import('../../server/reporting/mock.server')).mockReportingFileTitle(id)
-      : null);
+  const title = await mockFileTitle(id);
   if (!title) return new Response(null, { status: 404 });
   return new Response(placeholderPdf([title, 'Placeholder file from the development mock.']), {
     headers: {
@@ -31,6 +21,40 @@ async function file(id: string, inline: boolean): Promise<Response> {
     },
   });
 }
+
+/** The mocks that issue files, each asked only while it is on. */
+const MOCK_FILES: readonly {
+  on: (config: ReturnType<typeof env>) => boolean;
+  title: (id: string) => Promise<string | null>;
+}[] = [
+  {
+    on: (config) => config.REVIEW_MOCK,
+    title: async (id) => (await import('../../server/review/mock.server')).mockFileTitle(id),
+  },
+  {
+    on: (config) => config.ACCESS_MOCK,
+    title: async (id) => (await import('../../server/access/mock.server')).mockAccessFileTitle(id),
+  },
+  {
+    on: (config) => config.REPORTING_MOCK,
+    title: async (id) =>
+      (await import('../../server/reporting/mock.server')).mockReportingFileTitle(id),
+  },
+];
+
+/** The file's name in the first mock that knows it, or null. */
+async function mockFileTitle(id: string): Promise<string | null> {
+  const config = env();
+  for (const mock of MOCK_FILES) {
+    if (!mock.on(config)) continue;
+    const title = await mock.title(id);
+    if (title) return title;
+  }
+  return null;
+}
+
+/** Whether any mock that issues files is on. */
+const anyMockOn = () => MOCK_FILES.some((mock) => mock.on(env()));
 
 function notFound(): Promise<Response> {
   return Promise.resolve(new Response(null, { status: 404 }));
@@ -42,9 +66,7 @@ export const Route = createFileRoute('/api/mock-files/$id')({
       GET: ({ params, request }) =>
         // `import.meta.env.DEV` is `false` in production builds, so the bundler drops the mock
         // branch and the mock's chunk with it; keep the check inline for that to work.
-        import.meta.env.DEV &&
-        process.env.NODE_ENV !== 'production' &&
-        (env().REVIEW_MOCK || env().ACCESS_MOCK || env().REPORTING_MOCK)
+        import.meta.env.DEV && process.env.NODE_ENV !== 'production' && anyMockOn()
           ? file(params.id, new URL(request.url).searchParams.has('inline'))
           : notFound(),
     },

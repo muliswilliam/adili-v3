@@ -1,5 +1,4 @@
 import {
-  type Autosave,
   AutosaveFailure,
   Button,
   type FormMDeclarationSectionKey,
@@ -72,17 +71,13 @@ export interface FormMSignOffViewProps extends Omit<
 
 /** What the officer changed this visit, over the report as loaded (kept by the service too). */
 interface Edits {
-  /** By section, then obligation id. */
-  remarks: Record<FormMDeclarationSectionKey, Record<string, string>>;
+  /** By obligation id, across sections 1-3: the running map the remarks autosave sends. */
+  remarks: Record<string, string>;
   partI: Partial<PartIValues>;
   partB: PartBValues | null;
 }
 
-const NO_EDITS: Edits = {
-  remarks: { initial: {}, biennial: {}, final: {} },
-  partI: {},
-  partB: null,
-};
+const NO_EDITS: Edits = { remarks: {}, partI: {}, partB: null };
 
 /** Remarks, Part I and Part B can change: a draft or a reviewed report, not a preview's footer. */
 const editable = (report: ComplianceReport) =>
@@ -96,7 +91,7 @@ function withEdits(report: ComplianceReport, edits: Edits): ComplianceReport {
   const remarked = (key: FormMDeclarationSectionKey) => ({
     ...partII[key],
     nonFilers: partII[key].nonFilers.map((row) => {
-      const remark = row.obligationId ? edits.remarks[key][row.obligationId] : undefined;
+      const remark = row.obligationId ? edits.remarks[row.obligationId] : undefined;
       return remark === undefined ? row : { ...row, remarks: remark };
     }),
   });
@@ -116,16 +111,24 @@ function withEdits(report: ComplianceReport, edits: Edits): ComplianceReport {
   };
 }
 
-/** A save the service refused for good stops; anything else is retried with backoff. */
-function settle(result: FormMResult<null>): void {
+/**
+ * Throws unless the save went through, as `useAutosave` reads it: a refusal for good stops the
+ * autosave (`AutosaveFailure`), anything else is retried with backoff. A session that ended
+ * calls `onSignedOut` (sign in again) and stops.
+ */
+function throwUnlessSaved(result: FormMResult<null>, onSignedOut: () => void): void {
   if (result.ok) return;
   const { error } = result;
+  if (error.kind === 'unauthenticated') {
+    onSignedOut();
+    throw new AutosaveFailure('error', 'unauthenticated');
+  }
   // A recompile running: passing, so retry. The network or a 5xx: the same.
   if (error.kind === 'unavailable') throw new Error('unavailable');
-  if (error.kind === 'problem' && error.problem.code === 'report-compiling') {
+  if (error.problem.code === 'report-compiling') {
     throw new Error('compiling');
   }
-  throw new AutosaveFailure('error', error.kind === 'problem' ? error.problem.code : error.kind);
+  throw new AutosaveFailure('error', error.problem.code);
 }
 
 /** Part I as the service takes it: blanks clear a field; an email address it would refuse waits. */
@@ -139,6 +142,39 @@ function partIFields(values: PartIValues): ManualFields {
 }
 
 const PENDING = new Set(['saving', 'retrying']);
+/** A save the service refused, or one overtaken elsewhere: what is shown is not what it holds. */
+const STOPPED = new Set(['error', 'conflict']);
+
+/**
+ * The Idempotency-Key of a confirmation whose outcome is not known yet (no answer, a 5xx), kept
+ * in the tab's session storage by report: the step-up leaves the page, and confirming again
+ * after it must send the same key, so the service answers the first attempt rather than file
+ * twice. Dropped once an attempt has a known outcome.
+ */
+const pendingKeys = {
+  name: (reportId: string) => `adili:form-m-confirm-key:${reportId}`,
+  get(reportId: string): string | null {
+    try {
+      return window.sessionStorage.getItem(this.name(reportId));
+    } catch {
+      return null;
+    }
+  },
+  set(reportId: string, key: string) {
+    try {
+      window.sessionStorage.setItem(this.name(reportId), key);
+    } catch {
+      // No storage (private mode): the key lives as long as the dialog.
+    }
+  },
+  clear(reportId: string) {
+    try {
+      window.sessionStorage.removeItem(this.name(reportId));
+    } catch {
+      // As above.
+    }
+  },
+};
 
 /**
  * The Form M workspace with its sign-off (spec 09 FE-2 second half, #226), plugged into the
@@ -162,42 +198,52 @@ export function FormMSignOffView({
   const today = data?.today ?? '';
   const loaded = data?.report ?? null;
   const [edits, setEdits] = useState<Edits>(NO_EDITS);
+  // The edits as of the latest change, ahead of the render: each save sends the newest map.
+  const latestEdits = useRef<Edits>(NO_EDITS);
+  const updateEdits = (change: (current: Edits) => Edits): Edits => {
+    const next = change(latestEdits.current);
+    latestEdits.current = next;
+    setEdits(next);
+    return next;
+  };
   const [reviewing, setReviewing] = useState(false);
   const [state, dispatch] = useReducer(confirmReducer, initialConfirmState);
   const returnTo = `/form-m?fy=${String(fy)}`;
 
-  // One autosave per section, so each says how its own remarks stand; a save sends that
-  // section's edited rows (the service keeps the others).
-  const saveSectionRemarks = useCallback(
-    async (remarks: Remarks) => {
-      settle(await actions.saveRemarks(fy, remarks));
-    },
-    [actions, fy],
+  const signIn = useCallback(() => {
+    navigation.signIn(returnTo);
+  }, [navigation, returnTo]);
+
+  // One autosave per report for sections 1-3 (#496's FormMSection API): it sends the running
+  // obligation id to remark map of every edit, so no save drops another section's.
+  const remarksSave = useAutosave<Remarks>(
+    useCallback(
+      async (remarks) => {
+        throwUnlessSaved(await actions.saveRemarks(fy, remarks), signIn);
+      },
+      [actions, fy, signIn],
+    ),
   );
-  const remarksSaves: Record<FormMDeclarationSectionKey, Autosave<Remarks>> = {
-    initial: useAutosave<Remarks>(saveSectionRemarks),
-    biennial: useAutosave<Remarks>(saveSectionRemarks),
-    final: useAutosave<Remarks>(saveSectionRemarks),
-  };
   const partISave = useAutosave<PartIValues>(
     useCallback(
       async (values) => {
-        settle(await actions.saveManualFields(fy, partIFields(values)));
+        throwUnlessSaved(await actions.saveManualFields(fy, partIFields(values)), signIn);
       },
-      [actions, fy],
+      [actions, fy, signIn],
     ),
   );
   const partBSave = useAutosave<PartBValues>(
     useCallback(
       async ({ registerMaintained, items }) => {
-        settle(
+        throwUnlessSaved(
           await actions.saveManualFields(fy, {
             complaintsRegisterMaintained: registerMaintained,
             complaints: items,
           }),
+          signIn,
         );
       },
-      [actions, fy],
+      [actions, fy, signIn],
     ),
     { delayMs: 0 },
   );
@@ -205,9 +251,16 @@ export function FormMSignOffView({
   const report = loaded ? withEdits(loaded, edits) : null;
   const document = report?.document ?? null;
   const missing = document ? manualMissing(document) : [];
-  const saving = [partISave, partBSave].some((save) => PENDING.has(save.status));
+  const manualSaves = [partISave, partBSave];
+  const saving = manualSaves.some((save) => PENDING.has(save.status));
+  const unsaved = manualSaves.some((save) => STOPPED.has(save.status));
   const ready =
-    capabilities.signsOff && report?.status === 'reviewed' && missing.length === 0 && !saving;
+    capabilities.signsOff &&
+    report?.status === 'reviewed' &&
+    missing.length === 0 &&
+    !saving &&
+    !unsaved;
+  const reportId = report?.id ?? '';
 
   // Back from the step-up: drop the marker, so a reload does not reopen the dialog. A failed one
   // says so; one that went through opens the dialog if the session holds a fresh step-up and the
@@ -225,25 +278,27 @@ export function FormMSignOffView({
         dispatch({
           type: 'step-up-returned',
           confirmed: isFresh === true,
-          key: crypto.randomUUID(),
+          key: pendingKeys.get(reportId) ?? crypto.randomUUID(),
         });
       });
-  }, [stepUpMarker, ready, actions, navigation]);
+  }, [stepUpMarker, ready, actions, navigation, reportId]);
 
   useEffect(() => {
     if (state.step === 'stepping-up') navigation.stepUp(returnTo);
-    if (state.step === 'signed-out') navigation.signIn(returnTo);
+    if (state.step === 'signed-out') signIn();
     if (state.step === 'submitted' || state.step === 'refused') void router.invalidate();
-  }, [state.step, navigation, returnTo, router]);
+  }, [state.step, navigation, returnTo, router, signIn]);
 
   const confirm = () => {
     if (state.step !== 'confirm' || !state.checked) return;
     const { key } = state;
     dispatch({ type: 'submit-pressed' });
+    pendingKeys.set(reportId, key);
     void actions
       .confirm(fy, key)
       .catch((): ConfirmOutcome => ({ status: 'unavailable' }))
       .then((answer) => {
+        if (answer.status !== 'unavailable') pendingKeys.clear(reportId);
         dispatch({ type: 'answered', answer });
       });
   };
@@ -252,24 +307,19 @@ export function FormMSignOffView({
     sectionProps: (section, shown) =>
       capabilities.reviews && editable(shown)
         ? {
-            autosave: remarksSaves[section],
+            // Said where remarks were edited, rather than in every section at once.
+            ...(sectionEdited(shown, section) ? { autosave: remarksSave } : {}),
             // Edited on this visit; the contract does not say who edited a remark before.
             remarkEditedBy: (row) =>
-              row.obligationId && edits.remarks[section][row.obligationId] !== undefined
-                ? viewerName
-                : null,
+              row.obligationId && edits.remarks[row.obligationId] !== undefined ? viewerName : null,
             onRemarkChange: (row, remark) => {
               const id = row.obligationId;
               if (!id) return;
-              const remarks = { ...edits.remarks[section], [id]: remark };
-              setEdits((current) => ({
+              const next = updateEdits((current) => ({
                 ...current,
-                remarks: {
-                  ...current.remarks,
-                  [section]: { ...current.remarks[section], [id]: remark },
-                },
+                remarks: { ...current.remarks, [id]: remark },
               }));
-              remarksSaves[section].change(remarks);
+              remarksSave.change(next.remarks);
             },
           }
         : {},
@@ -279,7 +329,7 @@ export function FormMSignOffView({
           partI={shown.document.partI}
           autosave={partISave}
           onChange={(values) => {
-            setEdits((current) => ({ ...current, partI: values }));
+            updateEdits((current) => ({ ...current, partI: values }));
             partISave.change(values);
           }}
         />
@@ -290,7 +340,7 @@ export function FormMSignOffView({
           complaints={shown.document.partII.complaints}
           autosave={partBSave}
           onChange={(values) => {
-            setEdits((current) => ({ ...current, partB: values }));
+            updateEdits((current) => ({ ...current, partB: values }));
             partBSave.change(values);
           }}
         />
@@ -339,6 +389,7 @@ export function FormMSignOffView({
               onClose={() => {
                 setReviewing(false);
               }}
+              onSignedOut={signIn}
               onMark={async (designation) => {
                 const outcome = await actions.markReviewed(fy, designation);
                 if (outcome.ok) await router.invalidate();
@@ -396,7 +447,14 @@ export function FormMSignOffView({
         missing.includes(register),
       );
     }
-    return saving ? m.saving : null;
+    if (unsaved) return m.unsaved;
+    return saving ? m.saving : m.stepUpNote;
+  }
+
+  function sectionEdited(shown: CompiledReport, section: FormMDeclarationSectionKey): boolean {
+    return shown.document.partII[section].nonFilers.some(
+      (row) => row.obligationId !== undefined && edits.remarks[row.obligationId] !== undefined,
+    );
   }
 
   const shownResult: FormMResult<FormMWorkspace> =
