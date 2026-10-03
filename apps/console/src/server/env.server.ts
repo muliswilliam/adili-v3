@@ -30,8 +30,8 @@ export const envSchema = bffEnvSchema.extend({
   /**
    * Serve the reporting service (spec 09: a Commission's Form M periods and reports, EACC's intake
    * totals and the national consolidated report with its PDF download) from in-memory fixtures,
-   * for screens without the reporting service and its upstreams running. Honoured in `vite dev` and tests
-   * only; production builds do not contain the mock.
+   * for screens without the reporting service and its upstreams running. Honoured in `vite dev`
+   * and tests only; production builds do not contain the mock.
    */
   REPORTING_MOCK: z.stringbool().default(false),
   /**
