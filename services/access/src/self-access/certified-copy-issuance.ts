@@ -5,7 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 
 import type { AccessTransaction } from '../db/database.js';
-import { currentTransactionId, startWorkflow, type WorkflowStart } from '../workflow-control.js';
+import { currentTransactionId, type OnRunning, startWorkflow } from '../workflow-control.js';
 import {
   CERTIFIED_COPY_WORKFLOW,
   type CertifiedCopyWorkflowInput,
@@ -119,10 +119,7 @@ export class CertifiedCopyIssuance {
     return { copy: pending, reopened: true };
   }
 
-  private async start(
-    input: CertifiedCopyWorkflowInput,
-    onRunning: WorkflowStart['onRunning'],
-  ): Promise<void> {
+  private async start(input: CertifiedCopyWorkflowInput, onRunning: OnRunning): Promise<void> {
     await startWorkflow(this.temporal, {
       type: CERTIFIED_COPY_WORKFLOW,
       workflowId: certifiedCopyWorkflowId(input.copyId),
