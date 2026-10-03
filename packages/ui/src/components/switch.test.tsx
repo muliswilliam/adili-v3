@@ -31,4 +31,25 @@ describe('Switch', () => {
     fireEvent.click(screen.getByRole('switch'));
     expect(change).not.toHaveBeenCalled();
   });
+
+  it('stays focusable when blocked with a reason, but does not change', () => {
+    const change = vi.fn();
+    render(
+      <Switch
+        checked={false}
+        onCheckedChange={change}
+        label="Compare"
+        blockedReason="First declaration on Adili: nothing to compare."
+      />,
+    );
+    const control = screen.getByRole('switch', { name: 'Compare' });
+    expect(control.getAttribute('aria-disabled')).toBe('true');
+    expect((control as HTMLButtonElement).disabled).toBe(false);
+    expect(control.getAttribute('aria-describedby')).toBeTruthy();
+    expect(
+      document.getElementById(control.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toBe('First declaration on Adili: nothing to compare.');
+    fireEvent.click(control);
+    expect(change).not.toHaveBeenCalled();
+  });
 });

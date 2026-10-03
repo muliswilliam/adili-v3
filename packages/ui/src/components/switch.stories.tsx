@@ -18,6 +18,13 @@ export const On: Story = { args: { checked: true } };
 
 export const Disabled: Story = { args: { disabled: true } };
 
+export const Blocked: Story = {
+  args: {
+    label: 'Compare with previous declaration',
+    blockedReason: 'First declaration on Adili: nothing to compare.',
+  },
+};
+
 function InteractiveSwitch(args: Parameters<typeof Switch>[0]) {
   const [checked, setChecked] = useState(false);
   return <Switch {...args} checked={checked} onCheckedChange={setChecked} />;

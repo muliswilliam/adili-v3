@@ -1,13 +1,20 @@
-import type { ComponentProps, ReactNode } from 'react';
+import { type ComponentProps, type ReactNode, useId } from 'react';
 
 import { cn } from '../lib/cn';
 import { focusRing } from '../lib/focus';
+import { Tooltip } from './tooltip';
 
 export type SwitchProps = Omit<ComponentProps<'button'>, 'onClick' | 'children' | 'role'> & {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   /** Shown beside the track; names the switch. */
   label: ReactNode;
+  /**
+   * Why the switch cannot be used now. It stays focusable (`aria-disabled`, not `disabled`) so
+   * keyboard and screen reader users reach it and hear the reason as its description; a tooltip
+   * shows it too. Clicks do nothing.
+   */
+  blockedReason?: string;
 };
 
 /**
@@ -15,18 +22,28 @@ export type SwitchProps = Omit<ComponentProps<'button'>, 'onClick' | 'children' 
  * button with `role="switch"`, so keyboard and screen readers get its state. For a choice
  * submitted with a form, use a Checkbox.
  */
-export function Switch({ checked, onCheckedChange, label, className, ...props }: SwitchProps) {
-  return (
+export function Switch({
+  checked,
+  onCheckedChange,
+  label,
+  blockedReason,
+  className,
+  ...props
+}: SwitchProps) {
+  const reasonId = useId();
+  const blocked = Boolean(blockedReason);
+  const control = (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      {...(blocked ? { 'aria-disabled': true, 'aria-describedby': reasonId } : {})}
       onClick={() => {
-        onCheckedChange(!checked);
+        if (!blocked) onCheckedChange(!checked);
       }}
       className={cn(
         focusRing,
-        'group inline-flex cursor-pointer items-center gap-[9px] rounded-md px-0.5 py-1 text-sm font-medium text-foreground select-none disabled:cursor-not-allowed disabled:opacity-50',
+        'group inline-flex cursor-pointer items-center gap-[9px] rounded-md px-0.5 py-1 text-sm font-medium text-foreground select-none disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50',
         className,
       )}
       {...props}
@@ -39,5 +56,14 @@ export function Switch({ checked, onCheckedChange, label, className, ...props }:
       </span>
       {label}
     </button>
+  );
+  if (!blockedReason) return control;
+  return (
+    <>
+      <Tooltip content={blockedReason}>{control}</Tooltip>
+      <span id={reasonId} className="sr-only">
+        {blockedReason}
+      </span>
+    </>
   );
 }
