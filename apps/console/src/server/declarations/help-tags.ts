@@ -1,4 +1,5 @@
 import type { Assert, Same } from '@adili/ui';
+import { z } from 'zod';
 
 import type { HelpTag, QuestionTheme } from './client';
 
@@ -92,3 +93,6 @@ export const QUESTION_THEMES = [
 ] as const;
 
 export type ContractQuestionThemes = Assert<Same<(typeof QUESTION_THEMES)[number], QuestionTheme>>;
+
+/** A month of question themes, `YYYY-MM` (Nairobi), as `getQuestionThemes` takes it. */
+export const questionMonth = z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/);

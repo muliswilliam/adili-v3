@@ -1,4 +1,4 @@
-import { formatCalendarDate, useToday } from '@adili/ui';
+import { formatCalendarDate } from '@adili/ui';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { messages as m } from '../../components/help/messages';
@@ -15,11 +15,13 @@ import type { HelpResult } from '../../server/help.server';
 export const Route = createFileRoute('/help/themes')({
   // One month is read at a time (the contract's `month`), this one by default.
   validateSearch: themesSearch,
+  // This month in Nairobi, worked out once per visit: the default month and the picker's first.
+  beforeLoad: () => ({ thisMonth: formatCalendarDate(Date.now()).slice(0, 7) }),
   loaderDeps: ({ search }) => ({ month: search.month }),
   loader: async ({ context, deps, location }): Promise<HelpResult<QuestionThemeCount[]> | null> => {
     const scope = context.help?.scope;
     if (scope?.kind !== 'commission') return null;
-    const month = deps.month ?? formatCalendarDate(Date.now()).slice(0, 7);
+    const month = deps.month ?? context.thisMonth;
     const result = await getQuestionThemes({ data: { slug: scope.slug, month } });
     if (!result.ok && result.error.kind === 'unauthenticated') throw signInRedirect(location.href);
     return result;
@@ -36,10 +38,9 @@ function ThemesLoaded() {
 }
 
 function ThemesPage({ result }: { result: HelpResult<QuestionThemeCount[]> | null }) {
-  const { help } = Route.useRouteContext();
+  const { help, thisMonth } = Route.useRouteContext();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/help/themes' });
-  const thisMonth = formatCalendarDate(useToday()).slice(0, 7);
   if (!help) return null;
   if (help.scope.kind !== 'commission') {
     return (

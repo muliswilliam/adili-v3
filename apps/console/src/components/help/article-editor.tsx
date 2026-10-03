@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   Card,
+  CheckboxItem,
   cn,
   DateInput,
   Dialog,
@@ -23,7 +24,6 @@ import {
   Input,
   SegmentedChoice,
   Spinner,
-  Switch,
   Textarea,
   useIdempotencyKey,
   useToast,
@@ -114,7 +114,7 @@ const TOPIC_SET: ReadonlySet<HelpTag> = new Set(TOPIC_TAGS);
 /**
  * The help article editor (spec 11 FE-4, S9): title, body in English and Kiswahili with a
  * preview, tags from the section kinds, item types and corpus topics, the period in force and
- * the publish switch. Checks the form before saving and shows the service's own refusals on the
+ * the Published checkbox. Checks the form before saving and shows the service's own refusals on the
  * fields; asks before leaving with unsaved changes. Reporting officers get the article to read.
  */
 export function ArticleEditor(props: ArticleEditorProps) {
@@ -389,7 +389,7 @@ function ArticleForm({
               </dl>
             ) : (
               <>
-                <PublishSwitch
+                <PublishedCheckbox
                   published={draft.published}
                   scope={workspace.scope}
                   onChange={(published) => {
@@ -642,7 +642,8 @@ function Runs({ runs }: { runs: { text: string; bold: boolean }[] }) {
   );
 }
 
-function PublishSwitch({
+/** "Published", sent with Save (so a Checkbox, not a Switch), and who can find the article. */
+function PublishedCheckbox({
   published,
   scope,
   onChange,
@@ -651,24 +652,21 @@ function PublishSwitch({
   scope: HelpScope;
   onChange: (published: boolean) => void;
 }) {
-  const hintId = useId();
   return (
-    <div className="grid gap-1">
-      <Switch
-        checked={published}
-        onCheckedChange={onChange}
-        label={m.published}
-        aria-describedby={hintId}
-        className="justify-self-start"
-      />
-      <p id={hintId} className="text-[13px] text-muted-foreground">
-        {published
+    <CheckboxItem
+      checked={published}
+      label={<span className="font-medium">{m.published}</span>}
+      hint={
+        published
           ? scope.kind === 'platform'
             ? m.publishedHintPlatform
             : m.publishedHintCommission
-          : m.notPublishedHint}
-      </p>
-    </div>
+          : m.notPublishedHint
+      }
+      onChange={(event) => {
+        onChange(event.target.checked);
+      }}
+    />
   );
 }
 

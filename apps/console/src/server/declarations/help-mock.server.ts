@@ -32,7 +32,7 @@ import type {
   QuestionThemeCount,
 } from './client';
 import { COMMISSION_ARTICLES, CORPUS, PLATFORM_ARTICLES } from './help-fixtures';
-import { HELP_TAGS, QUESTION_THEMES } from './help-tags';
+import { HELP_TAGS, QUESTION_THEMES, questionMonth } from './help-tags';
 
 const COMMISSION_ADMIN = 'commission-admin';
 const REPORTING_OFFICER = 'reporting-officer';
@@ -356,7 +356,7 @@ const withoutText = (passage: CorpusPassageText): CorpusPassage => ({
 
 function themes(url: URL, tenant: string): Response {
   const month = url.searchParams.get('month');
-  if (month !== null && !/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month)) {
+  if (month !== null && !questionMonth.safeParse(month).success) {
     return problem(400, 'Query failed validation');
   }
   const counts = (themeCounts.get(tenant) ?? [])

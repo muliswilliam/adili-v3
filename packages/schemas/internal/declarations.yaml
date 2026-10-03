@@ -2565,7 +2565,7 @@ paths:
       tags:
         - help
       summary: Help search as a Commission's declarants (or every declarant) would see it, for the staff who write the articles
-      description: "A Commission's administrators and reporting officers, with `commission` their own Commission: the Act and Regulations, the platform's published articles and the Commission's, in force on `date`, ranked as `searchHelp` ranks them for its declarants. Platform admins, without `commission`: the law and the platform's articles, as every declarant gets them. A just-published article is found at once. Deterministic: no AI. Anyone else, or another Commission, gets 404."
+      description: "A Commission's administrators and reporting officers, with `commission` their own Commission: the Act and Regulations, the platform's published articles and the Commission's, in force on `date`, ranked as `searchHelp` ranks them for its declarants. Platform admins, without `commission`: the law and the platform's articles, as every declarant gets them. A just-published article is found at once. Deterministic: no AI. 404 for: a platform admin passing `commission`; a Commission's staff omitting it or passing another Commission; anyone else, declarants included."
       operationId: previewHelpSearch
       x-draft: true
       parameters:

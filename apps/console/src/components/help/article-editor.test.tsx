@@ -104,9 +104,7 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     );
     expect(screen.getByText('Optional. Without it, Kiswahili users see the English.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bio data', pressed: true })).toBeTruthy();
-    expect(screen.getByRole('switch', { name: 'Published' }).getAttribute('aria-checked')).toBe(
-      'true',
-    );
+    expect(screen.getByRole('checkbox', { name: 'Published' })).toHaveProperty('checked', true);
   });
 
   it('previews paragraphs, lists and bold as declarants read them', () => {
@@ -121,9 +119,7 @@ describe('article editor (spec 11 FE-4, S9)', () => {
     const { save } = renderEditor({ article: null });
     expect(screen.getByRole('heading', { level: 1, name: 'New article' })).toBeTruthy();
     expect(screen.getByText('Not saved')).toBeTruthy();
-    expect(screen.getByRole('switch', { name: 'Published' }).getAttribute('aria-checked')).toBe(
-      'false',
-    );
+    expect(screen.getByRole('checkbox', { name: 'Published' })).toHaveProperty('checked', false);
     fireEvent.change(screen.getByRole('textbox', { name: /Until/ }), {
       target: { value: '01/01/2026' },
     });
@@ -180,7 +176,7 @@ describe('article editor (spec 11 FE-4, S9)', () => {
           resolve = done;
         }),
     );
-    fireEvent.click(screen.getByRole('switch', { name: 'Published' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Published' }));
     expect(screen.getByText("Your Commission's declarants can find it.")).toBeTruthy();
     expect(router.shouldBlock?.()).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

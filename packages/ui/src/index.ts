@@ -482,7 +482,6 @@ export {
   type SuggestionMessages,
   type SuggestionStatus,
 } from './components/suggestion-card';
-export { Switch, type SwitchProps } from './components/switch';
 export {
   Table,
   TableBody,

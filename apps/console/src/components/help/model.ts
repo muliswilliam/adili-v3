@@ -9,6 +9,7 @@ import type {
   QuestionThemeCount,
 } from '../../server/declarations/client';
 import type { HelpProblem } from '../../server/help.server';
+import { questionMonth } from '../../server/declarations/help-tags';
 import { messages as m } from './messages';
 
 /**
@@ -254,11 +255,7 @@ export function filterCorpus(
 
 /** The themes page's URL state: one month (`YYYY-MM`), this one by default. */
 export const themesSearch = z.object({
-  month: z
-    .string()
-    .regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/)
-    .optional()
-    .catch(undefined),
+  month: questionMonth.optional().catch(undefined),
 });
 
 export type ThemesSearch = z.infer<typeof themesSearch>;
@@ -267,7 +264,7 @@ export const THEME_MONTHS = 12;
 
 /**
  * The months to offer, newest first: this one (counting to date) and the eleven before it, plus
- * `shown` when it is older (a link to it).
+ * `shown` when it is outside them (a link to an older or a future month).
  */
 export function themeMonths(thisMonth: string, shown: string = thisMonth): string[] {
   const index = Number(thisMonth.slice(0, 4)) * 12 + Number(thisMonth.slice(5, 7)) - 1;
@@ -275,7 +272,7 @@ export function themeMonths(thisMonth: string, shown: string = thisMonth): strin
     const at = index - back;
     return `${String(Math.floor(at / 12))}-${String((at % 12) + 1).padStart(2, '0')}`;
   });
-  return months.includes(shown) || shown > thisMonth ? months : [...months, shown];
+  return months.includes(shown) ? months : [...months, shown].sort().reverse();
 }
 
 export interface MonthSummary {

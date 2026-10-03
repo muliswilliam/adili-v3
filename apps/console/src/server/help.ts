@@ -13,7 +13,7 @@ import type {
   QuestionThemeCount,
 } from './declarations/client';
 import { helpClient } from './declarations/help-client.server';
-import { HELP_TAGS } from './declarations/help-tags';
+import { HELP_TAGS, questionMonth } from './declarations/help-tags';
 import {
   type HelpResult,
   importStatutoryCorpus,
@@ -100,9 +100,7 @@ export const importCorpus = createServerFn({ method: 'POST' }).handler(
 );
 
 export const getQuestionThemes = createServerFn({ method: 'GET' })
-  .validator(
-    z.object({ slug: commissionSlug, month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/) }),
-  )
+  .validator(z.object({ slug: commissionSlug, month: questionMonth }))
   .handler(({ data }): Promise<HelpResult<QuestionThemeCount[]>> =>
     asHelpViewer((client) => loadQuestionThemes(client, data.slug, data.month)),
   );
