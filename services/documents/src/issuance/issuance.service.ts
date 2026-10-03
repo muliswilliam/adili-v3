@@ -78,8 +78,10 @@ interface DocumentWithRecord {
   record: RecordRow;
 }
 /**
- * Who the source says a pulled document is for, beside the fields the template renders: the
- * issue request's `subjectPersonId` must be this person (`PulledPayload.owner`).
+ * The person the source names beside the fields the template renders (`PulledPayload.owner`):
+ * for `declarant` and `declarant-if-onboarded` the issue request's `subjectPersonId` must be this
+ * person; for `excluded-declarant` it is the one person who never downloads the document, and the
+ * request names no subject person.
  */
 const pulledOwner = {
   declarant: z.looseObject({ declarantPersonId: z.uuid() }),
