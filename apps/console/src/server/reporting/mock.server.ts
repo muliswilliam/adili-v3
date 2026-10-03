@@ -9,7 +9,10 @@
  *   1 April); the year before is a draft compiled eleven days ago (not before 1 July), overdue
  *   once 31 July has passed: 12 appointed and 10 initial declarations, 100 in service and 95
  *   biennial, 4 exits and 3 final, 6 clarifications, no access request data yet (section 5 note).
- * - From April to June: the current year can be previewed; the year before was submitted late.
+ *   With `reviewed`, that draft was marked reviewed by the supervisor two days ago (Part III's
+ *   compiled-by filled).
+ * - From April to June: the current year can be previewed; the year before was submitted late,
+ *   reviewed by Samuel Njoroge and confirmed by Joyce Wanjiku, with Part I and Part B filled.
  *   A preview compiled then has no biennial cycle and section 5 counts from access requests.
  *
  * Only the Commission's supervisor, commission-admin and reporting officer see it (anyone else,

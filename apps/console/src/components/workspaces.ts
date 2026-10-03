@@ -246,22 +246,3 @@ export function workspacesFor(roles: readonly string[]): Workspace[] {
 export function workspaceFor(roles: readonly string[], id: string): Workspace | undefined {
   return workspacesFor(roles).find((workspace) => workspace.id === id);
 }
-
-/** What the viewer may do in their Commission's Form M workspace (spec 09 access table). */
-export interface FormMCapabilities {
-  /** Compiles a preview and recompiles; edits remarks and marks the draft reviewed (#226). */
-  reviews: boolean;
-  /** Enters Part I contact details and Part B, then confirms and submits (#226). */
-  signsOff: boolean;
-  /** Reads only (the reporting officer). */
-  readOnly: boolean;
-}
-
-/** The viewer's Form M capabilities, derived once from their realm roles. */
-export function formMCapabilities(roles: readonly string[]): FormMCapabilities {
-  return {
-    reviews: roles.includes(SUPERVISOR),
-    signsOff: roles.includes(COMMISSION_ADMIN),
-    readOnly: workspaceFor(roles, 'form-m')?.readOnly ?? true,
-  };
-}
