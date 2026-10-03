@@ -1,8 +1,9 @@
 import { COMMISSION_ADMIN } from '@adili/roles';
 import createClient from 'openapi-fetch';
 
-import { env } from '../env.server';
+import { type Env, env } from '../env.server';
 import { json, mockCallerOf, problem, unsignedMockToken } from '../mock-http';
+import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from '../open-data-preview.server';
 import type { components, paths } from './api.gen';
 
 type OpenDataRelease = components['schemas']['OpenDataRelease'];
@@ -15,7 +16,7 @@ type OpenDataRelease = components['schemas']['OpenDataRelease'];
  * when object storage is down. Which release it answers with is `REPORTING_MOCK_OPEN_DATA`.
  */
 
-export type OpenDataMockScenario = 'published' | 'preview' | 'none' | 'unavailable';
+export type OpenDataMockScenario = Env['REPORTING_MOCK_OPEN_DATA'];
 
 let scenario: OpenDataMockScenario | null = null;
 
@@ -41,26 +42,22 @@ const NAMES: Record<string, string> = {
 const rate = (filed: number, expected: number) =>
   expected > 0 ? Math.round((filed / expected) * 10_000) / 10_000 : null;
 
-/** One Commission's filing rows: its cycles' [expected, filed] (null: suppressed) and the total. */
+type Section = Exclude<Cycle, 'all'>;
+
+/**
+ * One Commission's filing rows: each cycle's [expected, filed] (a cycle left out: nothing
+ * expected), the `suppressed` cycles hidden, and the `all` total as a true sum of every cycle,
+ * hidden ones included, as the service publishes it.
+ */
 function filing(
   commission: string,
   reportStatus: 'not-reported' | 'submitted-on-time' | 'submitted-late',
-  cycles: Partial<Record<Exclude<Cycle, 'all'>, [number, number] | null>>,
+  cycles: Partial<Record<Section, [number, number]>>,
+  suppressed: readonly Section[] = [],
 ): Row[] {
   const base = { commission, commissionName: NAMES[commission] ?? commission, reportStatus };
-  if (reportStatus === 'not-reported') {
-    return (['initial', 'biennial', 'final', 'all'] as const).map((cycle) => ({
-      ...base,
-      cycle,
-      expected: null,
-      filed: null,
-      nonFilers: null,
-      filingRate: null,
-      suppressed: false,
-    }));
-  }
-  const figures = (cycle: Cycle, pair: [number, number] | null | undefined): Row =>
-    pair === null
+  const row = (cycle: Cycle, [expected, filed]: [number, number], hidden: boolean): Row =>
+    reportStatus === 'not-reported' || hidden
       ? {
           ...base,
           cycle,
@@ -68,49 +65,34 @@ function filing(
           filed: null,
           nonFilers: null,
           filingRate: null,
-          suppressed: true,
+          suppressed: hidden,
         }
       : {
           ...base,
           cycle,
-          expected: pair?.[0] ?? 0,
-          filed: pair?.[1] ?? 0,
-          nonFilers: (pair?.[0] ?? 0) - (pair?.[1] ?? 0),
-          filingRate: pair ? rate(pair[1], pair[0]) : null,
+          expected,
+          filed,
+          nonFilers: expected - filed,
+          filingRate: rate(filed, expected),
           suppressed: false,
         };
   const sections = (['initial', 'biennial', 'final'] as const).map((cycle) =>
-    figures(cycle, cycles[cycle]),
+    row(cycle, cycles[cycle] ?? [0, 0], suppressed.includes(cycle)),
   );
-  // The service publishes totals as true sums, suppressed cycles included; the mock has no hidden
-  // figures, so its totals add up the shown cycles only.
-  const known = Object.values(cycles).filter((pair): pair is [number, number] => pair != null);
+  const shown = Object.values(cycles);
   const total: [number, number] = [
-    known.reduce((sum, pair) => sum + pair[0], 0),
-    known.reduce((sum, pair) => sum + pair[1], 0),
+    shown.reduce((sum, pair) => sum + pair[0], 0),
+    shown.reduce((sum, pair) => sum + pair[1], 0),
   ];
-  return [...sections, figures('all', total)];
+  return [...sections, row('all', total, false)];
 }
-
-const COMPLIANCE_COLUMNS = [
-  'determinationsCompliant',
-  'determinationsNonCompliant',
-  'determinationsFurtherAction',
-  'clarificationsIssued',
-  'clarificationsResolved',
-  'actionsNoticeToComply',
-  'actionsWarning',
-  'actionsSalaryStoppage',
-  'actionsDisciplinaryReferral',
-  'referrals',
-] as const;
 
 function compliance(commission: string, values: readonly number[] | 'suppressed' | null): Row {
   return {
     commission,
     commissionName: NAMES[commission] ?? commission,
     ...Object.fromEntries(
-      COMPLIANCE_COLUMNS.map((column, index) => [
+      COMPLIANCE_FIGURES.map((column, index) => [
         column,
         Array.isArray(values) ? (values[index] ?? 0) : null,
       ]),
@@ -124,9 +106,7 @@ function accessRequests(commission: string): Row {
   return {
     commission,
     commissionName: NAMES[commission] ?? commission,
-    received: null,
-    granted: null,
-    declined: null,
+    ...Object.fromEntries(ACCESS_REQUEST_FIGURES.map((figure) => [figure, null])),
     suppressed: false,
   };
 }
@@ -179,12 +159,17 @@ const PUBLISHED: MockRelease = {
         biennial: [46480, 45210],
         final: [912, 861],
       }),
-      ...filing('tsc', 'submitted-late', {
-        initial: [8104, 7790],
-        biennial: [301220, 290415],
-        // A final cycle of fewer than 10 officers: suppressed.
-        final: null,
-      }),
+      ...filing(
+        'tsc',
+        'submitted-late',
+        {
+          initial: [8104, 7790],
+          biennial: [301220, 290415],
+          final: [7, 4],
+        },
+        // A final cycle of fewer than 10 officers.
+        ['final'],
+      ),
     ],
     'compliance-by-commission': [
       compliance('jsc', null),
@@ -208,7 +193,8 @@ const PREVIEW: MockRelease = {
     'filing-by-commission': [
       ...filing('jsc', 'not-reported', {}),
       // An even year: no biennial cycle, nothing expected of it.
-      ...filing('psc', 'submitted-on-time', { initial: [655, 596], final: null }),
+      // A final cycle of fewer than 10 officers.
+      ...filing('psc', 'submitted-on-time', { initial: [655, 596], final: [8, 6] }, ['final']),
       ...filing('tsc', 'submitted-on-time', { initial: [2210, 2105], final: [640, 601] }),
     ],
     'compliance-by-commission': [

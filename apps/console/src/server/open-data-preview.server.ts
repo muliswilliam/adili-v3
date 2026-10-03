@@ -32,26 +32,35 @@ const filingRow = z.object({
   suppressed: z.boolean(),
 });
 
+/** `compliance-by-commission`'s figures, in the order the page lists them. */
+export const COMPLIANCE_FIGURES = [
+  'determinationsCompliant',
+  'determinationsNonCompliant',
+  'determinationsFurtherAction',
+  'clarificationsIssued',
+  'clarificationsResolved',
+  'actionsNoticeToComply',
+  'actionsWarning',
+  'actionsSalaryStoppage',
+  'actionsDisciplinaryReferral',
+  'referrals',
+] as const;
+
+/** `access-requests`' figures. */
+export const ACCESS_REQUEST_FIGURES = ['received', 'granted', 'declined'] as const;
+
+const counts = <Figure extends string>(figures: readonly Figure[]) =>
+  Object.fromEntries(figures.map((figure) => [figure, count])) as Record<Figure, typeof count>;
+
 const complianceRow = z.object({
   ...commission,
-  determinationsCompliant: count,
-  determinationsNonCompliant: count,
-  determinationsFurtherAction: count,
-  clarificationsIssued: count,
-  clarificationsResolved: count,
-  actionsNoticeToComply: count,
-  actionsWarning: count,
-  actionsSalaryStoppage: count,
-  actionsDisciplinaryReferral: count,
-  referrals: count,
+  ...counts(COMPLIANCE_FIGURES),
   suppressed: z.boolean(),
 });
 
 const accessRequestsRow = z.object({
   ...commission,
-  received: count,
-  granted: count,
-  declined: count,
+  ...counts(ACCESS_REQUEST_FIGURES),
   suppressed: z.boolean(),
 });
 

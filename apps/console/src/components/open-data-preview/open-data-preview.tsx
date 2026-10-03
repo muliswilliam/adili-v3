@@ -20,16 +20,16 @@ import {
   TableRow,
 } from '@adili/ui';
 import { ChartColumnIcon, LinkSquare01Icon } from '@hugeicons/core-free-icons';
-import type { ReactNode } from 'react';
+import { type ReactNode, useId } from 'react';
 
 import { LoadError, NoAccess } from '../load-error';
 import type { OpenDataPreviewLoad } from '../../server/open-data-preview';
-import type {
-  AccessRequestsRow,
-  CommissionOpenDataPreview,
-  ComplianceRow,
-  FilingRow,
-  OpenDataRelease,
+import {
+  ACCESS_REQUEST_FIGURES,
+  type CommissionOpenDataPreview,
+  COMPLIANCE_FIGURES,
+  type FilingRow,
+  type OpenDataRelease,
 } from '../../server/open-data-preview.server';
 import { messages as m } from './messages';
 
@@ -68,12 +68,14 @@ function Preview({
   const filing = shownFilingRows(data.filing);
   const { compliance, accessRequests } = data;
   const markers = [
-    ...filing.flatMap((row) => FILING_FIGURES.map((figure) => filingMarker(row, figure))),
+    ...filing.flatMap((row) =>
+      FILING_FIGURES.map((figure) => unshown(row, figure, filingGap(row))),
+    ),
     ...(compliance
-      ? COMPLIANCE_FIGURES.map((figure) => figureMarker(compliance, figure, 'not-reported'))
+      ? COMPLIANCE_FIGURES.map((figure) => unshown(compliance, figure, 'not-reported'))
       : []),
     ...(accessRequests
-      ? ACCESS_FIGURES.map((figure) => figureMarker(accessRequests, figure, 'not-collected'))
+      ? ACCESS_REQUEST_FIGURES.map((figure) => unshown(accessRequests, figure, 'not-collected'))
       : []),
   ];
   const cellsSuppressed = markers.filter((kind) => kind === 'suppressed').length;
@@ -107,7 +109,7 @@ function Preview({
               <FigureList
                 caption={m.accessRequests}
                 row={data.accessRequests}
-                figures={ACCESS_FIGURES}
+                figures={ACCESS_REQUEST_FIGURES}
                 labels={m.accessRequestFigures}
                 gap="not-collected"
               />
@@ -165,7 +167,7 @@ function releaseName(release: OpenDataRelease): string {
 
 /** A card with a hairline header and the title (the prototype's `.sec-h`), labelled by it. */
 function Section({ title, children }: { title: string; children: ReactNode }) {
-  const id = `open-data-${title.toLowerCase().replace(/\W+/g, '-')}`;
+  const id = useId();
   return (
     <Card role="region" aria-labelledby={id} className="min-w-0 gap-0 p-0 sm:p-0">
       <div className="border-b px-5 py-4">
@@ -191,15 +193,16 @@ export function shownFilingRows(rows: readonly FilingRow[]): FilingRow[] {
 }
 
 const FILING_FIGURES = ['expected', 'filed', 'nonFilers', 'filingRate'] as const;
-type FilingFigure = (typeof FILING_FIGURES)[number];
 
-/** Why a filing figure is not shown, or null when it is. */
-function filingMarker(row: FilingRow, figure: FilingFigure): UnshownFigureKind | 'nothing' | null {
-  if (row[figure] !== null) return null;
-  if (row.suppressed) return 'suppressed';
-  if (row.reportStatus === 'not-reported') return 'not-reported';
-  // Reported, nothing suppressed: a rate over nobody expected.
-  return 'nothing';
+/**
+ * Why a figure is shown blank: one of the markers, or `nothing` for a figure over nobody (a
+ * filing rate with no officers expected).
+ */
+type Unshown = UnshownFigureKind | 'nothing';
+
+/** What a filing row's null figures are, unsuppressed: not reported, or over nobody expected. */
+function filingGap(row: FilingRow): Unshown {
+  return row.reportStatus === 'not-reported' ? 'not-reported' : 'nothing';
 }
 
 function DeclarationsTable({ rows }: { rows: FilingRow[] }) {
@@ -224,7 +227,7 @@ function DeclarationsTable({ rows }: { rows: FilingRow[] }) {
               <TableCell key={figure} className="py-2.5 text-right tabular-nums">
                 <Figure
                   value={row[figure]}
-                  marker={filingMarker(row, figure)}
+                  marker={unshown(row, figure, filingGap(row))}
                   format={figure === 'filingRate' ? formatRate : formatNumber}
                 />
               </TableCell>
@@ -236,35 +239,16 @@ function DeclarationsTable({ rows }: { rows: FilingRow[] }) {
   );
 }
 
-const COMPLIANCE_FIGURES = [
-  'determinationsCompliant',
-  'determinationsNonCompliant',
-  'determinationsFurtherAction',
-  'clarificationsIssued',
-  'clarificationsResolved',
-  'actionsNoticeToComply',
-  'actionsWarning',
-  'actionsSalaryStoppage',
-  'actionsDisciplinaryReferral',
-  'referrals',
-] as const satisfies readonly (keyof ComplianceRow)[];
-
-const ACCESS_FIGURES = [
-  'received',
-  'granted',
-  'declined',
-] as const satisfies readonly (keyof AccessRequestsRow)[];
-
 /**
- * Why a figure of a Commission-level row is not shown: suppressed, or `gap` for a figure that is
- * null unsuppressed (compliance: the Commission has not reported; access requests: not collected
- * yet, spec 10).
+ * Why a row's figure is not shown, or null when it is: suppressed (the whole row is), else `gap`
+ * for a figure null unsuppressed (compliance: the Commission has not reported; access requests:
+ * not collected yet, spec 10).
  */
-function figureMarker<Row extends { suppressed: boolean }>(
+function unshown<Row extends { suppressed: boolean }>(
   row: Row,
   figure: keyof Row,
-  gap: UnshownFigureKind,
-): UnshownFigureKind | null {
+  gap: Unshown,
+): Unshown | null {
   if (row[figure] !== null) return null;
   return row.suppressed ? 'suppressed' : gap;
 }
@@ -294,7 +278,7 @@ function FigureList<Figure extends string>({
             <TableCell className="py-2.5 text-right tabular-nums">
               <Figure
                 value={row[figure]}
-                marker={figureMarker(row, figure, gap)}
+                marker={unshown(row, figure, gap)}
                 format={formatNumber}
               />
             </TableCell>
@@ -311,7 +295,7 @@ function Figure({
   format,
 }: {
   value: number | null;
-  marker: UnshownFigureKind | 'nothing' | null;
+  marker: Unshown | null;
   format: (value: number) => string;
 }) {
   if (value !== null) return <>{format(value)}</>;

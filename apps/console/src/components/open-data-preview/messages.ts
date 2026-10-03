@@ -4,8 +4,6 @@
  */
 export const en = {
   title: 'Open data preview',
-  workspaceDescription:
-    "Your Commission's figures in the latest open-data release, with the same suppression the public sees.",
   /** `2025` → `FY 2025/2026 annual v1`. */
   releaseName: (fy: number, kind: 'annual' | 'snapshot', version: number) =>
     `FY ${fy}/${fy + 1} ${kind} v${version}`,
@@ -44,7 +42,7 @@ export const en = {
   emptyTitle: 'No open data yet',
   emptyText: 'Your figures appear here when EACC builds a release.',
   errorTitle: 'We could not load your open-data figures',
-  errorDetail: 'Check your connection and try again.',
+  errorDetail: 'Try again in a moment.',
   tryAgain: 'Try again',
   forStaff: 'This page is for your Commission administrator.',
   forEacc: 'EACC sees every Commission in Open data.',

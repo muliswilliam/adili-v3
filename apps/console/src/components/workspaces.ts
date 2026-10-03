@@ -177,7 +177,7 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'open-data-preview',
     title: 'Open data preview',
     description:
-      "Your Commission's figures in the latest open-data release, with the same suppression the public sees.",
+      "Your Commission's figures in the current open-data preview or latest release, suppressed as the public sees them.",
     href: '/commission/open-data',
     roles: [COMMISSION_ADMIN],
   },
