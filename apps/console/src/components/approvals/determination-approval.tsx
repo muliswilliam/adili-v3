@@ -10,6 +10,7 @@ import {
   DialogFooter,
   FieldError,
   FieldHint,
+  formatNumber,
   Icon,
   Label,
   OutcomeBadge,
@@ -35,17 +36,22 @@ import { approveCaseDetermination, returnCaseDetermination } from '../../server/
 import {
   type DeterminationRefusal,
   type DeterminationResult,
-  REFUSAL_STATUS,
+  refusalProblem,
 } from '../../server/determinations.server';
 import type { Determination } from '../../server/review/types';
 import type { ServiceError } from '../../server/service-call';
 import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
-import { proposerName, ReassignActions } from './approval-parts';
+import { decidedNotice, proposerName, ReassignActions } from './approval-parts';
 import { messages as t } from './determination-messages';
 import type { ApprovalNotice, InboxKindView, ItemOf, KindApprovalProps } from './kind';
 import { messages as m } from './messages';
 
 export type DeterminationApprovalItem = ItemOf<'determination'>;
+
+/** "DCB-TSC-2026-0030559-8 · Esther Moraa Onyango": what a determination's dialogs are about. */
+function subjectOf(item: DeterminationApprovalItem): string {
+  return `${item.summary.caseReference} · ${item.summary.declarantName}`;
+}
 
 /** What approving a determination does, in text before the approver decides (S1). */
 export function determinationConsequences(item: DeterminationApprovalItem): ApprovalConsequence[] {
@@ -190,7 +196,7 @@ export function DeterminationApproval({
 
 /** What a refusal of approve or return means for the supervisor (403, 409). */
 export function noticeOf(refusal: DeterminationRefusal): ApprovalNotice {
-  const problem = `${String(REFUSAL_STATUS[refusal.kind])} ${refusal.kind}`;
+  const problem = refusalProblem(refusal);
   if (refusal.kind === 'separation-of-duties') {
     return {
       title: t.refused.title,
@@ -207,12 +213,7 @@ export function noticeOf(refusal: DeterminationRefusal): ApprovalNotice {
       offerReassign: false,
     };
   }
-  return {
-    title: t.decided.title,
-    failure: { title: t.decided.body, problem },
-    after: t.decided.after,
-    offerReassign: false,
-  };
+  return decidedNotice();
 }
 
 /** A failed call, in the open dialog. */
@@ -224,7 +225,7 @@ function failureOf(error: ServiceError): FailureText {
 export const determinationKind: InboxKindView<'determination'> = {
   label: t.tab,
   icon: JusticeScale01Icon,
-  subject: (item) => `${item.summary.caseReference} · ${item.summary.declarantName}`,
+  subject: subjectOf,
   Approval: DeterminationApproval,
 };
 
@@ -255,7 +256,7 @@ export function ApproveDeterminationDialog({
             icon={StampIcon}
             tone="success"
             title={t.approveDialog.title}
-            description={`${item.summary.caseReference} · ${item.summary.declarantName}`}
+            description={subjectOf(item)}
           />
           <DialogBody className="gap-4">
             <DialogFailure failure={failure} />
@@ -303,7 +304,9 @@ export function ApproveDeterminationDialog({
 /** What is wrong with a return reason, or null. */
 export function returnReasonError(reason: string): string | null {
   if (!reason.trim()) return t.returnDialog.required;
-  if (reason.length > RETURN_REASON_MAX_LENGTH) return t.returnDialog.tooLong;
+  if (reason.length > RETURN_REASON_MAX_LENGTH) {
+    return t.returnDialog.tooLong(RETURN_REASON_MAX_LENGTH);
+  }
   return null;
 }
 
@@ -388,8 +391,7 @@ export function ReturnDeterminationDialog({
                         : 'text-[12.5px] text-muted-foreground'
                     }
                   >
-                    {reason.length.toLocaleString('en-KE')} /{' '}
-                    {RETURN_REASON_MAX_LENGTH.toLocaleString('en-KE')}
+                    {formatNumber(reason.length)} / {formatNumber(RETURN_REASON_MAX_LENGTH)}
                   </span>
                 </div>
               </div>

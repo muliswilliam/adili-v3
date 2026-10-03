@@ -20,47 +20,19 @@ import { randomUUID } from 'node:crypto';
 import { SUPERVISOR } from '@adili/roles';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
-import { type MockApprovalSource, mockProblem, seedReassignment } from './approvals-mock.server';
-import type { Assignee, CaseListItem, CaseStatus, Determination } from './types';
-
-/** What the determinations mock reads and changes of a case, resolved for the caller. */
-export interface MockCase {
-  item: CaseListItem;
-  holder: Assignee | null;
-  /** Everyone who held the case: its reviewers of record. */
-  history: Assignee[];
-  /** Open (issued, overdue or responded) clarifications of the case. */
-  openClarifications: number;
-}
-
-export interface MockCases {
-  find: (caseId: string) => MockCase | null;
-  /** Moves the case to `status`, with a timeline entry by `actor`. */
-  setStatus: (caseId: string, status: CaseStatus, actor: Assignee, summary: string) => void;
-  /** Adds a timeline entry to the case. */
-  record: (caseId: string, kind: string, actor: Assignee, summary: string, ref: string) => void;
-}
-
-/** The caller, as the mock reads them from the token. */
-export interface MockApprover extends Assignee {
-  roles: readonly string[];
-}
+import { type MockApprovalSource, seedReassignment } from './approvals-mock.server';
+import {
+  type MockApprover,
+  type MockCase,
+  type MockCases,
+  mockProblem,
+  resolvedCaller,
+} from './mock-parts.server';
+import type { Assignee, Determination } from './types';
 
 interface StoredDetermination extends Determination {
   /** The letter's document, once approved. */
   letterDocumentId: string | null;
-}
-
-/**
- * Stands for "whoever is signed in" as a seeded proposer, so the caller's own proposals (returned,
- * approved) show for any account.
- */
-export const MOCK_CALLER: Assignee = { subject: '(caller)', name: '(caller)' };
-
-function resolved(who: Assignee | null, caller: Assignee): Assignee | null {
-  return who?.subject === MOCK_CALLER.subject
-    ? { subject: caller.subject, name: caller.name }
-    : who;
 }
 
 const determinations = new Map<string, StoredDetermination>();
@@ -157,7 +129,7 @@ function view(stored: StoredDetermination, caller: Assignee): Determination {
     furtherActionNote: stored.furtherActionNote,
     furtherActionLink: stored.furtherActionLink,
     proposerKind: stored.proposerKind,
-    proposer: resolved(stored.proposer, caller),
+    proposer: resolvedCaller(stored.proposer, caller),
     proposedAt: stored.proposedAt,
     status: stored.status,
     approver: stored.approver,
@@ -187,7 +159,7 @@ function cannotApprove(
   found: MockCase | null,
   caller: MockApprover,
 ): CannotApprove | null {
-  if (resolved(stored.proposer, caller)?.subject === caller.subject) return 'proposer';
+  if (resolvedCaller(stored.proposer, caller)?.subject === caller.subject) return 'proposer';
   const ofRecord = [...(found?.history ?? []), ...(found?.holder ? [found.holder] : [])];
   if (ofRecord.some((each) => each.subject === caller.subject)) return 'reviewer-of-record';
   return caller.roles.includes(SUPERVISOR) ? null : 'role';
@@ -370,7 +342,7 @@ async function returnTo(
 }
 
 function withdraw(stored: StoredDetermination, caller: MockApprover, cases: MockCases): Response {
-  if (resolved(stored.proposer, caller)?.subject !== caller.subject) {
+  if (resolvedCaller(stored.proposer, caller)?.subject !== caller.subject) {
     return coded(403, 'not-the-proposer', 'Only the reviewer who proposed it can withdraw it.');
   }
   if (stored.status !== 'proposed') return notProposed(stored.status);
@@ -386,18 +358,24 @@ function withdraw(stored: StoredDetermination, caller: MockApprover, cases: Mock
 }
 
 /** The determination approval source of the inbox mock: proposed ones, oldest first. */
-export const determinationApprovals: MockApprovalSource = {
+export const determinationApprovals: MockApprovalSource<'determination'> = {
   kind: 'determination',
   pending: (caller, cases) =>
     [...determinations.values()]
-      .filter((each) => each.status === 'proposed')
+      // The system's no-issues proposals are bulk closures, approved on their own page (#202),
+      // never in the inbox: as review's `notBulkClosure`.
+      .filter(
+        (each) =>
+          each.status === 'proposed' &&
+          !(each.proposerKind === 'system' && each.outcome === 'compliant-no-issues'),
+      )
       .map((stored) => {
         const found = cases.find(stored.caseId);
         return {
           subjectId: stored.id,
           proposedAt: stored.proposedAt,
           proposerKind: stored.proposerKind,
-          proposer: resolved(stored.proposer, caller),
+          proposer: resolvedCaller(stored.proposer, caller),
           summary: {
             caseId: stored.caseId,
             caseReference: found?.item.reference ?? null,

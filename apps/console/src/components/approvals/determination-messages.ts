@@ -1,4 +1,4 @@
-import { formatDate } from '@adili/ui';
+import { formatDate, formatNumber } from '@adili/ui';
 
 /** Copy of the determinations tab of the approvals inbox (spec 08 FE-3, S1, S2). */
 export const messages = {
@@ -29,7 +29,7 @@ export const messages = {
     placeholder: 'Say what needs to change.',
     hint: (name: string) => `Shown to ${name} on the case.`,
     required: 'Enter a reason.',
-    tooLong: 'The reason can be up to 2,000 characters.',
+    tooLong: (max: number) => `The reason can be up to ${formatNumber(max)} characters.`,
     cancel: 'Cancel',
     confirm: 'Return proposal',
   },
@@ -42,11 +42,6 @@ export const messages = {
     separationAfter:
       'You proposed it or held the case after this page loaded, so another supervisor must approve it.',
     roleAfter: 'Your account is not a supervisor of this Commission any more.',
-  },
-  decided: {
-    title: 'Already decided',
-    body: 'Someone decided this determination while the page was open.',
-    after: 'The list has been refreshed. Nothing was changed by you.',
   },
   toasts: {
     approved: (reference: string | null) =>

@@ -30,6 +30,7 @@ import { SUPERVISOR } from '@adili/roles';
 import { ASSET_RULES } from '../../referral/view';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import type { MockApprovalSource } from './approvals-mock.server';
+import { MOCK_CALLER, type MockApprover, mockProblem, resolvedCaller } from './mock-parts.server';
 import type { Assignee, CaseListItem, Clarification, Flag, Referral } from './types';
 
 /** What the referrals mock reads of a case, resolved for the caller. */
@@ -44,11 +45,6 @@ export interface ReferralCase {
 
 export interface ReferralCases {
   find: (caseId: string) => ReferralCase | null;
-}
-
-/** The caller, as the mock reads them from the token. */
-export interface ReferralCaller extends Assignee {
-  roles: readonly string[];
 }
 
 export const MOCK_REFERRAL_IDS = {
@@ -71,9 +67,6 @@ export const MOCK_REFERRAL_IDS = {
 /** How long after approval the package is assembled and the referral sent. */
 export const MOCK_PACKAGE_DELAY_MS = 6_000;
 
-/** Stands for "whoever is signed in" as a seeded proposer (the case mock's `MOCK_CALLER`). */
-const CALLER_SUBJECT = '(caller)';
-
 type Evidence = NonNullable<Referral['evidence']>[number];
 type ManifestItem = NonNullable<Referral['package']>['manifest'][number];
 
@@ -90,10 +83,6 @@ let issuer = 'TSC';
 let sequence = 0;
 
 const DAY_MS = 86_400_000;
-
-function resolved(who: Assignee | null, caller: Assignee): Assignee | null {
-  return who?.subject === CALLER_SUBJECT ? { subject: caller.subject, name: caller.name } : who;
-}
 
 /** RFL-<ISSUER>-<YEAR>-<seq>-<check> (ADR-011), the check a stand-in letter. */
 function rflReference(at: string): string {
@@ -176,8 +165,6 @@ function stored(
     packageDocumentId: null,
   };
 }
-
-const CALLER: Assignee = { subject: CALLER_SUBJECT, name: CALLER_SUBJECT };
 
 /** The cases the seeded referrals come from (`MOCK_CASE_IDS` of the case mock). */
 export interface ReferralSeedCases {
@@ -318,7 +305,7 @@ export function resetReferralsMock(
     fromCase(
       R.byCaller,
       seedCases.returned,
-      CALLER,
+      MOCK_CALLER,
       1,
       'undeclared-assets',
       'Ardhisasa lists a parcel registered to the declarant in 2024 that the declaration leaves out.',
@@ -396,7 +383,7 @@ function current(found: StoredReferral): StoredReferral {
 function view(found: StoredReferral, caller: Assignee, withEvidence: boolean): Referral {
   const referral: Referral & { packageDocumentId?: string | null } = {
     ...current(found),
-    proposer: resolved(found.proposer, caller),
+    proposer: resolvedCaller(found.proposer, caller),
   };
   // Where the mock keeps the package's document; the contract has it under `package`.
   delete referral.packageDocumentId;
@@ -424,7 +411,7 @@ const NARRATIVE_EXCERPT = 200;
  */
 export function referralApprovals(
   casesFor: (caller: Assignee) => ReferralCases,
-): MockApprovalSource {
+): MockApprovalSource<'referral'> {
   return {
     kind: 'referral',
     pending: (caller) =>
@@ -434,7 +421,7 @@ export function referralApprovals(
           subjectId: each.id,
           proposedAt: each.proposedAt,
           proposerKind: each.proposerKind,
-          proposer: resolved(each.proposer, caller),
+          proposer: resolvedCaller(each.proposer, caller),
           summary: {
             grounds: each.grounds,
             caseId: each.caseId,
@@ -460,26 +447,15 @@ export function referralApprovals(
   };
 }
 
-function coded(status: number, code: string, detail: string, extra: object = {}) {
-  return json(status, {
-    type: code,
-    title: status === 403 ? 'Forbidden' : status === 409 ? 'Conflict' : 'Error',
-    status,
-    detail,
-    code,
-    ...extra,
-  });
-}
-
 type CannotApprove = 'proposer' | 'reviewer-of-record' | 'role';
 
 /** The separation-of-duties rule (ADR-004): null when the caller may decide it. */
 export function cannotApproveReferral(
   found: Referral,
   cases: ReferralCases,
-  caller: ReferralCaller,
+  caller: MockApprover,
 ): CannotApprove | null {
-  if (resolved(found.proposer, caller)?.subject === caller.subject) return 'proposer';
+  if (resolvedCaller(found.proposer, caller)?.subject === caller.subject) return 'proposer';
   const ofRecord = found.sources.caseIds.flatMap((caseId) => {
     const each = cases.find(caseId);
     return [...(each?.history ?? []), ...(each?.holder ? [each.holder] : [])];
@@ -490,11 +466,16 @@ export function cannotApproveReferral(
 
 function refuse(reason: CannotApprove): Response {
   if (reason === 'role') {
-    return coded(403, 'supervisor-required', 'Only a supervisor can approve a referral to EACC.', {
-      reason,
-    });
+    return mockProblem(
+      403,
+      'supervisor-required',
+      'Only a supervisor can approve a referral to EACC.',
+      {
+        reason,
+      },
+    );
   }
-  return coded(
+  return mockProblem(
     403,
     'separation-of-duties',
     reason === 'proposer'
@@ -509,7 +490,7 @@ function refuse(reason: CannotApprove): Response {
  */
 export async function referralsRoute(
   request: Request,
-  caller: ReferralCaller,
+  caller: MockApprover,
   cases: ReferralCases,
 ): Promise<Response | null> {
   const { pathname, searchParams } = new URL(request.url);
@@ -547,7 +528,7 @@ export async function referralsRoute(
     }
     const status = current(found).status;
     if (status !== 'proposed') {
-      return coded(409, 'not-proposed', `The referral is ${status}; it no longer waits.`, {
+      return mockProblem(409, 'not-proposed', `The referral is ${status}; it no longer waits.`, {
         referralStatus: status,
       });
     }
@@ -583,13 +564,13 @@ const isIdList = (value: unknown, max: number): value is string[] =>
 async function proposeOn(
   request: Request,
   caseId: string,
-  caller: ReferralCaller,
+  caller: MockApprover,
   cases: ReferralCases,
 ): Promise<Response> {
   const found = cases.find(caseId);
   if (!found) return problem(404, 'Not found');
   if (found.holder?.subject !== caller.subject) {
-    return coded(
+    return mockProblem(
       403,
       'not-the-assignee',
       "Only the case's assignee can propose a referral from it.",
@@ -623,7 +604,8 @@ async function proposeOn(
   const open = [...referrals.values()].some(
     (each) => each.caseId === caseId && current(each).status === 'proposed',
   );
-  if (open) return coded(409, 'referral-open', 'A referral from this case waits for approval.');
+  if (open)
+    return mockProblem(409, 'referral-open', 'A referral from this case waits for approval.');
   const referral = stored({
     id: randomUUID(),
     caseId,

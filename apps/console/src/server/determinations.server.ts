@@ -1,7 +1,7 @@
 import type { DocumentsClient } from './documents/client';
 import type { ReviewClient } from './review/client.server';
 import type { Determination, DeterminationInput, LetterDownload } from './review/types';
-import { callService, type ServiceError, type ServiceResult } from './service-call';
+import { callService, problemLabel, type ServiceError, type ServiceResult } from './service-call';
 
 /**
  * The review service's determination endpoints (spec 08, S1 and S2): propose on a case, approve,
@@ -42,6 +42,11 @@ export const REFUSAL_STATUS: Record<DeterminationRefusal['kind'], 403 | 409> = {
   'not-the-proposer': 403,
   'not-proposed': 409,
 };
+
+/** The refusal's status and code, as a dialog prints it ("403 separation-of-duties"). */
+export function refusalProblem(refusal: DeterminationRefusal): string {
+  return problemLabel(REFUSAL_STATUS[refusal.kind], refusal.kind);
+}
 
 function isRefusalKind(value: unknown): value is DeterminationRefusal['kind'] {
   return typeof value === 'string' && value in REFUSAL_STATUS;

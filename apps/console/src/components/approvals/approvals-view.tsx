@@ -27,6 +27,7 @@ import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts'
 import { LoadError } from '../load-error';
 import { Page, PageHead } from '../page';
 import type { ApprovalNotice, Settled } from './kind';
+import { decidedNotice } from './approval-parts';
 import { KindApproval, KINDS, kindOf } from './kinds';
 import { messages as t } from './messages';
 import { ReassignDialog, type ReassignTarget } from './reassign-dialog';
@@ -115,12 +116,7 @@ export function ApprovalsView({
     if (result.error.kind === 'problem' && result.error.problem.type === 'not-proposed') {
       setReassigning(null);
       setNotice({
-        notice: {
-          title: t.decided.title,
-          failure: { title: t.decided.body, problem: t.decided.problem },
-          after: t.decided.after,
-          offerReassign: false,
-        },
+        notice: decidedNotice(),
         target,
       });
       await router.invalidate();

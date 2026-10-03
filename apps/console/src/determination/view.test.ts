@@ -76,6 +76,17 @@ describe('determinationState', () => {
     ).toEqual({ kind: 'proposed', current, withdraw: false, openInApprovals: true });
   });
 
+  it('does not send a supervisor to Approvals for a bulk closure (it is not in the inbox)', () => {
+    const current = determination({
+      proposerKind: 'system',
+      proposer: null,
+      outcome: 'compliant-no-issues',
+    });
+    expect(
+      determinationState(openCase, [current], { subject: 'samuel', supervisor: true }),
+    ).toEqual({ kind: 'proposed', current, withdraw: false, openInApprovals: false });
+  });
+
   it('lets the assignee revise a returned proposal', () => {
     const current = determination({
       status: 'returned',
