@@ -538,4 +538,20 @@ describe('#353 S7 version history', () => {
 
     expect(screen.getByRole('main').textContent).toMatch(/Published [^·]+ on NCR approval/);
   });
+
+  it('says so in the version history too, seen from a later version', async () => {
+    resetNcrMock('approved');
+    resetReleasesMock('history');
+    await withdrawOpenDataRelease(supervisor(), ANNUAL_V1, 'Wrong.', crypto.randomUUID());
+    const v2 = await buildOpenDataRelease(supervisor(), 2025, 'annual', crypto.randomUUID());
+    if (!v2.ok) throw new Error('build failed');
+    await publishOpenDataRelease(supervisor(), v2.data.id, crypto.randomUUID());
+    await renderRelease(v2.data.id);
+
+    const versions = screen.getByRole('region', { name: 'Versions' });
+    const [latest, first] = within(versions).getAllByRole('listitem', { name: /^v\d/ });
+    expect(first?.textContent).toMatch(/Published [^,]+, [\d:]+ on NCR approval/);
+    expect(latest?.textContent).toContain('by Esther Chebet');
+    expect(latest?.textContent).not.toContain('on NCR approval');
+  });
 });

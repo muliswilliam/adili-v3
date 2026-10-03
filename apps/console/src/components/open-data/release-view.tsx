@@ -136,6 +136,17 @@ function publishedOnApproval(view: OpenDataReleaseView): boolean {
   return view.release.kind === 'annual' && view.builtBy === null;
 }
 
+/**
+ * The same for a version in the history, where who built it is not listed: the year's first
+ * annual release is the one the workflow builds and publishes on approval (a corrected annual
+ * release is only built once it is withdrawn, so it is version 2 or later).
+ */
+function versionPublishedOnApproval(each: OpenDataRelease, shown: OpenDataReleaseView): boolean {
+  return each.id === shown.release.id
+    ? publishedOnApproval(shown)
+    : each.kind === 'annual' && each.version === 1;
+}
+
 function Banner({ view, supervisor }: { view: OpenDataReleaseView; supervisor: boolean }) {
   const { release } = view;
   if (release.status === 'withdrawn') {
@@ -353,7 +364,7 @@ function VersionsCard({ view }: { view: OpenDataReleaseView }) {
                   </blockquote>
                 ) : null}
                 <ul className="mt-2 grid gap-0.5 text-[12.5px] text-muted-foreground">
-                  {versionEvents(each, current ? view : null).map((line) => (
+                  {versionEvents(each, view).map((line) => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
@@ -367,14 +378,18 @@ function VersionsCard({ view }: { view: OpenDataReleaseView }) {
 }
 
 /** What happened to a version, the latest first; who built it is known for the one on show. */
-function versionEvents(each: OpenDataRelease, shown: OpenDataReleaseView | null): string[] {
+function versionEvents(each: OpenDataRelease, view: OpenDataReleaseView): string[] {
+  const shown = each.id === view.release.id ? view : null;
   const lines: string[] = [];
   if (each.withdrawnAt) {
     lines.push(m.eventWithdrawn(formatDateTime(each.withdrawnAt), each.withdrawnBy?.name ?? null));
   }
   if (each.publishedAt) {
-    // By the publisher; for an annual release published on NCR approval, the approver.
-    lines.push(m.publishedOn(formatDateTime(each.publishedAt), each.publishedBy?.name ?? null));
+    lines.push(
+      versionPublishedOnApproval(each, view)
+        ? m.publishedOnApproval(formatDateTime(each.publishedAt))
+        : m.publishedOn(formatDateTime(each.publishedAt), each.publishedBy?.name ?? null),
+    );
   }
   lines.push(m.eventBuilt(formatDateTime(each.builtAt), shown?.builtBy?.name ?? null));
   return lines;
