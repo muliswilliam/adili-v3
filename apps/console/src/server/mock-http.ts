@@ -36,6 +36,8 @@ export interface MockCaller {
   name: string | null;
   /** Keycloak realm roles (`realm_access.roles`). */
   roles: string[];
+  /** The Commission the token is for (the `tenant` claim); null without one. */
+  tenant: string | null;
 }
 
 /**
@@ -43,7 +45,7 @@ export interface MockCaller {
  * services would); a missing or unreadable one reads as nobody.
  */
 export function mockCallerOf(request: Request): MockCaller {
-  const nobody: MockCaller = { subject: null, name: null, roles: [] };
+  const nobody: MockCaller = { subject: null, name: null, roles: [], tenant: null };
   const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
   try {
     const claims: unknown = JSON.parse(
@@ -56,6 +58,7 @@ export function mockCallerOf(request: Request): MockCaller {
       subject: typeof claims.sub === 'string' ? claims.sub : null,
       name: typeof claims.name === 'string' ? claims.name : null,
       roles: roles.filter((role): role is string => typeof role === 'string'),
+      tenant: typeof claims.tenant === 'string' ? claims.tenant : null,
     };
   } catch {
     return nobody;
@@ -67,12 +70,19 @@ export function unsignedMockToken({
   subject,
   name,
   roles,
+  tenant,
 }: {
   subject: string;
   name: string;
   roles?: readonly string[];
+  tenant?: string;
 }): string {
   const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  const claims = roles ? { sub: subject, name, realm_access: { roles } } : { sub: subject, name };
+  const claims = {
+    sub: subject,
+    name,
+    ...(roles ? { realm_access: { roles } } : {}),
+    ...(tenant ? { tenant } : {}),
+  };
   return `${part({ alg: 'none' })}.${part(claims)}.`;
 }

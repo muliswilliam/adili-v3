@@ -12,11 +12,18 @@ describe('navFor', () => {
     }
   });
 
-  it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {
+  it('adds Law enforcement, Integrations, AI policy and Help articles under Platform for platform admins only (specs 10, 07b, 07c, 11)', () => {
     expect(labels(['platform-admin'])).toEqual([
       [
         'Platform',
-        ['Commissions', 'National obligations', 'Law enforcement', 'Integrations', 'AI policy'],
+        [
+          'Commissions',
+          'National obligations',
+          'Law enforcement',
+          'Integrations',
+          'AI policy',
+          'Help articles',
+        ],
       ],
     ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
@@ -25,6 +32,7 @@ describe('navFor', () => {
       '/platform/law-enforcement',
       '/platform/integrations',
       '/ai-policy',
+      '/help',
     ]);
   });
 
@@ -33,21 +41,24 @@ describe('navFor', () => {
     expect(navFor(['law-enforcement'])[0]?.items[0]?.to).toBe('/lea/requests');
   });
 
-  it('shows the Roster and API access under Commission to reporting officers', () => {
+  it('shows the Roster, API access and Help articles under Commission to reporting officers', () => {
     expect(labels(['reporting-officer'])).toEqual([
-      ['Commission', ['Roster', 'API access', 'Obligations']],
+      ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
     ]);
     expect(navFor(['reporting-officer'])[0]?.items.map((item) => item.to)).toEqual([
       '/roster',
       '/roster/api-access',
       '/obligations',
+      '/help',
     ]);
   });
 
   it('shows commission admins the Roster but not API access, which they cannot open', () => {
-    expect(labels(['commission-admin'])).toEqual([['Commission', ['Roster', 'Obligations']]]);
+    expect(labels(['commission-admin'])).toEqual([
+      ['Commission', ['Roster', 'Obligations', 'Help articles']],
+    ]);
     expect(labels(['commission-admin', 'reporting-officer'])).toEqual([
-      ['Commission', ['Roster', 'API access', 'Obligations']],
+      ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
     ]);
   });
 

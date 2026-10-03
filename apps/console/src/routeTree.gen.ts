@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccessRouteRouteImport } from './routes/access/route'
 import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
+import { Route as HelpRouteRouteImport } from './routes/help/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
 import { Route as PlatformRouteRouteImport } from './routes/platform/route'
@@ -29,6 +30,9 @@ import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
+import { Route as HelpIndexRouteImport } from './routes/help/index'
+import { Route as HelpCorpusRouteImport } from './routes/help/corpus'
+import { Route as HelpThemesRouteImport } from './routes/help/themes'
 import { Route as LeaIndexRouteImport } from './routes/lea/index'
 import { Route as LeaRequestsRouteRouteImport } from './routes/lea/requests/route'
 import { Route as ObligationsIndexRouteImport } from './routes/obligations/index'
@@ -58,6 +62,8 @@ import { Route as ApiMockUploadsIdRouteImport } from './routes/api/mock-uploads.
 import { Route as CommissionsSlugIndexRouteImport } from './routes/commissions/$slug/index'
 import { Route as CommissionsSlugObligationsRouteRouteImport } from './routes/commissions/$slug/obligations/route'
 import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commissions/$slug/records/route'
+import { Route as HelpArticlesArticleIdRouteImport } from './routes/help/articles/$articleId'
+import { Route as HelpArticlesNewRouteImport } from './routes/help/articles/new'
 import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index'
 import { Route as LeaRequestsLeaRequestIdRouteImport } from './routes/lea/requests/$leaRequestId'
 import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new'
@@ -102,6 +108,11 @@ const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRouteRoute = HelpRouteRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaRouteRoute = LeaRouteRouteImport.update({
@@ -184,6 +195,21 @@ const CommissionsNewRoute = CommissionsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
+} as any)
+const HelpIndexRoute = HelpIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HelpRouteRoute,
+} as any)
+const HelpCorpusRoute = HelpCorpusRouteImport.update({
+  id: '/corpus',
+  path: '/corpus',
+  getParentRoute: () => HelpRouteRoute,
+} as any)
+const HelpThemesRoute = HelpThemesRouteImport.update({
+  id: '/themes',
+  path: '/themes',
+  getParentRoute: () => HelpRouteRoute,
 } as any)
 const LeaIndexRoute = LeaIndexRouteImport.update({
   id: '/',
@@ -338,6 +364,16 @@ const CommissionsSlugRecordsRouteRoute =
     path: '/records',
     getParentRoute: () => CommissionsSlugRouteRoute,
   } as any)
+const HelpArticlesArticleIdRoute = HelpArticlesArticleIdRouteImport.update({
+  id: '/articles/$articleId',
+  path: '/articles/$articleId',
+  getParentRoute: () => HelpRouteRoute,
+} as any)
+const HelpArticlesNewRoute = HelpArticlesNewRouteImport.update({
+  id: '/articles/new',
+  path: '/articles/new',
+  getParentRoute: () => HelpRouteRoute,
+} as any)
 const LeaRequestsIndexRoute = LeaRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -484,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/access': typeof AccessRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/help': typeof HelpRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
@@ -503,6 +540,8 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
+  '/help/corpus': typeof HelpCorpusRoute
+  '/help/themes': typeof HelpThemesRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/coverage': typeof RosterCoverageRoute
@@ -512,6 +551,7 @@ export interface FileRoutesByFullPath {
   '/access/': typeof AccessIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/help/': typeof HelpIndexRoute
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
@@ -524,6 +564,8 @@ export interface FileRoutesByFullPath {
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/help/articles/$articleId': typeof HelpArticlesArticleIdRoute
+  '/help/articles/new': typeof HelpArticlesNewRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
   '/lea/requests/new': typeof LeaRequestsNewRoute
   '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
@@ -561,6 +603,8 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
+  '/help/corpus': typeof HelpCorpusRoute
+  '/help/themes': typeof HelpThemesRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/roster/coverage': typeof RosterCoverageRoute
@@ -570,6 +614,7 @@ export interface FileRoutesByTo {
   '/access': typeof AccessIndexRoute
   '/ai-policy': typeof AiPolicyIndexRoute
   '/commissions': typeof CommissionsIndexRoute
+  '/help': typeof HelpIndexRoute
   '/lea': typeof LeaIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/platform': typeof PlatformIndexRoute
@@ -578,6 +623,8 @@ export interface FileRoutesByTo {
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/help/articles/$articleId': typeof HelpArticlesArticleIdRoute
+  '/help/articles/new': typeof HelpArticlesNewRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
   '/lea/requests/new': typeof LeaRequestsNewRoute
   '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
@@ -613,6 +660,7 @@ export interface FileRoutesById {
   '/access': typeof AccessRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/help': typeof HelpRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
@@ -632,6 +680,8 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/commissions/new': typeof CommissionsNewRoute
+  '/help/corpus': typeof HelpCorpusRoute
+  '/help/themes': typeof HelpThemesRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
   '/review/_queue': typeof ReviewQueueRouteWithChildren
@@ -642,6 +692,7 @@ export interface FileRoutesById {
   '/access/': typeof AccessIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/help/': typeof HelpIndexRoute
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
@@ -654,6 +705,8 @@ export interface FileRoutesById {
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
+  '/help/articles/$articleId': typeof HelpArticlesArticleIdRoute
+  '/help/articles/new': typeof HelpArticlesNewRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
   '/lea/requests/new': typeof LeaRequestsNewRoute
   '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
@@ -691,6 +744,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/help'
     | '/lea'
     | '/obligations'
     | '/platform'
@@ -710,6 +764,8 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/new'
+    | '/help/corpus'
+    | '/help/themes'
     | '/obligations/policy'
     | '/platform/integrations'
     | '/roster/coverage'
@@ -719,6 +775,7 @@ export interface FileRouteTypes {
     | '/access/'
     | '/ai-policy/'
     | '/commissions/'
+    | '/help/'
     | '/lea/'
     | '/obligations/'
     | '/platform/'
@@ -731,6 +788,8 @@ export interface FileRouteTypes {
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
+    | '/help/articles/$articleId'
+    | '/help/articles/new'
     | '/lea/requests/$leaRequestId'
     | '/lea/requests/new'
     | '/platform/law-enforcement/$agencyCode'
@@ -768,6 +827,8 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/new'
+    | '/help/corpus'
+    | '/help/themes'
     | '/obligations/policy'
     | '/platform/integrations'
     | '/roster/coverage'
@@ -777,6 +838,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/help'
     | '/lea'
     | '/obligations'
     | '/platform'
@@ -785,6 +847,8 @@ export interface FileRouteTypes {
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
+    | '/help/articles/$articleId'
+    | '/help/articles/new'
     | '/lea/requests/$leaRequestId'
     | '/lea/requests/new'
     | '/platform/law-enforcement/$agencyCode'
@@ -819,6 +883,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/help'
     | '/lea'
     | '/obligations'
     | '/platform'
@@ -838,6 +903,8 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/commissions/new'
+    | '/help/corpus'
+    | '/help/themes'
     | '/obligations/policy'
     | '/platform/integrations'
     | '/review/_queue'
@@ -848,6 +915,7 @@ export interface FileRouteTypes {
     | '/access/'
     | '/ai-policy/'
     | '/commissions/'
+    | '/help/'
     | '/lea/'
     | '/obligations/'
     | '/platform/'
@@ -860,6 +928,8 @@ export interface FileRouteTypes {
     | '/access/certified-copies/new'
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
+    | '/help/articles/$articleId'
+    | '/help/articles/new'
     | '/lea/requests/$leaRequestId'
     | '/lea/requests/new'
     | '/platform/law-enforcement/$agencyCode'
@@ -896,6 +966,7 @@ export interface RootRouteChildren {
   AccessRouteRoute: typeof AccessRouteRouteWithChildren
   AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
+  HelpRouteRoute: typeof HelpRouteRouteWithChildren
   LeaRouteRoute: typeof LeaRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
   PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
@@ -937,6 +1008,13 @@ declare module '@tanstack/react-router' {
       path: '/commissions'
       fullPath: '/commissions'
       preLoaderRoute: typeof CommissionsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lea': {
@@ -1050,6 +1128,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/new'
       preLoaderRoute: typeof CommissionsNewRouteImport
       parentRoute: typeof CommissionsRouteRoute
+    }
+    '/help/': {
+      id: '/help/'
+      path: '/'
+      fullPath: '/help/'
+      preLoaderRoute: typeof HelpIndexRouteImport
+      parentRoute: typeof HelpRouteRoute
+    }
+    '/help/corpus': {
+      id: '/help/corpus'
+      path: '/corpus'
+      fullPath: '/help/corpus'
+      preLoaderRoute: typeof HelpCorpusRouteImport
+      parentRoute: typeof HelpRouteRoute
+    }
+    '/help/themes': {
+      id: '/help/themes'
+      path: '/themes'
+      fullPath: '/help/themes'
+      preLoaderRoute: typeof HelpThemesRouteImport
+      parentRoute: typeof HelpRouteRoute
     }
     '/lea/': {
       id: '/lea/'
@@ -1253,6 +1352,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/$slug/records'
       preLoaderRoute: typeof CommissionsSlugRecordsRouteRouteImport
       parentRoute: typeof CommissionsSlugRouteRoute
+    }
+    '/help/articles/$articleId': {
+      id: '/help/articles/$articleId'
+      path: '/articles/$articleId'
+      fullPath: '/help/articles/$articleId'
+      preLoaderRoute: typeof HelpArticlesArticleIdRouteImport
+      parentRoute: typeof HelpRouteRoute
+    }
+    '/help/articles/new': {
+      id: '/help/articles/new'
+      path: '/articles/new'
+      fullPath: '/help/articles/new'
+      preLoaderRoute: typeof HelpArticlesNewRouteImport
+      parentRoute: typeof HelpRouteRoute
     }
     '/lea/requests/': {
       id: '/lea/requests/'
@@ -1614,6 +1727,26 @@ const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
 const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
 
+interface HelpRouteRouteChildren {
+  HelpCorpusRoute: typeof HelpCorpusRoute
+  HelpThemesRoute: typeof HelpThemesRoute
+  HelpIndexRoute: typeof HelpIndexRoute
+  HelpArticlesArticleIdRoute: typeof HelpArticlesArticleIdRoute
+  HelpArticlesNewRoute: typeof HelpArticlesNewRoute
+}
+
+const HelpRouteRouteChildren: HelpRouteRouteChildren = {
+  HelpCorpusRoute: HelpCorpusRoute,
+  HelpThemesRoute: HelpThemesRoute,
+  HelpIndexRoute: HelpIndexRoute,
+  HelpArticlesArticleIdRoute: HelpArticlesArticleIdRoute,
+  HelpArticlesNewRoute: HelpArticlesNewRoute,
+}
+
+const HelpRouteRouteWithChildren = HelpRouteRoute._addFileChildren(
+  HelpRouteRouteChildren,
+)
+
 interface LeaRequestsRouteRouteChildren {
   LeaRequestsLeaRequestIdRoute: typeof LeaRequestsLeaRequestIdRoute
   LeaRequestsNewRoute: typeof LeaRequestsNewRoute
@@ -1806,6 +1939,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessRouteRoute: AccessRouteRouteWithChildren,
   AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
+  HelpRouteRoute: HelpRouteRouteWithChildren,
   LeaRouteRoute: LeaRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
   PlatformRouteRoute: PlatformRouteRouteWithChildren,

@@ -35,6 +35,12 @@ export const envSchema = bffEnvSchema.extend({
    * console runs without the gateway. Honoured in `vite dev` and tests only, like REVIEW_MOCK.
    */
   AI_GATEWAY_MOCK: z.stringbool().default(false),
+  /**
+   * Serve the declarations service's help endpoints (articles, corpus, help search, question
+   * themes; spec 11) from in-memory fixtures, so the help pages run without the service.
+   * Honoured in `vite dev` and tests only, like REVIEW_MOCK.
+   */
+  HELP_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

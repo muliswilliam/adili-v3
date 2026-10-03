@@ -4,6 +4,7 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   CheckListIcon,
+  HelpCircleIcon,
   Key01Icon,
   PlugSocketIcon,
   Shield01Icon,
@@ -64,6 +65,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         to: '/platform/integrations',
       },
       { workspace: 'ai-policy', icon: SparklesIcon },
+      { workspace: 'platform-help', icon: HelpCircleIcon },
     ],
   },
   {
@@ -88,6 +90,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
         writeOnly: true,
       },
       { workspace: 'obligations', icon: Calendar03Icon },
+      { workspace: 'help', icon: HelpCircleIcon },
     ],
   },
   {
