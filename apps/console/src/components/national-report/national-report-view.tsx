@@ -44,6 +44,7 @@ import {
   type Narrative,
   NARRATIVE_SECTION_IDS,
   type NarrativeParagraph,
+  type NarrativeSectionId,
   type NationalReport,
 } from '../../server/reporting/types';
 import { problemStatus, type ServiceResult } from '../../server/service-call';
@@ -98,13 +99,16 @@ export interface NcrExtensionContext {
  * - `narrativeActions`: the Draft narrative menu (#341) in the narrative's header.
  * - `narrativeNotice`: above the sections, e.g. #341's drafting errors.
  * - `paragraphMeta`: under each paragraph after the "AI draft" label the page always shows on an
- *   AI-drafted paragraph, e.g. #341's figure citation chips.
+ *   AI-drafted paragraph, e.g. #331's figure chips and #341's "Edited" label.
+ * - `sectionBody`: in place of a section's paragraphs when it returns something, e.g. #341's
+ *   skeleton while AI drafts the section.
  */
 export interface NcrExtensions {
   patterns?: (context: NcrExtensionContext) => ReactNode;
   narrativeActions?: (context: NcrExtensionContext) => ReactNode;
   narrativeNotice?: (context: NcrExtensionContext) => ReactNode;
   paragraphMeta?: (paragraph: NarrativeParagraph, context: NcrExtensionContext) => ReactNode;
+  sectionBody?: (section: NarrativeSectionId, context: NcrExtensionContext) => ReactNode;
 }
 
 export interface NationalReportViewProps {
@@ -651,11 +655,14 @@ function NarrativeCard({
       })}
       actions={extensions?.narrativeActions?.(context)}
       notice={extensions?.narrativeNotice?.(context)}
+      sectionBody={(section) => extensions?.sectionBody?.(sectionId(section.id), context)}
       paragraphMeta={(paragraph) => {
         const extra = extensions?.paragraphMeta?.(paragraph, context);
         return paragraph.aiDraft || extra ? (
           <>
-            {paragraph.aiDraft ? <AiLabel size="sm" text={m.aiDraft} /> : null}
+            {paragraph.aiDraft ? (
+              <AiLabel size="sm" text={m.aiDraft} messages={{ noDetails: m.aiDraftTip }} />
+            ) : null}
             {extra}
           </>
         ) : null;

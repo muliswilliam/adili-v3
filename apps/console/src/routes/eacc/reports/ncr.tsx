@@ -5,6 +5,11 @@ import { messages as m } from '../../../components/national-report/messages';
 import { ncrSearchSchema } from '../../../components/national-report/model';
 import { NationalReportView } from '../../../components/national-report/national-report-view';
 import {
+  type NarrativeDraftAsk,
+  type NationalReportLoad,
+  useNcrNarrativeDrafting,
+} from '../../../components/national-report/narrative-drafting';
+import {
   type PatternCandidatesLoad,
   useNcrPatterns,
 } from '../../../components/national-report/notable-patterns';
@@ -12,6 +17,8 @@ import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect
 import {
   approveNationalReportFn,
   buildNationalReportFn,
+  draftNationalReportNarrativeFn,
+  getNationalReportFn,
   getNationalReportPage,
   getNationalReportPdf,
   getPatternCandidatesFn,
@@ -40,6 +47,9 @@ export const Route = createFileRoute('/eacc/reports/ncr')({
 });
 
 const loadCandidates: PatternCandidatesLoad = (fy) => getPatternCandidatesFn({ data: { fy } });
+const draftNarrative: NarrativeDraftAsk = (fy, request, idempotencyKey) =>
+  draftNationalReportNarrativeFn({ data: { fy, ...request, idempotencyKey } });
+const loadReport: NationalReportLoad = (fy) => getNationalReportFn({ data: { fy } });
 
 function NcrLoading() {
   return <NcrPage screen={null} />;
@@ -65,14 +75,25 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
     });
   };
   const result = screen ? screen.page : null;
-  const extensions = useNcrPatterns({
+  const report = result?.ok ? result.data.report : null;
+  const patterns = useNcrPatterns({
     fy: fy ?? 0,
-    report: result?.ok ? result.data.report : null,
+    report,
     load: loadCandidates,
     page,
     onPageChange,
     onUnauthenticated: goToSignIn,
   });
+  const drafting = useNcrNarrativeDrafting({
+    fy: fy ?? 0,
+    report,
+    draft: draftNarrative,
+    load: loadReport,
+    onUnauthenticated: goToSignIn,
+    // The figure chips follow the "Edited" label.
+    figures: patterns.paragraphMeta,
+  });
+  const extensions = { ...patterns, ...drafting };
   return (
     <NationalReportView
       fy={fy ?? 0}
