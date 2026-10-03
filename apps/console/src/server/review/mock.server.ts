@@ -112,6 +112,8 @@ export const MOCK_DETERMINATION_IDS = {
   awaitingOld: 'de7e0000-0000-4000-8000-000000000002',
   awaitingOfRecord: 'de7e0000-0000-4000-8000-000000000003',
   awaitingFurther: 'de7e0000-0000-4000-8000-000000000004',
+  /** The system's "no issues" proposal: a bulk closure, never in the inbox (#202). */
+  bulkClosure: 'de7e0000-0000-4000-8000-000000000007',
   returned: 'de7e0000-0000-4000-8000-000000000005',
   determined: 'de7e0000-0000-4000-8000-000000000006',
 } as const;
@@ -912,6 +914,14 @@ function seedDeterminationCases(now: number) {
         furtherActionNote: 'Refer to EACC for the undeclared directorship.',
         proposer: PETER,
         proposedAt: at(now, -3),
+      },
+      {
+        id: D.bulkClosure,
+        caseId: C.contested,
+        outcome: 'compliant-no-issues',
+        reasons: 'Low priority, no open flags or clarifications after the window.',
+        proposer: null,
+        proposedAt: at(now, -40),
       },
       {
         id: D.returned,

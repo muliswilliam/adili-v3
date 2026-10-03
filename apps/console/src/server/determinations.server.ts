@@ -1,7 +1,10 @@
 import type { DocumentsClient } from './documents/client';
 import type { ReviewClient } from './review/client.server';
 import type { Determination, DeterminationInput, LetterDownload } from './review/types';
-import { callService, problemLabel, type ServiceError, type ServiceResult } from './service-call';
+import { type DeterminationRefusal, REFUSAL_STATUS } from '../determination/refusals';
+import { callService, type ServiceError, type ServiceResult } from './service-call';
+
+export type { DeterminationRefusal };
 
 /**
  * The review service's determination endpoints (spec 08, S1 and S2): propose on a case, approve,
@@ -10,46 +13,13 @@ import { callService, problemLabel, type ServiceError, type ServiceResult } from
  * caller injects the client (see `determinations.ts` for the server functions).
  */
 
-/** Why review refused a determination call, as review.yaml's problem codes name it. */
-export type DeterminationRefusal =
-  /** Propose: one is already proposed or approved (409). */
-  | { kind: 'determination-open' }
-  /** Propose: a clarification of the case is still open (409). */
-  | { kind: 'clarification-open' }
-  /** Propose: only the case's assignee proposes (403). */
-  | { kind: 'not-the-assignee' }
-  /** Approve or return: the caller proposed it or held the case (403). */
-  | { kind: 'separation-of-duties'; reason: 'proposer' | 'reviewer-of-record' }
-  /** Approve or return: a reviewer, not a supervisor (403). */
-  | { kind: 'supervisor-required' }
-  /** Withdraw: only the proposer withdraws (403). */
-  | { kind: 'not-the-proposer' }
-  /** Approve, return or withdraw: it was decided already (409). */
-  | { kind: 'not-proposed' };
-
 export type DeterminationResult<T> =
   | { ok: true; data: T }
   | { ok: false; refusal: DeterminationRefusal }
   | { ok: false; refusal: null; error: ServiceError };
 
-/** Each refusal's HTTP status, as review.yaml answers it. */
-export const REFUSAL_STATUS: Record<DeterminationRefusal['kind'], 403 | 409> = {
-  'determination-open': 409,
-  'clarification-open': 409,
-  'not-the-assignee': 403,
-  'separation-of-duties': 403,
-  'supervisor-required': 403,
-  'not-the-proposer': 403,
-  'not-proposed': 409,
-};
-
-/** The refusal's status and code, as a dialog prints it ("403 separation-of-duties"). */
-export function refusalProblem(refusal: DeterminationRefusal): string {
-  return problemLabel(REFUSAL_STATUS[refusal.kind], refusal.kind);
-}
-
 function isRefusalKind(value: unknown): value is DeterminationRefusal['kind'] {
-  return typeof value === 'string' && value in REFUSAL_STATUS;
+  return typeof value === 'string' && Object.hasOwn(REFUSAL_STATUS, value);
 }
 
 /** The refusal a 403 or 409 problem names, or null for any other answer. */

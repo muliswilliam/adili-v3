@@ -58,6 +58,13 @@ describe('loadApprovals (S14)', () => {
     });
   });
 
+  it('leaves the system’s no-issues proposals (bulk closures) out of the list and its counts', async () => {
+    const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
+    if (!result.ok) throw new Error(JSON.stringify(result.error));
+    expect(result.data.items.map((item) => item.subjectId)).not.toContain(D.bulkClosure);
+    expect(result.data.counts.byAge.over30Days).toBe(1);
+  });
+
   it('pages with the cursor', async () => {
     const first = await loadApprovals(supervisor(), 'tsc', { kind: 'determination', limit: 3 });
     if (!first.ok) throw new Error('first page');

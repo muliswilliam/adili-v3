@@ -58,7 +58,7 @@ import {
   proposeCaseDetermination,
   withdrawCaseDetermination,
 } from '../../server/determinations';
-import { type DeterminationRefusal, refusalProblem } from '../../server/determinations.server';
+import { type DeterminationRefusal, refusalProblem } from '../../determination/refusals';
 import type { CaseView } from '../../server/review-case.server';
 import type { Determination, DeterminationInput } from '../../server/review/types';
 import { downloadFrom } from '../download';

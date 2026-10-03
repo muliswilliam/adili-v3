@@ -1,6 +1,6 @@
 import { formatDate } from '@adili/ui';
 
-import type { DeterminationRefusal } from '../../server/determinations.server';
+import type { DeterminationRefusal } from '../../determination/refusals';
 
 /** Copy of the case's Determination page and its dialogs (spec 08 FE-2). */
 export const messages = {
