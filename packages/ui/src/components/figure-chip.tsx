@@ -35,9 +35,14 @@ const chipClassName =
 
 /**
  * Native attributes (`id`, `data-*`, `aria-*`) and `ref` reach whichever element renders: the
- * button, or the span of a static or unresolved figure.
+ * button, or the span of a static or unresolved figure. The chip names itself: `aria-label` and
+ * `title` are not props, and its own `aria-label`, `title`, `type` and `data-state` win over any
+ * passed (JSX does not type-check hyphenated attributes).
  */
-export interface FigureChipProps extends Omit<HTMLAttributes<HTMLElement>, 'children' | 'onClick'> {
+export interface FigureChipProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  'children' | 'onClick' | 'aria-label' | 'title'
+> {
   ref?: Ref<HTMLElement>;
   /** The aggregate key a narrative paragraph cites. */
   aggregateKey: string;

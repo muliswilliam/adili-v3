@@ -98,14 +98,18 @@ export const PATTERN_CARD_MESSAGES: PatternCardMessages = {
 
 const cardClassName = 'flex min-w-0 flex-col gap-1.5 rounded-xl bg-card px-4 py-3.5';
 
-const citedClassName = 'text-[13px] font-medium text-success [&_svg]:size-3.5';
+// "Cited in findings", in one place for both forms (marked `data-cited`): green 13px words.
+const citedLook =
+  'data-cited:text-[13px] data-cited:font-medium data-cited:text-success data-cited:[&_svg]:size-3.5';
 
-// Once cited, the cite button stays (aria-disabled, presses ignored) so focus is not lost, and
-// looks like the read-only "Cited in findings": green words on no fill, aligned with the text.
-const citeButtonClassName =
-  'aria-disabled:-ml-2 aria-disabled:cursor-default aria-disabled:bg-transparent aria-disabled:px-2 aria-disabled:text-[13px] aria-disabled:text-success aria-disabled:shadow-none aria-disabled:active:translate-y-0 aria-disabled:[&_svg]:size-3.5';
+// Once cited, the cite button stays (aria-disabled, presses ignored) so focus is not lost, with no
+// fill or ring and its words aligned with the card's text.
+const citeButtonClassName = cn(
+  citedLook,
+  'data-cited:-ml-2 data-cited:cursor-default data-cited:bg-transparent data-cited:px-2 data-cited:shadow-none data-cited:active:translate-y-0',
+);
 
-export type PatternCardProps = Omit<ComponentProps<'article'>, 'children'> & {
+export type PatternCardProps = Omit<ComponentProps<'article'>, 'children' | 'aria-label'> & {
   kind: PatternCandidateKind;
   /**
    * Who the pattern is about (`PatternCandidate.subject`: a Commission, an entity type, or
@@ -167,6 +171,7 @@ export function PatternCard({
           variant="secondary"
           size="sm"
           aria-disabled={cited || undefined}
+          data-cited={cited || undefined}
           aria-label={(cited ? copy.citedName : copy.citeName)(kindCopy.label, subject)}
           onClick={cited ? undefined : onCite}
           className={citeButtonClassName}
@@ -179,7 +184,7 @@ export function PatternCard({
     if (!cited) return null;
     return (
       // As tall as the button it stands for, so a card keeps its height read only.
-      <span className={cn('inline-flex h-[34px] items-center gap-1.5', citedClassName)}>
+      <span data-cited className={cn('inline-flex h-[34px] items-center gap-1.5', citedLook)}>
         <Icon icon={Tick02Icon} strokeWidth={2.4} />
         {copy.cited}
       </span>
@@ -188,11 +193,11 @@ export function PatternCard({
 
   return (
     <article
+      {...props}
       aria-label={copy.name(kindCopy.label, subject)}
       data-kind={kind}
       data-cited={cited || undefined}
       className={cn(cardClassName, cited ? 'shadow-card-cited' : 'shadow-card-flat', className)}
-      {...props}
     >
       <div>
         <Badge title={kindCopy.description} className="pl-[7px]">

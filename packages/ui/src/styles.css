@@ -134,7 +134,8 @@
      hairline with an AI stripe down its left edge. */
   --elevation-card-ai: var(--elevation-card), inset 3px 0 0 var(--ai);
   --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
-  /* A settled card on a muted fill (a reviewed or closed flag): the hairline without the lift. */
+  /* The hairline without the lift: a settled card on a muted fill (a reviewed or closed flag), a
+     card inside a card (a pattern card on its panel). */
   --elevation-card-flat: 0 0 0 1px var(--border);
   /* A card whose job is done (a pattern cited in the findings): the ring a step darker. */
   --elevation-card-cited: 0 0 0 1px var(--input);
