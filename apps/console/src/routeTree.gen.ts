@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccessRouteRouteImport } from './routes/access/route'
+import { Route as ActionsRouteRouteImport } from './routes/actions/route'
 import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
@@ -22,6 +23,8 @@ import { Route as AccessIndexRouteImport } from './routes/access/index'
 import { Route as AccessCertifiedCopiesRouteRouteImport } from './routes/access/certified-copies/route'
 import { Route as AccessLeaRequestsRouteRouteImport } from './routes/access/lea-requests/route'
 import { Route as AccessRequestsRouteRouteImport } from './routes/access/requests/route'
+import { Route as ActionsIndexRouteImport } from './routes/actions/index'
+import { Route as ActionsLadderIdRouteImport } from './routes/actions/$ladderId'
 import { Route as AiPolicyIndexRouteImport } from './routes/ai-policy/index'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -94,6 +97,11 @@ const AccessRouteRoute = AccessRouteRouteImport.update({
   path: '/access',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ActionsRouteRoute = ActionsRouteRouteImport.update({
+  id: '/actions',
+  path: '/actions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
   id: '/ai-policy',
   path: '/ai-policy',
@@ -149,6 +157,16 @@ const AccessRequestsRouteRoute = AccessRequestsRouteRouteImport.update({
   id: '/requests',
   path: '/requests',
   getParentRoute: () => AccessRouteRoute,
+} as any)
+const ActionsIndexRoute = ActionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ActionsRouteRoute,
+} as any)
+const ActionsLadderIdRoute = ActionsLadderIdRouteImport.update({
+  id: '/$ladderId',
+  path: '/$ladderId',
+  getParentRoute: () => ActionsRouteRoute,
 } as any)
 const AiPolicyIndexRoute = AiPolicyIndexRouteImport.update({
   id: '/',
@@ -482,6 +500,7 @@ const ReviewCasesCaseIdClarificationsClarificationIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/access': typeof AccessRouteRouteWithChildren
+  '/actions': typeof ActionsRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
@@ -499,6 +518,7 @@ export interface FileRoutesByFullPath {
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
+  '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -510,6 +530,7 @@ export interface FileRoutesByFullPath {
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/access/': typeof AccessIndexRoute
+  '/actions/': typeof ActionsIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/lea/': typeof LeaIndexRoute
@@ -557,6 +578,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/review': typeof ReviewQueueIndexRoute
+  '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -568,6 +590,7 @@ export interface FileRoutesByTo {
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/access': typeof AccessIndexRoute
+  '/actions': typeof ActionsIndexRoute
   '/ai-policy': typeof AiPolicyIndexRoute
   '/commissions': typeof CommissionsIndexRoute
   '/lea': typeof LeaIndexRoute
@@ -611,6 +634,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/access': typeof AccessRouteRouteWithChildren
+  '/actions': typeof ActionsRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
@@ -628,6 +652,7 @@ export interface FileRoutesById {
   '/roster/api-access': typeof RosterApiAccessRouteRouteWithChildren
   '/roster/imports': typeof RosterImportsRouteRouteWithChildren
   '/roster/records': typeof RosterRecordsRouteRouteWithChildren
+  '/actions/$ladderId': typeof ActionsLadderIdRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
@@ -640,6 +665,7 @@ export interface FileRoutesById {
   '/roster/import': typeof RosterImportRoute
   '/roster/template': typeof RosterTemplateRoute
   '/access/': typeof AccessIndexRoute
+  '/actions/': typeof ActionsIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
   '/lea/': typeof LeaIndexRoute
@@ -689,6 +715,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/access'
+    | '/actions'
     | '/ai-policy'
     | '/commissions'
     | '/lea'
@@ -706,6 +733,7 @@ export interface FileRouteTypes {
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
+    | '/actions/$ladderId'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -717,6 +745,7 @@ export interface FileRouteTypes {
     | '/roster/import'
     | '/roster/template'
     | '/access/'
+    | '/actions/'
     | '/ai-policy/'
     | '/commissions/'
     | '/lea/'
@@ -764,6 +793,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/review'
+    | '/actions/$ladderId'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -775,6 +805,7 @@ export interface FileRouteTypes {
     | '/roster/import'
     | '/roster/template'
     | '/access'
+    | '/actions'
     | '/ai-policy'
     | '/commissions'
     | '/lea'
@@ -817,6 +848,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/access'
+    | '/actions'
     | '/ai-policy'
     | '/commissions'
     | '/lea'
@@ -834,6 +866,7 @@ export interface FileRouteTypes {
     | '/roster/api-access'
     | '/roster/imports'
     | '/roster/records'
+    | '/actions/$ladderId'
     | '/auth/callback'
     | '/auth/login'
     | '/auth/logout'
@@ -846,6 +879,7 @@ export interface FileRouteTypes {
     | '/roster/import'
     | '/roster/template'
     | '/access/'
+    | '/actions/'
     | '/ai-policy/'
     | '/commissions/'
     | '/lea/'
@@ -894,6 +928,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessRouteRoute: typeof AccessRouteRouteWithChildren
+  ActionsRouteRoute: typeof ActionsRouteRouteWithChildren
   AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
   LeaRouteRoute: typeof LeaRouteRouteWithChildren
@@ -923,6 +958,13 @@ declare module '@tanstack/react-router' {
       path: '/access'
       fullPath: '/access'
       preLoaderRoute: typeof AccessRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/actions': {
+      id: '/actions'
+      path: '/actions'
+      fullPath: '/actions'
+      preLoaderRoute: typeof ActionsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai-policy': {
@@ -1001,6 +1043,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/access/requests'
       preLoaderRoute: typeof AccessRequestsRouteRouteImport
       parentRoute: typeof AccessRouteRoute
+    }
+    '/actions/': {
+      id: '/actions/'
+      path: '/'
+      fullPath: '/actions/'
+      preLoaderRoute: typeof ActionsIndexRouteImport
+      parentRoute: typeof ActionsRouteRoute
+    }
+    '/actions/$ladderId': {
+      id: '/actions/$ladderId'
+      path: '/$ladderId'
+      fullPath: '/actions/$ladderId'
+      preLoaderRoute: typeof ActionsLadderIdRouteImport
+      parentRoute: typeof ActionsRouteRoute
     }
     '/ai-policy/': {
       id: '/ai-policy/'
@@ -1534,6 +1590,20 @@ const AccessRouteRouteWithChildren = AccessRouteRoute._addFileChildren(
   AccessRouteRouteChildren,
 )
 
+interface ActionsRouteRouteChildren {
+  ActionsLadderIdRoute: typeof ActionsLadderIdRoute
+  ActionsIndexRoute: typeof ActionsIndexRoute
+}
+
+const ActionsRouteRouteChildren: ActionsRouteRouteChildren = {
+  ActionsLadderIdRoute: ActionsLadderIdRoute,
+  ActionsIndexRoute: ActionsIndexRoute,
+}
+
+const ActionsRouteRouteWithChildren = ActionsRouteRoute._addFileChildren(
+  ActionsRouteRouteChildren,
+)
+
 interface AiPolicyRouteRouteChildren {
   AiPolicyIndexRoute: typeof AiPolicyIndexRoute
 }
@@ -1804,6 +1874,7 @@ const ObligationsNationalRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessRouteRoute: AccessRouteRouteWithChildren,
+  ActionsRouteRoute: ActionsRouteRouteWithChildren,
   AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
   LeaRouteRoute: LeaRouteRouteWithChildren,

@@ -31,6 +31,7 @@ export type WorkspaceHref =
   | '/obligations'
   | '/obligations/national'
   | '/review'
+  | '/actions'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
@@ -121,6 +122,14 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'Review queue',
     description: 'Analyse declarations, raise clarifications and propose determinations.',
     href: '/review',
+    roles: [REVIEWER, SUPERVISOR],
+  },
+  {
+    id: 'actions',
+    title: 'Actions',
+    description:
+      'Approve the notices and warnings drafted for overdue declarations and clarifications.',
+    href: '/actions',
     roles: [REVIEWER, SUPERVISOR],
   },
   {
