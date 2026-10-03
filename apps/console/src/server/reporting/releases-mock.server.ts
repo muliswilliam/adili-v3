@@ -14,11 +14,19 @@
  *   annual release (`annual-release-published`). A retry with the same Idempotency-Key replays.
  * - When the year's NCR is approved, its annual release is published by the approver, as the
  *   release workflow does on `ncr.approved.v1`.
+ * - Publish (#353): EACC supervisors only; a preview becomes `published` by the caller with its
+ *   manifest issued (`release-not-preview`; `annual-release-published` while another annual
+ *   release of the year is published). Withdraw: EACC supervisors only; a published release
+ *   becomes `withdrawn` with the reason, trimmed (400 for an empty one; `release-not-published`).
+ *   Both take an Idempotency-Key as api-kit does: a retry replays the stored answer (2xx or 4xx;
+ *   a 5xx is not stored), the same key with another body is 422 `idempotency-key-reused`, and
+ *   while the first request runs 409 `idempotency-key-in-use`.
  *
  * REPORTING_MOCK_RELEASES picks the start: `history`, FY 2025/2026's mid-year snapshot v1
  * (published, then withdrawn by Esther Chebet) and v2 (published); `none`; `unavailable`, every
  * call 503; `reconciliation-failed`, the history with every build refused (409
- * `reconciliation-failed`, as a fault of the table builder would be).
+ * `reconciliation-failed`, as a fault of the table builder would be); `documents-unavailable`, the
+ * history with every publish and withdraw 503 `documents-unavailable` (nothing changed).
  */
 import { createHash } from 'node:crypto';
 
@@ -43,6 +51,9 @@ import type {
 export type ReleasesMockSeed = Env['REPORTING_MOCK_RELEASES'];
 
 const EACC_ROLES = ['eacc-analyst', 'eacc-supervisor'];
+const SUPERVISOR = 'eacc-supervisor';
+/** The verification code's alphabet: no 0, 1, I or O. */
+const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PATH = '/v1/eacc/open-data/releases';
 const FIRST_YEAR = 2025;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -56,11 +67,22 @@ interface StoredRelease {
   tables: TableFiles;
 }
 
+/** A publish or withdraw Idempotency-Key: the request it was first sent with, and its answer. */
+interface KeyClaim {
+  request: string;
+  /** Null while the first request runs. */
+  answer: { status: number; body: unknown } | null;
+}
+
 interface Store {
   seed: ReleasesMockSeed;
   releases: StoredRelease[];
   builds: Map<string, Response>;
+  /** Publish and withdraw keys, by caller and key. */
+  commands: Map<string, KeyClaim>;
   buildMs: number;
+  /** How long a publish or withdraw takes outside tests. */
+  commandMs: number;
 }
 
 let store: Store | null = null;
@@ -70,12 +92,19 @@ export function isReleasesPath(pathname: string): boolean {
   return pathname === PATH || pathname.startsWith(`${PATH}/`);
 }
 
-/** Starts the store over at `seed`; `buildMs` is how long a build takes outside tests. */
+/**
+ * Starts the store over at `seed`; `buildMs` is how long a build takes outside tests. `keep`
+ * switches to `seed`'s behaviour (`documents-unavailable`, say) and keeps the releases as they are.
+ */
 export function resetReleasesMock(
   seed: ReleasesMockSeed,
-  { buildMs = 2500 }: { buildMs?: number } = {},
+  { buildMs = 2500, keep = false }: { buildMs?: number; keep?: boolean } = {},
 ): void {
-  store = { seed, releases: [], builds: new Map(), buildMs };
+  if (keep && store) {
+    store.seed = seed;
+    return;
+  }
+  store = { seed, releases: [], builds: new Map(), commands: new Map(), buildMs, commandMs: 1200 };
   if (seed === 'none') return;
   const midYear = midYearAggregates();
   const firstMidYear = midYearAggregates({ kirinyagaCountedTwice: true });
@@ -165,6 +194,28 @@ export async function mockReleasesFetch(request: Request): Promise<Response> {
       subject: caller.subject ?? 'unknown',
       name: caller.name ?? caller.subject ?? 'unknown',
     });
+  }
+  const command = /^\/v1\/eacc\/open-data\/releases\/([^/]+)\/(publish|withdraw)$/.exec(
+    url.pathname,
+  );
+  if (command?.[1] && command[2] && request.method === 'POST') {
+    const officer = {
+      subject: caller.subject ?? 'unknown',
+      name: caller.name ?? caller.subject ?? 'unknown',
+    };
+    if (!caller.roles.includes(SUPERVISOR)) {
+      return json(403, {
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: 403,
+        detail: `Only an EACC supervisor can ${command[2]} a release.`,
+      });
+    }
+    if (!UUID.test(command[1])) return problem(400, 'The release id is not a UUID');
+    const releaseId = command[1];
+    return command[2] === 'publish'
+      ? keyed(data, request, officer, () => publish(data, releaseId, officer))
+      : keyed(data, request, officer, (body) => withdraw(data, releaseId, officer, body));
   }
   const match = /^\/v1\/eacc\/open-data\/releases\/([^/]+)$/.exec(url.pathname);
   if (match?.[1] && request.method === 'GET') {
@@ -273,6 +324,140 @@ async function build(data: Store, request: Request, officer: Officer): Promise<R
   const response = json(202, release.release);
   data.builds.set(key, response.clone());
   return response;
+}
+
+type Answer = { status: number; body: unknown };
+
+/**
+ * Runs a publish or withdraw under its Idempotency-Key, as api-kit's `AcceptIdempotencyKey`: no
+ * key runs it unguarded; a key seen with another body is 422; a key whose first request still runs
+ * is 409; a key with a stored answer (anything under 500) replays it.
+ */
+async function keyed(
+  data: Store,
+  request: Request,
+  officer: Officer,
+  run: (body: unknown) => Promise<Answer>,
+): Promise<Response> {
+  const text = await request.text();
+  const body: unknown = text ? safeJson(text) : null;
+  const key = request.headers.get('idempotency-key');
+  if (!key) return reply(await run(body));
+  if (!UUID.test(key)) return problem(400, 'Idempotency-Key is not a UUID');
+  const scope = `${officer.subject}:${key}`;
+  const fingerprint = `${request.method} ${new URL(request.url).pathname} ${text}`;
+  const claim = data.commands.get(scope);
+  if (claim) {
+    if (claim.request !== fingerprint) {
+      return reply(coded(422, 'idempotency-key-reused', 'Idempotency-Key reused'));
+    }
+    if (!claim.answer) {
+      return reply(coded(409, 'idempotency-key-in-use', 'Request in progress'));
+    }
+    return reply(claim.answer, { 'idempotent-replayed': 'true' });
+  }
+  const mine: KeyClaim = { request: fingerprint, answer: null };
+  data.commands.set(scope, mine);
+  const answer = await run(body);
+  if (answer.status < 500) mine.answer = answer;
+  else data.commands.delete(scope);
+  return reply(answer);
+}
+
+async function publish(data: Store, releaseId: string, officer: Officer): Promise<Answer> {
+  const found = data.releases.find((each) => each.release.id === releaseId);
+  if (!found) return coded(404, 'not-found', 'Not found');
+  const { release } = found;
+  if (release.status !== 'preview') {
+    return coded(409, 'release-not-preview', 'The release is published or withdrawn already.');
+  }
+  if (
+    release.kind === 'annual' &&
+    data.releases.some(
+      (each) =>
+        each.release.fy === release.fy &&
+        each.release.kind === 'annual' &&
+        each.release.status === 'published',
+    )
+  ) {
+    return coded(
+      409,
+      'annual-release-published',
+      'Another annual release of the year is published: withdraw it first.',
+    );
+  }
+  await delay(data.commandMs);
+  if (data.seed === 'documents-unavailable') {
+    return coded(503, 'documents-unavailable', 'Documents could not be reached.');
+  }
+  found.release = {
+    ...release,
+    status: 'published',
+    publishedAt: new Date().toISOString(),
+    publishedBy: officer,
+    manifestDocumentId: crypto.randomUUID(),
+    manifestVerificationId: verificationCode(),
+  };
+  return { status: 200, body: found.release };
+}
+
+async function withdraw(
+  data: Store,
+  releaseId: string,
+  officer: Officer,
+  body: unknown,
+): Promise<Answer> {
+  const reason =
+    isRecord(body) && Object.keys(body).length === 1 && typeof body.reason === 'string'
+      ? body.reason.trim()
+      : '';
+  if (reason.length < 1 || reason.length > 1000) {
+    return coded(400, 'validation-failed', 'Body failed validation');
+  }
+  const found = data.releases.find((each) => each.release.id === releaseId);
+  if (!found) return coded(404, 'not-found', 'Not found');
+  if (found.release.status !== 'published') {
+    return coded(409, 'release-not-published', 'The release is not published.');
+  }
+  await delay(data.commandMs);
+  if (data.seed === 'documents-unavailable') {
+    return coded(503, 'documents-unavailable', 'Documents could not be reached.');
+  }
+  found.release = {
+    ...found.release,
+    status: 'withdrawn',
+    withdrawnAt: new Date().toISOString(),
+    withdrawnBy: officer,
+    withdrawnReason: reason,
+  };
+  return { status: 200, body: found.release };
+}
+
+/** A problem as api-kit sends a coded one: the code as both `type` and `code`. */
+function coded(status: number, code: string, title: string): Answer {
+  return { status, body: { type: code, title, status, code } };
+}
+
+function reply({ status, body }: Answer, headers: Record<string, string> = {}): Response {
+  return json(status, body, headers);
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** A verification code as documents issues them: `ADL-` and five groups of four, then two. */
+function verificationCode(): string {
+  const pick = (count: number) =>
+    Array.from(
+      { length: count },
+      () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)],
+    ).join('');
+  return ['ADL', pick(4), pick(4), pick(4), pick(4), pick(4), pick(2)].join('-');
 }
 
 /** The release workflow on `ncr.approved.v1`: the year's annual release, published. */
