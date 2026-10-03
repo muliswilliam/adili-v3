@@ -153,7 +153,12 @@ export function holdsAccountNumber(text: string): boolean {
 const EDGE_BEFORE = String.raw`(?<![\p{L}\p{N}])`;
 const EDGE_AFTER = String.raw`(?![\p{L}\p{N}])`;
 const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number }[] = [
-  { cls: 'EMAIL', pattern: /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/gu },
+  // An email, matched from the start of its run only, and its domain label by label, so a long
+  // run of letters and dots takes linear time.
+  {
+    cls: 'EMAIL',
+    pattern: /(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@(?:[\p{L}\p{N}-]+\.)+\p{L}{2,}/gu,
+  },
   // A KRA PIN: A or P, nine digits, a letter.
   { cls: 'KRA_PIN', pattern: new RegExp(`${EDGE_BEFORE}[AP]\\d{9}[A-Z]${EDGE_AFTER}`, 'gu') },
   // Kenyan phone numbers (+254 or 0, then 7 or 1 and eight digits), and other international ones.

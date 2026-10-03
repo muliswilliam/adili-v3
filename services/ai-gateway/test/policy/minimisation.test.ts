@@ -561,3 +561,15 @@ describe('minimise a text layer in linear time', () => {
     expect(performance.now() - started).toBeLessThan(500);
   });
 });
+
+describe('minimise free text in linear time', () => {
+  it.each([
+    ['a long run of letters and digits', 'A1'.repeat(10_000)],
+    ['a long address-like run', `${'a.'.repeat(5_000)}@${'b.'.repeat(5_000)}`],
+  ])('reads %s quickly, and still finds an email', (_name, run) => {
+    const started = performance.now();
+    const { input } = minimise({ note: `${run} mail jane.doe@example.co.ke` });
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
+  });
+});
