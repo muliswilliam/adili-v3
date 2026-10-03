@@ -12,10 +12,13 @@ import {
  * aggregates, computed by code before AI sees anything. The narrative narrates them; it never
  * finds its own. Each names its kind, its subject (a Commission's slug or `national`), the figures
  * it rests on (`values`, which the narrative may state) and the aggregate keys of those figures.
- * Pure: the same figures and thresholds give the same candidates, in the same order.
+ * Pure: the same figures and thresholds give the same candidates, in the same order: by kind,
+ * then the largest first (`magnitudeOf`), then the nation before Commissions, then by slug.
  *
  * - `rate-change`: a non-filer rate (non-filers over officers expected) that moved year on year by
- *   at least a factor (doubled, or halved) and a number of points.
+ *   at least a factor (doubled, or halved) and a number of points. The filing rate is its
+ *   complement (filed = expected - non-filers), so the same change; the NCR aggregates carry no
+ *   other non-compliance rate (compliance determinations are not in Form M).
  * - `threshold-breach`: a non-filer rate above the threshold.
  * - `chronic-late-reporting`: a Commission whose report was submitted late in each of the last
  *   years (the report, not its officers: the NCR aggregates carry only the report's lateness).
@@ -96,9 +99,35 @@ export function patternCandidates(
   return candidates.sort(
     (a, b) =>
       kinds.indexOf(a.kind) - kinds.indexOf(b.kind) ||
+      magnitudeOf(b) - magnitudeOf(a) ||
       Number(b.subject === NATIONAL) - Number(a.subject === NATIONAL) ||
       compare(a.subject, b.subject),
   );
+}
+
+/**
+ * How notable a candidate is within its kind, larger first: a rate change's points either way, a
+ * breaching rate, the years of a streak, the factor over the national clarification ratio, the
+ * points above the size band's peers.
+ */
+function magnitudeOf(candidate: PatternCandidate): number {
+  const value = (name: string): number => {
+    const found = candidate.values[name];
+    return typeof found === 'number' ? found : 0;
+  };
+  switch (candidate.kind) {
+    case 'rate-change':
+      return Math.abs(value('change'));
+    case 'threshold-breach':
+      return value('nonFilerRate');
+    case 'chronic-late-reporting':
+    case 'non-reporting':
+      return value('years');
+    case 'clarification-ratio-outlier':
+      return value('factor');
+    case 'size-band-outlier':
+      return value('nonFilerRate') - value('peerNonFilerRate');
+  }
 }
 
 const NATIONAL = 'national';

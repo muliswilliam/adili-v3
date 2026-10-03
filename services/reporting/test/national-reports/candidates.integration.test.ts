@@ -10,7 +10,9 @@ import {
   HISTORY_COMMISSIONS,
   HISTORY_FYS,
   type HistoryFy,
+  type HistoryReport,
 } from '../support/ncr-history.js';
+import { reportCounts, section } from '../support/receipts.js';
 import { type Caller, type ReportingApi, startReportingApi } from '../support/reporting-api.js';
 
 /**
@@ -47,9 +49,12 @@ describe('NCR pattern candidates endpoint (S1)', () => {
   });
 
   /** The year's reports as submitted, and EACC's receipts of them. */
-  async function givenSubmitted(fy: HistoryFy): Promise<void> {
+  async function givenSubmitted(
+    fy: HistoryFy,
+    reports: readonly HistoryReport[] = HISTORY[fy],
+  ): Promise<void> {
     await api.asPlatform(async (tx) => {
-      for (const { tenant, late, counts } of HISTORY[fy]) {
+      for (const { tenant, late, counts } of reports) {
         const reportId = uuidv7();
         const reference = `RPT-${tenant.toUpperCase()}-${String(fy + 1)}-0000001-X`;
         const submittedAt = new Date(`${String(fy + 1)}-${late ? '08-05' : '07-20'}T07:00:00Z`);
@@ -109,6 +114,41 @@ describe('NCR pattern candidates endpoint (S1)', () => {
     expect(kinds).not.toContain('rate-change');
     expect(kinds).not.toContain('chronic-late-reporting');
     expect(kinds).toContain('clarification-ratio-outlier');
+  });
+
+  it('S1: lists the largest of each kind first, not by name', async () => {
+    const filing = (tenant: string, expected: number, filed: number): HistoryReport => ({
+      tenant,
+      late: false,
+      counts: reportCounts({
+        initial: section(0, 0),
+        biennial: { ...section(expected, filed), noCycleInPeriod: false },
+        final: section(0, 0),
+        clarifications: 0,
+      }),
+    });
+    // cra breaches the 10% threshold at 12%, tsc by far more at 30%.
+    await givenSubmitted(2027, [
+      filing('cra', 200, 176),
+      filing('npsc', 2000, 1900),
+      filing('psc', 4000, 3920),
+      filing('tsc', 1000, 700),
+    ]);
+    await built(2027);
+
+    const response = await candidatesOf(2027, ANALYST);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<{ kind: string; subject: string; values: object }[]>();
+    expect(contractErrors(okResponse(CANDIDATES, 'get'), body)).toEqual([]);
+    expect(
+      body
+        .filter((each) => each.kind === 'threshold-breach')
+        .map(({ subject, values }) => ({ subject, values })),
+    ).toEqual([
+      { subject: 'tsc', values: { nonFilerRate: 0.3, threshold: 0.1 } },
+      { subject: 'cra', values: { nonFilerRate: 0.12, threshold: 0.1 } },
+    ]);
   });
 
   it('S1: 404 before the year is built', async () => {

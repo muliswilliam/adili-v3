@@ -103,6 +103,25 @@ describe('NCR pattern candidates (S1)', () => {
     expect(ids({ sizeBandFactor: 3 })).not.toContain('size-band-outlier:cra:nonFilerRate');
   });
 
+  it('S1: lists the largest of each kind first, the nation before a Commission only on a tie', () => {
+    const breaches = patternCandidates(figures2027(), thresholds({ maxNonFilerRate: 0.05 }))
+      .filter((each) => each.kind === 'threshold-breach')
+      .map((each) => [each.subject, each.values.nonFilerRate]);
+    expect(breaches).toEqual([
+      ['npsc', 0.12],
+      ['tsc', 0.0875],
+      ['national', 0.069],
+    ]);
+    // Rate changes by points either way: tsc's 4.75 before the nation's 2.68.
+    const changes = patternCandidates(figures2027(), thresholds({ rateChangeFactor: 1.5 }))
+      .filter((each) => each.kind === 'rate-change')
+      .map((each) => [each.subject, each.values.change]);
+    expect(changes).toEqual([
+      ['tsc', 0.0475],
+      ['national', 0.0268],
+    ]);
+  });
+
   it('S1: looks back as many years as a chronic late reporter needs', () => {
     expect(historyYears(thresholds())).toBe(2);
     expect(historyYears(thresholds({ chronicLateYears: 5 }))).toBe(4);
