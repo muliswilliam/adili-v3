@@ -21,7 +21,6 @@ export type Officer = Schemas['Officer'];
 export type Narrative = Schemas['Narrative'];
 export type NarrativeParagraph = Schemas['NarrativeParagraph'];
 export type NarrativeSectionId = NarrativeParagraph['section'];
-export type Intake = Schemas['Intake'];
 
 /** The kit's national report sections and limits are the contract's (`Narrative`). */
 export type NarrativeMatchesContract = Assert<MatchesNarrativeSections<Narrative>>;

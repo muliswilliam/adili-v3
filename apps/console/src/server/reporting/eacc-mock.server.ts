@@ -542,7 +542,18 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
   };
 }
 
-const isEacc = (caller: MockCaller) =>
+/**
+ * The year's intake of every Commission, unfiltered: what the national report mock builds its
+ * aggregates from, so both EACC screens count the same reports.
+ */
+export function mockEaccIntake(fy: number): Intake {
+  return intake(fy);
+}
+
+/** Whether the year has a biennial declaration cycle in the mock. */
+export const mockHasBiennialCycle = (fy: number) => hasBiennialCycle(fy);
+
+export const isEacc = (caller: MockCaller) =>
   caller.tenant === EACC_TENANT &&
   caller.roles.some((role) => (EACC_ROLES as readonly string[]).includes(role));
 
@@ -618,6 +629,10 @@ export async function mockReportingDocumentsFetch(input: Request): Promise<Respo
   await delay(200);
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
   const id = match?.[1];
+  // The national consolidated report's PDF is the NCR mock's (ncr-mock.server.ts).
+  if (id && (await import('./ncr-mock.server')).mockNcrFileTitle(id)) {
+    return (await import('./ncr-mock.server')).mockNcrDocumentsFetch(input);
+  }
   if (input.method !== 'GET' || !id || !mockReportingFileTitle(id)) {
     return problem(404, 'Not found');
   }
