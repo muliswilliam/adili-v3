@@ -33,7 +33,7 @@ import {
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { useRouter } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import type {
   NationalReportPage,
@@ -595,13 +595,19 @@ function useNarrativeDraft({
   });
   if (report.id !== basis.id || report.version !== basis.version) {
     setBasis({ id: report.id, version: report.version });
-    // Edits not saved yet win: waiting, being retried, or refused (still on screen, unsaved).
-    const waiting =
+    // Edits not saved yet (waiting, being retried, or refused and still on screen) win, unless
+    // the narrative can no longer be edited (approved meanwhile): then the server's is the record.
+    const unsaved =
       autosave.status === 'saving' || autosave.status === 'retrying' || autosave.status === 'error';
-    if (report.id !== basis.id || (!own.has(report.version) && !waiting)) {
+    if (report.id !== basis.id || !canEdit || (!own.has(report.version) && !unsaved)) {
       setValue(editorValueOf(report.narrativeParagraphs));
     }
   }
+  // Nothing more is saved once the narrative cannot be edited; drop what was waiting.
+  const { reset } = autosave;
+  useEffect(() => {
+    if (!canEdit) reset();
+  }, [canEdit, reset]);
   return {
     value,
     autosave,

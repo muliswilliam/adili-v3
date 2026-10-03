@@ -669,6 +669,42 @@ describe('seams for spec 09b', () => {
     );
   });
 
+  it('shows the server narrative, frozen, once the report is approved meanwhile', async () => {
+    const page = await pageOf('draft');
+    const report = reportOf(page);
+    const approved = reportOf(await pageOf('approved'));
+    const saveNarrative = vi.fn(() =>
+      Promise.resolve<NationalReportResult<NationalReport>>({
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Conflict', status: 409, code: 'ncr-approved' },
+        },
+      }),
+    );
+    const view = renderView({ result: page, saveNarrative });
+    const field = screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' });
+    fireEvent.change(field, { target: { value: 'Typed as it was approved.' } });
+    fireEvent.blur(field);
+    await waitFor(() => {
+      expect(saveNarrative).toHaveBeenCalled();
+    });
+
+    view.rerender({
+      result: {
+        ok: true,
+        data: { ...page.data, report: { ...approved, id: report.id, version: report.version + 1 } },
+      },
+    });
+
+    expect(screen.getByText('Frozen at approval')).toBeDefined();
+    expect(
+      screen.getByText('Commissions that did not report should do so within 30 days.'),
+    ).toBeDefined();
+    expect(screen.queryByText('Typed as it was approved.')).toBeNull();
+    expect(screen.queryByText('Could not save')).toBeNull();
+  });
+
   it('keeps the AI-draft label when a panel adds its own paragraph line', async () => {
     renderView({
       result: await pageOf('draft'),
