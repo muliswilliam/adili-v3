@@ -80,8 +80,9 @@ interface DocumentWithRecord {
 /**
  * The person the source names beside the fields the template renders (`PulledPayload.owner`):
  * for `declarant` and `declarant-if-onboarded` the issue request's `subjectPersonId` must be this
- * person; for `excluded-declarant` it is the one person who never downloads the document, and the
- * request names no subject person.
+ * person; for `excluded-declarant` it is the person the document is never issued to (recorded as
+ * `excludedPersonId`, refused to an EACC reader whose token names them; staff tokens do not yet,
+ * #486), and the request names no subject person.
  */
 const pulledOwner = {
   declarant: z.looseObject({ declarantPersonId: z.uuid() }),
@@ -629,7 +630,8 @@ export class IssuanceService {
    * there downloads it no more, or an EACC analyst or supervisor and the document is of a type
    * EACC opens from every Commission (a Form M, a receipt or a referral package, eacc-readable.ts;
    * read in EACC's context, which the database admits to those types only) and not about them (an
-   * EACC officer referred by EACC). Anyone else gets the same 404.
+   * EACC officer referred by EACC) when their token names them; staff tokens do not yet name their
+   * person (#486). Anyone else gets the same 404.
    */
   private async owned(
     { personId, subject, tenant, roles }: Downloader,

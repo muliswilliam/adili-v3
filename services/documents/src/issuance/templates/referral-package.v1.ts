@@ -328,7 +328,8 @@ function versionsPart(
  * A referral's evidence package for EACC (spec 08, Regs r.20): the cover sheet (grounds, legal
  * basis, public officer, narrative, who proposed and approved it), the manifest of every item
  * with its SHA-256, then the evidence. Confidential: the verify page shows validity only, and
- * the declarant, who is not told of the referral, can never download it.
+ * the declarant, who is not told of the referral, is never its subject person (an EACC officer
+ * EACC refers is refused it only when their token names them, see `excludedPersonId`, #486).
  */
 export const referralPackageV1: DocumentTemplate<ReferralPackagePayload> = {
   type: REFERRAL_PACKAGE,

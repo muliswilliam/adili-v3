@@ -46,7 +46,9 @@ export const issuedDocuments = pgTable(
     /**
      * The person a document is about who must never download it: the declarant a referral package
      * refers (spec 08, never told of it). An EACC officer is referred by EACC as their Commission,
-     * so EACC's analysts and supervisors download every package but the one about themselves.
+     * so an EACC analyst or supervisor whose token names this person (`person_id`) is refused the
+     * package; staff tokens do not name their person yet (#486), so for now this holds only for an
+     * EACC account that does.
      */
     excludedPersonId: uuid(),
     verificationId: text().notNull().unique(),

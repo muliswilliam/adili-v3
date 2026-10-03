@@ -32,7 +32,8 @@ export interface PulledPayload {
    * What the pulled `declarantPersonId` (which the template does not print) is to the document:
    * its subject person, who may download it, for `declarant` (which must name a person) and
    * `declarant-if-onboarded` (which may name none: an officer who never onboarded); for
-   * `excluded-declarant` the one person who must never download it (a Confidential referral
+   * `excluded-declarant` the person who is never its subject and whom an EACC reader's token
+   * naming them (`person_id`; staff tokens do not yet, #486) is refused (a Confidential referral
    * package the declarant is never told of; its template refuses a subject person).
    */
   owner: 'declarant' | 'declarant-if-onboarded' | 'excluded-declarant';
