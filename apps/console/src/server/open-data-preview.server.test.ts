@@ -47,7 +47,10 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
   it('answers 404 while no release has been built', async () => {
     resetOpenDataMock('none');
     const result = await loadCommissionOpenDataPreview(pscAdmin(), 'psc');
-    expect(result).toMatchObject({ ok: false, error: { kind: 'problem', problem: { status: 404 } } });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 404 } },
+    });
   });
 
   it("answers 403 to the Commission's other staff and 404 to anyone not of it", async () => {

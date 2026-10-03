@@ -10,7 +10,7 @@ import {
   type OpenDataMockScenario,
   resetOpenDataMock,
 } from '../../server/reporting/open-data-mock.server';
-import { OpenDataPreview } from './open-data-preview';
+import { noAccessText, OpenDataPreview } from './open-data-preview';
 
 const invalidate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ invalidate }) }));
@@ -31,6 +31,11 @@ async function renderPreview(
 }
 
 const region = (name: string) => screen.getByRole('region', { name });
+function at<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) throw new Error(`No item ${String(index)}`);
+  return item;
+}
 const cellsOf = (row: HTMLElement) =>
   within(row)
     .getAllByRole('cell')
@@ -57,8 +62,8 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
       'Final',
       'All cycles',
     ]);
-    expect(cellsOf(rows[0]!)).toEqual(['2,920', '2,808', '112', '96.2%']);
-    expect(cellsOf(rows[3]!)).toEqual(['50,312', '48,879', '1,433', '97.2%']);
+    expect(cellsOf(at(rows, 0))).toEqual(['2,920', '2,808', '112', '96.2%']);
+    expect(cellsOf(at(rows, 3))).toEqual(['50,312', '48,879', '1,433', '97.2%']);
   });
 
   it('lists compliance figures, and access requests as not collected yet', async () => {
@@ -69,7 +74,11 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
     ).toEqual(['16,054']);
     expect(cellsOf(within(compliance).getByRole('row', { name: /Referrals/ }))).toEqual(['61']);
     const access = region('Access requests');
-    expect(within(access).getAllByRole('row').map((row) => row.textContent)).toEqual([
+    expect(
+      within(access)
+        .getAllByRole('row')
+        .map((row) => row.textContent),
+    ).toEqual([
       'ReceivedNot collectedNot collected yet',
       'GrantedNot collectedNot collected yet',
       'DeclinedNot collectedNot collected yet',
@@ -98,9 +107,9 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
       'Final',
       'All cycles',
     ]);
-    const marker = within(rows[1]!).getAllByText('‹10')[0]!.parentElement!;
-    expect(marker.getAttribute('data-suppression')).toBe('suppressed');
-    expect(marker.textContent).toBe('‹10Not shown to protect privacy');
+    const marker = at(within(at(rows, 1)).getAllByText('‹10'), 0).parentElement;
+    expect(marker?.getAttribute('data-unshown')).toBe('suppressed');
+    expect(marker?.textContent).toBe('‹10Not shown to protect privacy');
     expect(
       cellsOf(within(region('Compliance')).getByRole('row', { name: /Referrals/ }))[0],
     ).toContain('‹10');
@@ -113,7 +122,7 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
     await renderPreview('published', { tenant: 'jsc' });
     const rows = within(region('Declarations')).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(4);
-    expect(within(rows[3]!).getAllByText('Not reported')).toHaveLength(4);
+    expect(within(at(rows, 3)).getAllByText('Not reported')).toHaveLength(4);
     expect(screen.getByRole('note').textContent).toContain('Commission has not reported');
   });
 
@@ -139,5 +148,15 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
   it('shows a skeleton while loading', () => {
     render(<OpenDataPreview load={null} />);
     expect(screen.getByRole('status', { busy: true })).toBeTruthy();
+  });
+});
+
+describe('who the page is not for', () => {
+  it('sends EACC to its Open data and tells anyone else the page is for the administrator', () => {
+    expect(noAccessText(['eacc-analyst'])).toBe('EACC sees every Commission in Open data.');
+    expect(noAccessText(['eacc-supervisor'])).toBe('EACC sees every Commission in Open data.');
+    expect(noAccessText(['reporting-officer', 'reviewer'])).toBe(
+      'This page is for your Commission administrator.',
+    );
   });
 });

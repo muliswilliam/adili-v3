@@ -26,7 +26,9 @@ export const getCommissionOpenDataPreview = createServerFn({ method: 'GET' })
   .handler(async ({ data }): Promise<OpenDataPreviewLoad> => {
     const portal = env().PORTAL_URL;
     return {
-      preview: await asReportingViewer((client) => loadCommissionOpenDataPreview(client, data.slug)),
+      preview: await asReportingViewer((client) =>
+        loadCommissionOpenDataPreview(client, data.slug),
+      ),
       publicPageUrl: portal ? new URL('/open-data', portal).toString() : null,
     };
   });

@@ -1,3 +1,4 @@
+import { EACC_ROLES } from '@adili/roles';
 import {
   Button,
   Card,
@@ -10,7 +11,7 @@ import {
   Skeleton,
   SuppressionLegend,
   SuppressionMarker,
-  type SuppressionKind,
+  type UnshownFigureKind,
   Table,
   TableBody,
   TableCell,
@@ -52,6 +53,11 @@ export function OpenDataPreview({ load }: { load: OpenDataPreviewLoad | null }) 
   return <Preview data={preview.data} publicPageUrl={load.publicPageUrl} />;
 }
 
+/** Why the page is not for a viewer without the workspace: EACC has its own Open data. */
+export function noAccessText(roles: readonly string[]): string {
+  return EACC_ROLES.some((role) => roles.includes(role)) ? m.forEacc : m.forStaff;
+}
+
 function Preview({
   data,
   publicPageUrl,
@@ -60,13 +66,14 @@ function Preview({
   publicPageUrl: string | null;
 }) {
   const filing = shownFilingRows(data.filing);
+  const { compliance, accessRequests } = data;
   const markers = [
     ...filing.flatMap((row) => FILING_FIGURES.map((figure) => filingMarker(row, figure))),
-    ...(data.compliance
-      ? COMPLIANCE_FIGURES.map((figure) => figureMarker(data.compliance!, figure, 'not-reported'))
+    ...(compliance
+      ? COMPLIANCE_FIGURES.map((figure) => figureMarker(compliance, figure, 'not-reported'))
       : []),
-    ...(data.accessRequests
-      ? ACCESS_FIGURES.map((figure) => figureMarker(data.accessRequests!, figure, 'not-collected'))
+    ...(accessRequests
+      ? ACCESS_FIGURES.map((figure) => figureMarker(accessRequests, figure, 'not-collected'))
       : []),
   ];
   const cellsSuppressed = markers.filter((kind) => kind === 'suppressed').length;
@@ -75,7 +82,7 @@ function Preview({
     <>
       <ReleaseSource release={data.release} publicPageUrl={publicPageUrl} />
       <Card className="mb-3.5 px-4 py-3 sm:px-4 sm:py-3">
-        <SuppressionLegend cellsSuppressed={cellsSuppressed || null} keys={keys} />
+        <SuppressionLegend cellsSuppressed={cellsSuppressed || undefined} keys={keys} />
       </Card>
       <div className="grid gap-4">
         <Section title={m.declarations}>
@@ -122,15 +129,15 @@ function ReleaseSource({
   release: OpenDataRelease;
   publicPageUrl: string | null;
 }) {
-  const published = release.status === 'published' && release.publishedAt;
+  const publishedAt = release.status === 'published' ? release.publishedAt : null;
   return (
     <div className="-mt-2 mb-3.5 flex flex-wrap items-center gap-2.5 text-sm text-secondary-foreground">
       <ReleaseStatusBadge status={release.status} />
       <p>
         {m.from} <b className="font-semibold text-foreground">{releaseName(release)}</b>
         {' · '}
-        {published ? (
-          m.published(formatDate(release.publishedAt!))
+        {publishedAt ? (
+          m.published(formatDate(publishedAt))
         ) : (
           <>
             {m.built(formatDate(release.builtAt))}
@@ -139,7 +146,7 @@ function ReleaseSource({
           </>
         )}
       </p>
-      {published && publicPageUrl ? (
+      {publishedAt && publicPageUrl ? (
         <Button asChild variant="ghost" size="sm" className="ml-auto">
           <a href={publicPageUrl} target="_blank" rel="noopener noreferrer">
             <Icon icon={LinkSquare01Icon} />
@@ -187,7 +194,7 @@ const FILING_FIGURES = ['expected', 'filed', 'nonFilers', 'filingRate'] as const
 type FilingFigure = (typeof FILING_FIGURES)[number];
 
 /** Why a filing figure is not shown, or null when it is. */
-function filingMarker(row: FilingRow, figure: FilingFigure): SuppressionKind | 'nothing' | null {
+function filingMarker(row: FilingRow, figure: FilingFigure): UnshownFigureKind | 'nothing' | null {
   if (row[figure] !== null) return null;
   if (row.suppressed) return 'suppressed';
   if (row.reportStatus === 'not-reported') return 'not-reported';
@@ -242,7 +249,11 @@ const COMPLIANCE_FIGURES = [
   'referrals',
 ] as const satisfies readonly (keyof ComplianceRow)[];
 
-const ACCESS_FIGURES = ['received', 'granted', 'declined'] as const satisfies readonly (keyof AccessRequestsRow)[];
+const ACCESS_FIGURES = [
+  'received',
+  'granted',
+  'declined',
+] as const satisfies readonly (keyof AccessRequestsRow)[];
 
 /**
  * Why a figure of a Commission-level row is not shown: suppressed, or `gap` for a figure that is
@@ -252,14 +263,14 @@ const ACCESS_FIGURES = ['received', 'granted', 'declined'] as const satisfies re
 function figureMarker<Row extends { suppressed: boolean }>(
   row: Row,
   figure: keyof Row,
-  gap: SuppressionKind,
-): SuppressionKind | null {
+  gap: UnshownFigureKind,
+): UnshownFigureKind | null {
   if (row[figure] !== null) return null;
   return row.suppressed ? 'suppressed' : gap;
 }
 
 /** One Commission row as a list of figures, label beside value (the prototype's transposed table). */
-function FigureList<Figure extends string, Row extends Record<Figure, number | null> & { suppressed: boolean }>({
+function FigureList<Figure extends string>({
   caption,
   row,
   figures,
@@ -267,10 +278,10 @@ function FigureList<Figure extends string, Row extends Record<Figure, number | n
   gap,
 }: {
   caption: string;
-  row: Row;
+  row: Record<Figure, number | null> & { suppressed: boolean };
   figures: readonly Figure[];
   labels: Record<Figure, string>;
-  gap: SuppressionKind;
+  gap: UnshownFigureKind;
 }) {
   return (
     <Table caption={caption}>
@@ -300,7 +311,7 @@ function Figure({
   format,
 }: {
   value: number | null;
-  marker: SuppressionKind | 'nothing' | null;
+  marker: UnshownFigureKind | 'nothing' | null;
   format: (value: number) => string;
 }) {
   if (value !== null) return <>{format(value)}</>;
@@ -321,7 +332,7 @@ function formatRate(rate: number): string {
 }
 
 /** The legend explains the kinds of marker on show, in this order. */
-const LEGEND_KEYS: readonly SuppressionKind[] = ['suppressed', 'not-reported', 'not-collected'];
+const LEGEND_KEYS: readonly UnshownFigureKind[] = ['suppressed', 'not-reported', 'not-collected'];
 
 function NoRow() {
   return <p className="px-5 py-4 text-sm text-muted-foreground">{m.noRow}</p>;

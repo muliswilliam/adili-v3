@@ -43,7 +43,9 @@ export const envSchema = bffEnvSchema.extend({
    * latest `published` release by default, a `preview` built since, `none` built yet, or
    * `unavailable` (object storage down).
    */
-  REPORTING_MOCK_OPEN_DATA: z.enum(['published', 'preview', 'none', 'unavailable']).default('published'),
+  REPORTING_MOCK_OPEN_DATA: z
+    .enum(['published', 'preview', 'none', 'unavailable'])
+    .default('published'),
   /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.

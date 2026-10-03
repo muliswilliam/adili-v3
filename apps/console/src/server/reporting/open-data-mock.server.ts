@@ -138,9 +138,11 @@ interface MockRelease {
 
 const TABLE_HASH = '0'.repeat(64);
 
-function release(fields: Pick<OpenDataRelease, 'id' | 'fy' | 'kind' | 'status' | 'builtAt'> & {
-  publishedAt: string | null;
-}): OpenDataRelease {
+function release(
+  fields: Pick<OpenDataRelease, 'id' | 'fy' | 'kind' | 'status' | 'builtAt'> & {
+    publishedAt: string | null;
+  },
+): OpenDataRelease {
   return {
     version: 1,
     withdrawnAt: null,
@@ -243,13 +245,18 @@ export function mockOpenDataFetch(request: Request): Response | null {
 }
 
 /** A reporting client answered by this mock as a member of `tenant` holding `roles`, for tests. */
-export function mockOpenDataClient({ roles, tenant }: { roles: readonly string[]; tenant: string }) {
+export function mockOpenDataClient({
+  roles,
+  tenant,
+}: {
+  roles: readonly string[];
+  tenant: string;
+}) {
   return createClient<paths>({
     baseUrl: 'http://reporting.test',
     headers: {
       authorization: `Bearer ${unsignedMockToken({ subject: 'user-test', name: 'Test', roles, tenant })}`,
     },
-    fetch: (request) =>
-      Promise.resolve(mockOpenDataFetch(request) ?? problem(404, 'Not found')),
+    fetch: (request) => Promise.resolve(mockOpenDataFetch(request) ?? problem(404, 'Not found')),
   });
 }
