@@ -1,4 +1,5 @@
 import { isFreshStepUp, notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { FORM_M_ROLES } from '@adili/roles';
 
 import { forbidden } from './problems.js';
 
@@ -10,15 +11,10 @@ export const COMMISSION_ADMIN = 'commission-admin';
 export const REPORTING_OFFICER = 'reporting-officer';
 
 /**
- * The Commission roles that see its Form M workspace (spec 09 authorisation): the supervisor
- * compiles and reviews, the commission-admin and the reporting officer read. Everyone else,
- * EACC included, gets 404 on a Commission's drafts.
- */
-export const FORM_M_ROLES = [SUPERVISOR, COMMISSION_ADMIN, REPORTING_OFFICER] as const;
-
-/**
  * The RLS tenant of Form M work on Commission `slug`: the caller's own Commission when it is
- * `slug` and they hold a Form M role there. Anyone else gets 404, as if nothing existed.
+ * `slug` and they hold a Form M role there (`FORM_M_ROLES`: the supervisor compiles and reviews,
+ * the commission-admin and the reporting officer read). Anyone else, EACC included, gets 404, as
+ * if nothing existed.
  */
 export function formMTenant(principal: Principal, slug: string): string {
   const own = principal.tenant;

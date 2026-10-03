@@ -9,6 +9,7 @@ import {
   documentDownloadedDataSchema,
   documentIssuedDataSchema,
 } from '@adili/events/contracts/schemas';
+import { DCB, format } from '@adili/numbering/references';
 import { asc, desc, eq } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
@@ -885,6 +886,41 @@ describe('S13 a certified copy ordered in person: the recording officer hands it
 
   it('still downloads for the declarant', async () => {
     expect((await download(document.id, DECLARANT)).statusCode).toBe(200);
+  });
+
+  it("downloads for EACC's access officer named on an EACC copy who also holds an EACC oversight role", async () => {
+    // EACC is its own officers' Commission (ADR-006); its access officer may also be an analyst.
+    const eaccOfficer: Caller = {
+      sub: 'eacc-officer-1',
+      tenant: 'eacc',
+      roles: ['eacc-analyst', 'access-officer'],
+    };
+    const response = await api.post(
+      '/internal/v1/documents/issue',
+      {
+        type: 'certified-copy',
+        templateVersion: 1,
+        subjectRef: `certified-copy:${randomUUID()}`,
+        subjectPersonId: DECLARANT_PERSON,
+        additionalDownloaders: [eaccOfficer.sub],
+        payload: {
+          ...copyPayload(),
+          commission: {
+            slug: 'eacc',
+            issuerCode: 'EACC',
+            name: 'Ethics and Anti-Corruption Commission',
+          },
+          reference: format(DCB, { issuer: 'EACC', period: 2027, sequence: 1 }),
+        },
+      },
+      ACCESS,
+      { idempotencyKey: null, headers: { 'x-acting-tenant': 'eacc' } },
+    );
+    expect(response.statusCode, response.body).toBe(201);
+    const copy = response.json<IssuedDocument>();
+
+    expect((await download(copy.id, eaccOfficer)).statusCode).toBe(200);
+    expect((await api.get(`/v1/documents/${copy.id}`, eaccOfficer)).statusCode).toBe(200);
   });
 
   it("answers 404 to other officers, the officer's subject under another Commission, and other people", async () => {

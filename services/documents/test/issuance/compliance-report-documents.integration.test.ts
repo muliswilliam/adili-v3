@@ -25,12 +25,14 @@ import {
 import { footerQrCodes, pageTexts } from '../support/pdf.js';
 
 /**
- * Spec 09 (S6, S11, S12), the documents side: the reporting service issues a submitted report's
- * Restricted Form M and EACC's signed acknowledgement of receipt, and EACC's approved national
- * consolidated report, with the payload in the request exactly as its activities build it;
- * documents renders them through compose Gotenberg, signs them with OpenBao and stores them in
- * SeaweedFS. EACC's analysts and supervisors open the Commissions' Form M and receipts (S9) and
- * the Confidential referral packages Commissions send them (S12), and no other document.
+ * Spec 09 (S6, S9, S11, S12), the documents side: the reporting service issues a submitted
+ * report's Restricted Form M and EACC's signed acknowledgement of receipt, and EACC's approved
+ * national consolidated report, with the payload in the request exactly as its activities build
+ * it; documents renders them through compose Gotenberg, signs them with OpenBao and stores them in
+ * SeaweedFS. Who opens them follows the spec's authorisation ("read submitted report and
+ * receipt"): the Commission's supervisor, commission-admin, reporting officer and federated system
+ * its own Form M and receipt; EACC's analysts and supervisors every Commission's (S9), the
+ * Confidential referral packages Commissions send them (S12) and EACC's NCR (S11); nobody else.
  */
 
 /** The reporting service's account (client credentials). */
@@ -743,7 +745,7 @@ describe('S11 the national consolidated report', () => {
   });
 });
 
-describe("S9, S12 EACC opens the Commissions' Form M and receipts and the referral packages they send, and nothing else", () => {
+describe("S9, S11, S12 who opens a submitted report's Form M and receipt, the NCR and a referral package", () => {
   const EACC_ANALYST: Caller = { sub: 'eacc-analyst-1', tenant: 'eacc', roles: ['eacc-analyst'] };
   const EACC_SUPERVISOR: Caller = {
     sub: 'eacc-supervisor-1',
@@ -796,55 +798,135 @@ describe("S9, S12 EACC opens the Commissions' Form M and receipts and the referr
   /** The Commission's documents EACC opens: its Form M and receipt (S9), its package (S12). */
   const readable = () => [referralPackage, formM, receipt];
 
+  /** The download events `caller` caused on `document`. */
+  async function downloadsBy(document: IssuedDocument, caller: Caller) {
+    return (await eventsAbout(document.id)).filter(
+      (event) =>
+        event.type === 'document.downloaded.v1' &&
+        (event.data as { downloadedBy?: string }).downloadedBy === caller.sub,
+    );
+  }
+
+  /** `caller` gets the metadata and a download of `document`, the download audited under `tenant`. */
+  async function expectOpens(document: IssuedDocument, caller: Caller, tenant: string) {
+    const who = `${caller.sub} on ${document.type}`;
+    const before = (await downloadsBy(document, caller)).length;
+    const response = await download(document.id, caller);
+    expect(response.statusCode, `${who}: ${response.body}`).toBe(200);
+    const body = response.json<DocumentDownload>();
+    expect(contractErrors(okResponse('/v1/documents/{documentId}/download', 'get'), body)).toEqual(
+      [],
+    );
+    expect(body.sha256).toBe(document.sha256);
+
+    const downloads = await downloadsBy(document, caller);
+    expect(downloads, who).toHaveLength(before + 1);
+    expect(downloads.at(-1)).toMatchObject({
+      tenant,
+      data: { documentType: document.type, issuerTenant: tenant },
+    });
+
+    const metadata = await api.get(`/v1/documents/${document.id}`, caller);
+    expect(metadata.statusCode, who).toBe(200);
+    expect(metadata.json<IssuedDocument>().id).toBe(document.id);
+  }
+
+  /** `caller` gets 404 on the metadata and the download of `document`, and nothing is recorded. */
+  async function expectNotFound(document: IssuedDocument, caller: Caller) {
+    const who = `${caller.sub} (${caller.tenant ?? '-'}) on ${document.type}`;
+    const before = (await eventsAbout(document.id)).length;
+    expect((await download(document.id, caller)).statusCode, who).toBe(404);
+    expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode, who).toBe(404);
+    expect(await eventsAbout(document.id), who).toHaveLength(before);
+  }
+
+  /** The Commission's supervisor, commission-admin and reporting officer (spec 09 authorisation). */
+  const PSC_REPORT_READERS: Caller[] = [
+    { sub: 'psc-supervisor-1', tenant: 'psc', roles: ['supervisor'] },
+    { sub: 'psc-admin-1', tenant: 'psc', roles: ['commission-admin'] },
+    { sub: 'psc-reporting-officer-1', tenant: 'psc', roles: ['reporting-officer'] },
+  ];
+  /** The Commission's own system, filing Form M through the API (spec 09 S8). */
+  const PSC_FEDERATED: Caller = {
+    sub: 'service-account-psc-reports',
+    azp: 'psc-reports',
+    tenant: 'psc',
+    scope: 'reports:submit',
+  };
+
   it.each([
     ['an EACC analyst', EACC_ANALYST],
     ['an EACC supervisor', EACC_SUPERVISOR],
   ])(
     "hands %s a Commission's Form M, receipt and package, each download audited under the Commission",
     async (_name, caller) => {
-      for (const document of readable()) {
-        const response = await download(document.id, caller);
-        expect(response.statusCode, `${document.type}: ${response.body}`).toBe(200);
-        const body = response.json<DocumentDownload>();
-        expect(
-          contractErrors(okResponse('/v1/documents/{documentId}/download', 'get'), body),
-        ).toEqual([]);
-        expect(body.sha256).toBe(document.sha256);
-
-        const downloads = (await eventsAbout(document.id)).filter(
-          (event) =>
-            event.type === 'document.downloaded.v1' &&
-            (event.data as { downloadedBy?: string }).downloadedBy === caller.sub,
-        );
-        expect(downloads, document.type).toHaveLength(1);
-        expect(downloads[0]).toMatchObject({
-          tenant: 'psc',
-          data: { documentType: document.type, issuerTenant: 'psc' },
-        });
-
-        const metadata = await api.get(`/v1/documents/${document.id}`, caller);
-        expect(metadata.statusCode, document.type).toBe(200);
-        expect(metadata.json<IssuedDocument>().id).toBe(document.id);
-      }
+      for (const document of readable()) await expectOpens(document, caller, 'psc');
     },
   );
 
-  it('answers 404 to anyone else: Commission staff, other EACC roles, an EACC role of a Commission', async () => {
+  it("hands the Commission's supervisor, commission-admin and reporting officer its own Form M and receipt, audited under it", async () => {
+    for (const caller of PSC_REPORT_READERS) {
+      for (const document of [formM, receipt]) await expectOpens(document, caller, 'psc');
+    }
+  });
+
+  it("hands the Commission's own federated system its Form M and receipt (reports:submit, its tenant)", async () => {
+    for (const document of [formM, receipt]) await expectOpens(document, PSC_FEDERATED, 'psc');
+  });
+
+  it("hands EACC's analysts and supervisors EACC's national consolidated report, audited under EACC", async () => {
+    for (const caller of [EACC_ANALYST, EACC_SUPERVISOR]) await expectOpens(ncr, caller, 'eacc');
+  });
+
+  it("answers 404 on the Commission's Form M and receipt to anyone else: its other staff, another Commission's, other EACC roles, an EACC role of a Commission", async () => {
     const others: Caller[] = [
-      { sub: 'supervisor-1', tenant: 'psc', roles: ['supervisor'] },
-      { sub: 'reviewer-1', tenant: 'psc', roles: ['reviewer'] },
+      { sub: 'psc-reviewer-1', tenant: 'psc', roles: ['reviewer'] },
+      { sub: 'psc-access-officer-1', tenant: 'psc', roles: ['access-officer'] },
+      { sub: 'psc-declarant-1', tenant: 'psc', roles: ['declarant'], personId: randomUUID() },
+      // Another Commission's report readers and federated system.
+      ...PSC_REPORT_READERS.map((caller) => ({
+        ...caller,
+        sub: `tsc-${caller.sub}`,
+        tenant: 'tsc',
+      })),
+      { ...PSC_FEDERATED, sub: 'service-account-tsc-reports', tenant: 'tsc' },
+      // A Commission's service without the federated scope.
+      { sub: 'service-account-psc-other', azp: 'psc-other', tenant: 'psc', scope: 'profile' },
       { sub: 'auditor-1', tenant: 'eacc', roles: ['auditor'] },
       { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] },
       // An EACC role holds only with a token of EACC's tenant.
       { sub: 'eacc-analyst-2', tenant: 'psc', roles: ['eacc-analyst'] },
     ];
-    for (const document of readable()) {
-      for (const caller of others) {
-        const who = `${caller.sub} on ${document.type}`;
-        expect((await download(document.id, caller)).statusCode, who).toBe(404);
-        expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode, who).toBe(404);
-      }
+    for (const document of [formM, receipt]) {
+      for (const caller of others) await expectNotFound(document, caller);
     }
+  });
+
+  it("answers 404 on the Commission's referral package to its own staff and system and anyone but EACC's analysts and supervisors", async () => {
+    const others: Caller[] = [
+      ...PSC_REPORT_READERS,
+      PSC_FEDERATED,
+      { sub: 'psc-reviewer-1', tenant: 'psc', roles: ['reviewer'] },
+      { sub: 'auditor-1', tenant: 'eacc', roles: ['auditor'] },
+      { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] },
+      { sub: 'eacc-analyst-2', tenant: 'psc', roles: ['eacc-analyst'] },
+    ];
+    for (const caller of others) await expectNotFound(referralPackage, caller);
+  });
+
+  it("answers 404 on EACC's national consolidated report to anyone but EACC's analysts and supervisors", async () => {
+    const others: Caller[] = [
+      ...PSC_REPORT_READERS,
+      PSC_FEDERATED,
+      // EACC's own Commission roles (EACC is its officers' Commission) and other EACC roles.
+      { sub: 'eacc-commission-supervisor-1', tenant: 'eacc', roles: ['supervisor'] },
+      { sub: 'eacc-commission-admin-1', tenant: 'eacc', roles: ['commission-admin'] },
+      { sub: 'eacc-federated', azp: 'eacc-reports', tenant: 'eacc', scope: 'reports:submit' },
+      { sub: 'auditor-1', tenant: 'eacc', roles: ['auditor'] },
+      { sub: 'admin-1', tenant: 'platform', roles: ['platform-admin'] },
+      { sub: 'eacc-analyst-2', tenant: 'psc', roles: ['eacc-analyst'] },
+    ];
+    for (const caller of others) await expectNotFound(ncr, caller);
   });
 
   /** A decision letter a Commission (`tenant`, `issuer`) issues to its declarant `personId`. */
@@ -934,15 +1016,14 @@ describe("S9, S12 EACC opens the Commissions' Form M and receipts and the referr
     expect(asPsc.statusCode).toBe(200);
   });
 
-  it("answers 404 to EACC for any other document: a Commission's letter, even EACC's own report", async () => {
+  it("answers 404 to EACC and the Commission's report readers for any other document: a Commission's letter", async () => {
     const letter = await issuedDecisionLetter(
       'psc',
       { name: 'Public Service Commission', code: 'PSC' },
       randomUUID(),
     );
-    for (const document of [letter, ncr]) {
-      expect((await download(document.id, EACC_ANALYST)).statusCode).toBe(404);
-      expect((await download(document.id, EACC_SUPERVISOR)).statusCode).toBe(404);
+    for (const caller of [EACC_ANALYST, EACC_SUPERVISOR, ...PSC_REPORT_READERS, PSC_FEDERATED]) {
+      await expectNotFound(letter, caller);
     }
     expect((await download(randomUUID(), EACC_ANALYST)).statusCode).toBe(404);
   });

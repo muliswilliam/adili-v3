@@ -351,7 +351,7 @@ paths:
       tags:
         - documents
       summary: Metadata of an issued document (owner)
-      description: "The person the document is about, staff of the issuing Commission named among the document's additional downloaders, or for a Commission's Form M, its receipt or a referral package it sent EACC an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); anyone else gets 404."
+      description: "The person the document is about; staff of the issuing Commission named among the document's additional downloaders; for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor. Anyone else gets 404."
       operationId: getDocument
       parameters:
         - name: documentId
@@ -378,7 +378,7 @@ paths:
       tags:
         - documents
       summary: Short-lived presigned download of an issued PDF (owner)
-      description: "The document's subject person (the `person_id` of their token), an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role), or for any Commission's Form M, its receipt or a referral package it sent EACC an EACC analyst or supervisor (a token of the EACC tenant; no other document is theirs to download, spec 09), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads."
+      description: "The document's subject person (the `person_id` of their token); an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor (spec 09 authorisation; no other document is theirs to download). Anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing tenant (the Commission, or EACC for its NCR) and recorded as `document.downloaded.v1`, which the access register reads."
       operationId: getDocumentDownload
       parameters:
         - name: documentId

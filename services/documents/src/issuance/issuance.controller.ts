@@ -47,9 +47,12 @@ interface Reply {
 /**
  * Issued documents for their subject person (the declarant, the applicant or the law-enforcement
  * officer they were issued to), the issuing Commission's staff the issuer named as additional
- * downloaders (the access officer handing over an in-person certified copy) and, for a
- * Commission's Form M, its receipt and the referral packages it sends EACC, EACC's analysts and
- * supervisors: metadata and a short-lived download within the document's download window. Anyone
+ * downloaders (the access officer handing over an in-person certified copy), a Commission's
+ * supervisor, commission-admin, reporting officer and federated system for its own submitted
+ * Form M and receipt, and EACC's analysts and supervisors for every Commission's Form M, receipt
+ * and the referral packages it sends EACC, and for EACC's national consolidated report (spec 09
+ * authorisation, readers.ts): metadata and a short-lived download within the document's download
+ * window. Anyone
  * else gets 404, as if the document did not exist. Other staff read a document through the service
  * that owns the record it is about (a reviewer a clarification letter through the review service,
  * which checks the case), which asks the internal download below.
@@ -65,7 +68,7 @@ export class DocumentsController {
     operationId: 'getDocument',
     summary: 'Metadata of an issued document (owner)',
     description:
-      "The person the document is about, staff of the issuing Commission named among the document's additional downloaders, or for a Commission's Form M, its receipt or a referral package it sent EACC an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); anyone else gets 404.",
+      "The person the document is about; staff of the issuing Commission named among the document's additional downloaders; for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor. Anyone else gets 404.",
   })
   @ApiOkResponse({ description: 'Metadata', schema: schemaRef('IssuedDocument') })
   @ApiProblemResponse(404, NOT_VISIBLE)
@@ -83,7 +86,7 @@ export class DocumentsController {
     operationId: 'getDocumentDownload',
     summary: 'Short-lived presigned download of an issued PDF (owner)',
     description:
-      "The document's subject person (the `person_id` of their token), an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role), or for any Commission's Form M, its receipt or a referral package it sent EACC an EACC analyst or supervisor (a token of the EACC tenant; no other document is theirs to download, spec 09), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing Commission and recorded as `document.downloaded.v1`, which the access register reads.",
+      "The document's subject person (the `person_id` of their token); an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor (spec 09 authorisation; no other document is theirs to download). Anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing tenant (the Commission, or EACC for its NCR) and recorded as `document.downloaded.v1`, which the access register reads.",
   })
   @ApiOkResponse({
     description: 'Download URL valid for five minutes',
@@ -113,6 +116,7 @@ function downloaderOf(principal: Principal): Downloader {
     subject: principal.subject,
     tenant: principal.tenant,
     roles: principal.roles,
+    scopes: principal.scopes,
   };
 }
 

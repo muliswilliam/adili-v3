@@ -36,7 +36,7 @@ import { dependencyProblem, IssuanceDependencyUnavailable } from './errors.js';
 import { PadesSigner } from './pades.js';
 import { RecordSigner, type SignedRecord } from './record-signer.js';
 import { PdfRenderer } from './renderer.js';
-import { eaccReadableTypes } from './eacc-readable.js';
+import { eaccReadableTypes, ownTenantReadableTypes } from './readers.js';
 import { type PulledPayload, pulledPayloadOf } from './pulled-payloads.js';
 import type { DocumentDownload, IssuedDocument } from './representation.js';
 import { issuedDocuments, verificationRecords } from './schema.js';
@@ -128,8 +128,13 @@ export interface Downloader {
   subject: string;
   /** The token's tenant: staff may download what their Commission named them on. */
   tenant: string | null;
-  /** The token's roles: an additional downloader must still be an access officer. */
+  /**
+   * The token's roles: an additional downloader must still be an access officer; a Form M's,
+   * receipt's, NCR's or referral package's readers hold their role (readers.ts).
+   */
   roles: readonly string[];
+  /** The token's client scopes: a federated Commission's system reads its own Form M (readers.ts). */
+  scopes: readonly string[];
 }
 
 export interface IssueOutcome {
@@ -535,8 +540,8 @@ export class IssuanceService {
   }
 
   /**
-   * A five-minute presigned GET of the signed PDF, for the subject person and the issuing
-   * Commission's staff named as additional downloaders only (404 for anyone else), and only
+   * A five-minute presigned GET of the signed PDF, for those who may read the document (`owned`:
+   * its subject person, its type's readers, the access officers it names; 404 for anyone else), and only
    * within the document's download window (410 `download-window-closed` after it). Each link
    * handed out is to be recorded as `downloaded`, `document.downloaded.v1` under the issuer, which
    * the route records with the read's audit event, in one insert.
@@ -625,44 +630,62 @@ export class IssuanceService {
 
   /**
    * The document when the caller is its subject person (read under the person policy across
-   * Commissions), an access officer of the issuing Commission named among its additional
-   * downloaders (read in their own tenant's context): one who is no longer an access officer
-   * there downloads it no more, or an EACC analyst or supervisor and the document is of a type
-   * EACC opens from every Commission (a Form M, a receipt or a referral package, eacc-readable.ts;
-   * read in EACC's context, which the database admits to those types only) and not about them (an
-   * EACC officer referred by EACC) when their token names them; staff tokens do not yet name their
-   * person (#486). Anyone else gets the same 404.
+   * Commissions); one of its own tenant's readers of its type (a Commission's supervisor,
+   * commission-admin, reporting officer or federated system its Form M and receipt, EACC's analysts
+   * and supervisors its NCR, readers.ts; read in their own tenant's context); an EACC analyst or
+   * supervisor and the document is of a type EACC opens from every Commission (a Form M, a receipt
+   * or a referral package; read in EACC's context, which the database admits to those types only)
+   * and not about them (an EACC officer referred by EACC) when their token names them, which staff
+   * tokens do not yet (#486); or an access officer of the issuing Commission named among its
+   * additional downloaders (read in their own tenant's context): one who is no longer an access
+   * officer there downloads it no more. Each is tried in turn; anyone else gets the same 404.
    */
   private async owned(
-    { personId, subject, tenant, roles }: Downloader,
+    caller: Downloader,
     id: string,
   ): Promise<{ document: DocumentRow; record: RecordRow }> {
+    const { personId, subject, tenant, roles } = caller;
     const [asSubjectPerson] = personId
       ? await withPerson(this.db, { personId, subject }, (tx) =>
           withRecord(tx).where(eq(issuedDocuments.id, id)),
         )
       : [];
     if (asSubjectPerson) return asSubjectPerson;
+    const ownTypes = ownTenantReadableTypes(caller);
+    const [asOwnReader] =
+      tenant && ownTypes.length > 0
+        ? await withTenant(this.db, { tenant, subject }, (tx) =>
+            withRecord(tx).where(
+              and(
+                eq(issuedDocuments.id, id),
+                eq(issuedDocuments.tenant, tenant),
+                inArray(issuedDocuments.type, ownTypes),
+              ),
+            ),
+          )
+        : [];
+    if (asOwnReader) return asOwnReader;
     // An EACC officer's own documents are theirs as its subject person (above); as EACC, the
     // types EACC reads from every Commission only.
-    const eaccTypes = tenant === EACC_TENANT ? eaccReadableTypes(roles) : [];
-    if (eaccTypes.length > 0) {
-      const [asEacc] = await withTenant(this.db, { tenant: EACC_TENANT, subject }, (tx) =>
-        withRecord(tx).where(
-          and(
-            eq(issuedDocuments.id, id),
-            inArray(issuedDocuments.type, eaccTypes),
-            personId === null
-              ? undefined
-              : or(
-                  isNull(issuedDocuments.excludedPersonId),
-                  ne(issuedDocuments.excludedPersonId, personId),
-                ),
-          ),
-        ),
-      );
-      return notFoundIfInvisible(asEacc);
-    }
+    const eaccTypes = eaccReadableTypes(caller);
+    const [asEacc] =
+      eaccTypes.length > 0
+        ? await withTenant(this.db, { tenant: EACC_TENANT, subject }, (tx) =>
+            withRecord(tx).where(
+              and(
+                eq(issuedDocuments.id, id),
+                inArray(issuedDocuments.type, eaccTypes),
+                personId === null
+                  ? undefined
+                  : or(
+                      isNull(issuedDocuments.excludedPersonId),
+                      ne(issuedDocuments.excludedPersonId, personId),
+                    ),
+              ),
+            ),
+          )
+        : [];
+    if (asEacc) return asEacc;
     const [asDownloader] =
       tenant && roles.includes(ACCESS_OFFICER)
         ? await withTenant(this.db, { tenant, subject }, (tx) =>
