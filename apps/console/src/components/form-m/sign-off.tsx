@@ -16,6 +16,7 @@ import type {
   ManualFields,
   Remarks,
 } from '../../server/form-m-sign-off.server';
+import { refusalOf } from '../../server/reporting/refusals';
 import type { ComplianceReport } from '../../server/reporting/types';
 import { confirmReducer, dialogOpen, initialConfirmState, type StepUpMarker } from './confirm';
 import {
@@ -79,9 +80,20 @@ interface Edits {
 
 const NO_EDITS: Edits = { remarks: {}, partI: {}, partB: null };
 
-/** Remarks, Part I and Part B can change: a draft or a reviewed report, not a preview's footer. */
+/** Remarks, Part I and Part B can be edited: a compiled draft, reviewed or not, not yet submitted. */
 const editable = (report: ComplianceReport) =>
   report.document !== null && (report.status === 'draft' || report.status === 'reviewed');
+
+/** The obligation ids of the non-filers sections 1-3 of the report's draft list. */
+function listedObligations(report: ComplianceReport | null): Set<string> {
+  const partII = report?.document?.partII;
+  if (!partII) return new Set();
+  return new Set(
+    [partII.initial, partII.biennial, partII.final].flatMap((section) =>
+      section.nonFilers.flatMap((row) => (row.obligationId ? [row.obligationId] : [])),
+    ),
+  );
+}
 
 /** The report with this visit's edits laid over its document, as the service now holds it. */
 function withEdits(report: ComplianceReport, edits: Edits): ComplianceReport {
@@ -123,12 +135,13 @@ function throwUnlessSaved(result: FormMResult<null>, onSignedOut: () => void): v
     onSignedOut();
     throw new AutosaveFailure('error', 'unauthenticated');
   }
-  // A recompile running: passing, so retry. The network or a 5xx: the same.
+  // The network or a 5xx: passing, so retry.
   if (error.kind === 'unavailable') throw new Error('unavailable');
-  if (error.problem.code === 'report-compiling') {
-    throw new Error('compiling');
-  }
-  throw new AutosaveFailure('error', error.problem.code);
+  const refusal = refusalOf(error.problem);
+  // A recompile running, or the save before still in flight: passing too.
+  if (refusal === 'compiling' || refusal === 'busy') throw new Error(refusal);
+  // The message is the refusal, for the indicator's copy (`saveRefused`).
+  throw new AutosaveFailure('error', refusal);
 }
 
 /** Part I as the service takes it: blanks clear a field; an email address it would refuse waits. */
@@ -261,6 +274,9 @@ export function FormMSignOffView({
     !saving &&
     !unsaved;
   const reportId = report?.id ?? '';
+  const remarksRefused = remarksSave.failure
+    ? m.saveRefused[remarksSave.failure.message]
+    : undefined;
 
   // Back from the step-up: drop the marker, so a reload does not reopen the dialog. A failed one
   // says so; one that went through opens the dialog if the session holds a fresh step-up and the
@@ -309,15 +325,23 @@ export function FormMSignOffView({
         ? {
             // Said where remarks were edited, rather than in every section at once.
             ...(sectionEdited(shown, section) ? { autosave: remarksSave } : {}),
+            ...(remarksRefused ? { messages: { error: remarksRefused } } : {}),
             // Edited on this visit; the contract does not say who edited a remark before.
             remarkEditedBy: (row) =>
               row.obligationId && edits.remarks[row.obligationId] !== undefined ? viewerName : null,
             onRemarkChange: (row, remark) => {
               const id = row.obligationId;
               if (!id) return;
+              // Only officers the draft lists now: one a recompile dropped would be refused
+              // (400 `invalid-remarks`) on every later save.
+              const listed = listedObligations(loaded);
               const next = updateEdits((current) => ({
                 ...current,
-                remarks: { ...current.remarks, [id]: remark },
+                remarks: Object.fromEntries(
+                  Object.entries({ ...current.remarks, [id]: remark }).filter(([each]) =>
+                    listed.has(each),
+                  ),
+                ),
               }));
               remarksSave.change(next.remarks);
             },

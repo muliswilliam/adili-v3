@@ -55,6 +55,14 @@ export const en = {
   reviewedCompiling: 'The draft is being recompiled. Try again once it is ready.',
   reviewedSubmitted: 'This report was already submitted.',
   reviewedInvalid: 'Check the designation and try again.',
+  reviewedNotFound: 'This report is no longer available. Reload the page to see how it stands.',
+  /** A save refused for good, by `SignOffRefusal`; others say the indicator's own words. */
+  saveRefused: {
+    'already-submitted': 'Not saved: the report was submitted meanwhile. Reload the page.',
+    forbidden: 'Not saved: you can no longer edit this report.',
+    'not-found': 'Not saved: this report is no longer available. Reload the page.',
+    invalid: 'Not saved: the service refused this change. Reload the page.',
+  } as Partial<Record<string, string>>,
   confirmAndSubmit: 'Confirm and submit',
   awaitingReview: 'Awaiting supervisor review',
   awaitingConfirmation: 'Awaiting confirmation by the commission administrator',

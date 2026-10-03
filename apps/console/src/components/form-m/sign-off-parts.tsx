@@ -63,9 +63,15 @@ function Saving({
   autosave: AutosaveState;
   messages: typeof m.partISaving;
 }) {
+  // A refusal for good says why, from the code the save failed with (`throwUnlessSaved`).
+  const refused = autosave.failure ? m.saveRefused[autosave.failure.message] : undefined;
   return (
     <div className="flex justify-end">
-      <SaveIndicator status={autosave.status} messages={messages} className="text-[12.5px]" />
+      <SaveIndicator
+        status={autosave.status}
+        messages={refused ? { ...messages, error: refused } : messages}
+        className="text-[12.5px]"
+      />
     </div>
   );
 }

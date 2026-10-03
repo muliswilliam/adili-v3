@@ -551,13 +551,11 @@ function hasFreshStepUp(caller: MockCaller): boolean {
   );
 }
 
+/**
+ * `confirmComplianceReport`, in the service's order: the Idempotency-Key and its replay first
+ * (api-kit's interceptor), then the role and the step-up (the handler), then the report.
+ */
 async function confirm(fy: number, input: Request, caller: MockCaller) {
-  if (!caller.roles.includes(COMMISSION_ADMIN)) {
-    return problem(403, 'Only a commission-admin confirms and submits its Form M.');
-  }
-  if (!hasFreshStepUp(caller)) {
-    return problem(403, 'Confirm your identity to submit Form M', 'step-up-required');
-  }
   const key = input.headers.get('idempotency-key');
   if (!key) return problem(400, 'Idempotency-Key is required');
   const body = JSON.stringify((await readJson(input)) ?? {});
@@ -565,7 +563,17 @@ async function confirm(fy: number, input: Request, caller: MockCaller) {
   if (replay) {
     return replay.fy === fy && replay.body === body
       ? json(200, replay.answer)
-      : problem(422, 'Idempotency-Key reused with a different request');
+      : json(422, {
+          type: 'idempotency-key-reused',
+          title: 'Idempotency-Key reused',
+          status: 422,
+        });
+  }
+  if (!caller.roles.includes(COMMISSION_ADMIN)) {
+    return problem(403, 'Only a commission-admin confirms and submits its Form M.');
+  }
+  if (!hasFreshStepUp(caller)) {
+    return problem(403, 'Confirm your identity to submit Form M', 'step-up-required');
   }
   if (failingConfirms > 0) {
     failingConfirms -= 1;

@@ -219,6 +219,10 @@ describe('the supervisor reviews the draft (S3, S5)', () => {
       'Check the designation and try again.',
     ],
     [
+      { ok: false, error: { kind: 'problem', problem: { type: 'x', title: 'x', status: 404 } } },
+      'This report is no longer available. Reload the page to see how it stands.',
+    ],
+    [
       { ok: false, error: { kind: 'unavailable', detail: null } },
       'The draft was not marked reviewed. Try again.',
     ],
@@ -259,6 +263,93 @@ describe('the supervisor reviews the draft (S3, S5)', () => {
     await waitFor(() => {
       expect(nav.signIn).toHaveBeenCalledWith('/form-m?fy=2025');
     });
+  });
+
+  it('drops from the running map an officer a recompile no longer lists', async () => {
+    const sent: Remarks[] = [];
+    const base = mockActions(SUPERVISOR);
+    const actions: SignOffActions = {
+      ...base,
+      saveRemarks: (fy, remarks) => {
+        sent.push(remarks);
+        return base.saveRemarks(fy, remarks);
+      },
+    };
+    resetReportingMock('2026-10-03');
+    const loaded = await load('2026-10-03', SUPERVISOR);
+    if (!loaded.ok || !loaded.data.report?.document) throw new Error('no draft');
+    const view = (result: FormMResult<FormMWorkspace>) => (
+      <ToastProvider>
+        <TooltipProvider>
+          <FormMSignOffView
+            key={2025}
+            result={result}
+            capabilities={formMCapabilities([SUPERVISOR])}
+            viewerName="Samuel Njoroge"
+            stepUpMarker={null}
+            actions={actions}
+            navigation={navigation()}
+            onSelect={vi.fn()}
+            onCompile={vi.fn(() => Promise.resolve({ ok: true, data: null } as const))}
+          />
+        </TooltipProvider>
+      </ToastProvider>
+    );
+    const { rerender } = render(view(loaded));
+    const remarkFor = (name: RegExp) => screen.getByRole('textbox', { name });
+    fireEvent.change(remarkFor(/Peter Mwangi Githinji/), { target: { value: 'On sick leave' } });
+    fireEvent.blur(remarkFor(/Peter Mwangi Githinji/));
+    await waitFor(() => {
+      expect(sent).toHaveLength(1);
+    });
+    // Recompiled: Peter filed meanwhile, so the biennial list no longer names him.
+    const { document } = loaded.data.report;
+    const biennial = document.partII.biennial;
+    rerender(
+      view({
+        ok: true,
+        data: {
+          ...loaded.data,
+          report: {
+            ...loaded.data.report,
+            document: {
+              ...document,
+              partII: {
+                ...document.partII,
+                biennial: { ...biennial, nonFilers: biennial.nonFilers.slice(1) },
+              },
+            },
+          },
+        },
+      }),
+    );
+    fireEvent.change(remarkFor(/Halima Abdi Hassan/), { target: { value: 'Warned twice' } });
+    fireEvent.blur(remarkFor(/Halima Abdi Hassan/));
+    await waitFor(() => {
+      expect(sent).toHaveLength(2);
+    });
+    expect(sent[1]).toEqual({ '0199b000-0000-7000-8000-000000000202': 'Warned twice' });
+  });
+
+  it('says why a remark was not saved when the report was submitted meanwhile', async () => {
+    await show(SUPERVISOR, {
+      actions: mockActions(SUPERVISOR, {
+        saveRemarks: () =>
+          Promise.resolve({
+            ok: false,
+            error: {
+              kind: 'problem',
+              problem: { type: 'x', title: 'x', status: 409, code: 'report-submitted' },
+            },
+          }),
+      }),
+    });
+    const field = screen.getByRole('textbox', { name: /Peter Mwangi Githinji/ });
+    fireEvent.change(field, { target: { value: 'x' } });
+    fireEvent.blur(field);
+    expect(
+      await screen.findByText('Not saved: the report was submitted meanwhile. Reload the page.'),
+    ).toBeTruthy();
   });
 
   it('saves remarks from two sections in one running map', async () => {
@@ -599,7 +690,9 @@ describe('confirming with a step-up (S6, S7)', () => {
     const contact = screen.getByLabelText('(ii) Contact details');
     fireEvent.change(contact, { target: { value: '+254 20 000 0000' } });
     fireEvent.blur(contact);
-    expect(await screen.findByText('Could not save Part I')).toBeTruthy();
+    expect(
+      await screen.findByText('Not saved: the service refused this change. Reload the page.'),
+    ).toBeTruthy();
     expect(confirmButton()).toHaveProperty('disabled', true);
     expect(
       within(footer()).getByText(

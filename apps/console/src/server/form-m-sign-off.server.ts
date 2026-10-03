@@ -1,6 +1,7 @@
 import type { DocumentsClient } from './documents/client';
 import type { components } from './reporting/api.gen';
 import type { ReportingClient } from './reporting/client.server';
+import { refusalOf } from './reporting/refusals';
 import type { ReportingProblem } from './reporting/types';
 import { callService } from './service-call';
 import type { FormMResult } from './form-m.server';
@@ -9,8 +10,8 @@ import type { FormMResult } from './form-m.server';
  * The reporting service's Form M sign-off endpoints (spec 09 FE-2 second half, #226): the
  * supervisor's remarks and review, the commission-admin's Part I and Part B, and the confirmation
  * with a fresh step-up. Pure: the caller injects the client (`form-m.ts` makes it for the
- * signed-in officer). Each answers the result as the service gives it; the screens decide what a
- * refusal means for them.
+ * signed-in officer). The edits answer the service's result; confirm folds it into the outcomes
+ * the confirm flow acts on. What a problem means is one map for all (`reporting/refusals.ts`).
  */
 
 /** One sign-off call that answers no body (or one the screens do not read), as a result. */
@@ -126,20 +127,13 @@ export async function confirmReport(
   const { error } = result;
   if (error.kind === 'unauthenticated') return { status: 'unauthenticated' };
   if (error.kind === 'unavailable') return { status: 'unavailable' };
-  const { status, code, errors } = error.problem;
-  if (status === 403) {
-    return code === 'step-up-required' ? { status: 'step-up-required' } : { status: 'forbidden' };
+  const refusal = refusalOf(error.problem);
+  // Still being processed under this key (right after a timeout): not an answer yet.
+  if (refusal === 'busy') return { status: 'unavailable' };
+  if (refusal === 'incomplete') {
+    return { status: 'incomplete', paths: (error.problem.errors ?? []).map((each) => each.path) };
   }
-  if (status === 400 && code === 'not-reviewed') return { status: 'not-reviewed' };
-  if (status === 400 && code === 'incomplete') {
-    return { status: 'incomplete', paths: (errors ?? []).map((each) => each.path) };
-  }
-  if (status === 409 && code === 'report-submitted') return { status: 'already-submitted' };
-  if (status === 409 && code === 'report-compiling') return { status: 'compiling' };
-  if (status === 422) return { status: 'key-reused' };
-  if (status === 404) return { status: 'not-found' };
-  // A 4xx is an answer: the service took nothing, and the same request meets the same refusal.
-  return { status: 'invalid' };
+  return { status: refusal };
 }
 
 /** A presigned link to an issued document, valid for minutes: fetch one per download. */

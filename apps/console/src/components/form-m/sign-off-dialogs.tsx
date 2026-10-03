@@ -31,6 +31,7 @@ import {
 import { type SyntheticEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import type { FormMResult } from '../../server/form-m.server';
+import { refusalOf } from '../../server/reporting/refusals';
 import type { ConfirmRefusal, ConfirmState } from './confirm';
 import { FORM_M_ANCHORS } from './form-m-document';
 import { messages as m } from './sign-off-messages';
@@ -136,12 +137,25 @@ export function MarkReviewedDialog({
 function reviewFailure(outcome: Extract<FormMResult<null>, { ok: false }>): string {
   const { error } = outcome;
   if (error.kind !== 'problem') return m.reviewedFailed;
-  const { status, code } = error.problem;
-  if (status === 403) return m.reviewedForbidden;
-  if (code === 'report-compiling') return m.reviewedCompiling;
-  if (code === 'report-submitted') return m.reviewedSubmitted;
-  if (status === 400) return m.reviewedInvalid;
-  return m.reviewedRefused;
+  switch (refusalOf(error.problem)) {
+    case 'forbidden':
+    case 'step-up-required':
+      return m.reviewedForbidden;
+    case 'compiling':
+      return m.reviewedCompiling;
+    case 'already-submitted':
+      return m.reviewedSubmitted;
+    case 'not-found':
+      return m.reviewedNotFound;
+    case 'invalid':
+      return m.reviewedInvalid;
+    case 'busy':
+      return m.reviewedFailed;
+    case 'not-reviewed':
+    case 'incomplete':
+    case 'key-reused':
+      return m.reviewedRefused;
+  }
 }
 
 function Consequence({ icon, children }: { icon: IconProps['icon']; children: ReactNode }) {
