@@ -394,8 +394,33 @@ export interface paths {
         /** All releases including previews and withdrawn (EACC) */
         get: operations["listOpenDataReleasesEacc"];
         put?: never;
-        /** Build a snapshot release for a financial year as a preview (EACC analyst or supervisor) */
-        post: operations["buildOpenDataSnapshot"];
+        /**
+         * Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)
+         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables from the year's national consolidated report's aggregates as last built (a report submitted since changes nothing until the NCR is rebuilt) and the projection facts, suppresses every figure over fewer than 10 officers (with complementary suppression), and reconciles the tables' national totals with the NCR's (409 `reconciliation-failed`, `mismatches` listing the totals that differ, is a fault of the table builder; nothing is built). Access requests are not collected yet: their figures are null and named in each table's `notCollected`. `kind` `snapshot` (the default) builds a snapshot of the NCR, draft or approved, or, before the year's NCR is built, a mid-year snapshot of the live projections: every Commission's counts as its Form M would compile now (filing obligations and clarifications of the year), its status its report's, reconciled with those projections' own national totals and suppressed alike (409 `fy-not-started` for a year that has not started). The release JSON names the source (`national-report` or `live-projections`). `kind` `annual` builds a corrected annual release from the approved NCR (409 `ncr-not-approved` before it is approved) while no annual release of the year is published (409 `annual-release-published`: withdraw it first); unlike the one built on approval it is not published by itself, but deliberately through `publishOpenDataRelease`. The files (JSON and CSV per table, the release JSON) are written to object storage with their SHA-256, and the release is recorded as `preview`, the next version of the year's releases of its kind. Emits `open-data.release.built.v1` (release id, year, kind, version; no figures). A retry with the same Idempotency-Key replays the build.
+         */
+        post: operations["buildOpenDataRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eacc/open-data/releases/{releaseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseId: components["parameters"]["ReleaseId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * A release of any status with its six tables as built, suppression applied, and its source (EACC)
+         * @description Spec 09b S6 (#350): the preview EACC checks before a supervisor publishes it. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview included (the public API never serves a preview). `tables` are the release's table files as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the tables were built from and reconciled with at build (`buildOpenDataRelease`): the national consolidated report (its reference once approved) or, for a snapshot of a year without one, the live projections. A release that exists has reconciled.
+         */
+        get: operations["getOpenDataReleaseEacc"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1096,6 +1121,40 @@ export interface components {
         };
         /** @enum {string} */
         OpenDataTable: "filing-by-commission" | "compliance-by-commission" | "by-entity-type" | "by-cycle" | "access-requests" | "national-totals";
+        /** @description A release's table as stored (`getOpenDataTable` JSON) */
+        OpenDataTableFile: {
+            table: components["schemas"]["OpenDataTable"];
+            columns: string[];
+            rows: {
+                [key: string]: unknown;
+            }[];
+            suppression: {
+                threshold: number;
+                /** @description Figures hidden by suppression; figures not collected are not counted */
+                cellsSuppressed: number;
+            };
+            /** @description Figures not collected yet (columns, or in `national-totals` measures) whose values are null for want of data, not suppression */
+            notCollected: string[];
+        };
+        OpenDataReleaseDetail: {
+            release: components["schemas"]["OpenDataRelease"];
+            /** @description Who built it; null for the release workflow on NCR approval */
+            builtBy: components["schemas"]["Officer"] | null;
+            source: {
+                /** @enum {string} */
+                kind: "national-report" | "live-projections";
+                /** @description The NCR's reference (`NCR-EACC-...`) once approved; null for a draft NCR or the live projections */
+                nationalReportReference: string | null;
+            };
+            tables: {
+                "filing-by-commission": components["schemas"]["OpenDataTableFile"];
+                "compliance-by-commission": components["schemas"]["OpenDataTableFile"];
+                "by-entity-type": components["schemas"]["OpenDataTableFile"];
+                "by-cycle": components["schemas"]["OpenDataTableFile"];
+                "access-requests": components["schemas"]["OpenDataTableFile"];
+                "national-totals": components["schemas"]["OpenDataTableFile"];
+            };
+        };
         OpenDataRelease: {
             /** Format: uuid */
             id: string;
@@ -1109,9 +1168,18 @@ export interface components {
             builtAt: string;
             /** Format: date-time */
             publishedAt: string | null;
+            /** @description The EACC supervisor who published it; for an annual release, who approved its NCR. Null while a preview */
+            publishedBy: components["schemas"]["Officer"] | null;
             /** Format: date-time */
             withdrawnAt: string | null;
+            /** @description The EACC supervisor who withdrew it; null unless withdrawn */
+            withdrawnBy: components["schemas"]["Officer"] | null;
             withdrawnReason: string | null;
+            /**
+             * Format: uuid
+             * @description The Public manifest document (documents service); null while a preview
+             */
+            manifestDocumentId: string | null;
             /** @description Verification code of the Public manifest document */
             manifestVerificationId: string | null;
             tables: {
@@ -2271,7 +2339,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
-    buildOpenDataSnapshot: {
+    buildOpenDataRelease: {
         parameters: {
             query?: never;
             header: {
@@ -2283,12 +2351,19 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
                     fy: number;
+                    /**
+                     * @description A mid-year snapshot, or a corrected annual release once the published one is withdrawn
+                     * @default snapshot
+                     * @enum {string}
+                     */
+                    kind?: "annual" | "snapshot";
                 };
             };
         };
         responses: {
-            /** @description Building */
+            /** @description Built as a preview */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2297,7 +2372,76 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
+            /** @description Body failed validation, or Idempotency-Key missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
+            /** @description A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the tables do not reconcile with their source (`reconciliation-failed`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Object storage could not be reached (`storage-unavailable`), or the directory for a snapshot of the live projections (`directory-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getOpenDataReleaseEacc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseId: components["parameters"]["ReleaseId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The release, who built it, its source and its tables */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataReleaseDetail"];
+                };
+            };
+            /** @description The release id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Object storage could not be reached (`storage-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
         };
     };
     publishOpenDataRelease: {
