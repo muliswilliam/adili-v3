@@ -74,12 +74,7 @@ export function editorValueOf(paragraphs: readonly NarrativeParagraph[]): Narrat
 
 /** What the contract saves: each section's paragraphs joined by a blank line. */
 export function narrativeTextOf(value: NarrativeEditorValue): Narrative {
-  const text = narrativeSections(value, NATIONAL_REPORT_NARRATIVE_SECTIONS);
-  return {
-    overview: text.overview ?? '',
-    findings: text.findings ?? '',
-    recommendations: text.recommendations ?? '',
-  };
+  return narrativeSections(value, NATIONAL_REPORT_NARRATIVE_SECTIONS);
 }
 
 export interface NcrViewer {
