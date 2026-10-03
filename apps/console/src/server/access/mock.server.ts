@@ -49,7 +49,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { addDays, isScopeWithin, startOfNairobiDay } from '@adili/ui';
+import { addDays, isScopeWithin, nairobiDayStartOf } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
@@ -323,7 +323,7 @@ const OFFICER_NAME = 'Lucy Wambui';
 
 /** 09:10 in Nairobi on the seeding day, or the day before when that is still ahead. */
 function morningOf(now: number): number {
-  const today = Date.parse(startOfNairobiDay(new Date(now).toISOString())) + (9 * 60 + 10) * 60_000;
+  const today = Date.parse(nairobiDayStartOf(new Date(now).toISOString())) + (9 * 60 + 10) * 60_000;
   return today <= now ? today : today - 24 * 60 * 60 * 1000;
 }
 
@@ -1001,7 +1001,7 @@ const SEEDS: Seed[] = [
 
 /** Ten minutes before the end of the Kenyan day of `now`, or five minutes on when that passed. */
 function endOfToday(now: number): number {
-  const tomorrow = Date.parse(addDays(startOfNairobiDay(new Date(now).toISOString()), 1));
+  const tomorrow = Date.parse(addDays(nairobiDayStartOf(new Date(now).toISOString()), 1));
   const end = tomorrow - 10 * 60 * 1000;
   return end > now ? end : now + 5 * 60 * 1000;
 }

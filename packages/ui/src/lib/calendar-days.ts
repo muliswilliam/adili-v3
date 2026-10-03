@@ -17,9 +17,9 @@ export function daysBetween(from: string, to: string): number {
   return dayNumber(to) - dayNumber(from);
 }
 
-/** Midnight in Nairobi at the start of the Kenyan calendar day of `iso`, as an ISO string. */
-export function startOfNairobiDay(iso: string): string {
-  return new Date(dayNumber(iso) * DAY_MS - NAIROBI_OFFSET_MS).toISOString();
+/** Midnight in Nairobi at the start of the Kenyan calendar day of `instant`, as an ISO string. */
+export function nairobiDayStartOf(instant: string): string {
+  return new Date(dayNumber(instant) * DAY_MS - NAIROBI_OFFSET_MS).toISOString();
 }
 
 /** The instant `days` whole days after (or before) `iso`, as an ISO string. */

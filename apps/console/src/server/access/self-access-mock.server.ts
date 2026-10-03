@@ -22,7 +22,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { addDays, startOfNairobiDay } from '@adili/ui';
+import { addDays, nairobiDayStartOf } from '@adili/ui';
 import createClient from 'openapi-fetch';
 
 import type { paths as DocumentsPaths } from '../documents/api.gen';
@@ -374,7 +374,7 @@ const STAGGER_MINUTES_PER_DAY = 7;
  * before today's Kenyan midnight.
  */
 function morningOf(now: number, daysAgo: number): number {
-  const dayStart = Date.parse(addDays(startOfNairobiDay(new Date(now).toISOString()), -daysAgo));
+  const dayStart = Date.parse(addDays(nairobiDayStartOf(new Date(now).toISOString()), -daysAgo));
   const morning = dayStart + (9 * 60 + 30 + daysAgo * STAGGER_MINUTES_PER_DAY) * 60_000;
   return Math.min(morning, Math.max(dayStart, now - 60_000));
 }
