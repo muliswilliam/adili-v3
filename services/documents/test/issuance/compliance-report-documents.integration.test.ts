@@ -825,10 +825,36 @@ describe("S9, S11, S12 who opens a submitted report's Form M and receipt, the NC
     );
   }
 
-  /** `caller` gets the metadata and a download of `document`, the download audited under `tenant`. */
+  /**
+   * The read audits of `document` (its envelope has no subject, so `eventsAbout` misses them),
+   * `caller`'s only when given.
+   */
+  async function auditReadsOf(document: IssuedDocument, caller?: Caller) {
+    const rows = await withTenant(api.db, { tenant: 'platform', subject: 'test' }, (tx) =>
+      tx.select().from(outbox).where(eq(outbox.eventType, 'audit.read.v1')).orderBy(asc(outbox.id)),
+    );
+    return rows
+      .map((row) => row.envelope)
+      .filter((envelope) => {
+        const data = envelope.data as {
+          resource?: { params?: { documentId?: string } };
+          actor?: { subject?: string };
+        };
+        return (
+          data.resource?.params?.documentId === document.id &&
+          (caller === undefined || data.actor?.subject === caller.sub)
+        );
+      });
+  }
+
+  /**
+   * `caller` gets the metadata and a download of `document`, the download and its read audit
+   * recorded under `tenant`.
+   */
   async function expectOpens(document: IssuedDocument, caller: Caller, tenant: string) {
     const who = `${caller.sub} on ${document.type}`;
     const before = (await downloadsBy(document, caller)).length;
+    const auditsBefore = (await auditReadsOf(document, caller)).length;
     const response = await download(document.id, caller);
     expect(response.statusCode, `${who}: ${response.body}`).toBe(200);
     const body = response.json<DocumentDownload>();
@@ -843,6 +869,16 @@ describe("S9, S11, S12 who opens a submitted report's Form M and receipt, the NC
       tenant,
       data: { documentType: document.type, issuerTenant: tenant },
     });
+    const audits = await auditReadsOf(document, caller);
+    expect(audits, who).toHaveLength(auditsBefore + 1);
+    expect(audits.at(-1)).toMatchObject({
+      tenant,
+      data: {
+        action: 'document.downloaded',
+        resource: { type: 'issued-document', tenant },
+        actor: { subject: caller.sub },
+      },
+    });
 
     const metadata = await api.get(`/v1/documents/${document.id}`, caller);
     expect(metadata.statusCode, who).toBe(200);
@@ -853,9 +889,11 @@ describe("S9, S11, S12 who opens a submitted report's Form M and receipt, the NC
   async function expectNotFound(document: IssuedDocument, caller: Caller) {
     const who = `${caller.sub} (${caller.tenant ?? '-'}) on ${document.type}`;
     const before = (await eventsAbout(document.id)).length;
+    const auditsBefore = (await auditReadsOf(document)).length;
     expect((await download(document.id, caller)).statusCode, who).toBe(404);
     expect((await api.get(`/v1/documents/${document.id}`, caller)).statusCode, who).toBe(404);
     expect(await eventsAbout(document.id), who).toHaveLength(before);
+    expect(await auditReadsOf(document), who).toHaveLength(auditsBefore);
   }
 
   /** The Commission's supervisor, commission-admin and reporting officer (spec 09 authorisation). */
