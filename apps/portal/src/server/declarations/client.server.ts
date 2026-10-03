@@ -27,6 +27,7 @@ export function declarationsClient(accessToken: string) {
               obligations: config.OBLIGATIONS_MOCK,
               declarations: config.DECLARATIONS_MOCK,
               assistant: config.ASSISTANT_MOCK,
+              assistantMode: config.ASSISTANT_MOCK_MODE,
             })(request, init)
         : null,
   });

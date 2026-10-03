@@ -73,7 +73,7 @@ export function AskAdiliBarButton({ className }: { className?: string }) {
         variant="secondary"
         size="icon"
         onClick={open}
-        className={cn('text-ai', className)}
+        className={cn('size-[34px] text-ai [&_svg]:size-4', className)}
       >
         <Icon icon={SparklesIcon} />
         <span className="sr-only">{copy.open}</span>

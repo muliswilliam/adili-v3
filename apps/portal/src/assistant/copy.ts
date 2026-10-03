@@ -36,6 +36,9 @@ export interface AskCopy {
   results: (count: number) => string;
   noHits: string;
   searchFailed: string;
+  missing: (count: number) => string;
+  fix: string;
+  more: (count: number) => string;
   openSection: string;
   /** Called with the place to open: "Open Assets → value". */
   openPlace: (place: string) => string;
@@ -89,6 +92,9 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     results: (count) => (count === 1 ? '1 result' : `${String(count)} results`),
     noHits: 'No help matches that. Try other words.',
     searchFailed: 'Help search is unavailable right now. Try again in a few minutes.',
+    missing: (count) => `Still missing (${String(count)})`,
+    fix: 'Fix',
+    more: (count) => `and ${String(count)} more`,
     openSection: 'Open',
     openPlace: (place) => `Open ${place}`,
     sectionNames: {
@@ -154,6 +160,9 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     results: (count) => (count === 1 ? 'Tokeo 1' : `Matokeo ${String(count)}`),
     noHits: 'Hakuna msaada unaolingana. Jaribu maneno mengine.',
     searchFailed: 'Utafutaji wa msaada haupatikani kwa sasa. Jaribu tena baada ya dakika chache.',
+    missing: (count) => `Bado kinakosekana (${String(count)})`,
+    fix: 'Rekebisha',
+    more: (count) => `na ${String(count)} zaidi`,
     openSection: 'Fungua',
     openPlace: (place) => `Fungua ${place}`,
     sectionNames: {

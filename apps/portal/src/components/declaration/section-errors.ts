@@ -62,14 +62,18 @@ export function useFocusLinkedField(field: string | undefined, find: () => HTMLE
     if (target) {
       if (target.matches('h1')) target.tabIndex = -1;
       target.focus({ preventScroll: true });
-      // jsdom has no scrollIntoView.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see above
-      target.scrollIntoView?.({ block: 'center' });
+      // After the router has put the new screen at the top.
+      requestAnimationFrame(() => {
+        // jsdom has no scrollIntoView.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see above
+        target.scrollIntoView?.({ block: 'center' });
+      });
     }
     void navigate({
       to: '.',
       search: (previous: Record<string, unknown>) => ({ ...previous, field: undefined }),
       replace: true,
+      resetScroll: false,
     } as never);
     // Only when a link arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps

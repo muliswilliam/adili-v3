@@ -194,6 +194,9 @@ function Panel({
   // Opening puts the cursor in the question box (or the help search, which focuses itself).
   useEffect(() => {
     if (hidden || !ready || unavailable) return;
+    // ...with the latest turn in view.
+    const log = panelRef.current?.querySelector('[role="log"]');
+    if (log) log.scrollTop = log.scrollHeight;
     panelRef.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
   }, [hidden, ready, unavailable]);
 
@@ -246,7 +249,10 @@ function Panel({
           onClick={() => {
             switchLanguage(code);
           }}
-          className={cn(language === code ? 'shadow-control' : 'text-secondary-foreground')}
+          className={cn(
+            'h-[26px] px-2 text-[12.5px]',
+            language === code ? 'bg-card shadow-control' : 'text-secondary-foreground',
+          )}
         >
           {code === 'en' ? 'English' : 'Kiswahili'}
         </Button>
@@ -275,8 +281,8 @@ function Panel({
         className={cn(
           'fixed right-0 bottom-0 z-45',
           side
-            ? 'top-[61px] w-[392px] shadow-[-1px_0_0_var(--color-border),-12px_0_32px_-18px_rgba(20,20,20,0.25)] min-[1200px]:shadow-[-1px_0_0_var(--color-border)]'
-            : 'left-0 h-[88dvh]',
+            ? 'top-[61px] h-auto w-[392px] shadow-[-1px_0_0_var(--color-border),-12px_0_32px_-18px_rgba(20,20,20,0.25)] min-[1200px]:shadow-[-1px_0_0_var(--color-border)]'
+            : 'left-0 h-[88dvh] max-h-[calc(100dvh-24px)]',
         )}
         headerActions={
           <Tooltip content={declarationId ? copy.kept : copy.keptOutside}>
@@ -338,6 +344,8 @@ function Panel({
             initialQuery={unavailable.question}
             sectionQuery={onSection}
             onAskAgain={resume}
+            declarationId={declarationId}
+            onFix={openPlace}
           />
         ) : !ready ? (
           <div className="grid gap-3 p-4" aria-busy="true">

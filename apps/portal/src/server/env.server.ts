@@ -39,6 +39,11 @@ export const envSchema = bffEnvSchema.extend({
    * other mocks.
    */
   ASSISTANT_MOCK: z.stringbool().default(false),
+  /**
+   * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
+   * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
+   */
+  ASSISTANT_MOCK_MODE: z.enum(['ok', 'unavailable', 'fail-midway', 'rate-limited']).default('ok'),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service

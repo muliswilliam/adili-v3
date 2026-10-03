@@ -9,6 +9,8 @@ import {
   rateAssistantAnswer,
   searchAssistantHelp,
 } from '../../server/assistant';
+import { getDeclarationSummary } from '../../server/declarations';
+import type { LoadedSummary } from '../../server/declarations.server';
 import type {
   AssistantConversation,
   AssistantMessage,
@@ -18,6 +20,7 @@ import { AskAdiliLauncher, AskAdiliProvider } from './ask-adili';
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
+vi.mock('../../server/declarations', () => ({ getDeclarationSummary: vi.fn() }));
 vi.mock('../../server/assistant', () => ({
   openAssistantConversation: vi.fn(),
   rateAssistantAnswer: vi.fn(),
@@ -27,6 +30,7 @@ vi.mock('../../server/assistant', () => ({
 const openMock = vi.mocked(openAssistantConversation);
 const rateMock = vi.mocked(rateAssistantAnswer);
 const searchMock = vi.mocked(searchAssistantHelp);
+const summaryMock = vi.mocked(getDeclarationSummary);
 
 const DRAFT = '9d3c2b1a-0f4e-4d5c-8b7a-6f5e4d3c2b1a';
 const CONVERSATION = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
@@ -154,6 +158,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   openMock.mockResolvedValue({ status: 'ok', conversation: conversation() });
   searchMock.mockResolvedValue({ status: 'ok', passages: [] });
+  summaryMock.mockResolvedValue({ status: 'unavailable' });
   rateMock.mockResolvedValue({ status: 'rated' });
 });
 
@@ -357,6 +362,39 @@ describe('Ask Adili panel (S12)', () => {
       data: { q: QUESTION, language: 'en', sectionKey: 'statement:officer' },
     });
     expect(within(panel).queryByRole('textbox', { name: 'Ask about this section…' })).toBeNull();
+  });
+
+  it('lists what is still missing, with the deterministic text, when answers are unavailable', async () => {
+    fetchMock.mockResolvedValue(Response.json({ status: 'unavailable' }, { status: 503 }));
+    summaryMock.mockResolvedValue({
+      status: 'ok',
+      summary: {
+        blocking: [
+          {
+            sectionKey: 'statement:officer',
+            path: '/assets/0/value',
+            code: 'required',
+            message: 'Enter the approximate value.',
+          },
+        ],
+        document: {},
+      } as unknown as LoadedSummary,
+    });
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask(QUESTION);
+
+    expect(await within(panel).findByText('Still missing (1)')).toBeTruthy();
+    expect(within(panel).getByText('Enter the approximate value.')).toBeTruthy();
+    fireEvent.click(
+      within(panel).getByRole('button', { name: 'Fix: Enter the approximate value.' }),
+    );
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/declarations/$id/statements/$personKey',
+      params: { id: DRAFT, personKey: 'officer' },
+      search: { field: '/assets/0/value' },
+    });
   });
 
   it('falls back to help search when the answer fails with assistant-unavailable', async () => {

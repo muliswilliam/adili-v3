@@ -59,13 +59,25 @@
  * simulate an edit on another device (`editElsewhere`), make registries answer at once
  * (`setLookupDelay(0)`) or play a Commission without AI (`setExtractionEnabled(false)`).
  *
+ * Ask Adili (spec 11) lives in `./mock/assistant.ts`: conversations, canned streamed answers,
+ * declines, feedback and help search; `setAssistantMode` (or ASSISTANT_MOCK_MODE) plays the
+ * gateway down, failing part-way or refusing a declarant who asks too often.
+ *
  * This file routes; each part lives in `./mock/`: `fixtures.ts`, the store and its views
  * (`store.ts`), drafts (`drafts.ts`), submission (`submit.ts`) and filed versions, amendments and
  * slips (`versions.ts`).
  */
 import { problem } from '../mock-http';
 import { resetAcknowledgementMock } from './mock/acknowledgement';
-import { ask, openConversation, rate, resetAssistantMock, searchHelp } from './mock/assistant';
+import {
+  ask,
+  type AssistantMode,
+  openConversation,
+  rate,
+  resetAssistantMock,
+  searchHelp,
+  setAssistantMode,
+} from './mock/assistant';
 import {
   commit,
   discard,
@@ -137,6 +149,8 @@ export interface DeclarationsMockParts {
   declarations: boolean;
   /** Ask Adili's conversations and answers, and help search (ASSISTANT_MOCK). */
   assistant: boolean;
+  /** How the mocked gateway behaves (ASSISTANT_MOCK_MODE), to see the panel's other states. */
+  assistantMode?: AssistantMode;
 }
 
 /** A client fetch answering `parts` in memory and passing the rest to the real service. */
@@ -144,6 +158,7 @@ export function declarationsMock(
   parts: DeclarationsMockParts,
   realFetch: typeof fetch = fetch,
 ): (request: Request, init?: RequestInit) => Promise<Response> {
+  if (parts.assistantMode) setAssistantMode(parts.assistantMode);
   return (request, init) => route(request, parts, (real) => realFetch(real, init));
 }
 
