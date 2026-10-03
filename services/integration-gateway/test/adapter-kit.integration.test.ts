@@ -487,11 +487,14 @@ describe('adapter kit', () => {
   });
 
   describe('legal basis headers', () => {
-    const echo = async (headers: Record<string, string>) =>
+    const echo = async (headers: Record<string, string>, clientId = 'review') =>
       t.app.inject({
         method: 'GET',
         url: '/internal/v1/test-purpose',
-        headers: { authorization: `Bearer ${await t.token()}`, ...headers },
+        headers: {
+          authorization: `Bearer ${await t.token({ clientId, scope: 'registry' })}`,
+          ...headers,
+        },
       });
 
     it('reads the legal basis and case reference', async () => {
@@ -525,17 +528,39 @@ describe('adapter kit', () => {
       expect(malformed.json()).toMatchObject({ errors: [{ path: 'X-Subject-Person' }] });
     });
 
-    it("takes the declarant's own request as a legal basis (spec 05b)", async () => {
-      const response = await echo({
-        'x-legal-basis': 'declarant-request',
-        'x-case-ref': '0190a3b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b',
-      });
+    it("takes the declarant's own request as a legal basis from the declarations service (spec 05b)", async () => {
+      const response = await echo(
+        {
+          'x-legal-basis': 'declarant-request',
+          'x-case-ref': '0190a3b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b',
+        },
+        'declarations',
+      );
 
       expect(response.json()).toMatchObject({
         legalBasis: 'declarant-request',
         caseRef: '0190a3b2-7c4d-7e8f-9a0b-1c2d3e4f5a6b',
       });
     });
+
+    it.each([
+      ['review', 'declarant-request'],
+      ['declarations', 'regs-r20-1-b'],
+      ['declarations', 'act-s35-5'],
+      ['directory', 'regs-r20-1-b'],
+    ])(
+      "answers 403 when %s names %s, another service's basis (spec 05b story 17)",
+      async (clientId, basis) => {
+        const response = await echo(
+          { 'x-legal-basis': basis, 'x-case-ref': 'case-0001' },
+          clientId,
+        );
+
+        expect(response.statusCode).toBe(403);
+        expect(response.headers['content-type']).toContain('application/problem+json');
+        expect(response.json()).toMatchObject({ status: 403 });
+      },
+    );
 
     it.each([
       ['missing', {}],

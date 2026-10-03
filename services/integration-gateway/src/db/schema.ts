@@ -61,6 +61,20 @@ export const LEGAL_BASES = [
 export type LegalBasis = (typeof LEGAL_BASES)[number];
 
 /**
+ * The services that may name each legal basis (their OAuth client, `azp`): a basis is the work of
+ * one service, so no holder of the `registry` scope can borrow another's. Review cross-checks and
+ * verifies declarations; the declarations service looks up on the declarant's own request (spec
+ * 05b story 17: no lookup beyond the legal basis); the directory confirms identities at
+ * onboarding.
+ */
+export const LEGAL_BASIS_CALLERS = {
+  'regs-r20-1-b': ['review'],
+  'act-s35-5': ['review'],
+  'adr-014-onboarding': ['directory'],
+  'declarant-request': ['declarations'],
+} as const satisfies Record<LegalBasis, readonly string[]>;
+
+/**
  * One row per registry lookup, whether answered from the cache or the registry. The subject is
  * a keyed hash; the registry's answer is kept only encrypted under the key of the tenant the
  * lookup acted for, and not at all for lookups that act for no tenant.

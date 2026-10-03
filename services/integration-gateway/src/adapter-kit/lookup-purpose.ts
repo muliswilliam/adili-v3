@@ -10,7 +10,7 @@ import {
 import { ApiHeader } from '@nestjs/swagger';
 import { ApiProblemResponse, type AuthenticatedRequest, ProblemException } from '@adili/api-kit';
 
-import { LEGAL_BASES, type LegalBasis } from '../db/schema.js';
+import { LEGAL_BASES, LEGAL_BASIS_CALLERS, type LegalBasis } from '../db/schema.js';
 import type { LookupContext, LookupPurpose } from './registry-adapter.js';
 
 export const LEGAL_BASIS_HEADER = 'x-legal-basis';
@@ -65,7 +65,17 @@ class LookupPurposeGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<PurposeRequest>();
-    request.lookupPurpose = parseLookupPurpose(request.headers, this.options);
+    const purpose = parseLookupPurpose(request.headers, this.options);
+    const callers: readonly string[] = LEGAL_BASIS_CALLERS[purpose.legalBasis];
+    if (!callers.includes(request.principal?.clientId ?? '')) {
+      throw new ProblemException({
+        type: 'about:blank',
+        title: 'Forbidden',
+        status: HttpStatus.FORBIDDEN,
+        detail: `Legal basis ${purpose.legalBasis} is not this service's to name.`,
+      });
+    }
+    request.lookupPurpose = purpose;
     return true;
   }
 }
@@ -77,8 +87,9 @@ class CaseLookupPurposeGuard extends LookupPurposeGuard {
 
 /**
  * Requires a lookup route's caller to declare why it looks (ADR-008: legal basis on every
- * lookup), which `@Purpose()` reads, and with `caseRef: 'required'` the case it looks for.
- * Documents the headers and the 400.
+ * lookup), which `@Purpose()` reads, and with `caseRef: 'required'` the case it looks for. A
+ * basis is accepted only from the service whose work it is (`LEGAL_BASIS_CALLERS`), else 403.
+ * Documents the headers and the 400 (the route's `InternalApi` documents its 403).
  *
  * @example
  * @Post('ntsa/vehicle-lookups')
@@ -92,7 +103,7 @@ export const LookupPurposeHeaders = (options: LookupPurposeOptions = {}) =>
       name: 'X-Legal-Basis',
       required: true,
       description:
-        'Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request',
+        "Why the registry is consulted, recorded on the result and the audit event. regs-r20-1-b, act-s35-5, adr-014-onboarding or declarant-request; each only from the service whose work it is, else 403 (regs-r20-1-b and act-s35-5 review's, declarant-request the declarations service's, adr-014-onboarding the directory's)",
       schema: { type: 'string', enum: [...LEGAL_BASES] },
     }),
     ApiHeader({
