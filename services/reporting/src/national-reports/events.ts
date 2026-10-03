@@ -1,4 +1,4 @@
-import type { NationalReportStatus } from './schema.js';
+import type { DraftScope, NationalReportStatus } from './schema.js';
 
 /**
  * Events the reporting service publishes about the national consolidated report (spec 09,
@@ -27,4 +27,18 @@ export interface NcrApprovedData extends Record<string, unknown> {
   status: NationalReportStatus;
   reference: string;
   reportsIncluded: number;
+}
+
+export const NCR_NARRATIVE_DRAFTED = 'ncr.narrative-drafted.v1';
+
+/**
+ * `ncr.narrative-drafted.v1` (spec 09b): the ai-gateway's draft of the narrative (the section
+ * asked for, or `all`) was inserted as AI-draft paragraphs. The job id ties it to the gateway's
+ * audit of the AI call; no text, no figures.
+ */
+export interface NcrNarrativeDraftedData extends Record<string, unknown> {
+  nationalReportId: string;
+  fy: number;
+  section: DraftScope;
+  jobId: string;
 }

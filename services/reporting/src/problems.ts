@@ -89,3 +89,13 @@ export function workflowUnavailable(detail: string): ProblemException {
     detail,
   });
 }
+
+/** 503 `ai-gateway-unavailable`: the ai-gateway cannot be reached, so nothing was asked of it. */
+export function aiGatewayUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'ai-gateway-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The AI gateway cannot be reached. Try again shortly.',
+  });
+}
