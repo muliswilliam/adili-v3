@@ -103,6 +103,55 @@ describe('golden sets', () => {
       expect(failures(output)).toEqual([]);
     });
 
+    it('reads the law’s numbers in Swahili words, and fails one the input does not state', () => {
+      const failures = golden('appointed last week (sw)');
+      const answer = (text: string) => ({
+        declined: false,
+        blocks: [block(text, ['act-s34'])],
+        followUps: [],
+      });
+      // The passages say "thirty days"; the answer may say it in Swahili, or in digits.
+      expect(failures(answer('Wasilisha tamko ndani ya siku thelathini (Act s.34(1)).'))).toEqual(
+        [],
+      );
+      expect(failures(answer('Wasilisha tamko ndani ya siku arobaini na tano.'))).toEqual([
+        expect.stringMatching(/^no-invented-numbers: \/blocks\/0\/text: 45 /),
+      ]);
+    });
+
+    it('counts the answer’s words in all, and marks a made-up link (soft)', () => {
+      const found = suite?.cases.find((each) => each.name === 'spouse salary (en)');
+      if (!suite || !found) throw new Error('No case spouse salary (en)');
+      const soft = (output: unknown, violations: OutputViolation[] = []) =>
+        Object.fromEntries(
+          suite
+            .score(found.input, output, found.expected, violations)
+            .filter((each) => !each.hard)
+            .map((each) => [each.scorer, each.score]),
+        );
+      const sixty = Array.from({ length: 60 }, () => 'word').join(' ');
+      const blocks = [block(sixty), block(sixty), block(sixty)];
+
+      expect(soft({ declined: false, blocks, followUps: [] }).brevity).toBe(0);
+      expect(soft({ declined: false, blocks: blocks.slice(0, 2), followUps: [] }).brevity).toBe(1);
+      expect(
+        soft({ declined: false, blocks: [block('Yes.')], followUps: [] }, [
+          { kind: 'unknown-link', block: 0 },
+        ])['links-resolve'],
+      ).toBe(0);
+    });
+
+    it('fails a small number the input does not state', () => {
+      const failures = golden('appointed last week (en)');
+      expect(
+        failures({
+          declined: false,
+          blocks: [block('Submit within 8 days of your appointment.', ['act-s34'])],
+          followUps: [],
+        }),
+      ).toEqual([expect.stringMatching(/^no-invented-numbers: \/blocks\/0\/text: 8 /)]);
+    });
+
     it('fails an invented value, a request for figures and a judgement', () => {
       const failures = golden('how to value a car (en)');
       const output = {

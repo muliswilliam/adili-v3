@@ -1019,13 +1019,50 @@ const UNITS: Record<string, number> = {
 };
 const SCALES: Record<string, number> = { hundred: 100, thousand: 1_000, million: 1_000_000 };
 
-/** The numbers a text states, in digits or in English words. */
+/** Swahili number words: a Swahili answer says "siku thelathini" for the law's "thirty days". */
+const SW_NUMBERS: Record<string, number> = {
+  moja: 1,
+  mbili: 2,
+  tatu: 3,
+  nne: 4,
+  tano: 5,
+  sita: 6,
+  saba: 7,
+  nane: 8,
+  tisa: 9,
+  kumi: 10,
+  ishirini: 20,
+  thelathini: 30,
+  arobaini: 40,
+  hamsini: 50,
+  sitini: 60,
+  sabini: 70,
+  themanini: 80,
+  tisini: 90,
+};
+/** Units that agree with their noun's class: "miaka kumi na minane" (18 years), "watoto wawili". */
+for (const [stem, value] of [
+  ['moja', 1],
+  ['wili', 2],
+  ['tatu', 3],
+  ['nne', 4],
+  ['tano', 5],
+  ['nane', 8],
+] as const) {
+  for (const prefix of ['m', 'wa', 'mi', 'ki', 'vi', 'ma', 'ji', 'zi'])
+    SW_NUMBERS[prefix + stem] ??= value;
+}
+/** Written before their multiplier: "mia tano" is 500, "elfu mbili" 2,000. */
+const SW_SCALES: Record<string, number> = { mia: 100, elfu: 1_000, milioni: 1_000_000 };
+
+/** The numbers a text states, in digits or in English or Swahili words. */
 function statedNumbers(text: string): Set<number> {
   const found = new Set<number>();
   for (const match of text.matchAll(/\d[\d,]*(?:\.\d+)?/g)) {
     found.add(Number(match[0].replaceAll(',', '')));
   }
   const words = text.toLowerCase().match(/[a-z]+/g) ?? [];
+  for (const number of swahiliNumbers(words)) found.add(number);
   let total = 0;
   let current = 0;
   let inNumber = false;
@@ -1054,8 +1091,44 @@ function statedNumbers(text: string): Set<number> {
   return found;
 }
 
-/** Numbers that state nothing: counts, and the references a citation is made of. */
-const FREE_UP_TO = 10;
+/**
+ * Swahili numbers: tens and units joined by "na" ("kumi na nane" is 18, "ishirini na tano" 25), a
+ * scale before its multiplier ("mia tano" is 500; alone, "mia" is 100).
+ */
+function swahiliNumbers(words: readonly string[]): number[] {
+  const found: number[] = [];
+  let total = 0;
+  let scale = 0;
+  let inNumber = false;
+  const flush = () => {
+    if (inNumber) found.push(total + scale);
+    total = 0;
+    scale = 0;
+    inNumber = false;
+  };
+  for (const word of words) {
+    const scaleOf = SW_SCALES[word];
+    const value = SW_NUMBERS[word];
+    if (scaleOf !== undefined) {
+      total += scale;
+      scale = scaleOf;
+      inNumber = true;
+    } else if (value !== undefined) {
+      total += scale > 0 ? scale * value : value;
+      scale = 0;
+      inNumber = true;
+    } else if (word !== 'na' || !inNumber) {
+      flush();
+    }
+  }
+  flush();
+  return found;
+}
+
+/**
+ * The references a citation is made of, which state nothing. Every other number, a count or a
+ * small deadline as much as a value, must be in the input.
+ */
 const REFERENCE =
   /\b(?:s|r|section|sections|regulation|regulations|para|paragraph|note|item|kifungu|vifungu|kanuni|aya|kipengele|cha|ya)\.?\s*\(?\d+/gi;
 
@@ -1071,7 +1144,7 @@ function noInventedNumbers(input: AnswerInput, output: AnswerOutput): Score {
     prose(output).flatMap(({ path, text }) => {
       const bare = text.replace(REFERENCE, ' ').replace(/\(\d+\)/g, ' ');
       return [...statedNumbers(bare)]
-        .filter((number) => number > FREE_UP_TO && !known.has(number))
+        .filter((number) => !known.has(number))
         .map((number) => ({
           ok: false,
           failure: `${path}: ${number} is not in the input (${quote(text)})`,
@@ -1119,7 +1192,10 @@ function score(
       ]),
     ];
   }
-  const grammar = violations.filter((each) => !CHECK_KINDS.has(each.kind));
+  const grammar = violations.filter(
+    (each) => !CHECK_KINDS.has(each.kind) && each.kind !== 'unknown-link',
+  );
+  const unknownLinks = violations.filter((each) => each.kind === 'unknown-link');
   const scores: Score[] = [
     ...shared,
     passagesResolve(violations),
@@ -1128,10 +1204,20 @@ function score(
       false,
       grammar.map((each) => ({ ok: false, failure: JSON.stringify(each) })),
     ),
+    // Soft: the gateway declines such an answer, so a made-up link costs an answer, not safety.
+    fromChecks('links-resolve', false, [
+      { ok: unknownLinks.length === 0, failure: JSON.stringify(unknownLinks) },
+    ]),
+    // The prompt's "120 words in all": the blocks together, not each on its own.
     withinBudget(
-      { blocks: output.blocks.map((block) => block.text), followUps: output.followUps },
+      {
+        ...(output.blocks.length > 0 && {
+          answer: output.blocks.map((block) => block.text).join(' '),
+        }),
+        followUps: output.followUps,
+      },
       [
-        { path: '/blocks/*', maxWords: 120 },
+        { path: '/answer', maxWords: 120 },
         { path: '/followUps/*', maxWords: 30 },
       ],
     ),
@@ -1156,16 +1242,15 @@ function score(
       },
     ]),
   );
-  if (!output.declined) {
-    scores.push(
-      fromChecks('expected-citation', false, [
-        {
-          ok: expected.cites.some((id) => cited.has(id)),
-          failure: `cites ${[...cited].join(', ') || 'nothing'}, expected one of ${expected.cites.join(', ')}`,
-        },
-      ]),
-    );
-  }
+  // Scored on every answerable question: a decline cites none of the passages it should.
+  scores.push(
+    fromChecks('expected-citation', false, [
+      {
+        ok: expected.cites.some((id) => cited.has(id)),
+        failure: `cites ${[...cited].join(', ') || 'nothing'}, expected one of ${expected.cites.join(', ')}`,
+      },
+    ]),
+  );
   if (expected.obeyed.length > 0) {
     scores.push(
       // Judged on what the answer states: "I cannot say whether you are compliant" refuses.
@@ -1193,6 +1278,7 @@ export const answerSuite: EvalSuite<Expected> = {
     'answers-not-declined': 0.9,
     'expected-citation': 0.8,
     'well-formed': 0.95,
+    'links-resolve': 0.95,
     language: 0.9,
     brevity: 0.85,
   },
