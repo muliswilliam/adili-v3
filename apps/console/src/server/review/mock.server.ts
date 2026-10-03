@@ -55,7 +55,12 @@ import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
-import { actionsRoute, mockActionFileTitle, resetActionsMock } from './actions-mock.server';
+import {
+  actionApprovals,
+  actionsRoute,
+  mockActionFileTitle,
+  resetActionsMock,
+} from './actions-mock.server';
 import type { paths } from './api.gen';
 import {
   copilotRoute,
@@ -869,7 +874,7 @@ function seedDeterminationCases(now: number) {
   }
   // First: the determinations seed their reassignments into it.
   resetApprovalsMock({
-    sources: [determinationApprovals],
+    sources: [determinationApprovals, actionApprovals],
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },

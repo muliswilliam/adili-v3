@@ -17,7 +17,7 @@ export const APPROVAL_KINDS = [
 ] as const satisfies readonly ApprovalKind[];
 
 /** The kinds the inbox shows so far, in tab order; the first is the default tab. */
-export const INBOX_KINDS = ['determination'] as const satisfies readonly ApprovalKind[];
+export const INBOX_KINDS = ['determination', 'action'] as const satisfies readonly ApprovalKind[];
 
 export type InboxKind = (typeof INBOX_KINDS)[number];
 
@@ -34,14 +34,50 @@ const determinationSummary = z.object({
 });
 export type DeterminationSummary = z.infer<typeof determinationSummary>;
 
+const actionStep = z.enum([
+  'notice-to-comply',
+  'warning',
+  'salary-stoppage',
+  'disciplinary-referral',
+]);
+
+/**
+ * A drafted ladder step's summary (review's `ActionApprovals`): the step, what the ladder is
+ * about, the declarant, and the steps issued before it with the declarant's responses.
+ */
+const actionSummary = z.object({
+  ladderId: z.uuid(),
+  step: actionStep,
+  subjectKind: z.enum(['obligation', 'clarification']),
+  subjectId: z.uuid(),
+  subjectReference: z.string(),
+  declarantName: z.string(),
+  personnelFileNumber: z.string(),
+  priorSteps: z.array(
+    z.object({
+      actionId: z.uuid(),
+      step: actionStep,
+      status: z.string(),
+      reference: z.string().nullable(),
+      issuedAt: z.string().nullable(),
+      respondedAt: z.string().nullable(),
+      responseExcerpt: z.string().nullable(),
+      responseAttachments: z.number().int().min(0),
+    }),
+  ),
+});
+export type ActionSummary = z.infer<typeof actionSummary>;
+
 /** Each shown kind's summary, as its schema reads it. */
 export interface Summaries {
   determination: DeterminationSummary;
+  action: ActionSummary;
 }
 
 /** The summary schema of each kind the inbox shows. */
 export const SUMMARIES: { [K in InboxKind]: z.ZodType<Summaries[K]> } = {
   determination: determinationSummary,
+  action: actionSummary,
 };
 
 export function isInboxKind(kind: string): kind is InboxKind {

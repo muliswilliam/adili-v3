@@ -40,6 +40,7 @@ import {
 import { type DecisionRefusal, decisionRefusal } from '../../actions/refusal';
 import type { AdministrativeAction, Ladder } from '../../server/actions.server';
 import type { ServiceError, ServiceResult } from '../../server/service-call';
+import type { FailureText } from '../dialog-parts';
 import { downloadFrom, pendingTab } from '../download';
 import { Page } from '../page';
 import { CLOSING_CAUSES, en as m, LADDER_STATUS_LABELS, STEP_LABELS } from './messages';
@@ -437,7 +438,7 @@ function Decision({
   const settle = (
     result: ServiceResult<AdministrativeAction>,
     done: (action: AdministrativeAction) => void,
-  ): string | null => {
+  ): FailureText | null => {
     if (result.ok) {
       setOpen(null);
       done(result.data);
@@ -451,7 +452,7 @@ function Decision({
       return null;
     }
     if (failure.reload) onChanged();
-    return failure.text;
+    return { title: failure.text };
   };
 
   return (
@@ -533,46 +534,50 @@ function LetterRow({
       <span className="flex size-8 items-center justify-center rounded-md bg-muted">
         <Icon icon={File01Icon} className="size-4" />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-[180px]">
         <div className="text-[14.5px] font-medium">{m.letterTitle(step)}</div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
           <Badge variant="info" className="text-[10.5px] tracking-wide uppercase">
             {m.restricted}
           </Badge>
-          <span className="font-mono text-[12px] text-muted-foreground">{reference}</span>
+          <span className="font-mono text-[12px] whitespace-nowrap text-muted-foreground">
+            {reference}
+          </span>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          const tab = pendingTab();
-          void letterLink(documentId).then((result) => {
-            if (result.ok) {
-              tab.show(result.data.downloadUrl);
-            } else {
-              tab.close();
-              failed();
-            }
-          });
-        }}
-      >
-        <Icon icon={ViewIcon} />
-        {m.viewLetter}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          void letterLink(documentId).then((result) => {
-            if (result.ok) downloadFrom(result.data.downloadUrl);
-            else failed();
-          });
-        }}
-      >
-        <Icon icon={Download04Icon} />
-        {m.downloadLetter}
-      </Button>
+      <div className="ml-auto flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const tab = pendingTab();
+            void letterLink(documentId).then((result) => {
+              if (result.ok) {
+                tab.show(result.data.downloadUrl);
+              } else {
+                tab.close();
+                failed();
+              }
+            });
+          }}
+        >
+          <Icon icon={ViewIcon} />
+          {m.viewLetter}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            void letterLink(documentId).then((result) => {
+              if (result.ok) downloadFrom(result.data.downloadUrl);
+              else failed();
+            });
+          }}
+        >
+          <Icon icon={Download04Icon} />
+          {m.downloadLetter}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -705,9 +710,9 @@ function DeclinedBanner({
                   return null;
                 }
                 const failure = failureOf(result.error);
-                if ('refusal' in failure) return m.cannot[failure.refusal];
+                if ('refusal' in failure) return { title: m.cannot[failure.refusal] };
                 if (failure.reload) onChanged();
-                return failure.text;
+                return { title: failure.text };
               }}
             />
           </>

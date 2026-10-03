@@ -110,7 +110,7 @@ const DECLARATION_KINDS: Record<string, string> = {
 };
 
 /** What the ladder is about: an overdue declaration (by its cycle key) or a clarification. */
-export function subjectOf(ladder: Ladder): LadderSubject {
+export function subjectOf(ladder: Pick<Ladder, 'subjectKind' | 'subjectReference'>): LadderSubject {
   if (ladder.subjectKind === 'clarification') {
     return { title: ladder.subjectReference, reference: true, cause: 'Clarification unanswered' };
   }

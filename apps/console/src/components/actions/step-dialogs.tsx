@@ -2,7 +2,6 @@ import {
   addDays,
   Alert,
   AlertDescription,
-  AlertTitle,
   ApprovalConsequences,
   type ApprovalConsequence,
   Button,
@@ -10,20 +9,15 @@ import {
   DialogBody,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
   FieldError,
   formatDate,
   Icon,
-  IconTile,
   Label,
   Spinner,
   Textarea,
 } from '@adili/ui';
 import {
-  AlertCircleIcon,
   BanIcon,
   Calendar03Icon,
   Cancel01Icon,
@@ -36,13 +30,15 @@ import {
 } from '@hugeicons/core-free-icons';
 import { useId, useState } from 'react';
 
+import { DialogFailure, DialogHeading, type FailureText } from '../dialog-parts';
+
 import type { ActionStep } from '../../server/actions.server';
 import { en as m } from './messages';
 
 /**
  * Approve, Decline and Restart for a ladder's step (spec 08 FE-5), as controlled dialogs. Each
  * hands its decision to `onSubmit`, which resolves to a failure to show in the dialog, or null
- * when the dialog may close.
+ * when the dialog may close. Headings and failures as the approvals inbox has them (`dialog-parts`).
  */
 
 const NOTE_MAX = 2000;
@@ -54,19 +50,9 @@ const WINDOW_DAYS: Partial<Record<ActionStep, number>> = {
   'salary-stoppage': 30,
 };
 
-function Failure({ text }: { text: string | null }) {
-  if (!text) return null;
-  return (
-    <Alert variant="destructive" role="alert">
-      <Icon icon={AlertCircleIcon} />
-      <AlertTitle>{text}</AlertTitle>
-    </Alert>
-  );
-}
-
-function useSubmit(onSubmit: () => Promise<string | null>) {
+function useSubmit(onSubmit: () => Promise<FailureText | null>) {
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useState<FailureText | null>(null);
   return {
     busy,
     failure,
@@ -131,7 +117,7 @@ export function ApproveStepDialog({
   declarantName: string;
   subjectTitle: string;
   now: string;
-  onSubmit: () => Promise<string | null>;
+  onSubmit: () => Promise<FailureText | null>;
 }) {
   const state = useSubmit(onSubmit);
   return (
@@ -143,16 +129,14 @@ export function ApproveStepDialog({
       }}
     >
       <DialogContent busy={state.busy}>
-        <DialogHeader className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3">
-          <IconTile size="sm" className="row-span-2">
-            <Icon icon={Mail01Icon} />
-          </IconTile>
-          <DialogTitle>{m.approveTitle(step)}</DialogTitle>
-          <DialogDescription>{`${declarantName} · ${subjectTitle}`}</DialogDescription>
-        </DialogHeader>
+        <DialogHeading
+          icon={Mail01Icon}
+          title={m.approveTitle(step)}
+          description={`${declarantName} · ${subjectTitle}`}
+        />
         <DialogBody className="grid gap-4">
           <ApprovalConsequences items={consequencesOf(step, declarantName, now)} headingLevel={3} />
-          <Failure text={state.failure} />
+          <DialogFailure failure={state.failure} />
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
@@ -179,7 +163,7 @@ export function DeclineStepDialog({
   onOpenChange: (open: boolean) => void;
   step: ActionStep;
   declarantName: string;
-  onSubmit: (note: string) => Promise<string | null>;
+  onSubmit: (note: string) => Promise<FailureText | null>;
 }) {
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -199,13 +183,11 @@ export function DeclineStepDialog({
       }}
     >
       <DialogContent busy={state.busy}>
-        <DialogHeader className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3">
-          <IconTile size="sm" tone="destructive" className="row-span-2">
-            <Icon icon={Cancel01Icon} />
-          </IconTile>
-          <DialogTitle>{m.declineTitle(step)}</DialogTitle>
-          <DialogDescription>{declarantName}</DialogDescription>
-        </DialogHeader>
+        <DialogHeading
+          icon={Cancel01Icon} tone="destructive"
+          title={m.declineTitle(step)}
+          description={declarantName}
+        />
         <DialogBody className="grid gap-4">
           <Alert variant="warning" role="note">
             <Icon icon={InformationCircleIcon} />
@@ -242,7 +224,7 @@ export function DeclineStepDialog({
               </span>
             </div>
           </div>
-          <Failure text={state.failure} />
+          <DialogFailure failure={state.failure} />
         </DialogBody>
         <DialogFooter>
           <DialogClose asChild>
@@ -278,7 +260,7 @@ export function RestartLadderDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   step: ActionStep;
-  onSubmit: () => Promise<string | null>;
+  onSubmit: () => Promise<FailureText | null>;
 }) {
   const state = useSubmit(onSubmit);
   return (
@@ -290,16 +272,14 @@ export function RestartLadderDialog({
       }}
     >
       <DialogContent busy={state.busy}>
-        <DialogHeader className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3">
-          <IconTile size="sm" className="row-span-2">
-            <Icon icon={RefreshIcon} />
-          </IconTile>
-          <DialogTitle>{m.restartTitle}</DialogTitle>
-          <DialogDescription>{m.restartBody(step)}</DialogDescription>
-        </DialogHeader>
+        <DialogHeading
+          icon={RefreshIcon}
+          title={m.restartTitle}
+          description={m.restartBody(step)}
+        />
         {state.failure ? (
           <DialogBody>
-            <Failure text={state.failure} />
+            <DialogFailure failure={state.failure} />
           </DialogBody>
         ) : null}
         <DialogFooter>

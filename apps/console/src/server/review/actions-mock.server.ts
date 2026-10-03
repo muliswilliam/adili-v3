@@ -8,7 +8,7 @@
  *   declaration, waiting for approval.
  * - `noticeResponded`: a notice for an unanswered clarification, issued 12 days ago (2 days
  *   left), with the declarant's response and two documents.
- * - `warningBlocked`: the notice issued 20 days ago went unanswered, the warning is drafted; the
+ * - `warningBlocked`: the notice issued 18 days ago went unanswered, the warning is drafted; the
  *   signed-in officer held the clarification's case, so the rule refuses them.
  * - `warningIssued`: notice done, the warning's window runs 9 more days.
  * - `stoppageProposed`: notice and warning issued, the salary stoppage drafted (supervisors only).
@@ -25,12 +25,14 @@
  * decline ends the ladder; a supervisor restarts a declined ladder (409 `ladder-not-declined`
  * otherwise) and the declined step is drafted again. Approve requires an `Idempotency-Key`;
  * every decision replays the first answer for a key. Letters download through the documents
- * client (`mockActionDocumentsFetch`) from `/api/mock-files/{documentId}`.
+ * client (`mockActionDocumentsFetch`) from `/api/mock-files/{documentId}`. `actionApprovals` lists
+ * the drafted steps in the approvals inbox mock.
  */
 import { REVIEWER, SUPERVISOR } from '@adili/roles';
 
 import { isRecord, json, type MockCaller, problem, readJson } from '../mock-http';
 import type { components } from './api.gen';
+import type { MockApprovalSource } from './approvals-mock.server';
 
 type Schemas = components['schemas'];
 type Ladder = Schemas['Ladder'];
@@ -202,6 +204,9 @@ function store(ladder: Ladder, reviewersOfRecord: StoredLadder['reviewersOfRecor
   ladders.set(ladder.id, { ladder, reviewersOfRecord });
 }
 
+/** Days ago the fillers' warnings were drafted: clear of the inbox's 7 and 30-day bands. */
+const FILLER_DRAFTED_DAYS = [1, 4, 10, 13, 16, 19];
+
 const FILLER_NAMES = [
   ['Joseph Kiprono Rotich', '20131145'],
   ['Esther Wanjiku Kamau', '20140288'],
@@ -307,11 +312,11 @@ export function resetActionsMock(seededAt: number = Date.now()) {
         subjectReference: 'CLR-TSC-2026-0000297-K',
         declarantName: 'Lydia Moraa Nyakundi',
         personnelFileNumber: '20133021',
-        startedDaysAgo: 22,
+        startedDaysAgo: 20,
       },
       [
-        issued(actionId(3, 1), ids.warningBlocked, 'notice-to-comply', 22, 20, KEVIN, base),
-        blank(actionId(3, 2), ids.warningBlocked, 'warning', base - 6 * DAY),
+        issued(actionId(3, 1), ids.warningBlocked, 'notice-to-comply', 20, 18, KEVIN, base),
+        blank(actionId(3, 2), ids.warningBlocked, 'warning', base - 4 * DAY),
       ],
       base,
     ),
@@ -441,7 +446,15 @@ export function resetActionsMock(seededAt: number = Date.now()) {
     );
     const steps =
       index % 3 === 0
-        ? [notice, blank(actionId(n, 2), id, 'warning', base - (index + 1) * DAY)]
+        ? [
+            notice,
+            blank(
+              actionId(n, 2),
+              id,
+              'warning',
+              base - (FILLER_DRAFTED_DAYS[index / 3] ?? 1) * DAY,
+            ),
+          ]
         : index % 3 === 1
           ? [
               notice,
@@ -552,30 +565,100 @@ function forbidden(
   return json(403, { type, title: 'Forbidden', status: 403, detail, code: type, reason });
 }
 
-/** The separation-of-duties rule as the service applies it, or null when the caller may decide. */
-function refusal(caller: MockCaller, stored: StoredLadder, action: Action): Response | null {
-  if (action.proposer?.subject === caller.subject) {
-    return forbidden(
-      'separation-of-duties',
-      'proposer',
-      'You proposed this, so another supervisor must decide it.',
-    );
-  }
+type CannotApprove = 'proposer' | 'reviewer-of-record' | 'role';
+
+/** Why the separation-of-duties rule keeps `caller` from deciding `action`, or null. */
+function cannotApprove(
+  caller: MockCaller,
+  stored: StoredLadder,
+  action: Action,
+): CannotApprove | null {
+  if (action.proposer?.subject === caller.subject) return 'proposer';
   const record = stored.reviewersOfRecord.map((each) => (each === CALLER ? caller.subject : each));
-  if (record.includes(caller.subject)) {
-    return forbidden(
-      'separation-of-duties',
-      'reviewer-of-record',
-      'You reviewed this case, so another supervisor must decide it.',
-    );
-  }
+  if (record.includes(caller.subject)) return 'reviewer-of-record';
   const supervisorOnly =
     action.step === 'salary-stoppage' || action.step === 'disciplinary-referral';
   const admitted = supervisorOnly ? caller.roles.includes(SUPERVISOR) : isReviewStaff(caller);
-  if (!admitted) {
+  return admitted ? null : 'role';
+}
+
+/**
+ * The action approval source of the inbox mock (review's `ActionApprovals`): drafted steps of
+ * active ladders, with the steps issued before each and the declarant's responses.
+ */
+export const actionApprovals: MockApprovalSource = {
+  kind: 'action',
+  pending: (caller) => {
+    ensureSeeded();
+    const asCaller: MockCaller = {
+      subject: caller.subject,
+      name: caller.name,
+      roles: [...caller.roles],
+    };
+    return [...ladders.values()].flatMap((stored) => {
+      const { ladder } = stored;
+      if (ladder.status !== 'active') return [];
+      return ladder.steps
+        .filter((action) => action.status === 'proposed')
+        .map((action) => ({
+          subjectId: action.id,
+          proposedAt: action.proposedAt,
+          proposerKind: action.proposerKind,
+          proposer: action.proposer,
+          summary: {
+            ladderId: ladder.id,
+            step: action.step,
+            subjectKind: ladder.subjectKind,
+            subjectId: ladder.subjectId,
+            subjectReference: ladder.subjectReference,
+            declarantName: ladder.declarantName,
+            personnelFileNumber: ladder.personnelFileNumber,
+            priorSteps: ladder.steps
+              .filter((prior) => prior.id !== action.id && prior.reference !== null)
+              .map((prior) => ({
+                actionId: prior.id,
+                step: prior.step,
+                status: prior.status,
+                reference: prior.reference,
+                issuedAt: prior.issuedAt,
+                respondedAt: prior.response?.submittedAt ?? null,
+                responseExcerpt: prior.response?.text.slice(0, 200) ?? null,
+                responseAttachments: prior.response?.attachments.length ?? 0,
+              })),
+          },
+          cannotApproveReason: cannotApprove(asCaller, stored, action),
+        }));
+    });
+  },
+  find: (subjectId) => {
+    const found = find(subjectId);
+    return found
+      ? { pending: found.action.status === 'proposed', status: found.action.status }
+      : null;
+  },
+};
+
+/** The separation-of-duties rule as the service applies it, or null when the caller may decide. */
+function refusal(caller: MockCaller, stored: StoredLadder, action: Action): Response | null {
+  const reason = cannotApprove(caller, stored, action);
+  if (reason === 'proposer') {
+    return forbidden(
+      'separation-of-duties',
+      reason,
+      'You proposed this, so another supervisor must decide it.',
+    );
+  }
+  if (reason === 'reviewer-of-record') {
+    return forbidden(
+      'separation-of-duties',
+      reason,
+      'You reviewed this case, so another supervisor must decide it.',
+    );
+  }
+  if (reason === 'role') {
     return forbidden(
       'supervisor-required',
-      'role',
+      reason,
       'Only a supervisor can approve or return this.',
     );
   }
