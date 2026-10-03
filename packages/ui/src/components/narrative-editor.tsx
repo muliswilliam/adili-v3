@@ -2,6 +2,7 @@ import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons';
 import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { cn } from '../lib/cn';
+import type { Same } from '../lib/type-checks';
 import { formatTime } from '../lib/format-date';
 import { formatNumber } from '../lib/format-number';
 import type { AutosaveState } from '../lib/use-autosave';
@@ -34,13 +35,14 @@ export const NARRATIVE_PARAGRAPH_SEPARATOR = '\n\n';
  * Every section's stored text, the body `PATCH .../narrative` takes: one entry per section in
  * `sections`, '' for one with nothing written (the contract requires all of them).
  */
-export function narrativeSections(
+export function narrativeSections<const Id extends string>(
   value: NarrativeValue,
-  sections: readonly Pick<NarrativeSection, 'id'>[],
-): Record<string, string> {
+  sections: readonly { id: Id }[],
+): Record<Id, string> {
+  // Every id in `sections` gets an entry, so the record is complete.
   return Object.fromEntries(
     sections.map((section) => [section.id, narrativeSectionText(value[section.id] ?? [])]),
-  );
+  ) as Record<Id, string>;
 }
 
 /**
@@ -62,7 +64,10 @@ export interface NarrativeSection {
   maxLength?: number;
 }
 
-/** The contract's `Narrative` limits per section (reporting.yaml). */
+/**
+ * The contract's `Narrative` limits per section (reporting.yaml). `narrative-editor.test.tsx`
+ * reads the contract to keep them in step.
+ */
 export const NARRATIVE_MAX_LENGTH = {
   overview: 20_000,
   findings: 40_000,
@@ -70,7 +75,7 @@ export const NARRATIVE_MAX_LENGTH = {
 } as const;
 
 /** The national report's sections, in order, with their limits. */
-export const NATIONAL_REPORT_NARRATIVE_SECTIONS: readonly NarrativeSection[] = [
+export const NATIONAL_REPORT_NARRATIVE_SECTIONS = [
   { id: 'overview', label: 'Overview', maxLength: NARRATIVE_MAX_LENGTH.overview },
   { id: 'findings', label: 'Findings', maxLength: NARRATIVE_MAX_LENGTH.findings },
   {
@@ -78,7 +83,23 @@ export const NATIONAL_REPORT_NARRATIVE_SECTIONS: readonly NarrativeSection[] = [
     label: 'Recommendations',
     maxLength: NARRATIVE_MAX_LENGTH.recommendations,
   },
-];
+] as const satisfies readonly NarrativeSection[];
+
+/** `overview`, `findings` or `recommendations`. */
+export type NationalReportNarrativeSectionId =
+  (typeof NATIONAL_REPORT_NARRATIVE_SECTIONS)[number]['id'];
+
+/**
+ * True when an app's generated `Narrative` has exactly the national report's sections, each a
+ * string. Apps assert it, `Assert<MatchesNarrativeSections<Narrative>>`, so a section added to
+ * or dropped from the contract fails to compile until the table follows.
+ */
+export type MatchesNarrativeSections<C> = [
+  Same<keyof C, NationalReportNarrativeSectionId>,
+  Same<C[keyof C], string>,
+] extends [true, true]
+  ? true
+  : false;
 
 export interface NarrativeEditorMessages {
   autosaves: string;

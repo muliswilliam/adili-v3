@@ -2,8 +2,16 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+import { parse } from 'yaml';
+
+import type { Assert } from '../lib/type-checks';
 import { AutosaveFailure, useAutosave } from '../lib/use-autosave';
 import {
+  type MatchesNarrativeSections,
+  NARRATIVE_MAX_LENGTH,
   NATIONAL_REPORT_NARRATIVE_SECTIONS,
   NarrativeEditor,
   narrativeSections,
@@ -75,6 +83,48 @@ describe('narrativeSectionText', () => {
 
   it('is empty for no paragraphs', () => {
     expect(narrativeSectionText([])).toBe('');
+  });
+});
+
+describe('the national report narrative table', () => {
+  it('has the contract’s sections and limits', () => {
+    const contract = parse(
+      readFileSync(
+        createRequire(import.meta.url).resolve('@adili/schemas/internal/reporting.yaml'),
+        'utf8',
+      ),
+    ) as {
+      components: {
+        schemas: {
+          Narrative: { required: string[]; properties: Record<string, { maxLength: number }> };
+        };
+      };
+    };
+    const narrative = contract.components.schemas.Narrative;
+
+    expect(NATIONAL_REPORT_NARRATIVE_SECTIONS.map((section) => section.id)).toEqual(
+      narrative.required,
+    );
+    expect(NARRATIVE_MAX_LENGTH).toEqual(
+      Object.fromEntries(
+        Object.entries(narrative.properties).map(([id, { maxLength }]) => [id, maxLength]),
+      ),
+    );
+  });
+
+  it('matches a Narrative type with the same sections, and only that', () => {
+    interface Narrative {
+      overview: string;
+      findings: string;
+      recommendations: string;
+    }
+    type Checked = Assert<MatchesNarrativeSections<Narrative>>;
+    // @ts-expect-error a section missing from the table fails to compile
+    type Drifted = Assert<MatchesNarrativeSections<Narrative & { annex: string }>>;
+    const body: Narrative = narrativeSections({}, NATIONAL_REPORT_NARRATIVE_SECTIONS);
+
+    expect(body).toEqual({ overview: '', findings: '', recommendations: '' });
+    expect<[Checked?, Drifted?]>([]).toEqual([]);
   });
 });
 
