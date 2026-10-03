@@ -9,31 +9,37 @@ import type { AssistantItemType } from './declarations/types';
  * The browser's side of an Ask Adili answer: `POST /api/assistant/conversations/{id}/messages`
  * relays the declarations service's server-sent events as they come, with the access token kept
  * on the server. Anything but a stream answers JSON `{status}` the panel branches on: 401 when
- * the session has ended, 404, 429 `{retryAfterSeconds}`, 503 when answers are unavailable (the
- * panel then offers help search). Same-origin JSON only: a cross-site form cannot post it.
+ * the session has ended, 404, 413 for a body past 16 KB, 429 `{retryAfterSeconds}`, 503 when
+ * answers are unavailable (the panel then offers help search). Same-origin JSON only: a cross-site
+ * form cannot post it, and a request without an Origin is refused.
  */
 
-const ITEM_TYPES = [
-  'land',
-  'building',
-  'vehicle',
-  'securities',
-  'shareholding',
-  'bank-account',
-  'cash',
-  'receivable',
-  'mortgage',
-  'loan',
-  'guarantee',
-  'salary-emoluments',
-  'allowances',
-  'business',
-  'rent',
-  'dividends-interest',
-  'pension',
-  'farming',
-  'consultancy',
-] as const satisfies readonly AssistantItemType[];
+// Every item type the contract has, checked both ways by the Record's keys.
+const ITEM_TYPE_SET: Record<AssistantItemType, true> = {
+  land: true,
+  building: true,
+  vehicle: true,
+  securities: true,
+  shareholding: true,
+  'bank-account': true,
+  cash: true,
+  receivable: true,
+  mortgage: true,
+  loan: true,
+  guarantee: true,
+  'salary-emoluments': true,
+  allowances: true,
+  business: true,
+  rent: true,
+  'dividends-interest': true,
+  pension: true,
+  farming: true,
+  consultancy: true,
+};
+const ITEM_TYPES = Object.keys(ITEM_TYPE_SET) as [AssistantItemType, ...AssistantItemType[]];
+
+/** Largest question body taken: a 2,000-character question with its section, with room. */
+const MAX_BODY_BYTES = 16_384;
 
 const question = z.object({
   text: z.string().trim().min(1).max(2000),
@@ -52,16 +58,18 @@ export async function relayAnswer(
   client: DeclarationsClient | null,
   appOrigin: string,
 ): Promise<Response> {
-  const origin = request.headers.get('origin');
+  // Browsers send Origin on every POST; a request without one is not the panel's.
   if (
-    (origin !== null && origin !== new URL(appOrigin).origin) ||
+    request.headers.get('origin') !== new URL(appOrigin).origin ||
     !request.headers.get('content-type')?.startsWith('application/json')
   ) {
     return status(403, { status: 'forbidden' });
   }
   if (!z.uuid().safeParse(conversationId).success) return status(404, { status: 'not-found' });
   if (!client) return status(401, { status: 'unauthenticated' });
-  const body = question.safeParse(await request.json().catch(() => null));
+  const raw = await readLimited(request, MAX_BODY_BYTES);
+  if (raw === null) return status(413, { status: 'too-large' });
+  const body = question.safeParse(parseJson(raw));
   if (!body.success) return status(400, { status: 'invalid' });
 
   const result = await askAssistant(client, conversationId, body.data, request.signal);
@@ -84,4 +92,33 @@ export async function relayAnswer(
     case 'unavailable':
       return status(503, result);
   }
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/** The body as text, or null once it passes `limit` bytes (read no further than that). */
+async function readLimited(request: Request, limit: number): Promise<string | null> {
+  if (Number(request.headers.get('content-length') ?? 0) > limit) return null;
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
 }

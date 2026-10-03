@@ -50,10 +50,24 @@ function fieldName(pointer: string, language: AskLanguage): string | null {
  * does not have (a spouse since removed). A statement link opens the person's tab: "Open Assets
  * → value" for the officer, "Open Mary's income" for a spouse.
  */
+/** The statement item a pointer is inside (`/assets/1/value` is assets item 1), or null. */
+export function linkedItem(
+  link: SectionLink,
+): { category: (typeof CATEGORIES)[number]; index: number } | null {
+  if (!link.sectionKey.startsWith('statement:') || !link.fieldPath) return null;
+  const [, category, index] = link.fieldPath.split('/');
+  const found = CATEGORIES.find((name) => name === category);
+  return found && index !== undefined && /^\d+$/.test(index)
+    ? { category: found, index: Number(index) }
+    : null;
+}
+
 export function linkPlace(
   link: SectionLink,
   sections: readonly DeclarationSection[],
   language: AskLanguage,
+  /** The linked item's type as the statement names it ("Vehicle"), once read; English only. */
+  itemName?: string,
 ): Place | null {
   const copy = ASK_COPY[language];
   const parsed = parseSectionKey(link.sectionKey);
@@ -70,8 +84,12 @@ export function linkPlace(
     const firstName = section.personName?.trim().split(/\s+/)[0] ?? '';
     const officer = parsed.personKey === 'officer';
     if (category) {
-      const categoryName = copy.sectionNames[category];
-      place = officer || !firstName ? categoryName : copy.personCategory(firstName, categoryName);
+      // The item's type names it best ("Open Vehicle → value"); the screens name types in English.
+      const categoryName = itemName && language === 'en' ? itemName : copy.sectionNames[category];
+      place =
+        officer || !firstName
+          ? categoryName
+          : copy.personCategory(firstName, itemName && language === 'en' ? itemName : categoryName);
     } else {
       place = officer || !firstName ? copy.sectionNames.statement : copy.personStatement(firstName);
     }

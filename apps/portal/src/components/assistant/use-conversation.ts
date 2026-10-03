@@ -8,9 +8,20 @@ import type { AssistantMessage } from '../../server/declarations/types';
 
 /** The question being answered, and how far its answer got. */
 export interface PendingTurn {
+  /** Which question this is, so its bubbles stay the same when the stored turns replace them. */
+  turn: number;
   question: string;
   status: Extract<AssistantMessageStatus, 'thinking' | 'streaming' | 'error' | 'rate-limited'>;
   text: string;
+  /** For `rate-limited`: when to ask again. */
+  retryAfterSeconds?: number;
+}
+
+/** The stored question and answer that ended a turn, to render in its pending bubbles' place. */
+export interface FinishedTurn {
+  turn: number;
+  questionId: string;
+  answerId: string;
 }
 
 export type ConversationState =
@@ -18,7 +29,13 @@ export type ConversationState =
   | { status: 'loading' }
   /** It could not be opened (the service is down, or no Commission to ask about): help search. */
   | { status: 'failed' }
-  | { status: 'ready'; id: string; messages: AssistantMessage[] };
+  | {
+      status: 'ready';
+      id: string;
+      messages: AssistantMessage[];
+      /** Answers can be rated here (ASSISTANT_FEEDBACK). */
+      feedback: boolean;
+    };
 
 export interface AskContext {
   sectionKey: string | null;
@@ -49,8 +66,21 @@ export function useConversation({
   // Each open is for a draft, a language and an attempt; until its answer comes, it is loading.
   const openKey = `${declarationId ?? 'outside'}|${language}|${String(attempt)}`;
   const [loaded, setLoaded] = useState<{ key: string; state: ConversationState } | null>(null);
-  const [pending, setPending] = useState<PendingTurn | null>(null);
-  const [unavailable, setUnavailable] = useState<{ question: string } | null>(null);
+  // A turn and the help search fallback belong to the conversation they were asked in: another
+  // language or draft starts without them.
+  const [pendingFor, setPendingFor] = useState<{ key: string; turn: PendingTurn | null }>({
+    key: openKey,
+    turn: null,
+  });
+  const [unavailableFor, setUnavailableFor] = useState<{
+    key: string;
+    question: string;
+  } | null>(null);
+  const [finished, setFinished] = useState<FinishedTurn | null>(null);
+  const turns = useRef(0);
+  const pending = pendingFor.key === openKey ? pendingFor.turn : null;
+  const unavailable =
+    unavailableFor?.key === openKey ? { question: unavailableFor.question } : null;
   const answering = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -72,6 +102,7 @@ export function useConversation({
                   status: 'ready',
                   id: result.conversation.id,
                   messages: result.conversation.messages,
+                  feedback: result.feedback,
                 }
               : { status: 'failed' },
         });
@@ -94,14 +125,6 @@ export function useConversation({
     setLoaded((current) => (current ? { ...current, state: update(current.state) } : current));
   }, []);
 
-  // Leaving the page ends the answer; the service then stores nothing.
-  useEffect(
-    () => () => {
-      answering.current?.abort();
-    },
-    [],
-  );
-
   const conversationId = conversation.status === 'ready' ? conversation.id : null;
 
   const ask = useCallback(
@@ -109,10 +132,19 @@ export function useConversation({
       if (!conversationId || answering.current) return;
       const controller = new AbortController();
       answering.current = controller;
-      setPending({ question, status: 'thinking', text: '' });
+      turns.current += 1;
+      const turn = turns.current;
+      const setPending = (next: Omit<PendingTurn, 'turn' | 'question'> | null) => {
+        setPendingFor({ key: openKey, turn: next ? { turn, question, ...next } : null });
+      };
+      const setUnavailable = () => {
+        setPendingFor({ key: openKey, turn: null });
+        setUnavailableFor({ key: openKey, question });
+      };
+      setPending({ status: 'thinking', text: '' });
       let text = '';
       const stopped = () => {
-        setPending({ question, status: 'error', text });
+        setPending({ status: 'error', text });
       };
       try {
         const response = await fetch(answerUrl(conversationId), {
@@ -126,12 +158,19 @@ export function useConversation({
           return;
         }
         if (response.status === 429) {
-          setPending({ question, status: 'rate-limited', text: '' });
+          const body = (await response.json().catch(() => null)) as {
+            retryAfterSeconds?: unknown;
+          } | null;
+          const seconds = Number(body?.retryAfterSeconds);
+          setPending({
+            status: 'rate-limited',
+            text: '',
+            ...(Number.isFinite(seconds) && seconds > 0 ? { retryAfterSeconds: seconds } : {}),
+          });
           return;
         }
         if (response.status === 503) {
-          setPending(null);
-          setUnavailable({ question });
+          setUnavailable();
           return;
         }
         if (!response.ok || !response.body) {
@@ -141,17 +180,17 @@ export function useConversation({
         for await (const frame of readAnswerStream(response.body)) {
           if (frame.event === 'delta') {
             text += frame.text;
-            setPending({ question, status: 'streaming', text });
+            setPending({ status: 'streaming', text });
           } else if (frame.event === 'final') {
             setConversation((state) =>
               state.status === 'ready'
                 ? { ...state, messages: [...state.messages, frame.question, frame.answer] }
                 : state,
             );
+            setFinished({ turn, questionId: frame.question.id, answerId: frame.answer.id });
             setPending(null);
           } else if (frame.code === 'assistant-unavailable') {
-            setPending(null);
-            setUnavailable({ question });
+            setUnavailable();
           } else {
             stopped();
           }
@@ -162,7 +201,16 @@ export function useConversation({
         if (answering.current === controller) answering.current = null;
       }
     },
-    [conversationId, setConversation],
+    [conversationId, openKey, setConversation],
+  );
+
+  // Leaving the page, or another conversation opening, ends an answer still on its way; the
+  // service then stores nothing.
+  useEffect(
+    () => () => {
+      answering.current?.abort();
+    },
+    [openKey],
   );
 
   /** Ends an answer on its way (the panel closed): what came stays, to try again. */
@@ -189,17 +237,18 @@ export function useConversation({
   return {
     conversation,
     pending,
+    finished,
     unavailable,
     ask,
     stop,
     setRating,
     /** Leaves help search for the conversation again. */
     resume: useCallback(() => {
-      setUnavailable(null);
+      setUnavailableFor(null);
     }, []),
     clearPending: useCallback(() => {
-      setPending(null);
-    }, []),
+      setPendingFor({ key: openKey, turn: null });
+    }, [openKey]),
     reload: useCallback(() => {
       setAttempt((count) => count + 1);
     }, []),

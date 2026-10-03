@@ -9,7 +9,7 @@ import {
   rateAssistantAnswer,
   searchAssistantHelp,
 } from '../../server/assistant';
-import { getDeclarationSummary } from '../../server/declarations';
+import { getDeclarationSection, getDeclarationSummary } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type {
   AssistantConversation,
@@ -20,7 +20,10 @@ import { AskAdiliLauncher, AskAdiliProvider } from './ask-adili';
 
 const navigate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }));
-vi.mock('../../server/declarations', () => ({ getDeclarationSummary: vi.fn() }));
+vi.mock('../../server/declarations', () => ({
+  getDeclarationSummary: vi.fn(),
+  getDeclarationSection: vi.fn(),
+}));
 vi.mock('../../server/assistant', () => ({
   openAssistantConversation: vi.fn(),
   rateAssistantAnswer: vi.fn(),
@@ -31,6 +34,7 @@ const openMock = vi.mocked(openAssistantConversation);
 const rateMock = vi.mocked(rateAssistantAnswer);
 const searchMock = vi.mocked(searchAssistantHelp);
 const summaryMock = vi.mocked(getDeclarationSummary);
+const sectionMock = vi.mocked(getDeclarationSection);
 
 const DRAFT = '9d3c2b1a-0f4e-4d5c-8b7a-6f5e4d3c2b1a';
 const CONVERSATION = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
@@ -129,6 +133,22 @@ function controlledStream() {
 
 const fetchMock = vi.fn<typeof fetch>();
 
+/** The answered bubble's text, once there is one (its live region also reads it). */
+async function answerBubble(panel: HTMLElement) {
+  await waitFor(() => {
+    expect(panel.querySelector('[data-status="answered"] p')).not.toBeNull();
+  });
+  return panel.querySelector('[data-status="answered"] p')?.textContent ?? '';
+}
+
+/** What the panel's polite live regions say now. */
+function statusTexts(panel: HTMLElement) {
+  return within(panel)
+    .getAllByRole('status')
+    .map((region) => region.textContent.trim())
+    .filter(Boolean);
+}
+
 function renderPanel({
   declarationId = DRAFT,
   step = 'statement:officer',
@@ -157,9 +177,10 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.unstubAllGlobals();
   vi.stubGlobal('fetch', fetchMock);
-  openMock.mockResolvedValue({ status: 'ok', conversation: conversation() });
+  openMock.mockResolvedValue({ status: 'ok', feedback: true, conversation: conversation() });
   searchMock.mockResolvedValue({ status: 'ok', passages: [] });
   summaryMock.mockResolvedValue({ status: 'unavailable' });
+  sectionMock.mockResolvedValue({ status: 'unavailable' });
   rateMock.mockResolvedValue({ status: 'rated' });
 });
 
@@ -217,7 +238,7 @@ describe('Ask Adili panel (S12)', () => {
       stream.send('final', { question, answer });
       stream.close();
     });
-    expect(await within(panel).findByText(ANSWER_TEXT, { exact: false })).toBeTruthy();
+    expect(await answerBubble(panel)).toContain(ANSWER_TEXT);
     expect(within(panel).getByRole('button', { name: 'AM 24' })).toBeTruthy();
 
     fireEvent.click(within(panel).getByRole('button', { name: 'AM 24' }));
@@ -239,14 +260,104 @@ describe('Ask Adili panel (S12)', () => {
     });
   });
 
-  it('opens the section and the field the answer links to', async () => {
+  it('reads the end of a streamed answer to screen readers when it is stored', async () => {
+    const stream = controlledStream();
+    fetchMock.mockResolvedValue(stream.response);
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask(QUESTION);
+    act(() => {
+      stream.send('delta', { text: 'Give an approximate value as at the statement date. You do' });
+    });
+    await waitFor(() => {
+      expect(statusTexts(panel)).toContain('Give an approximate value as at the statement date.');
+    });
+    act(() => {
+      stream.send('final', { question, answer });
+      stream.close();
+    });
+    await waitFor(() => {
+      expect(statusTexts(panel)).toContain('You do not need a professional valuation.');
+    });
+  });
+
+  it('reads a decline to screen readers when it arrives', async () => {
+    const stream = controlledStream();
+    fetchMock.mockResolvedValue(stream.response);
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask('Can my employer see my declaration?');
+    act(() => {
+      stream.send('final', {
+        question,
+        answer: msg({
+          text: 'I could not find this.',
+          declined: true,
+          reportingOfficer: { name: 'Joseph Kiplagat', email: 'ro@tsc.go.ke', phone: null },
+        }),
+      });
+      stream.close();
+    });
+    await waitFor(() => {
+      expect(statusTexts(panel).join(' ')).toContain(
+        'I could not find this in the Act or Regulations. Ask your reporting officer: Joseph Kiplagat',
+      );
+    });
+  });
+
+  it('drops an unfinished turn when the language changes', async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ status: 'rate-limited', retryAfterSeconds: 60 }, { status: 429 }),
+    );
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask(QUESTION);
+    await within(panel).findByText(/You have asked many questions/);
     openMock.mockResolvedValue({
       status: 'ok',
+      feedback: true,
+      conversation: conversation({ language: 'sw' }),
+    });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Kiswahili' }));
+    const swahili = await screen.findByRole('complementary', { name: 'Uliza Adili' });
+    expect(await within(swahili).findByText('Maswali yanayopendekezwa')).toBeTruthy();
+    expect(within(swahili).queryByText(QUESTION)).toBeNull();
+  });
+
+  it('opens the section and the field the answer links to, naming the item', async () => {
+    sectionMock.mockResolvedValue({
+      status: 'ok',
+      etag: '"1"',
+      section: {
+        key: 'statement:officer',
+        completeness: 'incomplete',
+        draftVersion: 1,
+        issues: [],
+        contents: { assets: [{ id: 'a1', type: 'vehicle' }] },
+      },
+    });
+    openMock.mockResolvedValue({
+      status: 'ok',
+      feedback: true,
       conversation: conversation({ messages: [question, answer] }),
     });
     renderPanel();
     const panel = await openPanel();
-    fireEvent.click(await within(panel).findByRole('button', { name: 'Open Assets → value' }));
+    sectionMock.mockResolvedValue({
+      status: 'ok',
+      etag: '"1"',
+      section: {
+        key: 'statement:officer',
+        completeness: 'incomplete',
+        draftVersion: 1,
+        issues: [],
+        contents: { assets: [{ id: 'a1', type: 'vehicle' }] },
+      },
+    });
+    fireEvent.click(await within(panel).findByRole('button', { name: 'Open Vehicle → value' }));
     expect(navigate).toHaveBeenCalledWith({
       to: '/declarations/$id/statements/$personKey',
       params: { id: DRAFT, personKey: 'officer' },
@@ -262,6 +373,7 @@ describe('Ask Adili panel (S12)', () => {
     });
     openMock.mockResolvedValue({
       status: 'ok',
+      feedback: true,
       conversation: conversation({ messages: [question, declined] }),
     });
     renderPanel();
@@ -276,11 +388,60 @@ describe('Ask Adili panel (S12)', () => {
     expect(within(panel).getByRole('group', { name: 'Rate this answer' })).toBeTruthy();
   });
 
+  it('leaves rating out where answers cannot be rated yet, and the colon out without a contact', async () => {
+    const declined = msg({ text: 'I could not find this.', declined: true });
+    openMock.mockResolvedValue({
+      status: 'ok',
+      feedback: false,
+      conversation: conversation({ messages: [question, declined] }),
+    });
+    renderPanel();
+    const panel = await openPanel();
+    expect(
+      await within(panel).findByText(
+        'I could not find this in the Act or Regulations. Ask your reporting officer.',
+      ),
+    ).toBeTruthy();
+    expect(within(panel).queryByRole('group', { name: 'Rate this answer' })).toBeNull();
+  });
+
+  it('asks a declarant on the dashboard about their declaration', async () => {
+    openMock.mockResolvedValue({
+      status: 'ok',
+      feedback: true,
+      conversation: conversation({ declarationId: null }),
+    });
+    renderPanel({ declarationId: null, step: 'home' });
+    const panel = await openPanel();
+    expect(
+      await within(panel).findByRole('textbox', { name: 'Ask about your declaration…' }),
+    ).toBeTruthy();
+  });
+
+  it('says when to ask again after a 429 that names it', async () => {
+    fetchMock.mockResolvedValue(
+      Response.json({ status: 'rate-limited', retryAfterSeconds: 25 }, { status: 429 }),
+    );
+    renderPanel();
+    const panel = await openPanel();
+    await within(panel).findByText('Suggested questions');
+    ask(QUESTION);
+    expect(
+      await within(panel).findByText(
+        'You have asked many questions in a short time. Try again in 25 seconds.',
+      ),
+    ).toBeTruthy();
+  });
+
   it('switches to Kiswahili: the panel words and the conversation (S4)', async () => {
     renderPanel();
     const panel = await openPanel();
     await within(panel).findByText('Suggested questions');
-    openMock.mockResolvedValue({ status: 'ok', conversation: conversation({ language: 'sw' }) });
+    openMock.mockResolvedValue({
+      status: 'ok',
+      feedback: true,
+      conversation: conversation({ language: 'sw' }),
+    });
 
     fireEvent.click(within(panel).getByRole('button', { name: 'Kiswahili' }));
 
@@ -329,7 +490,7 @@ describe('Ask Adili panel (S12)', () => {
       again.send('final', { question, answer });
       again.close();
     });
-    expect(await within(panel).findByText(ANSWER_TEXT, { exact: false })).toBeTruthy();
+    expect(await answerBubble(panel)).toContain(ANSWER_TEXT);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -424,7 +585,7 @@ describe('Ask Adili panel (S12)', () => {
     ).toBeTruthy();
     expect(within(panel).getByRole('searchbox', { name: 'Search the help' })).toBeTruthy();
 
-    openMock.mockResolvedValue({ status: 'ok', conversation: conversation() });
+    openMock.mockResolvedValue({ status: 'ok', feedback: true, conversation: conversation() });
     fireEvent.click(within(panel).getByRole('button', { name: 'Ask Adili again' }));
     expect(await within(panel).findByText('Suggested questions')).toBeTruthy();
   });
@@ -444,7 +605,7 @@ describe('Ask Adili panel (S12)', () => {
       stream.send('final', { question, answer });
       stream.close();
     });
-    await within(panel).findByText(ANSWER_TEXT, { exact: false });
+    await answerBubble(panel);
     expect(
       within(panel).getByRole<HTMLButtonElement>('button', { name: 'Kiswahili' }).disabled,
     ).toBe(false);
@@ -454,6 +615,7 @@ describe('Ask Adili panel (S12)', () => {
     const declined = msg({ text: 'I could not find this.', declined: true });
     openMock.mockResolvedValue({
       status: 'ok',
+      feedback: true,
       conversation: conversation({
         messages: [question, answer, question, declined].map((m, i) => ({
           ...m,
@@ -472,6 +634,7 @@ describe('Ask Adili panel (S12)', () => {
   it('opens outside a draft on the dashboard, without section links', async () => {
     openMock.mockResolvedValue({
       status: 'ok',
+      feedback: true,
       conversation: conversation({
         declarationId: null,
         expiresAt: '2026-11-02T09:00:00Z',

@@ -56,6 +56,15 @@ describe('relaying an answer to the browser', () => {
     expect((await relayAnswer(post({ text: '' }), id, client(), APP)).status).toBe(400);
   });
 
+  it('refuses a request without an Origin, and a body past 16 KB', async () => {
+    const id = await conversationId();
+    const noOrigin = post(question);
+    noOrigin.headers.delete('origin');
+    expect((await relayAnswer(noOrigin, id, client(), APP)).status).toBe(403);
+    const huge = post({ ...question, text: 'x'.repeat(20_000) });
+    expect((await relayAnswer(huge, id, client(), APP)).status).toBe(413);
+  });
+
   it('passes on 429 with when to ask again, and 503 when answers are unavailable', async () => {
     const id = await conversationId();
     setAssistantMode('rate-limited');

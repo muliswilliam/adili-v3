@@ -1,3 +1,5 @@
+import type { Feedback } from '@adili/ui';
+
 import type { DeclarationsClient } from './declarations/client.server';
 import type {
   AssistantConversation,
@@ -85,11 +87,8 @@ export function askAssistant(
   });
 }
 
-export interface FeedbackBody {
-  rating: 'helpful' | 'not-helpful';
-  reason: 'inaccurate' | 'missed-something' | 'unclear' | 'too-long' | 'other' | null;
-  note: string | null;
-}
+/** A rating as the FeedbackControl gives it and the contract takes it. */
+export type FeedbackBody = Feedback;
 
 export type RateResult = { status: 'rated' } | NotFound | Unavailable;
 

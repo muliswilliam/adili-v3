@@ -25,6 +25,11 @@ export interface AskCopy {
   suggested: string;
   on: string;
   placeholder: string;
+  /** The question box outside a draft (the dashboard), where there is no section. */
+  placeholderOutside: string;
+  /** A decline when the Commission has no reporting officer on record. */
+  declinedNoContact: string;
+  rateLimitedFor: (seconds: number) => string;
   send: string;
   privacy: string;
   conversation: string;
@@ -76,6 +81,11 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     suggested: 'Suggested questions',
     on: 'On',
     placeholder: 'Ask about this section…',
+    placeholderOutside: 'Ask about your declaration…',
+    declinedNoContact:
+      'I could not find this in the Act or Regulations. Ask your reporting officer.',
+    rateLimitedFor: (seconds) =>
+      `You have asked many questions in a short time. Try again in ${String(seconds)} seconds.`,
     send: 'Send',
     privacy:
       'Adili does not read your amounts, names or ID numbers. It knows which section you are on and what is still missing.',
@@ -140,6 +150,11 @@ export const ASK_COPY: Record<AskLanguage, AskCopy> = {
     suggested: 'Maswali yanayopendekezwa',
     on: 'Sehemu',
     placeholder: 'Uliza kuhusu sehemu hii…',
+    placeholderOutside: 'Uliza kuhusu tamko lako…',
+    declinedNoContact:
+      'Sikupata jambo hili katika Sheria wala Kanuni. Muulize afisa wako wa kuripoti.',
+    rateLimitedFor: (seconds) =>
+      `Umeuliza maswali mengi kwa muda mfupi. Jaribu tena baada ya sekunde ${String(seconds)}.`,
     send: 'Tuma',
     privacy:
       'Adili haisomi kiasi, majina wala nambari zako za kitambulisho. Inajua uko sehemu gani na kinachokosekana.',

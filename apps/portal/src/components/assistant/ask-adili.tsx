@@ -29,11 +29,14 @@ import {
 } from 'react';
 
 import { ASK_COPY, type AskCopy, type AskLanguage } from '../../assistant/copy';
-import { linkPlace } from '../../assistant/place';
+import { ASSISTANT_NOTE_MAX_LENGTH } from '../../assistant/limits';
+import { linkedItem, linkPlace } from '../../assistant/place';
 import { type AskTopic, suggestedQuestions } from '../../assistant/suggested';
 import { sectionKind } from '../../declaration/section-key';
 import type { Category } from '../../declaration/statement';
+import { TYPE_LABELS } from '../../declaration/labels';
 import { rateAssistantAnswer } from '../../server/assistant';
+import { getDeclarationSection } from '../../server/declarations';
 import type {
   AssistantMessage as Message,
   DeclarationSection,
@@ -43,7 +46,7 @@ import { stepLink } from '../declaration/steps';
 export { AskAdiliBarButton, AskAdiliLauncher, useAskAdiliTab } from './context';
 import { AskAdiliContext } from './context';
 import { HelpSearch } from './help-search';
-import { useConversation } from './use-conversation';
+import { type PendingTurn, useConversation } from './use-conversation';
 
 /**
  * Ask Adili (spec 11 FE-2, #335): the panel a declarant asks the Act, the Regulations and help
@@ -108,6 +111,7 @@ export function AskAdiliProvider({
   const opener = useRef<HTMLElement | null>(null);
   const launcherRef = useRef<HTMLButtonElement | null>(null);
   const docked = useMedia(DOCKED);
+  const side = useMedia(SIDE);
   const copy = ASK_COPY[language];
 
   const open = useCallback(() => {
@@ -136,7 +140,13 @@ export function AskAdiliProvider({
 
   return (
     <AskAdiliContext.Provider value={value}>
-      <div className={cn('flex flex-1 flex-col', isOpen && docked && PANEL_ROOM)}>{children}</div>
+      {/* On phones the open sheet is modal: the page behind it is inert. */}
+      <div
+        inert={isOpen && !side}
+        className={cn('flex flex-1 flex-col', isOpen && docked && PANEL_ROOM)}
+      >
+        {children}
+      </div>
       {opened ? (
         <Panel
           hidden={!isOpen}
@@ -178,8 +188,18 @@ function Panel({
   const [draft, setDraft] = useState('');
   const [announcement, setAnnouncement] = useState('');
   const panelRef = useRef<HTMLElement>(null);
-  const { conversation, pending, unavailable, ask, stop, setRating, resume, clearPending, reload } =
-    useConversation({ declarationId, language, active: true });
+  const {
+    conversation,
+    pending,
+    finished,
+    unavailable,
+    ask,
+    stop,
+    setRating,
+    resume,
+    clearPending,
+    reload,
+  } = useConversation({ declarationId, language, active: true });
 
   const busy = pending?.status === 'thinking' || pending?.status === 'streaming';
   const ready = conversation.status === 'ready';
@@ -327,7 +347,10 @@ function Panel({
                 busy={busy}
                 value={draft}
                 onValueChange={setDraft}
-                messages={{ placeholder: copy.placeholder, send: copy.send }}
+                messages={{
+                  placeholder: declarationId ? copy.placeholder : copy.placeholderOutside,
+                  send: copy.send,
+                }}
               />
               <p className="text-xs leading-[1.45] text-muted-foreground">{copy.privacy}</p>
             </>
@@ -365,43 +388,58 @@ function Panel({
                 />
               </>
             ) : null}
-            {messages.map((message) =>
-              message.role === 'user' ? (
-                <UserMessage
-                  key={message.id}
-                  text={message.text}
-                  messages={{ userName: copy.message.userName }}
-                />
-              ) : (
-                <Answer
-                  key={message.id}
-                  message={message}
-                  conversationId={conversation.id}
-                  copy={copy}
-                  place={
-                    declarationId && message.sectionLink
-                      ? linkPlace(message.sectionLink, sections, language)
-                      : null
-                  }
-                  onOpenPlace={openPlace}
-                  onRated={setRating}
-                />
-              ),
-            )}
-            {pending ? (
-              <>
-                <UserMessage
-                  text={pending.question}
-                  messages={{ userName: copy.message.userName }}
-                />
-                <AssistantMessage
-                  status={pending.status}
-                  text={pending.text}
-                  onRetry={pending.status === 'error' ? retry : undefined}
-                  messages={copy.message}
-                />
-              </>
-            ) : null}
+            {/* One list, so a finished turn's bubbles keep their keys from pending to stored. */}
+            {[
+              ...messages.map((message) => {
+                // The turn that just ended keeps its pending bubbles' keys, so the answer's live
+                // region reads its last sentences (or the decline) instead of mounting silent.
+                const live =
+                  finished?.questionId === message.id || finished?.answerId === message.id
+                    ? finished.turn
+                    : null;
+                return message.role === 'user' ? (
+                  <UserMessage
+                    key={live === null ? message.id : `turn-${String(live)}-question`}
+                    text={message.text}
+                    messages={{ userName: copy.message.userName }}
+                  />
+                ) : (
+                  <Answer
+                    key={live === null ? message.id : `turn-${String(live)}-answer`}
+                    answer={{ kind: 'stored', message }}
+                    conversationId={conversation.id}
+                    declarationId={declarationId}
+                    feedback={conversation.feedback}
+                    copy={copy}
+                    sections={sections}
+                    language={language}
+                    onOpenPlace={openPlace}
+                    onRated={setRating}
+                  />
+                );
+              }),
+              ...(pending
+                ? [
+                    <UserMessage
+                      key={`turn-${String(pending.turn)}-question`}
+                      text={pending.question}
+                      messages={{ userName: copy.message.userName }}
+                    />,
+                    <Answer
+                      key={`turn-${String(pending.turn)}-answer`}
+                      answer={{ kind: 'pending', turn: pending, onRetry: retry }}
+                      conversationId={conversation.id}
+                      declarationId={declarationId}
+                      feedback={conversation.feedback}
+                      copy={copy}
+                      sections={sections}
+                      language={language}
+                      onOpenPlace={openPlace}
+                      onRated={setRating}
+                    />,
+                  ]
+                : []),
+            ]}
           </ChatLog>
         )}
         <div role="status" className="sr-only">
@@ -432,40 +470,81 @@ function keepFocusInside(container: HTMLElement, event: KeyboardEvent) {
   }
 }
 
+type AnswerSource =
+  | { kind: 'stored'; message: Message }
+  | { kind: 'pending'; turn: PendingTurn; onRetry: () => void };
+
+/** "Try again in a minute", or in the seconds the service asked for when it said. */
+function rateLimitedCopy(copy: AskCopy, seconds: number | undefined): string {
+  return seconds && seconds !== 60 ? copy.rateLimitedFor(seconds) : copy.message.rateLimited;
+}
+
+/**
+ * One answer, from its first dots to the stored message: the same element throughout, so its
+ * live region reads the sentences as they finish and then the end, or the decline.
+ */
 function Answer({
-  message,
+  answer,
   conversationId,
+  declarationId,
+  feedback: canRate,
   copy,
-  place,
+  sections,
+  language,
   onOpenPlace,
   onRated,
 }: {
-  message: Message;
+  answer: AnswerSource;
   conversationId: string;
+  declarationId: string | null;
+  feedback: boolean;
   copy: AskCopy;
-  place: ReturnType<typeof linkPlace>;
+  sections: readonly DeclarationSection[];
+  language: AskLanguage;
   onOpenPlace: (step: string, field: string | null) => void;
   onRated: (messageId: string, rating: Message['rating']) => void;
 }) {
+  const message = answer.kind === 'stored' ? answer.message : null;
   const [feedback, setFeedback] = useState<Feedback | null>(
-    message.rating ? { rating: message.rating, reason: null, note: null } : null,
+    message?.rating ? { rating: message.rating, reason: null, note: null } : null,
   );
-  const officer = message.reportingOfficer;
+  const link = declarationId && message?.sectionLink ? message.sectionLink : null;
+  const itemName = useLinkedItemName(declarationId, link);
+  const place = link ? linkPlace(link, sections, language, itemName) : null;
+
+  if (answer.kind === 'pending') {
+    const { turn } = answer;
+    return (
+      <AssistantMessage
+        status={turn.status}
+        text={turn.text}
+        onRetry={turn.status === 'error' ? answer.onRetry : undefined}
+        messages={{
+          ...copy.message,
+          rateLimited: rateLimitedCopy(copy, turn.retryAfterSeconds),
+        }}
+      />
+    );
+  }
+
+  const stored = answer.message;
+  const officer = stored.reportingOfficer;
 
   async function rate(next: Feedback) {
     const result = await rateAssistantAnswer({
-      data: { conversationId, messageId: message.id, ...next },
+      data: { conversationId, messageId: stored.id, ...next },
     });
+    if (result.status === 'unauthenticated') window.location.reload();
     if (result.status !== 'rated') throw new Error(result.status);
     setFeedback(next);
-    onRated(message.id, next.rating);
+    onRated(stored.id, next.rating);
   }
 
   return (
     <AssistantMessage
-      status={message.declined ? 'declined' : 'answered'}
-      text={message.text}
-      citations={message.citations}
+      status={stored.declined ? 'declined' : 'answered'}
+      text={stored.text}
+      citations={stored.citations}
       officer={
         officer
           ? {
@@ -475,31 +554,73 @@ function Answer({
             }
           : undefined
       }
-      messages={copy.message}
+      // Without a contact on record the decline ends with the sentence, not a colon.
+      messages={officer ? copy.message : { ...copy.message, declined: copy.declinedNoContact }}
       actions={
-        <>
-          {place ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                onOpenPlace(place.step, place.field);
-              }}
-            >
-              <Icon icon={ArrowRight02Icon} />
-              {place.label}
-            </Button>
-          ) : null}
-          <FeedbackControl
-            value={feedback}
-            onRate={rate}
-            noteMaxLength={500}
-            messages={copy.feedback}
-            className="w-full items-stretch [&>[role=group]]:self-start"
-          />
-        </>
+        place || canRate ? (
+          <>
+            {place ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  onOpenPlace(place.step, place.field);
+                }}
+              >
+                <Icon icon={ArrowRight02Icon} />
+                {place.label}
+              </Button>
+            ) : null}
+            {canRate ? (
+              <FeedbackControl
+                value={feedback}
+                onRate={rate}
+                noteMaxLength={ASSISTANT_NOTE_MAX_LENGTH}
+                messages={copy.feedback}
+                className="w-full items-stretch [&>[role=group]]:self-start"
+              />
+            ) : null}
+          </>
+        ) : undefined
       }
     />
   );
+}
+
+/**
+ * The type of the statement item an answer links to ("Vehicle"), read from the draft's section
+ * so the button names it; undefined while it loads, or when the link is not to an item.
+ */
+function useLinkedItemName(
+  declarationId: string | null,
+  link: Message['sectionLink'],
+): string | undefined {
+  const item = link ? linkedItem(link) : null;
+  const sectionKey = link?.sectionKey;
+  const key = item && sectionKey ? `${sectionKey}|${item.category}|${String(item.index)}` : null;
+  const [named, setNamed] = useState<{ key: string; name: string } | null>(null);
+
+  useEffect(() => {
+    if (!declarationId || !key || !item || !sectionKey) return;
+    let current = true;
+    getDeclarationSection({ data: { declarationId, sectionKey } })
+      .then((result) => {
+        if (!current || result.status !== 'ok') return;
+        const items = result.section.contents[item.category];
+        const type = Array.isArray(items)
+          ? (items[item.index] as { type?: unknown } | undefined)?.type
+          : undefined;
+        const name = typeof type === 'string' ? TYPE_LABELS[item.category][type] : undefined;
+        if (name) setNamed({ key, name });
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+    // `item` is derived from `key`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [declarationId, key]);
+
+  return named?.key === key ? named.name : undefined;
 }

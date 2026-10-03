@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { linkPlace } from './place';
+import { linkedItem, linkPlace } from './place';
 
 const SPOUSE = 'statement:spouse:3f1e2d4c-5b6a-4789-8abc-def012345678';
 const sections = [
@@ -18,6 +18,14 @@ describe('where an answer links to', () => {
       field: '/assets/2/value',
       label: 'Open Assets → value',
     });
+  });
+
+  it('names the item by its type once it is read', () => {
+    const link = { sectionKey: 'statement:officer', fieldPath: '/assets/1/value' };
+    expect(linkPlace(link, sections, 'en', 'Vehicle')?.label).toBe('Open Vehicle → value');
+    expect(linkPlace(link, sections, 'sw', 'Vehicle')?.label).toBe('Fungua Mali → thamani');
+    expect(linkedItem(link)).toEqual({ category: 'assets', index: 1 });
+    expect(linkedItem({ sectionKey: 'statement:officer', fieldPath: '/assets' })).toBeNull();
   });
 
   it("names a spouse's category by their first name, in both languages", () => {

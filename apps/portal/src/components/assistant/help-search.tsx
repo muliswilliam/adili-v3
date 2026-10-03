@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, Icon, Input, Skeleton, Spinner } from '@adili/ui';
+import { Alert, AlertDescription, Button, Icon, Input, Skeleton, Spinner } from '@adili/ui';
 import {
   HelpCircleIcon,
   JusticeScale01Icon,
@@ -66,6 +66,10 @@ export function HelpSearch({
       searchAssistantHelp({ data: { q, language, sectionKey } })
         .then((result) => {
           if (!current) return;
+          if (result.status === 'unauthenticated') {
+            window.location.reload();
+            return;
+          }
           setFound({
             key: searchKey,
             search:
@@ -90,13 +94,14 @@ export function HelpSearch({
         <Icon icon={WifiDisconnected02Icon} />
         <AlertDescription className="grid justify-items-start gap-1">
           <span>{copy.unavailable}</span>
-          <button
+          <Button
             type="button"
+            variant="link"
             onClick={onAskAgain}
-            className="cursor-pointer text-sm font-semibold underline underline-offset-2"
+            className="text-sm font-semibold text-inherit"
           >
             {copy.askAgain}
-          </button>
+          </Button>
         </AlertDescription>
       </Alert>
       <div className="relative">
@@ -119,7 +124,11 @@ export function HelpSearch({
           className="pl-9"
         />
       </div>
-      <section id={resultsId} aria-live="polite" aria-busy={search.status === 'searching'}>
+      {/* Only the count is read as results come; the list is there to browse. */}
+      <p role="status" className="sr-only">
+        {search.status === 'done' ? copy.results(search.passages.length) : ''}
+      </p>
+      <section id={resultsId} aria-busy={search.status === 'searching'}>
         <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-[0.05em] text-muted-foreground uppercase">
           {search.status === 'done' && typed
             ? copy.results(search.passages.length)
@@ -193,16 +202,17 @@ function StillMissing({
             className="flex items-start justify-between gap-3 rounded-item bg-card px-3 py-2 shadow-card"
           >
             <span>{text}</span>
-            <button
+            <Button
               type="button"
+              variant="link"
               aria-label={`${copy.fix}: ${text}`}
               onClick={() => {
                 onFix(issue.sectionKey, issue.path);
               }}
-              className="shrink-0 cursor-pointer text-sm font-semibold underline underline-offset-2"
+              className="shrink-0 text-sm font-semibold"
             >
               {copy.fix}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
