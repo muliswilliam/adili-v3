@@ -51,7 +51,7 @@ export function decidedNotice(): ApprovalNotice {
   };
 }
 
-/** Who proposed an approval, by name, or the system. */
+/** Who proposed an approval, by name, or "the system": always inside a sentence. */
 export function proposerName(item: InboxItem): string {
   return item.proposer?.name ?? m.system;
 }
