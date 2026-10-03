@@ -251,11 +251,8 @@ const AMOUNT = new RegExp(
   'giu',
 );
 
-/** Where a string sits: a declarant's question, or a document's text layer. */
-interface TextContext {
-  question: boolean;
-  document: boolean;
-}
+/** Where a string sits: a declarant's question, a document's text layer, or anywhere else. */
+type TextKind = 'question' | 'document' | 'plain';
 
 /** Classes that are names: replaced in a document's text after its shapes. */
 const NAME_CLASSES: ReadonlySet<IdentifierClass> = new Set(['PERSON', 'ORGANISATION', 'PARTY']);
@@ -311,7 +308,7 @@ export function minimise<T>(input: T): Minimised<T> {
   const replaceKnown = (
     text: string,
     pattern: RegExp | undefined,
-    find: (match: string) => { value: string; cls: IdentifierClass } | undefined,
+    find: ReturnType<typeof knownLookup>,
   ): string =>
     pattern
       ? text.replace(pattern, (match) => {
@@ -337,10 +334,11 @@ export function minimise<T>(input: T): Minimised<T> {
     }
     return result;
   };
-  const replaceText = (text: string, { question, document }: TextContext): string => {
+  const replaceText = (text: string, kind: TextKind): string => {
     let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
-    if (question) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
-    if (document) {
+    if (kind === 'question')
+      result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
+    if (kind === 'document') {
       result = replaceShapes(replaceKnown(result, codePattern, codeLookup));
       return replaceWritten(replaceKnown(result, namePattern, nameLookup));
     }
@@ -540,13 +538,14 @@ function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | unde
 function mapStrings(
   value: unknown,
   key: string | undefined,
-  map: (text: string, context: TextContext) => string,
+  map: (text: string, kind: TextKind) => string,
   inQuestion = false,
 ): unknown {
   if (key !== undefined && UNTOUCHED_FIELDS.has(key)) return value;
   const question = inQuestion || (key !== undefined && QUESTION_FIELDS.has(key));
   if (typeof value === 'string') {
-    return map(value, { question, document: key !== undefined && DOCUMENT_TEXT_FIELDS.has(key) });
+    if (question) return map(value, 'question');
+    return map(value, key !== undefined && DOCUMENT_TEXT_FIELDS.has(key) ? 'document' : 'plain');
   }
   if (Array.isArray(value)) return value.map((each) => mapStrings(each, key, map, question));
   if (value !== null && typeof value === 'object') {

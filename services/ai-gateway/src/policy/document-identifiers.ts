@@ -278,6 +278,7 @@ const COMMON_WORDS = new Set([
 const PLACES = new Set([
   ...COUNTIES.flatMap(({ name }) => name.toLowerCase().split(/[\s-]+/u)),
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
+  ...['kenya', 'uganda', 'tanzania', 'rwanda', 'nyali', 'westlands', 'kilimani'],
 ]);
 /** A document's headings and vehicle makes, which a list's unmarked line may hold. */
 const HEADING_WORDS = new Set([
@@ -493,43 +494,92 @@ function wrapsName(tokens: readonly Token[]): boolean {
   );
 }
 
-/**
- * Whether a list entry's line may wrap onto the next: it ends on a name word, and the name is a
- * single word or the line is long, as a line the page's width broke is ("1. John\nKamau Mwangi";
- * not "1. John Kamau\nCollateral").
- */
-function wrapsFrom(tokens: readonly Token[], line: string): boolean {
-  if (!endsWithName(tokens)) return false;
-  const words = tokens.filter((token) => token.kind === 'word').length;
-  return words === 1 || line.trim().length >= WRAPPED_LINE_LENGTH;
+/** A list entry's marker: its kind, the number it gives, how far it is indented, and where the entry starts. */
+interface Marker {
+  kind: 'digit' | 'letter' | 'roman' | 'bullet';
+  value: number;
+  indent: number;
+  from: number;
 }
 
-/** A line at least this long may have been broken by the page's width. */
-const WRAPPED_LINE_LENGTH = 40;
+const ROMAN = /^[ivx]{2,4}$/iu;
+const ROMAN_DIGITS: Readonly<Partial<Record<string, number>>> = { i: 1, v: 5, x: 10 };
+/** A roman numeral's value ("iv" is 4); its letters are i, v and x. */
+function romanValue(text: string): number {
+  const digits = Array.from(text.toLowerCase(), (char) => ROMAN_DIGITS[char] ?? 0);
+  return digits.reduce(
+    (sum, value, index) => sum + (value < (digits[index + 1] ?? 0) ? -value : value),
+    0,
+  );
+}
 
-/** The number a list entry's marker gives ("2." is 2, "(b)" is 2), or null for none. */
-function markerNumber(tokens: readonly Token[]): number | null {
-  const from = afterMarker(tokens);
-  if (from === 0) return null;
-  for (const token of tokens.slice(0, from)) {
-    if (token.kind === 'number') return Number(token.text);
-    if (token.kind === 'word' && /^[a-z]$/iu.test(token.text)) {
-      return token.text.toLowerCase().charCodeAt(0) - 96;
+/**
+ * A line's list marker ("1.", "a)", "(ii)", "[1]", "1 ", a dash or bullet), or null. A capital
+ * and a dot before a capitalised word is an initial, not a marker ("J. Kamau").
+ */
+function markerOf(tokens: readonly Token[]): Marker | null {
+  let at = 0;
+  let indent = 0;
+  while (tokens[at]?.kind === 'space') {
+    indent += (tokens[at] as { width: number }).width;
+    at++;
+  }
+  const isOther = (token: Token | undefined, ...texts: string[]) =>
+    token?.kind === 'other' && texts.includes(token.text);
+  const numbering = (token: Token | undefined): Omit<Marker, 'indent' | 'from'> | null => {
+    if (token?.kind === 'number' && token.text.length <= 2) {
+      return { kind: 'digit', value: Number(token.text) };
+    }
+    if (token?.kind !== 'word') return null;
+    if (ROMAN.test(token.text)) return { kind: 'roman', value: romanValue(token.text) };
+    if (LIST_LETTERS.test(token.text) && token.text.length === 1) {
+      return { kind: 'letter', value: token.text.toLowerCase().charCodeAt(0) - 96 };
+    }
+    return null;
+  };
+  const [first, second, third] = [tokens[at], tokens[at + 1], tokens[at + 2]];
+  if (first?.kind === 'other' && BULLETS.has(first.text)) {
+    return { kind: 'bullet', value: 0, indent, from: at + 1 };
+  }
+  // "(a)", "(1)", "(ii)", "[1]".
+  const wrapped = isOther(first, '(', '[') && isOther(third, ')', ']') ? numbering(second) : null;
+  if (wrapped) return { ...wrapped, indent, from: at + 3 };
+  // "1.", "a)", "ii.": not an initial ("J. Kamau").
+  const plain = isOther(second, '.', ')') ? numbering(first) : null;
+  if (plain) {
+    const initial =
+      plain.kind === 'letter' &&
+      first?.kind === 'word' &&
+      isCapitalised(first.text) &&
+      isOther(second, '.') &&
+      tokens[at + 2]?.kind === 'space' &&
+      tokens[at + 3]?.kind === 'word' &&
+      isCapitalised((tokens[at + 3] as { text: string }).text);
+    if (!initial) return { ...plain, indent, from: at + 2 };
+  }
+  // "1 John Kamau": a bare number, a space and a capitalised word.
+  if (first?.kind === 'number' && first.text.length <= 2 && second?.kind === 'space') {
+    const word = tokens[at + 2];
+    if (word?.kind === 'word' && isCapitalised(word.text)) {
+      return { kind: 'digit', value: Number(first.text), indent, from: at + 2 };
     }
   }
   return null;
 }
 
 /**
- * Whether an unmarked line is a list entry all the same: a name, then a comma, dash or colon and
- * only offices or field words ("Mary Wanjiru, Secretary", "Peter Otieno - Director").
+ * Whether a list line, from token `from` (past its marker), reads as a name: one to six
+ * capitalised name words, particles and initials ("J."), none a field, place, organisation,
+ * office, heading or common word; then nothing, or a comma, dash or colon and only offices or field
+ * words ("Mary Wanjiru, Secretary"). With `office`, the office part is required.
  */
-function readsAsEntry(tokens: readonly Token[]): boolean {
-  let at = 0;
+function readsAsName(tokens: readonly Token[], from: number, office = false): boolean {
+  let at = from;
   let names = 0;
   for (; at < tokens.length; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
+    if (token?.kind === 'other' && token.text === '.' && names > 0) continue;
     if (token?.kind !== 'word') break;
     if (PARTICLES.has(token.text)) continue;
     if (!isCapitalised(token.text) || WRITTEN_ONLY.has(lower(token.text))) return false;
@@ -537,6 +587,7 @@ function readsAsEntry(tokens: readonly Token[]): boolean {
   }
   if (names === 0 || names > 6) return false;
   const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
+  if (rest.length === 0) return !office;
   const [mark, ...after] = rest;
   const separates =
     mark?.kind === 'joiner' ||
@@ -554,6 +605,77 @@ function readsAsEntry(tokens: readonly Token[]): boolean {
     )
   );
 }
+
+/**
+ * The parties a list under a stand-alone label holds, from line `first`. Every entry is read
+ * with a label's span rules, whatever data it holds. The list goes on:
+ * - at a marked line, unless its numbering starts again or repeats (same kind and indent) and it
+ *   does not read as a name, or it comes after a blank line and does not read as a name;
+ * - at an unmarked line straight below, when it is a name wrapped from the entry above, the next
+ *   line continues the numbering (a heading between entries is skipped), a name and an office, or
+ *   a name in a list whose first entry is unmarked too.
+ */
+function listParties(
+  nameLines: readonly string[],
+  tokensAt: (row: number) => Token[],
+  first: number,
+): string[][] {
+  const parties: string[][] = [];
+  const firstMarker = markerOf(tokensAt(first));
+  parties.push(...labelParties(tokensAt(first), firstMarker?.from ?? 0));
+  let level = firstMarker?.kind === 'bullet' ? null : firstMarker;
+  let at = first;
+  for (let entries = 1; entries < MAX_ENTRIES; entries++) {
+    const next = nextLine(nameLines, at);
+    if (next < 0) break;
+    const tokens = tokensAt(next);
+    const marker = markerOf(tokens);
+    const name = readsAsName(tokens, marker?.from ?? 0);
+    if (next > at + 1 && !name) break;
+    if (marker) {
+      const same = level !== null && marker.kind === level.kind && marker.indent === level.indent;
+      if (same && marker.value <= (level?.value ?? 0) && !name) break;
+      parties.push(...labelParties(tokens, marker.from));
+      if (marker.kind !== 'bullet' && (same || level === null)) level = marker;
+      at = next;
+      continue;
+    }
+    const following = next + 1 < nameLines.length ? markerOf(tokensAt(next + 1)) : null;
+    const continues =
+      level !== null &&
+      following !== null &&
+      following.kind === level.kind &&
+      following.indent === level.indent &&
+      following.value === level.value + 1;
+    if (continues) {
+      // Between two entries numbered in turn: a wrapped name, or a heading to skip.
+      if (wrapsName(tokens)) parties.push(...labelParties(tokens, 0));
+      at = next;
+      continue;
+    }
+    const wraps =
+      next === at + 1 && wrapsFrom(tokensAt(at), nameLines[at] ?? '') && wrapsName(tokens);
+    const plainList = firstMarker === null && readsAsName(tokens, 0);
+    if (!wraps && !plainList && !readsAsName(tokens, 0, true)) break;
+    parties.push(...labelParties(tokens, 0));
+    at = next;
+  }
+  return parties;
+}
+
+/**
+ * Whether a list entry's line may wrap onto the next: it ends on a name word, and the name is a
+ * single word or the line is long, as a line the page's width broke is ("1. John\nKamau Mwangi";
+ * not "1. John Kamau\nCollateral").
+ */
+function wrapsFrom(tokens: readonly Token[], line: string): boolean {
+  if (!endsWithName(tokens)) return false;
+  const words = tokens.filter((token) => token.kind === 'word').length;
+  return words === 1 || line.trim().length >= WRAPPED_LINE_LENGTH;
+}
+
+/** A line at least this long may have been broken by the page's width. */
+const WRAPPED_LINE_LENGTH = 40;
 
 /** Whether a line's last word, past spaces, is a capitalised name word: a name may wrap after it. */
 function endsWithName(tokens: readonly Token[]): boolean {
@@ -653,29 +775,6 @@ const BULLETS = new Set(['-', '*', '\u2022', '\u2013', '\u2014']);
 /** Letters and roman numerals that number a list ("a)", "ii."). */
 const LIST_LETTERS = /^(?:[a-z]|[ivx]{1,4})$/iu;
 
-/** The token after a list entry's marker ("1.", "a)", "ii.", a dash or bullet), or 0 for none. */
-function afterMarker(tokens: readonly Token[]): number {
-  let at = 0;
-  while (tokens[at]?.kind === 'space') at++;
-  const isNumbering = (token: Token | undefined) =>
-    (token?.kind === 'number' && token.text.length <= 2) ||
-    (token?.kind === 'word' && LIST_LETTERS.test(token.text));
-  const isOther = (token: Token | undefined, ...texts: string[]) =>
-    token?.kind === 'other' && texts.includes(token.text);
-  const [first, second, third] = [tokens[at], tokens[at + 1], tokens[at + 2]];
-  if (isOther(first, ...BULLETS)) return at + 1;
-  // "(a)", "(1)", "(ii)", "[1]".
-  if (isOther(first, '(', '[') && isNumbering(second) && isOther(third, ')', ']')) return at + 3;
-  // "1.", "a)", "ii.".
-  if (isNumbering(first) && isOther(second, '.', ')')) return at + 2;
-  // "1 John Kamau": a bare number, a space and a capitalised word.
-  if (first?.kind === 'number' && first.text.length <= 2 && second?.kind === 'space') {
-    const word = tokens[at + 2];
-    if (word?.kind === 'word' && isCapitalised(word.text)) return at + 2;
-  }
-  return 0;
-}
-
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
 const ADDRESS_LABEL = new RegExp(
   String.raw`^[ \t]*(?i:(?:physical|postal|residential|home)[ \t]+address|address|residence|anwani(?:[ \t]+ya[ \t]+makazi)?|makazi)${AFTER_WORD}`,
@@ -732,34 +831,10 @@ export function documentIdentifiers(
       const parties = labelParties(tokensAt(row), from);
       if (parties.length === 0) {
         if (!standsAlone(tokensAt(row), from)) continue;
-        // The value is on a line below the label, after blank lines at most, and the lines after
-        // it that list more parties, numbered, bulleted or a name each.
+        // The value is on a line below the label, after blank lines at most: a list of parties.
         at = nextLine(nameLines, row);
         if (at < 0) continue;
-        add(labelParties(tokensAt(at), afterMarker(tokensAt(at))));
-        let previous = markerNumber(tokensAt(at));
-        const firstUnmarked = afterMarker(tokensAt(at)) === 0;
-        // Further entries: every marked line, read whatever data it holds.
-        for (let entries = 1; entries < MAX_ENTRIES; entries++) {
-          // A marked line may come after blank lines; an unmarked one only continues a name
-          // wrapped from the line straight above.
-          const next = nextLine(nameLines, at);
-          if (next < 0) break;
-          const tokens = tokensAt(next);
-          const from = afterMarker(tokens);
-          // Numbering that starts again ("1." after "2.") starts another list.
-          const number = markerNumber(tokens);
-          if (number !== null && previous !== null && number <= previous) break;
-          // An unmarked line: a name wrapped from the line above; a name and an office; or, in a
-          // list whose first entry has no marker either, a name on its own.
-          const wraps =
-            next === at + 1 && wrapsFrom(tokensAt(at), nameLines[at] ?? '') && wrapsName(tokens);
-          const plainList = firstUnmarked && wrapsName(tokens);
-          if (from === 0 && !wraps && !plainList && !readsAsEntry(tokens)) break;
-          add(labelParties(tokens, from));
-          if (number !== null) previous = number;
-          at = next;
-        }
+        add(listParties(nameLines, tokensAt, at));
         continue;
       }
       add(parties);

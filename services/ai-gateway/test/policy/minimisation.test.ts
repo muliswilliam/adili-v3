@@ -874,6 +874,48 @@ describe('minimise a text layer: names out, fields readable', () => {
     ['Directors:\n1. John Kamau\nMotor Vehicles', 'John Kamau', 'Motor Vehicles'],
     ['Directors:\n1. JOHN KAMAU\nPROPERTIES', 'JOHN KAMAU', 'PROPERTIES'],
     ['Directors:\n1. John Kamau\nShareholding', 'John Kamau', 'Shareholding'],
+    // Markers compare only with their own kind and indent; an initial is no marker (F73).
+    ['Directors:\n1. J. Kamau\n2. A. Otieno', 'Kamau Otieno', 'Directors'],
+    ['Directors:\nJ. Kamau\nA. Otieno', 'Kamau Otieno', 'Directors'],
+    [
+      'Directors:\n1. John Kamau\na. Chairman\nb. Holds 500 shares\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Directors Chairman',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Toyota Premio\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\n   1. ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Directors ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n2. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n1. Peter Otieno\n2. Jane Akinyi',
+      'John Kamau Mary Wanjiru Peter Otieno Jane Akinyi',
+      'Directors',
+    ],
+    // A line between two entries numbered in turn is a wrapped name (F74).
+    [
+      'Directors:\n1. John Kamau\nMwangi\n2. Mary Wanjiru',
+      'John Kamau Mwangi Mary Wanjiru',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\nCollateral\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Collateral',
+    ],
+    // After a blank line, an entry must read as a name (F75).
+    ['Directors:\n1. John Kamau\n\nKenya Power, Bank', 'John Kamau', 'Kenya Power Bank'],
+    ['Directors:\n1. John Kamau\n\n2. Kenya Power, Bank', 'John Kamau', 'Kenya Power Bank'],
     // Common words a name holds stay readable in prose (F48, F55).
     [
       'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',
@@ -980,6 +1022,19 @@ describe('minimise a text layer: what is no name', () => {
     expect(minimised.restore({ email: '[[EMAIL_1]]' })).toEqual({
       email: 'John.Kamau@KamauLaw.co.ke',
     });
+  });
+
+  it('reads a list numbered again after a page break (F73)', () => {
+    const { input } = minimise({
+      document: {
+        pages: [
+          { page: 1, textLayer: 'Directors:\n1. John Kamau\n2. Mary Wanjiru' },
+          { page: 2, textLayer: '1. Peter Otieno\n2. Jane Akinyi' },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(input)).not.toMatch(/John|Kamau|Mary|Wanjiru|Peter|Otieno|Jane|Akinyi/u);
   });
 
   it('reads a private-use mark already in a text layer as a space (F71)', () => {
