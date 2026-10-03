@@ -32,6 +32,7 @@ export type WorkspaceHref =
   | '/obligations/national'
   | '/review'
   | '/approvals'
+  | '/referrals'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
@@ -130,6 +131,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Approve determinations and administrative actions proposed by reviewers.',
     href: '/approvals',
     roles: [SUPERVISOR],
+  },
+  {
+    id: 'referrals',
+    title: 'Referrals',
+    description: 'Referrals to EACC proposed by reviewers and the system, and where each stands.',
+    href: '/referrals',
+    roles: [REVIEWER, SUPERVISOR],
   },
   {
     id: 'access',

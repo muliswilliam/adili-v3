@@ -74,6 +74,12 @@ import {
   mockDecisionLetterTitle,
   resetDeterminationsMock,
 } from './determinations-mock.server';
+import {
+  mockReferralPackageTitle,
+  type ReferralCases,
+  referralsRoute,
+  resetReferralsMock,
+} from './referrals-mock.server';
 import type {
   Assignee,
   CaseDetail,
@@ -763,6 +769,18 @@ export function resetReviewMock(
     ],
     { notEnabled: copilot === 'not-enabled' },
   );
+
+  resetReferralsMock(
+    now,
+    {
+      peters: C.peters,
+      awaitingOfRecord: C.awaitingOfRecord,
+      awaitingFurther: C.awaitingFurther,
+      returned: C.returned,
+    },
+    referralCases(MOCK_CALLER),
+    { issuer: 'TSC', officers: { peter: PETER, mercy: MERCY, lucy: LUCY } },
+  );
 }
 
 /** The spec 08 cases: ready for determination, each with its declarant and holders. */
@@ -972,6 +990,23 @@ function mockCases(caller: Assignee): MockCases {
   };
 }
 
+/** The cases as the referrals mock reads them, for `caller`. */
+function referralCases(caller: Assignee): ReferralCases {
+  return {
+    find: (caseId) => {
+      const stored = cases.get(caseId);
+      if (!stored) return null;
+      return {
+        item: listItem(stored, caller),
+        holder: holderOf(stored, caller),
+        history: stored.history.map((each) => officer(each, caller)),
+        flags: stored.flags,
+        clarifications: ofCase(caseId),
+      };
+    },
+  };
+}
+
 /** A bearer token the mock reads `sub`, `name` and the realm roles from (tests; unsigned). */
 export function mockToken(
   subject: string,
@@ -1123,7 +1158,7 @@ function documentAttachments(document: Record<string, unknown> | null): Map<stri
 /** What the placeholder file route names: a letter's clarification, or an attachment. */
 export function mockFileTitle(id: string): string | null {
   ensureSeeded();
-  const decision = mockDecisionLetterTitle(id);
+  const decision = mockDecisionLetterTitle(id) ?? mockReferralPackageTitle(id);
   if (decision) return decision;
   for (const each of clarifications.values()) {
     if (each.letter?.documentId === id) return `Clarification letter ${each.reference ?? ''}`;
@@ -1186,6 +1221,9 @@ async function route(request: Request): Promise<Response> {
   const { roles } = mockCallerOf(request);
   const decided = await determinationsRoute(request, { ...caller, roles }, mockCases(caller));
   if (decided) return decided;
+
+  const referred = await referralsRoute(request, { ...caller, roles }, referralCases(caller));
+  if (referred) return referred;
 
   const copilot = await copilotRoute(request, caller, (caseId) => {
     const stored = cases.get(caseId);
@@ -1602,14 +1640,17 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
 }
 
 /**
- * The documents service's download of a decision letter the mock issued (spec 08), for the
- * console's letter link under REVIEW_MOCK: a link to the placeholder file route.
+ * The documents service's download of a decision letter or referral evidence package the mock
+ * issued (spec 08), for the console's links under REVIEW_MOCK: a link to the placeholder file
+ * route.
  */
 export function mockLetterFetch(request: Request): Promise<Response> {
   ensureSeeded();
   const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
   const documentId = match?.[1];
-  if (request.method !== 'GET' || !documentId || !mockDecisionLetterTitle(documentId)) {
+  const known =
+    documentId && (mockDecisionLetterTitle(documentId) ?? mockReferralPackageTitle(documentId));
+  if (request.method !== 'GET' || !known) {
     return Promise.resolve(problem(404, 'Not found'));
   }
   return Promise.resolve(

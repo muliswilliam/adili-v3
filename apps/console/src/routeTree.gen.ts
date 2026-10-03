@@ -17,6 +17,7 @@ import { Route as CommissionsRouteRouteImport } from './routes/commissions/route
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
 import { Route as PlatformRouteRouteImport } from './routes/platform/route'
+import { Route as ReferralsRouteRouteImport } from './routes/referrals/route'
 import { Route as ReviewRouteRouteImport } from './routes/review/route'
 import { Route as RosterRouteRouteImport } from './routes/roster/route'
 import { Route as AccessIndexRouteImport } from './routes/access/index'
@@ -39,6 +40,8 @@ import { Route as ObligationsNationalRouteRouteImport } from './routes/obligatio
 import { Route as PlatformIndexRouteImport } from './routes/platform/index'
 import { Route as PlatformIntegrationsRouteImport } from './routes/platform/integrations'
 import { Route as PlatformLawEnforcementRouteRouteImport } from './routes/platform/law-enforcement/route'
+import { Route as ReferralsIndexRouteImport } from './routes/referrals/index'
+import { Route as ReferralsReferralIdRouteImport } from './routes/referrals/$referralId'
 import { Route as ReviewQueueRouteImport } from './routes/review/_queue'
 import { Route as RosterIndexRouteImport } from './routes/roster/index'
 import { Route as RosterApiAccessRouteRouteImport } from './routes/roster/api-access/route'
@@ -125,6 +128,11 @@ const ObligationsRouteRoute = ObligationsRouteRouteImport.update({
 const PlatformRouteRoute = PlatformRouteRouteImport.update({
   id: '/platform',
   path: '/platform',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferralsRouteRoute = ReferralsRouteRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReviewRouteRoute = ReviewRouteRouteImport.update({
@@ -240,6 +248,16 @@ const PlatformLawEnforcementRouteRoute =
     path: '/law-enforcement',
     getParentRoute: () => PlatformRouteRoute,
   } as any)
+const ReferralsIndexRoute = ReferralsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReferralsRouteRoute,
+} as any)
+const ReferralsReferralIdRoute = ReferralsReferralIdRouteImport.update({
+  id: '/$referralId',
+  path: '/$referralId',
+  getParentRoute: () => ReferralsRouteRoute,
+} as any)
 const ReviewQueueRoute = ReviewQueueRouteImport.update({
   id: '/_queue',
   getParentRoute: () => ReviewRouteRoute,
@@ -507,6 +525,7 @@ export interface FileRoutesByFullPath {
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
+  '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
@@ -525,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/referrals/$referralId': typeof ReferralsReferralIdRoute
   '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
@@ -536,6 +556,7 @@ export interface FileRoutesByFullPath {
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
+  '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
@@ -585,6 +606,7 @@ export interface FileRoutesByTo {
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/referrals/$referralId': typeof ReferralsReferralIdRoute
   '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
   '/roster/import': typeof RosterImportRoute
@@ -596,6 +618,7 @@ export interface FileRoutesByTo {
   '/lea': typeof LeaIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/platform': typeof PlatformIndexRoute
+  '/referrals': typeof ReferralsIndexRoute
   '/roster': typeof RosterIndexRoute
   '/access/certified-copies/$applicationId': typeof AccessCertifiedCopiesApplicationIdRoute
   '/access/certified-copies/new': typeof AccessCertifiedCopiesNewRoute
@@ -641,6 +664,7 @@ export interface FileRoutesById {
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
+  '/referrals': typeof ReferralsRouteRouteWithChildren
   '/review': typeof ReviewRouteRouteWithChildren
   '/roster': typeof RosterRouteRouteWithChildren
   '/access/certified-copies': typeof AccessCertifiedCopiesRouteRouteWithChildren
@@ -659,6 +683,7 @@ export interface FileRoutesById {
   '/commissions/new': typeof CommissionsNewRoute
   '/obligations/policy': typeof ObligationsPolicyRoute
   '/platform/integrations': typeof PlatformIntegrationsRoute
+  '/referrals/$referralId': typeof ReferralsReferralIdRoute
   '/review/_queue': typeof ReviewQueueRouteWithChildren
   '/roster/coverage': typeof RosterCoverageRoute
   '/roster/flagged': typeof RosterFlaggedRoute
@@ -671,6 +696,7 @@ export interface FileRoutesById {
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
+  '/referrals/': typeof ReferralsIndexRoute
   '/roster/': typeof RosterIndexRoute
   '/access/lea-requests/$leaRequestId': typeof AccessLeaRequestsLeaRequestIdRouteRouteWithChildren
   '/access/requests/$requestId': typeof AccessRequestsRequestIdRouteRouteWithChildren
@@ -722,6 +748,7 @@ export interface FileRouteTypes {
     | '/lea'
     | '/obligations'
     | '/platform'
+    | '/referrals'
     | '/review'
     | '/roster'
     | '/access/certified-copies'
@@ -740,6 +767,7 @@ export interface FileRouteTypes {
     | '/commissions/new'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/referrals/$referralId'
     | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
@@ -751,6 +779,7 @@ export interface FileRouteTypes {
     | '/lea/'
     | '/obligations/'
     | '/platform/'
+    | '/referrals/'
     | '/roster/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
@@ -800,6 +829,7 @@ export interface FileRouteTypes {
     | '/commissions/new'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/referrals/$referralId'
     | '/roster/coverage'
     | '/roster/flagged'
     | '/roster/import'
@@ -811,6 +841,7 @@ export interface FileRouteTypes {
     | '/lea'
     | '/obligations'
     | '/platform'
+    | '/referrals'
     | '/roster'
     | '/access/certified-copies/$applicationId'
     | '/access/certified-copies/new'
@@ -855,6 +886,7 @@ export interface FileRouteTypes {
     | '/lea'
     | '/obligations'
     | '/platform'
+    | '/referrals'
     | '/review'
     | '/roster'
     | '/access/certified-copies'
@@ -873,6 +905,7 @@ export interface FileRouteTypes {
     | '/commissions/new'
     | '/obligations/policy'
     | '/platform/integrations'
+    | '/referrals/$referralId'
     | '/review/_queue'
     | '/roster/coverage'
     | '/roster/flagged'
@@ -885,6 +918,7 @@ export interface FileRouteTypes {
     | '/lea/'
     | '/obligations/'
     | '/platform/'
+    | '/referrals/'
     | '/roster/'
     | '/access/lea-requests/$leaRequestId'
     | '/access/requests/$requestId'
@@ -935,6 +969,7 @@ export interface RootRouteChildren {
   LeaRouteRoute: typeof LeaRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
   PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
+  ReferralsRouteRoute: typeof ReferralsRouteRouteWithChildren
   ReviewRouteRoute: typeof ReviewRouteRouteWithChildren
   RosterRouteRoute: typeof RosterRouteRouteWithChildren
   ObligationsNationalRouteRoute: typeof ObligationsNationalRouteRouteWithChildren
@@ -1001,6 +1036,13 @@ declare module '@tanstack/react-router' {
       path: '/platform'
       fullPath: '/platform'
       preLoaderRoute: typeof PlatformRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referrals': {
+      id: '/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof ReferralsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/review': {
@@ -1156,6 +1198,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/platform/law-enforcement'
       preLoaderRoute: typeof PlatformLawEnforcementRouteRouteImport
       parentRoute: typeof PlatformRouteRoute
+    }
+    '/referrals/': {
+      id: '/referrals/'
+      path: '/'
+      fullPath: '/referrals/'
+      preLoaderRoute: typeof ReferralsIndexRouteImport
+      parentRoute: typeof ReferralsRouteRoute
+    }
+    '/referrals/$referralId': {
+      id: '/referrals/$referralId'
+      path: '/$referralId'
+      fullPath: '/referrals/$referralId'
+      preLoaderRoute: typeof ReferralsReferralIdRouteImport
+      parentRoute: typeof ReferralsRouteRoute
     }
     '/review/_queue': {
       id: '/review/_queue'
@@ -1759,6 +1815,20 @@ const PlatformRouteRouteWithChildren = PlatformRouteRoute._addFileChildren(
   PlatformRouteRouteChildren,
 )
 
+interface ReferralsRouteRouteChildren {
+  ReferralsReferralIdRoute: typeof ReferralsReferralIdRoute
+  ReferralsIndexRoute: typeof ReferralsIndexRoute
+}
+
+const ReferralsRouteRouteChildren: ReferralsRouteRouteChildren = {
+  ReferralsReferralIdRoute: ReferralsReferralIdRoute,
+  ReferralsIndexRoute: ReferralsIndexRoute,
+}
+
+const ReferralsRouteRouteWithChildren = ReferralsRouteRoute._addFileChildren(
+  ReferralsRouteRouteChildren,
+)
+
 interface ReviewQueueRouteChildren {
   ReviewQueueIndexRoute: typeof ReviewQueueIndexRoute
 }
@@ -1881,6 +1951,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeaRouteRoute: LeaRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
   PlatformRouteRoute: PlatformRouteRouteWithChildren,
+  ReferralsRouteRoute: ReferralsRouteRouteWithChildren,
   ReviewRouteRoute: ReviewRouteRouteWithChildren,
   RosterRouteRoute: RosterRouteRouteWithChildren,
   ObligationsNationalRouteRoute: ObligationsNationalRouteRouteWithChildren,

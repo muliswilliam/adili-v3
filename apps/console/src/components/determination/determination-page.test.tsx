@@ -80,6 +80,9 @@ vi.mock('../../server/determinations', async () => {
   };
 });
 
+// Refer to EACC on the page (#211) is tested in components/referrals/refer-action.test.tsx.
+vi.mock('../../server/referrals', () => ({ proposeCaseReferral: vi.fn() }));
+
 async function viewOf(caseId: string, officer: Assignee): Promise<CaseView> {
   const result = await loadCaseView(
     mockReviewClient(officer.subject, officer.name),

@@ -64,6 +64,7 @@ import type { Determination, DeterminationInput } from '../../server/review/type
 import { downloadFrom } from '../download';
 import { InfoTip } from '../info-tip';
 import { Page } from '../page';
+import { ReferAction } from '../referrals/refer-action';
 import { CaseStatusBadge } from '../review/case/case-header';
 import { TONES } from '../review/status-badge';
 import type { FailureText } from './dialog-parts';
@@ -221,6 +222,7 @@ export function DeterminationPage({
               {t.propose}
             </Button>
           ) : null}
+          <ReferAction load={load} />
           <Button asChild variant="secondary">
             <Link to="/review/cases/$caseId" params={{ caseId: item.id }}>
               <Icon icon={LinkSquare02Icon} />
