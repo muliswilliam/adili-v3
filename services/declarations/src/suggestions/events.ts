@@ -12,13 +12,21 @@ import type { SuggestionSource } from './schema.js';
 
 export const DECLARATION_LOOKUP_REQUESTED = 'declaration.lookup-requested.v1';
 
-/** The declarant asked, with their consent recorded, for registries to be checked for a person. */
+/**
+ * The declarant asked, with their consent, for registries to be checked for a person: the audit
+ * record of the consent (ADR-008), whom it was given by, on which text and for which registries;
+ * the event's time is when. The draft's own copy expires with it (`expiry.ts`).
+ */
 export interface DeclarationLookupRequestedData extends Record<string, unknown> {
   declarationId: string;
   /** `officer`, `spouse:<id>` or `child:<id>`: the household's own keys. */
   personKey: PersonKey;
   systems: RegistrySystem[];
   consentId: string;
+  /** The declarant's account (`sub`) that gave the consent. */
+  consentedBy: string;
+  /** The version of the consent text the declarant was shown. */
+  consentTextVersion: string;
 }
 
 export function declarationLookupRequested(

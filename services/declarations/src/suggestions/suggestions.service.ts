@@ -118,6 +118,8 @@ export class SuggestionsService {
           personKey,
           systems,
           consentId,
+          consentedBy: person.subject,
+          consentTextVersion: request.consent.textVersion,
         }),
       );
       return { declaration, personKey, sets };

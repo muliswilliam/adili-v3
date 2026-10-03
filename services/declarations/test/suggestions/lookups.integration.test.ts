@@ -315,6 +315,8 @@ describe('checking registries for the officer (S1)', () => {
         personKey: 'officer',
         systems: [...ALL],
         consentId: consent?.id,
+        consentedBy: ACHIENG,
+        consentTextVersion: 'registry-consent-v1',
       },
     });
     const ready = await eventsOf('declaration.suggestions-ready.v1');
@@ -598,7 +600,7 @@ describe('consent and who may check (S9)', () => {
 });
 
 describe('suggestions go with the draft (S7)', () => {
-  it('deletes the sets and suggestions when the draft is discarded, keeping the consent', async () => {
+  it('deletes the sets, suggestions and consents when the draft is discarded; the event keeps the consent', async () => {
     const draft = await givenDraft();
     givenOfficerRegistries();
     await requestLookups(draft.id, { personKey: 'officer', systems: [...ALL], consent: CONSENT });
@@ -610,10 +612,13 @@ describe('suggestions go with the draft (S7)', () => {
     await api.asPerson(ACHIENG, async (tx) => {
       expect(await tx.select().from(suggestions)).toEqual([]);
       expect(await tx.select().from(suggestionSets)).toEqual([]);
-      // The record of the legal basis the lookups were made on (ADR-008).
-      expect(await tx.select().from(suggestionConsents)).toMatchObject([
-        { declarationId: draft.id, personKey: 'officer', textVersion: 'registry-consent-v1' },
-      ]);
+      expect(await tx.select().from(suggestionConsents)).toEqual([]);
+    });
+    // The record of the consent the lookups were made on stays in the audit trail (ADR-008).
+    expect((await eventsOf('declaration.lookup-requested.v1'))[0]?.data).toMatchObject({
+      personKey: 'officer',
+      consentedBy: ACHIENG,
+      consentTextVersion: 'registry-consent-v1',
     });
   });
 });
@@ -641,10 +646,7 @@ describe('suggestions expire with the draft once it is submitted (S7)', () => {
     return suggestion;
   }
 
-  /**
-   * Nothing is listed, an old suggestion is not found to accept or dismiss, no suggestion row is
-   * left; the consents stay, the record of the legal basis.
-   */
+  /** Nothing is listed, an old suggestion is not found to accept or dismiss, no row is left. */
   async function expectExpired(declarationId: string, suggestion: Suggestion): Promise<void> {
     const listed = await list(declarationId);
     expect(listed.statusCode).toBe(200);
@@ -668,9 +670,7 @@ describe('suggestions expire with the draft once it is submitted (S7)', () => {
     await api.asPerson(ACHIENG, async (tx) => {
       expect(await tx.select().from(suggestions)).toEqual([]);
       expect(await tx.select().from(suggestionSets)).toEqual([]);
-      const consents = await tx.select().from(suggestionConsents);
-      expect(consents.length).toBeGreaterThan(0);
-      expect(consents.every((consent) => consent.declarationId === declarationId)).toBe(true);
+      expect(await tx.select().from(suggestionConsents)).toEqual([]);
     });
   }
 
