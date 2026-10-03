@@ -1,5 +1,5 @@
 import type { AnswerOutput } from './answer-declarant-question.js';
-import type { OutputViolation } from './task.js';
+import type { OutputViolation, ViolationKind } from './task.js';
 
 /**
  * The tagged-text grammar a streamed answer is written in (ADR-019). The provider port streams
@@ -251,7 +251,7 @@ export class TaggedAnswerReader {
     }
   }
 
-  private problem(kind: string, block?: number): void {
+  private problem(kind: ViolationKind, block?: number): void {
     this.problems.push(block === undefined ? { kind } : { kind, block });
   }
 }

@@ -31,25 +31,25 @@ export function narrativeViolations(input: NarrateInput, output: NarrateOutput):
     index: number,
   ): OutputViolation[] {
     return [
-      ...foreignNumbers(paragraph.text, known, years).map(() => ({
+      ...foreignNumbers(paragraph.text, known, years).map((): OutputViolation => ({
         kind: 'foreign-number',
         paragraph: index,
       })),
       // By position, not value: an unknown ref or id is text the model wrote.
-      ...paragraph.aggregateRefs.flatMap((ref, at) =>
+      ...paragraph.aggregateRefs.flatMap((ref, at): OutputViolation[] =>
         keys.has(ref) ? [] : [{ kind: 'unknown-ref', paragraph: index, index: at }],
       ),
-      ...paragraph.candidateIds.flatMap((candidate, at) =>
+      ...paragraph.candidateIds.flatMap((candidate, at): OutputViolation[] =>
         candidates.has(candidate)
           ? []
           : [{ kind: 'unknown-candidate', paragraph: index, index: at }],
       ),
       // A finding narrates a computed pattern; it does not discover one (ADR-007).
       ...(paragraph.section === 'findings' && paragraph.candidateIds.length === 0
-        ? [{ kind: 'finding-without-candidate', paragraph: index }]
+        ? [{ kind: 'finding-without-candidate' as const, paragraph: index }]
         : []),
       ...(input.section !== 'all' && paragraph.section !== input.section
-        ? [{ kind: 'wrong-section', paragraph: index, section: paragraph.section }]
+        ? [{ kind: 'wrong-section' as const, paragraph: index, section: paragraph.section }]
         : []),
     ];
   }

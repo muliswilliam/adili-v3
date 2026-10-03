@@ -68,9 +68,46 @@ export type AiLabel = z.infer<typeof aiLabelSchema>;
  * as these are stored with the job and its audit record (the first twenty of them).
  */
 export interface OutputViolation {
-  kind: string;
+  kind: ViolationKind;
   [detail: string]: string | number;
 }
+
+/** Every kind of violation, by what finds it: stored with jobs and audit records, so closed. */
+export const VIOLATION_KINDS = [
+  // narrate-compliance-report's checks (narrative-validation.ts)
+  'foreign-number',
+  'unknown-ref',
+  'unknown-candidate',
+  'finding-without-candidate',
+  'wrong-section',
+  'missing-section',
+  'too-many-paragraphs',
+  // answer-declarant-question's checks
+  'empty-answer',
+  'uncited-block',
+  'unknown-passage',
+  'declined-hints',
+  'hint-follow-ups',
+  'hint-count',
+  'hint-not-for-residual',
+  // The tagged-text grammar of a streamed answer (ADR-019, tagged-answer.ts)
+  'text-outside-block',
+  'unknown-tag',
+  'nested-block',
+  'misplaced-tag',
+  'empty-block',
+  'cite-repeated',
+  'link-repeated',
+  'link-invalid',
+  'unclosed-block',
+  'unclosed-followup',
+  'declined-with-answer',
+  // How a streamed answer ended: cut off, a token the input never had, or off its schema
+  'truncated',
+  'unknown-token',
+  'invalid-output',
+] as const;
+export type ViolationKind = (typeof VIOLATION_KINDS)[number];
 
 interface TaskSpec<TInput extends z.ZodObject, TOutput extends z.ZodObject> {
   name: TaskName;
