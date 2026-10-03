@@ -4,13 +4,36 @@ import { env } from '../../server/env.server';
 
 /**
  * Stands in for the documents service's presigned letter download while REVIEW_MOCK is on: the
- * review mock's `letterDownloadUrl` and decision letter links point here. Serves a one-page
- * placeholder PDF naming the clarification or the decision. Development and tests only;
- * everywhere else it is a 404.
+ * review mock's `letterDownloadUrl`, decision letter and notice letter links point here. Serves a
+ * one-page placeholder PDF naming the clarification, the decision or the notice. Development and
+ * tests only; everywhere else it is a 404.
  */
+const STEP_TITLES = {
+  'notice-to-comply': 'Notice to comply',
+  warning: 'Warning',
+  'salary-stoppage': 'Salary stoppage',
+  'disciplinary-referral': 'Disciplinary referral',
+} as const;
+
 async function letter(id: string): Promise<Response> {
-  const { mockClarification, mockDecisionLetter } = await import('../../server/review/mock.server');
+  const { mockClarification, mockDecisionLetter, mockNotice } =
+    await import('../../server/review/mock.server');
   const { placeholderPdf } = await import('../../server/mock-pdf');
+  const notice = mockNotice(id);
+  if (notice) {
+    const lines = [
+      `${STEP_TITLES[notice.step]} ${notice.reference}`,
+      notice.commission.name,
+      notice.actBy ? `Act by ${notice.actBy.slice(0, 10)}.` : '',
+      'Placeholder letter from the development mock.',
+    ];
+    return new Response(placeholderPdf(lines), {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${notice.reference}.pdf"`,
+      },
+    });
+  }
   const decision = mockDecisionLetter(id);
   if (decision) {
     return new Response(

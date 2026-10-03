@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import type { NoticesLoad } from '../../server/access-notices';
 import type { MyClarificationsLoad } from '../../server/clarifications';
+import type { MyNoticesLoad } from '../../server/notices';
 import type { MyDecisionsLoad } from '../../server/decisions';
 import type { DeclarationListResult } from '../../server/declarations.server';
 import type { Viewer } from '../../server/viewer';
@@ -11,10 +12,12 @@ import { DeclarantCard, DeclarantUnavailableCard } from './account-card';
 import { ClarificationsSection } from './clarifications-card';
 import { type DeclarationLetterLoad, DecisionsSection } from './decisions-card';
 import { DeclarationsSection } from './declarations-card';
+import { NoticesSection } from './notices-card';
 import { DraftsProvider } from './drafts';
 
 /**
- * The dashboard's cards: the declarant's clarifications when there are any (spec 07a FE-5),
+ * The dashboard's cards: the declarant's open notices to comply and warnings on top (spec 08
+ * FE-7), their clarifications when there are any (spec 07a FE-5),
  * their declarations (spec 05) above their obligations (spec 04, FE-2), next to their account
  * once onboarded (spec 03, FE-6), or next to the sign-in identity for someone who is not. The
  * obligations render nothing for someone who is not a declarant, so the account card then takes
@@ -30,6 +33,7 @@ export function DashboardCards({
   declarations,
   accessNotices = null,
   clarifications,
+  notices = null,
   decisions = null,
   loadDecisionLetter,
   obligations,
@@ -37,6 +41,8 @@ export function DashboardCards({
   viewer: Viewer;
   /** An onboarded declarant's clarifications, on their way; null for anyone else. */
   clarifications?: Promise<MyClarificationsLoad> | null;
+  /** An onboarded declarant's notices to comply and warnings, on their way; null for anyone else. */
+  notices?: Promise<MyNoticesLoad> | null;
   /** An onboarded declarant's decisions, on their way; null for anyone else. */
   decisions?: Promise<MyDecisionsLoad> | null;
   /** Fetches a decision letter's link (issuing it the first time for a bulk closure). */
@@ -57,6 +63,7 @@ export function DashboardCards({
             {accessNotices ? (
               <AccessNoticesSection notices={accessNotices} placement="first" />
             ) : null}
+            {notices ? <NoticesSection notices={notices} /> : null}
             {clarifications ? <ClarificationsSection clarifications={clarifications} /> : null}
             {decisions && loadDecisionLetter ? (
               <DecisionsSection decisions={decisions} loadLetter={loadDecisionLetter} />
