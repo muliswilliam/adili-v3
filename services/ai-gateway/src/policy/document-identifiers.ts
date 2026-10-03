@@ -62,11 +62,21 @@ const NAME_LABELS = [
   'mkopaji',
   'shahidi',
 ];
-/** Courtesy titles and forms of address, in English and Swahili; matched in any case. */
-const TITLES = [
+/**
+ * Short titles, which no one is named: a run's span ends at one ("Dear Mr. Ouma").
+ */
+const SHORT_TITLES = [
   ...['mr', 'mrs', 'ms', 'mx', 'miss', 'dr', 'dkt', 'prof', 'hon', 'rev', 'revd', 'fr', 'sr'],
-  ...['pastor', 'bishop', 'sheikh', 'imam', 'capt', 'cpt', 'col', 'gen', 'maj', 'eng', 'cpa'],
-  ...['sir', 'lady', 'madam', 'mzee', 'mama', 'baba', 'bwana', 'bw', 'bibi', 'bi'],
+  ...['capt', 'cpt', 'col', 'gen', 'maj', 'eng', 'cpa', 'bw'],
+];
+/**
+ * Courtesy titles and forms of address, in English and Swahili, matched in any case: the short
+ * ones, and words that are also surnames (Mama, Baba, Bibi, Bwana, Mzee), which inside a run are.
+ */
+const TITLES = [
+  ...SHORT_TITLES,
+  ...['pastor', 'bishop', 'sheikh', 'imam', 'sir', 'lady', 'madam', 'mzee', 'mama', 'baba'],
+  ...['bwana', 'bibi', 'bi'],
 ];
 
 const EDGE = String.raw`(?<![\p{L}\p{N}])`;
@@ -85,15 +95,7 @@ const RUN_INTRODUCERS: readonly RegExp[] = [
   ),
 ];
 
-/** Words that introduce a run themselves: titles and salutations. */
-/**
- * Short titles, which no one is named, and salutations: a run's span ends at one ("Dear Mr.").
- * A Swahili title (Mama, Baba, Bibi, Bwana, Mzee) is also a surname, so inside a run it is one.
- */
-const SHORT_TITLES = [
-  ...['mr', 'mrs', 'ms', 'mx', 'miss', 'dr', 'dkt', 'prof', 'hon', 'rev', 'revd', 'fr', 'sr'],
-  ...['capt', 'cpt', 'col', 'gen', 'maj', 'eng', 'cpa', 'bw'],
-];
+/** Words that introduce a run themselves, where a run ends: short titles and salutations. */
 const INTRODUCER_WORDS = new Set([...SHORT_TITLES, 'dear', 'mpendwa', 'ndugu']);
 
 /** Every line terminator a text layer may hold, stray carriage returns and separators included. */
@@ -113,7 +115,8 @@ type Token = { start: number } & (
   | { kind: 'space'; width: number }
   | { kind: 'joiner' }
   | { kind: 'colon' }
-  | { kind: 'other' }
+  | { kind: 'number'; text: string }
+  | { kind: 'other'; text: string }
 );
 
 /** A line's tokens, each with where it starts. */
@@ -124,7 +127,8 @@ function tokensOf(line: string): Token[] {
     if (text === ':') return { start, kind: 'colon' };
     // A code, or a code-like word with a digit, is no name; a hyphenated name is one word.
     if (/^\p{L}/u.test(text) && !/\p{N}/u.test(text)) return { start, kind: 'word', text };
-    return { start, kind: 'other' };
+    if (/^\p{N}+$/u.test(text)) return { start, kind: 'number', text };
+    return { start, kind: 'other', text };
   });
 }
 
@@ -139,6 +143,9 @@ function tokenAt(tokens: readonly Token[], offset: number): number {
   }
   return low;
 }
+
+/** Currencies, in any case: KES 12,500,000 is no one's name, and ends a name's span. */
+const CURRENCIES = ['kes', 'ksh', 'kshs', 'usd', 'eur', 'gbp', 'tsh', 'ush'];
 
 /** Words that join two parties, in any case: "and", "or", Swahili "na", "aka", "alias". */
 const JOINER_WORDS = new Set(['and', 'or', 'na', 'pia', 'pamoja', 'aka', 'alias']);
@@ -181,17 +188,10 @@ const ROLE_QUALIFIERS = new Set([
   ...['branch', 'senior', 'deputy', 'assistant', 'chief', 'general', 'regional', 'area'],
   ...['operations', 'credit', 'relationship', 'sales', 'finance', 'accounts', 'loans'],
 ]);
-/**
- * Words that start a two-word field label ("Account Type:", "Body Type:", "Date of Registration:"):
- * a span ends before them, as before a one-word one.
- */
-const FIELD_LEADS = new Set([
-  ...['account', 'body', 'engine', 'year', 'date', 'registration', 'chassis', 'frame', 'loan'],
-  ...['branch', 'customer', 'id', 'kra', 'tax', 'phone', 'mobile', 'postal', 'physical'],
-]);
 /** Capitalised words no one is named ("Owner PIN", "Dear Sir", "the Late"). */
 const NOT_NAMES = new Set([
   ...['pin', 'no', 'nos', 'number', 'id', 'kra', 'the', 'of', 'late', 'marehemu', 'sir', 'madam'],
+  ...CURRENCIES,
   ...SHORT_TITLES,
   // A document's own headings, which a label at a page's foot may run into ("TITLE DEED").
   ...['title', 'deed', 'certificate', 'lease', 'republic', 'kenya', 'page', 'register'],
@@ -209,6 +209,15 @@ const FIELD_WORDS = new Set([
   ...['department', 'employer', 'institution', 'account', 'loan', 'ref', 'reference', 'pin'],
   ...['id', 'signature', 'sahihi', 'tarehe', 'kiasi', 'salio', 'cheo', 'idara', 'simu'],
 ]);
+/**
+ * Words that start a field label of two words or more ("Account Type:", "Basic Salary:", "Date of
+ * Registration:"): a span ends before them, as before a one-word one.
+ */
+const FIELD_LEADS = new Set([
+  ...FIELD_WORDS,
+  ...['registration', 'customer', 'kra', 'tax', 'postal', 'physical', 'basic', 'gross', 'net'],
+  ...['job', 'total'],
+]);
 /** Words before "Name" that make it another field's name ("Bank Name:", "Employer Name:"). */
 const NAMED_FIELDS = new Set([
   ...['bank', 'branch', 'employer', 'business', 'company', 'trading', 'institution', 'school'],
@@ -224,6 +233,7 @@ const COMMON_WORDS = new Set([
   ...['mercy', 'patience', 'rose', 'fresh', 'produce', 'women', 'youth', 'trading', 'farm'],
   ...['farmers', 'general', 'united', 'new', 'star', 'best', 'green', 'golden', 'royal'],
   ...['amani', 'imani', 'baraka', 'neema', 'upendo', 'tumaini', 'furaha', 'bahati', 'rehema'],
+  ...['baba', 'mama', 'bibi', 'tel', 'shares', 'total', 'value', 'purpose', 'male', 'female'],
 ]);
 
 /** Whether a name word is also a common word, matched only as a page writes it. */
@@ -238,6 +248,9 @@ const PLACES = new Set([
   ...COUNTIES.flatMap(({ name }) => name.toLowerCase().split(/[\s-]+/u)),
   ...['eldoret', 'thika', 'malindi', 'kitale', 'naivasha', 'nanyuki', 'ruiru', 'kitengela'],
 ]);
+
+/** Currencies an amount is written in: an amount ends a name's span. */
+const CURRENCY_WORDS = new Set([...CURRENCIES]);
 
 const lower = (word: string) => word.toLowerCase();
 const isOrganisationWord = (word: string | undefined) =>
@@ -258,31 +271,64 @@ function wordsFrom(tokens: readonly Token[], index: number, count: number): stri
   return words;
 }
 
-/** Whether the token after `index` (past spaces) is a colon. */
-function colonAfter(tokens: readonly Token[], index: number): boolean {
+/** The index of the colon after word `index` (past spaces), or -1. */
+function colonAfter(tokens: readonly Token[], index: number): number {
   for (let at = index + 1; at < tokens.length && at <= index + 2; at++) {
     const token = tokens[at];
-    if (token?.kind === 'colon') return true;
-    if (token?.kind !== 'space') return false;
+    if (token?.kind === 'colon') return at;
+    if (token?.kind !== 'space') return -1;
   }
-  return false;
+  return -1;
+}
+
+/** Whether a number at `index` numbers a list ("1)", "2."), not an amount. */
+function isListMarker(tokens: readonly Token[], index: number): boolean {
+  const number = tokens[index];
+  const next = tokens[index + 1];
+  return (
+    number?.kind === 'number' &&
+    number.text.length <= 2 &&
+    next?.kind === 'other' &&
+    (next.text === '.' || next.text === ')') &&
+    (tokens[index + 2] === undefined || tokens[index + 2]?.kind === 'space')
+  );
 }
 
 /**
- * Whether the word at `index` labels another field: a word before a colon ("Make:"), or a field
- * label's first word before one more ("Account Type:", "Date of Registration:").
+ * Whether what follows a colon belongs to the name before it: an office ("John Kamau: Chairman")
+ * or a sum ("John Kamau: 50,000"). Anything else makes the word another field's label.
+ */
+function nameGoesOn(tokens: readonly Token[], colon: number): boolean {
+  let at = colon + 1;
+  while (tokens[at]?.kind === 'space') at++;
+  const next = tokens[at];
+  // A sum of money, not a count ("Term: 36 Months"): a currency, thousands, or four digits.
+  if (next?.kind === 'number') {
+    const thousands = tokens[at + 1]?.kind === 'joiner' && tokens[at + 2]?.kind === 'number';
+    return next.text.length >= 4 || thousands;
+  }
+  if (next?.kind === 'word' && CURRENCY_WORDS.has(lower(next.text))) return true;
+  return next?.kind === 'word' && (ROLE_WORDS.has(lower(next.text)) || qualifiesOffice(next.text));
+}
+
+/**
+ * Whether the word at `index` labels another field: a capitalised word before a colon, unless an
+ * office or an amount follows ("Gender: Male" ends a name; "John Kamau: Chairman" does not), or a
+ * field label's first word before one more ("Account Type:", "Date of Registration:").
  */
 function labelsAField(tokens: readonly Token[], index: number): boolean {
   const word = tokens[index];
   if (word?.kind !== 'word') return false;
-  if (FIELD_WORDS.has(lower(word.text)) && colonAfter(tokens, index)) return true;
+  const colon = colonAfter(tokens, index);
+  if (colon >= 0) return !nameGoesOn(tokens, colon);
   if (!FIELD_LEADS.has(lower(word.text))) return false;
   // The field label's next word, past one space and an "of".
   for (let at = index + 1, seen = 0; at < tokens.length && seen < 2; at++) {
     const token = tokens[at];
     if (token?.kind === 'space') continue;
     if (token?.kind !== 'word') return false;
-    if (colonAfter(tokens, at)) return true;
+    const next = colonAfter(tokens, at);
+    if (next >= 0) return !nameGoesOn(tokens, next);
     if (token.text !== 'of') seen++;
   }
   return false;
@@ -309,8 +355,11 @@ function labelParties(tokens: readonly Token[], from: number): string[][] {
   for (let at = from; at < end && words < MAX_WORDS && parties.length <= MAX_PARTIES; at++) {
     const token = tokens[at];
     if (token?.kind === 'joiner') nextParty();
+    // An amount ends the span ("John Kamau KES 12,500,000 Total Shares"); a list's number does not.
+    if (token?.kind === 'number' && !isListMarker(tokens, at)) break;
     if (token?.kind !== 'word') continue;
     const word = token.text;
+    if (CURRENCY_WORDS.has(lower(word))) break;
     if (!isCapitalised(word)) {
       if (!PARTICLES.has(word)) nextParty();
       continue;
@@ -440,20 +489,72 @@ function nextLine(lines: readonly string[], row: number): number {
  * number, in English or Swahili), with letters and digits both (UW-00781): a digits-only one is
  * an ID or account number by its shape already, and an ordinal ("5th") is no number.
  */
-const MEMBER_NUMBER = new RegExp(
+const LABELLED_MEMBER_NUMBER = new RegExp(
   String.raw`${EDGE}(?i:(?:member(?:ship)?|payroll|staff|personal|employee|customer|policy|tsc)[ \t]+(?:no\.?|number)|nambari[ \t]+ya[ \t]+(?:uanachama|mwanachama|mshahara))[ \t]*(?:[:\-][ \t]*)?([A-Za-z0-9][A-Za-z0-9/-]{2,40})`,
   'gu',
 );
 const ORDINAL = /^\d+(?:st|nd|rd|th)$/iu;
 /** A number a page labels as an account's: whatever its shape, an account number. */
-const ACCOUNT_NUMBER = new RegExp(
-  String.raw`${EDGE}(?i:account[ \t]+(?:no\.?|number)|a\/c[ \t]*(?:no\.?)?|nambari[ \t]+ya[ \t]+akaunti)[ \t]*(?:[:\-][ \t]*)?(\d[\d -]{4,30}\d)`,
+const LABELLED_ACCOUNT_NUMBER = new RegExp(
+  String.raw`${EDGE}(?i:account[ \t]+(?:no\.?|number)|a\/c[ \t]*(?:no\.?)?|nambari[ \t]+ya[ \t]+akaunti)[ \t]*(?:[:\-][ \t]*)?(\d[\d -]{2,30}\d)`,
   'gu',
 );
-/** A line that lists a party under a stand-alone label: numbered, bulleted. */
-const LIST_ENTRY = /^[ \t]*(?:\d{1,2}[.)]|[-*•–])[ \t]/u;
 /** List entries read under one label, at most. */
 const MAX_ENTRIES = 20;
+/** Marks that start a list entry: a bullet or dash, after which a name may follow. */
+const BULLETS = new Set(['-', '*', '\u2022', '\u2013', '\u2014']);
+/** Letters and roman numerals that number a list ("a)", "ii."). */
+const LIST_LETTERS = /^(?:[a-z]|[ivx]{1,4})$/iu;
+
+/**
+ * A line listed under a stand-alone label, when it reads as a name: an optional marker ("1.",
+ * "a)", "ii.", a dash or a bullet), then capitalised words and particles only, no field, label or common
+ * word, then optionally a comma and an office ("John Kamau, Chairman"). Null when it does not,
+ * which ends the list.
+ */
+function listEntry(tokens: readonly Token[]): string[] | null {
+  let at = 0;
+  const skipSpaces = () => {
+    while (tokens[at]?.kind === 'space') at++;
+  };
+  skipSpaces();
+  const marker = tokens[at];
+  const after = tokens[at + 1];
+  if (marker?.kind === 'other' && BULLETS.has(marker.text)) at++;
+  else if (
+    (marker?.kind === 'number' && marker.text.length <= 2) ||
+    (marker?.kind === 'word' && LIST_LETTERS.test(marker.text))
+  ) {
+    if (after?.kind === 'other' && (after.text === '.' || after.text === ')')) at += 2;
+  }
+  skipSpaces();
+  const name: string[] = [];
+  for (; at < tokens.length; at++) {
+    const token = tokens[at];
+    if (token?.kind === 'space' && token.width === 1) continue;
+    if (token?.kind !== 'word') break;
+    const word = token.text;
+    if (PARTICLES.has(word)) continue;
+    if (!isCapitalised(word) || LABEL_WORDS.test(word)) return null;
+    if (FIELD_WORDS.has(lower(word)) || COMMON_WORDS.has(lower(word))) return null;
+    name.push(word);
+  }
+  if (name.length === 0 || name.length > 6) return null;
+  // What follows the name: nothing, or a comma or dash and an office.
+  const rest = tokens.slice(at).filter((token) => token.kind !== 'space');
+  if (rest.length === 0) return name;
+  const [mark, ...office] = rest;
+  const separates =
+    mark?.kind === 'joiner' ||
+    (mark?.kind === 'other' && (BULLETS.has(mark.text) || mark.text === ':'));
+  const isOffice =
+    office.length > 0 &&
+    office.every(
+      (token) =>
+        token.kind === 'word' && (ROLE_WORDS.has(lower(token.text)) || qualifiesOffice(token.text)),
+    );
+  return separates && isOffice ? name : null;
+}
 
 /** What introduces an address, at the start of a line; the rest of the line is the address. */
 const ADDRESS_LABEL = new RegExp(
@@ -506,16 +607,15 @@ export function documentIdentifiers(
         // it that list more parties, numbered, bulleted or a name each.
         at = nextLine(nameLines, row);
         if (at < 0) continue;
-        add(labelParties(tokensAt(at), 0));
-        for (
-          let entries = 1;
-          entries < MAX_ENTRIES &&
-          ((LIST_ENTRY.test(nameLines[at + 1] ?? '') && LIST_ENTRY.test(nameLines[at] ?? '')) ||
-            continuesName(tokensAt(at + 1)));
-          entries++
-        ) {
-          at++;
-          add(labelParties(tokensAt(at), 0));
+        const first = listEntry(tokensAt(at));
+        add(first ? [first] : labelParties(tokensAt(at), 0));
+        // Further entries, across blank lines, while each reads as a name.
+        for (let entries = 1; entries < MAX_ENTRIES; entries++) {
+          const next = nextLine(nameLines, at);
+          const entry = next < 0 ? null : listEntry(tokensAt(next));
+          if (!entry) break;
+          add([entry]);
+          at = next;
         }
         continue;
       }
@@ -534,10 +634,10 @@ export function documentIdentifiers(
       }
     }
     const original = lines[row] ?? '';
-    for (const match of original.matchAll(ACCOUNT_NUMBER)) {
+    for (const match of original.matchAll(LABELLED_ACCOUNT_NUMBER)) {
       if (match[1]) found.push({ value: match[1], cls: 'ACCOUNT' });
     }
-    for (const match of original.matchAll(MEMBER_NUMBER)) {
+    for (const match of original.matchAll(LABELLED_MEMBER_NUMBER)) {
       const number = match[1] ?? '';
       if (/\p{L}/u.test(number) && /\d/u.test(number) && !ORDINAL.test(number)) {
         found.push({ value: number, cls: 'MEMBER_NUMBER' });

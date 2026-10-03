@@ -9,8 +9,7 @@ import { documentIdentifiers, isCommonWord } from './document-identifiers.js';
  * Task-independent: identifiers are found by where they sit in the input (the declaration.v1
  * field names for names, debtors and creditors, ID numbers, KRA PINs, personnel file numbers,
  * parcel numbers, vehicle registrations, file names, phones, emails, addresses, and dates and
- * places of birth) and by their
- * shape anywhere in free text. Values found in fields are also replaced wherever they recur in
+ * places of birth) and by their shape anywhere in free text. Values found in fields are also replaced wherever they recur in
  * free text, in any case and, for codes, with or without spaces and dashes; the token stands for
  * the value as its field holds it. Amounts, other dates and item descriptions are left alone: the tasks
  * need them, and the classification gate decides whether they may leave. The exception is what a
@@ -19,9 +18,7 @@ import { documentIdentifiers, isCommonWord } from './document-identifiers.js';
  * is restored; it only hides a word from the model.
  *
  * A document's text layer (`DOCUMENT_TEXT_FIELDS`, spec 05b) has no fields to say what is a name:
- * the parties its labels introduce ("Proprietor:", "Guarantor:", "Dear Mr.", "Jina:") are each a
- * person, collected word by word as a name field's would be, or, when the name ends in a company
- * word, one organisation; labelled addresses and member numbers are collected too. All of them are
+ * `documentIdentifiers` reads what its labels, titles and salutations introduce, and those are
  * replaced wherever they recur.
  *
  * A token in the output that the input never had (the model invented or garbled one) cannot be

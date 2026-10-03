@@ -453,6 +453,19 @@ describe('minimise a text layer', () => {
  * must be minimised. A row per probe, so a change that leaks one again fails here. The long tail
  * (unlabelled names, lowercase names, tables) is #504.
  */
+/** `word` as a whole word, so "Kamau" does not match inside "Kamaui". */
+const wholeWord = (word: string) => new RegExp(`(?<![\\p{L}\\p{N}])${word}(?![\\p{L}\\p{N}])`, 'u');
+
+/**
+ * The words that introduce a probe's names, which must stay readable: the first label's words
+ * (before its colon), or the title or salutation that starts the line.
+ */
+function labelWords(line: string): string[] {
+  const label = /^([\p{L} ()]+?)[ \t]*\d?\s*(?:\(\d\)|\(s\))?:/u.exec(line)?.[1];
+  const words = (label ?? /^\p{L}+/u.exec(line)?.[0] ?? '').split(' ').filter(Boolean);
+  return words.filter((word) => /^\p{L}{2,}$/u.test(word));
+}
+
 describe('minimise a text layer: review probes', () => {
   it.each([
     // Offices, titles and fillers wherever they sit in a party (F21).
@@ -545,12 +558,11 @@ describe('minimise a text layer: review probes', () => {
     ['Tel 0712 345 678\vMember No. AB12C\fProprietor: John Kamau', 'John Kamau AB12C'],
     // A name ending a sentence is the same name bare (F30).
     ['Proprietor: John Kamau.\nKamau signed the transfer.', 'John Kamau'],
-  ])('sends no name word of %j', (line, names) => {
+  ])('sends no name word of %j, and keeps its label readable', (line, names) => {
     const { input } = minimise({ textLayer: line });
 
-    for (const word of names.split(' ')) {
-      expect(input.textLayer).not.toMatch(new RegExp(`(?<![\\p{L}])${word}(?![\\p{L}])`, 'u'));
-    }
+    for (const word of names.split(' ')) expect(input.textLayer).not.toMatch(wholeWord(word));
+    for (const word of labelWords(line)) expect(input.textLayer).toMatch(wholeWord(word));
   });
 });
 
@@ -591,6 +603,125 @@ describe('minimise a text layer in linear time', () => {
     const started = performance.now();
     minimise({ textLayer: text });
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+/**
+ * Both directions at once (#314 review rounds 7 to 9): each row's names must not reach the
+ * request, and its fields' labels and values must stay readable, so a change cannot fix one side
+ * by breaking the other.
+ */
+describe('minimise a text layer: names out, fields readable', () => {
+  it.each([
+    // Field labels and values after a name, on the same line (F39, F51).
+    [
+      'Employee Name: John Kamau Gender: Male Nationality: Kenyan Occupation: Teacher',
+      'John Kamau',
+      'Employee Name Gender Male Nationality Kenyan Occupation Teacher',
+    ],
+    [
+      'Employee Name: Mary Wanjiru Grade: M Basic Salary: 45,000',
+      'Mary Wanjiru',
+      'Grade Basic Salary 45,000',
+    ],
+    [
+      'Borrower: John Kamau KES 12,500,000 Total Shares 500',
+      'John Kamau',
+      'KES 12,500,000 Total Shares 500',
+    ],
+    [
+      'Borrower: John Kamau Purpose: Development Value: KES 3,000,000',
+      'John Kamau',
+      'Purpose Development Value KES 3,000,000',
+    ],
+    [
+      'Proprietor: John Kamau Village: Kiamumbi Ward: Kahawa',
+      'John Kamau',
+      'Village Kiamumbi Ward Kahawa',
+    ],
+    [
+      'Proprietor: John Kamau Parcel: Plot 7 Use: Agricultural',
+      'John Kamau',
+      'Parcel Plot Use Agricultural',
+    ],
+    ['Borrower: John Kamau Term: 36 Months', 'John Kamau', 'Term 36 Months'],
+    [
+      'Registered Owner: BRIAN OUMA Make: TOYOTA Model: FIELDER',
+      'BRIAN OUMA',
+      'Make TOYOTA Model FIELDER',
+    ],
+    [
+      'Account Name: Mary Wanjiru Account Type: Savings Branch: Nyali',
+      'Mary Wanjiru',
+      'Account Type Savings Branch Nyali',
+    ],
+    [
+      'Proprietor: Peter Kamau Section: Njoro Station: Molo',
+      'Peter Kamau',
+      'Section Njoro Station Molo',
+    ],
+    // A name before a colon goes on when an office or an amount follows (F45, F51).
+    ['Borrower: John Kamau: 50,000', 'John Kamau', 'Borrower 50,000'],
+    ['Signatories:\nJohn Kamau: Chairman', 'John Kamau', 'Signatories Chairman'],
+    ['Witness: Mary Achieng: Branch Manager', 'Mary Achieng', 'Witness Branch Manager'],
+    // Fields with no name at all stay as they are.
+    ['Gender: Male', '', 'Gender Male'],
+    ['Basic Salary: 45,000', '', 'Basic Salary 45,000'],
+    ['Total Shares: 500', '', 'Total Shares 500'],
+    ['Loan Term: 36 Months', '', 'Loan Term 36 Months'],
+    ['KES 12,500,000', '', 'KES 12,500,000'],
+    [
+      'Bank Name: Highlands Bank Kenya PLC Branch Name: Nyali',
+      '',
+      'Bank Name Highlands Branch Nyali',
+    ],
+    ['Employer Name: Ministry of Health', '', 'Employer Name Ministry Health'],
+    ['Business Name: Tumaini Traders', '', 'Business Name Tumaini Traders'],
+    // A list under a stand-alone label: names out, offices and the text after it readable (F52).
+    [
+      'Directors:\n1. John Kamau, Chairman\n2. Mary Wanjiru, Secretary',
+      'John Kamau Mary Wanjiru',
+      'Directors Chairman Secretary',
+    ],
+    [
+      'Directors:\na) John Kamau\nb) Mary Wanjiru\n\nc) Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors',
+    ],
+    ['Signatories:\ni. John Kamau\nii. Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Signatories'],
+    [
+      'Signatories:\n\u2013 John Kamau\n\u2013 Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Signatories',
+    ],
+    [
+      'Proprietors:\nJohn Kamau\nMary Wanjiru\n\nThe land is freehold',
+      'John Kamau Mary Wanjiru',
+      'The land is freehold',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Date: 12 May 2026\nBalance: KES 500',
+      'John Kamau',
+      'Date May Balance KES 500',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Gender Male\n3. Total Shares 500',
+      'John Kamau',
+      'Gender Male Total Shares 500',
+    ],
+    // Common words a name holds stay readable in prose (F48, F55).
+    [
+      'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',
+      'Grace Baba',
+      'baba mama tel shares total value',
+    ],
+  ])('in %j sends no name of %j and keeps %j readable', (line, names, readable) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of names.split(' ').filter(Boolean)) {
+      expect(input.textLayer).not.toMatch(wholeWord(word));
+    }
+    for (const word of readable.split(' ')) expect(input.textLayer).toMatch(wholeWord(word));
   });
 });
 
@@ -657,6 +788,7 @@ describe('minimise a text layer: what is no name', () => {
     expect(minimise({ textLayer: 'Account Number: 0712 345 678 9' }).input.textLayer).toBe(
       'Account Number: [[ACCOUNT_1]]',
     );
+    expect(minimise({ textLayer: 'A/C No. 4521' }).input.textLayer).toBe('A/C No. [[ACCOUNT_1]]');
   });
 
   it('keeps a page header readable after a label at the foot of the page before (F49)', () => {
