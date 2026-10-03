@@ -5,7 +5,6 @@ import {
   Card,
   cn,
   EmptyState,
-  focusRing,
   formatDate,
   formatTime,
   Icon,
@@ -43,7 +42,9 @@ import type {
 } from '../../server/declarations/client';
 import { CursorPager } from '../cursor-pager';
 import { formatNumber } from '../format';
+import { InfoTip } from '../info-tip';
 import { LoadError } from '../load-error';
+import { problemStatus } from '../../server/service-call';
 import { Page, PageHead } from '../page';
 import { SearchBox } from '../search-box';
 import { cycleLabel } from '../obligations/obligations-query';
@@ -59,7 +60,7 @@ import {
   sharePercent,
 } from './declaration-progress';
 import { messages as m } from './messages';
-import { Tile, TileValue } from './tile';
+import { Tile, TileValue, WARNING_TILE } from './tile';
 
 export interface CoverageViewProps {
   /** The counts for the cycle in `search`; null while they load. */
@@ -76,9 +77,6 @@ export interface CoverageViewProps {
   /** Offered with no roster, e.g. "Import roster". */
   noRosterAction?: ReactNode;
 }
-
-const problemStatus = (result: DeclarationsResult<unknown> | null) =>
-  result && !result.ok && result.error.kind === 'problem' ? result.error.problem.status : null;
 
 /**
  * Roster coverage (#301): a cycle's obligations per reporting entity, not started, in progress,
@@ -263,42 +261,52 @@ function CoverageActions({
   );
 }
 
-/** A tile label's tooltip, for what its count holds. */
-function Hint({ label, text }: { label: string; text: string }) {
-  return (
-    <Tooltip content={text}>
-      <button
-        type="button"
-        aria-label={m.coverageHintLabel(label)}
-        className={cn(
-          'inline-grid size-5 place-items-center rounded-full hover:text-foreground',
-          focusRing,
-        )}
-      >
-        <Icon icon={InformationCircleIcon} className="size-3.5" />
-      </button>
-    </Tooltip>
-  );
-}
-
 interface Bucket {
   key: keyof ProgressCounts;
   label: string;
   icon: IconProps['icon'];
   hint?: string;
+  /** Its share of the bar and its legend swatch; not started is the bar's track. */
+  swatch: string;
 }
 
-const BUCKETS: Bucket[] = [
-  { key: 'notStarted', label: m.coverageNotStarted, icon: MinusSignIcon },
-  {
+const BUCKET: Record<Bucket['key'], Bucket> = {
+  notStarted: {
+    key: 'notStarted',
+    label: m.coverageNotStarted,
+    icon: MinusSignIcon,
+    swatch: 'bg-muted ring-1 ring-border ring-inset',
+  },
+  inProgress: {
     key: 'inProgress',
     label: m.coverageInProgress,
     icon: PencilEdit02Icon,
     hint: m.coverageInProgressHint,
+    swatch: 'bg-info',
   },
-  { key: 'submitted', label: m.coverageSubmitted, icon: Tick02Icon },
-  { key: 'late', label: m.coverageLate, icon: Clock01Icon, hint: m.coverageLateHint },
-];
+  submitted: {
+    key: 'submitted',
+    label: m.coverageSubmitted,
+    icon: Tick02Icon,
+    swatch: 'bg-success',
+  },
+  late: {
+    key: 'late',
+    label: m.coverageLate,
+    icon: Clock01Icon,
+    hint: m.coverageLateHint,
+    swatch: 'bg-warning',
+  },
+};
+
+/** The tiles' and columns' order. */
+const BUCKETS = [BUCKET.notStarted, BUCKET.inProgress, BUCKET.submitted, BUCKET.late];
+
+/** The bar's segments, in the order they fill it; not started is what is left. */
+const BAR = [BUCKET.submitted, BUCKET.inProgress, BUCKET.late];
+
+/** The legend: the bar's segments, then the track. */
+const LEGEND = [...BAR, BUCKET.notStarted];
 
 function ProgressTiles({ counts }: { counts: ProgressCounts | null }) {
   const whole = counts ? obligationTotal(counts) : 0;
@@ -315,12 +323,12 @@ function ProgressTiles({ counts }: { counts: ProgressCounts | null }) {
             key={bucket.key}
             icon={bucket.icon}
             label={bucket.label}
-            hint={bucket.hint ? <Hint label={bucket.label} text={bucket.hint} /> : undefined}
-            className={
-              late
-                ? 'bg-linear-to-b from-warning-subtle/45 to-card ring-1 ring-warning/25'
-                : undefined
+            hint={
+              bucket.hint ? (
+                <InfoTip content={bucket.hint} label={m.coverageHintLabel(bucket.label)} />
+              ) : undefined
             }
+            className={late ? WARNING_TILE : undefined}
           >
             {counts ? (
               <TileValue>
@@ -338,13 +346,6 @@ function ProgressTiles({ counts }: { counts: ProgressCounts | null }) {
     </section>
   );
 }
-
-const LEGEND = [
-  { label: m.coverageSubmitted, className: 'bg-success' },
-  { label: m.coverageInProgress, className: 'bg-info' },
-  { label: m.coverageLate, className: 'bg-warning' },
-  { label: m.coverageNotStarted, className: 'bg-muted ring-1 ring-border ring-inset' },
-];
 
 function Toolbar({
   search,
@@ -372,8 +373,8 @@ function Toolbar({
         className="ml-auto flex flex-wrap gap-x-3.5 gap-y-1 text-[12.5px] text-muted-foreground"
       >
         {LEGEND.map((item) => (
-          <li key={item.label} className="inline-flex items-center gap-1.5">
-            <span className={cn('size-2.5 rounded-[3px]', item.className)} />
+          <li key={item.key} className="inline-flex items-center gap-1.5">
+            <span className={cn('size-2.5 rounded-[3px]', item.swatch)} />
             {item.label}
           </li>
         ))}
@@ -396,9 +397,13 @@ function SharesBar({ counts }: { counts: ProgressCounts }) {
       )}
       className="flex h-2 min-w-[100px] overflow-hidden rounded-full bg-muted"
     >
-      <span className="block h-full bg-success" style={{ width: width(counts.submitted) }} />
-      <span className="block h-full bg-info" style={{ width: width(counts.inProgress) }} />
-      <span className="block h-full bg-warning" style={{ width: width(counts.late) }} />
+      {BAR.map((segment) => (
+        <span
+          key={segment.key}
+          className={cn('block h-full', segment.swatch)}
+          style={{ width: width(counts[segment.key]) }}
+        />
+      ))}
     </div>
   );
 }
@@ -480,12 +485,12 @@ function CoverageTable({
         <ul aria-label={caption}>
           {page.rows.map((row) => (
             <li key={rowKey(row)} className="grid gap-2 border-b px-4 py-3.5">
-              <CardRow label={<EntityName row={row} />} counts={row.counts} />
+              <NarrowCounts label={<EntityName row={row} />} counts={row.counts} />
             </li>
           ))}
         </ul>
         <div className="grid gap-2 bg-background/60 px-4 py-3.5">
-          <CardRow
+          <NarrowCounts
             label={<span className="font-semibold">{totalLabel}</span>}
             counts={totals.counts}
           />
@@ -564,7 +569,7 @@ function CountCells({ counts, total = false }: { counts: ProgressCounts; total?:
 }
 
 /** One reporting entity (or the total) as a list item, for containers too narrow for the table. */
-function CardRow({ label, counts }: { label: ReactNode; counts: ProgressCounts }) {
+function NarrowCounts({ label, counts }: { label: ReactNode; counts: ProgressCounts }) {
   return (
     <>
       <div className="flex items-start justify-between gap-3 text-sm">

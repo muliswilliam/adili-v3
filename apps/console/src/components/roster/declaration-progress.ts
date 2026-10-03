@@ -7,6 +7,7 @@ import type {
   ProgressRow,
 } from '../../server/declarations/client';
 import { cycleLabel } from '../obligations/obligations-query';
+import { type ClientPage, clientPage } from '../paging';
 
 /** Reporting entities per page of the coverage table. */
 export const PROGRESS_PAGE_SIZE = 25;
@@ -20,17 +21,27 @@ export const PROGRESS_SEARCH_MAX = 100;
  * are applied in the browser. Values left at their default are absent; wrong ones are dropped
  * rather than failing.
  */
+/** A biennial cycle key as the declarations service takes it, e.g. `biennial:2027`. */
+export const progressCycleKey = z.string().regex(/^biennial:\d{4}$/);
+
 export const progressSearchSchema = z.object({
-  cycle: z
-    .string()
-    .regex(/^biennial:\d{4}$/)
-    .optional()
-    .catch(undefined),
+  cycle: progressCycleKey.optional().catch(undefined),
   search: z.string().trim().min(1).max(PROGRESS_SEARCH_MAX).optional().catch(undefined),
   page: z.coerce.number().int().min(2).optional().catch(undefined),
 });
 
 export type ProgressSearch = z.infer<typeof progressSearchSchema>;
+
+/**
+ * How the coverage route loads: the service counts the cycle, so a cycle change loads (a cycle
+ * seen before is counted again, as the router reloads a stale match beside another of its route);
+ * a search or page change keeps the counts in hand. No `shouldReload`: one returning false for a
+ * route already on show would serve a cycle's earlier counts when it is chosen again.
+ */
+export const PROGRESS_ROUTE_LOADING = {
+  validateSearch: progressSearchSchema,
+  loaderDeps: ({ search }: { search: ProgressSearch }) => ({ cycle: search.cycle }),
+};
 
 const KEYS = ['notStarted', 'inProgress', 'submitted', 'late'] as const;
 
@@ -77,25 +88,12 @@ export function hasProgress(progress: DeclarationProgress): boolean {
   return obligationTotal(progress.total) > 0;
 }
 
-export interface ProgressPage {
-  rows: ProgressRow[];
-  /** 1-based, clamped to the pages there are. */
-  page: number;
-  pages: number;
-  /** 1-based positions of the first and last row on the page. */
-  from: number;
-  to: number;
-}
-
+/** A page of the coverage table: the reporting entities the search keeps, 25 to a page. */
 export function progressPage(
   rows: readonly ProgressRow[],
   requested: number | undefined,
-): ProgressPage {
-  const pages = Math.max(1, Math.ceil(rows.length / PROGRESS_PAGE_SIZE));
-  const page = Math.min(Math.max(1, requested ?? 1), pages);
-  const start = (page - 1) * PROGRESS_PAGE_SIZE;
-  const shown = rows.slice(start, start + PROGRESS_PAGE_SIZE);
-  return { rows: shown, page, pages, from: start + 1, to: start + shown.length };
+): ClientPage<ProgressRow> {
+  return clientPage(rows, requested, PROGRESS_PAGE_SIZE);
 }
 
 export interface ProgressCycle {
@@ -105,11 +103,15 @@ export interface ProgressCycle {
 }
 
 /**
- * The cycle select's options: the cycles opened, oldest first, and the one counted when it has
- * not (the current cycle before its opening day, or one asked for in the URL).
+ * The cycle select's options: the cycles opened, oldest first, the current one (the latest opened,
+ * or the calendar's first while none has, as the service picks it without `cycle`) so there is
+ * always a way back to it, and the one counted (e.g. a later one asked for in the URL).
  */
 export function progressCycles(progress: DeclarationProgress): ProgressCycle[] {
-  const shown = progress.cycles.filter((cycle) => cycle.opened || cycle.key === progress.cycle.key);
+  const current = progress.cycles.filter((cycle) => cycle.opened).at(-1) ?? progress.cycles[0];
+  const shown = progress.cycles.filter(
+    (cycle) => cycle.opened || cycle.key === current?.key || cycle.key === progress.cycle.key,
+  );
   if (!shown.some((cycle) => cycle.key === progress.cycle.key)) shown.push(progress.cycle);
   return shown.map((cycle) => ({
     key: cycle.key,

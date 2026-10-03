@@ -6,6 +6,7 @@ import {
   OBLIGATION_TYPES,
   obligationsQuery,
 } from '../components/obligations/obligations-query';
+import { progressCycleKey } from '../components/roster/declaration-progress';
 import { asDeclarationsViewer } from './as-viewer.server';
 import { commissionSlug } from './commission-slug';
 import {
@@ -41,7 +42,7 @@ export const getCommissionObligationsSummary = createServerFn({ method: 'GET' })
  * The Commission's reporting officers and commission admins; 404 for anyone else.
  */
 export const getDeclarationProgress = createServerFn({ method: 'GET' })
-  .validator(z.object({ slug: commissionSlug, cycle: z.string().max(40).optional() }))
+  .validator(z.object({ slug: commissionSlug, cycle: progressCycleKey.optional() }))
   .handler(({ data }): Promise<DeclarationsResult<DeclarationProgress>> =>
     asDeclarationsViewer((client) =>
       callDeclarations(() =>

@@ -153,6 +153,26 @@ describe('progressCycles', () => {
     ]);
   });
 
+  it('keeps the way back to the current cycle when another is counted', () => {
+    const unopened = {
+      ...progress(),
+      cycle: cycle('biennial:2029', false, '2029-07-04'),
+      cycles: [cycle('biennial:2027', false), cycle('biennial:2029', false, '2029-07-04')],
+    };
+    expect(progressCycles(unopened)).toEqual([
+      { key: 'biennial:2027', label: 'Biennial 2027 (opens 4 Jul 2027)' },
+      { key: 'biennial:2029', label: 'Biennial 2029 (opens 4 Jul 2029)' },
+    ]);
+  });
+
+  it('adds a cycle asked for that the calendar does not list', () => {
+    const unlisted = { ...progress(), cycle: cycle('biennial:1999', false, '1999-07-04') };
+    expect(progressCycles(unlisted).map((option) => option.key)).toEqual([
+      'biennial:2025',
+      'biennial:1999',
+    ]);
+  });
+
   it('leaves out cycles after the current one that have not opened', () => {
     expect(progressCycles(progress())).toEqual([{ key: 'biennial:2025', label: 'Biennial 2025' }]);
   });

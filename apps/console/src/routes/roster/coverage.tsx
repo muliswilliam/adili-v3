@@ -1,9 +1,9 @@
-import { Button, Icon } from '@adili/ui';
+import { Button, Icon, useToast } from '@adili/ui';
 import { Upload04Icon } from '@hugeicons/core-free-icons';
 import { createFileRoute, Link, useMatch, useNavigate, useRouter } from '@tanstack/react-router';
 
 import { CoverageView } from '../../components/roster/coverage-view';
-import { progressSearchSchema } from '../../components/roster/declaration-progress';
+import { PROGRESS_ROUTE_LOADING } from '../../components/roster/declaration-progress';
 import { messages as m } from '../../components/roster/messages';
 import { useRosterCommission } from '../../components/roster/use-roster-commission';
 import { signInRedirect } from '../../components/sign-in-redirect';
@@ -19,10 +19,8 @@ interface CoverageData {
 }
 
 export const Route = createFileRoute('/roster/coverage')({
-  validateSearch: progressSearchSchema,
   // The cycle is counted by the service; the search and the page apply to the counts in hand.
-  loaderDeps: ({ search }) => ({ cycle: search.cycle }),
-  shouldReload: ({ cause }) => cause !== 'stay',
+  ...PROGRESS_ROUTE_LOADING,
   loader: async ({ context, deps, location }): Promise<CoverageData | null> => {
     // The layout shows why there is no workspace; do not fetch the counts.
     if (!context.workspace) return null;
@@ -65,13 +63,16 @@ function CoveragePage({ data }: { data: CoverageData | null }) {
   const match = useMatch({ from: '/roster/coverage', shouldThrow: false });
   const commission = useRosterCommission();
   const readOnly = workspace?.readOnly ?? true;
+  const { toast } = useToast();
 
-  const refresh = () => {
-    if (!data || match?.isFetching) return;
+  /** Reads the counts again, unless a read is under way; whether it did. */
+  const refresh = async (): Promise<boolean> => {
+    if (!data || match?.isFetching) return false;
     // This match alone: the roster layout keeps the Commission it loaded.
-    void router.invalidate({ filter: (candidate) => candidate.routeId === '/roster/coverage' });
+    await router.invalidate({ filter: (candidate) => candidate.routeId === '/roster/coverage' });
+    return true;
   };
-  useRefreshOnFocus(refresh);
+  useRefreshOnFocus(() => void refresh());
 
   return (
     <CoverageView
@@ -82,7 +83,11 @@ function CoveragePage({ data }: { data: CoverageData | null }) {
       }}
       loadedAt={data?.loadedAt ?? null}
       refreshing={Boolean(data && match?.isFetching)}
-      onRefresh={refresh}
+      onRefresh={() => {
+        void refresh().then((refreshed) => {
+          if (refreshed) toast({ title: m.coverageRefreshed });
+        });
+      }}
       noRoster={commission?.ok === true && commission.data.roster.status === 'none'}
       noRosterAction={
         readOnly ? undefined : (

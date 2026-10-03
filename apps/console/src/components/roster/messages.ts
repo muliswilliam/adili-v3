@@ -575,6 +575,7 @@ export const en = {
   coverageUpdated: (time: string) => `Updated ${time}`,
   coverageUpdating: 'Updating…',
   coverageRefresh: 'Refresh counts',
+  coverageRefreshed: 'Counts updated',
   coverageCounts: 'Declaration progress',
   coverageNotStarted: 'Not started',
   coverageInProgress: 'In progress',
