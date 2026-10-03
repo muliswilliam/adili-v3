@@ -116,40 +116,33 @@ export function ReleaseActions(props: ReleaseActionsProps) {
 }
 
 interface PendingKey {
-  /** The key of the action in flight or without an answer yet. */
-  current: () => string;
-  /** The action has its answer: the next one gets a new key, and the draft is cleared. */
-  settle: () => void;
-  /** What was typed with the key (a withdrawal's reason), so a retry sends the same request. */
+  /** The key to send: the pending one of this release, else a new one. */
+  keyFor: () => string;
+  /** What was typed with the pending key (a withdrawal's reason); empty without one. */
   draft: string;
-  setDraft: (draft: string) => void;
+  /**
+   * After an answer: keep `key` (and `draft`) while the outcome is unknown (`mayBeRecorded`), so
+   * the retry or the next opening replays it; otherwise drop it.
+   */
+  settle: (key: string, recorded: boolean, draft?: string) => void;
 }
-
-interface Pending {
-  scope: string;
-  key: string;
-  draft: string;
-}
-
-const fresh = (scope: string): Pending => ({ scope, key: crypto.randomUUID(), draft: '' });
 
 /**
- * One action's pending Idempotency-Key, for one release (`scope`): the route keeps the page
- * mounted when a link opens another release, and that release's action is another request, so it
- * gets a key of its own rather than one the service has seen for the first.
+ * One action's pending Idempotency-Key, as #560's build keeps its year's: null until a request
+ * may have been recorded, then `{ key, releaseId }`. The route keeps the page mounted when a
+ * Versions link opens another release; that release's action is another request, so it gets a
+ * new key rather than one the service has seen (422).
  */
-function usePendingKey(scope: string): PendingKey {
-  const [stored, setStored] = useState(() => fresh(scope));
-  const pending = stored.scope === scope ? stored : fresh(scope);
-  if (pending !== stored) setStored(pending);
+function usePendingKey(releaseId: string): PendingKey {
+  const [pending, setPending] = useState<{ key: string; releaseId: string; draft: string } | null>(
+    null,
+  );
+  const mine = pending?.releaseId === releaseId ? pending : null;
   return {
-    current: () => pending.key,
-    settle: () => {
-      setStored(fresh(scope));
-    },
-    draft: pending.draft,
-    setDraft: (draft) => {
-      setStored({ ...pending, draft });
+    keyFor: () => mine?.key ?? crypto.randomUUID(),
+    draft: mine?.draft ?? '',
+    settle: (key, recorded, draft = '') => {
+      setPending(recorded ? { key, releaseId, draft } : null);
     },
   };
 }
@@ -250,19 +243,21 @@ function useAction({
     call: (key: string) => Promise<Result>,
     done: string,
     ending: (failure: ReleasesFailure) => Ending,
+    draft?: string,
   ) => {
     setBusy(true);
     setError(null);
-    const result = await call(idempotencyKey.current());
+    const key = idempotencyKey.keyFor();
+    const result = await call(key);
     setBusy(false);
     if (result.ok) {
-      idempotencyKey.settle();
+      idempotencyKey.settle(key, false);
       onClose();
       toast({ title: done });
       await router.invalidate();
       return;
     }
-    if (!mayBeRecorded(result)) idempotencyKey.settle();
+    idempotencyKey.settle(key, mayBeRecorded(result), draft);
     const end = ending(result);
     if (end.kind === 'unauthenticated') {
       onUnauthenticated();
@@ -345,8 +340,8 @@ function WithdrawDialog({
 }: ReleaseActionsProps & { idempotencyKey: PendingKey; onClose: () => void }) {
   const { release } = view;
   const fieldId = useId();
-  // Kept with the key: reopening after no answer sends the same reason under the same key.
-  const reason = idempotencyKey.draft;
+  // Kept with a pending key: reopening after no answer sends the same reason under the same key.
+  const [reason, setReason] = useState(idempotencyKey.draft);
   const [reasonError, setReasonError] = useState<string | null>(null);
   const action = useAction({ idempotencyKey, onClose, onUnauthenticated });
   const confirm = () => {
@@ -359,6 +354,7 @@ function WithdrawDialog({
       (key) => withdraw(release.id, reason.trim(), key),
       m.withdrawnToast,
       withdrawEnding,
+      reason,
     );
   };
   return (
@@ -396,7 +392,7 @@ function WithdrawDialog({
           aria-invalid={reasonError ? true : undefined}
           aria-describedby={`${fieldId}-help`}
           onChange={(event) => {
-            idempotencyKey.setDraft(event.target.value);
+            setReason(event.target.value);
             setReasonError(null);
           }}
         />
@@ -505,10 +501,11 @@ function RebuildButton({ view, rebuild, onRebuilt, onUnauthenticated }: ReleaseA
   const next = release.version + 1;
   const run = async () => {
     setBusy(true);
-    const result = await rebuild(release.fy, release.kind, key.current());
+    const sent = key.keyFor();
+    const result = await rebuild(release.fy, release.kind, sent);
     setBusy(false);
+    key.settle(sent, !result.ok && mayBeRecorded(result));
     if (result.ok) {
-      key.settle();
       toast({ title: m.rebuiltToast(result.data.version) });
       onRebuilt(result.data);
       return;
@@ -517,7 +514,6 @@ function RebuildButton({ view, rebuild, onRebuilt, onUnauthenticated }: ReleaseA
       onUnauthenticated();
       return;
     }
-    if (!mayBeRecorded(result)) key.settle();
     toast({
       title: m.rebuildStopped(next),
       description: buildFailure(result, m.rebuildFailed),
