@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  compileReport,
   type FormMResult,
   type FormMWorkspace,
   loadReport,
@@ -801,6 +802,52 @@ describe('the submitted report (S6, S15)', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Download Form M (PDF)' }));
     expect(await screen.findByText('We could not download the file. Try again.')).toBeTruthy();
+  });
+});
+
+describe('a preview (from 1 April)', () => {
+  async function preview(role: string) {
+    resetReportingMock('2027-04-10');
+    setReportingMockLatency(0, { compileMs: 0 });
+    await compileReport(mockReportingClient([SUPERVISOR]), 'psc', 2026);
+    const result = await loadWorkspace(mockReportingClient([role]), 'psc', {
+      fy: 2026,
+      today: '2027-04-10',
+    });
+    setReportingMockLatency(0);
+    render(
+      <ToastProvider>
+        <TooltipProvider>
+          <FormMSignOffView
+            result={result}
+            capabilities={capabilitiesOf([role])}
+            viewerName={NAMES[role] ?? ''}
+            stepUpMarker={null}
+            actions={mockActions(role)}
+            navigation={navigation()}
+            onSelect={vi.fn()}
+            onCompile={vi.fn(() => Promise.resolve({ ok: true, data: null } as const))}
+          />
+        </TooltipProvider>
+      </ToastProvider>,
+    );
+    return screen.getByText(/^Due 31 July 2027/).closest('div') as HTMLElement;
+  }
+
+  it('lets the supervisor fix remarks, but not mark a preview reviewed', async () => {
+    const bar = await preview(SUPERVISOR);
+    expect(
+      screen.getByRole('textbox', { name: /Remarks for Nelson Kibet Cheruiyot/ }),
+    ).toBeTruthy();
+    expect(within(bar).queryByRole('button', { name: 'Mark reviewed' })).toBeNull();
+    expect(within(bar).getByText('Preview. Submit after 30 Jun 2027.')).toBeTruthy();
+  });
+
+  it('lets the commission-admin fill Part I, but never confirm a preview', async () => {
+    const bar = await preview(COMMISSION_ADMIN);
+    expect(screen.getByLabelText('(ii) Contact details')).toBeTruthy();
+    expect(within(bar).queryByRole('button', { name: 'Confirm and submit' })).toBeNull();
+    expect(within(bar).getByText('Preview. Submit after 30 Jun 2027.')).toBeTruthy();
   });
 });
 

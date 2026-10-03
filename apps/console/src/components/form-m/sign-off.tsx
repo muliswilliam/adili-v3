@@ -369,6 +369,7 @@ export function FormMSignOffView({
           }}
         />
       ) : undefined,
+    // A preview is not for sign-off: it is compiled again on 1 July.
     footerActions: (shown, { preview }) => (preview ? null : footerActions(shown)),
     footerNote: (shown) => footerNote(shown),
     banners: () =>
