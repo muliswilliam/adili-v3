@@ -634,9 +634,11 @@ paths:
       summary: Deterministic pattern candidates computed from this and prior years' aggregates (analyst)
       description: >-
         Computed from the year's aggregates as last built and those of the prior years built, at
-        the configured thresholds (`CANDIDATE_*`), ordered by kind then subject (`national`
-        first). Values by kind: `rate-change` {from, to, change, factor} of a non-filer rate year
-        on year; `threshold-breach` {nonFilerRate, threshold}; `chronic-late-reporting` {years}
+        the configured thresholds (`CANDIDATE_*`), ordered by kind, then the largest first (a
+        rate change's points either way, a breaching rate, a run's years, the factor over the
+        national clarification ratio, the points above the size band), then subject (`national`
+        first on a tie). Values by kind: `rate-change` {from, to, change, factor} of a non-filer
+        rate year on year (the filing rate's complement); `threshold-breach` {nonFilerRate, threshold}; `chronic-late-reporting` {years}
         of reports submitted late running; `clarification-ratio-outlier` {clarificationRatio,
         nationalRatio, factor}; `size-band-outlier` {nonFilerRate, peerNonFilerRate, peers,
         bandFrom, bandTo} against the other Commissions with as many officers expected;
@@ -772,12 +774,19 @@ paths:
       summary: Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)
       description: >-
         eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables
-        from the year's national consolidated report and the projection facts, suppresses every
-        figure over fewer than 10 officers (with complementary suppression), and reconciles the
-        national totals with the NCR's: a report submitted or changed since the NCR was built
-        fails with 409 `reconciliation-failed` (`mismatches` lists the totals that differ) and
-        builds nothing. `kind` `snapshot` (the default) builds a mid-year snapshot of the NCR,
-        draft or approved. `kind` `annual` builds a corrected annual release from the approved
+        from the year's national consolidated report's aggregates as last built (a report
+        submitted since changes nothing until the NCR is rebuilt) and the projection facts,
+        suppresses every figure over fewer than 10 officers (with complementary suppression),
+        and reconciles the tables' national totals with the NCR's (409 `reconciliation-failed`,
+        `mismatches` listing the totals that differ, is a fault of the table builder; nothing is
+        built). Access requests are not collected yet: their figures are null and named in each
+        table's `notCollected`. `kind` `snapshot` (the default) builds a snapshot of the NCR,
+        draft or approved, or, before the year's NCR is built, a mid-year snapshot of the live
+        projections: every Commission's counts as its Form M would compile now (filing
+        obligations and clarifications of the year), its status its report's, reconciled with
+        those projections' own national totals and suppressed alike (409 `fy-not-started` for a
+        year that has not started). The release JSON names the source (`national-report` or
+        `live-projections`). `kind` `annual` builds a corrected annual release from the approved
         NCR (409 `ncr-not-approved` before it is approved) while no annual release of the year
         is published (409 `annual-release-published`: withdraw it first); unlike the one built on
         approval it is not published by itself, but deliberately through
@@ -822,13 +831,13 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: 'The year has no national consolidated report (`ncr-not-built`); for an annual release, it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the release does not reconcile with the NCR (`reconciliation-failed`)'
+          description: 'A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the tables do not reconcile with their source (`reconciliation-failed`)'
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '503':
-          description: Object storage could not be reached (`storage-unavailable`)
+          description: Object storage could not be reached (`storage-unavailable`), or the directory for a snapshot of the live projections (`directory-unavailable`)
           content:
             application/problem+json:
               schema:
@@ -1128,7 +1137,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [table, columns, rows, suppression]
+                required: [table, columns, rows, suppression, notCollected]
                 properties:
                   table:
                     $ref: '#/components/schemas/OpenDataTable'
@@ -1149,10 +1158,19 @@ paths:
                         type: integer
                       cellsSuppressed:
                         type: integer
+                        description: Figures hidden by suppression; figures not collected are not counted
+                  notCollected:
+                    type: array
+                    items:
+                      type: string
+                    description: >-
+                      Figures not collected yet: columns, or in `national-totals` measures, whose
+                      values are null for want of data, not suppression (`suppressed` stays
+                      false). Access requests until spec 10 projects them; empty otherwise.
             text/csv:
               schema:
                 type: string
-                description: Header row of the columns, the marker column as `_suppressed` (`true`/`false`); a suppressed figure is an empty cell. RFC 4180, CRLF line ends, UTF-8.
+                description: Header row of the columns, the marker column as `_suppressed` (`true`/`false`); a suppressed or not-collected figure is an empty cell (`notCollected` in the JSON tells them apart). RFC 4180, CRLF line ends, UTF-8.
         '304':
           $ref: '#/components/responses/PublicNotModified'
         '400':

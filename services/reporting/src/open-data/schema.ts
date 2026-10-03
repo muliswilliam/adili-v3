@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm';
 import {
+  check,
   integer,
   pgTable,
   primaryKey,
@@ -13,7 +15,8 @@ import type { FileFormat, ReleaseFileName } from './files.js';
 
 /**
  * Open-data releases (spec 09b): the year's aggregates as six suppressed tables, built from the
- * national consolidated report and versioned per financial year and kind. Two tables:
+ * national consolidated report (or, for a snapshot of a year without one, the live projections)
+ * and versioned per financial year and kind. Two tables:
  *
  * - `open_data_releases`: a release's identity, status and who published or withdrew it, and
  *   its manifest once issued as a Public verifiable document;
@@ -41,10 +44,11 @@ export const openDataReleases = pgTable(
     /** 1, 2, ... per financial year and kind: a corrected release is the next version. */
     version: integer().notNull(),
     status: text().$type<ReleaseStatus>().notNull(),
-    /** The national consolidated report the release was built from and reconciles with. */
-    nationalReportId: uuid()
-      .notNull()
-      .references(() => nationalReports.id),
+    /**
+     * The national consolidated report the release was built from and reconciles with; null for
+     * a snapshot of a year with no NCR yet, built from the live projections.
+     */
+    nationalReportId: uuid().references(() => nationalReports.id),
     builtAt: timestamp({ withTimezone: true }).notNull(),
     /** Who built it (a subject), or null for the release workflow on NCR approval. */
     builtBy: text(),
@@ -72,6 +76,11 @@ export const openDataReleases = pgTable(
   },
   (table) => [
     uniqueIndex('open_data_releases_fy_kind_version_key').on(table.fy, table.kind, table.version),
+    // Only a snapshot is ever built without an NCR.
+    check(
+      'open_data_releases_annual_ncr',
+      sql`${table.kind} <> 'annual' or ${table.nationalReportId} is not null`,
+    ),
   ],
 );
 

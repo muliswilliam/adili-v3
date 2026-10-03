@@ -7,20 +7,24 @@ import { v7 as uuidv7 } from 'uuid';
 
 import { Clock } from '../clock.js';
 import type { ReportingTransaction } from '../compliance-reports/reports.js';
-import { reportReceipts } from '../compliance-reports/schema.js';
+import { aggregateFacts } from '../compliance-reports/form-m.js';
+import { reportReceipts, type ReportCounts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
-import { buildAggregates } from '../national-reports/aggregates.js';
+import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
+import { financialYearAt } from '../financial-year.js';
+import { buildLiveAggregates, type NationalAggregates } from '../national-reports/aggregates.js';
 import { nationalReportAggregates, nationalReports } from '../national-reports/schema.js';
 import {
   ACTION_STEPS,
   actionFacts,
   clarificationFacts,
   determinationFacts,
+  obligationFacts,
   referralFacts,
 } from '../projections/schema.js';
 import { PLATFORM_TENANT } from '../system-context.js';
 import { OPEN_DATA_RELEASE_BUILT, type OpenDataReleaseBuiltData } from './events.js';
-import { CONTENT_TYPES, datasetFiles, objectKeyOf } from './files.js';
+import { CONTENT_TYPES, datasetFiles, objectKeyOf, type ReleaseSourceName } from './files.js';
 import { OpenDataFiles } from './open-data-files.js';
 import { type OpenDataReleaseView, openDataReleaseView } from './representation.js';
 import { openDataFiles, openDataReleases, type ReleaseKind } from './schema.js';
@@ -46,9 +50,18 @@ export interface BuildReleaseRequest {
   releaseId?: string;
 }
 
-/** The year's national consolidated report has not been built: there is nothing to reconcile with. */
+/** The year's national consolidated report has not been built: an annual release needs it. */
 export class NcrNotBuilt extends Error {
   override readonly name = 'NcrNotBuilt';
+}
+
+/** The financial year has not started: a snapshot of it would have nothing to show. */
+export class FyNotStarted extends Error {
+  override readonly name = 'FyNotStarted';
+
+  constructor(fy: number) {
+    super(`The financial year ${String(fy)} has not started`);
+  }
 }
 
 /** An annual release is built from the approved NCR only. */
@@ -69,8 +82,10 @@ export class AnnualReleasePublished extends Error {
 }
 
 /**
- * Reconciliation failed (spec 09b S9): the release's national totals differ from the NCR's at
- * these dot paths (`national.initial.declared`), so nothing was built.
+ * Reconciliation failed (spec 09b S9): the release's national totals differ from those of the
+ * aggregates it was built from at these dot paths (`national.initial.declared`), so nothing was
+ * built. The tables are built from those very aggregates, so this is a fault of the table
+ * builder, never data that moved on.
  */
 export class ReconciliationFailed extends Error {
   override readonly name = 'ReconciliationFailed';
@@ -82,16 +97,28 @@ export class ReconciliationFailed extends Error {
 
 /**
  * Builds an open-data release (spec 09b): tables -> suppression -> reconciliation -> dataset
- * files -> the release, as one step any caller runs, the snapshot endpoint now and
+ * files -> the release, as one step any caller runs, the snapshot endpoint and
  * `OpenDataReleaseWorkflow`'s activity on NCR approval (#352).
  *
- * The tables are built from the year's submitted reports as they are now, aggregated as the NCR
- * aggregates them over the Commissions its report lists, plus the projection facts for what the
- * NCR does not carry. The national totals must equal the NCR's (`ReconciliationFailed`
- * otherwise): a report submitted or changed since the NCR was built fails the build until the
- * NCR is rebuilt. The files (JSON and CSV per table, the release JSON) go to object storage with
- * their SHA-256, and the release is recorded as `preview`, version 1, 2, ... per year and kind,
- * with `open-data.release.built.v1`. The files are written in the recording transaction, under a
+ * The tables are built from the same aggregates as the NCR, plus the projection facts for what
+ * the NCR does not carry:
+ *
+ * - once the year's NCR is built, from its frozen aggregates (`national_report_aggregates`):
+ *   every annual release, and a snapshot of the year. A report submitted after the NCR was
+ *   built changes neither until the NCR is rebuilt, so the release always equals the NCR;
+ * - before then, a snapshot (spec 09b: "a mid-year snapshot ... so that Parliament sees progress
+ *   before July") is built from the live projections: every Commission's counts as its Form M
+ *   would compile them now from the obligation and clarification facts (`aggregateFacts`), over
+ *   the directory's active Commissions (`buildLiveAggregates`). Its status per Commission is
+ *   still its report's, so the year's reporting counts read "not reported" until reports come
+ *   in. A year that has not started has nothing to show (`FyNotStarted`).
+ *
+ * Reconciliation (S9) compares the built tables' national totals with those of the aggregates
+ * they were built from, the NCR's or the live projections' (`ReconciliationFailed` otherwise):
+ * it guards the table builder, not data drift. Suppression is the same either way. The files
+ * (JSON and CSV per table, the release JSON naming the source) go to object storage with their
+ * SHA-256, and the release is recorded as `preview`, version 1, 2, ... per year and kind, with
+ * `open-data.release.built.v1`. The files are written in the recording transaction, under a
  * lock on the year and kind, so a version is never taken twice; a failed build may leave files
  * under an id no release has, which nothing reads.
  *
@@ -99,13 +126,15 @@ export class ReconciliationFailed extends Error {
  * year is published: a corrected one follows the withdrawal of the one published.
  *
  * Throws `NcrNotBuilt`, `NcrNotApproved` (annual), `AnnualReleasePublished` (annual),
- * `ReconciliationFailed` and `OpenDataStorageUnavailable`; the callers map them (HTTP problems,
+ * `FyNotStarted` (snapshot), `ReconciliationFailed`, `DirectoryUnavailable` (a snapshot from the
+ * live projections) and `OpenDataStorageUnavailable`; the callers map them (HTTP problems,
  * non-retryable activity failures).
  */
 @Injectable()
 export class OpenDataReleaseBuilder {
   constructor(
     @InjectDatabase() private readonly db: Database<ReportingSchema>,
+    private readonly directory: DirectoryClient,
     private readonly files: OpenDataFiles,
     private readonly events: EventPublisher,
     private readonly clock: Clock,
@@ -115,49 +144,53 @@ export class OpenDataReleaseBuilder {
     const { fy, kind, builtBy } = request;
     const releaseId = request.releaseId ?? uuidv7();
     const context = { tenant: PLATFORM_TENANT, subject: builtBy ?? 'system:reporting' };
+    // A snapshot of a year without an NCR is of the live projections, over the directory's
+    // Commissions, asked outside the transaction. An NCR is never removed, so one not found now
+    // is the only way the transaction finds none.
+    let live: { commissions: CommissionFacts[] } | undefined;
+    if (kind === 'snapshot' && !(await withTenant(this.db, context, (tx) => hasNcr(tx, fy)))) {
+      if (financialYearAt(this.clock.now()) < fy) throw new FyNotStarted(fy);
+      live = { commissions: await this.directory.listCommissions() };
+    }
     return withTenant(this.db, context, async (tx) => {
       const existing = await releaseView(tx, releaseId);
       if (existing) return existing;
 
-      const [ncr] = await tx
-        .select({
-          id: nationalReports.id,
-          status: nationalReports.status,
-          reference: nationalReports.reference,
-          aggregates: nationalReportAggregates.aggregates,
-        })
-        .from(nationalReports)
-        .innerJoin(
-          nationalReportAggregates,
-          eq(nationalReportAggregates.nationalReportId, nationalReports.id),
-        )
-        .where(eq(nationalReports.fy, fy));
-      if (!ncr) throw new NcrNotBuilt(`No national consolidated report is built for ${String(fy)}`);
-      if (kind === 'annual' && ncr.status !== 'approved') {
-        throw new NcrNotApproved(
-          `The national consolidated report for ${String(fy)} is not approved`,
-        );
+      const ncr = await ncrOf(tx, fy);
+      if (kind === 'annual') {
+        if (!ncr)
+          throw new NcrNotBuilt(`No national consolidated report is built for ${String(fy)}`);
+        if (ncr.status !== 'approved') {
+          throw new NcrNotApproved(
+            `The national consolidated report for ${String(fy)} is not approved`,
+          );
+        }
       }
       // One build per year and kind at a time: the version is the next one.
       await lockReleasesOf(tx, fy, kind);
       // A corrected annual release is built once the published one is withdrawn.
       await noPublishedAnnualBesides(tx, { id: releaseId, fy, kind });
 
-      const receipts = await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy));
-      const aggregates = buildAggregates({
-        fy,
-        commissions: Object.entries(ncr.aggregates.byCommission).map(([slug, row]) => ({
-          slug,
-          name: row.name,
-          issuerCode: slug.toUpperCase(),
-        })),
-        receipts,
-      });
+      let aggregates: NationalAggregates;
+      let source: ReleaseSourceName;
+      if (ncr) {
+        aggregates = ncr.aggregates;
+        source = 'national-report';
+      } else {
+        if (!live) throw new Error(`The NCR for ${String(fy)} vanished while a release was built`);
+        aggregates = buildLiveAggregates({
+          fy,
+          commissions: live.commissions,
+          counts: await liveCounts(tx, fy),
+          receipts: await tx.select().from(reportReceipts).where(eq(reportReceipts.fy, fy)),
+        });
+        source = 'live-projections';
+      }
       const built = buildReleaseTables(
         { aggregates, compliance: await complianceCounts(tx, fy) },
         { threshold: SUPPRESSION_THRESHOLD },
       );
-      const mismatches = reconcile(built.totals, ncr.aggregates);
+      const mismatches = reconcile(built.totals, aggregates);
       if (mismatches.length > 0) throw new ReconciliationFailed(mismatches);
 
       const [latest] = await tx
@@ -174,7 +207,8 @@ export class OpenDataReleaseBuilder {
           kind,
           version,
           builtAt: builtAt.toISOString(),
-          ncrReference: ncr.status === 'approved' ? ncr.reference : null,
+          source,
+          ncrReference: ncr?.status === 'approved' ? ncr.reference : null,
           suppression: { threshold: SUPPRESSION_THRESHOLD },
         },
         built.tables,
@@ -195,7 +229,7 @@ export class OpenDataReleaseBuilder {
         kind,
         version,
         status: 'preview',
-        nationalReportId: ncr.id,
+        nationalReportId: ncr?.id ?? null,
         builtAt,
         builtBy,
       });
@@ -260,6 +294,70 @@ export async function noPublishedAnnualBesides(
     )
     .limit(1);
   if (published) throw new AnnualReleasePublished(release.fy);
+}
+
+/** Whether the year's national consolidated report is built. */
+async function hasNcr(tx: ReportingTransaction, fy: number): Promise<boolean> {
+  return (await ncrOf(tx, fy)) !== undefined;
+}
+
+/** The year's national consolidated report with its aggregates as last built; undefined for none. */
+async function ncrOf(tx: ReportingTransaction, fy: number) {
+  const [ncr] = await tx
+    .select({
+      id: nationalReports.id,
+      status: nationalReports.status,
+      reference: nationalReports.reference,
+      aggregates: nationalReportAggregates.aggregates,
+    })
+    .from(nationalReports)
+    .innerJoin(
+      nationalReportAggregates,
+      eq(nationalReportAggregates.nationalReportId, nationalReports.id),
+    )
+    .where(eq(nationalReports.fy, fy));
+  return ncr;
+}
+
+/**
+ * Every Commission's Form M counts for the year as they would compile now, from the obligation
+ * and clarification facts (`aggregateFacts`, as the compile reads them), by slug. Read as the
+ * platform: the facts are every Commission's.
+ */
+async function liveCounts(
+  tx: ReportingTransaction,
+  fy: number,
+): Promise<Map<string, ReportCounts>> {
+  const obligations = await tx
+    .select({
+      tenant: obligationFacts.tenant,
+      obligationId: obligationFacts.obligationId,
+      type: obligationFacts.type,
+      statementDate: obligationFacts.statementDate,
+      status: obligationFacts.status,
+      filedAt: obligationFacts.filedAt,
+      late: obligationFacts.late,
+    })
+    .from(obligationFacts)
+    .where(eq(obligationFacts.fy, fy));
+  const clarifications = await tx
+    .select({
+      tenant: clarificationFacts.tenant,
+      clarificationId: clarificationFacts.clarificationId,
+      issuedAt: clarificationFacts.issuedAt,
+    })
+    .from(clarificationFacts)
+    .where(eq(clarificationFacts.fy, fy));
+  const tenants = new Set([...obligations, ...clarifications].map((row) => row.tenant));
+  return new Map(
+    [...tenants].map((tenant) => [
+      tenant,
+      aggregateFacts(
+        obligations.filter((row) => row.tenant === tenant),
+        clarifications.filter((row) => row.tenant === tenant),
+      ).counts,
+    ]),
+  );
 }
 
 /** A release with its files; undefined for none. */

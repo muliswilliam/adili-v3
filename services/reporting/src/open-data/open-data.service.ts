@@ -5,14 +5,16 @@ import { asc, desc } from 'drizzle-orm';
 
 import { requireEacc, requireEaccSupervisor } from '../access.js';
 import type { ReportingSchema } from '../db/schema.js';
+import { DirectoryUnavailable } from '../directory/directory-client.js';
 import { DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { officerOf } from '../officer.js';
-import { badGateway, conflict, notFound } from '../problems.js';
+import { badGateway, conflict, directoryUnavailable, notFound } from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { OpenDataStorageUnavailable } from './open-data-files.js';
 import {
   AnnualReleasePublished,
+  FyNotStarted,
   NcrNotApproved,
   NcrNotBuilt,
   OpenDataReleaseBuilder,
@@ -69,13 +71,16 @@ export class OpenDataService {
   }
 
   /**
-   * Builds a release of the year as a preview: a snapshot of the NCR as it is, or an annual
-   * release of the approved NCR (a corrected one, the next annual version, after the published
-   * one is withdrawn; it is published deliberately). 409 `ncr-not-built` before the year's NCR is
-   * built, `ncr-not-approved` for an annual release before it is approved,
-   * `annual-release-published` for an annual release while one of the year is published,
-   * `reconciliation-failed` when the reports have changed since the NCR was built; 503
-   * `storage-unavailable` while object storage cannot be reached.
+   * Builds a release of the year as a preview: a snapshot (of the NCR's aggregates once built, of
+   * the live projections before then, so a year in progress can be shown), or an annual release
+   * of the approved NCR (a corrected one, the next annual version, after the published one is
+   * withdrawn; it is published deliberately). 409 `fy-not-started` for a snapshot of a year not
+   * started, `ncr-not-built` for an annual release before the year's NCR is built,
+   * `ncr-not-approved` before it is approved, `annual-release-published` for an annual release
+   * while one of the year is published, `reconciliation-failed` when the tables' national totals
+   * differ from their source's (a fault of the table builder); 503 `storage-unavailable` while
+   * object storage cannot be reached, `directory-unavailable` while the directory cannot (a
+   * snapshot of the live projections).
    */
   async build(principal: Principal, fy: number, kind: ReleaseKind): Promise<OpenDataReleaseView> {
     requireEacc(principal, EACC_ONLY);
@@ -85,7 +90,13 @@ export class OpenDataService {
       if (error instanceof NcrNotBuilt) {
         throw conflict(
           'ncr-not-built',
-          'Build the national consolidated report for the year before a release of it.',
+          'Build the national consolidated report for the year before an annual release of it.',
+        );
+      }
+      if (error instanceof FyNotStarted) {
+        throw conflict(
+          'fy-not-started',
+          'The financial year has not started: there is nothing to release for it yet.',
         );
       }
       if (error instanceof NcrNotApproved) {
@@ -102,12 +113,13 @@ export class OpenDataService {
             title: 'Conflict',
             status: HttpStatus.CONFLICT,
             detail:
-              'The release does not reconcile with the national consolidated report: the submitted reports have changed since it was built. Rebuild the report, then the release.',
+              'The release tables do not reconcile with the national totals they were built from, so nothing was built. Report this fault to the platform team.',
           },
           { code: 'reconciliation-failed', mismatches: [...error.mismatches] },
         );
       }
       if (error instanceof OpenDataStorageUnavailable) throw storageUnavailable();
+      if (error instanceof DirectoryUnavailable) throw directoryUnavailable();
       throw error;
     }
   }

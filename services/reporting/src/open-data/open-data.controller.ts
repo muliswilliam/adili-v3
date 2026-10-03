@@ -70,9 +70,9 @@ export class OpenDataController {
   @ApiProblemResponse(403, EACC_ONLY)
   @ApiProblemResponse(
     409,
-    'Problem code `ncr-not-built`, `ncr-not-approved`, `annual-release-published` or `reconciliation-failed`',
+    'Problem code `fy-not-started`, `ncr-not-built`, `ncr-not-approved`, `annual-release-published` or `reconciliation-failed`',
   )
-  @ApiProblemResponse(503, 'Object storage could not be reached')
+  @ApiProblemResponse(503, 'Object storage or the directory could not be reached')
   build(
     @CurrentPrincipal() principal: Principal,
     @Body(new ZodValidationPipe(buildBody)) body: BuildBody,

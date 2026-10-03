@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAggregates } from '../../src/national-reports/aggregates.js';
+import { buildAggregates, buildLiveAggregates } from '../../src/national-reports/aggregates.js';
 import { datasetFiles, sha256, tableCsv, tableJson } from '../../src/open-data/files.js';
 import {
   buildReleaseTables,
@@ -155,20 +155,38 @@ describe('open data release tables (S4)', () => {
   });
 
   it('suppresses a small Commission in every per-Commission table, and the next smallest', () => {
-    const suppressed = (table: 'compliance-by-commission' | 'access-requests') =>
-      tables[table].rows.filter((row) => row.suppressed).map((row) => row.commission);
+    const suppressed = tables['compliance-by-commission'].rows
+      .filter((row) => row.suppressed)
+      .map((row) => row.commission);
     // wrc (5 officers) is suppressed; nlc (13, the next fewest) protects it in the totals.
-    expect(suppressed('compliance-by-commission')).toEqual(['nlc', 'wrc']);
-    expect(suppressed('access-requests')).toEqual(['nlc', 'wrc']);
-    expect(tables['access-requests'].rows.find((row) => row.commission === 'wrc')).toEqual({
-      commission: 'wrc',
-      commissionName: 'WRC',
-      received: null,
-      granted: null,
-      declined: null,
-      suppressed: true,
+    expect(suppressed).toEqual(['nlc', 'wrc']);
+  });
+
+  it('publishes access requests as not collected: null, unsuppressed, named in notCollected', () => {
+    // The Form M zeros (and psc's 3 received) are placeholders until spec 10 projects them.
+    expect(tables['access-requests'].notCollected).toEqual(['received', 'granted', 'declined']);
+    for (const row of tables['access-requests'].rows) {
+      expect(row).toMatchObject({
+        received: null,
+        granted: null,
+        declined: null,
+        suppressed: false,
+      });
+    }
+    expect(tables['national-totals'].notCollected).toEqual([
+      'accessRequestsReceived',
+      'accessRequestsGranted',
+      'accessRequestsDeclined',
+    ]);
+    expect(national('accessRequestsReceived')).toEqual({
+      measure: 'accessRequestsReceived',
+      value: null,
+      suppressed: false,
     });
-    expect(national('accessRequestsReceived')).toMatchObject({ value: 5, suppressed: false });
+    for (const name of OPEN_DATA_TABLES) {
+      if (name === 'access-requests' || name === 'national-totals') continue;
+      expect(tables[name].notCollected, name).toEqual([]);
+    }
   });
 
   it('counts the suppressed figures of each table', () => {
@@ -181,7 +199,7 @@ describe('open data release tables (S4)', () => {
       'compliance-by-commission': { threshold: 10, cellsSuppressed: 20 },
       'by-entity-type': { threshold: 10, cellsSuppressed: 0 },
       'by-cycle': { threshold: 10, cellsSuppressed: 0 },
-      'access-requests': { threshold: 10, cellsSuppressed: 6 },
+      'access-requests': { threshold: 10, cellsSuppressed: 0 },
       'national-totals': { threshold: 10, cellsSuppressed: 0 },
     });
   });
@@ -200,6 +218,7 @@ describe('open data release tables (S4)', () => {
       ],
       rows: [],
       suppression: { threshold: 10, cellsSuppressed: 0 },
+      notCollected: [],
     });
   });
 
@@ -214,14 +233,27 @@ describe('open data release tables (S4)', () => {
 
 describe('open data files', () => {
   it('writes CSV with a header row, empty suppressed cells and a _suppressed column', () => {
+    const csv = tableCsv(tables['compliance-by-commission']).toString('utf8').split('\r\n');
+    expect(csv).toEqual([
+      'commission,commissionName,determinationsCompliant,determinationsNonCompliant,determinationsFurtherAction,clarificationsIssued,clarificationsResolved,actionsNoticeToComply,actionsWarning,actionsSalaryStoppage,actionsDisciplinaryReferral,referrals,_suppressed',
+      'jsc,JSC,,,,,,,,,,,false',
+      'nlc,NLC,,,,,,,,,,,true',
+      'psc,PSC,2,1,0,6,1,2,1,0,0,1,false',
+      'tsc,TSC,1,0,1,3,0,1,0,0,0,0,false',
+      'wrc,WRC,,,,,,,,,,,true',
+      '',
+    ]);
+  });
+
+  it('writes figures not collected as empty cells, unsuppressed', () => {
     const csv = tableCsv(tables['access-requests']).toString('utf8').split('\r\n');
     expect(csv).toEqual([
       'commission,commissionName,received,granted,declined,_suppressed',
       'jsc,JSC,,,,false',
-      'nlc,NLC,,,,true',
-      'psc,PSC,3,2,1,false',
-      'tsc,TSC,1,1,0,false',
-      'wrc,WRC,,,,true',
+      'nlc,NLC,,,,false',
+      'psc,PSC,,,,false',
+      'tsc,TSC,,,,false',
+      'wrc,WRC,,,,false',
       '',
     ]);
   });
@@ -232,6 +264,7 @@ describe('open data files', () => {
       columns: ['commissionName', 'received'],
       rows: [{ commissionName: 'Teachers, "Service"', received: 1 }],
       suppression: { threshold: 10, cellsSuppressed: 0 },
+      notCollected: [],
     });
     expect(csv.toString('utf8')).toBe('commissionName,received\r\n"Teachers, ""Service""",1\r\n');
   });
@@ -244,6 +277,7 @@ describe('open data files', () => {
         kind: 'snapshot',
         version: 1,
         builtAt: '2028-08-20T07:00:00.000Z',
+        source: 'national-report',
         ncrReference: null,
         suppression: { threshold: 10 },
       },
@@ -271,7 +305,30 @@ describe('open data reconciliation (S9)', () => {
     expect(reconcile(built.totals, aggregates)).toEqual([]);
   });
 
-  it('names every national total that differs from the NCR', () => {
+  it('reconciles a release of the live projections with their own national totals', () => {
+    const live = buildLiveAggregates({
+      fy: RELEASE_FY,
+      commissions: RELEASE_COMMISSIONS.map((slug) => ({
+        slug,
+        issuerCode: slug.toUpperCase(),
+        name: slug.toUpperCase(),
+      })),
+      counts: new Map(Object.entries(RELEASE_COUNTS)),
+      receipts: [],
+    });
+    const release = buildReleaseTables({ aggregates: live, compliance: RELEASE_COMPLIANCE });
+    expect(reconcile(release.totals, live)).toEqual([]);
+    // Nothing reported yet, but every Commission's numbers as projected: jsc's are zeros.
+    expect(live.reporting).toMatchObject({ commissions: 5, reported: 0, notReported: 5 });
+    expect(live.national.all).toEqual(aggregates.national.all);
+    expect(live.byCommission.jsc).toMatchObject({
+      status: 'not-reported',
+      initial: { expected: 0, declared: 0, notDeclared: 0, rate: null },
+      clarifications: 0,
+    });
+  });
+
+  it('names every national total that differs from the NCR; access requests, not collected, are not compared', () => {
     const ncr = structuredClone(aggregates);
     ncr.national.initial.declared += 1;
     ncr.national.all.declared += 1;
@@ -281,7 +338,6 @@ describe('open data reconciliation (S9)', () => {
       'reporting.late',
       'national.initial.declared',
       'national.all.declared',
-      'national.accessRequests.received',
     ]);
   });
 });

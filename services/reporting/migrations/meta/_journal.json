@@ -85,6 +85,13 @@
       "when": 1791023654516,
       "tag": "0011_open_data_publication",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791026735398,
+      "tag": "0012_open_data_live_snapshots",
+      "breakpoints": true
     }
   ]
 }

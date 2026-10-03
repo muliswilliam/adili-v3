@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { openDataReleases, reportReceipts } from '../../src/db/schema.js';
+import type { NationalAggregates } from '../../src/national-reports/aggregates.js';
 import { nationalReportApprovalWorkflowId } from '../../src/national-reports/contract.js';
 import {
   OPEN_DATA_RELEASE_BUILT,
@@ -27,7 +28,7 @@ import { givenReleaseYear } from './release-year.js';
  * Temporal, with documents and the open-data bucket faked. FY 2027 as release-fixtures.ts has it.
  *
  * - S5: an EACC supervisor approves the year's NCR, and `OpenDataReleaseWorkflow` builds the annual
- *   release from it (reconciled), issues its manifest through documents as a Public document
+ *   release from its aggregates (reconciled; a report changed since does not hold it back), issues its manifest through documents as a Public document
  *   (tables, rows, hidden cells, hashes, version, year, kind) and publishes it, by the approver,
  *   with `open-data.release.built.v1` and `published.v1` carrying ids only.
  * - S6: an analyst's snapshot preview is published by an EACC supervisor only: an analyst and a
@@ -81,10 +82,10 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     api.clock.set(BUILT_AT);
   });
 
-  async function ncrBuilt(): Promise<{ id: string }> {
+  async function ncrBuilt(): Promise<{ id: string; aggregates: NationalAggregates }> {
     const response = await api.send('POST', `${NCR}/build`, ANALYST);
     expect(response.statusCode, response.body).toBe(200);
-    return response.json<{ id: string }>();
+    return response.json<{ id: string; aggregates: NationalAggregates }>();
   }
 
   async function snapshotBuilt(): Promise<OpenDataReleaseView> {
@@ -137,9 +138,12 @@ describe('Open-data release publication (S5, S6, S7)', () => {
   const build = (caller: Caller, body: unknown) =>
     api.send('POST', RELEASES, caller, body, { 'idempotency-key': randomUUID() });
 
-  /** The year's NCR approved: its annual release built, certified and published by the workflow. */
-  async function annualPublished(): Promise<OpenDataReleaseView> {
-    const ncr = await ncrBuilt();
+  /**
+   * The year's NCR (`ncr`, or built now) approved: its annual release built, certified and
+   * published by the workflow.
+   */
+  async function annualPublished(built?: { id: string }): Promise<OpenDataReleaseView> {
+    const ncr = built ?? (await ncrBuilt());
     api.clock.set(PUBLISHED_AT);
     const approved = await api.send('POST', `${NCR}/approve`, SUPERVISOR, undefined, {
       'idempotency-key': randomUUID(),
@@ -592,10 +596,10 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     }
   });
 
-  it('S5: a release that does not reconcile is not published; the approval stands', async () => {
+  it('S5, S9: a report changed after the NCR was built does not hold the annual release back: built from the approved NCR, its totals are the NCR’s', async () => {
     await givenReleaseYear(api);
     const ncr = await ncrBuilt();
-    // A report changes after the NCR was built: the release no longer reconciles with it.
+    // A report changes after the NCR was built (a correction the NCR has not taken in).
     await api.asPlatform(async (tx) => {
       const [receipt] = await tx
         .select()
@@ -613,25 +617,16 @@ describe('Open-data release publication (S5, S6, S7)', () => {
         .where(eq(reportReceipts.reportId, receipt.reportId));
     });
 
-    const approved = await api.send('POST', `${NCR}/approve`, SUPERVISOR, undefined, {
-      'idempotency-key': randomUUID(),
-    });
-    expect(approved.statusCode, approved.body).toBe(200);
-    const workflowId = openDataReleaseWorkflowId({
-      releaseId: annualReleaseIdOf(ncr.id),
-      fy: RELEASE_FY,
-      kind: 'annual',
-    });
-    started.push(workflowId, nationalReportApprovalWorkflowId(ncr.id));
+    const release = await annualPublished(ncr);
 
-    await expect(api.temporal.workflow.getHandle(workflowId).result()).rejects.toThrow();
-    await vi.waitFor(async () => {
-      const description = await api.temporal.workflow.getHandle(workflowId).describe();
-      expect(description.status.name).toBe('FAILED');
-    });
-    expect(await releases()).toEqual([]);
-    expect(manifests()).toEqual([]);
-    expect(await api.events(OPEN_DATA_RELEASE_PUBLISHED)).toEqual([]);
+    const totals = storedTable(release.id, 'national-totals');
+    const value = (measure: string) => totals.rows.find((row) => row.measure === measure)?.value;
+    expect(value('expected')).toBe(ncr.aggregates.national.all.expected);
+    expect(value('filed')).toBe(ncr.aggregates.national.all.declared);
+    expect(value('nonFilers')).toBe(ncr.aggregates.national.all.notDeclared);
+    expect(value('clarificationsIssued')).toBe(ncr.aggregates.national.clarifications);
+    expect(value('commissionsReported')).toBe(ncr.aggregates.reporting.reported);
+    expect(manifests()).toHaveLength(1);
   });
 });
 

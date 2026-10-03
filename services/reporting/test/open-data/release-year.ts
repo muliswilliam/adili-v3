@@ -8,6 +8,7 @@ import {
   clarificationFacts,
   complianceReports,
   determinationFacts,
+  obligationFacts,
   referralFacts,
   reportReceipts,
 } from '../../src/db/schema.js';
@@ -148,6 +149,63 @@ async function givenFacts(
       },
     ]);
   });
+}
+
+/**
+ * FY 2027 in progress, as the live projections hold it (no report submitted yet): each
+ * Commission's filing obligations and clarifications as its Form M would compile to the counts it
+ * reports (`RELEASE_COUNTS`; a late filer and an unfiled obligation are both non-filers), plus a
+ * cancelled obligation and another year's, which count nowhere; and the compliance facts.
+ */
+export async function givenProjectedYear(api: ReportingApi): Promise<void> {
+  const at = new Date('2027-11-15T09:00:00.000Z');
+  for (const [tenant, counts] of Object.entries(RELEASE_COUNTS)) {
+    const rows: (typeof obligationFacts.$inferInsert)[] = [];
+    for (const type of ['initial', 'biennial', 'final'] as const) {
+      const { expected, declared } = counts[type];
+      for (let i = 0; i < expected; i += 1) {
+        const filedOnTime = i < declared;
+        // The first non-filer filed late; the rest have not filed.
+        const filedLate = i === declared;
+        rows.push({
+          obligationId: randomUUID(),
+          tenant,
+          type,
+          fy: RELEASE_FY,
+          statementDate: '2027-09-01',
+          dueDate: '2027-10-01',
+          status: filedOnTime || filedLate ? 'filed' : 'overdue',
+          statusAt: at,
+          filedAt: filedOnTime || filedLate ? at : null,
+          late: filedLate,
+        });
+      }
+    }
+    rows.push(
+      { obligationId: randomUUID(), tenant, type: 'initial', fy: RELEASE_FY, status: 'cancelled' },
+      { obligationId: randomUUID(), tenant, type: 'initial', fy: RELEASE_FY - 1, status: 'due' },
+    );
+    await api.asPlatform(async (tx) => {
+      await tx.insert(obligationFacts).values(rows);
+      // givenFacts issues one open clarification and those resolved: these make up the rest.
+      const others =
+        counts.clarifications - 1 - (RELEASE_COMPLIANCE[tenant]?.clarificationsResolved ?? 0);
+      for (let i = 0; i < others; i += 1) {
+        await tx.insert(clarificationFacts).values({
+          clarificationId: randomUUID(),
+          tenant,
+          caseId: randomUUID(),
+          fy: RELEASE_FY,
+          issuedAt: at,
+          status: 'responded',
+          statusAt: at,
+        });
+      }
+    });
+  }
+  for (const [tenant, counts] of Object.entries(RELEASE_COMPLIANCE)) {
+    await givenFacts(api, tenant, counts);
+  }
 }
 
 /** FY 2027 as the fixtures have it: the reports submitted and the projection facts. */

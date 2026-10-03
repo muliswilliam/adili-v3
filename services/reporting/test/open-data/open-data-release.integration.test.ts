@@ -6,17 +6,29 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
 import { openDataFiles, openDataReleases } from '../../src/db/schema.js';
-import type { NationalAggregates } from '../../src/national-reports/aggregates.js';
+import {
+  buildLiveAggregates,
+  type NationalAggregates,
+} from '../../src/national-reports/aggregates.js';
 import { OPEN_DATA_RELEASE_BUILT } from '../../src/open-data/events.js';
 import { sha256 } from '../../src/open-data/files.js';
 import { NcrNotApproved, OpenDataReleaseBuilder } from '../../src/open-data/release-builder.js';
 import type { OpenDataReleaseView } from '../../src/open-data/representation.js';
-import { buildReleaseTables, OPEN_DATA_TABLES } from '../../src/open-data/tables.js';
+import {
+  buildReleaseTables,
+  OPEN_DATA_TABLES,
+  type OpenDataTable,
+} from '../../src/open-data/tables.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { section } from '../support/receipts.js';
 import { type Caller, type ReportingApi, startReportingApi } from '../support/reporting-api.js';
-import { RELEASE_COMMISSIONS, RELEASE_COMPLIANCE, RELEASE_FY } from './release-fixtures.js';
-import { givenReleaseYear, givenReportSubmitted } from './release-year.js';
+import {
+  RELEASE_COMMISSIONS,
+  RELEASE_COMPLIANCE,
+  RELEASE_COUNTS,
+  RELEASE_FY,
+} from './release-fixtures.js';
+import { givenProjectedYear, givenReleaseYear, givenReportSubmitted } from './release-year.js';
 
 /**
  * S4, S6 (the snapshot build) and S9 through the HTTP API against Postgres, with the open-data
@@ -25,8 +37,10 @@ import { givenReleaseYear, givenReportSubmitted } from './release-year.js';
  * or not counted. An EACC analyst or supervisor builds a snapshot of the year from its national
  * consolidated report: a `preview` release, version 1 then 2, its twelve table files and the
  * release JSON in the bucket with the SHA-256 recorded, the tables suppressed, and
- * `open-data.release.built.v1` with ids only. A report that changed since the NCR was built fails
- * reconciliation and builds nothing. The authorisation rows of the matrix.
+ * `open-data.release.built.v1` with ids only. The release is the NCR's frozen aggregates: a report
+ * submitted since the NCR was built changes nothing until the NCR is rebuilt. Before the year has
+ * an NCR (mid-year), a snapshot is built from the live projections. Access requests are published
+ * as not collected. The authorisation rows of the matrix.
  */
 describe('Open-data release snapshot build (S4, S6, S9)', () => {
   let api: ReportingApi;
@@ -122,6 +136,7 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
       kind: 'snapshot',
       version: 1,
       builtAt: BUILT_AT,
+      source: 'national-report',
       ncrReference: null,
       suppression: { threshold: 10 },
       tables: release.tables,
@@ -180,8 +195,56 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     ).toEqual([
       'commission,commissionName,received,granted,declined,_suppressed',
       'jsc,Judicial Service Commission,,,,false',
-      'nlc,NLC Commission,,,,true',
+      'nlc,NLC Commission,,,,false',
     ]);
+  });
+
+  it('S4: access requests are published as not collected: null, unsuppressed, named in notCollected', async () => {
+    await givenTheYear();
+    await ncrBuilt();
+
+    const release = await snapshotBuilt();
+
+    const access = JSON.parse(
+      stored(release.id, 'access-requests.json').toString('utf8'),
+    ) as OpenDataTable;
+    expect(access.notCollected).toEqual(['received', 'granted', 'declined']);
+    expect(access.suppression.cellsSuppressed).toBe(0);
+    // psc filed 3 received, 2 granted, 1 declined on its Form M: placeholders, not data.
+    expect(access.rows.find((row) => row.commission === 'psc')).toEqual({
+      commission: 'psc',
+      commissionName: 'Public Service Commission',
+      received: null,
+      granted: null,
+      declined: null,
+      suppressed: false,
+    });
+    expect(stored(release.id, 'access-requests.csv').toString('utf8').split('\r\n')).toContain(
+      'psc,Public Service Commission,,,,false',
+    );
+    const totals = JSON.parse(
+      stored(release.id, 'national-totals.json').toString('utf8'),
+    ) as OpenDataTable;
+    expect(totals.notCollected).toEqual([
+      'accessRequestsReceived',
+      'accessRequestsGranted',
+      'accessRequestsDeclined',
+    ]);
+    expect(totals.rows.filter((row) => totals.notCollected.includes(String(row.measure)))).toEqual([
+      { measure: 'accessRequestsReceived', value: null, suppressed: false },
+      { measure: 'accessRequestsGranted', value: null, suppressed: false },
+      { measure: 'accessRequestsDeclined', value: null, suppressed: false },
+    ]);
+    const filing = JSON.parse(
+      stored(release.id, 'filing-by-commission.json').toString('utf8'),
+    ) as OpenDataTable;
+    expect(filing.notCollected).toEqual([]);
+    expect(
+      contractErrors(
+        okResponse('/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}', 'get'),
+        access,
+      ),
+    ).toEqual([]);
   });
 
   it('S6: a supervisor builds the next version; both list for EACC, the latest first', async () => {
@@ -228,9 +291,9 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     expect(missingKey.statusCode).toBe(400);
   });
 
-  it('S9: a report changed since the NCR was built fails reconciliation and builds nothing', async () => {
+  it('S9: a report submitted after the NCR was built leaves the snapshot equal to the NCR; a rebuild takes it in', async () => {
     await givenTheYear();
-    await ncrBuilt();
+    const aggregates = await ncrBuilt();
     // jsc reports after the NCR was built.
     await givenSubmitted('jsc', {
       initial: section(30, 30),
@@ -240,26 +303,29 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
       accessRequests: { received: 0, granted: 0, declined: 0 },
     });
 
-    const response = await buildSnapshot(ANALYST);
+    const release = await snapshotBuilt();
 
-    expect(response.statusCode, response.body).toBe(409);
-    const problem = response.json<{ code: string; mismatches: string[] }>();
-    expect(problem.code).toBe('reconciliation-failed');
-    expect(problem.mismatches).toEqual(
-      expect.arrayContaining([
-        'reporting.reported',
-        'reporting.notReported',
-        'national.initial.expected',
-        'national.all.declared',
-      ]),
-    );
-    expect(api.files.objects.size).toBe(0);
-    expect(await api.asPlatform((tx) => tx.select().from(openDataReleases))).toEqual([]);
-    expect(await api.events(OPEN_DATA_RELEASE_BUILT)).toEqual([]);
+    // Built from the NCR's frozen aggregates: jsc is still not reported.
+    const expected = buildReleaseTables({ aggregates, compliance: RELEASE_COMPLIANCE }).tables;
+    for (const table of OPEN_DATA_TABLES) {
+      expect(JSON.parse(stored(release.id, `${table}.json`).toString('utf8')), table).toEqual(
+        expected[table],
+      );
+    }
+    const value = (releaseId: string, measure: string) =>
+      (
+        JSON.parse(stored(releaseId, 'national-totals.json').toString('utf8')) as OpenDataTable
+      ).rows.find((row) => row.measure === measure)?.value;
+    expect(value(release.id, 'commissionsNotReported')).toBe(1);
+    expect(value(release.id, 'expected')).toBe(aggregates.national.all.expected);
 
-    // Rebuilt from the reports as they are now, the NCR and the release reconcile.
-    await ncrBuilt();
-    expect(await snapshotBuilt()).toMatchObject({ version: 1 });
+    // Rebuilt from the reports as they are now, the NCR and the next release take jsc in.
+    const rebuilt = await ncrBuilt();
+    const next = await snapshotBuilt();
+    expect(next).toMatchObject({ version: 2 });
+    expect(value(next.id, 'commissionsNotReported')).toBe(0);
+    expect(value(next.id, 'expected')).toBe(rebuilt.national.all.expected);
+    expect(rebuilt.national.all.expected).toBe(aggregates.national.all.expected + 40);
   });
 
   it('S9: the release national totals equal the NCR totals', async () => {
@@ -277,17 +343,126 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     expect(value('nonFilers')).toBe(aggregates.national.all.notDeclared);
     expect(value('filingRate')).toBe(aggregates.national.all.rate);
     expect(value('clarificationsIssued')).toBe(aggregates.national.clarifications);
-    expect(value('accessRequestsReceived')).toBe(aggregates.national.accessRequests.received);
+    // Not collected yet: null, whatever the Form Ms carry.
+    expect(value('accessRequestsReceived')).toBeNull();
     expect(value('commissionsReportedLate')).toBe(aggregates.reporting.late);
   });
 
-  it('409 ncr-not-built before the year’s NCR is built', async () => {
+  it('S6: a mid-year snapshot of a year in progress is built from the live projections, reconciled with them, and published deliberately', async () => {
+    // February 2028: FY 2027 is in progress, no report is due and no NCR is built.
+    api.clock.set('2028-02-15T07:00:00.000Z');
+    await givenProjectedYear(api);
+
+    const release = await snapshotBuilt(SUPERVISOR);
+
+    expect(contractErrors(okResponse(RELEASES, 'post', 202), release)).toEqual([]);
+    expect(release).toMatchObject({
+      fy: RELEASE_FY,
+      kind: 'snapshot',
+      version: 1,
+      status: 'preview',
+    });
+    const releaseJson = JSON.parse(stored(release.id, 'release.json').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    expect(releaseJson).toMatchObject({ source: 'live-projections', ncrReference: null });
+    const [row] = await api.asPlatform((tx) =>
+      tx.select().from(openDataReleases).where(eq(openDataReleases.id, release.id)),
+    );
+    expect(row?.nationalReportId).toBeNull();
+
+    // The tables are those of every Commission's Form M as it would compile now: the
+    // obligations and clarifications of the year (cancelled and other years' aside), over the
+    // directory's Commissions, none reported yet; jsc has no obligations, so zeros.
+    const jsc: ReportCounts = {
+      initial: section(0, 0),
+      biennial: { ...section(0, 0), noCycleInPeriod: true },
+      final: section(0, 0),
+      clarifications: 1,
+      accessRequests: { received: 0, granted: 0, declined: 0 },
+    };
+    const live = buildLiveAggregates({
+      fy: RELEASE_FY,
+      commissions: await api.directory.listCommissions(),
+      counts: new Map([...Object.entries(RELEASE_COUNTS), ['jsc', jsc]]),
+      receipts: [],
+    });
+    const expected = buildReleaseTables({
+      aggregates: live,
+      compliance: RELEASE_COMPLIANCE,
+    }).tables;
+    for (const table of OPEN_DATA_TABLES) {
+      expect(JSON.parse(stored(release.id, `${table}.json`).toString('utf8')), table).toEqual(
+        expected[table],
+      );
+    }
+    const filing = expected['filing-by-commission'].rows;
+    expect(filing.find((each) => each.commission === 'tsc' && each.cycle === 'all')).toMatchObject({
+      reportStatus: 'not-reported',
+      expected: 235,
+      filed: 182,
+      suppressed: false,
+    });
+    // Suppression as for an annual release: psc's final cell (4 officers) and its complement.
+    expect(
+      filing.find((each) => each.commission === 'psc' && each.cycle === 'final'),
+    ).toMatchObject({
+      filed: null,
+      suppressed: true,
+    });
+    const national = (measure: string) =>
+      expected['national-totals'].rows.find((each) => each.measure === measure)?.value;
+    // S9: the national totals are the live projections' own.
+    expect(national('expected')).toBe(live.national.all.expected);
+    expect(national('filed')).toBe(live.national.all.declared);
+    expect(national('clarificationsIssued')).toBe(live.national.clarifications);
+    expect(national('commissionsReported')).toBe(0);
+
+    // An EACC supervisor publishes it deliberately: public, with no NCR reference.
+    const published = await api.send('POST', `${RELEASES}/${release.id}/publish`, SUPERVISOR);
+    expect(published.statusCode, published.body).toBe(200);
+    expect(published.json()).toMatchObject({ status: 'published' });
+    expect(
+      api.documents.issued.find((each) => each.type === 'open-data-manifest')?.payload,
+    ).toMatchObject({ kind: 'snapshot', ncrReference: null });
+  });
+
+  it('S6: once the year’s NCR is built, a snapshot is built from it, not the live projections', async () => {
     await givenTheYear();
+    await givenProjectedYear(api);
+    await ncrBuilt();
 
-    const response = await buildSnapshot(ANALYST);
+    const release = await snapshotBuilt();
 
-    expect(response.statusCode, response.body).toBe(409);
-    expect(response.json()).toMatchObject({ code: 'ncr-not-built' });
+    const releaseJson = JSON.parse(stored(release.id, 'release.json').toString('utf8')) as Record<
+      string,
+      unknown
+    >;
+    expect(releaseJson).toMatchObject({ source: 'national-report' });
+    const filing = JSON.parse(
+      stored(release.id, 'filing-by-commission.json').toString('utf8'),
+    ) as OpenDataTable;
+    expect(
+      filing.rows.find((row) => row.commission === 'tsc' && row.cycle === 'all'),
+    ).toMatchObject({
+      reportStatus: 'submitted-late',
+    });
+  });
+
+  it('409 fy-not-started for a snapshot of a year that has not started; 503 while the directory is down', async () => {
+    api.clock.set('2027-06-30T07:00:00.000Z');
+
+    const early = await buildSnapshot(ANALYST);
+    expect(early.statusCode, early.body).toBe(409);
+    expect(early.json()).toMatchObject({ code: 'fy-not-started' });
+
+    api.clock.set('2028-02-15T07:00:00.000Z');
+    api.directory.failCalls(1);
+    const down = await buildSnapshot(ANALYST);
+    expect(down.statusCode, down.body).toBe(503);
+    expect(down.json()).toMatchObject({ type: 'directory-unavailable' });
+    expect(await api.asPlatform((tx) => tx.select().from(openDataReleases))).toEqual([]);
   });
 
   it('503 while object storage cannot be reached, and nothing is recorded', async () => {

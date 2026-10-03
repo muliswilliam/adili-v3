@@ -237,7 +237,8 @@
     "suppression": {
       "threshold": 10,
       "cellsSuppressed": 32
-    }
+    },
+    "notCollected": []
   },
   "compliance-by-commission": {
     "table": "compliance-by-commission",
@@ -336,7 +337,8 @@
     "suppression": {
       "threshold": 10,
       "cellsSuppressed": 20
-    }
+    },
+    "notCollected": []
   },
   "by-entity-type": {
     "table": "by-entity-type",
@@ -353,7 +355,8 @@
     "suppression": {
       "threshold": 10,
       "cellsSuppressed": 0
-    }
+    },
+    "notCollected": []
   },
   "by-cycle": {
     "table": "by-cycle",
@@ -402,7 +405,8 @@
     "suppression": {
       "threshold": 10,
       "cellsSuppressed": 0
-    }
+    },
+    "notCollected": []
   },
   "access-requests": {
     "table": "access-requests",
@@ -429,22 +433,22 @@
         "received": null,
         "granted": null,
         "declined": null,
-        "suppressed": true
+        "suppressed": false
       },
       {
         "commission": "psc",
         "commissionName": "PSC",
-        "received": 3,
-        "granted": 2,
-        "declined": 1,
+        "received": null,
+        "granted": null,
+        "declined": null,
         "suppressed": false
       },
       {
         "commission": "tsc",
         "commissionName": "TSC",
-        "received": 1,
-        "granted": 1,
-        "declined": 0,
+        "received": null,
+        "granted": null,
+        "declined": null,
         "suppressed": false
       },
       {
@@ -453,13 +457,18 @@
         "received": null,
         "granted": null,
         "declined": null,
-        "suppressed": true
+        "suppressed": false
       }
     ],
     "suppression": {
       "threshold": 10,
-      "cellsSuppressed": 6
-    }
+      "cellsSuppressed": 0
+    },
+    "notCollected": [
+      "received",
+      "granted",
+      "declined"
+    ]
   },
   "national-totals": {
     "table": "national-totals",
@@ -571,23 +580,28 @@
       },
       {
         "measure": "accessRequestsReceived",
-        "value": 5,
+        "value": null,
         "suppressed": false
       },
       {
         "measure": "accessRequestsGranted",
-        "value": 3,
+        "value": null,
         "suppressed": false
       },
       {
         "measure": "accessRequestsDeclined",
-        "value": 2,
+        "value": null,
         "suppressed": false
       }
     ],
     "suppression": {
       "threshold": 10,
       "cellsSuppressed": 0
-    }
+    },
+    "notCollected": [
+      "accessRequestsReceived",
+      "accessRequestsGranted",
+      "accessRequestsDeclined"
+    ]
   }
 }

@@ -4,12 +4,12 @@ import { ACTION_STEPS, type ActionStep } from '../projections/schema.js';
 import { type ReleasedCell, SUPPRESSION_THRESHOLD, suppressTable } from './suppression.js';
 
 /**
- * An open-data release's six tables (spec 09b), built from the national consolidated report's
- * aggregates for everything the NCR carries (filing per Commission and cycle, clarifications
- * issued, access requests) and from the projection facts for what it does not (determinations,
- * clarifications resolved, administrative actions, referrals). Pure: aggregates and counts in,
- * suppressed tables and their unsuppressed national totals out. Dimensions never finer than
- * Commission x entity type x cycle; counts and rates only, never an officer.
+ * An open-data release's six tables (spec 09b), built from aggregates in the NCR's shape for
+ * everything they carry (filing per Commission and cycle, clarifications issued) and from the
+ * projection facts for what they do not (determinations, clarifications resolved, administrative
+ * actions, referrals). Pure: aggregates and counts in, suppressed tables and their unsuppressed
+ * national totals out. Dimensions never finer than Commission x entity type x cycle; counts and
+ * rates only, never an officer.
  *
  * Suppression (`suppressTable`, threshold {@link SUPPRESSION_THRESHOLD}) protects every figure
  * over fewer officers than the threshold, and every row is suppressed or published as a whole
@@ -20,12 +20,17 @@ import { type ReleasedCell, SUPPRESSION_THRESHOLD, suppressTable } from './suppr
  *   totals `by-cycle` and its grand total the filing figures of `national-totals`; one
  *   suppression of that table gives all three tables the same pattern, so none reveals a figure
  *   another hides. Expected and non-filers follow filed's pattern.
- * - A Commission's other counts (compliance and access requests) are over its officers (`all`
- *   expected): one Commission-level pattern, suppressed by officers, applies to every one of them,
- *   so each measure's national total hides at least two Commissions or none.
+ * - A Commission's other counts (compliance; access requests once collected) are over its
+ *   officers (`all` expected): one Commission-level pattern, suppressed by officers, applies to
+ *   every one of them, so each measure's national total hides at least two Commissions or none.
  *
  * Commissions that have not reported for the year have no officer denominator: their rows carry
  * `null` figures, unsuppressed (there is nothing to hide), and their facts count nowhere.
+ *
+ * Access requests are not collected yet (spec 10 projects them): the `access-requests` figures
+ * and the national `accessRequests*` measures are `null`, unsuppressed, and named in the table's
+ * `notCollected`, so a consumer never reads "no requests" from a count nobody kept. A Form M's
+ * access-request zeros are a placeholder, not data.
  */
 
 export const OPEN_DATA_TABLES = [
@@ -52,13 +57,15 @@ export type TableRow = Record<string, string | number | boolean | null>;
 
 /**
  * A table as released and served (reporting.yaml `getOpenDataTable` JSON): its columns in order,
- * its rows, and how many figures suppression hid.
+ * its rows, how many figures suppression hid, and the figures not collected yet: columns, or in
+ * `national-totals` measures, whose values are `null` for want of data, not suppression.
  */
 export interface OpenDataTable<Row extends TableRow = TableRow> {
   table: OpenDataTableName;
   columns: string[];
   rows: Row[];
   suppression: { threshold: number; cellsSuppressed: number };
+  notCollected: string[];
 }
 
 /** Officers expected to file, those who filed, those who did not, and filed / expected. */
@@ -110,7 +117,7 @@ export interface ByCycleRow extends FilingFigures {
   cycle: Cycle;
 }
 
-/** `access-requests`: a Commission's access requests (Form M section 5). */
+/** `access-requests`: a Commission's access requests (Form M section 5); not collected yet. */
 export interface AccessRequestsRow extends TableRow {
   commission: string;
   commissionName: string;
@@ -197,10 +204,8 @@ export interface ReleaseTotals {
     late: number;
     notReported: number;
   };
-  national: Record<Cycle, SectionTotals> & {
-    clarifications: number;
-    accessRequests: { received: number; granted: number; declined: number };
-  };
+  /** Access requests are not collected yet, so neither published nor reconciled. */
+  national: Record<Cycle, SectionTotals> & { clarifications: number };
 }
 
 export interface BuiltRelease {
@@ -245,6 +250,16 @@ type ComplianceMeasure = (typeof COMPLIANCE_MEASURES)[number];
 
 const ACCESS_MEASURES = ['received', 'granted', 'declined'] as const;
 
+/** The national measures of access requests, not collected yet like the table's columns. */
+const ACCESS_NATIONAL_MEASURES = [
+  'accessRequestsReceived',
+  'accessRequestsGranted',
+  'accessRequestsDeclined',
+] as const satisfies readonly NationalMeasure[];
+
+/** A figure not collected yet: null, and never suppressed (there is nothing to hide). */
+const NOT_COLLECTED = { value: null, suppressed: false } as const;
+
 const ACTION_MEASURES: Record<ActionStep, ComplianceMeasure> = {
   'notice-to-comply': 'actionsNoticeToComply',
   warning: 'actionsWarning',
@@ -266,7 +281,6 @@ interface Reported {
   sections: Record<(typeof INTAKE_SECTIONS)[number], SectionTotals>;
   officers: number;
   compliance: Record<ComplianceMeasure, number>;
-  access: Record<(typeof ACCESS_MEASURES)[number], number>;
 }
 
 export function buildReleaseTables(
@@ -301,11 +315,6 @@ export function buildReleaseTables(
       sections,
       officers: INTAKE_SECTIONS.reduce((total, section) => total + sections[section].expected, 0),
       compliance,
-      access: {
-        received: row.accessRequests?.received ?? 0,
-        granted: row.accessRequests?.granted ?? 0,
-        declined: row.accessRequests?.declined ?? 0,
-      },
     });
   }
   const byReported = new Map(reported.map((commission) => [commission.slug, commission]));
@@ -386,22 +395,13 @@ export function buildReleaseTables(
       ...figuresOf(COMPLIANCE_MEASURES, published ? commission.compliance : undefined),
       suppressed,
     });
-    accessRows.push({
-      ...dimensions,
-      ...figuresOf(ACCESS_MEASURES, published ? commission.access : undefined),
-      suppressed,
-    });
+    accessRows.push({ ...dimensions, ...figuresOf(ACCESS_MEASURES, undefined), suppressed: false });
   }
 
   const complianceTotals = {} as Record<ComplianceMeasure, number>;
   for (const measure of COMPLIANCE_MEASURES) {
     complianceTotals[measure] = reported.reduce((t, c) => t + c.compliance[measure], 0);
   }
-  const accessTotals = {
-    received: reported.reduce((t, c) => t + c.access.received, 0),
-    granted: reported.reduce((t, c) => t + c.access.granted, 0),
-    declined: reported.reduce((t, c) => t + c.access.declined, 0),
-  };
   const onTime = commissions.filter(([, row]) => row.status === 'submitted-on-time').length;
   const late = commissions.filter(([, row]) => row.status === 'submitted-late').length;
   const reporting = {
@@ -441,9 +441,7 @@ export function buildReleaseTables(
     ...Object.fromEntries(
       COMPLIANCE_MEASURES.map((measure) => [measure, counted(complianceTotals[measure])]),
     ),
-    accessRequestsReceived: counted(accessTotals.received),
-    accessRequestsGranted: counted(accessTotals.granted),
-    accessRequestsDeclined: counted(accessTotals.declined),
+    ...Object.fromEntries(ACCESS_NATIONAL_MEASURES.map((measure) => [measure, NOT_COLLECTED])),
   } as Record<NationalMeasure, Pick<NationalTotalsRow, 'value' | 'suppressed'>>;
   const nationalRows: NationalTotalsRow[] = NATIONAL_MEASURES.map((measure) => ({
     measure,
@@ -475,12 +473,14 @@ export function buildReleaseTables(
       ['commission', 'commissionName', ...ACCESS_MEASURES, 'suppressed'],
       accessRows,
       threshold,
+      ACCESS_MEASURES,
     ),
     'national-totals': tableOf(
       'national-totals',
       ['measure', 'value', 'suppressed'],
       nationalRows,
       threshold,
+      ACCESS_NATIONAL_MEASURES,
     ),
   };
 
@@ -488,19 +488,18 @@ export function buildReleaseTables(
     tables,
     totals: {
       reporting,
-      national: {
-        ...national,
-        clarifications: complianceTotals.clarificationsIssued,
-        accessRequests: accessTotals,
-      },
+      national: { ...national, clarifications: complianceTotals.clarificationsIssued },
     },
   };
 }
 
 /**
- * Reconciliation (spec 09b S9): the release's national figures against the NCR's for the year.
- * The dot paths (`national.initial.declared`, `reporting.late`) whose counts differ; empty when
- * the release reconciles. Rates follow from the counts and are not compared.
+ * Reconciliation (spec 09b S9): the release's national figures against the national totals of
+ * the aggregates it was built from (the NCR's, or the live projections' for a snapshot of a year
+ * without one). The dot paths (`national.initial.declared`, `reporting.late`) whose counts
+ * differ; empty when the release reconciles. Rates follow from the counts and are not compared;
+ * access requests are not collected, so not compared either. Built from the same aggregates, the
+ * tables reconcile unless the table builder lost or double-counted a figure.
  */
 export function reconcile(totals: ReleaseTotals, ncr: NationalAggregates): string[] {
   const expected = {
@@ -514,7 +513,6 @@ export function reconcile(totals: ReleaseTotals, ncr: NationalAggregates): strin
     national: {
       ...Object.fromEntries(CYCLES.map((cycle) => [cycle, countsOf(ncr.national[cycle])])),
       clarifications: ncr.national.clarifications,
-      accessRequests: { ...ncr.national.accessRequests },
     },
   };
   const mismatches: string[] = [];
@@ -586,13 +584,20 @@ function sumOf(sections: readonly SectionTotals[]): SectionTotals {
   );
 }
 
+/**
+ * The table with its columns in order. `notCollected` names the figures not collected yet (their
+ * columns, or `national-totals` measures): never counted as suppressed.
+ */
 function tableOf<Row extends TableRow>(
   table: OpenDataTableName,
   columns: (keyof Row & string)[],
   rows: Row[],
   threshold: number,
+  notCollected: readonly string[] = [],
 ): OpenDataTable<Row> {
-  const figures = columns.filter(isFigure).length;
+  const figures = columns.filter(
+    (column) => isFigure(column) && !notCollected.includes(column),
+  ).length;
   const ordered = rows.map(
     (row) => Object.fromEntries(columns.map((column) => [column, row[column]])) as unknown as Row,
   );
@@ -604,6 +609,7 @@ function tableOf<Row extends TableRow>(
       threshold,
       cellsSuppressed: rows.filter((row) => row.suppressed === true).length * figures,
     },
+    notCollected: [...notCollected],
   };
 }
 

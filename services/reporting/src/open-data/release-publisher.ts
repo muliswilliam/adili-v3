@@ -266,14 +266,18 @@ async function viewOf(tx: ReportingTransaction, releaseId: string): Promise<Open
 
 /** Who approved the release's NCR: the annual release publishes on their approval. */
 async function approverOf(tx: ReportingTransaction, release: OpenDataReleaseRow): Promise<Officer> {
-  const [ncr] = await tx
-    .select({
-      status: nationalReports.status,
-      subject: nationalReports.approverSubject,
-      name: nationalReports.approverName,
-    })
-    .from(nationalReports)
-    .where(eq(nationalReports.id, release.nationalReportId));
+  const ncrId = release.nationalReportId;
+  const [ncr] =
+    ncrId === null
+      ? []
+      : await tx
+          .select({
+            status: nationalReports.status,
+            subject: nationalReports.approverSubject,
+            name: nationalReports.approverName,
+          })
+          .from(nationalReports)
+          .where(eq(nationalReports.id, ncrId));
   if (ncr?.status !== 'approved' || !ncr.subject) {
     throw new ReleaseNcrNotApproved(
       `The national consolidated report of open-data release ${release.id} is not approved yet`,

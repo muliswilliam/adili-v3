@@ -49,6 +49,12 @@ export interface ReleaseTableEntry {
   sha256Csv: string;
 }
 
+/**
+ * What a release's tables were built from: the year's NCR aggregates, or, for a snapshot of a
+ * year with no NCR yet, the live projections.
+ */
+export type ReleaseSourceName = 'national-report' | 'live-projections';
+
 /** The release JSON. */
 export interface ReleaseDocument {
   id: string;
@@ -56,7 +62,11 @@ export interface ReleaseDocument {
   kind: string;
   version: number;
   builtAt: string;
-  /** The national consolidated report the release reconciles with; null while a draft. */
+  source: ReleaseSourceName;
+  /**
+   * The approved national consolidated report the release reconciles with; null for a draft,
+   * or for a snapshot of the live projections.
+   */
   ncrReference: string | null;
   suppression: { threshold: number };
   tables: ReleaseTableEntry[];
