@@ -294,6 +294,7 @@ export function resetActionsMock(seededAt: number = Date.now()) {
     base,
   );
   attachments.set('a77a0000-0000-4000-8000-000000000101', 'Reply to clarification.pdf');
+  attachments.set('a77a0000-0000-4000-8000-000000000103', 'KNH discharge summary.pdf');
   attachments.set(
     'a77a0000-0000-4000-8000-000000000102',
     'Equity Bank statements Jan-Jun 2026.pdf',
@@ -382,7 +383,21 @@ export function resetActionsMock(seededAt: number = Date.now()) {
       },
       [
         issued(actionId(5, 1), ids.stoppageProposed, 'notice-to-comply', 45, 44, MERCY, base),
-        issued(actionId(5, 2), ids.stoppageProposed, 'warning', 30, 29, PETER, base),
+        {
+          // Answered, but not complied: the supervisor reads it before stopping the salary.
+          ...issued(actionId(5, 2), ids.stoppageProposed, 'warning', 30, 29, PETER, base),
+          status: 'responded',
+          response: {
+            text: 'I was admitted at Kenyatta National Hospital from 2 to 18 September and could not reach the portal. I will submit my declaration by the end of the month. My discharge summary is attached.',
+            attachments: [
+              {
+                uploadId: 'a77a0000-0000-4000-8000-000000000103',
+                fileName: 'KNH discharge summary.pdf',
+              },
+            ],
+            submittedAt: iso(base - 21 * DAY),
+          },
+        },
         blank(actionId(5, 3), ids.stoppageProposed, 'salary-stoppage', base - 2 * DAY),
       ],
       base,

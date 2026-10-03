@@ -133,13 +133,16 @@ beforeEach(() => {
 });
 
 async function approveDialog(name: string, title: string): Promise<HTMLElement> {
-  fireEvent.click(within(card(name)).getByRole('button', { name: 'Approve' }));
+  fireEvent.click(within(card(name)).getByRole('button', { name: /^Approve( stoppage)?$/ }));
   return screen.findByRole('dialog', { name: title });
 }
 
 describe('approving a salary stoppage from the inbox (S6)', () => {
   it('reads the earlier steps from the ladder, and needs the supervisor to confirm reading them', async () => {
     await open();
+    expect(
+      within(card('Janet Achieng Odero')).getByRole('button', { name: 'Approve stoppage' }),
+    ).toBeTruthy();
     const dialog = await approveDialog('Janet Achieng Odero', 'Approve salary stoppage');
     expect(vi.mocked(getLadder)).toHaveBeenCalledWith({ data: { ladderId: L.stoppageProposed } });
     expect(
@@ -149,7 +152,8 @@ describe('approving a salary stoppage from the inbox (S6)', () => {
     ).toBeTruthy();
     const before = await within(dialog).findByRole('list', { name: 'What came before' });
     expect(within(before).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(before).getAllByText('No response from the declarant')).toHaveLength(2);
+    expect(within(before).getAllByText('No response from the declarant')).toHaveLength(1);
+    expect(within(before).getByText('KNH discharge summary.pdf')).toBeTruthy();
     expect(within(dialog).getByText(/personal number 20085562/)).toBeTruthy();
     const confirm = within(dialog).getByRole('button', { name: 'Approve and stop salary' });
     expect((confirm as HTMLButtonElement).disabled).toBe(true);
@@ -184,6 +188,8 @@ describe('the disciplinary referral in the inbox (S10)', () => {
   it('shows the stoppage’s payroll acknowledgement and what the referral does', async () => {
     await open();
     const referral = card('Stephen Kiprotich Kosgei');
+    // The notice and the warning went unanswered; the salary stoppage takes no response.
+    expect(within(referral).getAllByText('No response from the declarant.')).toHaveLength(2);
     expect(
       within(referral).getByText('The reporting entity is told to start disciplinary proceedings'),
     ).toBeTruthy();

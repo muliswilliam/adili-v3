@@ -51,9 +51,10 @@ function PriorSteps({ item }: { item: ActionApprovalItem }) {
               {t.responded(prior.respondedAt, prior.responseAttachments)}{' '}
               <span className="whitespace-pre-line">{prior.responseExcerpt}</span>
             </span>
-          ) : (
+          ) : prior.step === 'notice-to-comply' || prior.step === 'warning' ? (
+            // Only a notice or a warning takes a response.
             <span>{t.noResponse}</span>
-          )}
+          ) : null}
         </li>
       ))}
     </ul>
@@ -203,7 +204,7 @@ export function ActionApproval({
               }}
             >
               <Icon icon={Tick02Icon} />
-              {t.approve}
+              {summary.step === 'salary-stoppage' ? t.approveStoppage : t.approve}
             </Button>
             <Button
               size="sm"

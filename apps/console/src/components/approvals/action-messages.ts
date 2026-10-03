@@ -7,6 +7,7 @@ export const messages = {
   tab: 'Actions',
   openLadder: 'Open ladder',
   approve: 'Approve',
+  approveStoppage: 'Approve stoppage',
   decline: 'Decline',
   fileNumber: (n: string) => `File ${n}`,
   firstStep: 'First step: nothing was issued before it.',

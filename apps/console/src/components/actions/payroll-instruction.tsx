@@ -98,7 +98,7 @@ export function PayrollInstruction({
           {badge.text}
         </Badge>
       </div>
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 min-[560px]:grid-cols-3">
+      <dl className="grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] gap-x-6 gap-y-2.5">
         {instructionReference ? (
           <Fact term={c.payroll.instructionReference} mono>
             {instructionReference}
@@ -135,7 +135,7 @@ function Fact({
   return (
     <div className="grid min-w-0 gap-0.5">
       <dt className="text-[12.5px] text-muted-foreground">{term}</dt>
-      <dd className={mono ? 'truncate font-mono text-[13px]' : 'text-[13.5px] font-medium'}>
+      <dd className={mono ? 'font-mono text-[13px] break-all' : 'text-[13.5px] font-medium'}>
         {children}
       </dd>
     </div>

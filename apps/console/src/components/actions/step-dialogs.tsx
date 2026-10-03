@@ -31,6 +31,7 @@ import {
   Mail01Icon,
   Notification01Icon,
   RefreshIcon,
+  UserWarning01Icon,
 } from '@hugeicons/core-free-icons';
 import { useId, useState } from 'react';
 
@@ -167,7 +168,13 @@ export function ApproveStepDialog({
     >
       <DialogContent busy={state.busy} className={earlier ? 'sm:max-w-[680px]' : undefined}>
         <DialogHeading
-          icon={salary ? BanknoteIcon : Mail01Icon}
+          icon={
+            salary
+              ? BanknoteIcon
+              : step === 'disciplinary-referral'
+                ? UserWarning01Icon
+                : Mail01Icon
+          }
           tone={isGraveStep(step) ? 'destructive' : undefined}
           title={m.approveTitle(step)}
           description={`${declarantName} · ${subjectTitle}`}
