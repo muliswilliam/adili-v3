@@ -32,6 +32,13 @@ export const envSchema = bffEnvSchema.extend({
    * service's obligations. Honoured in `vite dev` and tests only, like the other mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve Ask Adili (conversations, streamed answers, feedback) and help search from in-memory
+   * canned answers, to work on the panel without the declarations service's assistant and the
+   * ai-gateway. Works with real drafts too. Honoured in `vite dev` and tests only, like the
+   * other mocks.
+   */
+  ASSISTANT_MOCK: z.stringbool().default(false),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service

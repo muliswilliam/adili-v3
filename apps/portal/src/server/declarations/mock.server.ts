@@ -65,6 +65,7 @@
  */
 import { problem } from '../mock-http';
 import { resetAcknowledgementMock } from './mock/acknowledgement';
+import { ask, openConversation, rate, resetAssistantMock, searchHelp } from './mock/assistant';
 import {
   commit,
   discard,
@@ -111,6 +112,7 @@ export { failNextSaves, editElsewhere } from './mock/drafts';
 export { failNextSubmits } from './mock/submit';
 export { setSlipIssuance } from './mock/acknowledgement';
 export { setExtractionEnabled, setLookupDelay } from './mock/suggestions';
+export { setAnswerPace, setAssistantMode, type AssistantMode } from './mock/assistant';
 
 /** Clears every draft (tests). */
 export function resetDeclarationsMock() {
@@ -121,6 +123,7 @@ export function resetDeclarationsMock() {
   resetSubmissionMock();
   resetAcknowledgementMock();
   resetObligationsMock();
+  resetAssistantMock();
 }
 
 /** The parts of the service the mock answers; the others go to the real service. */
@@ -132,6 +135,8 @@ export interface DeclarationsMockParts {
    * (DECLARATIONS_MOCK).
    */
   declarations: boolean;
+  /** Ask Adili's conversations and answers, and help search (ASSISTANT_MOCK). */
+  assistant: boolean;
 }
 
 /** A client fetch answering `parts` in memory and passing the rest to the real service. */
@@ -144,7 +149,7 @@ export function declarationsMock(
 
 /** The whole service in memory (tests). */
 export function mockDeclarationsFetch(request: Request): Promise<Response> {
-  return route(request, { obligations: true, declarations: true }, () =>
+  return route(request, { obligations: true, declarations: true, assistant: true }, () =>
     Promise.reject(new Error('every part is mocked')),
   );
 }
@@ -162,9 +167,12 @@ async function route(
   if (isObligationRead(request, path)) {
     return parts.obligations ? (obligationReads(request, path) ?? real(request)) : real(request);
   }
-  if (!parts.declarations) return real(request);
   const claims = bearerClaims(request);
   const caller = claims?.person_id ?? null;
+  if (path.startsWith('/v1/me/assistant/') || path === '/v1/help/search') {
+    return parts.assistant ? assistant(request, url, path, caller) : real(request);
+  }
+  if (!parts.declarations) return real(request);
   if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations(caller);
 
   const start = /^\/v1\/obligations\/([^/]+)\/declaration$/.exec(path);
@@ -256,5 +264,26 @@ async function route(
     if (method === 'DELETE') return discard(one[1]);
   }
 
+  return problem(404, 'Not found');
+}
+
+function assistant(
+  request: Request,
+  url: URL,
+  path: string,
+  caller: string | null,
+): Promise<Response> | Response {
+  const { method } = request;
+  if (method === 'GET' && path === '/v1/help/search') return searchHelp(url, caller);
+  if (method === 'POST' && path === '/v1/me/assistant/conversations') {
+    return openConversation(request, caller);
+  }
+  const messages = /^\/v1\/me\/assistant\/conversations\/([^/]+)\/messages$/.exec(path);
+  if (method === 'POST' && messages?.[1]) return ask(request, caller, messages[1]);
+  const feedback =
+    /^\/v1\/me\/assistant\/conversations\/([^/]+)\/messages\/([^/]+)\/feedback$/.exec(path);
+  if (method === 'PUT' && feedback?.[1] && feedback[2]) {
+    return rate(request, caller, feedback[1], feedback[2]);
+  }
   return problem(404, 'Not found');
 }

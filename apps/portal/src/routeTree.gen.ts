@@ -55,6 +55,7 @@ import { Route as DeclarationsIdSubmittedRouteImport } from './routes/declaratio
 import { Route as AccessRequestsIdSubmittedRouteImport } from './routes/access/requests/$id_.submitted'
 import { Route as ApiDocumentsDocumentIdDownloadRouteImport } from './routes/api/documents.$documentId.download'
 import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
+import { Route as ApiAssistantConversationsConversationIdMessagesRouteImport } from './routes/api/assistant.conversations.$conversationId.messages'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -292,6 +293,12 @@ const DeclarationsIdStatementsPersonKeyRoute =
     path: '/statements/$personKey',
     getParentRoute: () => DeclarationsIdRouteRoute,
   } as any)
+const ApiAssistantConversationsConversationIdMessagesRoute =
+  ApiAssistantConversationsConversationIdMessagesRouteImport.update({
+    id: '/api/assistant/conversations/$conversationId/messages',
+    path: '/api/assistant/conversations/$conversationId/messages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -340,6 +347,7 @@ export interface FileRoutesByFullPath {
   '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -385,6 +393,7 @@ export interface FileRoutesByTo {
   '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -434,6 +443,7 @@ export interface FileRoutesById {
   '/access/requests/$id_/submitted': typeof AccessRequestsIdSubmittedRoute
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -484,6 +494,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
+    | '/api/assistant/conversations/$conversationId/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -529,6 +540,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
+    | '/api/assistant/conversations/$conversationId/messages'
   id:
     | '__root__'
     | '/'
@@ -577,6 +589,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id_/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
+    | '/api/assistant/conversations/$conversationId/messages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -607,6 +620,7 @@ export interface RootRouteChildren {
   AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
   AccessRequestsIdSubmittedRoute: typeof AccessRequestsIdSubmittedRoute
   ApiDocumentsDocumentIdDownloadRoute: typeof ApiDocumentsDocumentIdDownloadRoute
+  ApiAssistantConversationsConversationIdMessagesRoute: typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -933,6 +947,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeclarationsIdStatementsPersonKeyRouteImport
       parentRoute: typeof DeclarationsIdRouteRoute
     }
+    '/api/assistant/conversations/$conversationId/messages': {
+      id: '/api/assistant/conversations/$conversationId/messages'
+      path: '/api/assistant/conversations/$conversationId/messages'
+      fullPath: '/api/assistant/conversations/$conversationId/messages'
+      preLoaderRoute: typeof ApiAssistantConversationsConversationIdMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1033,6 +1054,8 @@ const rootRouteChildren: RootRouteChildren = {
   AccessRequestsIndexRoute: AccessRequestsIndexRoute,
   AccessRequestsIdSubmittedRoute: AccessRequestsIdSubmittedRoute,
   ApiDocumentsDocumentIdDownloadRoute: ApiDocumentsDocumentIdDownloadRoute,
+  ApiAssistantConversationsConversationIdMessagesRoute:
+    ApiAssistantConversationsConversationIdMessagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
