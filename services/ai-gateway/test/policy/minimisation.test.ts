@@ -383,16 +383,41 @@ describe('minimise a text layer', () => {
     expect(counts).toMatchObject({ MEMBER_NUMBER: 1 });
   });
 
-  it("keeps a company's words readable after a label: they are no one's name", () => {
-    const { input } = minimise({
+  it('sends a company after a party label as one organisation token, and its role words as they are', () => {
+    const minimised = minimise({
       textLayer:
         'Borrower: Tumaini Fresh Produce Limited\nSigned: Kevin Otieno Odera, Branch Manager\nPwani Commercial Bank Limited',
     });
 
-    expect(input.textLayer).toContain('Borrower: Tumaini Fresh Produce Limited');
-    expect(input.textLayer).toContain('Pwani Commercial Bank Limited');
-    expect(input.textLayer).toContain(', Branch Manager');
-    expect(input.textLayer).not.toContain('Otieno');
+    expect(minimised.input.textLayer).toMatch(/^Borrower: \[\[ORGANISATION_1\]\]\n/u);
+    expect(minimised.input.textLayer).toContain('Pwani Commercial Bank Limited');
+    expect(minimised.input.textLayer).toContain(', Branch Manager');
+    expect(minimised.input.textLayer).not.toContain('Otieno');
+    expect(minimised.restore({ debtor: '[[ORGANISATION_1]]' })).toEqual({
+      debtor: 'Tumaini Fresh Produce Limited',
+    });
+  });
+
+  // When a span mixes people, companies and roles, every person's name is minimised: privacy
+  // beats readability, so a part that may be a person's name is one.
+  it.each([
+    ['Signed: Kevin Otieno Odera Sacco Secretary', ['Kevin', 'Otieno', 'Odera']],
+    ['Witness: Mary Achieng, Chama Treasurer', ['Mary', 'Achieng']],
+    ['Borrower: Wanjiku Njoki Trading Company', ['Wanjiku', 'Njoki']],
+    ['Chargors: Jane Wanjiru & Tumaini Holdings Ltd', ['Jane', 'Wanjiru', 'Tumaini']],
+    ['Guarantor: Mary Achieng and Upendo Women Group', ['Mary', 'Achieng', 'Upendo']],
+    ['Proprietor: Grace Trust', ['Grace']],
+    ['Borrower: Peter Kamau Mwangi', ['Peter', 'Kamau', 'Mwangi']],
+  ])('sends no person named in %j', (line, names) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const name of names) expect(input.textLayer).not.toContain(name);
+  });
+
+  it('keeps an ordinal after a label readable', () => {
+    expect(minimise({ textLayer: 'Member number 5th in the register' }).input.textLayer).toBe(
+      'Member number 5th in the register',
+    );
   });
 
   it('keeps the words that join two names readable', () => {

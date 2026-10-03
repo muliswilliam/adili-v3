@@ -21,8 +21,8 @@ describe('golden sets', () => {
     'narrate-compliance-report': { cases: 6, swahili: 0 },
     // 60 questions, 10 declines and 8 hint sets, each in English and Kiswahili (spec 11 S11).
     'answer-declarant-question': { cases: 156, swahili: 78 },
-    // Eighteen readings of synthetic documents, five asked in Kiswahili, one written in it (05b S10).
-    'extract-document': { cases: 18, swahili: 5 },
+    // Nineteen readings of synthetic documents, five asked in Kiswahili, one written in it (05b S10).
+    'extract-document': { cases: 19, swahili: 5 },
   };
 
   for (const suite of SUITES) {
