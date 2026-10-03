@@ -10,6 +10,7 @@ import { anyTaskRequestSchema, dataClassSchema } from './jobs/task-request.js';
 import { tenantUsageSchema, usageListSchema } from './policy/budgets.js';
 import {
   gateCellSchema,
+  gateRuleInputSchema,
   gatePolicyListSchema,
   gateRuleSchema,
   tenantGateSchema,
@@ -58,7 +59,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   FeedbackInput: feedbackInputSchema,
   Feedback: feedbackViewSchema,
   TenantAiStatus: tenantAiStatusSchema,
-  GateRuleInput: gateCellSchema,
+  GateRuleInput: gateRuleInputSchema,
+  GateCell: gateCellSchema,
   GatePolicyInput: gatePolicyInput,
   GateRule: gateRuleSchema,
   TenantPolicy: tenantGateSchema,

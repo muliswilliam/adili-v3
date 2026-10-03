@@ -12,7 +12,7 @@ import type { ContentPart, StructuredRequest, StructuredResult } from '../../src
 import type { ExtractOutput } from '../../src/tasks/extract-document.js';
 import { contractErrors } from '../support/contract.js';
 import { testPdf, TINY_PNG } from '../support/documents.js';
-import { actingFor, usage } from '../support/inputs.js';
+import { actingFor, explainInput, usage } from '../support/inputs.js';
 import { ScriptedProvider } from '../support/scripted-provider.js';
 import { createTestApp, type TestApp } from '../support/test-app.js';
 
@@ -201,6 +201,23 @@ describe('extract-document', { timeout: 90_000 }, () => {
 
     expect(job).toMatchObject({ status: 'blocked', reason: 'policy', output: null });
     expect(fetched).toEqual([]);
+    expect(provider.requests).toHaveLength(0);
+  });
+
+  it("opens highly-confidential on the demo tenant for reading documents only, not for a reviewer's task", async () => {
+    const response = await t.app.inject({
+      method: 'POST',
+      url: '/internal/v1/tasks/explain-flags',
+      headers: { ...auth, ...actingFor('psc'), 'idempotency-key': randomUUID() },
+      payload: {
+        dataClass: 'highly-confidential',
+        subjectRef: `review-case:${randomUUID()}`,
+        waitSeconds: 10,
+        input: explainInput,
+      },
+    });
+
+    expect(response.json()).toMatchObject({ status: 'blocked', reason: 'policy' });
     expect(provider.requests).toHaveLength(0);
   });
 

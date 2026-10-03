@@ -77,6 +77,7 @@ function syntheticRule(allowed: boolean, approvalRef: string, changedAt: string)
     dataClass: 'synthetic',
     providerClass: 'external',
     allowed,
+    tasks: null,
     approvalRef,
     changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
     changedByName: 'Amina Wanjiru',
@@ -94,7 +95,19 @@ export function resetAiGatewayMock() {
       usage: counters(2_000_000, 60, 412_800, 5_210_000, 318, 0, 2),
     },
     psc: {
-      rules: [syntheticRule(true, 'EACC/AI/2026/014', '2026-09-01T08:40:00Z')],
+      rules: [
+        syntheticRule(true, 'EACC/AI/2026/014', '2026-09-01T08:40:00Z'),
+        // As `pnpm db:seed` records it: the demo reads synthetic documents into the form.
+        {
+          ...syntheticRule(
+            true,
+            'Demo set-up: synthetic documents read into the form only (spec 05b)',
+            '2026-10-03T09:00:00Z',
+          ),
+          dataClass: 'highly-confidential',
+          tasks: ['extract-document'],
+        },
+      ],
       usage: counters(3_000_000, 120, 1_926_400, 24_180_000, 1_482, 0, 11),
     },
     jsc: {
@@ -191,13 +204,20 @@ function usageOf(slug: string): TenantUsage {
   };
 }
 
-/** The tenant's gate for every cell: its rule where it has one, else the default. */
+/**
+ * The tenant's gate for every cell, for its reviewer tasks: its rule where it has one for every
+ * task, else the default (a rule for some tasks only, such as document reading, decides nothing
+ * here, as in the gateway's tenant status).
+ */
 function gateOf(slug: string): GateRuleInput[] {
   const { rules } = tenantOf(slug);
   return DEFAULT_GATE.map(
     (cell) =>
       rules.find(
-        (rule) => rule.dataClass === cell.dataClass && rule.providerClass === cell.providerClass,
+        (rule) =>
+          rule.dataClass === cell.dataClass &&
+          rule.providerClass === cell.providerClass &&
+          rule.tasks === null,
       ) ?? cell,
   );
 }
@@ -415,7 +435,10 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
           message: 'At most one rule per data class and provider class',
         });
       }
-      rules.push({ dataClass, providerClass, allowed: rule.allowed === true });
+      const tasks = Array.isArray(rule.tasks)
+        ? TASK_NAMES.filter((task) => (rule.tasks as unknown[]).includes(task))
+        : null;
+      rules.push({ dataClass, providerClass, allowed: rule.allowed === true, tasks });
     }
   });
   if (approvalRef.length < 1 || approvalRef.length > 200) {
@@ -430,7 +453,14 @@ async function setGatePolicy(request: Request, slug: string, caller: Caller) {
       ...tenant.rules.filter(
         (each) => !(each.dataClass === rule.dataClass && each.providerClass === rule.providerClass),
       ),
-      { ...rule, approvalRef, changedBy: caller.subject, changedByName: caller.name, changedAt },
+      {
+        ...rule,
+        tasks: rule.tasks ?? null,
+        approvalRef,
+        changedBy: caller.subject,
+        changedByName: caller.name,
+        changedAt,
+      },
     ];
   }
   return json(200, { tenant: slug, rules: sortRules(tenant.rules) });

@@ -29,7 +29,7 @@ describe('demo gate seed', () => {
     t.db.select().from(auditRecords).where(eq(auditRecords.tenant, tenant));
 
   it('allows external providers on the demo tenant’s synthetic data, audited and announced', async () => {
-    expect(await gate.admits('psc', 'synthetic', 'external')).toBe(false);
+    expect(await gate.admits('psc', 'synthetic', 'external', 'summarize-declaration')).toBe(false);
 
     expect(await seedDemoGatePolicies(gate)).toEqual(['psc']);
 
@@ -38,13 +38,14 @@ describe('demo gate seed', () => {
         dataClass: 'synthetic',
         providerClass: 'external',
         allowed: true,
+        tasks: null,
         approvalRef: DEMO_GATE_CHANGE.approvalRef,
         changedBy: 'system:demo-seed',
         changedByName: 'Demo seed',
         changedAt: expect.any(String) as string,
       },
     ]);
-    expect(await gate.admits('psc', 'restricted', 'external')).toBe(false);
+    expect(await gate.admits('psc', 'restricted', 'external', 'summarize-declaration')).toBe(false);
     const [change] = await changesOf('psc');
     expect(change).toMatchObject({
       action: 'ai.gate-policy.changed',
@@ -83,7 +84,9 @@ describe('demo gate seed', () => {
 
     expect(await seedDemoGatePolicies(gate, ['closeddemo'])).toEqual([]);
 
-    expect(await gate.admits('closeddemo', 'synthetic', 'external')).toBe(false);
+    expect(await gate.admits('closeddemo', 'synthetic', 'external', 'summarize-declaration')).toBe(
+      false,
+    );
   });
 
   it('lets the demo tenant read its synthetic documents into the form (spec 05b)', async () => {
@@ -91,12 +94,25 @@ describe('demo gate seed', () => {
       'docdemo',
     ]);
 
-    expect(await gate.admits('docdemo', 'highly-confidential', 'external')).toBe(true);
-    expect(await gate.admits('docdemo', 'restricted', 'external')).toBe(false);
+    expect(
+      await gate.admits('docdemo', 'highly-confidential', 'external', 'extract-document'),
+    ).toBe(true);
+    // The approval is the document task's alone: every other task keeps the default, blocked.
+    for (const task of [
+      'summarize-declaration',
+      'explain-flags',
+      'draft-clarification',
+      'narrate-compliance-report',
+      'answer-declarant-question',
+    ] as const) {
+      expect(await gate.admits('docdemo', 'highly-confidential', 'external', task)).toBe(false);
+    }
+    expect(await gate.admits('docdemo', 'restricted', 'external', 'extract-document')).toBe(false);
     expect(await gate.rules('docdemo')).toMatchObject([
       {
         dataClass: 'highly-confidential',
         providerClass: 'external',
+        tasks: ['extract-document'],
         approvalRef: DEMO_DOCUMENT_GATE_CHANGE.approvalRef,
       },
     ]);

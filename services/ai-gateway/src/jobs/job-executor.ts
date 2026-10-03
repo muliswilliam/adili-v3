@@ -156,7 +156,7 @@ export class JobExecutor {
       // Unreachable: jobs are created for registered tasks and keep their input until they end.
       throw new Error(`Job ${jobId} cannot run: unknown task or missing input`);
     }
-    const refusal = await this.admission.refusal(job.tenant, job.dataClass, job.provider);
+    const refusal = await this.admission.refusal(job.tenant, job.dataClass, job.provider, job.task);
     if (refusal) {
       await this.finish(job, refusal, NO_CALL);
       return;

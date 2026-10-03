@@ -242,10 +242,14 @@ export function changedByText(rule: Pick<GateRule, 'changedBy' | 'changedByName'
   return rule.changedByName ?? rule.changedBy;
 }
 
-export function changeText(rule: Pick<GateRule, 'dataClass' | 'providerClass' | 'allowed'>) {
+export function changeText(
+  rule: Pick<GateRule, 'dataClass' | 'providerClass' | 'allowed'> &
+    Partial<Pick<GateRule, 'tasks'>>,
+) {
   const provider = m.providerClass[rule.providerClass];
   const data = m.dataClass[rule.dataClass];
-  return rule.allowed ? m.changeAllowed(provider, data) : m.changeBlocked(provider, data);
+  const text = rule.allowed ? m.changeAllowed(provider, data) : m.changeBlocked(provider, data);
+  return rule.tasks ? m.forTasksOnly(text, rule.tasks) : text;
 }
 
 /** The edit dialog's checkboxes, keyed `dataClass|providerClass`. */

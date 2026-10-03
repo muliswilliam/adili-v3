@@ -648,6 +648,13 @@ export interface components {
             dataClass: components["schemas"]["DataClass"];
             providerClass: components["schemas"]["ProviderClass"];
             allowed: boolean;
+            /** @description The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair */
+            tasks?: components["schemas"]["TaskName"][] | null;
+        };
+        GateCell: {
+            dataClass: components["schemas"]["DataClass"];
+            providerClass: components["schemas"]["ProviderClass"];
+            allowed: boolean;
         };
         GatePolicyInput: {
             /** @description At most one rule per data class and provider class */
@@ -660,6 +667,8 @@ export interface components {
             dataClass: components["schemas"]["DataClass"];
             providerClass: components["schemas"]["ProviderClass"];
             allowed: boolean;
+            /** @description The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair */
+            tasks: components["schemas"]["TaskName"][] | null;
             approvalRef: string;
             /** @description `sub` of the platform admin who made the change */
             changedBy: string;
@@ -675,7 +684,7 @@ export interface components {
         };
         GatePolicyList: {
             /** @description The gate of every (data class, provider class) pair a tenant has no rule for: self-hosted providers may see every data class, external providers none, so a new tenant sends nothing outside the platform until a platform admin records an approved rule (the demo tenant's synthetic rule is seeded that way) */
-            defaults: components["schemas"]["GateRuleInput"][];
+            defaults: components["schemas"]["GateCell"][];
             /** @description Tenants with at least one explicit rule, by tenant */
             tenants: components["schemas"]["TenantPolicy"][];
         };

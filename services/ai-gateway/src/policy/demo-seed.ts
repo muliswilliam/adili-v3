@@ -16,10 +16,18 @@ export const DEMO_GATE_CHANGE: GateChange = {
 /**
  * The demo's approval for reading documents into the form (spec 05b): `extract-document` sends
  * a document as `highly-confidential`, since nothing minimises an image, and the demo tenant's
- * documents are synthetic. Its reviewer tasks still send `synthetic`, so this opens nothing else.
+ * documents are synthetic. The rule names that task: any other task sending the class to an
+ * external provider stays blocked (ADR-007, amended 2026-10-03).
  */
 export const DEMO_DOCUMENT_GATE_CHANGE: GateChange = {
-  rules: [{ dataClass: 'highly-confidential', providerClass: 'external', allowed: true }],
+  rules: [
+    {
+      dataClass: 'highly-confidential',
+      providerClass: 'external',
+      allowed: true,
+      tasks: ['extract-document'],
+    },
+  ],
   approvalRef: 'Demo set-up: synthetic documents read into the form only (spec 05b)',
 };
 
