@@ -1,8 +1,7 @@
 import { BanIcon, Tick02Icon, ViewIcon } from '@hugeicons/core-free-icons';
 
-import { cn } from '../lib/cn';
-import { Badge, type BadgeProps } from './badge';
-import { Icon, type IconProps } from './icon';
+import type { BadgeProps } from './badge';
+import { KeyedStatusBadge, type StatusBadgeLook } from './keyed-status-badge';
 
 /** Where an open-data release stands, as the reporting contract's `OpenDataRelease.status`. */
 export type ReleaseStatus = 'preview' | 'published' | 'withdrawn';
@@ -17,10 +16,7 @@ export const RELEASE_STATUS_BADGE_MESSAGES: ReleaseStatusBadgeMessages = {
   withdrawn: 'Withdrawn',
 };
 
-const META: Record<
-  ReleaseStatus,
-  { variant: NonNullable<BadgeProps['variant']>; icon: IconProps['icon']; strokeWidth?: number }
-> = {
+const LOOKS: Record<ReleaseStatus, StatusBadgeLook> = {
   preview: { variant: 'info', icon: ViewIcon },
   published: { variant: 'success', icon: Tick02Icon, strokeWidth: 2.4 },
   withdrawn: { variant: 'destructive', icon: BanIcon, strokeWidth: 2.2 },
@@ -37,18 +33,13 @@ export type ReleaseStatusBadgeProps = Omit<BadgeProps, 'children' | 'variant'> &
  * Commission for its own rows), "Published" (green, a tick) or "Withdrawn" (red, a ban: kept in
  * the history with its reason). The status is in the text, never colour alone.
  */
-export function ReleaseStatusBadge({
-  status,
-  messages,
-  className,
-  ...props
-}: ReleaseStatusBadgeProps) {
-  const copy = { ...RELEASE_STATUS_BADGE_MESSAGES, ...messages };
-  const { variant, icon, strokeWidth } = META[status];
+export function ReleaseStatusBadge({ status, messages, ...props }: ReleaseStatusBadgeProps) {
   return (
-    <Badge variant={variant} data-status={status} className={cn('pl-[7px]', className)} {...props}>
-      <Icon icon={icon} strokeWidth={strokeWidth} />
-      {copy[status]}
-    </Badge>
+    <KeyedStatusBadge
+      status={status}
+      looks={LOOKS}
+      words={{ ...RELEASE_STATUS_BADGE_MESSAGES, ...messages }}
+      {...props}
+    />
   );
 }

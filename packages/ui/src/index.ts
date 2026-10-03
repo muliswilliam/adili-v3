@@ -540,13 +540,18 @@ export {
 export {
   DEFAULT_SUPPRESSION_THRESHOLD,
   SUPPRESSION_KINDS,
-  SUPPRESSION_MESSAGES,
+  SUPPRESSION_LEGEND_MESSAGES,
+  SUPPRESSION_MARKER_MESSAGES,
   type SuppressionKind,
   SuppressionLegend,
+  type SuppressionLegendMessages,
+  type SuppressionLegendMessagesOverride,
   type SuppressionLegendProps,
   SuppressionMarker,
+  type SuppressionMarkerCopy,
+  type SuppressionMarkerMessages,
+  type SuppressionMarkerMessagesOverride,
   type SuppressionMarkerProps,
-  type SuppressionMessages,
 } from './components/suppression-marker';
 export {
   Table,
