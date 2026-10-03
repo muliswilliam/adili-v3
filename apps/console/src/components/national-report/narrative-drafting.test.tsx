@@ -397,4 +397,37 @@ describe('Draft narrative', () => {
       vi.useRealTimers();
     }
   });
+
+  it('follows a newer draft another tab asked for, and lands it as that draft', async () => {
+    setReportingMockLatency(0);
+    resetReportingMock('2026-10-03');
+    resetNcrMock('draft', { pdfDelayMs: 0 });
+    resetCandidatesMock('computed');
+    resetNarrativeDraftMock('slow', { readyAfterMs: 60_000 });
+    await draftFromMock(2025, { section: 'overview', replaceAll: false }, crypto.randomUUID());
+    vi.useFakeTimers({ toFake: ['Date'] });
+
+    try {
+      await renderPage({ keep: true });
+      expect(within(sectionOf('Overview')).getByRole('status').textContent).toBe(
+        'Drafting overview…',
+      );
+
+      // Another tab asks for the recommendations instead, replacing the overview's draft.
+      await draftFromMock(
+        2025,
+        { section: 'recommendations', replaceAll: false },
+        crypto.randomUUID(),
+      );
+      vi.setSystemTime(Date.now() + 60_000);
+
+      expect(
+        await screen.findByText('Drafted recommendations: 2 paragraphs. Review each one.'),
+      ).toBeDefined();
+      expect(aiLabels('Recommendations')).toHaveLength(2);
+      expect(aiLabels('Overview')).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

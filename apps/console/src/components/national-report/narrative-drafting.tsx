@@ -237,6 +237,7 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
           state={state}
           context={context}
           options={options}
+          job={job}
           onAsk={(request) => {
             ask(request, context);
           }}
@@ -247,9 +248,21 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
           }}
           onEnded={(answered) => {
             if (state.status !== 'drafting') return;
-            if (answered.narrativeDraft) onDraftEnded(state.ask, answered, context);
+            const outcome = answered.narrativeDraft;
             // A report without its draft: the service does not keep drafts.
-            else fail(state.ask, m.draftUnavailable);
+            if (!outcome) {
+              fail(state.ask, m.draftUnavailable);
+              return;
+            }
+            // Another tab asked for a newer draft, which replaced this one: follow that.
+            const followed =
+              outcome.jobId === job
+                ? state.ask
+                : { section: outcome.section, replaceAll: outcome.replaceAll };
+            if (outcome.jobId !== job) setJob(outcome.jobId);
+            if (outcome.status === 'drafting') {
+              setState({ status: 'drafting', ask: followed, phase: 'polling' });
+            } else onDraftEnded(followed, answered, context);
           }}
         />
       ) : null,
@@ -317,6 +330,7 @@ function DraftNarrativeMenu({
   state,
   context,
   options,
+  job,
   onAsk,
   onSaved,
   onEnded,
@@ -324,6 +338,8 @@ function DraftNarrativeMenu({
   state: DraftState;
   context: NcrExtensionContext;
   options: NcrDraftingOptions;
+  /** The job being followed. */
+  job: string | null;
   onAsk: (ask: NarrativeDraftRequest) => void;
   /** The edits being saved before the ask are saved, or were refused. */
   onSaved: () => void;
@@ -331,7 +347,7 @@ function DraftNarrativeMenu({
 }) {
   const [redraft, setRedraft] = useState<NarrativeDraftSection | null>(null);
   const phase = state.status === 'drafting' ? state.phase : null;
-  const poll = useDraftPoll(phase === 'polling', options, onEnded);
+  const poll = useDraftPoll(phase === 'polling', job, options, onEnded);
   const saved = useEffectEvent(onSaved);
   const { unsaved } = context;
   useEffect(() => {
@@ -404,11 +420,12 @@ function DraftNarrativeMenu({
 }
 
 /**
- * While a draft is being written, reads the report every `pollMs` until its draft has ended, at
- * most `polls` times; `exhausted` then, until `restart`.
+ * While a draft is being written, reads the report every `pollMs` until its draft (`job`) has
+ * ended or another has replaced it, at most `polls` times; `exhausted` then, until `restart`.
  */
 function useDraftPoll(
   active: boolean,
+  job: string | null,
   { fy, load, onUnauthenticated, pollMs = POLL_MS, polls = POLLS }: NcrDraftingOptions,
   onEnded: (report: NationalReport) => void,
 ) {
@@ -430,8 +447,10 @@ function useDraftPoll(
       timer = setTimeout(() => {
         void load(fy).then((result) => {
           if (!current) return;
-          if (result.ok && result.data.narrativeDraft?.status !== 'drafting') end(result.data);
-          else if (!result.ok && result.error.kind === 'unauthenticated') signIn();
+          const draft = result.ok ? result.data.narrativeDraft : undefined;
+          if (result.ok && (draft?.status !== 'drafting' || draft.jobId !== job)) {
+            end(result.data);
+          } else if (!result.ok && result.error.kind === 'unauthenticated') signIn();
           else next();
         });
       }, pollMs);
@@ -441,7 +460,7 @@ function useDraftPoll(
       current = false;
       clearTimeout(timer);
     };
-  }, [active, fy, load, pollMs, polls, round]);
+  }, [active, job, fy, load, pollMs, polls, round]);
   return {
     exhausted: active && exhausted,
     restart: () => {
