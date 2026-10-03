@@ -13,7 +13,7 @@ import {
   reportReceipts,
 } from '../../src/db/schema.js';
 import type { ComplianceCounts } from '../../src/open-data/tables.js';
-import type { ReportingApi } from '../support/reporting-api.js';
+import type { ReportingApi } from './reporting-api.js';
 import { RELEASE_COMPLIANCE, RELEASE_COUNTS, RELEASE_FY } from './release-fixtures.js';
 
 /** Arranges the release fixtures (release-fixtures.ts) in the reporting database. */

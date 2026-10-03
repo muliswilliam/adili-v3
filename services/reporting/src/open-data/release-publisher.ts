@@ -23,7 +23,11 @@ import {
 import { objectKeyOf, RELEASE_FILE, type ReleaseDocument } from './files.js';
 import { OpenDataFiles } from './open-data-files.js';
 import { lockReleasesOf, noPublishedAnnualBesides, releaseView } from './release-builder.js';
-import type { OpenDataReleaseRow, OpenDataReleaseView } from './representation.js';
+import {
+  type OpenDataReleaseRow,
+  type OpenDataReleaseView,
+  ReleaseNotFound,
+} from './representation.js';
 import { openDataFiles, openDataReleases, type ReleaseStatus } from './schema.js';
 import { OPEN_DATA_TABLES, type OpenDataTable } from './tables.js';
 
@@ -32,11 +36,6 @@ const MANIFEST_KEY_NAMESPACE = '5e0b8c3a-91d4-4f7e-a2c6-0d8f3b17e4a9';
 
 /** Version of the documents service's `open-data-manifest` template the payload fits. */
 export const MANIFEST_TEMPLATE_VERSION = 1;
-
-/** No release has the id. */
-export class ReleaseNotFound extends Error {
-  override readonly name = 'ReleaseNotFound';
-}
 
 /** Only a preview is published: this one is published already, or withdrawn. */
 export class ReleaseNotInPreview extends Error {

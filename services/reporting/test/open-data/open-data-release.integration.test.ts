@@ -27,8 +27,12 @@ import {
   RELEASE_COMPLIANCE,
   RELEASE_COUNTS,
   RELEASE_FY,
-} from './release-fixtures.js';
-import { givenProjectedYear, givenReleaseYear, givenReportSubmitted } from './release-year.js';
+} from '../support/release-fixtures.js';
+import {
+  givenProjectedYear,
+  givenReleaseYear,
+  givenReportSubmitted,
+} from '../support/release-year.js';
 
 /**
  * S4, S6 (the snapshot build) and S9 through the HTTP API against Postgres, with the open-data

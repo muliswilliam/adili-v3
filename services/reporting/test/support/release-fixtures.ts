@@ -1,6 +1,6 @@
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
 import { type ComplianceCounts, emptyComplianceCounts } from '../../src/open-data/tables.js';
-import { section } from '../support/receipts.js';
+import { section } from './receipts.js';
 
 /**
  * FY 2027 open-data fixtures (spec 09b S4): four Commissions reported and one did not.

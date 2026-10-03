@@ -5,6 +5,14 @@ import { OPEN_DATA_TABLES, type OpenDataTableName } from './tables.js';
 import type { ReleaseKind, ReleaseStatus } from './schema.js';
 
 export type OpenDataReleaseRow = typeof openDataReleases.$inferSelect;
+
+/**
+ * No release the caller may see has the key: none has the id (EACC's endpoints), or none of the
+ * year, kind and version is public (published or withdrawn; the public API). Answered 404.
+ */
+export class ReleaseNotFound extends Error {
+  override readonly name = 'ReleaseNotFound';
+}
 export type OpenDataFileRow = typeof openDataFiles.$inferSelect;
 
 /** reporting.yaml `OpenDataRelease`. */

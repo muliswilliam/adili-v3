@@ -20,8 +20,8 @@ import { OPEN_DATA_TABLES } from '../../src/open-data/tables.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { historyPayloads } from '../support/workflow-history.js';
 import { type Caller, type ReportingApi, startReportingApi } from '../support/reporting-api.js';
-import { RELEASE_COMMISSIONS, RELEASE_FY } from './release-fixtures.js';
-import { givenReleaseYear } from './release-year.js';
+import { RELEASE_COMMISSIONS, RELEASE_FY } from '../support/release-fixtures.js';
+import { givenReleaseYear } from '../support/release-year.js';
 
 /**
  * S5, S6 (publish authorisation) and S7 through the HTTP API against Postgres and the compose

@@ -16,7 +16,7 @@ import {
   RELEASE_COMPLIANCE,
   RELEASE_COUNTS,
   RELEASE_FY,
-} from './release-fixtures.js';
+} from '../support/release-fixtures.js';
 
 /**
  * S4 (suppression applied in the release tables) and S9 (reconciliation), pure: the six tables

@@ -6,13 +6,13 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
 import { complianceReports, openDataReleases, reportReceipts } from '../../src/db/schema.js';
-import type { CommissionOpenDataPreview } from '../../src/open-data/commission-preview.js';
+import type { CommissionOpenDataPreview } from '../../src/open-data/commission-preview.service.js';
 import type { OpenDataReleaseView } from '../../src/open-data/representation.js';
 import type { ReleaseStatus } from '../../src/open-data/schema.js';
 import type { OpenDataTable } from '../../src/open-data/tables.js';
 import { contractErrors, okResponse } from '../support/contract.js';
 import { type Caller, type ReportingApi, startReportingApi } from '../support/reporting-api.js';
-import { RELEASE_COMMISSIONS, RELEASE_COUNTS, RELEASE_FY } from './release-fixtures.js';
+import { RELEASE_COMMISSIONS, RELEASE_COUNTS, RELEASE_FY } from '../support/release-fixtures.js';
 
 /**
  * S6 (a commission-admin sees its own rows of the preview) through the HTTP API against Postgres,

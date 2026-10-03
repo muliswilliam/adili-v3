@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { ClockModule } from '../clock.module.js';
 import { UpstreamModule } from '../upstream.module.js';
 import { CommissionOpenDataPreviewController } from './commission-preview.controller.js';
-import { CommissionOpenDataPreviewService } from './commission-preview.js';
+import { CommissionOpenDataPreviewService } from './commission-preview.service.js';
 import { OpenDataController } from './open-data.controller.js';
 import { OpenDataService } from './open-data.service.js';
 import { OpenDataReleaseBuilder } from './release-builder.js';

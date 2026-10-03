@@ -48,8 +48,8 @@ import {
   jsonBody,
   PublicOpenDataService,
   type PublicReleaseKey,
-  PublicReleaseNotFound,
 } from './public-open-data.service.js';
+import { ReleaseNotFound } from './representation.js';
 import { RELEASE_KINDS } from './schema.js';
 import { OPEN_DATA_TABLES, type OpenDataTableName } from './tables.js';
 
@@ -219,7 +219,7 @@ async function found<T>(read: () => Promise<T>): Promise<T> {
   try {
     return await read();
   } catch (error) {
-    if (error instanceof PublicReleaseNotFound) throw notFound(NOT_FOUND);
+    if (error instanceof ReleaseNotFound) throw notFound(NOT_FOUND);
     throw error;
   }
 }

@@ -6,7 +6,7 @@ import { TENANT_SLUG } from '../access.js';
 import {
   type CommissionOpenDataPreview,
   CommissionOpenDataPreviewService,
-} from './commission-preview.js';
+} from './commission-preview.service.js';
 
 /**
  * A Commission's own rows of the current open-data release (spec 09b S6): its commission-admin

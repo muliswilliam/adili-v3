@@ -14,6 +14,7 @@ import {
   publicOpenDataReleaseView,
   type PublicReleaseRow,
 } from './public-representation.js';
+import { ReleaseNotFound } from './representation.js';
 import type { ReleaseKind } from './schema.js';
 import { openDataFiles, openDataReleases } from './schema.js';
 import type { OpenDataTableName } from './tables.js';
@@ -34,11 +35,6 @@ export interface CacheableBody {
   /** SHA-256 (hex) of `body`. */
   sha256: string;
   lastModified: Date;
-}
-
-/** No public release (published or withdrawn) has the year, kind and version. */
-export class PublicReleaseNotFound extends Error {
-  override readonly name = 'PublicReleaseNotFound';
 }
 
 /**
@@ -91,7 +87,7 @@ export class PublicOpenDataService {
     });
   }
 
-  /** The release, `PublicReleaseNotFound` unless it is public. */
+  /** The release, `ReleaseNotFound` unless it is public. */
   async release(
     key: PublicReleaseKey,
   ): Promise<{ release: PublicOpenDataReleaseView; lastModified: Date }> {
@@ -114,7 +110,7 @@ export class PublicOpenDataService {
 
   /**
    * The table's file in `format` as stored (the JSON is reporting.yaml's `getOpenDataTable`
-   * body), also of a withdrawn release. `PublicReleaseNotFound` unless the release is public;
+   * body), also of a withdrawn release. `ReleaseNotFound` unless the release is public;
    * the store's `OpenDataStorageUnavailable` and `OpenDataFileMissing` propagate.
    */
   async table(
@@ -169,7 +165,7 @@ async function publicRelease(
       ),
     );
   if (!release) {
-    throw new PublicReleaseNotFound(
+    throw new ReleaseNotFound(
       `No public open-data release ${String(key.fy)} ${key.kind} v${String(key.version)}`,
     );
   }

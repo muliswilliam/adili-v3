@@ -9,8 +9,8 @@ import type { OpenDataReleaseView } from '../../src/open-data/representation.js'
 import { OPEN_DATA_TABLES } from '../../src/open-data/tables.js';
 import { contractErrors } from '../support/contract.js';
 import { type Caller, type ReportingApi, startReportingApi } from '../support/reporting-api.js';
-import { RELEASE_COMMISSIONS, RELEASE_FY } from './release-fixtures.js';
-import { givenReleaseYear } from './release-year.js';
+import { RELEASE_COMMISSIONS, RELEASE_FY } from '../support/release-fixtures.js';
+import { givenReleaseYear } from '../support/release-year.js';
 
 /**
  * S7 and S8 through the public open-data API, with no Authorization header, against Postgres,
