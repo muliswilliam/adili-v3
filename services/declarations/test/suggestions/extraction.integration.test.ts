@@ -28,8 +28,8 @@ import { assetItem, liabilityItem } from '../fixtures/sections.js';
  * asks documents for a short-lived link, submits an `extract-document` job to the ai-gateway
  * (faked) for the item the document is on, and records a `document` set; the gateway's
  * `ai.job.*` event (delivered to the consumer as the transport would) turns it into one
- * suggestion with fields, confidences and pages, or `not-enabled` and `failed`. Accepting it
- * goes through the section save like any suggestion.
+ * suggestion with fields, confidences and pages, or `not-enabled` and `failed`; one test sends
+ * it through RabbitMQ instead. Accepting it goes through the section save like any suggestion.
  */
 
 const ACHIENG = randomUUID();
@@ -47,7 +47,7 @@ const EXTRACT_RESPONSE =
 let api: DeclarationsApi;
 
 beforeAll(async () => {
-  api = await startDeclarationsApi();
+  api = await startDeclarationsApi({ events: true });
   return () => api.close();
 });
 
@@ -282,6 +282,20 @@ describe('reading a document (S6)', () => {
         data: { declarationId: draft.id, setId: set.id, source: 'document', count: 1 },
       }),
     ]);
+  });
+
+  it("is settled by the gateway's event as RabbitMQ delivers it", async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    await extract(draft.id, attachment.id);
+    const job = api.ai.finish(api.ai.onlyJob().id, { output: logbookReading() });
+
+    await api.publish(jobEvent('ai.job.completed.v1', job));
+
+    await expect
+      .poll(async () => (await documentSets(draft.id)).map((set) => set.status), {
+        timeout: 15_000,
+      })
+      .toEqual(['ready']);
   });
 
   it('records a reading whose event has not arrived when the declarant asks again', async () => {
