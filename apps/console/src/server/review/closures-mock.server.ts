@@ -3,7 +3,7 @@
  * part of the review mock (`mock.server.ts`, REVIEW_MOCK). Seeded relative to "now", one cycle
  * per state of the bulk closure screen (#202):
  *
- * - The current year (`MOCK_CLOSURE_CYCLES.ready`): swept today at 02:00 (Nairobi), its window
+ * - The current year (`mockClosureCycles(now).ready`): swept today at 02:00 (Nairobi), its window
  *   closed a month ago. 1,240 system `compliant-no-issues` proposals wait (7 in 10 biennial, 2
  *   initial, 1 final; a quarter in each of `MOCK_CLOSURE_ENTITIES`), 25 cases were sampled for
  *   review and 312 closures are already approved. `MOCK_CLOSURE_FORMER_HOLDER` once held 3 of
@@ -11,21 +11,24 @@
  * - The year before (`pending`): no sweep yet, its window closes in 90 days.
  * - Two years before (`closed`): every proposal approved (980), nothing left.
  *
- * One store for every Commission (the console reads the caller's own). As review.yaml has it: supervisors only (403 `supervisor-required` for anyone else, read from
- * the token's realm roles); approval needs an Idempotency-Key and runs in chunks of 100, each
- * allocating its CMP numbers in sequence, `chunkDelayMs` apart so a summary read meanwhile sees
- * the chunks land. With `failAtChunk` (REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK) the first attempt of
- * every key stops with a 503 before that chunk; sent again with the key it resumes, and the
- * result counts every closure approved under the key.
+ * One store for every Commission (the console reads the caller's own). As review.yaml has it:
+ * supervisors only (403 `supervisor-required` for anyone else, read from the token's realm
+ * roles); approval needs an Idempotency-Key, bound to the filters it was first sent with (422
+ * for others), and runs in chunks of 100, each allocating its CMP numbers in sequence,
+ * `chunkDelayMs` apart so a summary read meanwhile sees the chunks land. With `failAtChunk`
+ * (REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK) the first attempt of every key stops with a 503 before
+ * that chunk; sent again with the key it resumes, and the result counts every closure approved
+ * under the key.
  */
 import { SUPERVISOR } from '@adili/roles';
 import { addDays, nairobiDayStartOf } from '@adili/ui';
 
+import { CLOSURE_TYPES, CYCLE_YEARS } from '../../closures/search';
 import { json, type MockCaller, problem } from '../mock-http';
 import type { components } from './api.gen';
 
 type Schemas = components['schemas'];
-type DeclarationType = 'initial' | 'biennial' | 'final';
+type DeclarationType = Schemas['DeclarationType'];
 
 export const MOCK_CLOSURE_CHUNK = 100;
 
@@ -40,8 +43,11 @@ export const MOCK_CLOSURE_ENTITIES = [
 /** A supervisor who once held three of the waiting cases, as their reviewer. */
 export const MOCK_CLOSURE_FORMER_HOLDER = 'a1b2c3d4-0000-4000-8000-0000000000f1';
 
-/** The cycle years of each state, for "now" in 2026. Recomputed by `resetClosuresMock`. */
-export const MOCK_CLOSURE_CYCLES = { ready: 2026, pending: 2025, closed: 2024 };
+/** The cycle years of each seeded state, for "now" at `now`. */
+export function mockClosureCycles(now: number) {
+  const year = new Date(now).getUTCFullYear();
+  return { ready: year, pending: year - 1, closed: year - 2 };
+}
 
 export interface ClosuresMockOptions {
   /** Pause between chunks, so progress can be watched; 0 in tests. */
@@ -72,6 +78,8 @@ const proposals: Proposal[] = [];
 const cycles = new Map<number, Cycle>();
 /** Chunks approved per bulk approval (approver and key). */
 const approvals = new Map<string, number>();
+/** The filters each bulk approval (approver and key) was first sent with. */
+const filters = new Map<string, string>();
 /** Bulk approvals whose first attempt already failed (`failAtChunk`). */
 const failedOnce = new Set<string>();
 /** The last CMP sequence number per Commission and year. */
@@ -110,12 +118,12 @@ export function resetClosuresMock(now: number, next: ClosuresMockOptions = {}) {
   proposals.length = 0;
   cycles.clear();
   approvals.clear();
+  filters.clear();
   failedOnce.clear();
   sequences.clear();
   options = { chunkDelayMs: next.chunkDelayMs ?? 300, failAtChunk: next.failAtChunk ?? 0 };
   const iso = new Date(now).toISOString();
-  const year = new Date(now).getUTCFullYear();
-  Object.assign(MOCK_CLOSURE_CYCLES, { ready: year, pending: year - 1, closed: year - 2 });
+  const year = mockClosureCycles(now).ready;
   const sweptAt = new Date(Date.parse(nairobiDayStartOf(iso)) + 2 * 3_600_000).toISOString();
 
   cycles.set(year, {
@@ -163,15 +171,21 @@ interface Filter {
 
 function filterOf(url: URL): Filter | null {
   const cycleYear = Number(url.searchParams.get('cycleYear'));
-  if (!Number.isInteger(cycleYear) || cycleYear < 2000 || cycleYear > 2100) return null;
+  if (!Number.isInteger(cycleYear) || cycleYear < CYCLE_YEARS.min || cycleYear > CYCLE_YEARS.max) {
+    return null;
+  }
   const type = url.searchParams.get('type');
-  if (type !== null && !['initial', 'biennial', 'final'].includes(type)) return null;
+  const known = CLOSURE_TYPES.find((each) => each === type);
+  if (type !== null && known === undefined) return null;
   return {
     cycleYear,
-    type: type as DeclarationType | null,
+    type: known ?? null,
     reportingEntityId: url.searchParams.get('reportingEntityId'),
   };
 }
+
+const filterKey = (filter: Filter) =>
+  `${String(filter.cycleYear)}|${filter.type ?? ''}|${filter.reportingEntityId ?? ''}`;
 
 function matches(filter: Filter) {
   return (each: Proposal) =>
@@ -208,6 +222,12 @@ async function approve(
   key: string,
 ): Promise<Response> {
   const approval = `${caller}:${key}`;
+  // A key is bound to the filters it was first sent with (review.yaml: 422).
+  const bound = filters.get(approval);
+  if (bound !== undefined && bound !== filterKey(filter)) {
+    return problem(422, 'Idempotency-Key reused with a different request');
+  }
+  filters.set(approval, filterKey(filter));
   const waiting = () =>
     proposals.filter(
       (each) =>
@@ -232,14 +252,14 @@ async function approve(
     }
     approvals.set(approval, done + 1);
   }
-  const mine = proposals.filter((each) => each.approval === approval);
+  const approvedUnderKey = proposals.filter((each) => each.approval === approval);
   return json(200, {
-    approved: mine.length,
+    approved: approvedUnderKey.length,
     skipped: proposals.filter(
       (each) => matches(filter)(each) && each.status === 'proposed' && each.heldBy.includes(caller),
     ).length,
-    firstReference: mine.at(0)?.reference ?? null,
-    lastReference: mine.at(-1)?.reference ?? null,
+    firstReference: approvedUnderKey.at(0)?.reference ?? null,
+    lastReference: approvedUnderKey.at(-1)?.reference ?? null,
     chunks: approvals.get(approval) ?? 0,
   } satisfies Schemas['BulkApprovalResult']);
 }

@@ -6,14 +6,15 @@ import { approveClosures, loadClosureSummary } from './closures.server';
 import { unsignedMockToken } from './mock-http';
 import type { paths } from './review/api.gen';
 import {
-  MOCK_CLOSURE_CYCLES as CYCLES,
   MOCK_CLOSURE_ENTITIES,
   MOCK_CLOSURE_FORMER_HOLDER,
+  mockClosureCycles,
 } from './review/closures-mock.server';
 import { mockReviewFetch, resetReviewMock } from './review/mock.server';
 
 const NOW_MS = Date.parse('2026-10-02T09:00:00Z');
 const SLUG = 'tsc';
+const CYCLES = mockClosureCycles(NOW_MS);
 
 /** Every request the client sent, as the mock saw it. */
 let sent: Request[] = [];
@@ -140,6 +141,23 @@ describe('approveClosures (S4)', () => {
     if (!resumed.ok) throw new Error(JSON.stringify(resumed.error));
     expect(resumed.data).toMatchObject({ approved: 1240, chunks: 13 });
     expect(sequence(resumed.data.lastReference) - sequence(resumed.data.firstReference)).toBe(1239);
+  });
+
+  it('refuses a key sent again with other filters (422) and changes nothing', async () => {
+    resetReviewMock(NOW_MS, { closures: { chunkDelayMs: 0, failAtChunk: 2 } });
+    await approveClosures(supervisor(), SLUG, { cycleYear: CYCLES.ready }, 'k-reuse');
+    const before = await summary({ cycleYear: CYCLES.ready });
+    const reused = await approveClosures(
+      supervisor(),
+      SLUG,
+      { cycleYear: CYCLES.ready, type: 'final' },
+      'k-reuse',
+    );
+    expect(reused).toMatchObject({
+      ok: false,
+      error: { kind: 'problem', problem: { status: 422 } },
+    });
+    expect(await summary({ cycleYear: CYCLES.ready })).toEqual(before);
   });
 
   it('leaves the closures of cases the approver once held for another supervisor', async () => {

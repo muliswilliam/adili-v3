@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { BulkApprovalResult, ClosureSummary } from '../../server/closures';
-import type { ServiceResult } from '../../server/service-call';
+import type { BaseProblem, ServiceResult } from '../../server/service-call';
 import { BulkClosureView, type BulkClosureViewProps } from './bulk-closure-view';
 
 const invalidate = vi.fn(() => Promise.resolve());
@@ -62,7 +62,10 @@ function renderView(props: Partial<BulkClosureViewProps> = {}) {
     approve: vi.fn<BulkClosureViewProps['approve']>(),
     readSummary: vi.fn<BulkClosureViewProps['readSummary']>(() => Promise.resolve(ok(SUMMARY))),
   };
-  const view = (readSummary: BulkClosureViewProps['readSummary']) => (
+  const view = (
+    readSummary: BulkClosureViewProps['readSummary'],
+    next: Partial<BulkClosureViewProps> = props,
+  ) => (
     <BulkClosureView
       summary={ok(SUMMARY)}
       search={{ cycle: 2026 }}
@@ -70,15 +73,20 @@ function renderView(props: Partial<BulkClosureViewProps> = {}) {
       today={Date.parse('2026-10-02T09:00:00Z')}
       {...handlers}
       readSummary={readSummary}
-      {...props}
+      {...next}
     />
   );
-  const { rerender } = render(view(handlers.readSummary));
+  const { rerender, container } = render(view(handlers.readSummary));
   return {
     ...handlers,
+    container,
     /** Renders again with a new `readSummary` function, as each render of the route passes. */
     rerenderWithNewReader: () => {
       rerender(view((...args) => handlers.readSummary(...args)));
+    },
+    /** Renders again with other props, e.g. new filters or counts after a reload. */
+    rerenderWith: (next: Partial<BulkClosureViewProps>) => {
+      rerender(view(handlers.readSummary, { ...props, ...next }));
     },
   };
 }
@@ -140,7 +148,9 @@ describe('BulkClosureView', () => {
     expect(dialog.textContent).toContain(
       'Each closure receives a CMP number in your name. Sampled cases are excluded and appear in the review queue.',
     );
-    expect(dialog.textContent).toContain('Cycle 2026 · All types · Low priority');
+    expect(dialog.textContent).toContain(
+      'Cycle 2026 · All types · Low priority · All reporting entities',
+    );
     expect(dialog.textContent).toContain('1,240 CMP numbers are allocated in order');
     expect(dialog.textContent).toContain('Each declarant is notified');
     expect(dialog.textContent).toContain('Decision letters are prepared on demand');
@@ -263,6 +273,64 @@ describe('BulkClosureView', () => {
     expect(screen.getByText('3 of 13 chunks approved')).toBeTruthy();
   });
 
+  it('resumes with the filters it started with', async () => {
+    const { approve } = renderView();
+    approve.mockResolvedValueOnce(ANSWERED_503).mockResolvedValueOnce(ok(DONE));
+
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(approve.mock.calls[0]?.[1]).toEqual({ cycleYear: 2026 });
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(approve.mock.calls[1]).toEqual([approve.mock.calls[0]?.[0], { cycleYear: 2026 }]);
+  });
+
+  it('starts afresh when the filters change after a run stopped', async () => {
+    const { approve, rerenderWith } = renderView();
+    approve.mockResolvedValue(ANSWERED_503);
+
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(screen.getByText(/Approval stopped/)).toBeTruthy();
+    rerenderWith({ search: { cycle: 2026, type: 'final' } });
+    expect(screen.queryByText(/Approval stopped/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
+
+    approve.mockResolvedValue(ok(DONE));
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    const [first, second] = approve.mock.calls;
+    expect(second?.[0]).not.toBe(first?.[0]);
+    expect(second?.[1]).toEqual({ cycleYear: 2026, type: 'final' });
+  });
+
+  it('starts afresh when the filters change after a run finished', async () => {
+    const { approve, rerenderWith } = renderView();
+    approve.mockResolvedValue(ok(DONE));
+
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    rerenderWith({ search: { cycle: 2026, type: 'initial' } });
+    expect(screen.queryByText(/^Approved 1,240 closures/)).toBeNull();
+    expect(screen.getByText('1,240 closures ready')).toBeTruthy();
+  });
+
+  it('has nothing left once only the closures left for another supervisor wait', async () => {
+    const { approve, rerenderWith } = renderView();
+    approve.mockResolvedValue(ok({ ...DONE, approved: 1237, skipped: 3 }));
+
+    approveAll();
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Approve another batch' }));
+    // The reload counts the three this supervisor may not approve as waiting.
+    rerenderWith({ summary: ok({ ...SUMMARY, eligibleProposed: 3, approved: 1549 }) });
+    expect(screen.getByText('Nothing left to approve for these filters')).toBeTruthy();
+    expect(
+      screen.getByText('3 closures of cases you once held are left for another supervisor.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Approve/ })).toBeNull();
+  });
+
   it('starts a new key for the next batch', async () => {
     const { approve } = renderView();
     approve.mockResolvedValue(ok(DONE));
@@ -337,13 +405,33 @@ describe('BulkClosureView', () => {
         ok: false,
         error: {
           kind: 'problem',
-          problem: { type: 'about:blank', title: 'Forbidden', status: 403 },
+          problem: {
+            type: 'about:blank',
+            title: 'Forbidden',
+            status: 403,
+            code: 'supervisor-required',
+          } as BaseProblem,
         },
       },
     });
 
     expect(screen.getByText('Only a supervisor can approve bulk closures.')).toBeTruthy();
     expect(screen.queryByRole('group', { name: 'Filters' })).toBeNull();
+  });
+
+  it('treats any other 403 as a failed load', () => {
+    renderView({
+      summary: {
+        ok: false,
+        error: {
+          kind: 'problem',
+          problem: { type: 'about:blank', title: 'Forbidden', status: 403 },
+        },
+      },
+    });
+
+    expect(screen.queryByText('Only a supervisor can approve bulk closures.')).toBeNull();
+    expect(screen.getByText('We could not load the bulk closures')).toBeTruthy();
   });
 
   it('offers a retry when the counts could not be loaded', () => {
@@ -354,9 +442,9 @@ describe('BulkClosureView', () => {
   });
 
   it('keeps its shape while the counts load', () => {
-    renderView({ summary: null });
+    const { container } = renderView({ summary: null });
 
-    expect(screen.getByRole('group', { name: 'Filters' })).toBeTruthy();
+    expect(container.querySelector('[aria-busy="true"]')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Approve/ })).toBeNull();
   });
 });

@@ -14,14 +14,17 @@ export const CLOSURE_TYPES = [
   'final',
 ] as const satisfies readonly DeclarationType[];
 
+/** The cycle years review.yaml accepts for the closures endpoints. */
+export const CYCLE_YEARS = { min: 2000, max: 2100 } as const;
+
 /** Parses `?cycle=&type=`, dropping what does not parse; `now` picks the default cycle. */
 export function closureSearchSchema(now: () => number) {
   return z.object({
     cycle: z.coerce
       .number()
       .int()
-      .min(2000)
-      .max(2100)
+      .min(CYCLE_YEARS.min)
+      .max(CYCLE_YEARS.max)
       .catch(() => new Date(now()).getUTCFullYear())
       .default(() => new Date(now()).getUTCFullYear()),
     type: z.enum(CLOSURE_TYPES).optional().catch(undefined),

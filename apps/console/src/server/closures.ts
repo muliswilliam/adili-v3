@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import { CLOSURE_TYPES } from '../closures/search';
+import { CLOSURE_TYPES, CYCLE_YEARS } from '../closures/search';
 import { asReviewer } from './as-viewer.server';
 import {
   approveClosures,
@@ -23,7 +23,7 @@ export type { BulkApprovalResult, ClosureFilter, ClosureSummary, DeclarationType
  */
 
 export const closureFilterSchema = z.object({
-  cycleYear: z.number().int().min(2000).max(2100),
+  cycleYear: z.number().int().min(CYCLE_YEARS.min).max(CYCLE_YEARS.max),
   type: z.enum(CLOSURE_TYPES).optional(),
   reportingEntityId: z.uuid().optional(),
 });

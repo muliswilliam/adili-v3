@@ -40,8 +40,8 @@ import {
 import { Link, useRouter } from '@tanstack/react-router';
 import { useState } from 'react';
 
-import { CLOSURE_TYPES, type ClosureSearch } from '../../closures/search';
-import type { BulkApprovalResult, ClosureSummary } from '../../server/closures';
+import { CLOSURE_TYPES, closureFilter, type ClosureSearch } from '../../closures/search';
+import type { BulkApprovalResult, ClosureFilter, ClosureSummary } from '../../server/closures';
 import { problemStatus, type ServiceError, type ServiceResult } from '../../server/service-call';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
@@ -49,6 +49,8 @@ import { en as m } from './messages';
 import { CHUNK_SIZE, type BulkApproval, useBulkApproval } from './use-bulk-approval';
 
 const ALL = 'all';
+
+const TILES = 'grid grid-cols-1 gap-3 @min-[640px]:grid-cols-3';
 
 export interface BulkClosureViewProps {
   /** The counts for `search`; null while they load. */
@@ -58,9 +60,12 @@ export interface BulkClosureViewProps {
   /** Cycle years to choose from, newest first. */
   cycles: readonly number[];
   /** Approve the filters' proposals under the key. */
-  approve: (idempotencyKey: string) => Promise<ServiceResult<BulkApprovalResult>>;
+  approve: (
+    idempotencyKey: string,
+    filter: ClosureFilter,
+  ) => Promise<ServiceResult<BulkApprovalResult>>;
   /** Read the counts for the filters again, while a run is under way. */
-  readSummary: () => Promise<ServiceResult<ClosureSummary>>;
+  readSummary: (filter: ClosureFilter) => Promise<ServiceResult<ClosureSummary>>;
   /** Now, for whether the clarification window has closed (`useToday`). */
   today: number;
 }
@@ -74,12 +79,16 @@ export interface BulkClosureViewProps {
  * done, and a stopped run with Resume. A reviewer is told it is for supervisors.
  */
 export function BulkClosureView(props: BulkClosureViewProps) {
-  const { summary } = props;
+  const { summary, search } = props;
   const router = useRouter();
-  const bulk = useBulkApproval({ approve: props.approve, readSummary: props.readSummary });
+  const bulk = useBulkApproval({
+    filter: closureFilter(search),
+    approve: props.approve,
+    readSummary: props.readSummary,
+  });
   const [confirming, setConfirming] = useState(false);
 
-  if (problemStatus(summary) === 403) {
+  if (isSupervisorRequired(summary)) {
     return (
       <Page narrow>
         <PageHead title={m.title} />
@@ -99,6 +108,8 @@ export function BulkClosureView(props: BulkClosureViewProps) {
   const swept = counts?.lastSweptAt != null;
   const phase = phaseOf(bulk, swept);
   const run = bulk.run.status === 'idle' ? null : bulk.run;
+  // What this supervisor can approve: the waiting proposals less those left for another one.
+  const eligible = Math.max(0, (counts?.eligibleProposed ?? 0) - bulk.leftForOthers);
   const backToBatch = () => {
     bulk.reset();
     void router.invalidate();
@@ -107,69 +118,73 @@ export function BulkClosureView(props: BulkClosureViewProps) {
   return (
     <Page>
       <PageHead title={m.title} />
-      <div className="grid gap-4">
-        <Filters
-          search={props.search}
-          onSearchChange={props.onSearchChange}
-          cycles={props.cycles}
-          locked={phase === 'running'}
-        />
-        {summary && !summary.ok ? (
-          <LoadError title={m.errorTitle} detail={m.errorDetail} retryLabel={m.tryAgain} />
-        ) : (
-          <>
-            {counts === null ? (
-              <CountsSkeleton />
-            ) : swept ? (
-              <Counts summary={counts} approvedByRun={run?.approved ?? 0} />
-            ) : null}
-            <Card className="@container p-5 sm:p-5">
-              {counts === null ? (
-                <Skeleton className="h-[52px] w-full rounded-lg" />
-              ) : (
-                <BatchSelector
-                  phase={phase}
-                  eligible={counts.eligibleProposed}
-                  excluded={counts.sampled}
-                  chunkSize={CHUNK_SIZE}
-                  windowClosesAt={counts.windowClosedAt}
-                  progress={bulk.progress}
-                  references={bulk.references}
-                  skipped={run?.result?.skipped ?? 0}
-                  stoppedReason={run?.error ? stoppedReason(run.error) : undefined}
-                  onApprove={() => {
-                    setConfirming(true);
-                  }}
-                  onResume={bulk.resume}
-                  onStop={backToBatch}
-                  onReset={backToBatch}
-                  messages={{
-                    pendingDescription:
-                      counts.windowClosedAt !== null &&
-                      Date.parse(counts.windowClosedAt) <= props.today
-                        ? () => m.pendingSweep
-                        : m.pendingDescription,
-                  }}
-                />
-              )}
-              <Help summary={counts} />
-            </Card>
-          </>
-        )}
-      </div>
+      {summary && !summary.ok ? (
+        <LoadError title={m.errorTitle} detail={m.errorDetail} retryLabel={m.tryAgain} />
+      ) : counts === null ? (
+        <BatchSkeleton />
+      ) : (
+        <Card className="@container p-5 sm:p-5">
+          <BatchSelector
+            filters={
+              <FilterFields
+                search={search}
+                onSearchChange={props.onSearchChange}
+                cycles={props.cycles}
+              />
+            }
+            counts={swept ? <Counts summary={counts} approvedByRun={run?.approved ?? 0} /> : null}
+            phase={phase}
+            eligible={eligible}
+            excluded={counts.sampled}
+            chunkSize={CHUNK_SIZE}
+            windowClosesAt={counts.windowClosedAt}
+            progress={bulk.progress}
+            references={bulk.references}
+            skipped={run?.result?.skipped ?? 0}
+            stoppedReason={run?.error ? stoppedReason(run.error) : undefined}
+            onApprove={() => {
+              setConfirming(true);
+            }}
+            onResume={bulk.resume}
+            onStop={backToBatch}
+            onReset={backToBatch}
+            messages={{
+              pendingDescription:
+                counts.windowClosedAt !== null && Date.parse(counts.windowClosedAt) <= props.today
+                  ? () => m.pendingSweep
+                  : m.pendingDescription,
+              ...(bulk.leftForOthers > 0
+                ? { emptyDescription: m.leftForOthers(formatNumber(bulk.leftForOthers)) }
+                : {}),
+            }}
+          />
+          <Help summary={counts} />
+        </Card>
+      )}
       {counts ? (
         <ConfirmDialog
           open={confirming}
           onOpenChange={setConfirming}
-          count={counts.eligibleProposed}
-          search={props.search}
+          count={eligible}
+          search={search}
           onConfirm={() => {
             setConfirming(false);
-            bulk.start(counts);
+            bulk.start(counts, eligible);
           }}
         />
       ) : null}
     </Page>
+  );
+}
+
+/** The review service's refusal of a reviewer: 403 `supervisor-required`. */
+function isSupervisorRequired(summary: ServiceResult<ClosureSummary> | null): boolean {
+  if (problemStatus(summary) !== 403 || !summary || summary.ok) return false;
+  const { error } = summary;
+  return (
+    error.kind === 'problem' &&
+    'code' in error.problem &&
+    error.problem.code === 'supervisor-required'
   );
 }
 
@@ -183,67 +198,57 @@ function stoppedReason(error: ServiceError): string {
   return m.stoppedUnavailable;
 }
 
-function Filters({
+/** Cycle, type, the fixed band and (for now) every reporting entity, laid out by BatchSelector. */
+function FilterFields({
   search,
   onSearchChange,
   cycles,
-  locked,
-}: Pick<BulkClosureViewProps, 'search' | 'onSearchChange' | 'cycles'> & { locked: boolean }) {
+}: Pick<BulkClosureViewProps, 'search' | 'onSearchChange' | 'cycles'>) {
   return (
-    <Card className="@container p-5 sm:p-5">
-      <fieldset disabled={locked} className="min-w-0">
-        <legend className="sr-only">{m.filters}</legend>
-        <div className="grid grid-cols-1 gap-3 @min-[560px]:grid-cols-2 @min-[1000px]:grid-cols-4">
-          <FormField label={m.cycleLabel}>
-            <Select
-              value={String(search.cycle)}
-              onValueChange={(value) => {
-                onSearchChange({ ...search, cycle: Number(value) });
-              }}
-            >
-              {cycles.map((year) => (
-                <SelectItem key={year} value={String(year)}>
-                  {m.cycleOption(year)}
-                </SelectItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label={m.typeLabel}>
-            <Select
-              value={search.type ?? ALL}
-              onValueChange={(value) => {
-                const type = CLOSURE_TYPES.find((each) => each === value);
-                onSearchChange(type ? { ...search, type } : { cycle: search.cycle });
-              }}
-            >
-              <SelectItem value={ALL}>{m.typeAll}</SelectItem>
-              {CLOSURE_TYPES.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {m.types[type]}
-                </SelectItem>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label={m.bandLabel}>
-            <Select value="low" disabled>
-              <SelectItem value="low">{m.bandLow}</SelectItem>
-            </Select>
-          </FormField>
-          <FormField label={m.entityLabel}>
-            <Select value={ALL} disabled>
-              <SelectItem value={ALL}>{m.entityAll}</SelectItem>
-            </Select>
-          </FormField>
-        </div>
-        {locked ? (
-          <p className="mt-3 text-[13px] text-muted-foreground">{m.filtersLocked}</p>
-        ) : null}
-      </fieldset>
-    </Card>
+    <>
+      <FormField label={m.cycleLabel}>
+        <Select
+          value={String(search.cycle)}
+          onValueChange={(value) => {
+            onSearchChange({ ...search, cycle: Number(value) });
+          }}
+        >
+          {cycles.map((year) => (
+            <SelectItem key={year} value={String(year)}>
+              {m.cycleOption(year)}
+            </SelectItem>
+          ))}
+        </Select>
+      </FormField>
+      <FormField label={m.typeLabel}>
+        <Select
+          value={search.type ?? ALL}
+          onValueChange={(value) => {
+            const type = CLOSURE_TYPES.find((each) => each === value);
+            onSearchChange(type ? { ...search, type } : { cycle: search.cycle });
+          }}
+        >
+          <SelectItem value={ALL}>{m.typeAll}</SelectItem>
+          {CLOSURE_TYPES.map((type) => (
+            <SelectItem key={type} value={type}>
+              {m.types[type]}
+            </SelectItem>
+          ))}
+        </Select>
+      </FormField>
+      <FormField label={m.bandLabel}>
+        <Select value="low" disabled>
+          <SelectItem value="low">{m.bandLow}</SelectItem>
+        </Select>
+      </FormField>
+      <FormField label={m.entityLabel}>
+        <Select value={ALL} disabled>
+          <SelectItem value={ALL}>{m.entityAll}</SelectItem>
+        </Select>
+      </FormField>
+    </>
   );
 }
-
-const TILES = 'grid grid-cols-1 gap-3 min-[640px]:grid-cols-3';
 
 /** Eligible, sampled (with the rate and the way to the queue) and approved, as the run moves. */
 function Counts({ summary, approvedByRun }: { summary: ClosureSummary; approvedByRun: number }) {
@@ -278,13 +283,22 @@ function Counts({ summary, approvedByRun }: { summary: ClosureSummary; approvedB
   );
 }
 
-function CountsSkeleton() {
+/** The batch card while its counts load, the size of a loaded one. */
+function BatchSkeleton() {
   return (
-    <div aria-busy="true" className={TILES}>
-      <StatTileSkeleton lines={1} />
-      <StatTileSkeleton lines={1} />
-      <StatTileSkeleton lines={1} />
-    </div>
+    <Card aria-busy="true" className="@container grid gap-4 p-5 sm:p-5">
+      <div className="grid grid-cols-1 gap-3 @min-[600px]:grid-cols-2 @min-[1000px]:grid-cols-4">
+        {[0, 1, 2, 3].map((each) => (
+          <Skeleton key={each} className="h-[68px] rounded-lg" />
+        ))}
+      </div>
+      <div className={TILES}>
+        <StatTileSkeleton lines={1} />
+        <StatTileSkeleton lines={1} />
+        <StatTileSkeleton lines={1} />
+      </div>
+      <Skeleton className="h-[52px] w-full rounded-lg" />
+    </Card>
   );
 }
 
@@ -357,7 +371,11 @@ function ConfirmDialog({
           <div className="grid min-w-0 gap-[3px]">
             <DialogTitle>{m.confirmTitle(n)}</DialogTitle>
             <DialogDescription>
-              {m.confirmFilters(search.cycle, search.type ? m.types[search.type] : m.typeAll)}
+              {m.confirmFilters(
+                search.cycle,
+                search.type ? m.types[search.type] : m.typeAll,
+                m.entityAll,
+              )}
             </DialogDescription>
           </div>
         </DialogHeader>

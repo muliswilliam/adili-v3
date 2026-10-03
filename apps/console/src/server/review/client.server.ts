@@ -13,8 +13,9 @@ import type { paths } from './api.gen';
  * (which itself allows the call 12 s), so the console allows it well past that: giving up first
  * would show "AI service unavailable" for a draft still being written. A retry after a timeout
  * reuses the Idempotency-Key, so it answers the same draft. A bulk closure approval holds the
- * request while review approves every chunk of 100 in turn; past two minutes the screen shows it
- * stopped, and Resume sends the same key, which carries on where the chunks got to.
+ * request while review approves every chunk of 100 in turn; past two minutes the console stops
+ * waiting, and the screen sends the same key again while closures are still being approved (the
+ * service carries on under it), or shows the run stopped with Resume when they are not.
  */
 export const REVIEW_TIMEOUTS_MS = {
   default: 15_000,

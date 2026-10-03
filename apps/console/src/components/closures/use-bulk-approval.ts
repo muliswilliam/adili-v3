@@ -1,7 +1,7 @@
 import type { BatchProgress, BatchReferences } from '@adili/ui';
 import { useEffect, useRef, useState } from 'react';
 
-import type { BulkApprovalResult, ClosureSummary } from '../../server/closures';
+import type { BulkApprovalResult, ClosureFilter, ClosureSummary } from '../../server/closures';
 import type { ServiceError, ServiceResult } from '../../server/service-call';
 
 /** Closures per chunk, as the review service approves them (review.yaml `approveBulkClosures`). */
@@ -16,6 +16,8 @@ export type BulkRun =
       status: 'running' | 'stopped' | 'done';
       /** The Idempotency-Key: the same one resumes a stopped run. */
       key: string;
+      /** The filters the run approves: a key is bound to them, so Resume sends them again. */
+      filter: ClosureFilter;
       /** The closures the run set out to approve. */
       total: number;
       /** Already approved when it started, so the counts read meanwhile give its progress. */
@@ -26,37 +28,66 @@ export type BulkRun =
       error: ServiceError | null;
     };
 
+type Progress = Pick<
+  Extract<BulkRun, { key: string }>,
+  'filter' | 'total' | 'baseline' | 'approved'
+>;
+
 export interface BulkApproval {
   run: BulkRun;
   /** For `BatchSelector` while running, stopped or done. */
   progress: BatchProgress | undefined;
   references: BatchReferences | null;
-  /** Approve the `total` closures the counts show waiting, with a new key. */
-  start: (summary: ClosureSummary) => void;
-  /** Send the stopped run again with its key: the service carries on where its chunks got to. */
+  /**
+   * Waiting closures of cases the supervisor once held, which the last finished run for these
+   * filters left for another supervisor: the counts include them, but this supervisor cannot
+   * approve them.
+   */
+  leftForOthers: number;
+  /** Approve `total` closures of the current filters with a new key. */
+  start: (summary: ClosureSummary, total: number) => void;
+  /** Send the stopped run again with its key and filters: the service carries on under them. */
   resume: () => void;
   /** Back to the batch; the caller reads the counts again. */
   reset: () => void;
 }
 
+const IDLE: BulkRun = { status: 'idle' };
+const filterKey = (filter: ClosureFilter) =>
+  `${String(filter.cycleYear)}|${filter.type ?? ''}|${filter.reportingEntityId ?? ''}`;
+
 /**
- * One bulk approval at a time (spec 08 FE-4, S4). The approval is one request that the review
- * service works through in chunks of 100, each its own transaction, so while it is under way the
- * counts are read every second: the closures approved since it started are its progress, and the
- * chunks follow from them. When no answer comes in time (the console gives up after two minutes)
- * but chunks kept landing, the service is still at work: the request is sent again with the same
- * key, which carries on under it (the review service shares a key's work between requests). Any
- * other failure, or no answer and no chunk since the last request, leaves the run stopped at the
- * chunk it reached, with the key kept for Resume.
+ * One bulk approval at a time (spec 08 FE-4, S4), for the filters on screen. The approval is one
+ * request that the review service works through in chunks of 100, each its own transaction, so
+ * while it is under way the counts are read every second (one read at a time): the closures
+ * approved since it started are its progress, and the chunks follow from them.
+ *
+ * When no answer comes in time (the console gives up after two minutes) but closures kept being
+ * approved, the service is still at work: the request is sent again with the same key and
+ * filters, which carries on under them (the review service shares a key's work between
+ * requests). Another supervisor approving under the same filters meanwhile also moves the count,
+ * so it can prompt such a re-send too; that one finds its work done or shares what is left. Any
+ * other failure, or no answer and nothing approved since the last request, leaves the run
+ * stopped at the chunk it reached, with the key kept for Resume.
+ *
+ * A key is bound to its filters (the service answers 422 to the key with others), so the run
+ * keeps the filters it started with, and changing them after it stopped or finished starts
+ * afresh. While it runs the filters are locked.
  */
 export function useBulkApproval({
+  filter,
   approve,
   readSummary,
 }: {
-  approve: (idempotencyKey: string) => Promise<ServiceResult<BulkApprovalResult>>;
-  readSummary: () => Promise<ServiceResult<ClosureSummary>>;
+  filter: ClosureFilter;
+  approve: (
+    idempotencyKey: string,
+    filter: ClosureFilter,
+  ) => Promise<ServiceResult<BulkApprovalResult>>;
+  readSummary: (filter: ClosureFilter) => Promise<ServiceResult<ClosureSummary>>;
 }): BulkApproval {
-  const [run, setRun] = useState<BulkRun>({ status: 'idle' });
+  const [run, setRun] = useState<BulkRun>(IDLE);
+  const [left, setLeft] = useState({ key: '', count: 0 });
   const generation = useRef(0);
   // The latest reader, so a caller passing a new function each render does not restart the poll.
   const reader = useRef(readSummary);
@@ -64,15 +95,29 @@ export function useBulkApproval({
     reader.current = readSummary;
   }, [readSummary]);
 
+  // New filters drop a stopped or finished run: its key belongs to the old ones.
+  const currentKey = filterKey(filter);
+  const [seenKey, setSeenKey] = useState(currentKey);
+  if (seenKey !== currentKey) {
+    setSeenKey(currentKey);
+    if (run.status === 'stopped' || run.status === 'done') setRun(IDLE);
+  }
+
   const running = run.status === 'running' ? run : null;
   const runningKey = running?.key ?? null;
+  const runningFilter = running?.filter ?? null;
   const baseline = running?.baseline ?? 0;
   const total = running?.total ?? 0;
   useEffect(() => {
-    if (runningKey === null) return undefined;
+    if (runningKey === null || runningFilter === null) return undefined;
     let cancelled = false;
+    let reading = false;
     const timer = setInterval(() => {
-      void reader.current().then((read) => {
+      // A slow read is not stacked on: the next tick after it answers reads again.
+      if (reading) return;
+      reading = true;
+      void reader.current(runningFilter).then((read) => {
+        reading = false;
         if (cancelled || !read.ok) return;
         const approved = Math.min(total, Math.max(0, read.data.approved - baseline));
         setRun((current) =>
@@ -86,14 +131,15 @@ export function useBulkApproval({
       cancelled = true;
       clearInterval(timer);
     };
-  }, [runningKey, baseline, total]);
+  }, [runningKey, runningFilter, baseline, total]);
 
-  function send(key: string, from: { total: number; baseline: number; approved: number }) {
-    const mine = ++generation.current;
+  function send(key: string, from: Progress) {
+    const attempt = ++generation.current;
     setRun({ status: 'running', key, ...from, result: null, error: null });
-    void approve(key).then(async (outcome) => {
-      if (generation.current !== mine) return;
+    void approve(key, from.filter).then(async (outcome) => {
+      if (generation.current !== attempt) return;
       if (outcome.ok) {
+        setLeft({ key: filterKey(from.filter), count: outcome.data.skipped });
         setRun({
           status: 'done',
           key,
@@ -105,16 +151,16 @@ export function useBulkApproval({
         return;
       }
       // What stayed approved: the counts as they are now.
-      const read = await reader.current();
-      if (generation.current !== mine) return;
+      const read = await reader.current(from.filter);
+      if (generation.current !== attempt) return;
       const counted = read.ok ? Math.min(from.total, read.data.approved - from.baseline) : 0;
       if (noAnswer(outcome.error) && counted > from.approved) {
         send(key, { ...from, approved: counted });
         return;
       }
       setRun((current) => {
-        const sofar = current.status === 'idle' ? from.approved : current.approved;
-        const approved = Math.min(from.total, Math.max(sofar, counted));
+        const shown = current.status === 'idle' ? from.approved : current.approved;
+        const approved = Math.min(from.total, Math.max(shown, counted));
         return { status: 'stopped', key, ...from, approved, result: null, error: outcome.error };
       });
     });
@@ -130,20 +176,18 @@ export function useBulkApproval({
     run,
     progress,
     references,
-    start: (summary) => {
-      send(crypto.randomUUID(), {
-        total: summary.eligibleProposed,
-        baseline: summary.approved,
-        approved: 0,
-      });
+    leftForOthers: left.key === currentKey ? left.count : 0,
+    start: (summary, count) => {
+      send(crypto.randomUUID(), { filter, total: count, baseline: summary.approved, approved: 0 });
     },
     resume: () => {
       if (run.status !== 'stopped') return;
-      send(run.key, { total: run.total, baseline: run.baseline, approved: run.approved });
+      const { filter: pinned, total: count, baseline: before, approved } = run;
+      send(run.key, { filter: pinned, total: count, baseline: before, approved });
     },
     reset: () => {
       generation.current += 1;
-      setRun({ status: 'idle' });
+      setRun(IDLE);
     },
   };
 }

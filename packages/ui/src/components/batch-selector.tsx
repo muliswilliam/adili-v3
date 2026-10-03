@@ -357,7 +357,9 @@ export function BatchSelector({
       {filters === undefined ? null : (
         <fieldset disabled={phase === 'running'} className="@container min-w-0">
           <legend className="sr-only">{copy.filters}</legend>
-          <div className="grid grid-cols-1 gap-3 @min-[700px]:grid-cols-2 @min-[1100px]:grid-cols-4">
+          {/* The prototype's 700px and 1100px are of the app; inside a page and card that is
+              about 600px and 1000px of the fieldset's own width. */}
+          <div className="grid grid-cols-1 gap-3 @min-[600px]:grid-cols-2 @min-[1000px]:grid-cols-4">
             {filters}
           </div>
           {phase === 'running' ? (

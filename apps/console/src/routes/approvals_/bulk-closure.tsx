@@ -60,7 +60,6 @@ function BulkClosure({ summary }: { summary: ServiceResult<ClosureSummary> | nul
   const { viewer, roles, workspace, slug } = Route.useRouteContext();
   const search = Route.useSearch();
   const navigate = useNavigate({ from: '/approvals/bulk-closure' });
-  const filter = closureFilter(search);
   const today = useToday();
   const asSupervisor = <T,>(call: (tenant: string) => Promise<ServiceResult<T>>) =>
     slug ? call(slug) : Promise.resolve(SERVICE_UNAVAILABLE);
@@ -79,12 +78,12 @@ function BulkClosure({ summary }: { summary: ServiceResult<ClosureSummary> | nul
           void navigate({ search: next, resetScroll: false });
         }}
         cycles={cycleOptions(today, search.cycle)}
-        approve={(idempotencyKey) =>
+        approve={(idempotencyKey, filter) =>
           asSupervisor((tenant) =>
             approveBulkClosures({ data: { slug: tenant, filter, idempotencyKey } }),
           )
         }
-        readSummary={() =>
+        readSummary={(filter) =>
           asSupervisor((tenant) => getClosureSummary({ data: { slug: tenant, filter } }))
         }
         today={today}

@@ -9,8 +9,6 @@ const NO_ISSUES = OUTCOME_BADGE_MESSAGES['compliant-no-issues'];
  */
 export const en = {
   title: 'Bulk closure',
-  filters: 'Filters',
-  filtersLocked: 'Filters are locked while approval runs.',
   cycleLabel: 'Cycle',
   cycleOption: (year: number) => `Cycle ${String(year)}`,
   typeLabel: 'Type',
@@ -38,8 +36,8 @@ export const en = {
   pendingSweep: 'Bulk proposals appear after the next daily sweep.',
 
   confirmTitle: (count: string) => `Approve ${count} closures?`,
-  confirmFilters: (cycle: number, type: string) =>
-    `Cycle ${String(cycle)} · ${type} · Low priority`,
+  confirmFilters: (cycle: number, type: string, entity: string) =>
+    `Cycle ${String(cycle)} · ${type} · Low priority · ${entity}`,
   confirmBody:
     'Each closure receives a CMP number in your name. Sampled cases are excluded and appear in the review queue.',
   consequences: 'When you approve',
@@ -53,6 +51,8 @@ export const en = {
   cancel: 'Cancel',
   confirm: (count: string) => `Approve ${count} closures`,
 
+  leftForOthers: (count: string) =>
+    `${count} closures of cases you once held are left for another supervisor.`,
   stoppedUnavailable: 'The review service did not respond.',
 
   helpTitle: 'How cases are proposed and sampled',
