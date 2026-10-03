@@ -20,6 +20,9 @@
  *
  * - Case `mine` also has `draft`, saved with one item, which the composer continues.
  *
+ * - Spec 08's cases and their determinations (`ready` to `bulkClosure`, and a proposal on
+ *   `peters`): see the notes on `MOCK_CASE_IDS` and `MOCK_DETERMINATION_IDS`.
+ *
  * As review.yaml has it: claim an unassigned case (409 `case-already-assigned` otherwise),
  * release your own (403 otherwise), reassign or unassign as a supervisor (the mock does not
  * check roles), add a note (1-2,000 characters), mark a flag reviewed once (note 1-1,000
@@ -108,16 +111,24 @@ export const MOCK_CASE_IDS = {
   awaitingOld: 'ca5e0000-0000-4000-8000-00000000000a',
   /** Held by Mercy Wambui after the caller: the caller is a reviewer of record. */
   awaitingOfRecord: 'ca5e0000-0000-4000-8000-00000000000b',
-  /** Held by Peter Mwangi, who proposed further action 12 days ago. */
+  /** Held by Peter Mwangi, who proposed further action 3 days ago. */
   awaitingFurther: 'ca5e0000-0000-4000-8000-00000000000c',
+  /**
+   * Low band, no flags, nothing open, nobody holds it: once its window closed (8 days ago) the
+   * system proposed "no issues" (a bulk closure, never in the inbox, #202).
+   */
+  bulkClosure: 'ca5e0000-0000-4000-8000-00000000000d',
 } as const;
 
 /** The seeded determinations (spec 08). */
 export const MOCK_DETERMINATION_IDS = {
+  /** Peter Mwangi proposed compliant on his case 9 days ago. */
   peters: 'de7e0000-0000-4000-8000-000000000001',
   awaitingOld: 'de7e0000-0000-4000-8000-000000000002',
   awaitingOfRecord: 'de7e0000-0000-4000-8000-000000000003',
   awaitingFurther: 'de7e0000-0000-4000-8000-000000000004',
+  /** The system's "no issues" proposal: a bulk closure, never in the inbox (#202). */
+  bulkClosure: 'de7e0000-0000-4000-8000-000000000007',
   returned: 'de7e0000-0000-4000-8000-000000000005',
   determined: 'de7e0000-0000-4000-8000-000000000006',
 } as const;
@@ -172,6 +183,7 @@ const DECLARANTS = {
   mutiso: { firstName: 'Patrick', otherNames: 'Mutiso', surname: 'Kyalo' },
   onyango: { firstName: 'Esther', otherNames: 'Moraa', surname: 'Onyango' },
   wafula: { firstName: 'Ruth', otherNames: 'Nekesa', surname: 'Wafula' },
+  kamau: { firstName: 'Joyce', otherNames: 'Wairimu', surname: 'Kamau' },
   rono: { firstName: 'Kennedy', otherNames: 'Kiprop', surname: 'Rono' },
   njeri: { firstName: 'Agnes', surname: 'Njeri' },
 } as const satisfies Record<string, MockDeclarant>;
@@ -773,7 +785,7 @@ export function resetReviewMock(
   );
 }
 
-/** The spec 08 cases: ready for determination, each with its declarant and holders. */
+/** The spec 08 cases (see `MOCK_CASE_IDS`), each with its declarant, holder and who held it. */
 const DETERMINATION_CASES = [
   {
     key: 'ready',
@@ -823,11 +835,19 @@ const DETERMINATION_CASES = [
     history: [PETER],
     receivedDays: -130,
   },
+  {
+    key: 'bulkClosure',
+    reference: 'DCB-TSC-2026-0031792-B',
+    declarant: DECLARANTS.kamau,
+    holder: null,
+    history: [],
+    receivedDays: -190,
+  },
 ] as const satisfies readonly {
   key: keyof typeof MOCK_CASE_IDS;
   reference: string;
   declarant: MockDeclarant;
-  holder: Officer;
+  holder: Officer | null;
   history: readonly Officer[];
   receivedDays: number;
 }[];
@@ -854,7 +874,8 @@ function seedDeterminationCases(now: number) {
       storedCase(item, {
         holder: seed.holder,
         history: [...seed.history],
-        flags: mockFlags(item.id).map((flag) =>
+        // The bulk closure's case has none: the sweep proposes only cases with no open flags.
+        flags: (seed.key === 'bulkClosure' ? [] : mockFlags(item.id)).map((flag) =>
           flag.reviewed
             ? flag
             : {
@@ -921,6 +942,15 @@ function seedDeterminationCases(now: number) {
         proposedAt: at(now, -3),
       },
       {
+        id: D.bulkClosure,
+        caseId: C.bulkClosure,
+        outcome: 'compliant-no-issues',
+        reasons: 'Low priority, no open flags or clarifications after the window.',
+        proposer: null,
+        // The day after its window closed.
+        proposedAt: at(now, -7),
+      },
+      {
         id: D.returned,
         caseId: C.returned,
         outcome: 'compliant',
@@ -950,9 +980,12 @@ function seedDeterminationCases(now: number) {
   );
 }
 
-/** Who reviewed a seeded case's flags: its holder, or Peter Mwangi for the caller's cases. */
-function officerAt(value: Officer): Assignee {
-  return value === CALLER ? PETER : value;
+/**
+ * Who reviewed a seeded case's flags: its holder, or Peter Mwangi for the caller's cases and for
+ * one nobody holds.
+ */
+function officerAt(value: Officer | null): Assignee {
+  return value === CALLER || value === null ? PETER : value;
 }
 
 /** The cases as the determinations mock reads and changes them, for `caller`. */

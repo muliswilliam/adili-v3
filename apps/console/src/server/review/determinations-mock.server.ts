@@ -20,6 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { SUPERVISOR } from '@adili/roles';
 
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { isBulkClosure } from '../../determination/view';
 import { type MockApprovalSource, seedReassignment } from './approvals-mock.server';
 import {
   type MockApprover,
@@ -56,7 +57,8 @@ export interface DeterminationSeed {
   outcome: Determination['outcome'];
   reasons: string;
   furtherActionNote?: string | null;
-  proposer: Assignee;
+  /** Null for the system's proposal (a bulk closure). */
+  proposer: Assignee | null;
   proposedAt: string;
   status?: Determination['status'];
   /** Who approved or returned it, and when. */
@@ -87,7 +89,7 @@ export function resetDeterminationsMock(
       reasons: seed.reasons,
       furtherActionNote: seed.furtherActionNote ?? null,
       furtherActionLink: null,
-      proposerKind: 'user',
+      proposerKind: seed.proposer ? 'user' : 'system',
       proposer: seed.proposer,
       proposedAt: seed.proposedAt,
       status,
@@ -362,13 +364,7 @@ export const determinationApprovals: MockApprovalSource<'determination'> = {
   kind: 'determination',
   pending: (caller, cases) =>
     [...determinations.values()]
-      // The system's no-issues proposals are bulk closures, approved on their own page (#202),
-      // never in the inbox: as review's `notBulkClosure`.
-      .filter(
-        (each) =>
-          each.status === 'proposed' &&
-          !(each.proposerKind === 'system' && each.outcome === 'compliant-no-issues'),
-      )
+      .filter((each) => each.status === 'proposed' && !isBulkClosure(each))
       .map((stored) => {
         const found = cases.find(stored.caseId);
         return {
