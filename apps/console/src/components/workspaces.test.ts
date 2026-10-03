@@ -256,6 +256,22 @@ describe("the policy card on a Commission's page (spec 04 FE-4)", () => {
   );
 });
 
+describe('S15 Compliance reports workspace (EACC intake)', () => {
+  it.each(['eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
+    expect(workspaceFor([role], 'compliance')).toMatchObject({
+      href: '/eacc/reports',
+      readOnly: false,
+    });
+  });
+
+  it.each(['platform-admin', 'supervisor', 'commission-admin', 'reporting-officer', 'reviewer'])(
+    'stays closed for %s',
+    (role) => {
+      expect(workspaceFor([role], 'compliance')).toBeUndefined();
+    },
+  );
+});
+
 describe('S16 National obligations workspace', () => {
   it.each(['platform-admin', 'eacc-analyst', 'eacc-supervisor'])('opens for %s', (role) => {
     expect(workspaceFor([role], 'national-obligations')).toEqual({

@@ -10,10 +10,15 @@ describe('navFor', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([
         ['Platform', ['Commissions', 'National obligations']],
-        ['EACC', ['Referrals received']],
+        ['EACC', ['Compliance reports', 'Referrals received']],
       ]);
-      expect(navFor([role])[1]?.items[0]?.to).toBe('/eacc/referrals');
+      expect(navFor([role])[1]?.items[1]?.to).toBe('/eacc/referrals');
     }
+  });
+
+  it('shows EACC staff the compliance reports intake under EACC (spec 09)', () => {
+    expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
   });
 
   it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {

@@ -28,6 +28,22 @@ export interface ReportingProblem {
   code?: Schemas['ProblemDetails']['code'];
 }
 
+/** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */
+export type Intake = Schemas['Intake'];
+/** One Commission on the intake. */
+export type IntakeRow = Intake['commissions'][number];
+export type IntakeStatus = Schemas['IntakeStatus'];
+export type IntakeOutlier = IntakeRow['outliers'][number];
+export type ReportSource = Schemas['ReportSource'];
+
+/**
+ * reporting.yaml `SubmittedComplianceReport` (the report viewer), with its document typed as the
+ * frozen form-m.v1 it is.
+ */
+export type SubmittedReport = Omit<Schemas['SubmittedComplianceReport'], 'document'> & {
+  document: FormMV1;
+};
+
 /** EACC's referrals intake (spec 09 S12). */
 export type ReferralIntakeItem = Schemas['ReferralIntakeItem'];
 export type ReferralIntakePage = Schemas['ReferralIntakePage'];

@@ -6,6 +6,7 @@ import {
   CheckListIcon,
   Flag02Icon,
   File01Icon,
+  InboxIcon,
   Key01Icon,
   PlugSocketIcon,
   Shield01Icon,
@@ -71,7 +72,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   },
   {
     label: 'EACC',
-    items: [{ workspace: 'referrals-intake', icon: Flag02Icon }],
+    items: [
+      { workspace: 'compliance', icon: InboxIcon },
+      { workspace: 'referrals-intake', icon: Flag02Icon },
+    ],
   },
   {
     label: 'Law enforcement',
