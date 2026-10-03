@@ -82,6 +82,15 @@ describe('the Open data page load (spec 09b S8, S11)', () => {
     expect(first.trend.map((point) => point.fy)).toEqual([2024]);
   });
 
+  it('draws the year shown from the version shown, so the trend agrees with the tables', async () => {
+    const withdrawn = await loadOpenDataPage(client(), { fy: 2024, kind: 'annual', version: 1 });
+
+    if (withdrawn.status !== 'ok') throw new Error(withdrawn.status);
+    expect(withdrawn.trend).toEqual([
+      { fy: 2024, totals: withdrawn.tables['national-totals'].rows },
+    ]);
+  });
+
   it('says so when a release asked for does not exist', async () => {
     expect((await loadOpenDataPage(client(), { fy: 2030, kind: 'annual' })).status).toBe(
       'not-found',

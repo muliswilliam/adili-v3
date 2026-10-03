@@ -2,7 +2,14 @@ import { Icon } from '@adili/ui';
 import { ArrowDown01Icon, ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 import { Link, useNavigate } from '@tanstack/react-router';
 
-import { aboutCopy, columnWords, GLOSSARY, type Language, tableName } from '../../open-data/copy';
+import {
+  aboutCopy,
+  columnWords,
+  GLOSSARY,
+  type Language,
+  tableName,
+  langParam,
+} from '../../open-data/copy';
 import { OPEN_DATA_TABLES, type OpenDataTableName } from '../../server/reporting/types';
 import { OpenDataHeading } from './open-data-shell';
 import { PageCard } from './page-card';
@@ -62,13 +69,13 @@ export function AboutView({ language, apiBase }: { language: Language; apiBase: 
         onLanguage={(next) => {
           void navigate({
             to: '/open-data/about',
-            search: { lang: next === 'sw' ? 'sw' : undefined },
+            search: { lang: langParam(next) },
           });
         }}
       >
         <Link
           to="/open-data"
-          search={{ lang: language === 'sw' ? 'sw' : undefined }}
+          search={{ lang: langParam(language) }}
           className="mb-1.5 inline-flex items-center gap-1 text-[13px] font-medium text-secondary-foreground hover:text-foreground [&_svg]:size-[15px]"
         >
           <Icon icon={ArrowLeft01Icon} />

@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { OpenDataShell } from '../../components/open-data/open-data-shell';
 import { OpenDataView } from '../../components/open-data/open-data-view';
-import { pageCopy } from '../../open-data/copy';
+import { languageOf, pageCopy } from '../../open-data/copy';
 import { getOpenDataPage } from '../../server/open-data';
 
 const search = z.object({
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/open-data/')({
   loaderDeps: ({ search: { fy, kind, version } }) => ({ fy, kind, version }),
   loader: ({ deps }) => getOpenDataPage({ data: deps }),
   head: ({ match }) => ({
-    meta: [{ title: pageCopy(match.search.lang ?? 'en').metaTitle }],
+    meta: [{ title: pageCopy(languageOf(match.search.lang)).metaTitle }],
   }),
   pendingComponent: OpenDataPending,
   component: OpenDataRoute,
@@ -34,7 +34,7 @@ function OpenDataRoute() {
   const page = Route.useLoaderData();
   const { lang } = Route.useSearch();
   const router = useRouter();
-  const language = lang ?? 'en';
+  const language = languageOf(lang);
   return (
     <OpenDataShell current="open-data" language={language}>
       <OpenDataView
@@ -50,7 +50,7 @@ function OpenDataRoute() {
 
 function OpenDataPending() {
   const { lang } = Route.useSearch();
-  const language = lang ?? 'en';
+  const language = languageOf(lang);
   return (
     <OpenDataShell current="open-data" language={language}>
       <h1 className="mb-6 text-[28px] leading-tight font-semibold tracking-[-0.02em]">

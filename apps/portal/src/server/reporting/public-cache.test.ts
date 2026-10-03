@@ -100,6 +100,33 @@ describe('public open-data cache', () => {
     expect(send).toHaveBeenCalledTimes(2);
   });
 
+  it('serves the stale copy when revalidating meets a 429 or the service down', async () => {
+    let now = 0;
+    let answer = 200;
+    const send = vi.fn(() =>
+      Promise.resolve(
+        answer === 200
+          ? new Response('["v1"]', {
+              headers: { etag: '"a"', 'cache-control': 'public, max-age=3600' },
+            })
+          : new Response('{}', { status: answer }),
+      ),
+    );
+    const cached = publicCache(send, { now: () => now });
+
+    await cached(new Request(URL_A), {});
+    now = 3_601_000;
+    answer = 429;
+    const limited = await cached(new Request(URL_A), {});
+    answer = 503;
+    const down = await cached(new Request(URL_A), {});
+
+    expect([limited.status, await limited.text()]).toEqual([200, '["v1"]']);
+    expect([down.status, await down.text()]).toEqual([200, '["v1"]']);
+    // Still stale, so each request asks again rather than trusting the old copy for an hour.
+    expect(send).toHaveBeenCalledTimes(3);
+  });
+
   it('forgets the oldest copies beyond its size', async () => {
     const api = upstream();
     const cached = publicCache(api.send, { now: () => 0, maxEntries: 2 });

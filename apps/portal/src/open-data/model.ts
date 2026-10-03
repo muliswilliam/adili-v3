@@ -20,7 +20,11 @@ const PERCENT = new Intl.NumberFormat('en-KE', {
   maximumFractionDigits: 1,
 });
 
-/** A fraction as a percentage to one decimal place: `0.8317` → `83.2%`. */
+/**
+ * A fraction as a percentage to exactly one decimal place: `0.8317` → `83.2%`, `0.95` → `95.0%`.
+ * Unlike `formatPercent` (`@adili/ui`, a percentage, up to one decimal), it takes the files'
+ * fractions and keeps the decimal so rates line up in a column.
+ */
 export function formatRate(fraction: number): string {
   return `${PERCENT.format(fraction * 100)}%`;
 }

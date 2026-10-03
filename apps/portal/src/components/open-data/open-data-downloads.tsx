@@ -2,7 +2,7 @@ import { Button, formatNumber, Icon, InfoTip, QrCode } from '@adili/ui';
 import { Download04Icon, SecurityCheckIcon, Table01Icon } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
 
-import { type Language, pageCopy, tableName } from '../../open-data/copy';
+import { type Language, pageCopy, tableName, langParam } from '../../open-data/copy';
 import type { OpenDataRelease } from '../../server/reporting/types';
 import { PageCard } from './page-card';
 
@@ -112,7 +112,7 @@ export function DownloadsCard({
       <p className="text-[12.5px] text-muted-foreground">
         <Link
           to="/open-data/about"
-          search={{ lang: language === 'sw' ? 'sw' : undefined }}
+          search={{ lang: langParam(language) }}
           className="font-medium text-foreground underline decoration-input underline-offset-3 hover:decoration-foreground"
         >
           {copy.aboutLink}

@@ -55,7 +55,8 @@ export const envSchema = bffEnvSchema.extend({
   OPEN_DATA_API_PUBLIC_URL: z.url().optional(),
   /**
    * Serve the open-data releases and their tables from in-memory fixtures, to work on the Open
-   * data page without the reporting service. Honoured in `vite dev` and tests only, like the
+   * data page without the reporting service. Named for what it serves, the public open-data API
+   * only: the portal reads nothing else from reporting. Honoured in `vite dev` and tests only, like the
    * other mocks.
    */
   OPEN_DATA_MOCK: z.stringbool().default(false),

@@ -21,7 +21,8 @@ const MAX_AGE = /(?:^|,)\s*max-age=(\d+)/i;
  * requests per client IP, and every visitor's page is loaded from the portal's one address, so
  * the portal must not ask once per visitor: it keeps each GET's 200 for as long as
  * `Cache-Control: max-age` allows, then revalidates with `If-None-Match` (a 304 keeps the copy).
- * Releases change only by status, so the API's hour suits. Errors and 429s are never kept.
+ * Releases change only by status, so the API's hour suits. Errors and 429s are never kept; with
+ * a stale copy at hand they are answered with it.
  * Copies are keyed by URL and Accept, as the API varies by Accept.
  */
 export function publicCache(send: Send, options: PublicCacheOptions = {}): Send {
@@ -51,12 +52,22 @@ export function publicCache(send: Send, options: PublicCacheOptions = {}): Send 
       return respond(cached);
     }
     if (cached?.etag) request.headers.set('if-none-match', cached.etag);
-    const response = await send(request, init);
+    let response: Response;
+    try {
+      response = await send(request, init);
+    } catch (error) {
+      if (cached) return respond(cached);
+      throw error;
+    }
     if (cached && response.status === 304) {
       const renewed = { ...cached, freshUntil: now() + maxAgeMs(response, cached) };
       keep(key, renewed);
       return respond(renewed);
     }
+    // Stale beats nothing when the API limits the portal or is down (stale-if-error): the
+    // figures only change when EACC publishes or withdraws. The copy stays stale, so the next
+    // request asks again.
+    if (cached && (response.status === 429 || response.status >= 500)) return respond(cached);
     if (response.status !== 200) return response;
     const entry: Entry = {
       status: 200,

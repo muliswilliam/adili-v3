@@ -36,6 +36,7 @@ import {
   type Language,
   type PageCopy,
   pageCopy,
+  langParam,
   SWAHILI_RELEASE_STATUS,
 } from '../../open-data/copy';
 import {
@@ -72,7 +73,7 @@ export interface OpenDataSearch extends ReleaseSelection {
 
 const searchOf = (selection: ReleaseSelection, language: Language): OpenDataSearch => ({
   ...selection,
-  lang: language === 'sw' ? 'sw' : undefined,
+  lang: langParam(language),
 });
 
 /**
@@ -202,12 +203,13 @@ function ReleasePage({
         <WithdrawnBanner release={release} language={language} copy={copy} />
       ) : null}
       <ReleaseBar page={page} language={language} copy={copy} onSelect={onSelect} />
-      <Headline page={page} language={language} copy={copy} />
+      <Headline page={page} copy={copy} />
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
         <CommissionChart page={page} language={language} copy={copy} />
         <TrendChart page={page} language={language} copy={copy} />
       </div>
-      <TablesCard page={page} language={language} />
+      {/* Keyed by release: the cycle, sort and page chosen belong to the release shown. */}
+      <TablesCard key={release.id} page={page} language={language} />
       <DownloadsCard release={release} language={language} />
     </div>
   );
@@ -341,15 +343,7 @@ function ReleaseBar({
   );
 }
 
-function Headline({
-  page,
-  language,
-  copy,
-}: {
-  page: OpenDataPage;
-  language: Language;
-  copy: PageCopy;
-}) {
+function Headline({ page, copy }: { page: OpenDataPage; copy: PageCopy }) {
   const figures = headline(page.tables['national-totals'].rows);
   const count = (value: number | null) => (value === null ? copy.noFigure : formatNumber(value));
   const tile = (label: string, value: number | null, rate: boolean, description: ReactNode) => (
@@ -363,10 +357,7 @@ function Headline({
     />
   );
   return (
-    <section
-      aria-label={language === 'sw' ? 'Takwimu kuu' : 'Headline figures'}
-      className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
-    >
+    <section aria-label={copy.headline} className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       {tile(
         copy.declarationRate,
         figures.filingRate,

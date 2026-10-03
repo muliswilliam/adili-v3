@@ -24,6 +24,16 @@ import type {
 
 export type { Language };
 
+/** The page's language as its search param: English is the default, so it is left out. */
+export function langParam(language: Language): 'sw' | undefined {
+  return language === 'sw' ? 'sw' : undefined;
+}
+
+/** The page's language from its search param. */
+export function languageOf(lang: 'sw' | undefined): Language {
+  return lang ?? 'en';
+}
+
 function both<T>(en: T, sw: T): { en: T; sw: T } {
   return { en, sw };
 }
@@ -32,7 +42,7 @@ const PAGE = {
   title: both('Open data', 'Data huria'),
   metaTitle: both('Open data · Adili Online', 'Data huria · Adili Online'),
   lead: both(
-    'Declaration and compliance figures for every responsible Commission, published by EACC with each approved national report. Totals only: no names and no declarations.',
+    'Declaration and compliance figures for every Responsible Commission, published by EACC with each approved national report. Totals only: no names and no declarations.',
     'Takwimu za matamko na utiifu kwa kila Tume Husika, zinazochapishwa na EACC pamoja na kila ripoti ya kitaifa iliyoidhinishwa. Jumla tu: hakuna majina wala matamko.',
   ),
   nav: both('Open data navigation', 'Urambazaji wa data huria'),
@@ -55,6 +65,7 @@ const PAGE = {
   verify: both('Verify this release', 'Thibitisha chapisho hili'),
   downloads: both('Downloads', 'Vipakuliwa'),
   goToDownloads: both('Go to downloads', 'Nenda kwenye vipakuliwa'),
+  headline: both('Headline figures', 'Takwimu kuu'),
   declarationRate: both('Declaration rate', 'Kiwango cha matamko'),
   declarationsMade: both('Declarations made', 'Matamko yaliyofanywa'),
   complianceRate: both('Compliance rate', 'Kiwango cha utiifu'),

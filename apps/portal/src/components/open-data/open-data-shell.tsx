@@ -12,7 +12,7 @@ import { ChartBarLineIcon, InformationCircleIcon, UserIcon } from '@hugeicons/co
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
-import { type Language, pageCopy } from '../../open-data/copy';
+import { type Language, pageCopy, langParam } from '../../open-data/copy';
 import { SIGN_IN } from '../onboarding/links';
 
 const navLink = cn(
@@ -38,7 +38,7 @@ export function OpenDataShell({
   children: ReactNode;
 }) {
   const copy = pageCopy(language);
-  const lang = language === 'sw' ? 'sw' : undefined;
+  const lang = langParam(language);
   return (
     <TooltipProvider>
       <SiteHeader

@@ -90,44 +90,29 @@ async function listReleases(client: OpenDataClient): Promise<OpenDataRelease[]> 
   return data;
 }
 
+/** One table of a release, as JSON. */
+async function getTable<Name extends OpenDataTableName>(
+  client: OpenDataClient,
+  release: OpenDataRelease,
+  table: Name,
+): Promise<ReleaseTables[Name]> {
+  const { data, response } = await client.GET(
+    '/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}',
+    { params: { path: { fy: release.fy, kind: release.kind, version: release.version, table } } },
+  );
+  // The operation also serves CSV; asked for JSON, a string is not an answer to read.
+  if (!data || typeof data === 'string') throw failure(response);
+  return readTable(data, table);
+}
+
 async function readTables(
   client: OpenDataClient,
   release: OpenDataRelease,
 ): Promise<ReleaseTables> {
-  const path = { fy: release.fy, kind: release.kind, version: release.version };
   const tables = await Promise.all(
-    OPEN_DATA_TABLES.map(async (table) => {
-      const { data, response } = await client.GET(
-        '/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}',
-        { params: { path: { ...path, table } } },
-      );
-      // The operation also serves CSV; asked for JSON, a string is not an answer to read.
-      if (!data || typeof data === 'string') throw failure(response);
-      return [table, readTable(data, table)] as const;
-    }),
+    OPEN_DATA_TABLES.map(async (table) => [table, await getTable(client, release, table)] as const),
   );
   return Object.fromEntries(tables) as unknown as ReleaseTables;
-}
-
-async function readNationalTotals(
-  client: OpenDataClient,
-  release: OpenDataRelease,
-): Promise<NationalTotalsRow[]> {
-  const { data, response } = await client.GET(
-    '/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}',
-    {
-      params: {
-        path: {
-          fy: release.fy,
-          kind: release.kind,
-          version: release.version,
-          table: 'national-totals',
-        },
-      },
-    },
-  );
-  if (!data || typeof data === 'string') throw failure(response);
-  return readTable(data, 'national-totals').rows;
 }
 
 /** The current version of a year and kind: its latest published one, else its latest. */
@@ -183,17 +168,22 @@ export async function loadOpenDataPage(
       .sort((a, b) => b.version - a.version)
       .map(({ version, status }) => ({ version, status }));
 
-    // Each year's current annual release, up to the year shown, oldest first.
+    // Each year's current annual release, up to the year shown, oldest first; the year shown
+    // from the release shown (a withdrawn version too), so the trend agrees with its tables.
     const annuals = [...new Set(releases.map((each) => each.fy))]
       .filter((fy) => fy <= release.fy)
       .sort((a, b) => a - b)
-      .flatMap((fy) => currentOf(releases, fy, 'annual') ?? []);
+      .flatMap((fy) =>
+        fy === release.fy && release.kind === 'annual'
+          ? release
+          : (currentOf(releases, fy, 'annual') ?? []),
+      );
     const [tables, trend] = await Promise.all([
       readTables(client, release),
       Promise.all(
         annuals.map(async (annual): Promise<TrendPoint> => ({
           fy: annual.fy,
-          totals: await readNationalTotals(client, annual),
+          totals: (await getTable(client, annual, 'national-totals')).rows,
         })),
       ),
     ]);
