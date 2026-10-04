@@ -70,10 +70,7 @@ export const Line: Story = {
   },
 };
 
-/**
- * A suppressed (`null`) value is never drawn: its bar track stays empty and the line breaks there.
- * The table says "Not shown".
- */
+/** A suppressed (`null`) value is never drawn: its track stays empty and the table says "Not shown". */
 export const SuppressedValues: Story = {
   args: {
     data: [
@@ -85,13 +82,16 @@ export const SuppressedValues: Story = {
   },
 };
 
+/** Each line breaks at its suppressed year, with nothing joining it. */
 export const SuppressedValuesOnLine: Story = {
   args: {
     ...Line.args,
     data: [
-      { label: '2025', values: { filing: 80, compliance: 70 } },
-      { label: '2026', values: { filing: null, compliance: 72 } },
-      { label: '2027', values: { filing: 88, compliance: null } },
+      { label: '2023', values: { filing: 76, compliance: 64 } },
+      { label: '2024', values: { filing: 78, compliance: 66 } },
+      { label: '2025', values: { filing: null, compliance: 70 } },
+      { label: '2026', values: { filing: 84, compliance: null } },
+      { label: '2027', values: { filing: 88, compliance: 74 } },
       { label: '2028', values: { filing: 91.2, compliance: 75 } },
     ],
     showTable: true,
@@ -106,30 +106,33 @@ export const MissingValues: Story = {
   args: {
     data: [
       { label: 'Public Service Commission', values: { filing: 91.2 } },
-      { label: 'Judicial Service Commission', values: { filing: null } },
+      { label: 'Teachers Service Commission', values: { filing: 84.5 } },
       { label: 'National Police Service Commission', values: {} },
     ],
     showTable: true,
   },
 };
 
-/** The line breaks at the suppressed and missing years, with nothing joining it. */
+/** Each line breaks at the years it has no data for, with nothing joining it. */
 export const MissingValuesOnLine: Story = {
   args: {
     ...Line.args,
     data: [
-      { label: '2025', values: { filing: 80, compliance: 70 } },
-      { label: '2026', values: { filing: null, compliance: 72 } },
-      { label: '2027', values: { compliance: 74 } },
+      { label: '2023', values: { filing: 76, compliance: 64 } },
+      { label: '2024', values: { filing: 78, compliance: 66 } },
+      { label: '2025', values: { compliance: 70 } },
+      { label: '2026', values: { filing: 84 } },
+      { label: '2027', values: { filing: 88, compliance: 74 } },
       { label: '2028', values: { filing: 91.2, compliance: 75 } },
     ],
     showTable: true,
   },
 };
 
-/** No categories: nothing is plotted and the table has a header row only. */
+/** No categories: no tracks, and the table has a header row only. */
 export const EmptyData: Story = { args: { data: [], showTable: true } };
 
+/** No categories: the axis and grid still draw, with no line, point or year label. */
 export const EmptyLine: Story = { args: { ...Line.args, data: [], showTable: true } };
 
 /** A long line labels at most four years, always the latest. */
