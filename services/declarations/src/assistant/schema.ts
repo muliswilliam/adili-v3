@@ -120,6 +120,8 @@ export const assistantMessages = pgTable(
      */
     feedbackCiphertext: bytea(),
     feedbackEnvelope: jsonb().$type<FieldEnvelope>(),
+    /** How many ratings were kept: a rating is kept only over the one it read (#339). */
+    feedbackVersion: integer().notNull().default(0),
     /** A question's theme (`themes.ts`), as counted; null for an answer. */
     theme: text({ enum: QUESTION_THEMES }),
     at: timestamp({ withTimezone: true }).notNull(),

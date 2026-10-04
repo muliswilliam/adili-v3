@@ -389,18 +389,23 @@ describe('feedback (S8)', () => {
     const first = rate(conversation.id, answer.id, { rating: 'not-helpful', reason: 'unclear' });
     await expect.poll(() => api.aiGateway.feedback.length).toBe(1);
 
-    // The second waits for the first, so it cannot reach the gateway first and be overwritten.
-    const second = rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    expect(api.aiGateway.feedback).toHaveLength(1);
+    // The second is not held back by the first, still at the gateway: it is kept at once.
+    const second = await rate(conversation.id, answer.id, { rating: 'helpful', reason: null });
+    expect(second.json<AssistantMessage>().rating).toBe('helpful');
     release();
-    const responses = await Promise.all([first, second]);
+    const late = await first;
 
-    expect(responses.map((response) => response.statusCode)).toEqual([200, 200]);
+    // The first finds the second kept, so it forwards itself again and is kept over it.
+    expect(late.statusCode, late.body).toBe(200);
+    expect(late.json<AssistantMessage>().rating).toBe('not-helpful');
     const ratings = api.aiGateway.feedback.map((each) => each.feedback.rating);
-    expect(ratings).toEqual(['not-helpful', 'helpful']);
+    expect(ratings).toEqual(['not-helpful', 'helpful', 'not-helpful']);
     const resumed = await opened(draft.id);
-    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe('helpful');
+    expect(resumed.messages.find((message) => message.id === answer.id)?.rating).toBe(
+      'not-helpful',
+    );
+    const events = await eventsOf('assistant.feedback.recorded.v1');
+    expect(events.map((event) => event.data.rating)).toEqual(['helpful', 'not-helpful']);
   });
 
   it('keeps a rating the gateway cannot take because it does not know the job', async () => {

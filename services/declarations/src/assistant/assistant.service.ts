@@ -67,6 +67,12 @@ import { countQuestion } from './theme-counts.js';
 type ConversationRow = typeof assistantConversations.$inferSelect;
 type MessageRow = typeof assistantMessages.$inferSelect;
 
+/**
+ * How many times a rating is forwarded and kept while other ratings of the same answer keep
+ * landing in between (the same declarant, rating twice at once) before it gives up with 503.
+ */
+const RATING_ATTEMPTS = 3;
+
 /** A conversation outside a draft is deleted this long after its last message (spec 11 S7). */
 export const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -299,11 +305,15 @@ export class AssistantService {
    * The declarant's rating of an answer (spec 11 S8), with why and a note: the rating and reason
    * forwarded to the ai-gateway's job (an answer from the AI), then kept on the answer, the
    * reason and note encrypted (the note never leaves the messages table), with
-   * `assistant.feedback.recorded.v1`. The answer is locked while its rating is forwarded and
-   * kept, so a second rating waits for the first and replaces it in both places, in the same
-   * order. A decline made without asking the AI has no job, so its rating is kept only. 400 for a
-   * bad body, 404 for anything but an answer in the caller's live conversation, 503 when the
-   * gateway cannot take the rating (nothing is kept).
+   * `assistant.feedback.recorded.v1`. A second rating replaces the first, in both places. A
+   * decline made without asking the AI has no job, so its rating is kept only. 400 for a bad
+   * body, 404 for anything but an answer in the caller's live conversation, 503 when the gateway
+   * cannot take the rating (nothing is kept).
+   *
+   * No transaction is open while the gateway is called (ADR-013 §7: filing never waits on the
+   * AI). The rating is kept only if no other rating of the answer was kept since it was read
+   * (`feedbackVersion`); if one was, this one is forwarded again and kept over it, so the
+   * gateway and the answer end on the same rating, the last kept.
    */
   async rate(
     principal: Principal,
@@ -313,7 +323,7 @@ export class AssistantService {
   ): Promise<AssistantMessage> {
     const person = personOf(principal);
     const request = parse(rateMessageRequestSchema, body);
-    const rated = await withPerson(this.db, person, async (tx) => {
+    const found = await withPerson(this.db, person, async (tx) => {
       if (!isUuid(conversationId) || !isUuid(messageId)) return null;
       const conversation = (await this.live(tx, conversationId, this.clock.now()))?.conversation;
       if (!conversation) return null;
@@ -326,44 +336,66 @@ export class AssistantService {
             eq(assistantMessages.conversationId, conversation.id),
             eq(assistantMessages.role, 'assistant'),
           ),
-        )
-        .for('update');
-      // Locked, the answer cannot go with its draft meanwhile: that delete cascades here and waits.
-      if (!message) return null;
-
-      // Sealed first, so a rating the gateway took is not then lost to the cipher.
-      const feedback: FeedbackPlaintext = { reason: request.reason, note: request.note };
-      const { ciphertext, envelope } = await this.cipher.encrypt({
-        tenant: conversation.tenant,
-        recordId: `${recordId(message.id)}/feedback`,
-        plaintext: JSON.stringify(feedback),
-      });
-      const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
-      const [row] = await tx
-        .update(assistantMessages)
-        .set({
-          rating: request.rating,
-          feedbackCiphertext: Buffer.from(ciphertext, 'base64'),
-          feedbackEnvelope: envelope,
-        })
-        .where(eq(assistantMessages.id, message.id))
-        .returning();
-      if (!row) return null;
-      await this.events.record(
-        tx,
-        assistantFeedbackRecorded({
-          conversationId: conversation.id,
-          messageId: message.id,
-          tenant: conversation.tenant,
-          rating: request.rating,
-          jobId: message.jobId,
-          forwarded,
-        }),
-      );
-      return { tenant: conversation.tenant, row };
+        );
+      return message ? { conversation, message } : null;
     });
-    const { tenant, row } = notFoundIfInvisible(rated);
-    return this.toMessage(tenant, row);
+    const { conversation, message } = notFoundIfInvisible(found);
+
+    const feedback: FeedbackPlaintext = { reason: request.reason, note: request.note };
+    const { ciphertext, envelope } = await this.cipher.encrypt({
+      tenant: conversation.tenant,
+      recordId: `${recordId(message.id)}/feedback`,
+      plaintext: JSON.stringify(feedback),
+    });
+    let version = message.feedbackVersion;
+    for (let attempt = 1; ; attempt += 1) {
+      const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
+      const kept = await withPerson(this.db, person, async (tx) => {
+        // Gone with its draft, or expired, while the rating was forwarded: nothing is kept.
+        if (!(await this.live(tx, conversation.id, this.clock.now()))) return { row: null };
+        const [row] = await tx
+          .update(assistantMessages)
+          .set({
+            rating: request.rating,
+            feedbackCiphertext: Buffer.from(ciphertext, 'base64'),
+            feedbackEnvelope: envelope,
+            feedbackVersion: version + 1,
+          })
+          .where(
+            and(
+              eq(assistantMessages.id, message.id),
+              eq(assistantMessages.feedbackVersion, version),
+            ),
+          )
+          .returning();
+        if (!row) {
+          const [current] = await tx
+            .select({ feedbackVersion: assistantMessages.feedbackVersion })
+            .from(assistantMessages)
+            .where(eq(assistantMessages.id, message.id));
+          return current ? { newer: current.feedbackVersion } : { row: null };
+        }
+        await this.events.record(
+          tx,
+          assistantFeedbackRecorded({
+            conversationId: conversation.id,
+            messageId: message.id,
+            tenant: conversation.tenant,
+            rating: request.rating,
+            jobId: message.jobId,
+            forwarded,
+          }),
+        );
+        return { row };
+      });
+      if ('row' in kept) return this.toMessage(conversation.tenant, notFoundIfInvisible(kept.row));
+      // Another rating was kept meanwhile; the gateway may have had this one first.
+      if (attempt === RATING_ATTEMPTS) {
+        this.logger.warn({ messageId: message.id }, 'Ratings of an answer kept crossing');
+        throw assistantUnavailable();
+      }
+      version = kept.newer;
+    }
   }
 
   /**

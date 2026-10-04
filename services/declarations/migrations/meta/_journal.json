@@ -176,6 +176,13 @@
       "when": 1791029419425,
       "tag": "0025_assistant_hints_feedback_themes_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791123103386,
+      "tag": "0026_assistant_feedback_version",
+      "breakpoints": true
     }
   ]
 }
