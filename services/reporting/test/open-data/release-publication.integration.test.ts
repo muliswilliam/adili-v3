@@ -329,6 +329,64 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     expect(manifests()).toHaveLength(1);
   });
 
+  it('S6, S7: a retry of publish or withdraw with the same Idempotency-Key replays its answer; once', async () => {
+    await givenReleaseYear(api);
+    await ncrBuilt();
+    const preview = await snapshotBuilt();
+    api.clock.set(PUBLISHED_AT);
+    const publishKey = { 'idempotency-key': randomUUID() };
+    const publishedOnce = await api.send(
+      'POST',
+      `${RELEASES}/${preview.id}/publish`,
+      SUPERVISOR,
+      undefined,
+      publishKey,
+    );
+    expect(publishedOnce.statusCode, publishedOnce.body).toBe(200);
+
+    const replayed = await api.send(
+      'POST',
+      `${RELEASES}/${preview.id}/publish`,
+      SUPERVISOR,
+      undefined,
+      publishKey,
+    );
+    expect(replayed.statusCode, replayed.body).toBe(200);
+    expect(replayed.json()).toEqual(publishedOnce.json());
+    expect(manifests()).toHaveLength(1);
+    expect(await api.events(OPEN_DATA_RELEASE_PUBLISHED)).toHaveLength(1);
+
+    const withdrawKey = { 'idempotency-key': randomUUID() };
+    const body = { reason: REASON };
+    const withdrawnOnce = await api.send(
+      'POST',
+      `${RELEASES}/${preview.id}/withdraw`,
+      SUPERVISOR,
+      body,
+      withdrawKey,
+    );
+    expect(withdrawnOnce.statusCode, withdrawnOnce.body).toBe(200);
+    const again = await api.send(
+      'POST',
+      `${RELEASES}/${preview.id}/withdraw`,
+      SUPERVISOR,
+      body,
+      withdrawKey,
+    );
+    expect(again.statusCode, again.body).toBe(200);
+    expect(again.json()).toEqual(withdrawnOnce.json());
+    expect(await api.events(OPEN_DATA_RELEASE_WITHDRAWN)).toHaveLength(1);
+    // Another body under the same key is refused.
+    const other = await api.send(
+      'POST',
+      `${RELEASES}/${preview.id}/withdraw`,
+      SUPERVISOR,
+      { reason: 'Another reason' },
+      withdrawKey,
+    );
+    expect(other.statusCode).toBe(422);
+  });
+
   it('S6: 404 for a release that does not exist, 400 for an id that is not a UUID', async () => {
     expect((await publish(SUPERVISOR, randomUUID())).statusCode).toBe(404);
     expect((await withdraw(SUPERVISOR, randomUUID())).statusCode).toBe(404);

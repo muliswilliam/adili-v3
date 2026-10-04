@@ -1053,6 +1053,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Published
@@ -1061,7 +1068,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
         '400':
-          description: The release id is not a UUID
+          description: The release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`)
           content:
             application/problem+json:
               schema:
@@ -1079,7 +1086,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`)
+          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:
@@ -1110,6 +1123,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: Idempotency-Key
+          in: header
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          required: false
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -1133,7 +1153,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/OpenDataRelease'
         '400':
-          description: Body failed validation, or the release id is not a UUID
+          description: Body failed validation, the release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`)
           content:
             application/problem+json:
               schema:
@@ -1151,7 +1171,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '409':
-          description: The release is a preview or withdrawn already (`release-not-published`)
+          description: The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
           content:
             application/problem+json:
               schema:

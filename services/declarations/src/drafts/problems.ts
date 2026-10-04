@@ -152,8 +152,8 @@ export function uploadAlreadyLinked(): ProblemException {
   });
 }
 
-/** 503: documents did not answer, so the file could not be `checked` or `attached`. */
-export function documentsUnavailable(action: 'checked' | 'attached'): ProblemException {
+/** 503: documents did not answer, so the file could not be `checked`, `attached` or `read`. */
+export function documentsUnavailable(action: 'checked' | 'attached' | 'read'): ProblemException {
   return new ProblemException({
     type: 'documents-unavailable',
     title: 'Documents unavailable',
@@ -170,4 +170,38 @@ export function violatedUniqueConstraint(error: unknown): string | undefined {
     }
   }
   return undefined;
+}
+
+/** 503: the ai-gateway did not take a document reading (spec 05b); nothing was recorded. */
+export function aiGatewayUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'ai-gateway-unavailable',
+    title: 'Document reading unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The document could not be sent to be read. Try again.',
+  });
+}
+
+/**
+ * 503: the reading this request was answered with was a concurrent request's reservation, taken
+ * back when that request was refused for the file (spec 05b). Nothing was recorded; asking again
+ * gets that refusal, or reads the file if the refusal no longer holds.
+ */
+export function readingConflict(): ProblemException {
+  return new ProblemException({
+    type: 'reading-conflict',
+    title: 'Document reading busy',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The document is being asked for by another request. Try again.',
+  });
+}
+
+/** 503: Temporal could not take the workflow that follows the change; nothing was recorded. */
+export function workflowUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'workflow-unavailable',
+    title: 'Service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The request could not be recorded just now. Try again.',
+  });
 }

@@ -18,6 +18,11 @@ import {
   type AnswerRequest,
   type FeedbackInput,
   HINTS_WAIT_SECONDS,
+  type AiJobStatus,
+  EXTRACT_DOCUMENT,
+  type ExtractionJob,
+  type ExtractionReading,
+  type ExtractionRequest,
   type HintsJob,
   type HintsRequest,
 } from './ai-gateway-client.js';
@@ -112,6 +117,70 @@ const frameSchemas = {
   error: z.object({ reason: z.enum(REASONS) }),
 };
 
+const DOCUMENT_KINDS = [
+  'title-deed',
+  'logbook',
+  'payslip',
+  'bank-letter',
+  'share-certificate',
+  'other',
+] as const satisfies readonly ExtractionReading['detectedKind'][];
+const JOB_STATUSES = [
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'blocked',
+] as const satisfies readonly AiJobStatus[];
+const JOB_REASONS = [
+  'policy',
+  'budget',
+  'validation',
+  'refused',
+  'provider',
+  'provider-unavailable',
+  'timeout',
+  'cancelled',
+  'document-unavailable',
+  'document-unreadable',
+] as const satisfies readonly AiJobReason[];
+
+/** The output of a succeeded `extract-document` job, as far as the service reads it. */
+const readingSchema = z.object({
+  detectedKind: z.enum(DOCUMENT_KINDS),
+  fields: z.array(
+    z.object({
+      name: z.string().min(1),
+      value: z.union([z.string(), z.number(), z.boolean()]),
+      confidence: z.number().min(0).max(1),
+      page: z.int().min(1).nullable(),
+    }),
+  ),
+  warnings: z.array(z.string()),
+}) satisfies z.ZodType<ExtractionReading>;
+
+const extractionJobSchema = z
+  .object({
+    id: z.uuid(),
+    task: z.literal(EXTRACT_DOCUMENT),
+    status: z.enum(JOB_STATUSES),
+    reason: z.enum(JOB_REASONS).nullable(),
+    output: z.unknown(),
+  })
+  .transform((job, ctx): ExtractionJob => {
+    let output: ExtractionJob['output'] = null;
+    // A succeeded job's reading, unless purged since (null).
+    if (job.status === 'succeeded' && job.output !== null) {
+      const parsed = readingSchema.safeParse(job.output);
+      if (!parsed.success) {
+        ctx.addIssue({ code: 'custom', message: 'A succeeded job with a malformed reading' });
+        return z.NEVER;
+      }
+      output = parsed.data;
+    }
+    return { id: job.id, status: job.status, reason: job.reason, output };
+  });
+
 /**
  * The ai-gateway's internal API (ai-gateway.yaml) with the service's own token (`ai:internal`,
  * one retry after a 401) and the Commission in `X-Acting-Tenant` (ADR-013 §8.14).
@@ -122,8 +191,10 @@ const frameSchemas = {
  * `STREAM_OPEN_TIMEOUT_MS`; any other status than 200, no token or no answer is
  * `AiGatewayUnavailable`. Frames that break the contract end the stream with an `error` frame.
  *
- * Hints jobs and feedback go through the client generated from the contract; anything but the
- * answers expected (a hints call is bounded by `HINTS_TIMEOUT_MS`) is `AiGatewayUnavailable`.
+ * Hints jobs, feedback and document readings (`extract-document` jobs, data class
+ * `highly-confidential`, spec 05b) go through the client generated from the contract; anything
+ * but the answers expected (a hints call is bounded by `HINTS_TIMEOUT_MS`) is
+ * `AiGatewayUnavailable`.
  */
 export class HttpAiGatewayClient extends AiGatewayClient {
   private readonly fetch: typeof fetch;
@@ -183,6 +254,36 @@ export class HttpAiGatewayClient extends AiGatewayClient {
           body: feedback,
         }),
       { status: 200, schema: recorded, otherwise: { 404: () => false } },
+    );
+  }
+
+  extractDocument(request: ExtractionRequest, idempotencyKey: string): Promise<ExtractionJob> {
+    return this.gateway.call(
+      (api) =>
+        api.POST('/internal/v1/tasks/{task}', {
+          params: {
+            path: { task: EXTRACT_DOCUMENT },
+            header: { 'Idempotency-Key': idempotencyKey, 'X-Acting-Tenant': request.tenant },
+          },
+          body: {
+            dataClass: 'highly-confidential',
+            subjectRef: request.subjectRef,
+            promptVersion: null,
+            waitSeconds: 0,
+            input: request.input,
+          },
+        }),
+      { status: [200, 202], schema: extractionJobSchema },
+    );
+  }
+
+  getJob(tenant: string, jobId: string): Promise<ExtractionJob | null> {
+    return this.gateway.call(
+      (api) =>
+        api.GET('/internal/v1/jobs/{jobId}', {
+          params: { path: { jobId }, header: { 'X-Acting-Tenant': tenant } },
+        }),
+      { status: 200, schema: extractionJobSchema, otherwise: { 404: () => null } },
     );
   }
 

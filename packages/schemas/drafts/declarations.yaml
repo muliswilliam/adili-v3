@@ -1,57 +1,10 @@
-# Drafted operations of the declarations API not implemented yet: document extraction (spec
-# 05b) and suggested questions (spec 11, #544). `pnpm --filter @adili/declarations contracts`
+# Drafted operations of the declarations API not implemented yet: suggested questions (spec 11,
+# #544). `pnpm --filter @adili/declarations contracts`
 # merges them into packages/schemas/internal/declarations.yaml, where they may reference the
 # implemented components (e.g. `#/components/schemas/Obligation`, `CommissionRef`,
 # `ObligationType`, `ProblemDetails`). When an operation or component is implemented, delete it
 # here: the export fails while both define it.
 paths:
-  /v1/declarations/{declarationId}/attachments/{attachmentId}/extract:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
-      - name: attachmentId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    post:
-      tags: [suggestions]
-      operationId: extractAttachment
-      summary: Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
-      parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [documentKindHint, targetItemType]
-              properties:
-                documentKindHint:
-                  type: string
-                  enum: [title-deed, logbook, payslip, bank-letter, share-certificate, other]
-                targetItemType:
-                  type: string
-                language:
-                  type: string
-                  enum: [en, sw]
-                  default: en
-      responses:
-        '202':
-          description: Extraction requested; a suggestion set of source `document`
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuggestionSet'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          description: 'Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`)'
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
   /v1/me/assistant/suggested-questions:
     get:
       tags: [assistant]

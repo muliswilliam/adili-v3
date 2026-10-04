@@ -2,7 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 /**
  * Whether "Read into the form" is on for a draft's Commission. The contract gives the declarant
- * no AI status (contract gap 2), so the portal learns it when it asks: a 409 `not-enabled` or a
+ * no AI status (contract gap 2), so the portal learns it when it asks: a
  * `document` set with that status. It is remembered for the draft in memory, for this visit.
  */
 

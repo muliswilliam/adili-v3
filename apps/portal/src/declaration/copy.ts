@@ -75,6 +75,7 @@ export const PREFILL_COPY = {
     reviewHint: en('Edit anything that is wrong.'),
     page: en((page: number) => `Page ${String(page)}`),
     checked: en('I checked this against the document'),
+    yes: en('Yes'),
     kept: en((value: string) => `You entered: ${value} (kept)`),
     replaced: en((value: string) => `You entered: ${value} (replaced)`),
     replace: en('Replace details I already entered'),
@@ -95,13 +96,44 @@ export const PREFILL_COPY = {
     applyFailed: en('The details could not be added. Try again.'),
     rowDetail: en('Read into the form'),
   },
-  /** Why a reading failed, when the service did not say (the contract has no reason: gap 3). */
+  /**
+   * Why a reading failed: the set's `reason` (`document-unavailable`, `document-unreadable`,
+   * `not-read`, `unavailable`, `not-a-draft`), or what the portal saw itself.
+   */
   failureReason: {
     unknown: en('the document could not be processed'),
     timeout: en('it took too long'),
     unavailable: en('the service is not available now'),
     refused: en('the file is not ready to be read'),
     missing: en('the file is no longer attached'),
+    'document-unavailable': en('the file could not be fetched in time'),
+    'document-unreadable': en('the file is damaged, too long, or of a type that cannot be read'),
+    'not-read': en('nothing usable could be read from it'),
+    'not-a-draft': en('the declaration was submitted while it was being read'),
+  },
+  /** The labels of the fields a document is read into, by their path in the item. */
+  readField: {
+    description: en('Description'),
+    creditor: en('Creditor'),
+    'details.parcelNumber': en('Parcel or plot number'),
+    'details.size': en('Size'),
+    'details.registration': en('Registration'),
+    'details.makeModel': en('Make and model'),
+    'details.issuer': en('Company or issuer'),
+    'details.quantityOrPercent': en('Number or percentage'),
+    'details.institution': en('Institution'),
+    'details.accountType': en('Account type'),
+    'details.debtor': en('Debtor'),
+    'value.kesCents': en('Value'),
+    'amount.kesCents': en('Amount'),
+    'outstanding.kesCents': en('Outstanding balance'),
+    'location.inKenya': en('In Kenya'),
+    'location.county': en('County'),
+    'location.country': en('Country'),
+    'location.detail': en('Location'),
+    'joint.isJoint': en('Jointly held'),
+    'joint.sharePercent': en('Your share (%)'),
+    'joint.coOwner': en('Co-owner relationship'),
   },
   /** The labels of the fields a suggestion carries or fills, by suggestion or item field name. */
   field: {
@@ -168,6 +200,7 @@ export const REGISTRY_COPY = english(PREFILL_COPY.registry);
 export const EXTRACTION_COPY = english(PREFILL_COPY.extraction);
 export const FAILURE_REASONS = english(PREFILL_COPY.failureReason);
 export const FIELD_LABELS = english(PREFILL_COPY.field);
+export const READ_FIELD_LABELS: Record<string, string> = english(PREFILL_COPY.readField);
 export const SUGGESTION_COPY = english(PREFILL_COPY.suggestion);
 export const KRA_COPY = english(PREFILL_COPY.kra);
 export const COMPLIANCE_WORDS: Record<string, string> = english(PREFILL_COPY.complianceStatus);

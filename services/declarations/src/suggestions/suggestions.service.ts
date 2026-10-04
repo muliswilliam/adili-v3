@@ -17,8 +17,10 @@ import { declarationNotDraft, fieldErrors, validationProblem } from '../drafts/p
 import { type DeclarationRow, liveDeclaration } from '../drafts/repository.js';
 import type { StoredEnvelope } from '../drafts/schema.js';
 import { SectionCipher } from '../drafts/section-cipher.js';
+import { isStatementKey } from '../drafts/sections.js';
 import { etag } from '../http.js';
 import { placementOf } from './acceptance.js';
+import { readingPlacementOf } from './document-acceptance.js';
 import {
   declarationLookupRequested,
   declarationSuggestionAccepted,
@@ -38,6 +40,7 @@ import {
 } from './representation.js';
 import { SUGGESTION_SOURCES, suggestionConsents, suggestions, suggestionSets } from './schema.js';
 import { SuggestionCipher } from './suggestion-cipher.js';
+import { type SetRow, setView, type SuggestionRow, suggestionView } from './views.js';
 
 export interface SuggestionsQuery {
   personKey?: string;
@@ -256,12 +259,25 @@ export class SuggestionsService {
       ...(set.aiJobId ? { aiJobId: set.aiJobId } : {}),
       at: this.clock.now().toISOString(),
     };
-    const placement = placementOf(
-      { ...row, fields: offered.fields, matchKeys: offered.matchKeys },
-      accepted,
-      source,
-      uuidv7(),
-    );
+    const placement =
+      set.source === 'document' && set.targetSection && isStatementKey(row.sectionKey)
+        ? readingPlacementOf(
+            {
+              sectionKey: row.sectionKey,
+              list: set.targetSection,
+              itemType: row.itemType,
+              fields: offered.fields,
+            },
+            accepted,
+            source,
+            uuidv7(),
+          )
+        : placementOf(
+            { ...row, fields: offered.fields, matchKeys: offered.matchKeys },
+            accepted,
+            source,
+            uuidv7(),
+          );
     let itemId = '';
     let decided: SuggestionRow | undefined;
     let saved: { draftVersion: number };
@@ -457,9 +473,6 @@ function parseRequest(body: unknown): RegistryLookupRequest {
   return parsed.data;
 }
 
-type SetRow = typeof suggestionSets.$inferSelect;
-type SuggestionRow = typeof suggestions.$inferSelect;
-
 /**
  * In the deciding transaction: the suggestion, locked, becomes `status` if it is still `new`;
  * 409 `not-new` if another request decided it first (or a re-check superseded it), except that a
@@ -499,37 +512,4 @@ function notNew(): ProblemException {
   return ProblemException.fromCode('not-new', {
     detail: 'This suggestion was accepted, dismissed or replaced by a later check already.',
   });
-}
-
-function setView(set: SetRow, own: Suggestion[]): SuggestionSet {
-  return {
-    id: set.id,
-    personKey: set.personKey,
-    source: set.source,
-    status: set.status,
-    requestedAt: set.requestedAt.toISOString(),
-    readyAt: set.readyAt?.toISOString() ?? null,
-    verificationResultId: set.verificationResultId,
-    aiJobId: set.aiJobId,
-    suggestions: own,
-  };
-}
-
-function suggestionView(
-  row: SuggestionRow,
-  contents: { fields: Record<string, unknown>; sourceRef: Record<string, unknown> },
-): Suggestion {
-  return {
-    id: row.id,
-    setId: row.setId,
-    personKey: row.personKey,
-    sectionKey: row.sectionKey,
-    itemType: row.itemType,
-    fields: contents.fields,
-    sourceRef: contents.sourceRef,
-    confidence: row.confidence,
-    matchItemId: row.matchItemId,
-    status: row.status,
-    acceptedItemId: row.acceptedItemId,
-  };
 }

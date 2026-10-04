@@ -913,7 +913,7 @@ export interface paths {
         put?: never;
         /**
          * Add the suggestion as an item, or apply it to an existing item (declarant); through the section save
-         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. Values are never filled. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
+         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. A registry's suggestion never fills values. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). A document's reading (source `document`) is different: as new it adds an item of the reading's type in its statement list; its fields are written at their declaration.v1 paths, typed as read, amounts included (`value.kesCents`, `outstanding.kesCents`: the document's figure the declarant checked); a field it did not read is refused (400); applied to an item of another type, 400; it is not refused for an item holding another identifier. The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
          */
         post: operations["acceptSuggestion"];
         delete?: never;
@@ -946,15 +946,15 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                attachmentId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated */
+        /**
+         * Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
+         * @description The document is read into the item it is attached to: the item's statement list (`assets`, `income` or `liabilities`) and type. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind, section and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended; one pending longer than 15 minutes counts as failed, `unavailable`, first); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. A request refused for the file itself (404, 409) records nothing; a concurrent request answered with the same pending reading then finds it gone from `listSuggestions`: treat a set no longer listed as ended, and ask again to get the refusal. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.
+         */
         post: operations["extractAttachment"];
         delete?: never;
         options?: never;
@@ -2024,18 +2024,19 @@ export interface components {
             setId: string;
             personKey: string;
             sectionKey: components["schemas"]["SectionKey"];
-            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
+            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
             itemType: string;
-            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call */
+            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says */
             fields: {
                 [key: string]: unknown;
             };
-            /** @description The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. Documents: page and field */
+            /** @description The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. A document's reading: `documentKind` (what the reading took the document for), `fields` (`[{name, confidence, page}]`, each field's confidence from 0 to 1 and the page it is on, null when on none), `warnings` (what the declarant should know, such as an unreadable page) and `attachmentId` */
             sourceRef: {
                 [key: string]: unknown;
             };
+            /** @description A document's reading: its least sure field's confidence, null when it read none. Null for a registry's */
             confidence: number | null;
-            /** @description The item already in the section whose identifier (registration, parcel, company) coincides: offer "Apply to this item" instead of a duplicate */
+            /** @description The item already in the section whose identifier (registration, parcel, company) coincides, or for a document the item it is attached to: offer "Apply to this item" instead of a duplicate */
             matchItemId: string | null;
             /** @enum {string} */
             status: "new" | "accepted" | "dismissed" | "superseded";
@@ -2047,7 +2048,7 @@ export interface components {
             personKey: string;
             source: components["schemas"]["SuggestionSource"];
             /**
-             * @description `pending` while the registry is being asked (retried with backoff); `ready` when it answered, with or without records; `unavailable` when it did not answer after the retries; `failed` when the check could not run. Poll `listSuggestions` until no set is `pending`
+             * @description `pending` while the registry is being asked (retried with backoff) or the document read; `ready` when it answered, with or without records, or the document was read (one suggestion); `unavailable` when a registry did not answer after the retries; `not-enabled` when the Commission's AI policy does not let documents be read; `failed` when the check or reading could not run (for a document, `reason` says why). Poll `listSuggestions` until no set is `pending`
              * @enum {string}
              */
             status: "pending" | "ready" | "unavailable" | "no-id" | "not-enabled" | "failed";
@@ -2056,6 +2057,12 @@ export interface components {
             readyAt: string | null;
             verificationResultId: string | null;
             aiJobId: string | null;
+            /** @description A document's set: the attachment read */
+            attachmentId: string | null;
+            /** @description A document's set: what the declarant said the document is */
+            documentKind: ("title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other") | null;
+            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise */
+            reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable" | "not-a-draft") | null;
             suggestions: components["schemas"]["Suggestion"][];
         };
         RegistryLookupRequest: {
@@ -2073,7 +2080,7 @@ export interface components {
             };
         };
         AcceptSuggestionRequest: {
-            /** @description The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). Value fields are not taken: the declarant enters values on the item */
+            /** @description The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). For a registry's, value fields are not taken: the declarant enters values on the item. For a document's reading, its fields by declaration.v1 path, values included, each typed as read (an amount may come as text, e.g. "1,180,000"); fields it did not read are refused */
             fields: {
                 [key: string]: unknown;
             };
@@ -2095,6 +2102,19 @@ export interface components {
         DismissSuggestionRequest: {
             /** @description Why the declarant set it aside, if they said */
             reason?: string;
+        };
+        ExtractAttachmentRequest: {
+            /**
+             * @description What the declarant says it is
+             * @enum {string}
+             */
+            documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
+            /**
+             * @description The language of the warnings the reading gives
+             * @default en
+             * @enum {string}
+             */
+            language: "en" | "sw";
         };
         ProblemDetails: {
             type: string;
@@ -4632,7 +4652,7 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionAcceptance"];
                 };
             };
-            /** @description Validation failed: the fields do not fit the item, `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN) */
+            /** @description Validation failed: the fields do not fit the item (for a document, a field it did not read, or a value the field cannot take), `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4729,30 +4749,21 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
+                declarationId: string;
                 attachmentId: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
-                    targetItemType: string;
-                    /**
-                     * @default en
-                     * @enum {string}
-                     */
-                    language?: "en" | "sw";
-                };
+                "application/json": components["schemas"]["ExtractAttachmentRequest"];
             };
         };
         responses: {
-            /** @description Extraction requested; a suggestion set of source `document` */
+            /** @description Reading requested; the `document` suggestion set */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -4761,9 +4772,44 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionSet"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`) */
+            /** @description Validation failed (no body, a missing or unknown document kind, an unknown language, or the attached item has no type yet), or the Idempotency-Key header missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a draft (`declaration-not-draft`), the file is no longer clean (`upload-not-clean`), or a request with the same Idempotency-Key still running */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or the reading it found was the reservation of a concurrent request, taken back when that request was refused for the file (`reading-conflict`: asking again gets the refusal) */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

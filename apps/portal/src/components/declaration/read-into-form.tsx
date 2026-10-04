@@ -17,6 +17,7 @@ import {
   FormField,
   Icon,
   Input,
+  MoneyInput,
   RadioCard,
   RadioGroup,
   Spinner,
@@ -135,7 +136,6 @@ export function ReadIntoForm({
         declarationId,
         attachmentId: target.attachmentId,
         documentKindHint: kind,
-        targetItemType: itemType ?? 'other',
         idempotencyKey: crypto.randomUUID(),
       },
     }).catch(() => ({ status: 'unavailable' as const }));
@@ -144,8 +144,6 @@ export function ReadIntoForm({
       const state = readingState(result.set);
       if (state.status === 'reading') setStep({ name: 'reading', setId: result.set.id });
       else settle(state);
-    } else if (result.status === 'not-enabled') {
-      settle({ status: 'not-enabled' });
     } else {
       const reason =
         result.status === 'refused'
@@ -172,10 +170,16 @@ export function ReadIntoForm({
     pollKey: readingSetId,
     read: () => listDeclarationSuggestions({ data: { declarationId, personKey, sectionKey } }),
     onRead: (listed) => {
-      const set =
-        listed?.status === 'ok' ? listed.sets.find((each) => each.id === readingSetId) : null;
-      const state = set ? readingState(set) : null;
-      if (!state || state.status === 'reading') return false;
+      if (listed?.status !== 'ok') return false;
+      const set = listed.sets.find((each) => each.id === readingSetId);
+      // Gone from the list: a concurrent request reserved it and was refused for the file (not
+      // clean, no longer there), which records no reading. Asking again gets that refusal.
+      if (!set) {
+        setStep({ name: 'failed', reason: FAILURE_REASONS.refused });
+        return true;
+      }
+      const state = readingState(set);
+      if (state.status === 'reading') return false;
       settle(state);
       return true;
     },
@@ -368,7 +372,7 @@ function Review({
   const low = reading.fields.filter((field) => levelOf(field) === 'low');
   const unticked = low.filter((field) => !ticked.has(field.key)).length;
   const fields = acceptedFields(suggestion, values);
-  const met = clashes(item, fields, suggestion.itemType);
+  const met = clashes(item, fields);
   const documentKind = DOCUMENT_KIND_LABELS[reading.documentKind ?? kind];
   const empty = reading.fields.length === 0;
 
@@ -441,6 +445,27 @@ function Review({
                     disabled={disabled}
                     onValueChange={(code) => {
                       setValues((current) => ({ ...current, [field.key]: code ?? '' }));
+                    }}
+                  />
+                ) : field.input === 'money' ? (
+                  <MoneyInput
+                    value={/^\d+$/.test(values[field.key] ?? '') ? Number(values[field.key]) : null}
+                    disabled={disabled}
+                    onValueChange={(cents) => {
+                      setValues((current) => ({
+                        ...current,
+                        [field.key]: cents === null ? '' : String(cents),
+                      }));
+                    }}
+                  />
+                ) : field.input === 'boolean' ? (
+                  <CheckboxItem
+                    label={COPY.yes}
+                    checked={values[field.key] === 'true'}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      const on = event.target.checked;
+                      setValues((current) => ({ ...current, [field.key]: String(on) }));
                     }}
                   />
                 ) : (

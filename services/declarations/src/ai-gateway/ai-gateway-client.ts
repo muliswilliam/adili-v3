@@ -77,12 +77,48 @@ export interface HintsJob {
   output: AnswerOutput | null;
 }
 
+/** ai-gateway.yaml `ExtractDocumentInput`: what the declarant's document is to be read into. */
+export type ExtractDocumentInput = Schemas['ExtractDocumentInput'];
+/** ai-gateway.yaml `ExtractDocumentOutput`: the fields read, each with a confidence and page. */
+export type ExtractDocumentOutput = Schemas['ExtractDocumentOutput'];
+/** What the service keeps of a reading: the output less its AI label (the portal labels it). */
+export type ExtractionReading = Omit<ExtractDocumentOutput, 'label'>;
+
+/** The task "Read into the form" runs (spec 05b). */
+export const EXTRACT_DOCUMENT = 'extract-document';
+
+/**
+ * An extraction job as the gateway gives it (ai-gateway.yaml `Job`), reduced to what the
+ * declarations service reads. `output` is present only once the job succeeded: it holds what the
+ * document says, so it is stored encrypted and never logged.
+ */
+export interface ExtractionJob {
+  id: string;
+  status: AiJobStatus;
+  reason: AiJobReason | null;
+  output: ExtractionReading | null;
+}
+
+/** Whether a job has ended: its output, or why there is none, is final. */
+export function isFinished(job: Pick<ExtractionJob, 'status'>): boolean {
+  return job.status === 'succeeded' || job.status === 'failed' || job.status === 'blocked';
+}
+
+/** An `extract-document` call (ai-gateway.yaml `TaskRequest`) for the Commission `tenant`. */
+export interface ExtractionRequest {
+  tenant: string;
+  /** `declaration:<declarationId>`: the job's events carry it back. */
+  subjectRef: string;
+  input: ExtractDocumentInput;
+}
+
 /** The longest the service waits for a hints job (spec 11: 10 s, then deterministic text only). */
 export const HINTS_WAIT_SECONDS = 10;
 
 /**
- * The gateway cannot answer now: unreachable, rate-limited, over budget, no provider, or it
- * answered outside its contract. The assistant answers 503 and the portal offers help search.
+ * The gateway cannot answer now: unreachable, rate-limited, over budget, no provider, refused the
+ * request, or it answered outside its contract. The assistant answers 503 and the portal offers
+ * help search; a document reading answers 503 and the declarant may ask again.
  */
 export class AiGatewayUnavailable extends Error {
   constructor(message: string, options?: ErrorOptions) {
@@ -92,7 +128,8 @@ export class AiGatewayUnavailable extends Error {
 }
 
 /**
- * What the declarations service asks of the ai-gateway's internal API (spec 11, ADR-007, ADR-019):
+ * What the declarations service asks of the ai-gateway's internal API (specs 11 and 05b, ADR-007,
+ * ADR-019):
  * the only component that reaches an AI provider. A Nest token: the service uses
  * `HttpAiGatewayClient`, tests a fake.
  */
@@ -122,4 +159,21 @@ export abstract class AiGatewayClient {
    * `AiGatewayUnavailable` when the gateway cannot take it.
    */
   abstract recordFeedback(tenant: string, jobId: string, feedback: FeedbackInput): Promise<boolean>;
+
+  /**
+   * `runTask` for `extract-document` with data class `highly-confidential`: the job as created
+   * (`queued`), `blocked` when the Commission's policy does not let the document go to a provider,
+   * or as it is when an equal request has a live or succeeded job (the gateway's cache).
+   * Idempotent by `idempotencyKey`. Throws `AiGatewayUnavailable`.
+   */
+  abstract extractDocument(
+    request: ExtractionRequest,
+    idempotencyKey: string,
+  ): Promise<ExtractionJob>;
+
+  /**
+   * `getJob` of an `extract-document` job: with its reading once succeeded; null when the gateway
+   * has no such job of the tenant's. Throws `AiGatewayUnavailable`.
+   */
+  abstract getJob(tenant: string, jobId: string): Promise<ExtractionJob | null>;
 }

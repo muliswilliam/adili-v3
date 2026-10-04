@@ -7,6 +7,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  AcceptIdempotencyKey,
   ApiJsonBody,
   ApiProblemResponse,
   CurrentPrincipal,
@@ -115,6 +116,8 @@ export class OpenDataController {
 
   @Post(':releaseId/publish')
   @HttpCode(HttpStatus.OK)
+  // A retry after a lost answer replays it instead of failing `release-not-preview`.
+  @AcceptIdempotencyKey()
   @ApiReleaseIdParam()
   @ApiOperation({
     operationId: 'publishOpenDataRelease',
@@ -123,12 +126,15 @@ export class OpenDataController {
       "eacc-supervisor (tenant `eacc`); anyone else, an eacc-analyst included, 403. Issues the release's manifest (year, kind, version, build time, the NCR reference it reconciles with, the publisher, the suppression threshold, and each table's rows, hidden cells and the SHA-256 of its JSON and CSV files, with the release JSON's) through documents as a Public verifiable document (`open-data-manifest`), then marks the release `published` by the caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no figures). An annual release publishes itself the same way when its NCR is approved, `publishedBy` the approver. The release was reconciled with the NCR when it was built. A year has one published annual release at a time: an annual preview is published only once the year's published one is withdrawn (409 `annual-release-published`).",
   })
   @ApiOkResponse({ description: 'Published', schema: RELEASE })
-  @ApiProblemResponse(400, 'The release id is not a UUID')
+  @ApiProblemResponse(
+    400,
+    'The release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`)',
+  )
   @ApiProblemResponse(403, SUPERVISOR_ONLY)
   @ApiProblemResponse(404, 'No release has the id')
   @ApiProblemResponse(
     409,
-    'The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`)',
+    'The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)',
   )
   @ApiProblemResponse(
     502,
@@ -147,6 +153,7 @@ export class OpenDataController {
 
   @Post(':releaseId/withdraw')
   @HttpCode(HttpStatus.OK)
+  @AcceptIdempotencyKey()
   @ApiReleaseIdParam()
   @ApiOperation({
     operationId: 'withdrawOpenDataRelease',
@@ -156,12 +163,15 @@ export class OpenDataController {
   })
   @ApiJsonBody(withdrawBody)
   @ApiOkResponse({ description: 'Withdrawn', schema: RELEASE })
-  @ApiProblemResponse(400, 'Body failed validation, or the release id is not a UUID')
+  @ApiProblemResponse(
+    400,
+    'Body failed validation, the release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`)',
+  )
   @ApiProblemResponse(403, SUPERVISOR_ONLY)
   @ApiProblemResponse(404, 'No release has the id')
   @ApiProblemResponse(
     409,
-    'The release is a preview or withdrawn already (`release-not-published`)',
+    'The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)',
   )
   @ApiProblemResponse(
     502,

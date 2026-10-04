@@ -211,9 +211,17 @@ describe('#350 a published or withdrawn release', () => {
   it('shows a withdrawn release with who withdrew it and why', async () => {
     renderView(await loadOpenDataRelease(analyst(), '0199c000-0000-7000-8000-000000000001'));
 
-    const banner = screen.getByText(/^Withdrawn 19 Feb 2026/).closest('[role="alert"]');
+    const banner = screen.getByText(/^Withdrawn 19 Feb 2026 by/).closest('[role="alert"]');
     expect(banner?.textContent).toContain('Withdrawn 19 Feb 2026 by Esther Chebet.');
     expect(banner?.textContent).toContain('counted twice');
+  });
+
+  it("marks a withdrawn release's manifest revoked, as its verify page shows it", async () => {
+    renderView(await loadOpenDataRelease(analyst(), '0199c000-0000-7000-8000-000000000001'));
+
+    const manifest = screen.getByRole('region', { name: 'Manifest' });
+    expect(within(manifest).getByText('Revoked')).toBeTruthy();
+    expect(within(manifest).queryByText('Public')).toBeNull();
   });
 
   it("shows a published release's manifest code, with a verify link when the console knows the app", async () => {

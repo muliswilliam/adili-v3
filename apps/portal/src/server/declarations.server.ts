@@ -458,16 +458,12 @@ export interface ExtractAttachmentInput {
   declarationId: string;
   attachmentId: string;
   documentKindHint: DocumentKind;
-  /** The declaration.v1 item type the fields are for, e.g. `vehicle`. */
-  targetItemType: string;
   /** One per logical request; reuse it when retrying the same request. */
   idempotencyKey: string;
 }
 
 export type ExtractResult =
   | { status: 'started'; set: LoadedSuggestionSet }
-  /** 409 `not-enabled`: the Commission has no AI policy for documents. */
-  | { status: 'not-enabled' }
   /** Any other 409 (e.g. the attachment is not clean) or 400. */
   | { status: 'refused'; code: string | null }
   | NotFound
@@ -490,16 +486,14 @@ export function extractAttachment(
           path: { declarationId: input.declarationId, attachmentId: input.attachmentId },
           header: { 'Idempotency-Key': input.idempotencyKey },
         },
-        body: {
-          documentKindHint: input.documentKindHint,
-          targetItemType: input.targetItemType,
-        },
+        // The service reads it into the item it is attached to (its list and type).
+        body: { documentKindHint: input.documentKindHint, language: 'en' },
       },
     );
     if (data) return { status: 'started', set: loadedSet(data) };
     if (response.status === 409 || response.status === 400) {
       const code = problemCode(error);
-      return code === 'not-enabled' ? { status: 'not-enabled' } : { status: 'refused', code };
+      return { status: 'refused', code };
     }
     return response.status === 404 ? notFound : unavailable;
   });

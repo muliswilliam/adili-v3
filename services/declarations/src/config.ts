@@ -26,7 +26,10 @@ export const envSchema = baseEnvSchema.extend({
   DOCUMENTS_API_URL: z.url(),
   /** The integration-gateway, the only way to the registries a declarant can check (spec 05b). */
   INTEGRATION_GATEWAY_URL: z.url(),
-  /** The ai-gateway, the only way to an AI provider: Ask Adili's answers (spec 11). */
+  /**
+   * The ai-gateway, the only way to an AI provider: Ask Adili's answers (spec 11) and the reading
+   * of a declarant's document (spec 05b).
+   */
   AI_GATEWAY_URL: z.url(),
   /**
    * Rate limits as `<group>=<limit>/<seconds>s` entries: `assistant`, questions per declarant

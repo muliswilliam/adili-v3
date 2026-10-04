@@ -2485,7 +2485,10 @@ export interface operations {
     publishOpenDataRelease: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 releaseId: string;
             };
@@ -2502,7 +2505,7 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
-            /** @description The release id is not a UUID */
+            /** @description The release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2529,8 +2532,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`) */
+            /** @description The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2561,7 +2573,10 @@ export interface operations {
     withdrawOpenDataRelease: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 releaseId: string;
             };
@@ -2585,7 +2600,7 @@ export interface operations {
                     "application/json": components["schemas"]["OpenDataRelease"];
                 };
             };
-            /** @description Body failed validation, or the release id is not a UUID */
+            /** @description Body failed validation, the release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -2612,8 +2627,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description The release is a preview or withdrawn already (`release-not-published`) */
+            /** @description The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
