@@ -174,6 +174,7 @@ export {
   diffDelta,
   type DiffGroup,
   type DiffKind,
+  diffHighlighted,
   diffKind,
   diffPercent,
   type DiffRow,
@@ -255,6 +256,14 @@ export {
   type HashDropZoneMessages,
   type HashDropZoneProps,
 } from './components/hash-drop-zone';
+export {
+  FIGURE_CHIP_MESSAGES,
+  FigureChip,
+  type FigureChipMessages,
+  type FigureChipProps,
+  type FigureFormatter,
+  type ResolvedFigure,
+} from './components/figure-chip';
 export { FilterChip, type FilterChipProps } from './components/filter-chip';
 export { FieldError, FieldHint, FormField, type FormFieldProps } from './components/form-field';
 export {
@@ -358,6 +367,17 @@ export {
   type OutcomeBadgeMessages,
   type OutcomeBadgeProps,
 } from './components/outcome-badge';
+export {
+  PATTERN_CANDIDATE_KIND_COPY,
+  PATTERN_CANDIDATE_KINDS,
+  PATTERN_CARD_MESSAGES,
+  type PatternCandidateKind,
+  type PatternCandidateKindCopy,
+  PatternCard,
+  type PatternCardMessages,
+  type PatternCardProps,
+  PatternCardSkeleton,
+} from './components/pattern-card';
 export { PercentInput, type PercentInputProps } from './components/percent-input';
 export {
   PRIORITY_BADGE_MESSAGES,
@@ -425,6 +445,14 @@ export {
   RegistryStatusRow,
   type RegistryStatusRowProps,
 } from './components/registry-status';
+export {
+  RELEASE_STATUS_BADGE_MESSAGES,
+  RELEASE_STATUSES,
+  type ReleaseStatus,
+  ReleaseStatusBadge,
+  type ReleaseStatusBadgeMessages,
+  type ReleaseStatusBadgeProps,
+} from './components/release-status-badge';
 export { type RepeaterActionLabels, Repeater, type RepeaterProps } from './components/repeater';
 export {
   SaveIndicator,
@@ -529,6 +557,23 @@ export {
   type SuggestionMessages,
   type SuggestionStatus,
 } from './components/suggestion-card';
+export { Switch, type SwitchProps } from './components/switch';
+export {
+  DEFAULT_SUPPRESSION_THRESHOLD,
+  UNSHOWN_FIGURE_KINDS,
+  SUPPRESSION_LEGEND_MESSAGES,
+  SUPPRESSION_MARKER_MESSAGES,
+  type UnshownFigureKind,
+  SuppressionLegend,
+  type SuppressionLegendMessages,
+  type SuppressionLegendMessagesOverride,
+  type SuppressionLegendProps,
+  SuppressionMarker,
+  type SuppressionMarkerCopy,
+  type SuppressionMarkerMessages,
+  type SuppressionMarkerMessagesOverride,
+  type SuppressionMarkerProps,
+} from './components/suppression-marker';
 export {
   Table,
   TableBody,

@@ -20,6 +20,12 @@
  *
  * - Case `mine` also has `draft`, saved with one item, which the composer continues.
  *
+ * - Spec 08's cases and their determinations (`ready` to `bulkClosure`, and a proposal on
+ *   `peters`): see the notes on `MOCK_CASE_IDS` and `MOCK_DETERMINATION_IDS`.
+ *
+ * The version comparison (spec 07a #167) of every case on the mock declaration comes from
+ * `compare-mock.server.ts`; the first declarations (`unassigned`, `contested`) answer 409.
+ *
  * As review.yaml has it: claim an unassigned case (409 `case-already-assigned` otherwise),
  * release your own (403 otherwise), reassign or unassign as a supervisor (the mock does not
  * check roles), add a note (1-2,000 characters), mark a flag reviewed once (note 1-1,000
@@ -46,7 +52,7 @@
  */
 import { randomUUID } from 'node:crypto';
 
-import { COMMISSION_ADMIN } from '@adili/roles';
+import { COMMISSION_ADMIN, REVIEWER } from '@adili/roles';
 import { addDays } from '@adili/ui';
 
 import createClient from 'openapi-fetch';
@@ -55,7 +61,14 @@ import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
+import {
+  actionApprovals,
+  actionsRoute,
+  mockActionFileTitle,
+  resetActionsMock,
+} from './actions-mock.server';
 import type { paths } from './api.gen';
+import { mockComparison } from './compare-mock.server';
 import {
   copilotRoute,
   declarationOf,
@@ -66,6 +79,23 @@ import {
   mockFlags,
   resetCopilotMock,
 } from './copilot-mock.server';
+import { approvalsRoute, resetApprovalsMock } from './approvals-mock.server';
+import {
+  determinationApprovals,
+  determinationsOf,
+  determinationsRoute,
+  mockDecisionLetterTitle,
+  resetDeterminationsMock,
+} from './determinations-mock.server';
+import { reviewClock } from './mock-clock.server';
+import { MOCK_CALLER, type MockCases } from './mock-parts.server';
+import {
+  mockReferralPackageTitle,
+  referralApprovals,
+  type ReferralCases,
+  referralsRoute,
+  resetReferralsMock,
+} from './referrals-mock.server';
 import type {
   Assignee,
   CaseDetail,
@@ -83,6 +113,36 @@ export const MOCK_CASE_IDS = {
   unassigned: 'ca5e0000-0000-4000-8000-000000000004',
   contested: 'ca5e0000-0000-4000-8000-000000000005',
   unavailable: 'ca5e0000-0000-4000-8000-000000000006',
+  /** Spec 08: held by the caller, ready for determination, nothing proposed yet. */
+  ready: 'ca5e0000-0000-4000-8000-000000000007',
+  /** Held by the caller; Lucy Wambui returned the caller's proposal with a reason. */
+  returned: 'ca5e0000-0000-4000-8000-000000000008',
+  /** Held by the caller; Lucy Wambui approved the caller's proposal (CMP, letter). */
+  determined: 'ca5e0000-0000-4000-8000-000000000009',
+  /** Held by Mercy Wambui, who proposed non-compliant 35 days ago; reassigned to the caller. */
+  awaitingOld: 'ca5e0000-0000-4000-8000-00000000000a',
+  /** Held by Mercy Wambui after the caller: the caller is a reviewer of record. */
+  awaitingOfRecord: 'ca5e0000-0000-4000-8000-00000000000b',
+  /** Held by Peter Mwangi, who proposed further action 3 days ago. */
+  awaitingFurther: 'ca5e0000-0000-4000-8000-00000000000c',
+  /**
+   * Low band, no flags, nothing open, nobody holds it: once its window closed (8 days ago) the
+   * system proposed "no issues" (a bulk closure, never in the inbox, #202).
+   */
+  bulkClosure: 'ca5e0000-0000-4000-8000-00000000000d',
+} as const;
+
+/** The seeded determinations (spec 08). */
+export const MOCK_DETERMINATION_IDS = {
+  /** Peter Mwangi proposed compliant on his case 9 days ago. */
+  peters: 'de7e0000-0000-4000-8000-000000000001',
+  awaitingOld: 'de7e0000-0000-4000-8000-000000000002',
+  awaitingOfRecord: 'de7e0000-0000-4000-8000-000000000003',
+  awaitingFurther: 'de7e0000-0000-4000-8000-000000000004',
+  /** The system's "no issues" proposal: a bulk closure, never in the inbox (#202). */
+  bulkClosure: 'de7e0000-0000-4000-8000-000000000007',
+  returned: 'de7e0000-0000-4000-8000-000000000005',
+  determined: 'de7e0000-0000-4000-8000-000000000006',
 } as const;
 
 /** The Draft with AI job behind the AI-assisted parts of the issued clarification. */
@@ -116,9 +176,13 @@ type Officer = Assignee | typeof CALLER;
 export const MOCK_OFFICERS = {
   peter: { subject: 'f7a0c1de-0000-4000-8000-000000000009', name: 'Peter Mwangi' },
   mercy: { subject: 'f7a0c1de-0000-4000-8000-000000000010', name: 'Mercy Wambui' },
+  /** Supervisors (spec 08): they approve, return and are reassigned approvals. */
+  lucy: { subject: 'f7a0c1de-0000-4000-8000-000000000011', name: 'Lucy Wambui' },
+  joseph: { subject: 'f7a0c1de-0000-4000-8000-000000000012', name: 'Joseph Mutua' },
 } as const satisfies Record<string, Assignee>;
 const PETER: Assignee = MOCK_OFFICERS.peter;
 const MERCY: Assignee = MOCK_OFFICERS.mercy;
+const LUCY: Assignee = MOCK_OFFICERS.lucy;
 
 type Item = Clarification['items'][number];
 
@@ -127,6 +191,13 @@ const DECLARANTS = {
   grace: { firstName: 'Grace', surname: 'Atieno' },
   mary: { firstName: 'Mary', surname: 'Achieng' },
   gitau: { firstName: 'Mary', otherNames: 'Njambi', surname: 'Gitau' },
+  wekesa: { firstName: 'Brian', surname: 'Wekesa' },
+  mutiso: { firstName: 'Patrick', otherNames: 'Mutiso', surname: 'Kyalo' },
+  onyango: { firstName: 'Esther', otherNames: 'Moraa', surname: 'Onyango' },
+  wafula: { firstName: 'Ruth', otherNames: 'Nekesa', surname: 'Wafula' },
+  kamau: { firstName: 'Joyce', otherNames: 'Wairimu', surname: 'Kamau' },
+  rono: { firstName: 'Kennedy', otherNames: 'Kiprop', surname: 'Rono' },
+  njeri: { firstName: 'Agnes', surname: 'Njeri' },
 } as const satisfies Record<string, MockDeclarant>;
 
 const PLOT: Item = {
@@ -454,10 +525,10 @@ function firstDeclarationFlags(versionId: string, bankId: string, daysLate: numb
 }
 
 /** A review client answered by this mock, calling as `subject` (tests). */
-export function mockReviewClient(subject: string, name: string) {
+export function mockReviewClient(subject: string, name: string, roles?: readonly string[]) {
   return createClient<paths>({
     baseUrl: 'http://review.test',
-    headers: { authorization: `Bearer ${mockToken(subject, name)}` },
+    headers: { authorization: `Bearer ${mockToken(subject, name, roles)}` },
     fetch: mockReviewFetch,
   });
 }
@@ -467,6 +538,8 @@ export function resetReviewMock(
   now: number = Date.now(),
   { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
 ) {
+  reviewClock.startAt(now);
+  resetActionsMock(now);
   cases.clear();
   clarifications.clear();
   letterReadyAt.clear();
@@ -626,6 +699,8 @@ export function resetReviewMock(
     ),
   );
 
+  seedDeterminationCases(now);
+
   const seed = (value: Clarification) => clarifications.set(value.id, value);
   // Drafted with AI (the plot's item and the opening), then edited and issued (ADR-007 label).
   seed(
@@ -713,14 +788,292 @@ export function resetReviewMock(
       { caseId: C.unassigned, state: 'not-enabled' },
       { caseId: C.contested, state: 'not-enabled' },
       { caseId: C.unavailable, state: 'ready', declarant: DECLARANTS.gitau },
+      ...DETERMINATION_CASES.map(({ key, declarant }) => ({
+        caseId: C[key],
+        state: 'ready' as const,
+        declarant,
+      })),
     ],
     { notEnabled: copilot === 'not-enabled' },
   );
+
+  resetReferralsMock(
+    now,
+    {
+      peters: C.peters,
+      awaitingOld: C.awaitingOld,
+      awaitingOfRecord: C.awaitingOfRecord,
+      awaitingFurther: C.awaitingFurther,
+      returned: C.returned,
+    },
+    referralCases(MOCK_CALLER),
+    { issuer: 'TSC', officers: { peter: PETER, mercy: MERCY, lucy: LUCY } },
+  );
 }
 
-/** A bearer token the mock reads `sub` and `name` from (tests; unsigned). */
-export function mockToken(subject: string, name: string): string {
-  return unsignedMockToken({ subject, name });
+/** The spec 08 cases (see `MOCK_CASE_IDS`), each with its declarant, holder and who held it. */
+const DETERMINATION_CASES = [
+  {
+    key: 'ready',
+    reference: 'DCB-TSC-2026-0004127-E',
+    declarant: DECLARANTS.wekesa,
+    holder: CALLER,
+    history: [CALLER],
+    receivedDays: -150,
+    band: 'low',
+    flagsReviewedBy: PETER,
+  },
+  {
+    key: 'returned',
+    reference: 'DCB-TSC-2026-0002214-B',
+    declarant: DECLARANTS.njeri,
+    holder: CALLER,
+    history: [CALLER],
+    receivedDays: -160,
+    band: 'low',
+    flagsReviewedBy: PETER,
+  },
+  {
+    key: 'determined',
+    reference: 'DCB-TSC-2026-0003104-M',
+    declarant: DECLARANTS.mutiso,
+    holder: CALLER,
+    history: [CALLER],
+    receivedDays: -170,
+    band: 'low',
+    flagsReviewedBy: PETER,
+  },
+  {
+    key: 'awaitingOld',
+    reference: 'DCB-TSC-2026-0006612-U',
+    declarant: DECLARANTS.wafula,
+    holder: MERCY,
+    history: [MERCY],
+    receivedDays: -175,
+    band: 'high',
+    flagsReviewedBy: MERCY,
+  },
+  {
+    key: 'awaitingOfRecord',
+    reference: 'DCB-TSC-2026-0030559-8',
+    declarant: DECLARANTS.onyango,
+    holder: MERCY,
+    history: [CALLER, MERCY],
+    receivedDays: -140,
+    band: 'low',
+    flagsReviewedBy: MERCY,
+  },
+  {
+    key: 'awaitingFurther',
+    reference: 'DCB-TSC-2026-0030696-P',
+    declarant: DECLARANTS.rono,
+    holder: PETER,
+    history: [PETER],
+    receivedDays: -130,
+    band: 'low',
+    flagsReviewedBy: PETER,
+  },
+  {
+    key: 'bulkClosure',
+    reference: 'DCB-TSC-2026-0031792-B',
+    declarant: DECLARANTS.kamau,
+    holder: null,
+    history: [],
+    receivedDays: -190,
+    band: 'low',
+    // None: the sweep proposes only cases with no open flags.
+    flagsReviewedBy: null,
+  },
+] as const satisfies readonly {
+  key: keyof typeof MOCK_CASE_IDS;
+  reference: string;
+  declarant: MockDeclarant;
+  holder: Officer | null;
+  history: readonly Officer[];
+  receivedDays: number;
+  band: CaseListItem['band'];
+  /** Who reviewed the case's flags (a colleague, for the caller's), or null for a case with none. */
+  flagsReviewedBy: Assignee | null;
+}[];
+
+/** The spec 08 cases and their determinations, with the Commission's staff for reassigning. */
+function seedDeterminationCases(now: number) {
+  const C = MOCK_CASE_IDS;
+  const D = MOCK_DETERMINATION_IDS;
+  for (const seed of DETERMINATION_CASES) {
+    const name = [
+      seed.declarant.firstName,
+      'otherNames' in seed.declarant ? seed.declarant.otherNames : null,
+      seed.declarant.surname,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const item: CaseListItem = {
+      ...caseItem(C[seed.key], seed.reference, name, now, seed.receivedDays + 182),
+      status: seed.key === 'determined' ? 'determined' : 'ready-for-determination',
+      band: seed.band,
+    };
+    cases.set(
+      item.id,
+      storedCase(item, {
+        holder: seed.holder,
+        history: [...seed.history],
+        flags: reviewedFlags(item.id, seed.flagsReviewedBy, now),
+        document: declarationOf(seed.declarant),
+        timeline: [entry('case-created', null, item.receivedAt, 'Case created from version 1')],
+      }),
+    );
+  }
+  // First: the determinations seed their reassignments into it.
+  resetApprovalsMock({
+    sources: {
+      determination: determinationApprovals,
+      action: actionApprovals,
+      referral: referralApprovals(referralCases),
+    },
+    staff: [
+      { ...PETER, supervisor: false },
+      { ...MERCY, supervisor: false },
+      { ...LUCY, supervisor: true },
+      { ...MOCK_OFFICERS.joseph, supervisor: true },
+    ],
+  });
+  resetDeterminationsMock(
+    [
+      {
+        id: D.peters,
+        caseId: C.peters,
+        outcome: 'compliant',
+        reasons:
+          'All flags reviewed. The overdue clarification was answered by phone and the HR letter on file explains the late filing.',
+        proposer: PETER,
+        proposedAt: at(now, -9),
+      },
+      {
+        id: D.awaitingOld,
+        caseId: C.awaitingOld,
+        outcome: 'non-compliant',
+        reasons:
+          'Ardhisasa shows a parcel in Kajiado registered to the declarant in 2024 that is not declared. The response to the clarification did not explain it.',
+        proposer: MERCY,
+        proposedAt: at(now, -35),
+        reassignedTo: MOCK_CALLER,
+      },
+      {
+        id: D.awaitingOfRecord,
+        caseId: C.awaitingOfRecord,
+        outcome: 'compliant',
+        reasons: 'All flags reviewed. Registry checks matched every declared item.',
+        proposer: MERCY,
+        proposedAt: at(now, -12),
+      },
+      {
+        id: D.awaitingFurther,
+        caseId: C.awaitingFurther,
+        outcome: 'further-action',
+        reasons:
+          'The Business Registration Service lists the declarant as a director of a company since 2022, which the declaration leaves out.',
+        furtherActionNote: 'Refer to EACC for the undeclared directorship.',
+        proposer: PETER,
+        proposedAt: at(now, -3),
+      },
+      {
+        id: D.bulkClosure,
+        caseId: C.bulkClosure,
+        outcome: 'compliant-no-issues',
+        reasons: 'Low priority, no open flags or clarifications after the window.',
+        proposer: null,
+        // The day after its window closed.
+        proposedAt: at(now, -7),
+      },
+      {
+        id: D.returned,
+        caseId: C.returned,
+        outcome: 'compliant',
+        reasons: 'All flags reviewed. Registry checks match.',
+        proposer: MOCK_CALLER,
+        proposedAt: at(now, -8),
+        status: 'returned',
+        decidedBy: LUCY,
+        decidedAt: at(now, -6),
+        returnReason:
+          'Say how the 41% land value change was explained, and give the valuation report reference.',
+      },
+      {
+        id: D.determined,
+        caseId: C.determined,
+        outcome: 'compliant',
+        reasons:
+          'All three flags reviewed and explained. Registry checks match every declared item.',
+        proposer: MOCK_CALLER,
+        proposedAt: at(now, -14),
+        status: 'approved',
+        decidedBy: LUCY,
+        decidedAt: at(now, -9),
+      },
+    ],
+    { issuer: 'TSC' },
+  );
+}
+
+/** The mock's flags of a case, each reviewed by `by`; none when `by` is null. */
+function reviewedFlags(caseId: string, by: Assignee | null, now: number): Flag[] {
+  if (by === null) return [];
+  return mockFlags(caseId).map((flag) =>
+    flag.reviewed
+      ? flag
+      : {
+          ...flag,
+          reviewed: { by, at: at(now, -20), note: 'Explained by the documents on file.' },
+        },
+  );
+}
+
+/** The cases as the determinations mock reads and changes them, for `caller`. */
+function mockCases(caller: Assignee): MockCases {
+  return {
+    find: (caseId) => {
+      const stored = cases.get(caseId);
+      if (!stored) return null;
+      return {
+        item: listItem(stored, caller),
+        holder: holderOf(stored, caller),
+        history: stored.history.map((each) => officer(each, caller)),
+        openClarifications: stored.item.clarification.open,
+      };
+    },
+    setStatus: (caseId, status, actor, summary) => {
+      const stored = cases.get(caseId);
+      if (!stored) return;
+      stored.item = { ...stored.item, status };
+      stored.timeline.push(entry('status-changed', actor, reviewClock.isoNow(), summary, status));
+    },
+    record: (caseId, kind, actor, summary, ref) => {
+      cases.get(caseId)?.timeline.push(entry(kind, actor, reviewClock.isoNow(), summary, ref));
+    },
+  };
+}
+
+/** The cases as the referrals mock reads them, for `caller`. */
+function referralCases(caller: Assignee): ReferralCases {
+  return {
+    find: (caseId) => {
+      const found = mockCases(caller).find(caseId);
+      const stored = cases.get(caseId);
+      return found && stored
+        ? { ...found, flags: stored.flags, clarifications: ofCase(caseId) }
+        : null;
+    },
+  };
+}
+
+/** A bearer token the mock reads `sub`, `name` and the realm roles from (tests; unsigned). */
+export function mockToken(
+  subject: string,
+  name: string,
+  roles: readonly string[] = [REVIEWER],
+): string {
+  return unsignedMockToken({ subject, name, roles });
 }
 
 /** The caller from the token's claims; the mock does not verify it, the service would. */
@@ -740,7 +1093,7 @@ function holderOf(stored: StoredCase, caller: Assignee): Assignee | null {
 /** A clarification as read now: its letter `issued` once its delay has passed. */
 function current(found: Clarification): Clarification {
   const readyAt = letterReadyAt.get(found.id);
-  if (readyAt === undefined || Date.now() < readyAt || found.letter?.status !== 'pending') {
+  if (readyAt === undefined || reviewClock.now() < readyAt || found.letter?.status !== 'pending') {
     return found;
   }
   letterReadyAt.delete(found.id);
@@ -801,7 +1154,7 @@ function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
         ? 'awaiting-clarification'
         : 'ready-for-determination';
   if (actor && stored.item.status === 'awaiting-clarification' && status !== stored.item.status) {
-    const changedAt = new Date().toISOString();
+    const changedAt = reviewClock.isoNow();
     for (const [to, summary] of [
       ['clarified', 'Case clarified: no clarification open'],
       ['ready-for-determination', 'Case ready for determination'],
@@ -832,7 +1185,7 @@ function ensureSeeded() {
   if (cases.size > 0) return;
   // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
   const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
-  resetReviewMock(Date.now(), { copilot });
+  resetReviewMock(reviewClock.now(), { copilot });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -865,6 +1218,8 @@ function documentAttachments(document: Record<string, unknown> | null): Map<stri
 /** What the placeholder file route names: a letter's clarification, or an attachment. */
 export function mockFileTitle(id: string): string | null {
   ensureSeeded();
+  const decision = mockDecisionLetterTitle(id) ?? mockReferralPackageTitle(id);
+  if (decision) return decision;
   for (const each of clarifications.values()) {
     if (each.letter?.documentId === id) return `Clarification letter ${each.reference ?? ''}`;
     for (const item of each.response?.items ?? []) {
@@ -876,7 +1231,7 @@ export function mockFileTitle(id: string): string | null {
     const file = documentAttachments(stored.document).get(id);
     if (file) return file.replace(/\.pdf$/i, '');
   }
-  return null;
+  return mockActionFileTitle(id);
 }
 
 async function route(request: Request): Promise<Response> {
@@ -891,6 +1246,9 @@ async function route(request: Request): Promise<Response> {
     if (!mockCallerOf(request).roles.includes(COMMISSION_ADMIN)) return problem(404, 'Not found');
     return json(200, mockTenantAiStatus(aiStatus[1]));
   }
+
+  const actions = await actionsRoute(request, mockCallerOf(request));
+  if (actions) return actions;
 
   const attachment = /^\/v1\/review\/cases\/([^/]+)\/attachments\/([^/]+)\/download$/.exec(
     pathname,
@@ -909,7 +1267,7 @@ async function route(request: Request): Promise<Response> {
     if (!known) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${attachment[2]}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     });
   }
 
@@ -919,9 +1277,19 @@ async function route(request: Request): Promise<Response> {
     if (!documentId) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${documentId}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     });
   }
+
+  const { roles } = mockCallerOf(request);
+  const approver = { ...caller, roles };
+  const decided =
+    (await determinationsRoute(request, approver, mockCases(caller))) ??
+    (await approvalsRoute(request, approver, mockCases(caller)));
+  if (decided) return decided;
+
+  const referred = await referralsRoute(request, { ...caller, roles }, referralCases(caller));
+  if (referred) return referred;
 
   const copilot = await copilotRoute(request, caller, (caseId) => {
     const stored = cases.get(caseId);
@@ -943,6 +1311,9 @@ async function route(request: Request): Promise<Response> {
     }
     return once(request, () => issueDraft(id, caller));
   }
+
+  const compare = /^\/v1\/review\/cases\/([^/]+)\/compare$/.exec(pathname);
+  if (method === 'GET' && compare?.[1]) return compareCase(compare[1]);
 
   const oneCase = /^\/v1\/review\/cases\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && oneCase?.[1]) {
@@ -996,6 +1367,31 @@ async function route(request: Request): Promise<Response> {
   return problem(404, 'Not found');
 }
 
+/**
+ * The comparison with the person's previous submitted version: 409 for a first declaration on
+ * Adili, 502 while declarations is down. A single-version case compares with the previous
+ * cycle's declaration (version 1 of its own declaration).
+ */
+function compareCase(caseId: string): Response {
+  const stored = cases.get(caseId);
+  if (!stored) return problem(404, 'Not found');
+  if (stored.declarationsDown) return problem(502, 'Declarations unavailable');
+  const { currentVersion } = stored.item;
+  const current = stored.versions.find((each) => each.version === currentVersion);
+  if (!stored.document || current?.firstOnAdili) {
+    return json(409, {
+      type: 'no-previous-version',
+      title: 'No previous version',
+      status: 409,
+      detail: "This is the declarant's first declaration on Adili; there is nothing to compare.",
+    });
+  }
+  return json(
+    200,
+    mockComparison(stored.document, Math.max(currentVersion - 1, 1), currentVersion),
+  );
+}
+
 function listItem(stored: StoredCase, caller: Assignee): CaseListItem {
   return { ...stored.item, assignee: holderOf(stored, caller) };
 }
@@ -1018,7 +1414,7 @@ function detail(stored: StoredCase, caller: Assignee): CaseDetail {
     })),
     versions: stored.versions,
     reviewerHistory: history,
-    determinations: [],
+    determinations: determinationsOf(stored.item.id, caller),
     registry: { checkedAt: null, checks: [], recheckAvailableAt: null },
   };
 }
@@ -1030,7 +1426,7 @@ async function assignmentOrNote(
   action: string,
   caller: Assignee,
 ): Promise<Response> {
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const holder = holderOf(stored, caller);
   const hand = (to: Assignee | null, summary: string) => {
     stored.holder = to;
@@ -1111,7 +1507,7 @@ async function markReviewed(
   }
   const note = await textField(request, 'note', 1000);
   if (note === null) return problem(400, 'A note of 1 to 1,000 characters is required');
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: Flag = { ...flag, reviewed: { at: now, by: caller, note } };
   stored.flags[index] = updated;
   stored.timeline.push(
@@ -1142,7 +1538,12 @@ async function act(
     if (note === null) return problem(400, 'A note of 1 to 2,000 characters is required');
     return save(
       stored,
-      { ...found, status: 'resolved', resolvedAt: new Date().toISOString(), resolutionNote: note },
+      {
+        ...found,
+        status: 'resolved',
+        resolvedAt: reviewClock.isoNow(),
+        resolutionNote: note,
+      },
       caller,
     );
   }
@@ -1295,7 +1696,7 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
     );
   }
   const { windowEndsAt } = stored.item;
-  const now = Date.now();
+  const now = reviewClock.now();
   if (now > Date.parse(windowEndsAt)) {
     return Promise.resolve(
       json(409, {
@@ -1335,4 +1736,26 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
     ref: id,
   });
   return Promise.resolve(save(stored, issued, caller));
+}
+
+/**
+ * The documents service's download of a decision letter or referral evidence package the mock
+ * issued (spec 08), for the console's links under REVIEW_MOCK: a link to the placeholder file
+ * route.
+ */
+export function mockLetterFetch(request: Request): Promise<Response> {
+  ensureSeeded();
+  const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname);
+  const documentId = match?.[1];
+  const known =
+    documentId && (mockDecisionLetterTitle(documentId) ?? mockReferralPackageTitle(documentId));
+  if (request.method !== 'GET' || !known) {
+    return Promise.resolve(problem(404, 'Not found'));
+  }
+  return Promise.resolve(
+    json(200, {
+      downloadUrl: `/api/mock-files/${documentId}`,
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
+    }),
+  );
 }

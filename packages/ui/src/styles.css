@@ -134,8 +134,11 @@
      hairline with an AI stripe down its left edge. */
   --elevation-card-ai: var(--elevation-card), inset 3px 0 0 var(--ai);
   --elevation-card-editing: 0 0 0 1.5px var(--ring), 0 8px 24px -12px rgb(20 20 20 / 0.2);
-  /* A settled card on a muted fill (a reviewed or closed flag): the hairline without the lift. */
+  /* The hairline without the lift: a settled card on a muted fill (a reviewed or closed flag), a
+     card inside a card (a pattern card on its panel). */
   --elevation-card-flat: 0 0 0 1px var(--border);
+  /* A card whose job is done (a pattern cited in the findings): the ring a step darker. */
+  --elevation-card-cited: 0 0 0 1px var(--input);
   /* A hovered card that is a link as a whole (the console's workspace cards): ring and lift. */
   --elevation-card-hover: 0 0 0 1px var(--input), 0 6px 20px -8px rgb(20 20 20 / 0.15);
   --elevation-pop: 0 12px 40px -8px rgb(20 20 20 / 0.22), 0 0 0 1px rgb(20 20 20 / 0.06);
@@ -310,6 +313,7 @@
   --shadow-card-ai: var(--elevation-card-ai);
   --shadow-card-editing: var(--elevation-card-editing);
   --shadow-card-flat: var(--elevation-card-flat);
+  --shadow-card-cited: var(--elevation-card-cited);
   --shadow-card-hover: var(--elevation-card-hover);
   --shadow-pop: var(--elevation-pop);
   --shadow-button-primary: var(--elevation-button-primary);
@@ -462,6 +466,12 @@
     var(--brand-faint) 0 10px,
     var(--brand-subtle) 10px 20px
   );
+}
+
+/* A suppressed open-data figure's chip: `muted` and `border` in 4px/2px diagonal hatching (the kit's
+   .sup in 12-open-data). */
+@utility bg-stripes-muted {
+  background-image: repeating-linear-gradient(135deg, var(--muted) 0 4px, var(--border) 4px 6px);
 }
 
 @layer base {

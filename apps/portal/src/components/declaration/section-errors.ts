@@ -1,3 +1,5 @@
+import { useNavigate } from '@tanstack/react-router';
+import { z } from 'zod';
 import { useCallback, useEffect, useState } from 'react';
 
 /**
@@ -45,6 +47,57 @@ export function useFocusFirstError(showErrors: boolean, firstId: () => string | 
     // Only when arriving with errors shown.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showErrors]);
+}
+
+/**
+ * A section route's search: `?errors=true` from the summary's fix links, `?field=` a JSON pointer
+ * in the section to focus, from an Ask Adili answer's link (spec 11).
+ */
+export const sectionSearch = z.object({
+  errors: z.boolean().optional(),
+  field: z.string().startsWith('/').max(200).optional(),
+});
+
+/** What a section screen takes from its route's search. */
+export function sectionSearchProps({ errors, field }: z.infer<typeof sectionSearch>) {
+  return { showErrors: errors === true, ...(field ? { focusField: field } : {}) };
+}
+
+/**
+ * Arriving with `?field=` (an Ask Adili answer's link, spec 11), focuses the element `find`
+ * returns once the screen has rendered it, in the middle of the screen, then takes the field out
+ * of the address so the same link works again. `find` runs after the render; without an element
+ * the screen's heading is focused, so the declarant still lands on the section.
+ */
+export function useFocusLinkedField(field: string | undefined, find: () => HTMLElement | null) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!field) return;
+    const found = find();
+    // A group (a card, a fieldset) gives focus to its first control; a heading takes it itself.
+    const target =
+      (found && !found.matches(`${CONTROLS}, [role="tab"], h1, h2, h3`)
+        ? found.querySelector<HTMLElement>(CONTROLS)
+        : found) ?? document.querySelector<HTMLElement>('main h1');
+    if (target) {
+      if (target.matches('h1, h2, h3')) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      // After the router has put the new screen at the top.
+      requestAnimationFrame(() => {
+        // jsdom has no scrollIntoView.
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- see above
+        target.scrollIntoView?.({ block: 'center' });
+      });
+    }
+    void navigate({
+      to: '.',
+      search: (previous: Record<string, unknown>) => ({ ...previous, field: undefined }),
+      replace: true,
+      resetScroll: false,
+    } as never);
+    // Only when a link arrives.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [field]);
 }
 
 /** Reads a JSON pointer (`/registrableInterests/dualCitizenship/holds`) in `value`. */

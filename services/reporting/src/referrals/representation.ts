@@ -1,33 +1,9 @@
 import { z } from 'zod';
 
-import type { Conforms } from '../conforms.js';
-import { type Officer, officerSchema, storedOfficer } from '../officer.js';
-import { REFERRAL_GROUNDS, type ReferralGrounds } from '../projections/events.js';
+import { officerSchema, storedOfficer } from '../officer.js';
+import { REFERRAL_GROUNDS } from '../projections/events.js';
 import type { ReferralIntakeRow } from './intake.js';
-import { ICMS_PUSH_ERRORS, ICMS_STATUSES, type IcmsPushError, type IcmsStatus } from './schema.js';
-
-/** reporting.yaml `ReferralIntakeItem`: a referral in EACC's intake and its ICMS hand-off. */
-export interface ReferralIntakeItem {
-  referralId: string;
-  commission: { slug: string; name: string };
-  reference: string;
-  grounds: ReferralGrounds;
-  cycleYear: number;
-  sentAt: string;
-  packageDocumentId: string;
-  icmsStatus: IcmsStatus;
-  icmsCaseNumber: string | null;
-  icmsRegisteredAt: string | null;
-  pushedAt: string | null;
-  pushedBy: Officer | null;
-  error: IcmsPushError | null;
-}
-
-/** A page of the intake (reporting.yaml `listReferralIntake`). */
-export interface ReferralIntakePage {
-  items: ReferralIntakeItem[];
-  nextCursor: string | null;
-}
+import { ICMS_PUSH_ERRORS, ICMS_STATUSES } from './schema.js';
 
 export const icmsStatusSchema = z.enum(ICMS_STATUSES).meta({
   description:
@@ -40,6 +16,7 @@ export const icmsPushErrorSchema = z
 
 export const referralGroundsSchema = z.enum(REFERRAL_GROUNDS);
 
+/** reporting.yaml `ReferralIntakeItem`: a referral in EACC's intake and its ICMS hand-off. */
 export const referralIntakeItemSchema = z.object({
   referralId: z.uuid(),
   commission: z.object({ slug: z.string(), name: z.string() }),
@@ -57,8 +34,9 @@ export const referralIntakeItemSchema = z.object({
   pushedBy: officerSchema.nullable().meta({ description: 'Who last pushed it' }),
   error: icmsPushErrorSchema.nullable(),
 });
-true satisfies Conforms<ReferralIntakeItem, typeof referralIntakeItemSchema>;
+export type ReferralIntakeItem = z.infer<typeof referralIntakeItemSchema>;
 
+/** A page of the intake (reporting.yaml `listReferralIntake`). */
 export const referralIntakePageSchema = z.object({
   items: z.array(referralIntakeItemSchema),
   nextCursor: z
@@ -66,7 +44,7 @@ export const referralIntakePageSchema = z.object({
     .nullable()
     .meta({ description: 'Pass as `cursor` for the next page; null on the last' }),
 });
-true satisfies Conforms<ReferralIntakePage, typeof referralIntakePageSchema>;
+export type ReferralIntakePage = z.infer<typeof referralIntakePageSchema>;
 
 /** The row as EACC sees it; `commissionName` from the directory (the slug when unknown). */
 export function referralIntakeItem(
