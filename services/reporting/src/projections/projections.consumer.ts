@@ -16,6 +16,7 @@ import {
   accessRequestReceivedDataSchema,
 } from '@adili/events/contracts/schemas';
 import { type SQL, sql } from 'drizzle-orm';
+import { toSnakeCase } from 'drizzle-orm/casing';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 
 import { TENANT_SLUG } from '../access.js';
@@ -325,10 +326,10 @@ export class ProjectionsConsumer {
             ...newerStatus(copilotCaseFacts.status, copilotCaseFacts.statusAt),
             // The earliest `ready` holds, whatever order the events arrive in.
             ...(data.status === 'ready'
-              ? {
-                  firstReadyAt: sql`least(${copilotCaseFacts.firstReadyAt}, excluded.first_ready_at)`,
-                  fy: sql`case when ${copilotCaseFacts.firstReadyAt} is null or excluded.first_ready_at < ${copilotCaseFacts.firstReadyAt} then excluded.fy else ${copilotCaseFacts.fy} end`,
-                }
+              ? earliestHolds(
+                  { firstReadyAt: copilotCaseFacts.firstReadyAt, fy: copilotCaseFacts.fy },
+                  'firstReadyAt',
+                )
               : {}),
           },
         }),
@@ -509,14 +510,14 @@ function earliestHolds<K extends string>(
   columns: Record<K, PgColumn>,
   at: NoInfer<K>,
 ): Record<string, SQL> {
-  // The column the insert proposed; property names map to snake_case (`casing: 'snake_case'`).
-  const excluded = (key: string) =>
-    sql.raw(`excluded.${key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)}`);
-  const earlier = sql`(${columns[at]} is null or ${excluded(at)} < ${columns[at]})`;
+  // The value the insert proposed for `column`, by its name in the database.
+  const excluded = (column: PgColumn) =>
+    sql`excluded.${sql.identifier(column.keyAsName ? toSnakeCase(column.name) : column.name)}`;
+  const earlier = sql`(${columns[at]} is null or ${excluded(columns[at])} < ${columns[at]})`;
   return Object.fromEntries(
     Object.entries<PgColumn>(columns).map(([key, column]) => [
       key,
-      sql`case when ${earlier} then ${excluded(key)} else ${column} end`,
+      sql`case when ${earlier} then ${excluded(column)} else ${column} end`,
     ]),
   );
 }
