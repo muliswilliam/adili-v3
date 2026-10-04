@@ -692,7 +692,7 @@ export interface paths {
         get?: never;
         /**
          * Rate an answer, with why and a note
-         * @description Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft.
+         * @description Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first; under a race the last one kept wins, which can be the earlier. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft. On 404 and 503 the rating is not kept on the answer, but the gateway may already hold it (a draft submitted or discarded while it was forwarded, ratings crossing, the gateway failing on a re-forward); the next rating brings the two together again.
          */
         put: operations["rateAssistantMessage"];
         post?: never;
@@ -3997,7 +3997,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Problem type `assistant-unavailable`: the ai-gateway cannot take the rating now; nothing was kept */
+            /** @description Problem type `assistant-unavailable`: the ai-gateway cannot take the rating now, or ratings of the answer kept crossing; the rating is not kept on the answer */
             503: {
                 headers: {
                     [name: string]: unknown;

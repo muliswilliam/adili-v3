@@ -302,12 +302,22 @@ export class AssistantService {
    * `assistant.feedback.recorded.v1`. A second rating replaces the first, in both places. A
    * decline made without asking the AI has no job, so its rating is kept only. 400 for a bad
    * body, 404 for anything but an answer in the caller's live conversation, 503 when the gateway
-   * cannot take the rating (nothing is kept) or ratings of the answer keep crossing (below).
+   * cannot take the rating or ratings of the answer keep crossing (below); on 404 and 503 the
+   * rating is not kept on the answer.
    *
    * No transaction is open while the gateway is called, so a slow gateway never holds a
    * connection that filing needs. The rating is kept only if no other rating of the answer was
    * kept since it was read (`feedbackVersion`); if one was, this one is forwarded again and kept
-   * over it, so the gateway and the answer end on the same rating, the last kept.
+   * over it. The last kept wins, which under a race can be the earlier click. The gateway and
+   * the answer usually end on the same rating, but not always; the gateway keeps one rating and
+   * the answer another (or none) when:
+   * - ratings cross `RATING_ATTEMPTS` times (503): the gateway has this one, the answer another;
+   * - the gateway is unavailable on a re-forward (503): it has this rating from before, or the
+   *   other, while the answer has the other;
+   * - the draft is submitted or discarded, or the conversation expires, between the forward and
+   *   the keep (404): the gateway has a rating for an answer that is gone;
+   * - the service or the database fails between the forward and the keep.
+   * The next rating of the answer, if any, brings them together again.
    */
   async rate(
     principal: Principal,
