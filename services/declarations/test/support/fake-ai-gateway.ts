@@ -283,7 +283,8 @@ export class FakeAiGateway extends AiGatewayClient {
   /** The one reading job the gateway has; fails when there is not exactly one. */
   onlyReadingJob(): FakeJob {
     const [job, ...others] = this.readingJobs.values();
-    if (!job || others.length > 0) throw new Error(`${String(this.readingJobs.size)} jobs, not one`);
+    if (!job || others.length > 0)
+      throw new Error(`${String(this.readingJobs.size)} jobs, not one`);
     return job;
   }
 
