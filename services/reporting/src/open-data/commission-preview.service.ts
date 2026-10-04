@@ -9,11 +9,7 @@ import type { ReportingSchema } from '../db/schema.js';
 import { notFound, storageUnavailable } from '../problems.js';
 import { PLATFORM_TENANT, systemContext } from '../system-context.js';
 import { OpenDataFiles, OpenDataStorageUnavailable } from './open-data-files.js';
-import {
-  openDataReleaseSchema,
-  type OpenDataReleaseView,
-  openDataReleaseView,
-} from './representation.js';
+import { openDataReleaseSchema, openDataReleaseView } from './representation.js';
 import { openDataFiles, openDataReleases, type ReleaseStatus } from './schema.js';
 import type { OpenDataTable, OpenDataTableName, TableRow } from './tables.js';
 
