@@ -59,12 +59,27 @@
  * simulate an edit on another device (`editElsewhere`), make registries answer at once
  * (`setLookupDelay(0)`) or play a Commission without AI (`setExtractionEnabled(false)`).
  *
+ * Ask Adili (spec 11) lives in `./mock/assistant.ts`: conversations, canned streamed answers,
+ * declines, feedback, help search and pages, and summary hints; `setAssistantMode` (or ASSISTANT_MOCK_MODE) plays the
+ * gateway down, failing part-way or refusing a declarant who asks too often.
+ *
  * This file routes; each part lives in `./mock/`: `fixtures.ts`, the store and its views
  * (`store.ts`), drafts (`drafts.ts`), submission (`submit.ts`) and filed versions, amendments and
  * slips (`versions.ts`).
  */
 import { problem } from '../mock-http';
 import { resetAcknowledgementMock } from './mock/acknowledgement';
+import {
+  ask,
+  type AssistantMode,
+  completenessHints,
+  getHelpPassage,
+  openConversation,
+  rate,
+  resetAssistantMock,
+  searchHelp,
+  setAssistantMode,
+} from './mock/assistant';
 import {
   commit,
   discard,
@@ -111,6 +126,7 @@ export { failNextSaves, editElsewhere } from './mock/drafts';
 export { failNextSubmits } from './mock/submit';
 export { setSlipIssuance } from './mock/acknowledgement';
 export { setExtractionEnabled, setLookupDelay } from './mock/suggestions';
+export { setAnswerPace, setAssistantMode, type AssistantMode } from './mock/assistant';
 
 /** Clears every draft (tests). */
 export function resetDeclarationsMock() {
@@ -121,6 +137,7 @@ export function resetDeclarationsMock() {
   resetSubmissionMock();
   resetAcknowledgementMock();
   resetObligationsMock();
+  resetAssistantMock();
 }
 
 /** The parts of the service the mock answers; the others go to the real service. */
@@ -132,19 +149,30 @@ export interface DeclarationsMockParts {
    * (DECLARATIONS_MOCK).
    */
   declarations: boolean;
+  /** Ask Adili's conversations and answers, and help search (ASSISTANT_MOCK). */
+  assistant: boolean;
+  /** How the mocked gateway behaves (ASSISTANT_MOCK_MODE), to see the panel's other states. */
+  assistantMode?: AssistantMode;
 }
+
+let appliedMode: AssistantMode | undefined;
 
 /** A client fetch answering `parts` in memory and passing the rest to the real service. */
 export function declarationsMock(
   parts: DeclarationsMockParts,
   realFetch: typeof fetch = fetch,
 ): (request: Request, init?: RequestInit) => Promise<Response> {
+  // Once: the client builds this mock per request, and tests set the mode themselves.
+  if (parts.assistantMode && parts.assistantMode !== appliedMode) {
+    appliedMode = parts.assistantMode;
+    setAssistantMode(parts.assistantMode);
+  }
   return (request, init) => route(request, parts, (real) => realFetch(real, init));
 }
 
 /** The whole service in memory (tests). */
 export function mockDeclarationsFetch(request: Request): Promise<Response> {
-  return route(request, { obligations: true, declarations: true }, () =>
+  return route(request, { obligations: true, declarations: true, assistant: true }, () =>
     Promise.reject(new Error('every part is mocked')),
   );
 }
@@ -162,9 +190,24 @@ async function route(
   if (isObligationRead(request, path)) {
     return parts.obligations ? (obligationReads(request, path) ?? real(request)) : real(request);
   }
-  if (!parts.declarations) return real(request);
   const claims = bearerClaims(request);
   const caller = claims?.person_id ?? null;
+  if (
+    path.startsWith('/v1/me/assistant/') ||
+    path === '/v1/help/search' ||
+    path.startsWith('/v1/help/passages/')
+  ) {
+    return parts.assistant ? assistant(request, url, path, caller) : real(request);
+  }
+  // Hints are the assistant's, on the summary the mocked (or real) drafts give.
+  const hints = /^\/v1\/declarations\/([^/]+)\/hints$/.exec(path);
+  if (method === 'GET' && hints?.[1]) {
+    if (!parts.assistant) return real(request);
+    const summaryUrl = new URL(`/v1/declarations/${hints[1]}/summary`, url);
+    const summary = await route(new Request(summaryUrl, { headers: request.headers }), parts, real);
+    return completenessHints(url, summary);
+  }
+  if (!parts.declarations) return real(request);
   if (method === 'GET' && path === '/v1/me/declarations') return myDeclarations(caller);
 
   const start = /^\/v1\/obligations\/([^/]+)\/declaration$/.exec(path);
@@ -256,5 +299,28 @@ async function route(
     if (method === 'DELETE') return discard(one[1]);
   }
 
+  return problem(404, 'Not found');
+}
+
+function assistant(
+  request: Request,
+  url: URL,
+  path: string,
+  caller: string | null,
+): Promise<Response> | Response {
+  const { method } = request;
+  if (method === 'GET' && path === '/v1/help/search') return searchHelp(url, caller);
+  const helpPassage = /^\/v1\/help\/passages\/([^/]+)$/.exec(path);
+  if (method === 'GET' && helpPassage?.[1]) return getHelpPassage(url, caller, helpPassage[1]);
+  if (method === 'POST' && path === '/v1/me/assistant/conversations') {
+    return openConversation(request, caller);
+  }
+  const messages = /^\/v1\/me\/assistant\/conversations\/([^/]+)\/messages$/.exec(path);
+  if (method === 'POST' && messages?.[1]) return ask(request, caller, messages[1]);
+  const feedback =
+    /^\/v1\/me\/assistant\/conversations\/([^/]+)\/messages\/([^/]+)\/feedback$/.exec(path);
+  if (method === 'PUT' && feedback?.[1] && feedback[2]) {
+    return rate(request, caller, feedback[1], feedback[2]);
+  }
   return problem(404, 'Not found');
 }

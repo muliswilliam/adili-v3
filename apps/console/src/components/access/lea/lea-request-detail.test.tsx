@@ -158,8 +158,15 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
       .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } })
       .mockResolvedValueOnce({ ok: false, error: { kind: 'unavailable', detail: null } });
     const keys = () => vi.mocked(verifyLea).mock.calls.map(([call]) => call.data.idempotencyKey);
-    const submit = () => {
-      fireEvent.click(within(card).getByRole('button', { name: 'Record verification' }));
+    const button = () =>
+      within(card).getByRole<HTMLButtonElement>('button', { name: 'Record verification' });
+    // The button is disabled while a call is out: click it only once the last one has answered,
+    // or the click is lost and the next call never comes.
+    const submit = async () => {
+      await waitFor(() => {
+        expect(button().disabled).toBe(false);
+      });
+      fireEvent.click(button());
     };
 
     fireEvent.click(await within(card).findByRole('radio', { name: /Grace Nyambura Kamau/ }));
@@ -168,12 +175,12 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     fireEvent.change(within(card).getByRole('textbox', { name: /Note/ }), {
       target: { value: 'Provisioned DCI account; case reference stated.' },
     });
-    submit();
+    await submit();
     await waitFor(() => {
       expect(keys()).toHaveLength(1);
     });
     // Tried again as it was: the same key, so the service answers once.
-    submit();
+    await submit();
     await waitFor(() => {
       expect(keys()).toHaveLength(2);
     });
@@ -184,7 +191,7 @@ describe('a law enforcement request, for the access officer (spec 10 FE-6, S11)'
     const form = search.closest('form');
     if (form) fireEvent.submit(form);
     fireEvent.click(await within(card).findByRole('radio', { name: /Josephine Adhiambo Ouma/ }));
-    submit();
+    await submit();
     await waitFor(() => {
       expect(keys()).toHaveLength(3);
     });

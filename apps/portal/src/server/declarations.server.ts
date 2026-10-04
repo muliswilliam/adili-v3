@@ -28,6 +28,9 @@ export type JsonObject = Record<string, Json>;
 /** A section as loaded, with its contents typed as JSON so they cross to the browser. */
 export type LoadedSection = Omit<SectionEnvelope, 'contents'> & { contents: JsonObject };
 
+/** A section's contents as loaded (open JSON: a draft may hold anything). */
+export type SectionContents = LoadedSection['contents'];
+
 export type LoadedSummary = Omit<DeclarationSummary, 'document'> & { document: JsonObject };
 
 /** The service's ETag, or the draft version quoted the same way when a proxy dropped it. */

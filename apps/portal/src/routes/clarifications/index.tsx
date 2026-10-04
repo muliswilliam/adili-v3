@@ -8,7 +8,7 @@ import {
   ClarificationsView,
 } from '../../components/clarification/clarification-list';
 import { settleLoad } from '../../components/declaration/route-helpers';
-import { SignOutButton } from '../../components/sign-out-button';
+import { DeclarantHeaderActions } from '../../components/help/parts';
 import { getMyClarifications } from '../../server/clarifications';
 
 /**
@@ -33,7 +33,7 @@ export const Route = createFileRoute('/clarifications/')({
 function Page({ children }: { children: ReactNode }) {
   return (
     <>
-      <SiteHeader actions={<SignOutButton />} />
+      <SiteHeader actions={<DeclarantHeaderActions />} />
       <main className="mx-auto w-full max-w-[880px] flex-1 px-4 pt-6 pb-12 sm:px-7 sm:pt-9 sm:pb-16">
         {children}
       </main>

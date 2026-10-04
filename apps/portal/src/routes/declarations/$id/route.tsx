@@ -12,6 +12,7 @@ import { AlertCircleIcon } from '@hugeicons/core-free-icons';
 import { createFileRoute, Outlet, useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { AskAdiliProvider } from '../../../components/assistant/ask-adili';
 import {
   DeclarationNotFound,
   requireDeclarationId,
@@ -20,7 +21,7 @@ import {
 import { stepFromPath } from '../../../components/declaration/steps';
 import { useWorkspace, WorkspaceProvider } from '../../../components/declaration/workspace';
 import { WorkspaceLayout } from '../../../components/declaration/workspace-layout';
-import { SignOutButton } from '../../../components/sign-out-button';
+import { DeclarantHeaderActions } from '../../../components/help/parts';
 import { getDeclaration } from '../../../server/declarations';
 
 /**
@@ -42,15 +43,26 @@ export const Route = createFileRoute('/declarations/$id')({
   ),
 });
 
-function Page({ children }: { children: ReactNode }) {
+function Page({ children, footer = <SiteFooter /> }: { children: ReactNode; footer?: ReactNode }) {
   return (
     <ToastProvider>
       <TooltipProvider>
-        <SiteHeader actions={<SignOutButton />} />
+        <SiteHeader actions={<DeclarantHeaderActions />} />
         {children}
-        <SiteFooter />
+        {footer}
       </TooltipProvider>
     </ToastProvider>
+  );
+}
+
+/** Ask Adili on every workspace screen, with the draft's sections and the step shown. */
+function WithAskAdili({ step, children }: { step: string; children: ReactNode }) {
+  const { declaration } = useWorkspace();
+  return (
+    <AskAdiliProvider declarationId={declaration.id} sections={declaration.sections} step={step}>
+      {children}
+      <SiteFooter />
+    </AskAdiliProvider>
   );
 }
 
@@ -82,13 +94,15 @@ function WorkspaceRoute() {
   }
 
   return (
-    <Page>
+    <Page footer={null}>
       <WorkspaceProvider declaration={result.declaration} etag={result.etag}>
-        <main className="flex flex-1 flex-col">
-          <WorkspaceLayout step={step}>
-            <SectionOutlet />
-          </WorkspaceLayout>
-        </main>
+        <WithAskAdili step={step}>
+          <main className="flex flex-1 flex-col">
+            <WorkspaceLayout step={step}>
+              <SectionOutlet />
+            </WorkspaceLayout>
+          </main>
+        </WithAskAdili>
       </WorkspaceProvider>
     </Page>
   );

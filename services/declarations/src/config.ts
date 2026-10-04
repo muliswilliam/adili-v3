@@ -1,9 +1,12 @@
-import { baseEnvSchema, loadConfig } from '@adili/api-kit';
+import { baseEnvSchema, loadConfig, rateLimitsSchema } from '@adili/api-kit';
 import { z } from 'zod';
 
 export const SERVICE_NAME = 'declarations';
 export const SERVICE_DESCRIPTION =
   'Filing obligations, drafts, declarations, versions, household and financial statements.';
+
+/** Ask Adili's questions per declarant (`RATE_LIMITS`). */
+export const ASSISTANT_RATE_LIMIT = 'assistant';
 
 export const envSchema = baseEnvSchema.extend({
   DATABASE_URL: z.url(),
@@ -23,15 +26,28 @@ export const envSchema = baseEnvSchema.extend({
   DOCUMENTS_API_URL: z.url(),
   /** The integration-gateway, the only way to the registries a declarant can check (spec 05b). */
   INTEGRATION_GATEWAY_URL: z.url(),
-  /** The ai-gateway, the only way to an AI provider: it reads a declarant's document (spec 05b). */
+  /**
+   * The ai-gateway, the only way to an AI provider: Ask Adili's answers (spec 11) and the reading
+   * of a declarant's document (spec 05b).
+   */
   AI_GATEWAY_URL: z.url(),
+  /**
+   * Rate limits as `<group>=<limit>/<seconds>s` entries: `assistant`, questions per declarant
+   * (spec 11), next to the gateway's own per-Commission limit and budget.
+   */
+  RATE_LIMITS: rateLimitsSchema
+    .prefault(`${ASSISTANT_RATE_LIMIT}=20/60s`)
+    .refine((groups) => ASSISTANT_RATE_LIMIT in groups, {
+      message: `Configure the group ${ASSISTANT_RATE_LIMIT}`,
+    }),
   /** Where reminders send declarants to sign in (the portal). */
   PORTAL_URL: z.url(),
   /** Reminders are spread this many hours either side of midday (platform configuration). */
   REMINDER_JITTER_HOURS: z.coerce.number().min(0).max(12).default(6),
   /**
    * The service's confidential Keycloak client (client credentials: `directory:internal`,
-   * `directory:person-national-id`, `messages`, `documents:internal`, the registry scopes and `ai:internal`).
+   * `directory:person-national-id`, `messages`, `documents:internal`, the registry scopes and
+   * `ai:internal`).
    */
   KEYCLOAK_CLIENT_ID: z.string().min(1).default('declarations'),
   KEYCLOAK_CLIENT_SECRET: z.string().min(1),

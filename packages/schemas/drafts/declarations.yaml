@@ -1,115 +1,10 @@
-# Drafted operations of the declarations API for specs not implemented yet: the assistant and
-# help. `pnpm --filter @adili/declarations contracts` merges them into
-# packages/schemas/internal/declarations.yaml, where they may reference the implemented
-# components (e.g. `#/components/schemas/Obligation`, `CommissionRef`, `ObligationType`,
-# `ProblemDetails`). When an operation or component is implemented, delete it here: the export
-# fails while both define it.
+# Drafted operations of the declarations API not implemented yet: suggested questions (spec 11,
+# #544). `pnpm --filter @adili/declarations contracts`
+# merges them into packages/schemas/internal/declarations.yaml, where they may reference the
+# implemented components (e.g. `#/components/schemas/Obligation`, `CommissionRef`,
+# `ObligationType`, `ProblemDetails`). When an operation or component is implemented, delete it
+# here: the export fails while both define it.
 paths:
-  /v1/me/assistant/conversations:
-    post:
-      tags: [assistant]
-      operationId: openAssistantConversation
-      summary: Open or resume the conversation for a draft (or for the declarant without a draft)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [declarationId, language]
-              properties:
-                declarationId:
-                  type: [string, 'null']
-                  format: uuid
-                language:
-                  type: string
-                  enum: [en, sw]
-      responses:
-        '200':
-          description: Conversation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssistantConversation'
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/me/assistant/conversations/{conversationId}/messages:
-    parameters:
-      - $ref: '#/components/parameters/ConversationId'
-    post:
-      tags: [assistant]
-      operationId: askAssistant
-      summary: 'Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [text, sectionKey]
-              properties:
-                text:
-                  type: string
-                  minLength: 1
-                  maxLength: 2000
-                sectionKey:
-                  type: [string, 'null']
-      responses:
-        '200':
-          description: SSE stream ending with the stored message
-          content:
-            text/event-stream:
-              schema:
-                type: string
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '429':
-          description: Per-person rate limit
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-        '503':
-          description: Assistant unavailable; use help search
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetails'
-  /v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback:
-    parameters:
-      - $ref: '#/components/parameters/ConversationId'
-      - name: messageId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    put:
-      tags: [assistant]
-      operationId: rateAssistantMessage
-      summary: Rate an answer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [rating, reason]
-              properties:
-                rating:
-                  type: string
-                  enum: [helpful, not-helpful]
-                reason:
-                  type: [string, 'null']
-                  enum: [inaccurate, missed-something, unclear, too-long, other, null]
-                note:
-                  type: [string, 'null']
-                  maxLength: 500
-      responses:
-        '200':
-          description: Recorded
-        '404':
-          $ref: '#/components/responses/NotFound'
   /v1/me/assistant/suggested-questions:
     get:
       tags: [assistant]
@@ -136,95 +31,184 @@ paths:
                 maxItems: 8
                 items:
                   type: string
-  /v1/declarations/{declarationId}/hints:
-    parameters:
-      - $ref: '#/components/parameters/DeclarationId'
+  /v1/help/search/preview:
     get:
-      tags: [assistant]
-      operationId: getCompletenessHints
-      summary: Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present)
+      tags: [help]
+      operationId: previewHelpSearch
+      summary: Help search as a Commission's declarants (or every declarant) would see it, for the staff who write the articles
+      description: "A Commission's administrators and reporting officers, with `commission` their own Commission: the Act and Regulations, the platform's published articles and the Commission's, in force on `date`, ranked as `searchHelp` ranks them for its declarants. Platform admins, without `commission`: the law and the platform's articles, as every declarant gets them. A just-published article is found at once. Deterministic: no AI. 404 for: a platform admin passing `commission`; a Commission's staff omitting it or passing another Commission; anyone else, declarants included."
       parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
         - name: language
           in: query
           required: true
           schema:
             type: string
             enum: [en, sw]
-      responses:
-        '200':
-          description: Hints
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
-                  required: [ruleId, fieldPath, text, hint]
-                  properties:
-                    ruleId:
-                      type: string
-                    fieldPath:
-                      type: string
-                    text:
-                      type: string
-                      description: Deterministic residual text
-                    hint:
-                      type: [string, 'null']
-                      description: AI-assisted hint when available
-        '404':
-          $ref: '#/components/responses/NotFound'
-  /v1/commissions/{slug}/help/themes:
-    parameters:
-      - $ref: '#/components/parameters/Slug'
-    get:
-      tags: [help]
-      operationId: getQuestionThemes
-      summary: Anonymised question theme counts and unanswered counts per month (commission-admin, reporting-officer)
-      parameters:
-        - name: month
+        - name: commission
           in: query
+          required: false
+          description: The Commission whose declarants to search as; the platform's articles only when left out (platform admins)
           schema:
             type: string
-            pattern: '^[0-9]{4}-[0-9]{2}$'
+            pattern: ^[a-z][a-z0-9]{1,19}$
+        - name: date
+          in: query
+          required: false
+          description: Read the law in force on this day (`YYYY-MM-DD`); today by default
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 8
       responses:
         '200':
-          description: Counts
+          description: Passages, best first
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  required: [month, theme, count, unanswered]
-                  properties:
-                    month:
-                      type: string
-                    theme:
-                      type: string
-                    count:
-                      type: integer
-                    unanswered:
-                      type: integer
+                  $ref: '#/components/schemas/HelpPassage'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/help/corpus/{passageId}:
+    get:
+      tags: [help]
+      operationId: getCorpusPassage
+      summary: One wording of the statutory corpus with its text in English and Kiswahili
+      description: 'platform-admin only. Read-only: statutory text changes only by import.'
+      parameters:
+        - name: passageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The wording
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CorpusPassageText'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/help/passages/{passageId}:
+    get:
+      tags: [help]
+      operationId: getHelpPassage
+      summary: One passage of the corpus or one help article in full, for the portal's help pages
+      description: >-
+        Declarants (by the person_id claim), with the visibility of `searchHelp`: the Act and
+        Regulations, the platform's published articles and those of the declarant's own
+        Commissions, in force on `date`. The text is in `language` where the passage has it, else
+        in English (`language` of the response says which). Deterministic: no AI. Anything else,
+        and other callers, 404.
+      parameters:
+        - name: passageId
+          in: path
+          required: true
+          description: A `HelpPassage` id, as `searchHelp` and answer citations give it
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: language
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/HelpLanguage'
+        - name: date
+          in: query
+          description: Read the law in force on this day (`YYYY-MM-DD`); today by default
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: The passage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelpPassageDetail'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
         '404':
           $ref: '#/components/responses/NotFound'
 components:
+  schemas:
+    CorpusPassageText:
+      description: A corpus wording as `CorpusPassage` lists it, with its text
+      allOf:
+        - $ref: '#/components/schemas/CorpusPassage'
+        - type: object
+          required: [textEn, textSw]
+          properties:
+            textEn:
+              type: string
+            textSw:
+              description: Null where the corpus has no Kiswahili text
+              type: [string, 'null']
+    HelpPassageDetail:
+      type: object
+      description: A passage of the corpus or a help article, whole, as the help pages show it
+      required:
+        [id, source, citation, title, text, language, tags, commission, effectiveFrom, effectiveTo]
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+          enum: [act, regs, am, help]
+        citation:
+          type: string
+          examples: ['Act s.31(4)', 'Help: Joint assets']
+        title:
+          type: string
+          description: In `language`
+        text:
+          type: string
+          description: 'The whole passage or article body, in `language`; statutory text as published'
+        language:
+          description: The language of the title and text; `en` when the passage has no Swahili text
+          $ref: '#/components/schemas/HelpLanguage'
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/HelpTag'
+          description: Section kinds, statement item types and topics it covers
+        commission:
+          description: The Commission whose article it is; null for the law and platform articles
+          anyOf:
+            - $ref: '#/components/schemas/CommissionRef'
+            - type: 'null'
+        effectiveFrom:
+          type: string
+          format: date
+        effectiveTo:
+          description: Exclusive; null while in force
+          type: [string, 'null']
+          format: date
   parameters:
-    Slug:
-      name: slug
-      in: path
-      required: true
-      schema:
-        type: string
-        pattern: '^[a-z][a-z0-9]{1,19}$'
     DeclarationId:
       name: declarationId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
-    ConversationId:
-      name: conversationId
       in: path
       required: true
       schema:
@@ -257,62 +241,3 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetails'
-  schemas:
-    AssistantConversation:
-      type: object
-      required: [id, declarationId, language, messages, expiresAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        declarationId:
-          type: [string, 'null']
-          format: uuid
-        language:
-          type: string
-          enum: [en, sw]
-        messages:
-          type: array
-          items:
-            $ref: '#/components/schemas/AssistantMessage'
-        expiresAt:
-          type: [string, 'null']
-          format: date-time
-    AssistantMessage:
-      type: object
-      required: [id, role, text, citations, sectionLink, declined, label, rating, at]
-      properties:
-        id:
-          type: string
-          format: uuid
-        role:
-          type: string
-          enum: [user, assistant]
-        text:
-          type: string
-        citations:
-          type: array
-          items:
-            $ref: '#/components/schemas/HelpPassage'
-        sectionLink:
-          oneOf:
-            - type: object
-              required: [sectionKey, fieldPath]
-              properties:
-                sectionKey:
-                  type: string
-                fieldPath:
-                  type: [string, 'null']
-            - type: 'null'
-        declined:
-          type: boolean
-        label:
-          type: [object, 'null']
-          description: ai-gateway AiLabel for assistant turns
-          additionalProperties: true
-        rating:
-          type: [string, 'null']
-          enum: [helpful, not-helpful, null]
-        at:
-          type: string
-          format: date-time

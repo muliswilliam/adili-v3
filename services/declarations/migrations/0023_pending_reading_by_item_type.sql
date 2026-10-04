@@ -1,2 +1,0 @@
-DROP INDEX "suggestion_sets_pending_reading_key";--> statement-breakpoint
-CREATE UNIQUE INDEX "suggestion_sets_pending_reading_key" ON "suggestion_sets" USING btree ("attachment_id","document_kind","target_section","target_item_type") WHERE "suggestion_sets"."status" = 'pending' and "suggestion_sets"."source" = 'document';

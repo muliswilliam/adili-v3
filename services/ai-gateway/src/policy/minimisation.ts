@@ -1,5 +1,5 @@
 import {
-  addressesAt,
+  namesNoOneAt,
   documentIdentifiers,
   recurrenceOf,
   type Shape,
@@ -160,7 +160,7 @@ const WORD_RUN = /(?<![\p{L}\p{N}]|[\p{L}\p{N}][ ./])[\p{L}\p{N}]+(?:[ ./][\p{L}
 const WORD = /[\p{L}\p{N}]+/gu;
 const CAPITALS = /^\p{Lu}+$/u;
 const CAPITALS_AND_DIGITS = /^[\p{Lu}\p{N}]+$/u;
-const DIGITS = /^\p{N}+$/u;
+const DIGITS = /^\d+$/u;
 
 /**
  * Land parcel numbers, as `String.replace` finds them: a section of capitals (two letters or
@@ -399,9 +399,9 @@ export function minimise<T>(input: T): Minimised<T> {
     writtenPattern
       ? text.replace(writtenPattern, (match: string, offset: number) => {
           const cls = written.get(match);
-          // The text just after the match, as far as a box number may sit ("Box   99").
+          // The text just after the match, as far as a box number or a colon may sit.
           const after = text.slice(offset + match.length, offset + match.length + 8);
-          if (addressesAt(match, after)) {
+          if (namesNoOneAt(match, after)) {
             return match;
           }
           return cls ? tokenFor(cls, match) : match;

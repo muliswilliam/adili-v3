@@ -1,7 +1,7 @@
 import { isFreshStepUp, notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import { EACC_ROLES, EACC_SUPERVISOR, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
 
-import { forbidden } from './problems.js';
+import { forbidden, problem } from './problems.js';
 
 /** A tenant key (Commission slug), as the directory issues them. */
 export const TENANT_SLUG = /^[a-z][a-z0-9]{1,19}$/;
@@ -52,7 +52,7 @@ export function requireCommissionAdmin(principal: Principal, action: string): vo
  */
 export function requireStepUp(principal: Principal, now: Date): void {
   if (isFreshStepUp(principal, now)) return;
-  throw forbidden('Confirm your identity again to submit the report.', 'step-up-required');
+  throw problem('step-up-required', 'Confirm your identity again to submit the report.');
 }
 
 /**

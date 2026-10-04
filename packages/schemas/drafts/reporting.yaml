@@ -1,0 +1,789 @@
+# Drafted operations of the reporting API for spec 09b, not implemented yet: NCR pattern
+# candidates and AI narrative drafting, and open-data releases. `pnpm --filter @adili/reporting
+# contracts` merges them into packages/schemas/internal/reporting.yaml, where they may reference
+# the implemented components (e.g. `#/components/schemas/NationalReport`, `ProblemDetails`). When
+# an operation or component is implemented, delete it here: the export fails while both define it.
+paths:
+  /v1/eacc/national-reports/{fy}/candidates:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    get:
+      tags: [ncr]
+      operationId: getNationalReportCandidates
+      summary: Deterministic pattern candidates computed from this and prior years' aggregates (analyst)
+      responses:
+        '200':
+          description: Candidates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PatternCandidate'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /v1/eacc/national-reports/{fy}/narrative/draft:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+    post:
+      tags: [ncr]
+      operationId: draftNationalReportNarrative
+      summary: 'AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits'
+      description: |
+        eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's
+        `narrate-compliance-report` task gets the year's figures (national totals and rates, the
+        per-Commission table, prior years) and pattern candidates only, data class `restricted`,
+        and the request waits up to 20 s for it. Ready by then: its paragraphs are inserted with
+        `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with
+        `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job
+        has ended. In each section drafted, the new paragraphs replace those still marked as AI
+        drafts (where the first of them stood), and paragraphs the analyst edited or typed stay;
+        `replaceAll` replaces the whole section. Editing a paragraph through
+        `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor
+        (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section,
+        job id; no figures). A new request replaces a draft still being written, whose job is then
+        never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry
+        with the same Idempotency-Key reads the same job, and inserts it once.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [section, replaceAll]
+              properties:
+                section:
+                  type: string
+                  enum: [overview, findings, recommendations, all]
+                replaceAll:
+                  type: boolean
+                  description: Replace every paragraph of the section; default replaces only paragraphs still marked as AI draft
+      responses:
+        '200':
+          description: Draft inserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalReport'
+        '202':
+          description: Still drafting; poll the report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NationalReport'
+        '400':
+          description: Body failed validation, or Idempotency-Key missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            Nothing inserted. Problem code `ncr-approved` (the report no longer changes),
+            `narrative-validation` (the draft cited a figure not in the input and was discarded),
+            `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent),
+            `no-pattern-candidates` (findings, or all, with no candidate to narrate) or
+            `aggregates-rebuilt` (the report was rebuilt while the draft was written)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: >-
+            Problem code `narrative-draft-failed`: the ai-gateway refused the request or the job
+            failed (`reason`: the job's reason, e.g. `provider`, `budget`, `timeout`); nothing
+            inserted
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The ai-gateway could not be reached; nothing was asked of it
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/open-data/releases:
+    get:
+      tags: [open-data]
+      operationId: listOpenDataReleasesEacc
+      summary: All releases including previews and withdrawn (EACC)
+      responses:
+        '200':
+          description: Releases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OpenDataRelease'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [open-data]
+      operationId: buildOpenDataRelease
+      summary: Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)
+      description: >-
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables
+        from the year's national consolidated report's aggregates as last built (a report
+        submitted since changes nothing until the NCR is rebuilt) and the projection facts,
+        suppresses every figure over fewer than 10 officers (with complementary suppression),
+        and reconciles the tables' national totals with the NCR's (409 `reconciliation-failed`,
+        `mismatches` listing the totals that differ, is a fault of the table builder; nothing is
+        built). Access requests are not collected yet: their figures are null and named in each
+        table's `notCollected`. `kind` `snapshot` (the default) builds a snapshot of the NCR,
+        draft or approved, or, before the year's NCR is built, a mid-year snapshot of the live
+        projections: every Commission's counts as its Form M would compile now (filing
+        obligations and clarifications of the year), its status its report's, reconciled with
+        those projections' own national totals and suppressed alike (409 `fy-not-started` for a
+        year that has not started). The release JSON names the source (`national-report` or
+        `live-projections`). `kind` `annual` builds a corrected annual release from the approved
+        NCR (409 `ncr-not-approved` before it is approved) while no annual release of the year
+        is published (409 `annual-release-published`: withdraw it first); unlike the one built on
+        approval it is not published by itself, but deliberately through
+        `publishOpenDataRelease`. The files (JSON and CSV per table, the release JSON) are
+        written to object storage with their SHA-256, and the release is recorded as `preview`,
+        the next version of the year's releases of its kind. Emits `open-data.release.built.v1`
+        (release id, year, kind, version; no figures). A retry with the same Idempotency-Key
+        replays the build.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fy]
+              additionalProperties: false
+              properties:
+                fy:
+                  type: integer
+                  minimum: 2025
+                  description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
+                kind:
+                  type: string
+                  enum: [annual, snapshot]
+                  default: snapshot
+                  description: A mid-year snapshot, or a corrected annual release once the published one is withdrawn
+      responses:
+        '202':
+          description: Built as a preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenDataRelease'
+        '400':
+          description: Body failed validation, or Idempotency-Key missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: 'A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the tables do not reconcile with their source (`reconciliation-failed`)'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Object storage could not be reached (`storage-unavailable`), or the directory for a snapshot of the live projections (`directory-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/open-data/releases/{releaseId}:
+    parameters:
+      - $ref: '#/components/parameters/ReleaseId'
+    get:
+      tags: [open-data]
+      operationId: getOpenDataReleaseEacc
+      summary: A release of any status with its six tables as built, suppression applied, and its source (EACC)
+      description: >-
+        Spec 09b S6 (#350): the preview EACC checks before a supervisor publishes it.
+        eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview
+        included (the public API never serves a preview). `tables` are the release's table files
+        as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the
+        tables were built from and reconciled with at build (`buildOpenDataRelease`): the
+        national consolidated report (its reference once approved) or, for a snapshot of a year
+        without one, the live projections. A release that exists has reconciled.
+      responses:
+        '200':
+          description: The release, who built it, its source and its tables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenDataReleaseDetail'
+        '400':
+          description: The release id is not a UUID
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          description: Object storage could not be reached (`storage-unavailable`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/open-data/releases/{releaseId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/ReleaseId'
+    post:
+      tags: [open-data]
+      operationId: publishOpenDataRelease
+      summary: Publish a preview release (EACC supervisor)
+      description: >-
+        eacc-supervisor (tenant `eacc`); anyone else, an eacc-analyst included, 403. Issues the
+        release's manifest (year, kind, version, build time, the NCR reference it reconciles with,
+        the publisher, the suppression threshold, and each table's rows, hidden cells and the
+        SHA-256 of its JSON and CSV files, with the release JSON's) through documents as a Public
+        verifiable document (`open-data-manifest`), then marks the release `published` by the
+        caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no
+        figures). An annual release publishes itself the same way when its NCR is approved,
+        `publishedBy` the approver. The release was reconciled with the NCR when it was built. A
+        year has one published annual release at a time: an annual preview is published only
+        once the year's published one is withdrawn (409 `annual-release-published`).
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenDataRelease'
+        '400':
+          description: The release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused the manifest (`manifest-refused`); nothing is published
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents (`documents-unavailable`) or object storage (`storage-unavailable`) could not be reached; nothing is published
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/eacc/open-data/releases/{releaseId}/withdraw:
+    parameters:
+      - $ref: '#/components/parameters/ReleaseId'
+    post:
+      tags: [open-data]
+      operationId: withdrawOpenDataRelease
+      summary: Withdraw a published release with a public reason (EACC supervisor)
+      description: >-
+        eacc-supervisor (tenant `eacc`); anyone else 403. Revokes the release's manifest through
+        documents (reason `withdrawn`), so its verify page shows it revoked, then marks the
+        release `withdrawn` with the reason (trimmed), by the caller; it stays in the history and
+        its files are still served, with the reason. A corrected release is a new build
+        (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's
+        releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind,
+        version; not the reason).
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                  description: Shown with the withdrawn release in the public API
+      responses:
+        '200':
+          description: Withdrawn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenDataRelease'
+        '400':
+          description: Body failed validation, the release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: The documents service refused to revoke the manifest (`manifest-revocation-refused`); nothing is withdrawn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Documents could not be reached (`documents-unavailable`); nothing is withdrawn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /v1/commissions/{slug}/open-data/preview:
+    parameters:
+      - $ref: '#/components/parameters/Slug'
+    get:
+      tags: [open-data]
+      operationId: getCommissionOpenDataPreview
+      summary: The Commission's own rows of the latest preview or release, suppression applied (commission-admin)
+      responses:
+        '200':
+          description: Rows per table
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /open-data/v1/releases:
+    get:
+      tags: [open-data]
+      operationId: listOpenDataReleases
+      summary: Published and withdrawn releases (public; cached; rate-limited)
+      security: []
+      responses:
+        '200':
+          description: Releases
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OpenDataRelease'
+        '429':
+          description: Rate limited
+  /open-data/v1/releases/{fy}/{version}:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags: [open-data]
+      operationId: getOpenDataRelease
+      summary: A release with its tables' metadata, hashes and verification link (public)
+      security: []
+      responses:
+        '200':
+          description: Release
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenDataRelease'
+        '404':
+          description: Not found
+  /open-data/v1/releases/{fy}/{version}/tables/{table}:
+    parameters:
+      - $ref: '#/components/parameters/FinancialYear'
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+      - name: table
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/OpenDataTable'
+    get:
+      tags: [open-data]
+      operationId: getOpenDataTable
+      summary: A table as JSON rows or CSV (Accept header or `.csv` suffix); suppressed cells are null with a marker (public)
+      security: []
+      responses:
+        '200':
+          description: Table
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [table, columns, rows, suppression]
+                properties:
+                  table:
+                    $ref: '#/components/schemas/OpenDataTable'
+                  columns:
+                    type: array
+                    items:
+                      type: string
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  suppression:
+                    type: object
+                    required: [threshold, cellsSuppressed]
+                    properties:
+                      threshold:
+                        type: integer
+                      cellsSuppressed:
+                        type: integer
+            text/csv:
+              schema:
+                type: string
+        '404':
+          description: Not found
+components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-z][a-z0-9]{1,19}$'
+    FinancialYear:
+      name: fy
+      in: path
+      required: true
+      description: Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028
+      schema:
+        type: integer
+        minimum: 2025
+    ReleaseId:
+      name: releaseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Not found, or not visible to the caller
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Forbidden:
+      description: Caller lacks the required role or scope
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+  schemas:
+    PatternCandidate:
+      type: object
+      required: [id, kind, subject, values, aggregateKeys]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            [
+              rate-change,
+              threshold-breach,
+              chronic-late-reporting,
+              clarification-ratio-outlier,
+              size-band-outlier,
+              non-reporting,
+            ]
+        subject:
+          type: string
+          description: Commission slug, entity type, or `national`
+        values:
+          type: object
+          description: >-
+            The figures the candidate rests on, by name: numbers, strings or null, no nested values,
+            as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state
+            (a change, a count of years) is carried here.
+          additionalProperties:
+            type: [number, string, 'null']
+        aggregateKeys:
+          type: array
+          description: >-
+            Keys of the figures the candidate rests on, in the ai-gateway scheme
+            (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed
+            `fy<fy>.` for a prior year
+          minItems: 1
+          items:
+            type: string
+    NarrativeDraft:
+      type: object
+      required: [jobId, section, replaceAll, status, failureReason, requestedAt, finishedAt]
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          description: The ai-gateway job writing the draft
+        section:
+          type: string
+          enum: [overview, findings, recommendations, all]
+        replaceAll:
+          type: boolean
+        status:
+          type: string
+          enum: [drafting, inserted, failed]
+          description: '`drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted'
+        failureReason:
+          type: [string, 'null']
+          description: >-
+            Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`,
+            `budget`, `provider`, ...), or `missing` (the gateway no longer has the job),
+            `invalid-output`, `aggregates-rebuilt` or `ncr-approved`
+        requestedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: [string, 'null']
+          format: date-time
+    OpenDataTable:
+      type: string
+      enum:
+        [
+          filing-by-commission,
+          compliance-by-commission,
+          by-entity-type,
+          by-cycle,
+          access-requests,
+          national-totals,
+        ]
+    OpenDataTableFile:
+      type: object
+      description: A release's table as stored (`getOpenDataTable` JSON)
+      required: [table, columns, rows, suppression, notCollected]
+      properties:
+        table:
+          $ref: '#/components/schemas/OpenDataTable'
+        columns:
+          type: array
+          items:
+            type: string
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        suppression:
+          type: object
+          required: [threshold, cellsSuppressed]
+          properties:
+            threshold:
+              type: integer
+            cellsSuppressed:
+              type: integer
+              description: Figures hidden by suppression; figures not collected are not counted
+        notCollected:
+          type: array
+          items:
+            type: string
+          description: >-
+            Figures not collected yet (columns, or in `national-totals` measures) whose values are
+            null for want of data, not suppression
+    OpenDataReleaseDetail:
+      type: object
+      required: [release, builtBy, source, tables]
+      properties:
+        release:
+          $ref: '#/components/schemas/OpenDataRelease'
+        builtBy:
+          description: Who built it; null for the release workflow on NCR approval
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        source:
+          type: object
+          required: [kind, nationalReportReference]
+          properties:
+            kind:
+              type: string
+              enum: [national-report, live-projections]
+            nationalReportReference:
+              type: [string, 'null']
+              description: The NCR's reference (`NCR-EACC-...`) once approved; null for a draft NCR or the live projections
+        tables:
+          type: object
+          required:
+            [
+              filing-by-commission,
+              compliance-by-commission,
+              by-entity-type,
+              by-cycle,
+              access-requests,
+              national-totals,
+            ]
+          additionalProperties: false
+          properties:
+            filing-by-commission:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            compliance-by-commission:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            by-entity-type:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            by-cycle:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            access-requests:
+              $ref: '#/components/schemas/OpenDataTableFile'
+            national-totals:
+              $ref: '#/components/schemas/OpenDataTableFile'
+    OpenDataRelease:
+      type: object
+      required:
+        [
+          id,
+          fy,
+          kind,
+          version,
+          status,
+          builtAt,
+          publishedAt,
+          publishedBy,
+          withdrawnAt,
+          withdrawnBy,
+          withdrawnReason,
+          manifestDocumentId,
+          manifestVerificationId,
+          tables,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fy:
+          type: integer
+        kind:
+          type: string
+          enum: [annual, snapshot]
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [preview, published, withdrawn]
+        builtAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+        publishedBy:
+          description: >-
+            The EACC supervisor who published it; for an annual release, who approved its NCR.
+            Null while a preview
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        withdrawnAt:
+          type: [string, 'null']
+          format: date-time
+        withdrawnBy:
+          description: The EACC supervisor who withdrew it; null unless withdrawn
+          oneOf:
+            - $ref: '#/components/schemas/Officer'
+            - type: 'null'
+        withdrawnReason:
+          type: [string, 'null']
+        manifestDocumentId:
+          type: [string, 'null']
+          format: uuid
+          description: The Public manifest document (documents service); null while a preview
+        manifestVerificationId:
+          type: [string, 'null']
+          description: Verification code of the Public manifest document
+        tables:
+          type: array
+          items:
+            type: object
+            required: [table, rows, sha256Json, sha256Csv]
+            properties:
+              table:
+                $ref: '#/components/schemas/OpenDataTable'
+              rows:
+                type: integer
+              sha256Json:
+                type: string
+              sha256Csv:
+                type: string

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { minimise } from '../../src/policy/minimisation.js';
 
 /**
- * The review corpus of PR #506 (#314 review rounds 4 to 22): each probe is a document's pages, the
+ * The review corpus of PR #506 (#314 review rounds 4 to 24): each probe is a document's pages, the
  * name words that must not be sent (in any case, tokens aside) and the text that must stay as it
  * is. A change that leaks a name or hides a field again fails here.
  */
@@ -69,8 +69,6 @@ const EXPECTED_FAILURES: Readonly<Record<string, string>> = {
     'regression from the accepted name-after-value trade-off (F100): passed at af71955b; #504: an organisation or place the reader does not know, after an ID, is read as a party',
   'r21-spec-15':
     'regression from the accepted name-after-value trade-off (F100): passed at af71955b; #504: an organisation or place the reader does not know, after an ID, is read as a party',
-  'r21-spec-16':
-    'regression from the accepted name-after-value trade-off (F100): passed at af71955b; #504: an organisation or place the reader does not know, after an ID, is read as a party',
   'r21-spec-17':
     'regression from the accepted name-after-value trade-off (F100): passed at af71955b; #504: an organisation or place the reader does not know, after an ID, is read as a party',
   'r21-spec-21':
@@ -114,8 +112,10 @@ const EXPECTED_FAILURES: Readonly<Record<string, string>> = {
   'r22-std-7': '#504: a surname that is a known word ("Station", "Branch", "Make") is not hidden',
   'r22-spec-3': '#504: a surname that is a known word ("Station", "Branch", "Make") is not hidden',
   'r22-spec-4': '#504: a surname that is a known word ("Station", "Branch", "Make") is not hidden',
-  'r22-spec-13': '#504: a "Class:" field after a name is hidden',
-  'r22-spec-86': '#504: a "Class:" field after a name is hidden',
+  'r22-spec-13':
+    '#504 (high priority: the share class is an extracted field): a "Class:" field after a name is hidden',
+  'r22-spec-86':
+    '#504 (high priority: the share class is an extracted field): a "Class:" field after a name is hidden',
   'r22-spec-14':
     '#504: a first name that is a place ("Kericho Langat") hides the place in its own field',
   'r22-spec-15':
@@ -128,6 +128,44 @@ const EXPECTED_FAILURES: Readonly<Record<string, string>> = {
   'r22-spec-36': '#504: "Mem. No." and "Membership No." before a name are not read',
   'r22-spec-40': '#504: a name on the line after "Member No 3310" is not read',
   'r22-spec-55': '#504: "Employees:" is not a label',
+  'r23-spec-33':
+    '#504: lowercase names after a member\'s number ("member no. 3310 mary wanjiru") are not read',
+  'r23-spec-51':
+    '#504: an organisation the reader does not know after a member\'s number ("Member No. 3310 Safaricom") is read as a name and hidden in the Employer field',
+  'r24-spec-1':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-2':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-3':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-4':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-5':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-6':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-61':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-62':
+    '#504: a contrived surname that is a statement\'s field word ("Grace Monthly", "Peter Product") is not hidden',
+  'r24-spec-44':
+    '#504: a street address at the end of the line, or on the next, after an ID is read as a name',
+  'r24-spec-45':
+    '#504: a street address at the end of the line, or on the next, after an ID is read as a name',
+  'r24-spec-46':
+    '#504: a street address at the end of the line, or on the next, after an ID is read as a name',
+  'r24-spec-52':
+    '#504: a street address at the end of the line, or on the next, after an ID is read as a name',
+  'r24-spec-54':
+    '#504: a street address at the end of the line, or on the next, after an ID is read as a name',
+  'r24-spec-30': '#504: "STATEMENT" in a "MEMBER STATEMENT" heading is hidden',
+  'r24-spec-71': '#504: "Joint" in "Joint Account" after a member\'s names is hidden',
+  'r24-spec-28': '#504: "Membership No." before a name is not read',
+  'r24-spec-80': '#504: "Membership No." before a name is not read',
+  'r24-std-1':
+    'regression since the member-number value (F108): passed at af71955b; #504: a name on the line after "Member No. 3310" is not read',
+  'r24-spec-20':
+    'regression since the member-number value (F108): passed at af71955b; #504: a name on the line after "Member No. 3310" is not read',
 };
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -4,8 +4,10 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../lib/cn';
 
 export type TableProps = ComponentProps<'table'> & {
-  /** Names the table for assistive technology; rendered visually hidden. */
+  /** Names the table for assistive technology; rendered visually hidden unless `showCaption`. */
   caption: ReactNode;
+  /** Shows the caption above the table as its title, e.g. a Form M list's prescribed name. */
+  showCaption?: boolean;
 };
 
 /*
@@ -14,18 +16,30 @@ export type TableProps = ComponentProps<'table'> & {
  * table; an explicit role keeps it one.
  */
 
-export function Table({ caption, className, children, ...props }: TableProps) {
+export function Table({ caption, showCaption = false, className, children, ...props }: TableProps) {
   return (
-    <div className="relative w-full overflow-x-auto">
-      <table
-        role="table"
-        className={cn('w-full caption-bottom border-collapse text-sm', className)}
-        {...props}
-      >
-        <caption className="sr-only">{caption}</caption>
-        {children}
-      </table>
-    </div>
+    <>
+      {showCaption ? (
+        // Shown above the scroller so a wide table on a phone does not cut it off; the caption
+        // itself stays the table's name.
+        <div
+          aria-hidden="true"
+          className="px-4 pt-3 pb-2.5 text-[13.5px] leading-[1.4] font-semibold text-foreground"
+        >
+          {caption}
+        </div>
+      ) : null}
+      <div className="relative w-full overflow-x-auto">
+        <table
+          role="table"
+          className={cn('w-full caption-bottom border-collapse text-sm', className)}
+          {...props}
+        >
+          <caption className="sr-only">{caption}</caption>
+          {children}
+        </table>
+      </div>
+    </>
   );
 }
 
