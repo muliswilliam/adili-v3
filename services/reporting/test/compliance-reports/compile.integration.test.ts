@@ -378,7 +378,10 @@ describe('Form M compile (S2, S3, S4)', () => {
         grounds: ['prejudice-proceeding'],
       }),
     ];
-    for (const event of events) await api.deliver(event);
+    for (const event of events) {
+      // Form K events are consumed; law enforcement ones are never routed to reporting.
+      expect(await api.deliver(event)).toBe(event.type.startsWith('access.'));
+    }
     api.declarations.given('psc');
     api.clock.set('2028-07-25T06:00:00.000Z');
 

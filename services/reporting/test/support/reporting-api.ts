@@ -16,7 +16,7 @@ import {
 } from '@adili/data-access';
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
-import { ACCESS_EVENT_TYPES } from '@adili/events/contracts';
+import { ACCESS_CERTIFIED_COPY_ISSUED, LEA_REQUEST_EVENTS } from '@adili/events/contracts';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import {
   prebuiltWorkflowBundler,
@@ -95,7 +95,7 @@ export interface ReportingApi {
   endWorkflows(ids: readonly string[]): Promise<void>;
   /**
    * Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery, or
-   * for a published access type the service binds no consumer to (the exchange never routes it).
+   * for a published access type the service must not bind (the exchange never routes it).
    * Throws for any other type without a consumer.
    */
   deliver(event: EventEnvelope): Promise<boolean>;
@@ -135,8 +135,15 @@ const HANDLERS = new Map<string, keyof ProjectionsConsumer>(
   ),
 );
 
-/** The access service's published types reporting does not bind, such as `lea.request.*`. */
-const UNBOUND_PUBLISHED = new Set<string>(ACCESS_EVENT_TYPES.filter((type) => !HANDLERS.has(type)));
+/**
+ * The access service's published types reporting must not bind: law enforcement requests (Form M
+ * section 5 counts Form K only, #239) and certified copies. Pinned, so a Form K type left unbound
+ * by mistake throws instead of passing as not routed.
+ */
+const UNBOUND_PUBLISHED = new Set<string>([
+  ...Object.values(LEA_REQUEST_EVENTS),
+  ACCESS_CERTIFIED_COPY_ISSUED,
+]);
 
 /**
  * The reporting service over HTTP and at its event inbox, against a real Postgres

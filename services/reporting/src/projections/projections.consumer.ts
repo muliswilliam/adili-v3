@@ -446,20 +446,21 @@ export class ProjectionsConsumer {
   }
 
   /**
-   * Upserts what one event knows of a Form K request, and only that (`set`), so a decision that
-   * arrives before the receipt still lands in the year the receipt brings.
+   * Upserts what one event knows of a Form K request, and only that (`merge`, the columns it may
+   * update on an existing row), so a decision that arrives before the receipt still lands in the
+   * year the receipt brings.
    */
   private accessRequest(
     event: EventEnvelope,
     requestId: string,
     facts: Partial<Omit<typeof accessRequestFacts.$inferInsert, 'requestId' | 'tenant'>>,
-    set: Record<string, SQL>,
+    merge: Record<string, SQL>,
   ): Promise<boolean> {
     return this.project(event, (tx, tenant) =>
       tx
         .insert(accessRequestFacts)
         .values({ requestId, tenant, ...facts })
-        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set }),
+        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: merge }),
     );
   }
 
