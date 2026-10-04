@@ -126,12 +126,13 @@ interface Counts {
 export type ComplianceCounts = Record<Exclude<ComplianceFigure, 'clarificationsIssued'>, number>;
 
 const FILING_COLUMNS = ['expected', 'filed', 'nonFilers', 'filingRate', 'suppressed'];
-const ACCESS_MEASURES = ['received', 'granted', 'declined'];
-const ACCESS_NATIONAL: NationalMeasure[] = [
-  'accessRequestsReceived',
-  'accessRequestsGranted',
-  'accessRequestsDeclined',
-];
+const ACCESS_MEASURES = ['received', 'granted', 'declined'] as const;
+type AccessCounts = Record<(typeof ACCESS_MEASURES)[number], number>;
+const ACCESS_NATIONAL = {
+  received: 'accessRequestsReceived',
+  granted: 'accessRequestsGranted',
+  declined: 'accessRequestsDeclined',
+} as const satisfies Record<keyof AccessCounts, NationalMeasure>;
 const DIMENSIONS = new Set([
   'commission',
   'commissionName',
@@ -217,6 +218,11 @@ export function buildReleaseTables(
         sections,
         officers: SECTIONS.reduce((t, s) => t + sections[s].expected, 0),
         compliance: counts,
+        access: {
+          received: row.accessRequests?.received ?? 0,
+          granted: row.accessRequests?.granted ?? 0,
+          declined: row.accessRequests?.declined ?? 0,
+        } satisfies AccessCounts,
       },
     ];
   });
@@ -282,10 +288,13 @@ export function buildReleaseTables(
     });
     accessRows.push({
       ...dimensions,
-      received: null,
-      granted: null,
-      declined: null,
-      suppressed: false,
+      ...Object.fromEntries(
+        ACCESS_MEASURES.map((name) => [
+          name,
+          commission && !suppressed ? commission.access[name] : null,
+        ]),
+      ),
+      suppressed,
     });
   }
 
@@ -335,9 +344,17 @@ export function buildReleaseTables(
           : { value: complianceTotals[name], suppressed: false },
       ]),
     ) as Record<ComplianceFigure, { value: number | null; suppressed: boolean }>),
-    accessRequestsReceived: { value: null, suppressed: false },
-    accessRequestsGranted: { value: null, suppressed: false },
-    accessRequestsDeclined: { value: null, suppressed: false },
+    ...(Object.fromEntries(
+      ACCESS_MEASURES.map((name) => [
+        ACCESS_NATIONAL[name],
+        perCommissionSuppressed
+          ? { value: null, suppressed: true }
+          : { value: reported.reduce((t, c) => t + c.access[name], 0), suppressed: false },
+      ]),
+    ) as Record<
+      (typeof ACCESS_NATIONAL)[keyof AccessCounts],
+      { value: number | null; suppressed: boolean }
+    >),
   };
 
   const tables: TableFiles = {
@@ -365,14 +382,12 @@ export function buildReleaseTables(
       ['commission', 'commissionName', ...ACCESS_MEASURES, 'suppressed'],
       accessRows,
       threshold,
-      ACCESS_MEASURES,
     ),
     'national-totals': tableOf(
       'national-totals',
       ['measure', 'value', 'suppressed'],
       NATIONAL_MEASURES.map((measure) => ({ measure, ...nationalValues[measure] })),
       threshold,
-      ACCESS_NATIONAL,
     ),
   };
   return { tables, totals: { declared: national.all.declared, expected: national.all.expected } };

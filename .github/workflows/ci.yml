@@ -229,7 +229,7 @@ jobs:
           timeout 120 sh -c 'until curl -sf http://localhost:9333/cluster/status >/dev/null && curl -s -o /dev/null http://localhost:8333; do sleep 2; done' \
             || { docker logs seaweedfs; exit 1; }
           timeout 120 sh -c 'until docker exec -e SEAWEEDFS_MASTER=localhost:9333 seaweedfs sh /scripts/create-buckets.sh \
-            && echo s3.bucket.list | docker exec -i seaweedfs weed shell -master=localhost:9333 | grep -q audit-archive; do sleep 2; done'
+            && echo s3.bucket.list | docker exec -i seaweedfs weed shell -master=localhost:9333 | grep -q open-data; do sleep 2; done'
       # Ready means it issues a token, not only that it serves the discovery document: the first
       # grant on the fresh JVM loads the token path (about 20 times a warm grant), and with the
       # suites loading the runner it outlasted ServiceTokenClient's 5 s timeout. One grant here

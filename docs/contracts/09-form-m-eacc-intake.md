@@ -7,7 +7,7 @@ Each difference below was decided in the ticket named; the generated contract in
 
 | Contract | Source | Drafts left | Drift check |
 |---|---|---|---|
-| `internal/reporting.yaml` | exported from `services/reporting` (`pnpm --filter @adili/reporting contracts`, since #238) | `drafts/reporting.yaml`: spec 09b only (NCR pattern candidates and AI narrative drafting, open-data releases) | `pnpm contracts:drift` |
+| `internal/reporting.yaml` | exported from `services/reporting` (`pnpm --filter @adili/reporting contracts`, since #238) | none (`getOpenDataReleaseEacc`, the last 09b draft, implemented in #491) | `pnpm contracts:drift` |
 | `internal/integration-gateway.yaml` | exported | none | same |
 | `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: specs 05b and 11 only | same |
 | `internal/review.yaml` | exported | none | same |
@@ -79,6 +79,17 @@ Known specifics as of #491's head `adc5e4b6` (3 October), as examples:
   - Its hand-edited `documents.yaml` collides with #238's `FormMPayload` fix, so take #238's file and re-export it from the code.
 
 #238 adds no migrations, so #491's 0009 and 0010 do not conflict with it.
+
+### Spec 09b in code (#491)
+
+#491 merged #238 and #493 as above:
+
+- **Operations:** all ten #491 implements are documented on its controllers, the public ones too: `listOpenDataReleases`, `getOpenDataRelease`, `getOpenDataTable` and `getOpenDataTableCsv` (the `.csv` download, its own route) have no security requirement (`security: []`). Their 200s state `ETag`, `Last-Modified`, `Cache-Control`, `Access-Control-Allow-Origin` and the `RateLimit-*` headers, their 304s the cache and CORS headers, and every problem and the 429 the CORS header, inline in each response: no shared `components.headers`, which a draft cannot carry (#517).
+- **Components:** Zod schemas `PatternCandidate`, `NarrativeDraft` (with `jobs`, one or two per draft), `OpenDataTable`, `OpenDataRelease`, `OpenDataTableFile` (the stored table, `getOpenDataTable`'s JSON), `CommissionOpenDataPreview` and `PublicOpenDataRelease`; `NationalReport.narrativeDraft`.
+- **Problem codes:** the twelve listed above and `fy-not-started`, `release-building` and `manifest-refused`, registered in `PROBLEM_CODES` and sent through `problem(...)`.
+- **Drafts:** only `getOpenDataReleaseEacc` and `OpenDataReleaseDetail`, drafted by #350 for the console's release page and not implemented yet.
+- **Migrations:** #493's `0009_access_request_facts` first; #491's follow as 0010 to 0015.
+- **Access requests:** with `access_request_facts`, the open-data `access-requests` table and the national `accessRequests*` measures carry Form M section 5 as the reports filed it (the NCR's aggregates, or the live projections for a mid-year snapshot), suppressed with each Commission's other counts and reconciled; no table names them in `notCollected` any more. The narrative task input carries them too (`accessRequestsReceived`, `accessRequestsGranted`, `accessRequestsDeclined`).
 
 ### PR #493 (Form M section 5 from access events, #467)
 

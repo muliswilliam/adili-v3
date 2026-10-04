@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
+import { type DraftScope, NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
 
 /**
  * The national consolidated report's narrative (spec 09 NCR): sections Overview, Findings and
@@ -102,5 +102,64 @@ export function saveSection(
       aggregateRefs: [],
       candidateIds: [],
     };
+  });
+}
+
+/** A paragraph as the ai-gateway's `narrate-compliance-report` task drafts it. */
+export interface DraftedParagraph {
+  section: NarrativeSection;
+  text: string;
+  aggregateRefs: string[];
+  candidateIds: string[];
+}
+
+/** The sections a draft of `scope` writes. */
+export function sectionsOf(scope: DraftScope): readonly NarrativeSection[] {
+  return scope === 'all' ? NARRATIVE_SECTIONS : [scope];
+}
+
+/**
+ * The narrative's paragraphs once `drafted` (spec 09b) is inserted into the sections of `scope`,
+ * as AI drafts citing their aggregate keys and candidates. In each of those sections the drafted
+ * paragraphs replace the paragraphs still marked as AI drafts, where the first of them stood (at
+ * the end when there were none), and every paragraph the analyst edited or typed stays where it
+ * was; with `replaceAll` they replace the whole section. Other sections, and drafted paragraphs
+ * of sections outside `scope`, are left alone. Positions are renumbered from 0 per section.
+ */
+export function insertDraft(
+  existing: readonly Paragraph[],
+  drafted: readonly DraftedParagraph[],
+  scope: DraftScope,
+  replaceAll: boolean,
+  newId: () => string,
+): Paragraph[] {
+  const sections = sectionsOf(scope);
+  return NARRATIVE_SECTIONS.flatMap((section) => {
+    const stored = existing
+      .filter((paragraph) => paragraph.section === section)
+      .sort((a, b) => a.position - b.position);
+    if (!sections.includes(section)) return stored;
+    const replaced = (paragraph: Paragraph) => replaceAll || paragraph.aiDraft;
+    const kept = stored.filter((paragraph) => !replaced(paragraph));
+    const firstReplaced = stored.findIndex(replaced);
+    const at = firstReplaced === -1 ? kept.length : firstReplaced;
+    const inserted = drafted
+      .filter((paragraph) => paragraph.section === section)
+      // One paragraph stays one: a blank line inside would split it at the next save.
+      .map((paragraph) => ({ ...paragraph, text: paragraphsOf(paragraph.text).join('\n') }))
+      .filter((paragraph) => paragraph.text !== '')
+      .map((paragraph): Paragraph => ({
+        id: newId(),
+        section,
+        position: 0,
+        text: paragraph.text,
+        aiDraft: true,
+        aggregateRefs: [...paragraph.aggregateRefs],
+        candidateIds: [...paragraph.candidateIds],
+      }));
+    return [...kept.slice(0, at), ...inserted, ...kept.slice(at)].map((paragraph, position) => ({
+      ...paragraph,
+      position,
+    }));
   });
 }

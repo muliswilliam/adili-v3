@@ -72,6 +72,16 @@ export function directoryUnavailable(): ProblemException {
   });
 }
 
+/** 503 `storage-unavailable`: object storage (the open-data bucket) cannot be reached. */
+export function storageUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'storage-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The release files could not be reached just now. Try again shortly.',
+  });
+}
+
 /** 503 `workflow-unavailable`: Temporal cannot be reached, so nothing was done. */
 export function workflowUnavailable(detail: string): ProblemException {
   return new ProblemException({
@@ -79,5 +89,15 @@ export function workflowUnavailable(detail: string): ProblemException {
     title: 'Upstream service unavailable',
     status: HttpStatus.SERVICE_UNAVAILABLE,
     detail,
+  });
+}
+
+/** 503 `ai-gateway-unavailable`: the ai-gateway cannot be reached, so nothing was asked of it. */
+export function aiGatewayUnavailable(): ProblemException {
+  return new ProblemException({
+    type: 'ai-gateway-unavailable',
+    title: 'Upstream service unavailable',
+    status: HttpStatus.SERVICE_UNAVAILABLE,
+    detail: 'The AI gateway cannot be reached. Try again shortly.',
   });
 }

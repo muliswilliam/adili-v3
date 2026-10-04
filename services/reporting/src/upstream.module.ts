@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ServiceTokenClient } from '@adili/api-kit';
 import { ICMS_SCOPE } from '@adili/roles';
 
+import { AiGatewayClient } from './ai-gateway/ai-gateway-client.js';
+import { AI_SCOPE, HttpAiGatewayClient } from './ai-gateway/http-ai-gateway-client.js';
 import { config } from './config.js';
 import { DeclarationsClient } from './declarations/declarations-client.js';
 import {
@@ -42,7 +44,8 @@ const tokens = (scope: string) =>
  * token through clients generated from their contracts (ADR-013 §2, §8.7): officer details
  * (declarations), clarification details (review), the Commission and its staff (directory),
  * emails (notifications), the submitted report's PDF and receipt (documents), a referral's ICMS
- * payload (review) and its registration with ICMS (integration-gateway).
+ * payload (review) and its registration with ICMS (integration-gateway), and the NCR's
+ * narrative drafts (ai-gateway).
  */
 @Module({
   providers: [
@@ -94,6 +97,11 @@ const tokens = (scope: string) =>
           tokens: tokens(ICMS_SCOPE),
         }),
     },
+    {
+      provide: AiGatewayClient,
+      useFactory: () =>
+        new HttpAiGatewayClient({ gatewayUrl: config.AI_GATEWAY_URL, tokens: tokens(AI_SCOPE) }),
+    },
   ],
   exports: [
     DeclarationsClient,
@@ -102,6 +110,7 @@ const tokens = (scope: string) =>
     NotificationsClient,
     DocumentsClient,
     IntegrationGatewayClient,
+    AiGatewayClient,
   ],
 })
 export class UpstreamModule {}

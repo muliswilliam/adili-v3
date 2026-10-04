@@ -188,11 +188,14 @@ describe('Draft narrative', () => {
         expect.any(String),
       );
     });
-    const button = within(narrative()).getByRole('button', { name: 'Drafting…' });
+    // The request can go out before the drafting state renders: wait for it.
+    const button = await within(narrative()).findByRole('button', { name: 'Drafting…' });
     expect(button.hasAttribute('disabled')).toBe(true);
-    expect(within(sectionOf('Recommendations')).getByRole('status').textContent).toBe(
-      'Drafting recommendations…',
-    );
+    await waitFor(() => {
+      expect(within(sectionOf('Recommendations')).getByRole('status').textContent).toBe(
+        'Drafting recommendations…',
+      );
+    });
     // Only the section asked for is being drafted.
     expect(within(sectionOf('Overview')).getAllByRole('textbox')).toHaveLength(1);
 

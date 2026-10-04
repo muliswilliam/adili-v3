@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { CoreModule, IdempotencyModule } from '@adili/api-kit';
+import { CoreModule, IdempotencyModule, RateLimitModule } from '@adili/api-kit';
+import { CacheModule, ValkeyRateLimitStore } from '@adili/cache';
 import {
   DATABASE,
   DatabaseModule,
@@ -19,6 +20,12 @@ import { ComplianceReportsModule } from './compliance-reports/compliance-reports
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
 import { NationalReportsModule } from './national-reports/national-reports.module.js';
+import { OpenDataModule } from './open-data/open-data.module.js';
+import {
+  OpenDataStorageModule,
+  OpenDataStorageReadinessCheck,
+} from './open-data/s3-open-data-files.js';
+import { PublicOpenDataModule } from './open-data/public-open-data.module.js';
 import { ProjectionsModule } from './projections/projections.module.js';
 import { ReferralsModule } from './referrals/referrals.module.js';
 import { ReportingWorkerModule } from './worker.module.js';
@@ -34,6 +41,7 @@ import { ReportingWorkerModule } from './worker.module.js';
         TemporalReadinessCheck,
         TemporalWorkerReadinessCheck,
         new OpenBaoReadinessCheck(OPENBAO),
+        OpenDataStorageReadinessCheck,
       ],
     }),
     DatabaseModule.forRoot({
@@ -49,10 +57,18 @@ import { ReportingWorkerModule } from './worker.module.js';
       address: config.TEMPORAL_ADDRESS,
       namespace: config.TEMPORAL_NAMESPACE,
     }),
+    // The public open-data API's per client IP budgets, shared by every replica. Not a readiness
+    // check: while Valkey is down the limiter lets requests through, and the rest of the service
+    // does not need it.
+    CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    RateLimitModule.forRoot({ policies: config.RATE_LIMITS, store: ValkeyRateLimitStore }),
+    OpenDataStorageModule,
     ProjectionsModule,
     AiUsageModule,
     ComplianceReportsModule,
     NationalReportsModule,
+    OpenDataModule,
+    PublicOpenDataModule,
     ReferralsModule,
     ReportingWorkerModule,
   ],

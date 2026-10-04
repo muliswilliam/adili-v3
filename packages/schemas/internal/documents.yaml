@@ -349,7 +349,7 @@ paths:
       tags:
         - documents
       summary: Metadata of an issued document (owner)
-      description: "The person the document is about; staff of the issuing Commission named among the document's additional downloaders; for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor. Anyone else gets 404."
+      description: "The person the document is about; staff of the issuing Commission named among the document's additional downloaders; for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr) and its open-data release manifests (open-data-manifest), an EACC analyst or supervisor. Anyone else gets 404."
       operationId: getDocument
       parameters:
         - name: documentId
@@ -376,7 +376,7 @@ paths:
       tags:
         - documents
       summary: Short-lived presigned download of an issued PDF (owner)
-      description: "The document's subject person (the `person_id` of their token); an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr), an EACC analyst or supervisor (spec 09 authorisation; no other document is theirs to download). Anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing tenant (the Commission, or EACC for its NCR) and recorded as `document.downloaded.v1`, which the access register reads."
+      description: "The document's subject person (the `person_id` of their token); an access officer of the issuing Commission named among the document's additional downloaders (their token's `sub`, tenant and role); for a Commission's submitted Form M and its receipt, the Commission's supervisor, commission-admin, reporting officer or its federated system (a token of its tenant with scope reports:submit); for any Commission's Form M, its receipt or a referral package it sent EACC, an EACC analyst or supervisor (a token of the EACC tenant), refused the package that refers them when their token names them (`person_id`; staff tokens do not yet, #486); for EACC's national consolidated report (ncr) and its open-data release manifests (open-data-manifest), an EACC analyst or supervisor (spec 09 authorisation; no other document is theirs to download). Anyone else gets 404. A document with a download window (an access package) is refused with 410 once it ends. Every download link handed out is audited under the issuing tenant (the Commission, or EACC for its NCR) and recorded as `document.downloaded.v1`, which the access register reads."
       operationId: getDocumentDownload
       parameters:
         - name: documentId
@@ -412,7 +412,7 @@ paths:
       tags:
         - internal
       summary: Render, sign and register a document (services)
-      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person; the declarant the pulled package names is never its subject person, and an EACC analyst or supervisor it refers is refused it when their token names them (staff tokens do not yet, #486). The reporting service's documents carry their payload and have no subject person: a form-m the submitted form-m.v1 document with its RPT reference, a compliance-report-receipt the report's reference, SHA-256 and time of receipt, an ncr (issued for the EACC tenant) the approved national consolidated report's aggregates and narrative. A portal link a letter prints (`portalUrl`, `respondUrl`) must be https in production. One document per type and subject: issuing again returns it with 200."
+      description: "Service tokens with scope documents:internal, issuing for the tenant in X-Acting-Tenant. Renders the type's versioned template to PDF through Gotenberg with the verification code and QR in the footer of every page and the watermark, when given, across every page, PAdES-signs it with the documents signing certificate, stores its SHA-256 in an Ed25519-signed verification record, stores the PDF and emits `document.issued.v1`. The disclosure level and public payload are the template's. `downloadWindowDays` limits the subject person's downloads to that many days from issue. An access-package and an access-nil-letter require a watermark, a download window and a subject person; a certified-copy a subject person. A letter of the review service names its record, and its fields are pulled from the review service for the same tenant: a clarification-letter its clarification (internalGetClarificationLetterPayload), a decision-letter its determination (internalGetDeterminationLetterPayload), a notice-to-comply, warning, salary-stoppage or disciplinary-referral its administrative action (internalGetActionLetterPayload); the subject person must be the one the pulled payload names. A referral-package names its referral (internalGetReferralPackagePayload) and has no subject person; the declarant the pulled package names is never its subject person, and an EACC analyst or supervisor it refers is refused it when their token names them (staff tokens do not yet, #486). The reporting service's documents carry their payload and have no subject person: a form-m the submitted form-m.v1 document with its RPT reference, a compliance-report-receipt the report's reference, SHA-256 and time of receipt, an ncr (issued for the EACC tenant) the approved national consolidated report's aggregates and narrative, an open-data-manifest (issued for the EACC tenant, Public) a published open-data release's tables, rows and file hashes. A portal link a letter prints (`portalUrl`, `respondUrl`) must be https in production. One document per type and subject: issuing again returns it with 200."
       operationId: issueDocument
       parameters:
         - name: X-Acting-Tenant
@@ -921,6 +921,7 @@ components:
         - form-m
         - compliance-report-receipt
         - ncr
+        - open-data-manifest
       description: Document types with a template; later specs add theirs
     DisclosureLevel:
       type: string
@@ -955,7 +956,7 @@ components:
             - type: string
               format: uuid
             - type: 'null'
-          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt and an ncr'
+          description: 'The only person who may download the document: the declarant, the applicant or the law-enforcement officer (their token carries it as `person_id`); null for none. Required for access-package, access-nil-letter and certified-copy; for a letter of the review service, the person its record names (none for an officer who never onboarded); null for a referral-package, a form-m, a compliance-report-receipt, an ncr and an open-data-manifest'
         watermark:
           $ref: '#/components/schemas/Watermark'
         downloadWindowDays:
@@ -984,6 +985,7 @@ components:
             - $ref: '#/components/schemas/FormMPayload'
             - $ref: '#/components/schemas/ComplianceReportReceiptPayload'
             - $ref: '#/components/schemas/NcrPayload'
+            - $ref: '#/components/schemas/OpenDataManifestPayload'
           description: "The template's payload: the schema named after `type`, or for a pulled type the record it is pulled for (`clarificationId`, `determinationId`, `actionId` or `referralId`)"
       required:
         - type
@@ -2437,6 +2439,87 @@ components:
         - approvedAt
       additionalProperties: false
       description: "Payload of ncr v1: the approved national consolidated report's NCR reference, financial year, build time and reports included, the aggregates reporting built (`reporting`, `national` and `byCommission`; counts and rates only), the narrative sections, the author and the approver. Sent by the reporting service"
+    OpenDataManifestPayload:
+      type: object
+      properties:
+        releaseId:
+          type: string
+          format: uuid
+        financialYear:
+          type: string
+        kind:
+          type: string
+          enum:
+            - annual
+            - snapshot
+        version:
+          type: integer
+          minimum: 1
+        builtAt:
+          type: string
+          format: date-time
+        ncrReference:
+          type:
+            - string
+            - 'null'
+        publishedBy:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 200
+            - type: 'null'
+        suppressionThreshold:
+          type: integer
+          minimum: 1
+        tables:
+          type: array
+          items:
+            type: object
+            properties:
+              table:
+                type: string
+                enum:
+                  - filing-by-commission
+                  - compliance-by-commission
+                  - by-entity-type
+                  - by-cycle
+                  - access-requests
+                  - national-totals
+              rows:
+                type: integer
+                minimum: 0
+              cellsSuppressed:
+                type: integer
+                minimum: 0
+              sha256Json:
+                type: string
+                pattern: ^[0-9a-f]{64}$
+              sha256Csv:
+                type: string
+                pattern: ^[0-9a-f]{64}$
+            required:
+              - table
+              - rows
+              - cellsSuppressed
+              - sha256Json
+              - sha256Csv
+            additionalProperties: false
+        releaseSha256:
+          type: string
+          pattern: ^[0-9a-f]{64}$
+      required:
+        - releaseId
+        - financialYear
+        - kind
+        - version
+        - builtAt
+        - ncrReference
+        - publishedBy
+        - suppressionThreshold
+        - tables
+        - releaseSha256
+      additionalProperties: false
+      description: "Payload of open-data-manifest v1: a published open-data release's id, financial year, kind and version, build time, the NCR reference it reconciles with (null for a snapshot of a draft), who published it (null when on the NCR's approval), the suppression threshold, and the six tables' rows, hidden cells and SHA-256 of their JSON and CSV files, with the SHA-256 of the release JSON. No figures. Sent by the reporting service"
     DisclosedDeclaration:
       type: object
       properties:
@@ -3733,6 +3816,21 @@ components:
             - ncr-approved
             - no-submitted-reports
             - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

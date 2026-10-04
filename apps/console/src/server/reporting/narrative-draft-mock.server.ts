@@ -13,8 +13,8 @@
  *   above the non-filer threshold.
  *
  * It follows the service's rules: EACC analysts and supervisors only (403), 404 before the first
- * build, 409 `ncr-approved` once approved, 409 `no-pattern-candidates` for findings (or all) with
- * none to narrate. In each section drafted the new paragraphs replace those still marked as AI
+ * build, 409 `ncr-approved` once approved, 409 `no-pattern-candidates` for findings with none to
+ * narrate (all with none drafts the overview and the recommendations, a job each). In each section drafted the new paragraphs replace those still marked as AI
  * drafts, where the first of them stood; `replaceAll` replaces the whole section. The requester
  * becomes a contributor and an inserted draft raises the version. A retry with the same
  * Idempotency-Key reads the same job and inserts it once; another body under that key is 422.
@@ -148,18 +148,22 @@ async function startDraft(
 ): Promise<Response> {
   if (report.status === 'approved') return approvedConflict();
   const candidates = mockCandidatesOf(report.aggregates);
-  if ((ask.section === 'findings' || ask.section === 'all') && candidates.length === 0) {
+  if (ask.section === 'findings' && candidates.length === 0) {
     return problem(409, 'There are no pattern candidates to narrate.', 'no-pattern-candidates');
   }
+  // All with no candidates: the overview and the recommendations, findings left as they are.
+  const parts: NarrativeDraftSection[] =
+    ask.section === 'all' && candidates.length === 0
+      ? ['overview', 'recommendations']
+      : [ask.section];
   if (data.seed === 'unavailable') return problem(503, 'The ai-gateway could not be reached');
 
   await delay(1800);
-  const jobId = crypto.randomUUID();
   if (!report.contributors.includes(officer.subject)) report.contributors.push(officer.subject);
   // A new request replaces a draft still being written, which is then never inserted.
   report.pendingDraft = null;
   const draft: NarrativeDraft = {
-    jobId,
+    jobs: parts.map((section) => ({ section, jobId: crypto.randomUUID() })),
     section: ask.section,
     replaceAll: ask.replaceAll,
     status: 'drafting',
@@ -183,9 +187,13 @@ async function startDraft(
       finish('failed', discarded);
       return;
     }
-    report.paragraphs = insertDraft(report.paragraphs, ask, (section) =>
-      draftParagraphs(section, report.aggregates, candidates),
-    );
+    for (const section of parts) {
+      report.paragraphs = insertDraft(
+        report.paragraphs,
+        { section, replaceAll: ask.replaceAll },
+        (drafted) => draftParagraphs(drafted, report.aggregates, candidates),
+      );
+    }
     touch(report, officer);
     finish('inserted', null);
   };

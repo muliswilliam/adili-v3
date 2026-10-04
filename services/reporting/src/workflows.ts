@@ -4,4 +4,5 @@
  */
 export * from './compliance-reports/workflows.js';
 export * from './national-reports/workflows.js';
+export * from './open-data/workflows.js';
 export * from './referrals/workflows.js';

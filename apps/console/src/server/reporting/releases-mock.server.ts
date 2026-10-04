@@ -373,7 +373,7 @@ async function buildOnce(data: Store, text: string, officer: Officer): Promise<R
     aggregates,
   );
   data.releases.push(release);
-  return json(202, release.release);
+  return json(201, release.release);
 }
 
 interface Answer {

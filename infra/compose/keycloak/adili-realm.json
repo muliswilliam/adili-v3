@@ -455,7 +455,7 @@
     {
       "clientId": "reporting",
       "name": "Reporting service",
-      "description": "Reporting service account for Form M: directory Commissions and staff, declarations officer details, review clarifications and ICMS payloads, documents PDFs, notifications emails, and ICMS referrals through the integration-gateway",
+      "description": "Reporting service account: directory Commissions and staff, declarations officer details, review clarifications and ICMS payloads, documents PDFs, notifications emails, ICMS referrals (integration-gateway) and NCR narrative drafts (ai-gateway)",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -472,7 +472,8 @@
         "documents:internal",
         "review:internal",
         "messages",
-        "icms"
+        "icms",
+        "ai:internal"
       ],
       "optionalClientScopes": []
     }

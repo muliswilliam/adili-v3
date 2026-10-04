@@ -137,7 +137,7 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
   // A draft being written when the page loaded: follow it.
   const [state, setState] = useState<DraftState>(() => followed(report) ?? { status: 'idle' });
   // The job last followed, so a report still saying it is being written is not followed twice.
-  const [job, setJob] = useState(() => report?.narrativeDraft?.jobId ?? null);
+  const [job, setJob] = useState(() => draftKey(report?.narrativeDraft));
   // Paragraphs seen as AI drafts: one of them no longer marked so was edited by the analyst.
   const [drafted, setDrafted] = useState<ReadonlySet<string>>(() => aiDraftIds(report, new Set()));
   const [seen, setSeen] = useState(report);
@@ -146,9 +146,9 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
     setDrafted((ids) => aiDraftIds(report, ids));
     // A draft asked for elsewhere (another tab) is being written: follow it too.
     const next = followed(report);
-    const jobId = report?.narrativeDraft?.jobId ?? null;
-    if (next && jobId !== job && state.status === 'idle') {
-      setJob(jobId);
+    const key = draftKey(report?.narrativeDraft);
+    if (next && key !== job && state.status === 'idle') {
+      setJob(key);
       setState(next);
     }
   }
@@ -213,7 +213,7 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
       return;
     }
     if (result.data.narrativeDraft?.status === 'drafting') {
-      setJob(result.data.narrativeDraft.jobId);
+      setJob(draftKey(result.data.narrativeDraft));
       setState({ status: 'drafting', ask, phase: 'polling' });
       return;
     }
@@ -256,10 +256,10 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
             }
             // Another tab asked for a newer draft, which replaced this one: follow that.
             const followed =
-              outcome.jobId === job
+              draftKey(outcome) === job
                 ? state.ask
                 : { section: outcome.section, replaceAll: outcome.replaceAll };
-            if (outcome.jobId !== job) setJob(outcome.jobId);
+            if (draftKey(outcome) !== job) setJob(draftKey(outcome));
             if (outcome.status === 'drafting') {
               setState({ status: 'drafting', ask: followed, phase: 'polling' });
             } else onDraftEnded(followed, answered, context);
@@ -297,6 +297,14 @@ export function useNcrNarrativeDrafting(options: NcrDraftingOptions): NcrExtensi
       );
     },
   };
+}
+
+/**
+ * Which draft a report's narrative draft is: its ai-gateway jobs (one, or the overview's and the
+ * recommendations' for `all` in a year with no pattern candidates); null for none.
+ */
+function draftKey(draft: NationalReport['narrativeDraft'] | undefined): string | null {
+  return draft ? draft.jobs.map((each) => each.jobId).join(',') : null;
 }
 
 /** Drafting, following the report's draft, when it is still being written. */
@@ -448,7 +456,7 @@ function useDraftPoll(
         void load(fy).then((result) => {
           if (!current) return;
           const draft = result.ok ? result.data.narrativeDraft : undefined;
-          if (result.ok && (draft?.status !== 'drafting' || draft.jobId !== job)) {
+          if (result.ok && (draft?.status !== 'drafting' || draftKey(draft) !== job)) {
             end(result.data);
           } else if (!result.ok && result.error.kind === 'unauthenticated') signIn();
           else next();

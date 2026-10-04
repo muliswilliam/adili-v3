@@ -1,0 +1,21 @@
+commission,commissionName,reportStatus,cycle,expected,filed,nonFilers,filingRate,_suppressed
+jsc,Judicial Service Commission,not-reported,initial,,,,,false
+jsc,Judicial Service Commission,not-reported,biennial,,,,,false
+jsc,Judicial Service Commission,not-reported,final,,,,,false
+jsc,Judicial Service Commission,not-reported,all,,,,,false
+nlc,NLC Commission,submitted-on-time,initial,,,,,true
+nlc,NLC Commission,submitted-on-time,biennial,0,0,0,,false
+nlc,NLC Commission,submitted-on-time,final,,,,,true
+nlc,NLC Commission,submitted-on-time,all,,,,,true
+psc,Public Service Commission,submitted-on-time,initial,,,,,true
+psc,Public Service Commission,submitted-on-time,biennial,100,95,5,0.95,false
+psc,Public Service Commission,submitted-on-time,final,,,,,true
+psc,Public Service Commission,submitted-on-time,all,116,109,7,0.9397,false
+tsc,Teachers Service Commission,submitted-late,initial,20,20,0,1,false
+tsc,Teachers Service Commission,submitted-late,biennial,200,150,50,0.75,false
+tsc,Teachers Service Commission,submitted-late,final,15,12,3,0.8,false
+tsc,Teachers Service Commission,submitted-late,all,235,182,53,0.7745,false
+wrc,WRC Commission,submitted-on-time,initial,,,,,true
+wrc,WRC Commission,submitted-on-time,biennial,0,0,0,,false
+wrc,WRC Commission,submitted-on-time,final,,,,,true
+wrc,WRC Commission,submitted-on-time,all,,,,,true

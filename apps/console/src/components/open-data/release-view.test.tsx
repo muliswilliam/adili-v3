@@ -170,13 +170,13 @@ describe('#350 snapshot preview', () => {
     }
   });
 
-  it('marks access requests not collected, never as a zero', async () => {
+  it('shows access requests as counted, never as not collected', async () => {
     renderView(await preview2026());
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Access requests' }));
 
     const panel = tablePanel();
-    expect(within(panel).getAllByText('Not collected yet').length).toBeGreaterThan(0);
-    expect(within(panel).queryByText('0')).toBeNull();
+    expect(within(panel).queryByText('Not collected yet')).toBeNull();
+    expect(within(panel).getAllByText('0').length).toBeGreaterThan(0);
   });
 
   it('says no reporting entity types exist yet', async () => {

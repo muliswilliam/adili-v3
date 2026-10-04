@@ -21,7 +21,7 @@ import {
  * `byCommission.psc.final.declared`; see `aggregatePaths`). Spec 09b's narrative paragraphs
  * (`aggregateRefs`) and pattern candidates (`aggregateKeys`) do not cite these paths: they cite
  * aggregate keys in the ai-gateway scheme (`national.<name>`, `commission.<code>.<name>`,
- * prefixed `fy<fy>.`), built from these aggregates by #326 and #334.
+ * prefixed `fy<fy>.`), built from these aggregates by `narrative-input.ts`.
  */
 
 /** A Form M section's counts with its declared rate (declared / expected; null for none). */
@@ -85,11 +85,80 @@ export function buildAggregates(input: {
   commissions: readonly CommissionFacts[];
   receipts: readonly ReceiptFacts[];
 }): NationalAggregates {
-  const names = new Map(input.commissions.map((commission) => [commission.slug, commission.name]));
+  const filings = new Map<string, Filing>();
   for (const receipt of input.receipts) {
-    if (!names.has(receipt.tenant)) names.set(receipt.tenant, receipt.tenant.toUpperCase());
+    filings.set(receipt.tenant, { ...filingOf(receipt), counts: receipt.counts });
   }
+  return aggregatesOf(input.fy, input.commissions, filings);
+}
+
+/**
+ * The aggregates of the year from the live projections (spec 09b mid-year snapshot), for a year
+ * with no NCR: every Commission's counts as its Form M would compile them now (`counts`, by
+ * slug, from `aggregateFacts`), whether or not it has reported. A Commission's status is still its
+ * report's (not reported until EACC receives one), but its numbers are the projections', never
+ * the receipt's. Every Commission the directory lists, or that has counts or a receipt, has a
+ * row with numbers: one without facts counts zeros, which is what the projections hold for it.
+ */
+export function buildLiveAggregates(input: {
+  fy: number;
+  commissions: readonly CommissionFacts[];
+  counts: ReadonlyMap<string, ReportCounts>;
+  receipts: readonly ReceiptFacts[];
+}): NationalAggregates {
   const receipts = new Map(input.receipts.map((receipt) => [receipt.tenant, receipt]));
+  const slugs = new Set([
+    ...input.commissions.map((commission) => commission.slug),
+    ...input.counts.keys(),
+    ...receipts.keys(),
+  ]);
+  const filings = new Map<string, Filing>();
+  for (const slug of slugs) {
+    filings.set(slug, {
+      ...filingOf(receipts.get(slug)),
+      counts: input.counts.get(slug) ?? NO_COUNTS,
+    });
+  }
+  return aggregatesOf(input.fy, input.commissions, filings);
+}
+
+/** A Commission's row as filed (or, live, as projected): its report's status and the counts. */
+interface Filing {
+  status: IntakeStatus;
+  reportId: string | null;
+  reference: string | null;
+  submittedAt: string | null;
+  counts: ReportCounts;
+}
+
+/** What the projections hold for a Commission with no facts for the year. */
+const NO_COUNTS: ReportCounts = {
+  initial: { expected: 0, declared: 0, notDeclared: 0 },
+  biennial: { expected: 0, declared: 0, notDeclared: 0, noCycleInPeriod: true },
+  final: { expected: 0, declared: 0, notDeclared: 0 },
+  clarifications: 0,
+  accessRequests: { received: 0, granted: 0, declined: 0 },
+};
+
+function filingOf(receipt: ReceiptFacts | undefined): Omit<Filing, 'counts'> {
+  return {
+    status: intakeStatusOf(receipt),
+    reportId: receipt?.reportId ?? null,
+    reference: receipt?.reference ?? null,
+    submittedAt: receipt?.submittedAt.toISOString() ?? null,
+  };
+}
+
+/** The aggregates over the listed Commissions and those with a filing; no filing, no numbers. */
+function aggregatesOf(
+  fy: number,
+  commissions: readonly CommissionFacts[],
+  filings: ReadonlyMap<string, Filing>,
+): NationalAggregates {
+  const names = new Map(commissions.map((commission) => [commission.slug, commission.name]));
+  for (const slug of filings.keys()) {
+    if (!names.has(slug)) names.set(slug, slug.toUpperCase());
+  }
 
   const totals = {
     initial: emptySection(),
@@ -101,14 +170,11 @@ export function buildAggregates(input: {
   const byCommission: Record<string, CommissionAggregate> = {};
   for (const slug of [...names.keys()].sort()) {
     const name = names.get(slug) ?? slug;
-    const receipt = receipts.get(slug);
-    if (!receipt) {
+    const filing = filings.get(slug);
+    if (!filing) {
       byCommission[slug] = {
         name,
-        status: intakeStatusOf(undefined),
-        reportId: null,
-        reference: null,
-        submittedAt: null,
+        ...filingOf(undefined),
         initial: null,
         biennial: null,
         final: null,
@@ -117,7 +183,7 @@ export function buildAggregates(input: {
       };
       continue;
     }
-    const counts = receipt.counts;
+    const counts = filing.counts;
     for (const section of INTAKE_SECTIONS) add(totals[section], sectionOf(counts, section));
     const clarifications = numberOr0(counts.clarifications);
     const access = accessOf(counts);
@@ -127,10 +193,10 @@ export function buildAggregates(input: {
     totals.accessRequests.declined += access.declined;
     byCommission[slug] = {
       name,
-      status: intakeStatusOf(receipt),
-      reportId: receipt.reportId,
-      reference: receipt.reference,
-      submittedAt: receipt.submittedAt.toISOString(),
+      status: filing.status,
+      reportId: filing.reportId,
+      reference: filing.reference,
+      submittedAt: filing.submittedAt,
       initial: withRate(sectionOf(counts, 'initial')),
       biennial: {
         ...withRate(sectionOf(counts, 'biennial')),
@@ -147,7 +213,7 @@ export function buildAggregates(input: {
   const rows = Object.values(byCommission);
   const { onTime, late, notReported } = statusCounts(rows.map((row) => row.status));
   return {
-    fy: input.fy,
+    fy,
     reporting: {
       commissions: rows.length,
       reported: onTime + late,
@@ -172,7 +238,7 @@ export function buildAggregates(input: {
  * Every number's dot path in `aggregates`, sorted (`national.initial.rate`,
  * `byCommission.psc.final.declared`...). A rate that is null (nothing expected) is still a path.
  * These are not aggregate keys, which narrative paragraphs and pattern candidates cite: those
- * are in the ai-gateway scheme, and building them is #326 and #334's work.
+ * are in the ai-gateway scheme (`narrative-input.ts`).
  */
 export function aggregatePaths(aggregates: NationalAggregates): string[] {
   const paths: string[] = [];

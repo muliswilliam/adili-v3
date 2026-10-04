@@ -2108,6 +2108,9 @@ importers:
       '@adili/api-kit':
         specifier: workspace:*
         version: link:../../packages/api-kit
+      '@adili/cache':
+        specifier: workspace:*
+        version: link:../../packages/cache
       '@adili/data-access':
         specifier: workspace:*
         version: link:../../packages/data-access
@@ -2129,6 +2132,9 @@ importers:
       '@adili/temporal':
         specifier: workspace:*
         version: link:../../packages/temporal
+      '@aws-sdk/client-s3':
+        specifier: ^3.1140.0
+        version: 3.1140.0
       '@nestjs/common':
         specifier: ^12.1.0
         version: 12.1.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)

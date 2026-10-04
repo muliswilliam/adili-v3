@@ -4963,6 +4963,21 @@ components:
             - ncr-approved
             - no-submitted-reports
             - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -5052,6 +5067,21 @@ components:
             - ncr-approved
             - no-submitted-reports
             - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string
@@ -7007,6 +7037,21 @@ components:
             - ncr-approved
             - no-submitted-reports
             - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

@@ -233,9 +233,29 @@ export interface paths {
         };
         /**
          * The national consolidated report for a financial year
-         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's report is first built. `aggregates` holds counts and rates only: `reporting` (Commissions reported on time, late, not reported), `national` (per section expected, declared, not declared and rate, the three together as `all`, clarifications, access requests) and `byCommission` (per Commission slug: name, status, report id and reference, and its numbers once reported). Narrative paragraphs cite figures in `aggregateRefs` by aggregate key in the ai-gateway scheme, as `PatternCandidate.aggregateKeys` does, not by dot path into `aggregates`.
+         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. 404 until the year's report is first built. `aggregates` holds counts and rates only: `reporting` (Commissions reported on time, late, not reported), `national` (per section expected, declared, not declared and rate, the three together as `all`, clarifications, access requests) and `byCommission` (per Commission slug: name, status, report id and reference, and its numbers once reported). Narrative paragraphs cite figures in `aggregateRefs` by aggregate key in the ai-gateway scheme, as `PatternCandidate.aggregateKeys` does, not by dot path into `aggregates`. Reading the report is how a narrative draft answered 202 is polled, so this GET can write: a `narrativeDraft` still `drafting` is looked up at the ai-gateway first (a call per job) and, once its jobs have ended, settled under the report's lock before the report is answered: inserted (`inserted`: its AI-draft paragraphs written into the narrative, the requester made a contributor, `ncr.narrative-drafted.v1` emitted) or discarded (`failed` with its reason). Settled once, whichever read or retry gets there first. While the gateway cannot be reached the report is answered with the draft still `drafting`, unchanged.
          */
         get: operations["getNationalReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eacc/national-reports/{fy}/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deterministic pattern candidates computed from this and prior years' aggregates (analyst)
+         * @description Computed from the year's aggregates as last built and those of the prior years built, at the configured thresholds (`CANDIDATE_*`), ordered by kind, then the largest first (a rate change's points either way, a breaching rate, a run's years, the factor over the national clarification ratio, the points above the size band), then subject (`national` first on a tie). Values by kind: `rate-change` {from, to, change, factor} of a non-filer rate year on year (the filing rate's complement); `threshold-breach` {nonFilerRate, threshold}; `chronic-late-reporting` {years} of reports submitted late running; `clarification-ratio-outlier` {clarificationRatio, nationalRatio, factor}; `size-band-outlier` {nonFilerRate, peerNonFilerRate, peers, bandFrom, bandTo} against the other Commissions with as many officers expected; `non-reporting` {years} without a report running. EACC analysts and supervisors only; anyone else 403. 404 until the year's report is first built.
+         */
+        get: operations["getNationalReportCandidates"];
         put?: never;
         post?: never;
         delete?: never;
@@ -284,6 +304,26 @@ export interface paths {
         patch: operations["updateNationalReportNarrative"];
         trace?: never;
     };
+    "/v1/eacc/national-reports/{fy}/narrative/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits
+         * @description eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's `narrate-compliance-report` task gets the year's figures (national totals and rates, the per-Commission table, prior years) and pattern candidates only, data class `restricted`, and the request waits up to 20 s for it. A draft of `findings`, or of `all`, needs at least one pattern candidate (the task narrates a finding only from one): with none, `all` drafts the overview and the recommendations (a task call each, findings left as they are), and `findings` is 409 `no-pattern-candidates`. Ready by then: its paragraphs are inserted with `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job has ended. In each section drafted, the new paragraphs replace those still marked as AI drafts (where the first of them stood), and paragraphs the analyst edited or typed stay; `replaceAll` replaces the whole section. Editing a paragraph through `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section, job ids; no figures). A new request replaces a draft still being written, whose job is then never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry with the same Idempotency-Key reads the same job, and inserts it once.
+         */
+        post: operations["draftNationalReportNarrative"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/eacc/national-reports/{fy}/approve": {
         parameters: {
             query?: never;
@@ -298,6 +338,190 @@ export interface paths {
          * @description eacc-supervisor only; eacc-analyst and anyone else 403. The author, or anyone who built the report or saved its narrative, gets 403 `separation-of-duties`. Allocates `NCR-EACC-<FY end>-<seq>-<check>`, freezes the report and emits `ncr.approved.v1` (ids, year, version, reference). The Restricted PDF follows (`documentId`, polled on the report), and the year's chase of non-reporting Commissions ends. A retry with the same Idempotency-Key replays the approval; another approval of an approved report is 409 `ncr-approved` and allocates nothing.
          */
         post: operations["approveNationalReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eacc/open-data/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All releases including previews and withdrawn (EACC)
+         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. The latest financial year first, then by kind, the latest version first.
+         */
+        get: operations["listOpenDataReleasesEacc"];
+        put?: never;
+        /**
+         * Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)
+         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables from the year's national consolidated report's aggregates as last built (a report submitted since changes nothing until the NCR is rebuilt) and the projection facts, suppresses every figure over fewer than 10 officers (with complementary suppression), and reconciles the tables' national totals with the NCR's (409 `reconciliation-failed`, `mismatches` listing the totals that differ, is a fault of the table builder; nothing is built). Access requests are the reports' Form M section 5 counts (received, granted, declined), suppressed with each Commission's other counts and reconciled too. Reporting entity types are not collected: `by-entity-type` has no rows and names its filing figures in `notCollected`. `kind` `snapshot` (the default) builds a snapshot of the NCR, draft or approved, or, before the year's NCR is built, a mid-year snapshot of the live projections: every Commission's counts as its Form M would compile now (filing obligations, clarifications and access requests of the year), its status its report's, reconciled with those projections' own national totals and suppressed alike (409 `fy-not-started` for a year that has not started). The release JSON names the source (`national-report` or `live-projections`). `kind` `annual` builds a corrected annual release from the approved NCR (409 `ncr-not-approved` before it is approved) while no annual release of the year is published (409 `annual-release-published`: withdraw it first); unlike the one built on approval it is not published by itself, but deliberately through `publishOpenDataRelease`. The files (JSON and CSV per table, the release JSON) are written to object storage with their SHA-256, and the release is recorded as `preview`, the next version of the year's releases of its kind. The build takes its version before the files are written and records the release once they are, so one of a year and kind runs at a time (409 `release-building`); a build whose files could not be written (503 `storage-unavailable`) records no release and gives its version back. Emits `open-data.release.built.v1` (release id, year, kind, version; no figures). A retry with the same Idempotency-Key replays the build.
+         */
+        post: operations["buildOpenDataRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eacc/open-data/releases/{releaseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A release of any status with its six tables as built, suppression applied, and its source (EACC)
+         * @description Spec 09b S6: the preview EACC checks before a supervisor publishes it. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview included (the public API never serves a preview). `tables` are the release's table files as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the tables were built from and reconciled with at build (`buildOpenDataRelease`): the national consolidated report (its reference if it was approved by then) or, for a snapshot of a year without one, the live projections. A release that exists has reconciled.
+         */
+        get: operations["getOpenDataReleaseEacc"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eacc/open-data/releases/{releaseId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a preview release (EACC supervisor)
+         * @description eacc-supervisor (tenant `eacc`); anyone else, an eacc-analyst included, 403. Issues the release's manifest (year, kind, version, build time, the NCR reference it reconciles with, the publisher, the suppression threshold, and each table's rows, hidden cells and the SHA-256 of its JSON and CSV files, with the release JSON's) through documents as a Public verifiable document (`open-data-manifest`), then marks the release `published` by the caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no figures). An annual release publishes itself the same way when its NCR is approved, `publishedBy` the approver. The release was reconciled with the NCR when it was built. A year has one published annual release at a time: an annual preview is published only once the year's published one is withdrawn (409 `annual-release-published`).
+         */
+        post: operations["publishOpenDataRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eacc/open-data/releases/{releaseId}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a published release with a public reason (EACC supervisor)
+         * @description eacc-supervisor (tenant `eacc`); anyone else 403. Revokes the release's manifest through documents (reason `withdrawn`), so its verify page shows it revoked, then marks the release `withdrawn` with the reason (trimmed), by the caller; it stays in the history and its files are still served, with the reason. A corrected release is a new build (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind, version; not the reason).
+         */
+        post: operations["withdrawOpenDataRelease"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/open-data/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Commission's own rows of the current preview or published release, suppression as released (commission-admin)
+         * @description The release shown is, of the most recent financial year with a preview or published release, the one built last; withdrawn releases are never shown. Only the Commission tables, filtered to the caller's Commission; national tables and other Commissions' rows are never returned. Anyone not of the Commission gets 404, its other staff 403.
+         */
+        get: operations["getCommissionOpenDataPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open-data/v1/releases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published and withdrawn releases (public; cached; rate-limited)
+         * @description Spec 09b S8. No token; any origin (`Access-Control-Allow-Origin: *`); a budget per client IP. The latest year first, then by kind and the latest version first. Previews are never listed. The ETag is the body's SHA-256: `If-None-Match` (or `If-Modified-Since`) with a current copy gets 304.
+         */
+        get: operations["listOpenDataReleases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open-data/v1/releases/{fy}/{kind}/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A release with its tables, hashes and manifest verification link (public)
+         * @description Spec 09b S7, S8. A published or withdrawn release (a preview is 404); a withdrawn one carries when and why, and the version correcting it once published. Cached and conditional as `listOpenDataReleases`.
+         */
+        get: operations["getOpenDataRelease"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A table as JSON or CSV by the Accept header; suppressed cells are null with a marker (public)
+         * @description Spec 09b S7, S8. The table's file as stored, byte for byte: its SHA-256 is the release's `sha256Json` or `sha256Csv` and the ETag. `text/csv` rated above `application/json` in Accept gives CSV, otherwise JSON (`Vary: Accept`); Accept naming neither is 406. Also served for a withdrawn release. Cached and conditional as `listOpenDataReleases`.
+         */
+        get: operations["getOpenDataTable"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/open-data/v1/releases/{fy}/{kind}/{version}/tables/{table}.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A table as CSV, whatever the Accept header (public; a download link)
+         * @description Spec 09b S8. As `getOpenDataTable` in CSV, with `Content-Disposition: attachment` and a file name of the year, kind, version and table.
+         */
+        get: operations["getOpenDataTableCsv"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -338,228 +562,6 @@ export interface paths {
          * @description EACC analysts and supervisors. Pulls the referral's ICMS payload from review (national ID, full name, grounds, details) and registers it through the integration-gateway's ICMS adapter (`submitIcmsReferral`), idempotent by the `RFL` reference; ICMS is retried with backoff while unreachable. A case number is stored (`registered`) and `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and followed to its case number. A retry with the same Idempotency-Key replays the answer; a registered referral is answered as it is and never sent again.
          */
         post: operations["pushReferralToIcms"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/national-reports/{fy}/candidates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        /** Deterministic pattern candidates computed from this and prior years' aggregates (analyst) */
-        get: operations["getNationalReportCandidates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/national-reports/{fy}/narrative/draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits
-         * @description eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's
-         *     `narrate-compliance-report` task gets the year's figures (national totals and rates, the
-         *     per-Commission table, prior years) and pattern candidates only, data class `restricted`,
-         *     and the request waits up to 20 s for it. Ready by then: its paragraphs are inserted with
-         *     `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with
-         *     `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job
-         *     has ended. In each section drafted, the new paragraphs replace those still marked as AI
-         *     drafts (where the first of them stood), and paragraphs the analyst edited or typed stay;
-         *     `replaceAll` replaces the whole section. Editing a paragraph through
-         *     `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor
-         *     (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section,
-         *     job id; no figures). A new request replaces a draft still being written, whose job is then
-         *     never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry
-         *     with the same Idempotency-Key reads the same job, and inserts it once.
-         */
-        post: operations["draftNationalReportNarrative"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/open-data/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** All releases including previews and withdrawn (EACC) */
-        get: operations["listOpenDataReleasesEacc"];
-        put?: never;
-        /**
-         * Build a snapshot, or a corrected annual release, for a financial year as a preview (EACC analyst or supervisor)
-         * @description eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Builds the six tables from the year's national consolidated report's aggregates as last built (a report submitted since changes nothing until the NCR is rebuilt) and the projection facts, suppresses every figure over fewer than 10 officers (with complementary suppression), and reconciles the tables' national totals with the NCR's (409 `reconciliation-failed`, `mismatches` listing the totals that differ, is a fault of the table builder; nothing is built). Access requests are not collected yet: their figures are null and named in each table's `notCollected`. `kind` `snapshot` (the default) builds a snapshot of the NCR, draft or approved, or, before the year's NCR is built, a mid-year snapshot of the live projections: every Commission's counts as its Form M would compile now (filing obligations and clarifications of the year), its status its report's, reconciled with those projections' own national totals and suppressed alike (409 `fy-not-started` for a year that has not started). The release JSON names the source (`national-report` or `live-projections`). `kind` `annual` builds a corrected annual release from the approved NCR (409 `ncr-not-approved` before it is approved) while no annual release of the year is published (409 `annual-release-published`: withdraw it first); unlike the one built on approval it is not published by itself, but deliberately through `publishOpenDataRelease`. The files (JSON and CSV per table, the release JSON) are written to object storage with their SHA-256, and the release is recorded as `preview`, the next version of the year's releases of its kind. Emits `open-data.release.built.v1` (release id, year, kind, version; no figures). A retry with the same Idempotency-Key replays the build.
-         */
-        post: operations["buildOpenDataRelease"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/open-data/releases/{releaseId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        /**
-         * A release of any status with its six tables as built, suppression applied, and its source (EACC)
-         * @description Spec 09b S6 (#350): the preview EACC checks before a supervisor publishes it. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview included (the public API never serves a preview). `tables` are the release's table files as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the tables were built from and reconciled with at build (`buildOpenDataRelease`): the national consolidated report (its reference once approved) or, for a snapshot of a year without one, the live projections. A release that exists has reconciled.
-         */
-        get: operations["getOpenDataReleaseEacc"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/open-data/releases/{releaseId}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Publish a preview release (EACC supervisor)
-         * @description eacc-supervisor (tenant `eacc`); anyone else, an eacc-analyst included, 403. Issues the release's manifest (year, kind, version, build time, the NCR reference it reconciles with, the publisher, the suppression threshold, and each table's rows, hidden cells and the SHA-256 of its JSON and CSV files, with the release JSON's) through documents as a Public verifiable document (`open-data-manifest`), then marks the release `published` by the caller. Emits `open-data.release.published.v1` (release id, year, kind, version; no figures). An annual release publishes itself the same way when its NCR is approved, `publishedBy` the approver. The release was reconciled with the NCR when it was built. A year has one published annual release at a time: an annual preview is published only once the year's published one is withdrawn (409 `annual-release-published`).
-         */
-        post: operations["publishOpenDataRelease"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/open-data/releases/{releaseId}/withdraw": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Withdraw a published release with a public reason (EACC supervisor)
-         * @description eacc-supervisor (tenant `eacc`); anyone else 403. Revokes the release's manifest through documents (reason `withdrawn`), so its verify page shows it revoked, then marks the release `withdrawn` with the reason (trimmed), by the caller; it stays in the history and its files are still served, with the reason. A corrected release is a new build (`buildOpenDataRelease`, `kind` as the withdrawn one's), the next version of the year's releases of its kind. Emits `open-data.release.withdrawn.v1` (release id, year, kind, version; not the reason).
-         */
-        post: operations["withdrawOpenDataRelease"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/commissions/{slug}/open-data/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        /** The Commission's own rows of the latest preview or release, suppression applied (commission-admin) */
-        get: operations["getCommissionOpenDataPreview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/open-data/v1/releases": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Published and withdrawn releases (public; cached; rate-limited) */
-        get: operations["listOpenDataReleases"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/open-data/v1/releases/{fy}/{version}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-            };
-            cookie?: never;
-        };
-        /** A release with its tables' metadata, hashes and verification link (public) */
-        get: operations["getOpenDataRelease"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/open-data/v1/releases/{fy}/{version}/tables/{table}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-                table: components["schemas"]["OpenDataTable"];
-            };
-            cookie?: never;
-        };
-        /** A table as JSON rows or CSV (Accept header or `.csv` suffix); suppressed cells are null with a marker (public) */
-        get: operations["getOpenDataTable"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1016,6 +1018,42 @@ export interface components {
                 };
             };
         };
+        PatternCandidate: {
+            /** @description `<kind>:<subject>:<figure>`, stable across builds of the year */
+            id: string;
+            /** @enum {string} */
+            kind: "rate-change" | "threshold-breach" | "chronic-late-reporting" | "clarification-ratio-outlier" | "size-band-outlier" | "non-reporting";
+            /** @description Commission slug, entity type, or `national` */
+            subject: string;
+            /** @description The figures the candidate rests on, by name: numbers, strings or null, no nested values, as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state (a change, a count of years) is carried here. */
+            values: {
+                [key: string]: number | string | null;
+            };
+            /** @description Keys of the figures the candidate rests on, in the ai-gateway scheme (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year */
+            aggregateKeys: string[];
+        };
+        NarrativeDraft: {
+            /** @description The ai-gateway jobs writing the draft, each with the section it asks for: one, or for `all` in a year with no pattern candidates, the overview's and the recommendations' */
+            jobs: {
+                /** @enum {string} */
+                section: "overview" | "findings" | "recommendations" | "all";
+                /** Format: uuid */
+                jobId: string;
+            }[];
+            /** @enum {string} */
+            section: "overview" | "findings" | "recommendations" | "all";
+            replaceAll: boolean;
+            /**
+             * @description `drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted
+             * @enum {string}
+             */
+            status: "drafting" | "inserted" | "failed";
+            /** @description Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`, `budget`, `provider`, ...), or `missing` (the gateway no longer has the job), `invalid-output`, `aggregates-rebuilt` or `ncr-approved` */
+            failureReason: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            finishedAt: string | null;
+        };
         NationalReport: {
             /** Format: uuid */
             id: string;
@@ -1031,6 +1069,8 @@ export interface components {
             narrative: components["schemas"]["Narrative"];
             /** @description The paragraphs behind the narrative sections, per section in position order; AI drafts (spec 09b) labelled until edited */
             narrativeParagraphs: components["schemas"]["NarrativeParagraph"][];
+            /** @description The latest AI narrative draft (spec 09b); null until one is asked for */
+            narrativeDraft: components["schemas"]["NarrativeDraft"] | null;
             author: components["schemas"]["Officer"] | null;
             approver: components["schemas"]["Officer"] | null;
             approvedAt: string | null;
@@ -1111,84 +1151,68 @@ export interface components {
                 other: number;
             };
         };
-        ProblemDetails: {
-            type: string;
-            title: string;
-            status: number;
-            /**
-             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
-             * @enum {string}
-             */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed";
-            detail?: string;
-            instance?: string;
-            /** @description Field-level errors; `path` is the dotted request field */
-            errors?: {
-                path: string;
-                message: string;
-            }[];
-        };
-        PatternCandidate: {
-            id: string;
-            /** @enum {string} */
-            kind: "rate-change" | "threshold-breach" | "chronic-late-reporting" | "clarification-ratio-outlier" | "size-band-outlier" | "non-reporting";
-            /** @description Commission slug, entity type, or `national` */
-            subject: string;
-            /** @description The figures the candidate rests on, by name: numbers, strings or null, no nested values, as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state (a change, a count of years) is carried here. */
-            values: {
-                [key: string]: number | string | null;
-            };
-            /** @description Keys of the figures the candidate rests on, in the ai-gateway scheme (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year */
-            aggregateKeys: string[];
-        };
-        NarrativeDraft: {
-            /**
-             * Format: uuid
-             * @description The ai-gateway job writing the draft
-             */
-            jobId: string;
-            /** @enum {string} */
-            section: "overview" | "findings" | "recommendations" | "all";
-            replaceAll: boolean;
-            /**
-             * @description `drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted
-             * @enum {string}
-             */
-            status: "drafting" | "inserted" | "failed";
-            /** @description Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`, `budget`, `provider`, ...), or `missing` (the gateway no longer has the job), `invalid-output`, `aggregates-rebuilt` or `ncr-approved` */
-            failureReason: string | null;
-            /** Format: date-time */
-            requestedAt: string;
-            /** Format: date-time */
-            finishedAt: string | null;
-        };
         /** @enum {string} */
         OpenDataTable: "filing-by-commission" | "compliance-by-commission" | "by-entity-type" | "by-cycle" | "access-requests" | "national-totals";
-        /** @description A release's table as stored (`getOpenDataTable` JSON) */
+        OpenDataRelease: {
+            /** Format: uuid */
+            id: string;
+            /** @description Financial year start year */
+            fy: number;
+            /** @enum {string} */
+            kind: "annual" | "snapshot";
+            version: number;
+            /** @enum {string} */
+            status: "preview" | "published" | "withdrawn";
+            /** Format: date-time */
+            builtAt: string;
+            publishedAt: string | null;
+            /** @description The EACC supervisor who published it; for an annual release, who approved its NCR. Null while a preview */
+            publishedBy: components["schemas"]["Officer"] | null;
+            withdrawnAt: string | null;
+            /** @description The EACC supervisor who withdrew it; null unless withdrawn */
+            withdrawnBy: components["schemas"]["Officer"] | null;
+            withdrawnReason: string | null;
+            /** @description The Public manifest document (documents service); null while a preview */
+            manifestDocumentId: string | null;
+            /** @description Verification code of the Public manifest document */
+            manifestVerificationId: string | null;
+            tables: {
+                table: components["schemas"]["OpenDataTable"];
+                rows: number;
+                /** @description SHA-256 (hex) of the table's JSON as `getOpenDataTable` serves it */
+                sha256Json: string;
+                /** @description SHA-256 (hex) of the table's CSV */
+                sha256Csv: string;
+            }[];
+        };
+        /** @description A table of a release: its columns in order, its rows (dimensions, figures, null when suppressed or not collected, and the `suppressed` marker), and how many figures suppression hid */
         OpenDataTableFile: {
             table: components["schemas"]["OpenDataTable"];
             columns: string[];
             rows: {
-                [key: string]: unknown;
+                [key: string]: string | number | boolean | null;
             }[];
             suppression: {
+                /** @description Fewest officers a published figure stands for (10) */
                 threshold: number;
                 /** @description Figures hidden by suppression; figures not collected are not counted */
                 cellsSuppressed: number;
             };
-            /** @description Figures not collected yet (columns, or in `national-totals` measures) whose values are null for want of data, not suppression */
+            /** @description Figures not collected yet: columns, or in `national-totals` measures, whose values are null for want of data, not suppression (`suppressed` stays false): `by-entity-type`'s filing figures (no rows) until the directory carries entity types; empty otherwise. */
             notCollected: string[];
         };
         OpenDataReleaseDetail: {
             release: components["schemas"]["OpenDataRelease"];
             /** @description Who built it; null for the release workflow on NCR approval */
             builtBy: components["schemas"]["Officer"] | null;
+            /** @description What the tables were built from and reconciled with at build */
             source: {
                 /** @enum {string} */
                 kind: "national-report" | "live-projections";
-                /** @description The NCR's reference (`NCR-EACC-...`) once approved; null for a draft NCR or the live projections */
+                /** @description The NCR's reference (`NCR-EACC-...`) when it was approved at build; null for a draft NCR or the live projections */
                 nationalReportReference: string | null;
             };
+            /** @description The release's six table files as stored, by table */
             tables: {
                 "filing-by-commission": components["schemas"]["OpenDataTableFile"];
                 "compliance-by-commission": components["schemas"]["OpenDataTableFile"];
@@ -1198,68 +1222,77 @@ export interface components {
                 "national-totals": components["schemas"]["OpenDataTableFile"];
             };
         };
-        OpenDataRelease: {
+        CommissionOpenDataPreview: {
+            release: components["schemas"]["OpenDataRelease"];
+            /** @description The Commission's own rows of each Commission table, as released */
+            tables: {
+                "filing-by-commission": {
+                    [key: string]: string | number | boolean | null;
+                }[];
+                "compliance-by-commission": {
+                    [key: string]: string | number | boolean | null;
+                }[];
+                "access-requests": {
+                    [key: string]: string | number | boolean | null;
+                }[];
+            };
+        };
+        /** @description A published or withdrawn release as the public sees it. Never who built, published or withdrew it, nor the manifest's document id: the manifest is checked through its verification code on the verify app. */
+        PublicOpenDataRelease: {
             /** Format: uuid */
             id: string;
+            /** @description Financial year start year */
             fy: number;
             /** @enum {string} */
             kind: "annual" | "snapshot";
             version: number;
             /** @enum {string} */
-            status: "preview" | "published" | "withdrawn";
+            status: "published" | "withdrawn";
             /** Format: date-time */
             builtAt: string;
             /** Format: date-time */
-            publishedAt: string | null;
-            /** @description The EACC supervisor who published it; for an annual release, who approved its NCR. Null while a preview */
-            publishedBy: components["schemas"]["Officer"] | null;
-            /** Format: date-time */
+            publishedAt: string;
             withdrawnAt: string | null;
-            /** @description The EACC supervisor who withdrew it; null unless withdrawn */
-            withdrawnBy: components["schemas"]["Officer"] | null;
+            /** @description Why EACC withdrew it (the withdrawn banner); null unless withdrawn */
             withdrawnReason: string | null;
+            /** @description For a withdrawn release, the latest published version of the same year and kind that corrects it; null otherwise or until one is published */
+            correctedVersion: number | null;
+            /** @description Verification code of the release manifest (a Public verifiable document) */
+            manifestVerificationId: string;
             /**
-             * Format: uuid
-             * @description The Public manifest document (documents service); null while a preview
+             * Format: uri
+             * @description The manifest's verify page (`<verify app>/v/<code>`)
              */
-            manifestDocumentId: string | null;
-            /** @description Verification code of the Public manifest document */
-            manifestVerificationId: string | null;
+            verifyUrl: string;
             tables: {
                 table: components["schemas"]["OpenDataTable"];
                 rows: number;
+                /** @description SHA-256 (hex) of the table's JSON as `getOpenDataTable` serves it */
                 sha256Json: string;
+                /** @description SHA-256 (hex) of the table's CSV */
                 sha256Csv: string;
             }[];
         };
-    };
-    responses: {
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role or scope */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
+        ProblemDetails: {
+            type: string;
+            title: string;
+            status: number;
+            /**
+             * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
+             * @enum {string}
+             */
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed" | "ai-not-enabled" | "narrative-validation" | "no-pattern-candidates" | "aggregates-rebuilt" | "narrative-draft-failed" | "ncr-not-built" | "ncr-not-approved" | "fy-not-started" | "release-building" | "reconciliation-failed" | "release-not-preview" | "release-not-published" | "annual-release-published" | "manifest-refused" | "manifest-revocation-refused";
+            detail?: string;
+            instance?: string;
+            /** @description Field-level errors; `path` is the dotted request field */
+            errors?: {
+                path: string;
+                message: string;
+            }[];
         };
     };
-    parameters: {
-        Slug: string;
-        /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-        FinancialYear: number;
-        ReleaseId: string;
-        IdempotencyKey: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -1959,6 +1992,56 @@ export interface operations {
             };
         };
     };
+    getNationalReportCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+                fy: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatternCandidate"][];
+                };
+            };
+            /** @description fy is not a financial year */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only EACC analysts and supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not built yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     buildNationalReport: {
         parameters: {
             query?: never;
@@ -2081,6 +2164,113 @@ export interface operations {
             };
         };
     };
+    draftNationalReportNarrative: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+                fy: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    section: "overview" | "findings" | "recommendations" | "all";
+                    /** @description Replace every paragraph of the section; default replaces only paragraphs still marked as AI draft */
+                    replaceAll: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Draft inserted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NationalReport"];
+                };
+            };
+            /** @description Still drafting; poll the report */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NationalReport"];
+                };
+            };
+            /** @description Body failed validation, Idempotency-Key missing, or fy is not a financial year */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only EACC analysts and supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not built yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Nothing inserted. Problem code `ncr-approved` (the report no longer changes), `narrative-validation` (the draft cited a figure not in the input and was discarded), `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent), `no-pattern-candidates` (findings with no candidate to narrate) or `aggregates-rebuilt` (the report was rebuilt while the draft was written) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `narrative-draft-failed`: the ai-gateway refused the request or the job failed (`reason`: the job's reason, e.g. `provider`, `budget`, `timeout`); nothing inserted */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway could not be reached; nothing was asked of it */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     approveNationalReport: {
         parameters: {
             query?: never;
@@ -2153,6 +2343,795 @@ export interface operations {
             /** @description The workflow engine could not be reached; nothing was approved */
             503: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listOpenDataReleasesEacc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Releases */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataRelease"][];
+                };
+            };
+            /** @description Only EACC analysts and supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    buildOpenDataRelease: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Client-generated UUID, unique per logical request; reuse on retry */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+                    fy: number;
+                    /**
+                     * @description A mid-year snapshot, or a corrected annual release once the published one is withdrawn
+                     * @default snapshot
+                     * @enum {string}
+                     */
+                    kind?: "annual" | "snapshot";
+                };
+            };
+        };
+        responses: {
+            /** @description Built as a preview */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataRelease"];
+                };
+            };
+            /** @description Body failed validation, or Idempotency-Key missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only EACC analysts and supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); another build of the year and kind is under way (`release-building`); or the tables do not reconcile with their source (`reconciliation-failed`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Object storage could not be reached (`storage-unavailable`), or the directory for a snapshot of the live projections (`directory-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getOpenDataReleaseEacc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The release, who built it, its source and its tables */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataReleaseDetail"];
+                };
+            };
+            /** @description The release id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only EACC analysts and supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No release has the id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Object storage could not be reached (`storage-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    publishOpenDataRelease: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                releaseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataRelease"];
+                };
+            };
+            /** @description The release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only an EACC supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No release has the id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused the manifest (`manifest-refused`); nothing is published */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents (`documents-unavailable`) or object storage (`storage-unavailable`) could not be reached; nothing is published */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    withdrawOpenDataRelease: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                releaseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Shown with the withdrawn release in the public API */
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Withdrawn */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataRelease"];
+                };
+            };
+            /** @description Body failed validation, the release id is not a UUID, or the Idempotency-Key is malformed (`idempotency-key-missing`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only an EACC supervisor */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No release has the id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The documents service refused to revoke the manifest (`manifest-revocation-refused`); nothing is withdrawn */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Documents could not be reached (`documents-unavailable`); nothing is withdrawn */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getCommissionOpenDataPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The release and the Commission's rows per table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionOpenDataPreview"];
+                };
+            };
+            /** @description Not a commission-admin of the Commission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not visible to the caller, or no release built yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Object storage could not be reached */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    listOpenDataReleases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Releases */
+            200: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOpenDataRelease"][];
+                };
+            };
+            /** @description The client's copy (If-None-Match, or If-Modified-Since) is current; no body */
+            304: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getOpenDataRelease: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+                fy: number;
+                /** @description 1, 2, ... per financial year and kind; a corrected release is the next version */
+                version: number;
+                /** @description `annual` (published on NCR approval) or `snapshot` (published mid-year by EACC) */
+                kind: "annual" | "snapshot";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Release */
+            200: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOpenDataRelease"];
+                };
+            };
+            /** @description The client's copy (If-None-Match, or If-Modified-Since) is current; no body */
+            304: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A path parameter is malformed */
+            400: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No published or withdrawn release has this year, kind and version. */
+            404: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getOpenDataTable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+                fy: number;
+                /** @description 1, 2, ... per financial year and kind; a corrected release is the next version */
+                version: number;
+                table: components["schemas"]["OpenDataTable"];
+                /** @description `annual` (published on NCR approval) or `snapshot` (published mid-year by EACC) */
+                kind: "annual" | "snapshot";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Table */
+            200: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    Vary?: "Accept";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataTableFile"];
+                    "text/csv": string;
+                };
+            };
+            /** @description The client's copy (If-None-Match, or If-Modified-Since) is current; no body */
+            304: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A path parameter is malformed */
+            400: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No published or withdrawn release has this year, kind and version. */
+            404: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Accept names neither application/json nor text/csv */
+            406: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `storage-unavailable`; object storage could not be reached */
+            503: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getOpenDataTableCsv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
+                fy: number;
+                /** @description 1, 2, ... per financial year and kind; a corrected release is the next version */
+                version: number;
+                table: components["schemas"]["OpenDataTable"];
+                /** @description `annual` (published on NCR approval) or `snapshot` (published mid-year by EACC) */
+                kind: "annual" | "snapshot";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Table as CSV */
+            200: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+            /** @description The client's copy (If-None-Match, or If-Modified-Since) is current; no body */
+            304: {
+                headers: {
+                    /** @description Strong entity tag, the body's SHA-256 in quotes */
+                    ETag?: string;
+                    /** @description When the release last changed (built, published or withdrawn) */
+                    "Last-Modified"?: string;
+                    "Cache-Control"?: "public, max-age=3600";
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A path parameter is malformed */
+            400: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No published or withdrawn release has this year, kind and version. */
+            404: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `storage-unavailable`; object storage could not be reached */
+            503: {
+                headers: {
+                    /** @description Any origin may read the public open-data API (also on errors and 429) */
+                    "Access-Control-Allow-Origin"?: "*";
                     [name: string]: unknown;
                 };
                 content: {
@@ -2280,528 +3259,6 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
-            };
-        };
-    };
-    getNationalReportCandidates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Candidates */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PatternCandidate"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    draftNationalReportNarrative: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    section: "overview" | "findings" | "recommendations" | "all";
-                    /** @description Replace every paragraph of the section; default replaces only paragraphs still marked as AI draft */
-                    replaceAll: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Draft inserted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description Still drafting; poll the report */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NationalReport"];
-                };
-            };
-            /** @description Body failed validation, or Idempotency-Key missing */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Nothing inserted. Problem code `ncr-approved` (the report no longer changes), `narrative-validation` (the draft cited a figure not in the input and was discarded), `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent), `no-pattern-candidates` (findings, or all, with no candidate to narrate) or `aggregates-rebuilt` (the report was rebuilt while the draft was written) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Problem code `narrative-draft-failed`: the ai-gateway refused the request or the job failed (`reason`: the job's reason, e.g. `provider`, `budget`, `timeout`); nothing inserted */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The ai-gateway could not be reached; nothing was asked of it */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    listOpenDataReleasesEacc: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Releases */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"][];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    buildOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                    fy: number;
-                    /**
-                     * @description A mid-year snapshot, or a corrected annual release once the published one is withdrawn
-                     * @default snapshot
-                     * @enum {string}
-                     */
-                    kind?: "annual" | "snapshot";
-                };
-            };
-        };
-        responses: {
-            /** @description Built as a preview */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            /** @description Body failed validation, or Idempotency-Key missing */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            /** @description A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the tables do not reconcile with their source (`reconciliation-failed`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Object storage could not be reached (`storage-unavailable`), or the directory for a snapshot of the live projections (`directory-unavailable`) */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getOpenDataReleaseEacc: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The release, who built it, its source and its tables */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataReleaseDetail"];
-                };
-            };
-            /** @description The release id is not a UUID */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Object storage could not be reached (`storage-unavailable`) */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    publishOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Published */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            /** @description The release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description The release is published or withdrawn already (`release-not-preview`), or it is annual and another annual release of the year is published (`annual-release-published`); or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The documents service refused the manifest (`manifest-refused`); nothing is published */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Documents (`documents-unavailable`) or object storage (`storage-unavailable`) could not be reached; nothing is published */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    withdrawOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Optional. Client-generated UUID, unique per logical request; reuse on retry and the stored answer is replayed instead of acting twice */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Shown with the withdrawn release in the public API */
-                    reason: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Withdrawn */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            /** @description Body failed validation, the release id is not a UUID, or the Idempotency-Key is not 1 to 255 characters (`idempotency-key-missing`) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description The release is a preview or withdrawn already (`release-not-published`), or a request with the same Idempotency-Key is still running (`idempotency-key-in-use`) */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Idempotency-Key reused with a different request body */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description The documents service refused to revoke the manifest (`manifest-revocation-refused`); nothing is withdrawn */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Documents could not be reached (`documents-unavailable`); nothing is withdrawn */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getCommissionOpenDataPreview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Rows per table */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: {
-                            [key: string]: unknown;
-                        }[];
-                    };
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listOpenDataReleases: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Releases */
-            200: {
-                headers: {
-                    ETag?: string;
-                    "Cache-Control"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"][];
-                };
-            };
-            /** @description Rate limited */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getOpenDataRelease: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Release */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataRelease"];
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    getOpenDataTable: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Financial year start year, e.g. 2027 for 1 July 2027 to 30 June 2028 */
-                fy: components["parameters"]["FinancialYear"];
-                version: number;
-                table: components["schemas"]["OpenDataTable"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Table */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        table: components["schemas"]["OpenDataTable"];
-                        columns: string[];
-                        rows: {
-                            [key: string]: unknown;
-                        }[];
-                        suppression: {
-                            threshold: number;
-                            cellsSuppressed: number;
-                        };
-                    };
-                    "text/csv": string;
-                };
-            };
-            /** @description Not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

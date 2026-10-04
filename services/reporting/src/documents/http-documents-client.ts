@@ -8,6 +8,7 @@ import {
   DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type RevokeDocumentRequest,
 } from './documents-client.js';
 
 /** The scope the reporting service's token needs for the documents internal API. */
@@ -30,8 +31,11 @@ export interface HttpDocumentsClientOptions {
 
 const issuedSchema = z.object({ id: z.uuid(), verificationId: z.string().min(1) });
 
+/** What `revokeDocument` answers: the document, revoked. */
+const revokedSchema = z.object({ id: z.uuid() });
+
 /**
- * Documents' `issueDocument` through the client generated from its contract
+ * Documents' `issueDocument` and `revokeDocument` through the client generated from its contract
  * (packages/schemas/internal/documents.yaml → documents-api.gen.ts via `pnpm generate:api`),
  * with the reporting service's own token (`documents:internal`) and the issuing tenant in
  * `X-Acting-Tenant` (ADR-013 §8.5).
@@ -68,5 +72,30 @@ export class HttpDocumentsClient extends DocumentsClient {
       },
     );
     return { id: issued.id, verificationId: issued.verificationId };
+  }
+
+  async revoke(request: RevokeDocumentRequest): Promise<void> {
+    const { documentId, issuerTenant, reason, idempotencyKey } = request;
+    await this.documents.call(
+      (api) =>
+        api.POST('/internal/v1/documents/{documentId}/revoke', {
+          params: {
+            path: { documentId },
+            header: { 'X-Acting-Tenant': issuerTenant, 'Idempotency-Key': idempotencyKey },
+          },
+          body: { reason },
+        }),
+      {
+        status: 200,
+        schema: revokedSchema,
+        otherwise: {
+          // `document-revoked`: what was asked for is done. The documents reporting revokes (a
+          // release manifest) are never superseded or expired, so `document-not-valid` does not
+          // arise; either way the verify page no longer shows the document valid.
+          409: () => undefined,
+          ...refusedWith('documents', [400, 403, 404, 422]),
+        },
+      },
+    );
   }
 }
