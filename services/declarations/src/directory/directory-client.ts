@@ -108,8 +108,9 @@ export abstract class DirectoryClient {
 
   /**
    * The Commission's enabled reporting officers with a verified email, by name and email (an
-   * audited read in the directory): who a declarant is told to ask (spec 11). Personal data: never
-   * logged, put in an event or sent to the ai-gateway.
+   * audited read in the directory): who a declarant is told to ask (spec 11). Read in the
+   * declarant's request with the service's token, the Commission in `X-Acting-Tenant` (ADR-013
+   * §8.14). Personal data: never logged, put in an event or sent to the ai-gateway.
    */
   abstract listReportingOfficers(slug: string): Promise<PulledStaffMember[]>;
 

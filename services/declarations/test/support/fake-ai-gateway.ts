@@ -17,6 +17,11 @@ import {
 export type ScriptedAnswer =
   | { kind: 'answer'; output: AnswerOutput; deltas?: string[] }
   | { kind: 'error'; reason: AiJobReason; deltas?: string[] }
+  /**
+   * The deltas, then nothing until the request is aborted (the declarant left), then the final
+   * all the same, as one already on its way would arrive.
+   */
+  | { kind: 'held'; output: AnswerOutput; deltas: string[] }
   | { kind: 'unavailable' };
 
 /** What the fake answers a hints job with. */
@@ -80,7 +85,16 @@ export function citingFirstPassage(input: AnswerInput): AnswerOutput {
  * citing the first passage and one hint per residual. A rating is recorded for a job it ran.
  */
 export class FakeAiGateway extends AiGatewayClient {
-  readonly requests: { request: AnswerRequest; idempotencyKey: string }[] = [];
+  /**
+   * Each request: what was sent, the signal it was sent with (aborted when the service cancels
+   * the job) and whether the service has closed the stream it got.
+   */
+  readonly requests: {
+    request: AnswerRequest;
+    idempotencyKey: string;
+    signal: AbortSignal;
+    closed: boolean;
+  }[] = [];
   readonly hintRequests: { request: HintsRequest; idempotencyKey: string }[] = [];
   readonly feedback: { tenant: string; jobId: string; feedback: FeedbackInput }[] = [];
   /** The jobs it ran (answers that ended, hints), by id: what it knows to rate. */
@@ -175,26 +189,59 @@ export class FakeAiGateway extends AiGatewayClient {
     idempotencyKey: string,
     signal: AbortSignal,
   ): Promise<AsyncIterable<AnswerFrame>> {
-    this.requests.push({ request: structuredClone(request), idempotencyKey });
+    const sent = { request: structuredClone(request), idempotencyKey, signal, closed: false };
+    this.requests.push(sent);
     const scripted = this.script(request.input);
     if (scripted.kind === 'unavailable') {
       return Promise.reject(new AiGatewayUnavailable('The ai-gateway service answered 503'));
     }
-    const each = frames(scripted, signal, (id) => this.jobs.add(id));
+    const each =
+      scripted.kind === 'held'
+        ? held(scripted, signal)
+        : arriving(scripted, signal, (id) => this.jobs.add(id));
     return Promise.resolve(
       (async function* () {
-        // A stream arrives in turns, as over the network.
-        for (const frame of each) {
-          await Promise.resolve();
-          yield frame;
+        try {
+          yield* each;
+        } finally {
+          sent.closed = true;
         }
       })(),
     );
   }
 }
 
+/** The scripted frames, in turns, as over the network. */
+async function* arriving(
+  scripted: Extract<ScriptedAnswer, { kind: 'answer' | 'error' }>,
+  signal: AbortSignal,
+  ran: (jobId: string) => void,
+): AsyncIterable<AnswerFrame> {
+  for (const frame of frames(scripted, signal, ran)) {
+    await Promise.resolve();
+    yield frame;
+  }
+}
+
+/** The deltas in turns, then nothing until the request is aborted, then the final all the same. */
+async function* held(
+  scripted: Extract<ScriptedAnswer, { kind: 'held' }>,
+  signal: AbortSignal,
+): AsyncIterable<AnswerFrame> {
+  for (const text of scripted.deltas) {
+    await Promise.resolve();
+    yield { event: 'delta', text };
+  }
+  if (!signal.aborted) {
+    await new Promise((resolve) => {
+      signal.addEventListener('abort', resolve, { once: true });
+    });
+  }
+  yield { event: 'final', job: { id: randomUUID(), output: scripted.output } };
+}
+
 function* frames(
-  scripted: Exclude<ScriptedAnswer, { kind: 'unavailable' }>,
+  scripted: Extract<ScriptedAnswer, { kind: 'answer' | 'error' }>,
   signal: AbortSignal,
   ran: (jobId: string) => void,
 ): Iterable<AnswerFrame> {

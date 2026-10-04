@@ -31,7 +31,7 @@ export const ANSWER_TASK = 'answer-declarant-question';
 
 /**
  * A streamed answer request (ai-gateway.yaml `TaskRequest` for `streamAnswerDeclarantQuestion`).
- * `tenant` is the Commission the service acts for, sent as `X-Acting-Tenant` (ADR-013 §8.8).
+ * `tenant` is the Commission the service acts for, sent as `X-Acting-Tenant` (ADR-013 §8.14).
  */
 export interface AnswerRequest {
   tenant: string;
