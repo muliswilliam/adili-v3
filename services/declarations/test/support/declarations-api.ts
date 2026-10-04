@@ -438,9 +438,7 @@ export async function startDeclarationsApi({
       return app.inject({ method: 'GET', url: path });
     },
     async reset() {
-      await db.execute(
-        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
-      );
+      await truncateAll(db);
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
@@ -465,6 +463,27 @@ export async function startDeclarationsApi({
       }
     },
   };
+}
+
+/**
+ * Empties the tables. A workflow an earlier test started (a registry lookup, a document reading)
+ * can still be running an activity on the suite's worker, and its transaction, holding a lock on
+ * one table and waiting for another, deadlocks with the truncate taking them all: Postgres then
+ * aborts one of the two. The truncate is tried again; the activity, finding its rows gone,
+ * records nothing and its workflow ends.
+ */
+async function truncateAll(db: Database<DeclarationsSchema>): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await db.execute(
+        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+      );
+      return;
+    } catch (error) {
+      const code = (error as { cause?: { code?: unknown } }).cause?.code;
+      if (code !== '40P01' || attempt >= 5) throw error;
+    }
+  }
 }
 
 /** Deletes the suite's own events queue and its dead-letter queue. */
