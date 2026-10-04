@@ -5,9 +5,10 @@ import { env } from '../../server/env.server';
 /**
  * Stands in for object storage's presigned downloads while REVIEW_MOCK, ACCESS_MOCK or
  * REPORTING_MOCK is on: the review mock's letter and attachment links, the access mock's
- * representation attachments, the EACC intake mock's Form M PDFs and receipts and the national
- * report mock's NCR PDF point here, as do the self-access mock's certified copies with `?inline`,
- * served inline as object storage serves issued PDFs. Serves a one-page placeholder PDF naming the file.
+ * representation attachments, the EACC intake mock's Form M PDFs and receipts, the referrals
+ * intake mock's evidence packages and the national report mock's NCR PDF point here, as do the
+ * self-access mock's certified copies with `?inline`, served inline as object storage serves
+ * issued PDFs. Serves a one-page placeholder PDF naming the file.
  * Development and tests only; everywhere else it is a 404.
  */
 async function file(id: string, inline: boolean): Promise<Response> {
@@ -21,7 +22,10 @@ async function file(id: string, inline: boolean): Promise<Response> {
       ? (await import('../../server/access/mock.server')).mockAccessFileTitle(id)
       : null) ??
     (config.REPORTING_MOCK
-      ? (await import('../../server/reporting/eacc-mock.server')).mockReportingFileTitle(id)
+      ? ((await import('../../server/reporting/eacc-mock.server')).mockReportingFileTitle(id) ??
+        (await import('../../server/reporting/referral-intake-mock.server')).mockIntakeFileTitle(
+          id,
+        ))
       : null) ??
     (config.REPORTING_MOCK
       ? (await import('../../server/reporting/ncr-mock.server')).mockNcrFileTitle(id)

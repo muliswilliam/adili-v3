@@ -230,8 +230,8 @@ describe('step dialogs: what follows depends on the step', () => {
     const titles = consequencesOf('salary-stoppage', 'Janet Achieng Odero', NOW).map(
       (each) => each.title,
     );
-    expect(titles).toContain("The declarant's salary is stopped");
-    expect(titles).toContain('The declarant must act by 28 Oct 2026');
+    expect(titles).toContain('Payroll receives a stop_salary instruction');
+    expect(titles).toContain('The salary stoppage letter is issued when payroll acknowledges');
   });
 
   it('declining a disciplinary referral keeps the ladder open (S10)', () => {

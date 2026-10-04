@@ -180,6 +180,16 @@ describe('ReferralPage (spec 08 FE-6)', () => {
     });
   });
 
+  it('shows the ICMS case number once EACC registered the sent referral (spec 09 S12)', async () => {
+    await open(R.sent);
+    expect(screen.getByText('ICMS case ICMS-2026-004790')).toBeTruthy();
+  });
+
+  it('shows no ICMS case while EACC has not registered the referral', async () => {
+    await open(R.fromPeter);
+    expect(screen.queryByText(/^ICMS case /)).toBeNull();
+  });
+
   it('shows who declined and their note; no package was assembled', async () => {
     await open(R.declined);
     expect(screen.getByRole('heading', { level: 1, name: 'Declined referral' })).toBeTruthy();

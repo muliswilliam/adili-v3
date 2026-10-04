@@ -12,6 +12,12 @@
  *   left, not answered: the respond form.
  * - `complied`: a notice from last cycle, closed when the declaration was filed.
  *
+ * `salary` (#208, `REVIEW_MOCK_SALARY` in development) carries the clarification's ladder on:
+ * `stopped` adds the salary stoppage issued 6 days ago, payroll having stopped the salary;
+ * `disciplinary` also the disciplinary referral issued yesterday; `reinstating` closes the
+ * ladder as complied, the reinstatement not yet confirmed by payroll; `reinstated` has payroll's
+ * confirmation from yesterday. `none` (the default) stops at the warning.
+ *
  * A response needs an `Idempotency-Key` (a replay returns the first answer), 1 to 4,000
  * characters and up to 10 clean `action-response` uploads from the documents mock (409
  * `attachment-not-clean` / `attachment-not-accepted`). A second response is 409
@@ -21,6 +27,7 @@
 import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
+import type { Env } from '../env.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { reviewClock } from './mock-clock.server';
 import type { components } from './schema.gen';
@@ -33,6 +40,15 @@ export const MOCK_NOTICE_IDS = {
   noticeOpen: 'ac710000-0000-4000-8000-0000000a0003',
   complied: 'ac710000-0000-4000-8000-0000000a0004',
 } as const;
+
+/** The salary stoppage and disciplinary referral notices `salary` seeds (#208). */
+export const MOCK_SALARY_NOTICE_IDS = {
+  stoppage: 'ac710000-0000-4000-8000-0000000a0005',
+  disciplinary: 'ac710000-0000-4000-8000-0000000a0006',
+} as const;
+
+/** How far the clarification's ladder has gone with the declarant's salary (#208). */
+export type MockSalary = Env['REVIEW_MOCK_SALARY'];
 
 const COMMISSION = { slug: 'tsc', name: 'Teachers Service Commission' };
 
@@ -93,7 +109,10 @@ function notice(
 }
 
 /** Clears responses and seeds the notices with "now" at `now` (tests pass a fixed time). */
-export function resetNoticesMock(now: number = Date.now(), { empty = false } = {}) {
+export function resetNoticesMock(
+  now: number = Date.now(),
+  { empty = false, salary = 'none' }: { empty?: boolean; salary?: MockSalary } = {},
+) {
   notices.clear();
   answered.clear();
   failNext = false;
@@ -152,6 +171,62 @@ export function resetNoticesMock(now: number = Date.now(), { empty = false } = {
       },
     ),
   );
+  if (salary !== 'none') seedSalary(now, salary);
+}
+
+/** The clarification's ladder carried on to the salary stoppage and beyond (#208). */
+function seedSalary(now: number, salary: Exclude<MockSalary, 'none'>) {
+  const ids = { ...MOCK_NOTICE_IDS, ...MOCK_SALARY_NOTICE_IDS };
+  const closed = salary === 'reinstating' || salary === 'reinstated';
+  const stoppedAt = at(now, -6);
+  const update = (id: string, change: Partial<Notice>) => {
+    const found = notices.get(id);
+    if (found) notices.set(id, { ...found, ...change });
+  };
+  // The ladder dated back: notice answered, warning ignored, salary stopped 6 days ago.
+  update(ids.noticeResponded, { issuedAt: at(now, -36), actBy: at(now, -22) });
+  const responded = notices.get(ids.noticeResponded)?.response;
+  if (responded)
+    update(ids.noticeResponded, { response: { ...responded, submittedAt: at(now, -30) } });
+  update(ids.warning, { issuedAt: at(now, -21), actBy: at(now, -7) });
+  notices.set(
+    ids.stoppage,
+    notice(
+      ids.stoppage,
+      'salary-stoppage',
+      'respond-to-clarification',
+      'ADM-TSC-2026-0000358-0',
+      6,
+      now,
+      {
+        actBy: addDays(stoppedAt, 30),
+        salaryStoppedAt: stoppedAt,
+        ...(salary === 'reinstated'
+          ? { status: 'reinstated', salaryReinstatedAt: at(now, -1) }
+          : salary === 'reinstating'
+            ? { status: 'complied' }
+            : {}),
+      },
+    ),
+  );
+  if (salary === 'disciplinary') {
+    notices.set(
+      ids.disciplinary,
+      notice(
+        ids.disciplinary,
+        'disciplinary-referral',
+        'respond-to-clarification',
+        'ADM-TSC-2026-0000402-B',
+        1,
+        now,
+        { actBy: null },
+      ),
+    );
+  }
+  if (closed) {
+    update(ids.warning, { status: 'complied' });
+    update(ids.noticeResponded, { status: 'complied' });
+  }
 }
 
 /** The next response answers 503, as if the service were down (tests). */

@@ -31,7 +31,7 @@ import {
 import type { Ladder, LadderPage } from '../../server/actions.server';
 import type { ServiceResult } from '../../server/service-call';
 import { LoadError } from '../load-error';
-import { ActionStatusBadge } from './status-badge';
+import { StepBadge } from './status-badge';
 import { en as m, stepLabel } from './messages';
 
 export interface ActionsListProps {
@@ -151,7 +151,7 @@ function CurrentStep({ ladder }: { ladder: Ladder }) {
   return (
     <div className="grid justify-items-start gap-1">
       <span className="font-medium">{stepLabel(action.step)}</span>
-      <ActionStatusBadge status={action.status} />
+      <StepBadge action={action} ladderStatus={ladder.status} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   COMMISSION_ADMIN,
   COMMISSION_ROSTER_ROLES,
   COMMISSION_STAFF_ROLES,
+  EACC_ANALYST,
   EACC_ROLES,
   FORM_M_ROLES,
   HELPDESK,
@@ -40,7 +41,8 @@ export type WorkspaceHref =
   | '/platform/law-enforcement'
   | '/ai-policy'
   | '/form-m'
-  | '/eacc/reports';
+  | '/eacc/reports'
+  | '/eacc/referrals';
 
 interface WorkspaceDefinition {
   id: string;
@@ -107,6 +109,12 @@ export function readsCommissionPolicy(roles: readonly string[]): boolean {
  * nobody else sees it, EACC included.
  */
 export const FORM_M_WRITE_ROLES = [SUPERVISOR, COMMISSION_ADMIN] as const;
+
+/**
+ * EACC analysts push referrals to ICMS (spec 09 FE access table); EACC supervisors read the
+ * intake and download packages.
+ */
+export const REFERRAL_PUSH_ROLES = [EACC_ANALYST] as const;
 
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
@@ -214,6 +222,15 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Receive Form M reports and build the national consolidated report.',
     href: '/eacc/reports',
     roles: EACC_ROLES,
+  },
+  {
+    id: 'referrals-intake',
+    title: 'Referrals received',
+    description: 'Referrals from Commissions with their evidence packages, handed to ICMS.',
+    readOnlyDescription: 'Referrals from Commissions with their evidence packages and ICMS status.',
+    href: '/eacc/referrals',
+    roles: EACC_ROLES,
+    writeRoles: REFERRAL_PUSH_ROLES,
   },
   {
     id: 'audit',
