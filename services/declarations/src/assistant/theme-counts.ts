@@ -13,6 +13,14 @@ import { type QuestionTheme, themeOf } from './themes.js';
 
 const logger = new Logger('ThemeCounts');
 
+/** A question being stored with its answer: its Commission, words, time and whether declined. */
+export interface CountedQuestion {
+  tenant: string;
+  text: string;
+  at: Date;
+  declined: boolean;
+}
+
 /**
  * Counts the question at the conversation's Commission, in a savepoint of the transaction that
  * stores it: a count the row-level security refuses (the person no longer has an obligation
@@ -21,7 +29,7 @@ const logger = new Logger('ThemeCounts');
  */
 export async function countQuestion(
   tx: Transaction,
-  question: { tenant: string; text: string; at: Date; declined: boolean },
+  question: CountedQuestion,
 ): Promise<QuestionTheme> {
   const theme = themeOf(question.text);
   try {
@@ -43,7 +51,7 @@ function refusedByRowSecurity(error: unknown): boolean {
 
 async function upsertCount(
   tx: Transaction,
-  question: { tenant: string; at: Date; declined: boolean },
+  question: Omit<CountedQuestion, 'text'>,
   theme: QuestionTheme,
 ): Promise<void> {
   const unanswered = question.declined ? 1 : 0;
