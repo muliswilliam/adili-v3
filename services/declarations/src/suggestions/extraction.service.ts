@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { errorType, notFoundIfInvisible, type Principal } from '@adili/api-kit';
+import { errorType, notFoundIfInvisible, type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, type PersonContext, withPerson } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { ASSET_TYPES, INCOME_TYPES, LIABILITY_TYPES, type PersonKey } from '@adili/forms';
@@ -143,11 +143,11 @@ export class ExtractionService {
    * same kind into the same section and item type while pending or offered and not decided on
    * (idempotent per attachment, kind, section and item type; a reading pending past
    * `READING_TIMEOUT_MS` counts as failed first). Concurrent first requests reserve one pending
-   * set; only the one that reserved it downloads and asks the gateway, and should that fail its
-   * set is failed (`unavailable`), so a request that was answered with it sees it end and can
-   * retry. 400 for a malformed body or an item with no type yet, 404 when the draft or
-   * attachment is not the caller's, 409 when it is past the draft or the file is not clean, 503
-   * when documents or the gateway cannot take it now (the reservation failed, no job recorded).
+   * set; only the one that reserved it downloads and asks the gateway (`failReservation` says
+   * what is left when that fails). 400 for a malformed body or an item with no type yet, 404
+   * when the draft or attachment is not the caller's, 409 when it is past the draft or the file
+   * is not clean (nothing recorded), 503 when documents or the gateway cannot take it now (the
+   * reading recorded `failed`, no job).
    */
   async request(
     principal: Principal,
@@ -180,7 +180,7 @@ export class ExtractionService {
     try {
       await this.read(person, reading, request, setId);
     } catch (error) {
-      await this.giveUp(person, setId);
+      await this.failReservation(person, setId, error);
       throw error;
     }
     return this.view(person, declaration, setId);
@@ -381,8 +381,8 @@ export class ExtractionService {
 
   /**
    * Reserves the reading: a `pending` set without a job, or, when a concurrent request reserved
-   * the same attachment, kind, section and item type first (`suggestion_sets_pending_reading_key`), that
-   * one's id.
+   * the same attachment, kind, section and item type first
+   * (`suggestion_sets_pending_reading_key`), that one's id.
    */
   private async reserve(
     person: PersonContext,
@@ -478,23 +478,36 @@ export class ExtractionService {
   }
 
   /**
-   * Fails a reservation whose reading could not be asked for (`unavailable`), rather than
-   * deleting it: a concurrent request answered with this set then sees it end, and either may
-   * ask again (the pending key no longer holds it).
+   * Ends a reservation whose reading could not be asked for. A request refused for the file
+   * itself (404 gone, 409 not clean or past the draft) records nothing: the reservation is taken
+   * back, and a concurrent request answered with it gets a retryable 503 (`reading-conflict`),
+   * then the same refusal. A service that could not take it now (503) leaves it `failed`, so the
+   * concurrent request sees it end and either may ask again: `document-unavailable` when
+   * documents did not answer, `unavailable` otherwise.
    */
-  private async giveUp(person: PersonContext, setId: string): Promise<void> {
-    await withPerson(this.db, person, (tx) =>
-      tx
-        .update(suggestionSets)
-        .set({ status: 'failed', reason: 'unavailable' })
-        .where(
-          and(
-            eq(suggestionSets.id, setId),
-            eq(suggestionSets.status, 'pending'),
-            isNull(suggestionSets.aiJobId),
-          ),
-        ),
+  private async failReservation(
+    person: PersonContext,
+    setId: string,
+    error: unknown,
+  ): Promise<void> {
+    const status = error instanceof ProblemException ? error.problem.status : 500;
+    const reserved = and(
+      eq(suggestionSets.id, setId),
+      eq(suggestionSets.status, 'pending'),
+      isNull(suggestionSets.aiJobId),
     );
+    await withPerson(this.db, person, async (tx) => {
+      if (status !== 503) {
+        await tx.delete(suggestionSets).where(reserved);
+        return;
+      }
+      const documentsDown =
+        error instanceof ProblemException && error.problem.type === 'documents-unavailable';
+      await tx
+        .update(suggestionSets)
+        .set({ status: 'failed', reason: documentsDown ? 'document-unavailable' : 'unavailable' })
+        .where(reserved);
+    });
   }
 
   /** The set as the declarant lists it, its suggestion decrypted. */
@@ -512,7 +525,8 @@ export class ExtractionService {
         .orderBy(asc(suggestions.id));
       return { set: found, rows: own };
     });
-    if (!set) throw new Error(`Suggestion set ${setId} is gone`);
+    // A concurrent reservation taken back after a refusal: asking again gets that refusal.
+    if (!set) throw readingConflict();
     const opened = await Promise.all(
       rows.map(async (row) =>
         suggestionView(

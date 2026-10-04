@@ -54,7 +54,7 @@ export class ExtractionController {
   )
   @ApiProblemResponse(
     503,
-    'Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `unavailable`, and no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again',
+    'Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again',
   )
   extract(
     @CurrentPrincipal() principal: Principal,

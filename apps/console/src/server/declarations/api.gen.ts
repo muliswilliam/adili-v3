@@ -1883,8 +1883,8 @@ export interface components {
             attachmentId: string | null;
             /** @description A document's set: what the declarant said the document is */
             documentKind: ("title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other") | null;
-            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back) or `unavailable` (the reading service could not do it now: try again). Null otherwise */
-            reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable") | null;
+            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back) `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise */
+            reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable" | "not-a-draft") | null;
             suggestions: components["schemas"]["Suggestion"][];
         };
         RegistryLookupRequest: {
@@ -4378,7 +4378,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `unavailable`, and no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again */
+            /** @description Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again */
             503: {
                 headers: {
                     [name: string]: unknown;

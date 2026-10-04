@@ -634,7 +634,7 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
     const [stored] = await api.asPerson(ACHIENG, (tx) =>
       tx.select().from(suggestionSets).where(eq(suggestionSets.id, set.id)),
     );
-    expect(stored).toMatchObject({ status: 'failed', reason: 'unavailable' });
+    expect(stored).toMatchObject({ status: 'failed', reason: 'not-a-draft' });
   });
 
   it('answers 503 and fails the reading when the workflow cannot be started', async () => {
@@ -663,7 +663,7 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
     expect(response.statusCode).toBe(503);
     expect(api.ai.requests).toEqual([]);
     expect(await documentSets(draft.id)).toEqual([
-      expect.objectContaining({ status: 'failed', reason: 'unavailable', aiJobId: null }),
+      expect.objectContaining({ status: 'failed', reason: 'document-unavailable', aiJobId: null }),
     ]);
   });
 });
@@ -818,9 +818,23 @@ describe('who may read (S9)', () => {
     api.documents.givenUploads(upload('psc', ACHIENG, { id: uploadId, state: 'infected' }));
 
     const response = await extract(draft.id, attachment.id);
+    const again = await extract(draft.id, attachment.id);
 
     expect(response.statusCode).toBe(409);
+    expect(again.statusCode).toBe(409);
     expect(api.ai.requests).toEqual([]);
+    // Refused for the file itself: no reading is recorded, failed or otherwise.
+    expect(await documentSets(draft.id)).toEqual([]);
+  });
+
+  it('records nothing for an upload documents no longer has (404)', async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    api.documents.reset();
+
+    const response = await extract(draft.id, attachment.id);
+
+    expect(response.statusCode).toBe(404);
+    expect(await documentSets(draft.id)).toEqual([]);
   });
 
   it('refuses with 400 an unknown kind or language', async () => {

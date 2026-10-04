@@ -2301,7 +2301,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetails'
         '503':
-          description: Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `unavailable`, and no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again
+          description: Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again
           content:
             application/problem+json:
               schema:
@@ -4742,8 +4742,9 @@ components:
                 - document-unreadable
                 - not-read
                 - unavailable
+                - not-a-draft
             - type: 'null'
-          description: "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back) or `unavailable` (the reading service could not do it now: try again). Null otherwise"
+          description: "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back) `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise"
         suggestions:
           type: array
           items:
