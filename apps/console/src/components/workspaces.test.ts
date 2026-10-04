@@ -60,6 +60,31 @@ describe('workspacesFor', () => {
   });
 });
 
+describe('Help articles workspace (spec 11)', () => {
+  it("opens for a Commission's administrators to write and its reporting officers to read", () => {
+    expect(workspaceFor(['commission-admin'], 'help')).toMatchObject({
+      href: '/help',
+      readOnly: false,
+    });
+    expect(workspaceFor(['reporting-officer'], 'help')).toMatchObject({
+      href: '/help',
+      readOnly: true,
+    });
+  });
+
+  it("opens the platform's articles and the corpus for platform admins only", () => {
+    expect(workspaceFor(['platform-admin'], 'platform-help')).toMatchObject({
+      href: '/help',
+      readOnly: false,
+    });
+    expect(workspaceFor(['platform-admin'], 'help')).toBeUndefined();
+    for (const role of ['reviewer', 'supervisor', 'eacc-analyst', 'access-officer']) {
+      expect(workspaceFor([role], 'help')).toBeUndefined();
+      expect(workspaceFor([role], 'platform-help')).toBeUndefined();
+    }
+  });
+});
+
 describe('S18 Commissions workspace', () => {
   it('opens for platform admins with write access', () => {
     expect(workspaceFor(['platform-admin'], 'commissions')).toEqual({
