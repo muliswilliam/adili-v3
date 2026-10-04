@@ -5,6 +5,7 @@
  * 1 July 2028. Days are `YYYY-MM-DD` in Nairobi. The reporting service holds the same rules
  * (`services/reporting/src/financial-year.ts`); the console only reads them.
  */
+import { addDays } from '@adili/ui';
 
 /** The first financial year reports exist for (reporting.yaml `FinancialYear`). */
 export const FIRST_FINANCIAL_YEAR = 2025;
@@ -26,6 +27,12 @@ export const previewFromOf = (fy: number) => `${String(fy + 1)}-04-01`;
 
 /** The day the scheduled compile makes the final draft: 1 July after the year. */
 export const finalCompileOf = (fy: number) => `${String(fy + 1)}-07-01`;
+
+/** The Nairobi day (`YYYY-MM-DD`) of an instant. */
+export const nairobiDayOf = (iso: string) => nairobiToday(new Date(iso));
+
+/** The day `days` after `day` (`YYYY-MM-DD`), counted on the calendar. */
+export const dayAfter = (day: string, days: number) => addDays(day, days).slice(0, 10);
 
 /** Today in Nairobi, as `YYYY-MM-DD`. */
 export function nairobiToday(now: Date = new Date()): string {

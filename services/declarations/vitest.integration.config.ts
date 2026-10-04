@@ -17,6 +17,8 @@ export default defineConfig({
     env: {
       ...parseEnv(readFileSync('.env.example', 'utf8')),
       LOG_LEVEL: 'fatal',
+      // Suites ask many questions as one declarant; the limit itself is api-kit's, tested there.
+      RATE_LIMITS: 'assistant=1000/60s',
       TEMPORAL_ADDRESS: process.env.TEST_TEMPORAL_ADDRESS ?? 'localhost:7233',
       TEMPORAL_NAMESPACE: process.env.TEST_TEMPORAL_NAMESPACE ?? 'adili',
       VALKEY_URL: process.env.TEST_VALKEY_URL ?? 'redis://localhost:56379',

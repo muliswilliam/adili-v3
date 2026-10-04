@@ -15,6 +15,7 @@ import { AlertCircleIcon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { useEffect, useRef } from 'react';
 import { z } from 'zod';
 
+import { AskAdiliLauncher, AskAdiliProvider } from '../components/assistant/ask-adili';
 import { authErrorMessage } from '../components/auth-error';
 import { AuthShell } from '../components/auth-shell';
 import { DashboardCards } from '../components/dashboard/dashboard-cards';
@@ -22,7 +23,10 @@ import { orUnavailable } from '../components/dashboard/obligations';
 import { ObligationsSection } from '../components/dashboard/obligations-view';
 import { DISCARDED_TOAST } from '../components/declaration/discard-dialog';
 import { SignOutButton } from '../components/sign-out-button';
+import { HelpLink } from '../components/help/parts';
 import { getMyClarifications, type MyClarificationsLoad } from '../server/clarifications';
+import { getMyNotices, type MyNoticesLoad } from '../server/notices';
+import { getMyDecisionLetter, getMyDecisions, type MyDecisionsLoad } from '../server/decisions';
 import { getMyDeclarations } from '../server/declarations';
 import type { DeclarationListResult } from '../server/declarations.server';
 import { getMyAccessNotices, type NoticesLoad } from '../server/access-notices';
@@ -43,13 +47,24 @@ export const Route = createFileRoute('/')({
       throw redirect({ to: '/access/requests' });
     }
     // Not awaited: the dashboard renders with skeleton cards, and the obligations, the
-    // declarations, the clarifications and the access notices stream in, each on its own.
+    // declarations, the clarifications, the notices and the access notices stream in, each on
+    // its own.
     const obligations = viewer ? orUnavailable(getMyObligations()) : null;
     const onboarded = viewer?.declarant.status === 'onboarded';
     const declarations = onboarded ? loadDeclarations() : null;
     const clarifications = onboarded ? loadClarifications() : null;
     const accessNotices = onboarded ? loadAccessNotices() : null;
-    return { viewer, obligations, declarations, clarifications, accessNotices };
+    const notices = onboarded ? loadNotices() : null;
+    const decisions = onboarded ? loadDecisions() : null;
+    return {
+      viewer,
+      obligations,
+      declarations,
+      clarifications,
+      accessNotices,
+      notices,
+      decisions,
+    };
   },
   component: Home,
 });
@@ -70,6 +85,15 @@ async function loadAccessNotices(): Promise<NoticesLoad> {
   return notices.status === 'unauthenticated' ? { status: 'unavailable', now } : notices;
 }
 
+/** The declarant's decisions; an ended session or a failed call reads as unavailable. */
+async function loadDecisions(): Promise<MyDecisionsLoad> {
+  const load = await getMyDecisions().catch(() => ({ status: 'unavailable' }) as const);
+  return load.status === 'unauthenticated' ? { status: 'unavailable' } : load;
+}
+
+const loadDecisionLetter = (determinationId: string) =>
+  getMyDecisionLetter({ data: { determinationId } });
+
 /** The declarant's clarifications; an ended session or a failed call reads as unavailable. */
 async function loadClarifications(): Promise<MyClarificationsLoad> {
   const load = await getMyClarifications().catch(
@@ -78,8 +102,16 @@ async function loadClarifications(): Promise<MyClarificationsLoad> {
   return load.status === 'unauthenticated' ? { status: 'unavailable', now: load.now } : load;
 }
 
+/** Notices to comply and warnings; an ended session or a failed call reads as unavailable. */
+async function loadNotices(): Promise<MyNoticesLoad> {
+  const load = await getMyNotices().catch(
+    () => ({ status: 'unavailable', now: new Date().toISOString() }) as const,
+  );
+  return load.status === 'unauthenticated' ? { status: 'unavailable', now: load.now } : load;
+}
+
 function Home() {
-  const { viewer, obligations, declarations, clarifications, accessNotices } =
+  const { viewer, obligations, declarations, clarifications, accessNotices, notices, decisions } =
     Route.useLoaderData();
   const { auth_error, discarded } = Route.useSearch();
   return viewer && obligations ? (
@@ -89,6 +121,8 @@ function Home() {
       declarations={declarations}
       accessNotices={accessNotices}
       clarifications={clarifications}
+      notices={notices}
+      decisions={decisions}
       discarded={discarded === true}
     />
   ) : (
@@ -153,6 +187,8 @@ function Dashboard({
   declarations,
   accessNotices,
   clarifications,
+  notices,
+  decisions,
   discarded,
 }: {
   viewer: Viewer;
@@ -160,9 +196,34 @@ function Dashboard({
   declarations: Promise<DeclarationListResult> | null;
   accessNotices: Promise<NoticesLoad> | null;
   clarifications: Promise<MyClarificationsLoad> | null;
+  notices: Promise<MyNoticesLoad> | null;
+  decisions: Promise<MyDecisionsLoad> | null;
   discarded: boolean;
 }) {
   const firstName = viewer.user.name.split(' ')[0];
+  const main = (
+    <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
+      <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
+      <div className="mt-8">
+        <DashboardCards
+          viewer={viewer}
+          declarations={declarations}
+          accessNotices={accessNotices}
+          clarifications={clarifications}
+          notices={notices}
+          decisions={decisions}
+          loadDecisionLetter={loadDecisionLetter}
+          obligations={
+            <ObligationsSection
+              obligations={obligations}
+              reload={reloadObligations}
+              loadDetail={loadObligationDetail}
+            />
+          }
+        />
+      </div>
+    </main>
+  );
   return (
     <ToastProvider>
       {discarded ? <DiscardedToast /> : null}
@@ -172,29 +233,25 @@ function Dashboard({
             <span className="hidden text-sm text-muted-foreground sm:inline">
               {viewer.user.name}
             </span>
+            {/* Help search is for declarants: an applicant's Commission is not known yet. */}
+            {viewer.declarant.status === 'onboarded' ? <HelpLink /> : null}
             <SignOutButton />
           </>
         }
       />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome, {firstName}</h1>
-        <div className="mt-8">
-          <DashboardCards
-            viewer={viewer}
-            declarations={declarations}
-            accessNotices={accessNotices}
-            clarifications={clarifications}
-            obligations={
-              <ObligationsSection
-                obligations={obligations}
-                reload={reloadObligations}
-                loadDetail={loadObligationDetail}
-              />
-            }
-          />
-        </div>
-      </main>
-      <SiteFooter />
+      {viewer.declarant.status === 'onboarded' ? (
+        // Ask Adili outside a draft (spec 11): for declarants, who have a Commission to ask about.
+        <AskAdiliProvider declarationId={null} step="home">
+          {main}
+          <SiteFooter />
+          <AskAdiliLauncher />
+        </AskAdiliProvider>
+      ) : (
+        <>
+          {main}
+          <SiteFooter />
+        </>
+      )}
     </ToastProvider>
   );
 }

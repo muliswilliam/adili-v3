@@ -17,7 +17,10 @@ export function reviewClient(accessToken: string) {
     // Inline, so production builds drop the mock (see mockableClient).
     mock:
       import.meta.env.DEV && config.REVIEW_MOCK
-        ? async (request) => (await import('./mock.server')).mockReviewFetch(request)
+        ? async (request) =>
+            (await import('./mock.server')).mockReviewFetch(request, {
+              salary: config.REVIEW_MOCK_SALARY,
+            })
         : null,
   });
 }

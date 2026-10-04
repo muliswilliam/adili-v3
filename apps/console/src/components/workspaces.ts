@@ -4,6 +4,7 @@ import {
   COMMISSION_ADMIN,
   COMMISSION_ROSTER_ROLES,
   COMMISSION_STAFF_ROLES,
+  EACC_ANALYST,
   EACC_ROLES,
   FORM_M_ROLES,
   HELPDESK,
@@ -32,12 +33,16 @@ export type WorkspaceHref =
   | '/obligations'
   | '/obligations/national'
   | '/review'
+  | '/approvals'
+  | '/actions'
+  | '/referrals'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
   | '/ai-policy'
   | '/form-m'
   | '/eacc/reports'
+  | '/eacc/referrals'
   | '/eacc/open-data';
 
 interface WorkspaceDefinition {
@@ -106,6 +111,12 @@ export function readsCommissionPolicy(roles: readonly string[]): boolean {
  */
 export const FORM_M_WRITE_ROLES = [SUPERVISOR, COMMISSION_ADMIN] as const;
 
+/**
+ * EACC analysts push referrals to ICMS (spec 09 FE access table); EACC supervisors read the
+ * intake and download packages.
+ */
+export const REFERRAL_PUSH_ROLES = [EACC_ANALYST] as const;
+
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
 
@@ -138,7 +149,23 @@ const WORKSPACES: WorkspaceDefinition[] = [
     id: 'approvals',
     title: 'Approvals',
     description: 'Approve determinations and administrative actions proposed by reviewers.',
+    href: '/approvals',
     roles: [SUPERVISOR],
+  },
+  {
+    id: 'actions',
+    title: 'Actions',
+    description:
+      'Approve the notices and warnings drafted for overdue declarations and clarifications.',
+    href: '/actions',
+    roles: [REVIEWER, SUPERVISOR],
+  },
+  {
+    id: 'referrals',
+    title: 'Referrals',
+    description: 'Referrals to EACC proposed by reviewers and the system, and where each stands.',
+    href: '/referrals',
+    roles: [REVIEWER, SUPERVISOR],
   },
   {
     id: 'access',
@@ -196,6 +223,15 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Receive Form M reports and build the national consolidated report.',
     href: '/eacc/reports',
     roles: EACC_ROLES,
+  },
+  {
+    id: 'referrals-intake',
+    title: 'Referrals received',
+    description: 'Referrals from Commissions with their evidence packages, handed to ICMS.',
+    readOnlyDescription: 'Referrals from Commissions with their evidence packages and ICMS status.',
+    href: '/eacc/referrals',
+    roles: EACC_ROLES,
+    writeRoles: REFERRAL_PUSH_ROLES,
   },
   {
     id: 'open-data',

@@ -98,3 +98,79 @@ export function problemStatus(result: ServiceResult<unknown> | null): number | n
     ? result.error.problem.status
     : null;
 }
+
+/** A problem as screens print it beside a refusal: its status and code ("409 not-proposed"). */
+export function problemLabel(status: number, code: string): string {
+  return `${String(status)} ${code}`;
+}
+
+/**
+ * A refusal a screen explains, named by the problem's `code` (review's 403s and 409s):
+ * `separation-of-duties` also says why (`reason`), every other code is just its kind.
+ */
+export type CodedRefusal<K extends string> = K extends 'separation-of-duties'
+  ? { kind: K; reason: 'proposer' | 'reviewer-of-record' }
+  : { kind: K };
+
+/**
+ * The refusals of deciding an approval, of any kind (approve, return, decline), with the status
+ * review gives each: the one source of their codes, type and guard. Each kind's status map
+ * spreads it.
+ */
+export const DECISION_REFUSAL_STATUS = {
+  /** The caller proposed it or held one of its cases (with `reason`). */
+  'separation-of-duties': 403,
+  /** A reviewer, not a supervisor. */
+  'supervisor-required': 403,
+  /** It was decided already. */
+  'not-proposed': 409,
+} as const satisfies Record<string, 403 | 409>;
+
+export type DecisionRefusal = CodedRefusal<keyof typeof DECISION_REFUSAL_STATUS>;
+
+/** Whether a kind's refusal is one of deciding an approval. */
+export function isDecisionRefusal(refusal: { kind: string }): refusal is DecisionRefusal {
+  return Object.hasOwn(DECISION_REFUSAL_STATUS, refusal.kind);
+}
+
+/** A call whose refusals the screens explain: its data, a refusal, or any other failure. */
+export type RefusalResult<T, R> =
+  | { ok: true; data: T }
+  | { ok: false; refusal: R }
+  | { ok: false; refusal: null; error: ServiceError };
+
+/**
+ * The refusal a 403 or 409 problem names (by `code`, else `type`) among `statuses`, the codes a
+ * caller explains with the status each comes with; null for any other answer.
+ */
+export function refusalOf<K extends string>(
+  error: ServiceError,
+  statuses: Record<K, 403 | 409>,
+): CodedRefusal<K> | null {
+  if (error.kind !== 'problem') return null;
+  const problem: { status: number; type: string; code?: unknown; reason?: unknown } = error.problem;
+  if (problem.status !== 403 && problem.status !== 409) return null;
+  const known = (value: unknown): value is K =>
+    typeof value === 'string' && Object.hasOwn(statuses, value);
+  const code = known(problem.code) ? problem.code : problem.type;
+  // A known code under another status than the contract gives it is not that refusal.
+  if (!known(code) || statuses[code] !== problem.status) return null;
+  const refusal =
+    code === 'separation-of-duties'
+      ? { kind: code, reason: problem.reason === 'proposer' ? 'proposer' : 'reviewer-of-record' }
+      : { kind: code };
+  // TypeScript cannot resolve `CodedRefusal<K>` for a generic `K`; the branch above builds its
+  // two shapes: `reason` exactly for `separation-of-duties`.
+  return refusal as CodedRefusal<K>;
+}
+
+/** Runs one call like `callService`, with the refusals among `statuses` read out of its problem. */
+export async function callWithRefusals<T, K extends string>(
+  call: () => Promise<FetchOutcome<T>>,
+  statuses: Record<K, 403 | 409>,
+): Promise<RefusalResult<T, CodedRefusal<K>>> {
+  const result = await callService(call);
+  if (result.ok) return result;
+  const refusal = refusalOf(result.error, statuses);
+  return refusal ? { ok: false, refusal } : { ok: false, refusal: null, error: result.error };
+}

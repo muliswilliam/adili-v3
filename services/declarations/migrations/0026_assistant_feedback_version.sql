@@ -1,0 +1,1 @@
+ALTER TABLE "assistant_messages" ADD COLUMN "feedback_version" integer DEFAULT 0 NOT NULL;

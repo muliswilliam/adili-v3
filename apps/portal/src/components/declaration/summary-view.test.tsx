@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { cloneElement, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getSummaryHints } from '../../server/assistant';
 import { discardMyDeclaration } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
 import type { CompletenessIssue } from '../../server/declarations/types';
 import { SummaryView } from './summary-view';
+import { PENDING_RETRY_MS, resetHintsAvailability } from './use-hints';
 import {
   DECLARATION_ID,
   region as card,
@@ -36,8 +38,10 @@ vi.mock('@tanstack/react-router', async () => {
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
 vi.mock('../../server/submission', async () => (await import('./testing-mocks')).submissionMock());
 vi.mock('../../server/step-up', async () => (await import('./testing-mocks')).stepUpMock());
+vi.mock('../../server/assistant', async () => (await import('./testing-mocks')).assistantMock());
 
 const discardMock = vi.mocked(discardMyDeclaration);
+const hintsMock = vi.mocked(getSummaryHints);
 
 const SPOUSE = 'spouse:5f0c2b8e-1d2a-4c3b-9e4f-5a6b7c8d9e0f';
 const CHILD = 'child:7b2e4d0a-3f4c-4e5d-9a6b-7c8d9e0f1a2b';
@@ -194,6 +198,9 @@ function issue(sectionKey: string, message: string): CompletenessIssue {
 beforeEach(() => {
   discardMock.mockReset();
   navigate.mockReset();
+  hintsMock.mockReset();
+  hintsMock.mockResolvedValue({ status: 'unavailable' });
+  resetHintsAvailability();
 });
 
 describe('SummaryView', () => {
@@ -567,5 +574,180 @@ describe('Discard from the summary', () => {
     renderSummary();
 
     expect(screen.getByText('Last saved 27 Sep 2026, 11:15')).toBeTruthy();
+  });
+});
+
+describe('S5: completeness hints on the summary', () => {
+  const ADDRESS: CompletenessIssue = {
+    sectionKey: 'bio',
+    path: '/address/physical',
+    code: 'required',
+    message: 'Enter your physical address.',
+  };
+  const CITIZENSHIP: CompletenessIssue = {
+    sectionKey: 'other',
+    path: '/registrableInterests/dualCitizenship/pendingApplication',
+    code: 'required',
+    message: 'Say whether you have a pending citizenship application.',
+  };
+  const LABEL = {
+    aiAssisted: true as const,
+    task: 'answer-declarant-question' as const,
+    promptVersion: 1,
+    provider: 'anthropic',
+    model: 'claude-opus-5',
+    generatedAt: '2026-10-03T09:00:00Z',
+    disclaimer: 'AI-assisted. Not legal advice.',
+  };
+  const HINT = 'Give the house, estate or road and the town where you live now.';
+
+  function renderBlocked() {
+    renderSummary(
+      summaryOf({
+        blocking: [ADDRESS, CITIZENSHIP],
+        valid: false,
+        cannotSubmitReason: 'incomplete',
+      }),
+    );
+    return card('2 things to complete before you can submit');
+  }
+
+  it('shows a hint under each residual that has one, labelled AI-assisted, with Fix opening the field', async () => {
+    hintsMock.mockResolvedValue({
+      status: 'ok',
+      hints: {
+        status: 'ready',
+        label: LABEL,
+        residuals: [
+          { ...ADDRESS, hint: HINT },
+          { ...CITIZENSHIP, hint: null },
+        ],
+      },
+    });
+    const panel = renderBlocked();
+
+    expect(await within(panel).findByText(HINT)).toBeTruthy();
+    expect(within(panel).getByRole('status').textContent).toBe('Hints ready');
+    expect(hintsMock).toHaveBeenCalledWith({
+      data: { declarationId: DECLARATION_ID, language: 'en' },
+    });
+    expect(within(panel).getByRole('img', { name: /^Hints: AI-assisted/ })).toBeTruthy();
+    // The deterministic text stays, the hint beneath it, and Fix opens the field.
+    expect(within(panel).getByText('Enter your physical address.')).toBeTruthy();
+    expect(
+      within(panel)
+        .getByRole('link', { name: 'Fix: Enter your physical address.' })
+        .getAttribute('href'),
+    ).toBe(`/declarations/${DECLARATION_ID}/bio?field=%2Faddress%2Fphysical`);
+    // A residual without a hint is the row it always was.
+    expect(
+      within(panel)
+        .getByRole('link', { name: 'Say whether you have a pending citizenship application.' })
+        .getAttribute('href'),
+    ).toBe(`/declarations/${DECLARATION_ID}/other?errors=true`);
+  });
+
+  it('says hints are coming while they load, the rows as they were', () => {
+    hintsMock.mockReturnValue(new Promise(() => undefined));
+    const panel = renderBlocked();
+
+    expect(within(panel).getByRole('status').textContent).toBe('Getting hints…');
+    expect(
+      within(panel)
+        .getByRole('link', { name: 'Enter your physical address.' })
+        .getAttribute('href'),
+    ).toBe(`/declarations/${DECLARATION_ID}/bio?errors=true`);
+  });
+
+  it('leaves the rows unchanged without AI', async () => {
+    hintsMock.mockResolvedValue({
+      status: 'ok',
+      hints: {
+        status: 'unavailable',
+        label: null,
+        residuals: [
+          { ...ADDRESS, hint: null },
+          { ...CITIZENSHIP, hint: null },
+        ],
+      },
+    });
+    const panel = renderBlocked();
+
+    await waitFor(() => {
+      expect(within(panel).getByRole('status').textContent).toBe('');
+    });
+    expect(within(panel).queryByRole('img', { name: /AI-assisted/ })).toBeNull();
+    expect(within(panel).queryByRole('link', { name: /^Fix/ })).toBeNull();
+    expect(within(panel).getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('says nothing about hints once they came back without AI', async () => {
+    const unavailable = (residuals: CompletenessIssue[]) => ({
+      status: 'ok' as const,
+      hints: {
+        status: 'unavailable' as const,
+        label: null,
+        residuals: residuals.map((residual) => ({ ...residual, hint: null })),
+      },
+    });
+    hintsMock.mockResolvedValue(unavailable([ADDRESS, CITIZENSHIP]));
+    const first = renderBlocked();
+    await waitFor(() => {
+      expect(within(first).getByRole('status').textContent).toBe('');
+    });
+    first.remove();
+
+    // The summary read again with fewer residuals: asked again, quietly.
+    hintsMock.mockReturnValue(new Promise(() => undefined));
+    renderSummary(
+      summaryOf({ blocking: [ADDRESS], valid: false, cannotSubmitReason: 'incomplete' }),
+    );
+    const panel = card('1 thing to complete before you can submit');
+    expect(within(panel).getByRole('status').textContent).toBe('');
+    expect(within(panel).queryByText('Getting hints…')).toBeNull();
+    expect(hintsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks again while the hints are still being written', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      hintsMock
+        .mockResolvedValueOnce({
+          status: 'ok',
+          hints: {
+            status: 'pending',
+            label: null,
+            residuals: [
+              { ...ADDRESS, hint: null },
+              { ...CITIZENSHIP, hint: null },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          hints: {
+            status: 'ready',
+            label: LABEL,
+            residuals: [
+              { ...ADDRESS, hint: HINT },
+              { ...CITIZENSHIP, hint: null },
+            ],
+          },
+        });
+      const panel = renderBlocked();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(PENDING_RETRY_MS);
+      });
+
+      expect(await within(panel).findByText(HINT)).toBeTruthy();
+      expect(hintsMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('asks for nothing when nothing is left to complete', () => {
+    renderSummary();
+    expect(hintsMock).not.toHaveBeenCalled();
   });
 });
