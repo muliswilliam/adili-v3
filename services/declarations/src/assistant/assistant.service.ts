@@ -430,7 +430,10 @@ export class AssistantService {
     return residualsOf(review.blocking, current);
   }
 
-  /** Earlier turns as the gateway gets them: a decline as its text, never the contact. */
+  /**
+   * Earlier turns as the gateway gets them, each in the language it was given in: a decline as
+   * its text, never the reporting officer's contact stored with it.
+   */
   private history(
     conversation: ConversationRow,
     messages: MessageRow[],
@@ -438,9 +441,7 @@ export class AssistantService {
     return Promise.all(
       messages.map(async (message) => ({
         role: message.role,
-        text: message.declined
-          ? DECLINE_TEXT[conversation.language]
-          : (await this.unseal(conversation.tenant, message)).text.slice(0, HISTORY_TEXT_MAX),
+        text: (await this.unseal(conversation.tenant, message)).text.slice(0, HISTORY_TEXT_MAX),
       })),
     );
   }

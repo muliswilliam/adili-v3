@@ -576,6 +576,31 @@ describe('Kiswahili (S4)', () => {
       text: 'Sikupata jambo hili katika Sheria wala Kanuni. Muulize afisa wako wa kuripoti.',
     });
   });
+
+  it('sends an earlier decline as history in the language it was given in', async () => {
+    const draft = await givenDraft();
+    const conversation = await opened(draft.id);
+    api.aiGateway.answer(() => ({
+      kind: 'answer',
+      output: { label: answerLabel(), declined: true, blocks: [], followUps: [] },
+    }));
+    const declined = finalOf((await ask(conversation.id, SALARY_QUESTION)).body).answer;
+    api.aiGateway.reset();
+    await opened(draft.id, 'sw');
+
+    await ask(
+      conversation.id,
+      'Nitatangaza gari ninalomiliki pamoja na kaka yangu?',
+      'statement:officer',
+      achieng,
+      { itemType: 'vehicle' },
+    );
+
+    expect(api.aiGateway.inputs()[0]?.history[1]).toEqual({
+      role: 'assistant',
+      text: declined.text,
+    });
+  });
 });
 
 describe('when the assistant is unavailable', () => {
