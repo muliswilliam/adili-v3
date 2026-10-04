@@ -14,9 +14,9 @@ const meta = {
     series: [{ key: 'filing', label: 'Filing rate' }],
     data: [
       { label: 'Public Service Commission', values: { filing: 91.2 } },
-      { label: 'Judicial Service Commission', values: { filing: null } },
+      { label: 'Judicial Service Commission', values: { filing: 79.8 } },
       { label: 'Teachers Service Commission', values: { filing: 84.5 } },
-      { label: 'National Police Service Commission', values: {} },
+      { label: 'National Police Service Commission', values: { filing: 68.3 } },
     ],
     max: 100,
     formatValue: percent,
@@ -33,7 +33,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** One track per Commission; the suppressed and missing values are listed, never drawn. */
+/** One track per Commission, each scaled to the 100% axis. */
 export const Bar: Story = {};
 
 export const BarTwoSeries: Story = {
@@ -44,13 +44,12 @@ export const BarTwoSeries: Story = {
     ],
     data: [
       { label: 'Public Service Commission', values: { filing: 91.2, compliance: 75 } },
-      { label: 'Judicial Service Commission', values: { filing: null, compliance: 72 } },
+      { label: 'Judicial Service Commission', values: { filing: 79.8, compliance: 72 } },
       { label: 'Teachers Service Commission', values: { filing: 84.5, compliance: 70 } },
     ],
   },
 };
 
-/** The line breaks at the suppressed and missing years, with nothing joining it. */
 export const Line: Story = {
   args: {
     kind: 'line',
@@ -64,12 +63,74 @@ export const Line: Story = {
       { label: '2023', values: { filing: 76, compliance: 64 } },
       { label: '2024', values: { filing: 78, compliance: 66 } },
       { label: '2025', values: { filing: 80, compliance: 70 } },
-      { label: '2026', values: { filing: null, compliance: 72 } },
-      { label: '2027', values: { compliance: 74 } },
+      { label: '2026', values: { filing: 84, compliance: 72 } },
+      { label: '2027', values: { filing: 88, compliance: 74 } },
       { label: '2028', values: { filing: 91.2, compliance: 75 } },
     ],
   },
 };
+
+/**
+ * A suppressed (`null`) value is never drawn: its bar track stays empty and the line breaks there.
+ * The table says "Not shown".
+ */
+export const SuppressedValues: Story = {
+  args: {
+    data: [
+      { label: 'Public Service Commission', values: { filing: 91.2 } },
+      { label: 'Judicial Service Commission', values: { filing: null } },
+      { label: 'Teachers Service Commission', values: { filing: 84.5 } },
+    ],
+    showTable: true,
+  },
+};
+
+export const SuppressedValuesOnLine: Story = {
+  args: {
+    ...Line.args,
+    data: [
+      { label: '2025', values: { filing: 80, compliance: 70 } },
+      { label: '2026', values: { filing: null, compliance: 72 } },
+      { label: '2027', values: { filing: 88, compliance: null } },
+      { label: '2028', values: { filing: 91.2, compliance: 75 } },
+    ],
+    showTable: true,
+  },
+};
+
+/**
+ * A key left out of `values` has no data. It is not drawn either, and the table says "No data"
+ * rather than "Not shown", so a gap is never mistaken for suppression.
+ */
+export const MissingValues: Story = {
+  args: {
+    data: [
+      { label: 'Public Service Commission', values: { filing: 91.2 } },
+      { label: 'Judicial Service Commission', values: { filing: null } },
+      { label: 'National Police Service Commission', values: {} },
+    ],
+    showTable: true,
+  },
+};
+
+/** The line breaks at the suppressed and missing years, with nothing joining it. */
+export const MissingValuesOnLine: Story = {
+  args: {
+    ...Line.args,
+    data: [
+      { label: '2025', values: { filing: 80, compliance: 70 } },
+      { label: '2026', values: { filing: null, compliance: 72 } },
+      { label: '2027', values: { compliance: 74 } },
+      { label: '2028', values: { filing: 91.2, compliance: 75 } },
+    ],
+    showTable: true,
+  },
+};
+
+/** No categories: nothing is plotted and the table has a header row only. */
+export const EmptyData: Story = { args: { data: [], showTable: true } };
+
+export const EmptyLine: Story = { args: { ...Line.args, data: [], showTable: true } };
 
 /** A long line labels at most four years, always the latest. */
 export const LongLine: Story = {
