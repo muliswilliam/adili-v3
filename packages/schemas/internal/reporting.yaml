@@ -951,6 +951,21 @@ paths:
       tags:
         - ncr
       summary: AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits
+      description: |
+        eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's
+        `narrate-compliance-report` task gets the year's figures (national totals and rates, the
+        per-Commission table, prior years) and pattern candidates only, data class `restricted`,
+        and the request waits up to 20 s for it. Ready by then: its paragraphs are inserted with
+        `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with
+        `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job
+        has ended. In each section drafted, the new paragraphs replace those still marked as AI
+        drafts (where the first of them stood), and paragraphs the analyst edited or typed stay;
+        `replaceAll` replaces the whole section. Editing a paragraph through
+        `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor
+        (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section,
+        job id; no figures). A new request replaces a draft still being written, whose job is then
+        never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry
+        with the same Idempotency-Key reads the same job, and inserts it once.
       operationId: draftNationalReportNarrative
       x-draft: true
       parameters:
@@ -988,10 +1003,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NationalReport'
+        '400':
+          description: Body failed validation, or Idempotency-Key missing
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Already approved, or draft failed validation (`narrative-validation`) and was discarded
+          description: Nothing inserted. Problem code `ncr-approved` (the report no longer changes), `narrative-validation` (the draft cited a figure not in the input and was discarded), `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent), `no-pattern-candidates` (findings, or all, with no candidate to narrate) or `aggregates-rebuilt` (the report was rebuilt while the draft was written)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          description: Idempotency-Key reused with a different request body
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '502':
+          description: "Problem code `narrative-draft-failed`: the ai-gateway refused the request or the job failed (`reason`: the job's reason, e.g. `provider`, `budget`, `timeout`); nothing inserted"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: The ai-gateway could not be reached; nothing was asked of it
           content:
             application/problem+json:
               schema:
@@ -3021,6 +3062,50 @@ components:
           minItems: 1
           items:
             type: string
+    NarrativeDraft:
+      type: object
+      required:
+        - jobId
+        - section
+        - replaceAll
+        - status
+        - failureReason
+        - requestedAt
+        - finishedAt
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          description: The ai-gateway job writing the draft
+        section:
+          type: string
+          enum:
+            - overview
+            - findings
+            - recommendations
+            - all
+        replaceAll:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - drafting
+            - inserted
+            - failed
+          description: '`drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted'
+        failureReason:
+          type:
+            - string
+            - 'null'
+          description: "Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`, `budget`, `provider`, ...), or `missing` (the gateway no longer has the job), `invalid-output`, `aggregates-rebuilt` or `ncr-approved`"
+        requestedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type:
+            - string
+            - 'null'
+          format: date-time
     OpenDataTable:
       type: string
       enum:

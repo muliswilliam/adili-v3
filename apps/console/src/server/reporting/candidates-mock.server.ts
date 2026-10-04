@@ -133,6 +133,14 @@ export async function mockCandidatesFetch(
   return json(200, seedOf() === 'none' ? [] : patternCandidates(aggregates));
 }
 
+/**
+ * The year's candidates as this mock answers them (none under `none`), for the narrative draft
+ * part of the mock, whose findings narrate them.
+ */
+export function mockCandidatesOf(aggregates: NationalAggregates): PatternCandidate[] {
+  return seedOf() === 'computed' ? patternCandidates(aggregates) : [];
+}
+
 function delay(ms: number): Promise<void> {
   return process.env.VITEST ? Promise.resolve() : new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -376,7 +376,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits */
+        /**
+         * AI-draft the narrative (all or one section) from aggregates and candidates; inserted as AI-draft paragraphs the analyst edits
+         * @description eacc-analyst and eacc-supervisor; anyone else 403. The ai-gateway's
+         *     `narrate-compliance-report` task gets the year's figures (national totals and rates, the
+         *     per-Commission table, prior years) and pattern candidates only, data class `restricted`,
+         *     and the request waits up to 20 s for it. Ready by then: its paragraphs are inserted with
+         *     `aiDraft: true`, their `aggregateRefs` and `candidateIds` (200). Not ready: 202 with
+         *     `narrativeDraft.status` `drafting`; poll `getNationalReport`, which inserts it once the job
+         *     has ended. In each section drafted, the new paragraphs replace those still marked as AI
+         *     drafts (where the first of them stood), and paragraphs the analyst edited or typed stay;
+         *     `replaceAll` replaces the whole section. Editing a paragraph through
+         *     `updateNationalReportNarrative` clears its `aiDraft`. The requester becomes a contributor
+         *     (who cannot approve) and `ncr.narrative-drafted.v1` is emitted (report id, year, section,
+         *     job id; no figures). A new request replaces a draft still being written, whose job is then
+         *     never inserted; a draft that ends after the aggregates were rebuilt is discarded. A retry
+         *     with the same Idempotency-Key reads the same job, and inserts it once.
+         */
         post: operations["draftNationalReportNarrative"];
         delete?: never;
         options?: never;
@@ -1093,6 +1109,27 @@ export interface components {
             };
             /** @description Keys of the figures the candidate rests on, in the ai-gateway scheme (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year */
             aggregateKeys: string[];
+        };
+        NarrativeDraft: {
+            /**
+             * Format: uuid
+             * @description The ai-gateway job writing the draft
+             */
+            jobId: string;
+            /** @enum {string} */
+            section: "overview" | "findings" | "recommendations" | "all";
+            replaceAll: boolean;
+            /**
+             * @description `drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted
+             * @enum {string}
+             */
+            status: "drafting" | "inserted" | "failed";
+            /** @description Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`, `budget`, `provider`, ...), or `missing` (the gateway no longer has the job), `invalid-output`, `aggregates-rebuilt` or `ncr-approved` */
+            failureReason: string | null;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
         };
         /** @enum {string} */
         OpenDataTable: "filing-by-commission" | "compliance-by-commission" | "by-entity-type" | "by-cycle" | "access-requests" | "national-totals";
@@ -2238,9 +2275,46 @@ export interface operations {
                     "application/json": components["schemas"]["NationalReport"];
                 };
             };
+            /** @description Body failed validation, or Idempotency-Key missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             403: components["responses"]["Forbidden"];
-            /** @description Already approved, or draft failed validation (`narrative-validation`) and was discarded */
+            404: components["responses"]["NotFound"];
+            /** @description Nothing inserted. Problem code `ncr-approved` (the report no longer changes), `narrative-validation` (the draft cited a figure not in the input and was discarded), `ai-not-enabled` (the ai-gateway's gate does not let EACC's data be sent), `no-pattern-candidates` (findings, or all, with no candidate to narrate) or `aggregates-rebuilt` (the report was rebuilt while the draft was written) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `narrative-draft-failed`: the ai-gateway refused the request or the job failed (`reason`: the job's reason, e.g. `provider`, `budget`, `timeout`); nothing inserted */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description The ai-gateway could not be reached; nothing was asked of it */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
