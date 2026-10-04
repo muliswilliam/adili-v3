@@ -26,10 +26,10 @@
       }
       .proto-note {
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         line-height: 1.45;
         color: #6d5a2a;
-        background: #fffaf0;
+        background: #fffbeb;
         border: 1px dashed #e2c98f;
         border-radius: 8px;
         padding: 7px 10px;
@@ -55,7 +55,7 @@
         margin-top: 2px;
       }
       .is-invalid {
-        box-shadow: 0 0 0 1.5px var(--danger) !important;
+        box-shadow: var(--shadow-error) !important;
       }
       .alert {
         display: flex;
@@ -74,19 +74,19 @@
       }
       .alert-danger {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
       }
       .alert-warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
       }
       .alert-info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .alert-ok {
         background: var(--ok-soft);
-        color: #0f5a2d;
+        color: #016630;
       }
       .alert .btn {
         margin-top: 10px;
@@ -121,7 +121,6 @@
         outline: 3px solid rgba(233, 90, 36, 0.45);
         outline-offset: 2px;
       }
-      .btn:focus-visible,
       .linklike:focus-visible,
       a:focus-visible {
         outline: 3px solid rgba(233, 90, 36, 0.45);
@@ -162,7 +161,7 @@
         margin-top: 28px;
         padding-top: 16px;
         border-top: 1px solid var(--line);
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         display: flex;
         gap: 8px;
@@ -173,7 +172,7 @@
         margin-top: 2px;
       }
       .gs-h1 {
-        font-size: 26px;
+        font-size: 18px;
         line-height: 1.2;
         letter-spacing: -0.02em;
         font-weight: 600;
@@ -229,7 +228,7 @@
         background: var(--brand-soft);
         color: var(--brand-ink);
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.02em;
       }
@@ -237,7 +236,7 @@
         flex: 1;
         min-width: 0;
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.3;
       }
       .combo-empty {
@@ -252,7 +251,7 @@
         padding: 12px 14px;
         border-radius: var(--r);
         background: var(--surface);
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
       .chosen .mono-code {
         flex: none;
@@ -276,7 +275,7 @@
         border-radius: 999px;
         background: var(--surface);
         box-shadow: var(--shadow-input);
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
         max-width: 100%;
       }
@@ -296,7 +295,7 @@
         flex-wrap: nowrap;
       }
       .otp.err input {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .otp.dis input {
         background: var(--sunken);
@@ -359,7 +358,7 @@
         display: flex;
         gap: 12px;
         align-items: center;
-        font-size: 14.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .landing-feats .ico {
@@ -397,7 +396,7 @@
         border-radius: 9px;
         background: #1c1c1c;
         color: #fff;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 400;
         line-height: 1.45;
         box-shadow: var(--shadow-pop);
@@ -440,7 +439,7 @@
         border-radius: 9px;
         background: #1c1c1c;
         color: #fff;
-        font-size: 12.5px;
+        font-size: 13px;
         line-height: 1.45;
         box-shadow: var(--shadow-pop);
         z-index: 40;
@@ -461,7 +460,7 @@
         align-items: center;
         gap: 10px;
         margin: 6px 0 10px;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--ink-2);
       }
@@ -480,60 +479,46 @@
       .ob {
         position: relative;
         overflow: visible;
-        border-radius: 20px;
-        padding: 22px;
+        border-radius: var(--r-page);
+        padding: 20px;
         cursor: pointer;
       }
       @container app (min-width: 700px) {
         .ob {
-          padding: 26px 28px;
+          padding: 24px;
         }
       }
-      .ob.due {
-        background: linear-gradient(135deg, #fff5ee 0%, #fde6d7 100%);
-        box-shadow: 0 0 0 1px #f6d9c6;
-      }
-      .ob.overdue {
-        background: linear-gradient(135deg, #fff8ec 0%, #fdebc8 100%);
-        box-shadow: 0 0 0 1px #f0d49a;
-      }
+      .ob.due,
+      .ob.overdue,
       .ob.upcoming,
       .ob.filed {
         background: var(--surface);
         box-shadow: var(--shadow-card);
       }
-      .ob.filed {
-        background: linear-gradient(135deg, #f5fbf7, #e7f5ec);
-        box-shadow: 0 0 0 1px #cfe9d8;
+      .ob.overdue {
+        box-shadow:
+          0 3px 3px -1.5px rgb(0 0 0 / 6%),
+          0 1px 1px -0.5px rgb(0 0 0 / 6%),
+          0 0 0 1px rgb(187 77 0 / 28%);
       }
       .ob:hover {
-        filter: brightness(0.995);
         box-shadow:
-          0 0 0 1px var(--line-2),
-          0 6px 20px -10px rgba(0, 0, 0, 0.18);
+          0 6px 6px -3px rgb(0 0 0 / 6%),
+          0 3px 3px -1.5px rgb(0 0 0 / 6%),
+          0 0 0 1px rgb(0 0 0 / 12%);
       }
       .ob .glow {
-        position: absolute;
-        right: 0;
-        top: 0;
-        width: 240px;
-        height: 200px;
-        border-radius: 0 20px 0 0;
-        background: radial-gradient(circle at 100% 0, rgba(233, 90, 36, 0.18), transparent 65%);
-        pointer-events: none;
-      }
-      .ob.overdue .glow {
-        background: radial-gradient(circle at 100% 0, rgba(217, 138, 0, 0.2), transparent 65%);
+        display: none;
       }
       .ob h3 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.25;
       }
       @container app (min-width: 700px) {
         .ob h3 {
-          font-size: 22px;
+          font-size: 18px;
         }
       }
       .ob .meta {
@@ -550,7 +535,7 @@
         }
       }
       .ob .meta .k {
-        font-size: 12.5px;
+        font-size: 13px;
         color: #8a5a3e;
         font-weight: 500;
       }
@@ -559,7 +544,7 @@
         color: var(--muted);
       }
       .ob .meta .v {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
       .ob .acts {
@@ -572,7 +557,7 @@
         display: flex;
         gap: 8px;
         align-items: flex-start;
-        font-size: 13.5px;
+        font-size: 14px;
         color: #7a3a00;
         margin-top: 8px;
       }
@@ -607,7 +592,7 @@
         padding: 14px 20px;
       }
       .fromc .item .t {
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .acct .dl dd {
         display: flex;
@@ -629,12 +614,12 @@
       .rtable {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .rtable caption {
         text-align: left;
         font-weight: 600;
-        font-size: 14.5px;
+        font-size: 14px;
         padding-bottom: 8px;
         color: var(--ink);
       }
@@ -759,7 +744,7 @@
         border-radius: 50%;
         display: grid;
         place-items: center;
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 600;
         box-shadow: inset 0 0 0 1.5px var(--line-2);
         color: var(--muted);
@@ -816,7 +801,7 @@
         cursor: pointer;
         text-align: left;
         font: inherit;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .snav .sub button:hover {
@@ -879,7 +864,7 @@
         border-top: 0;
       }
       .dhead .meta {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         margin-top: 6px;
         display: flex;
@@ -888,19 +873,19 @@
         align-items: center;
       }
       .dhead h1 {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.25;
       }
       @container app (min-width: 700px) {
         .dhead h1 {
-          font-size: 28px;
+          font-size: 18px;
         }
       }
       .mbar {
         position: sticky;
-        top: 60px;
+        top: 64px;
         z-index: 15;
         margin: 0 -16px;
         padding: 10px 16px;
@@ -910,7 +895,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       @container app (min-width: 960px) {
         .mbar {
@@ -1014,14 +999,14 @@
         outline-offset: 2px;
       }
       .segc.is-invalid-group label {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .switch {
         display: flex;
         gap: 12px;
         align-items: flex-start;
         cursor: pointer;
-        font-size: 14.5px;
+        font-size: 14px;
         user-select: none;
       }
       .switch input {
@@ -1101,7 +1086,7 @@
         border-radius: 8px;
         background: var(--sunken);
         padding: 0 8px;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
       }
       .picker .grid {
@@ -1112,7 +1097,7 @@
         font-size: 13px;
       }
       .picker .grid .dow {
-        font-size: 11.5px;
+        font-size: 12px;
         color: var(--muted);
         padding: 4px 0;
       }
@@ -1174,7 +1159,7 @@
       }
       .rep-sum .t {
         font-weight: 500;
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.35;
       }
       .rep-sum .t h4 {
@@ -1202,7 +1187,7 @@
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
         text-align: right;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .rep-sum .amt small {
         display: block;
@@ -1264,7 +1249,7 @@
         background: none;
         color: var(--ink-2);
         font: inherit;
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 500;
         cursor: pointer;
         width: 100%;
@@ -1298,7 +1283,7 @@
         background: var(--surface);
         box-shadow: var(--shadow-input);
         cursor: pointer;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
         line-height: 1.25;
         min-height: 76px;
@@ -1318,7 +1303,7 @@
         color: var(--ink-2);
       }
       .ttile:has(input:checked) {
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
       .ttile:has(input:checked) .ti {
         background: var(--ink);
@@ -1358,7 +1343,7 @@
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
       }
       .ptabs .c {
-        font-size: 11.5px;
+        font-size: 12px;
         min-width: 20px;
         height: 20px;
         padding: 0 6px;
@@ -1386,7 +1371,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 10px 16px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .tot-row b {
@@ -1459,11 +1444,11 @@
         text-overflow: ellipsis;
       }
       .att .st {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .att.bad .st {
-        color: #8a1c14;
+        color: #9f0712;
       }
       .att .bar {
         height: 4px;
@@ -1579,7 +1564,7 @@
       .sum-items {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .sum-items th {
         text-align: left;
@@ -1608,7 +1593,7 @@
         margin-top: 14px;
       }
       .sum-person h4 {
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 600;
         display: flex;
         gap: 8px;
@@ -1626,11 +1611,11 @@
       .blocking {
         border-radius: var(--r-lg);
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
         padding: 16px 18px;
       }
       .blocking h2 {
-        font-size: 15.5px;
+        font-size: 16px;
         font-weight: 600;
         display: flex;
         gap: 10px;
@@ -1644,7 +1629,7 @@
         font-size: 14px;
       }
       .blocking button {
-        color: #6b4000;
+        color: #973c00;
         text-decoration-color: #d9b56a;
       }
       .solemn {
@@ -1666,8 +1651,8 @@
         align-items: flex-start;
         padding: 14px 16px;
         border-radius: var(--r-lg);
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
         margin-bottom: 18px;
         flex-wrap: wrap;
       }
@@ -1687,7 +1672,7 @@
         padding: 12px 16px;
         border-radius: var(--r);
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
         margin-bottom: 16px;
         flex-wrap: wrap;
         font-size: 14px;
@@ -1715,10 +1700,10 @@
         }
       }
       .ov-list .item:hover {
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .counter {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         text-align: right;
       }
@@ -1736,7 +1721,7 @@
         max-width: 100%;
       }
       .refchip .ref {
-        font-size: 15px;
+        font-size: 14px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1790,7 +1775,7 @@
         color: #eee;
       }
       .refchip .bd .h {
-        font-size: 11.5px;
+        font-size: 12px;
         letter-spacing: 0.05em;
         text-transform: uppercase;
         color: #aaa;
@@ -1803,9 +1788,9 @@
         height: 24px;
         padding: 0 9px;
         border-radius: 999px;
-        background: #eaf1fb;
-        color: #1f4f96;
-        font-size: 12.5px;
+        background: #dff2fe;
+        color: #0069a8;
+        font-size: 13px;
         font-weight: 600;
         white-space: nowrap;
       }
@@ -1882,7 +1867,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 6px 16px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         margin-top: 6px;
       }
@@ -1923,12 +1908,12 @@
         padding: 32px 20px 90px;
       }
       .docpage h1 {
-        font-size: 26px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
       }
       .docpage h2 {
-        font-size: 17px;
+        font-size: 16px;
         font-weight: 600;
         margin: 34px 0 4px;
         display: flex;
@@ -1951,7 +1936,7 @@
       .ctable {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
         background: var(--surface);
         border-radius: 14px;
         box-shadow: var(--shadow-card);
@@ -1964,7 +1949,7 @@
         color: var(--muted);
         padding: 10px 14px;
         border-bottom: 1px solid var(--line);
-        background: #fcfcfb;
+        background: #fafafa;
       }
       .ctable td {
         padding: 11px 14px;
@@ -1976,7 +1961,7 @@
       }
       .ctable code {
         font-family: ui-monospace, Menlo, monospace;
-        font-size: 12.5px;
+        font-size: 13px;
         background: var(--sunken);
         padding: 1px 6px;
         border-radius: 5px;
@@ -1999,7 +1984,7 @@
         align-content: start;
       }
       .gal .card > h3 {
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 600;
         display: flex;
         gap: 8px;
@@ -2025,7 +2010,7 @@
         list-style: none;
         padding: 0;
         margin: 4px 0 0;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         display: grid;
         gap: 2px;
@@ -2036,7 +2021,7 @@
       }
       details.bd summary {
         cursor: pointer;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--ink-2);
         font-weight: 500;
         list-style: none;
@@ -2068,7 +2053,7 @@
         display: inline-flex;
         align-items: center;
         gap: 5px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .field .src-hint {
@@ -2081,7 +2066,7 @@
         height: 22px;
         padding: 0 8px;
         border-radius: 999px;
-        background: #e8f0fb;
+        background: #dff2fe;
         color: #2f5fae;
         font-size: 12px;
         font-weight: 600;
@@ -2158,7 +2143,7 @@
       }
       .reg-card.idle .t {
         font-weight: 600;
-        font-size: 15px;
+        font-size: 14px;
       }
       .reg-ico {
         width: 36px;
@@ -2166,7 +2151,7 @@
         border-radius: 10px;
         display: grid;
         place-items: center;
-        background: #e8f0fb;
+        background: #dff2fe;
         color: #2f5fae;
         flex: none;
       }
@@ -2189,7 +2174,7 @@
         }
       }
       .reg-head h2 {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         display: flex;
         align-items: center;
@@ -2247,7 +2232,7 @@
         height: 26px;
         margin: 2px 0 0 -8px;
         padding: 0 8px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--warn);
       }
       .sug-group {
@@ -2286,7 +2271,7 @@
         line-height: 1.35;
       }
       .sug-b .src {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .sug-b .d {
@@ -2332,7 +2317,7 @@
         }
       }
       .sug-fold {
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .sug-fold .linklike {
         display: inline-flex;
@@ -2356,7 +2341,7 @@
         flex-wrap: wrap;
         padding: 10px 12px;
         border-radius: 10px;
-        background: #e8f0fb;
+        background: #dff2fe;
         color: #234a8a;
         font-size: 14px;
       }
@@ -2408,7 +2393,7 @@
         margin: 0;
       }
       .ex-tick .check {
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .dialog-foot .ex-hint {
         align-self: center;
@@ -2430,7 +2415,7 @@
       }
       .src-fold {
         margin-top: 10px;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .src-fold > .linklike {
         display: inline-flex;
@@ -2461,13 +2446,13 @@
         flex: 1 1 220px;
       }
       .blocking h2 .ai-label {
-        font-size: 11.5px;
+        font-size: 12px;
       }
       .hint-state {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
       }
       .blocking .fix {
@@ -2479,7 +2464,7 @@
         align-items: flex-start;
         margin-top: 3px;
         font-size: 13px;
-        color: #43299f;
+        color: #5d0ec0;
       }
       .hint-line svg {
         flex: none;
@@ -2518,7 +2503,7 @@
         background: var(--ink);
         color: #fff;
         font: inherit;
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         box-shadow: 0 10px 28px -8px rgba(20, 20, 20, 0.45);
@@ -2573,7 +2558,7 @@
         position: absolute;
         inset: 0;
         z-index: 44;
-        background: rgba(24, 20, 16, 0.35);
+        background: rgb(0 0 0 / 20%);
       }
       @container app (min-width: 700px) {
         .ask-scrim {
@@ -2581,7 +2566,7 @@
         }
         .ask-panel {
           left: auto;
-          top: 60px;
+          top: 64px;
           height: auto;
           width: 392px;
           border-radius: 0;
@@ -2644,7 +2629,7 @@
       .ask-lang button {
         height: 26px;
         padding: 0 10px;
-        font-size: 12.5px;
+        font-size: 13px;
       }
       .ask-msgs {
         flex: 1;
@@ -2684,11 +2669,11 @@
         border: 0;
         background: var(--surface);
         box-shadow: 0 0 0 1px #dcd2fa;
-        color: #43299f;
+        color: #5d0ec0;
         border-radius: 14px;
         padding: 7px 12px;
         font: inherit;
-        font-size: 13.5px;
+        font-size: 14px;
         text-align: left;
         line-height: 1.35;
         cursor: pointer;
@@ -2737,7 +2722,7 @@
       }
       .msg .bubble.warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
       }
       .msg .bubble svg {
         flex: none;
@@ -2747,7 +2732,7 @@
         display: grid;
         gap: 1px;
         margin-top: 6px;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .msg .ro a {
         color: var(--ink);
@@ -2813,13 +2798,13 @@
         background: var(--sunken);
         color: var(--ink-2);
         font: inherit;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
       }
       .cite:hover,
       .cite.on {
-        background: #ebe9e5;
+        background: #e5e5e5;
         color: var(--ink);
       }
       .cite.on {
@@ -2881,7 +2866,7 @@
       }
       .fb-reasons .chip {
         height: 28px;
-        font-size: 12.5px;
+        font-size: 13px;
       }
       .fb-why .input {
         height: 38px;
@@ -2897,7 +2882,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .ask-compose {
@@ -2920,7 +2905,7 @@
         outline: 0;
         resize: none;
         background: none;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.45;
         padding: 6px 0;
         min-height: 32px;
@@ -2981,11 +2966,11 @@
         gap: 10px;
         align-items: flex-start;
         justify-content: space-between;
-        font-size: 13.5px;
+        font-size: 14px;
         padding: 8px 10px;
         border-radius: 10px;
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
       }
       .ask-miss li.muted {
         background: none;
@@ -2994,7 +2979,7 @@
       .ask-miss .linklike {
         font-weight: 600;
         flex: none;
-        color: #6b4000;
+        color: #973c00;
       }
       .cite-tag {
         display: inline-flex;
@@ -3026,7 +3011,7 @@
         border-radius: 0 0 var(--r-lg) var(--r-lg);
       }
       .acc-row:hover {
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .acc-row .ico {
         width: 40px;
@@ -3048,7 +3033,7 @@
         font-weight: 600;
       }
       .acc-row .d {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .acc-row .cd-line {
@@ -3074,7 +3059,7 @@
       }
       .help-search .input {
         height: 48px;
-        font-size: 15.5px;
+        font-size: 14px;
       }
       .help-topics {
         display: grid;
@@ -3151,14 +3136,14 @@
         font-weight: 600;
       }
       .help-h2 {
-        font-size: 17px;
+        font-size: 16px;
         font-weight: 600;
       }
       .crumbs-p {
         display: flex;
         align-items: center;
         gap: 6px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .crumbs-p .linklike {
@@ -3170,7 +3155,7 @@
         gap: 14px;
       }
       .help-art h1 {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.25;
@@ -3181,7 +3166,7 @@
         margin-top: -8px;
       }
       .art-body {
-        font-size: 15.5px;
+        font-size: 14px;
         line-height: 1.65;
         color: var(--ink);
       }
@@ -3191,7 +3176,7 @@
         border-left: 3px solid var(--line-2);
         background: var(--bg);
         border-radius: 0 12px 12px 0;
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.65;
       }
     </style>
@@ -4305,7 +4290,7 @@
         return `<aside class="auth-art" aria-hidden="true">
     <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
       <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3d2"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5e5e5"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
         <radialGradient id="sun" cx=".72" cy=".47" r=".22"><stop offset="0" stop-color="#fff4e6"/><stop offset=".5" stop-color="#ffd9b8" stop-opacity=".8"/><stop offset="1" stop-color="#ffd9b8" stop-opacity="0"/></radialGradient>
       </defs>
       <rect width="800" height="1000" fill="url(#sky)"/><rect width="800" height="1000" fill="url(#sun)"/>
@@ -4356,7 +4341,7 @@
       screens.landing = () =>
         gsLayout(
           `
-  <h1 class="gs-h1" style="font-size:30px">Declare your income, assets and liabilities online</h1>
+  <h1 class="gs-h1">Declare your income, assets and liabilities online</h1>
   <p class="gs-sub">For public officers, on your phone or computer.</p>
   <div class="stack" style="margin-top:26px;gap:10px">
     <button class="btn btn-primary btn-block" data-act="startOnboarding">Get started ${icon('right', 17)}</button>
@@ -5039,7 +5024,7 @@
         <div><div class="k">${tip('Statement date', TIP_STATEMENT, 'left')}</div><div class="v">${fmtDate(o.statementDate)}</div></div>
         <div><div class="k">Due date</div><div class="v">${fmtDate(o.dueDate)}</div></div>
       </div>
-      <div><div class="row wrap" style="justify-content:space-between;gap:4px 12px;margin-bottom:6px"><h4 style="font-weight:600;font-size:14.5px">Reminders</h4><span class="small muted row" style="gap:6px">${o.offsets.join(', ').replace(/, (\d+)$/, ' and $1')} days before, SMS and email ${Kit.tip(`Reminder schedule set by ${esc(c.name)}. Policy version ${o.policyVersion}.`, { label: 'Reminder schedule' })}</span></div>
+      <div><div class="row wrap" style="justify-content:space-between;gap:4px 12px;margin-bottom:6px"><h4 style="font-weight:600;font-size:14px">Reminders</h4><span class="small muted row" style="gap:6px">${o.offsets.join(', ').replace(/, (\d+)$/, ' and $1')} days before, SMS and email ${Kit.tip(`Reminder schedule set by ${esc(c.name)}. Policy version ${o.policyVersion}.`, { label: 'Reminder schedule' })}</span></div>
       ${reminderTable(o)}</div>`,
           foot: `<button class="btn btn-secondary" data-act="closeModal">Close</button>${startBtn(o)}`,
         });
@@ -5524,7 +5509,7 @@
               : cmp.sec(k).state;
         return `<nav class="snav" aria-label="Declaration sections">
     <button class="btn btn-ghost btn-sm" style="margin-left:-10px" data-act="go" data-arg="declarations">${icon('left', 16)} My declarations</button>
-    <button class="linklike" style="display:block;margin-top:14px;text-decoration:none;text-align:left" data-act="go" data-arg="decl-overview"><div style="font-weight:600;font-size:15.5px">${TYPE_LABEL[D.type]}</div><div class="small muted" style="font-weight:400">To ${esc(c.name)}</div></button>
+    <button class="linklike" style="display:block;margin-top:14px;text-decoration:none;text-align:left" data-act="go" data-arg="decl-overview"><div style="font-weight:600;font-size:16px">${TYPE_LABEL[D.type]}</div><div class="small muted" style="font-weight:400">To ${esc(c.name)}</div></button>
     <ol>${SECS.map(([k, l, p, scr], i) => {
       const s = stOf(k);
       const isOn = on === k;
@@ -5701,7 +5686,7 @@
         return ws(
           `<div class="stack-lg">
     <div class="lock-block">
-      <div class="row" style="gap:10px;margin-bottom:12px"><span style="display:flex;color:var(--muted)">${icon('lock', 16)}</span><h2 style="font-size:15px;font-weight:600">From your Commission's roster</h2>${Kit.tip("Wrong? Ask your Commission's reporting officer to correct the roster. Your name cannot be changed here.", { label: 'Wrong details' })}</div>
+      <div class="row" style="gap:10px;margin-bottom:12px"><span style="display:flex;color:var(--muted)">${icon('lock', 16)}</span><h2 style="font-size:14px;font-weight:600">From your Commission's roster</h2>${Kit.tip("Wrong? Ask your Commission's reporting officer to correct the roster. Your name cannot be changed here.", { label: 'Wrong details' })}</div>
       <div class="kv k3">
         <div><div class="k">Surname</div><div class="v">${ME.surname}</div></div>
         <div><div class="k">First name</div><div class="v">${ME.first}</div></div>
@@ -5839,7 +5824,7 @@
         return ws(
           `<div class="stack-lg">
     <section class="card" aria-labelledby="sp-h">
-      <div class="card-head"><span class="ico" style="background:#e8f0fb;color:#2f5fae">${icon('heart', 17)}</span><div style="flex:1"><h2 id="sp-h" style="font-size:16px;font-weight:600">Spouses</h2><div class="small muted">Include a separated spouse.</div></div></div>
+      <div class="card-head"><span class="ico" style="background:#dff2fe;color:#2f5fae">${icon('heart', 17)}</span><div style="flex:1"><h2 id="sp-h" style="font-size:16px;font-weight:600">Spouses</h2><div class="small muted">Include a separated spouse.</div></div></div>
       <div class="sec-b rep">
         ${pairedErr ? `<div class="alert alert-danger" role="alert">${icon('alert', 17)}<div>${pairedErr.text}</div></div>` : ''}
         ${spEmpty}
@@ -5855,7 +5840,7 @@
         ${h.noChildren && !kids.length ? '' : `<button class="rep-add" data-act="addPerson" data-arg="child">${icon('plus', 17)} Add ${kids.length ? 'another child' : 'a child'}</button>`}
       </div>
     </section>
-    ${archived.length ? `<div class="card card-pad"><div class="section-title" style="font-size:14.5px">Removed</div><div class="stack" style="gap:8px;margin-top:8px">${archived.map((p) => `<div class="row wrap" style="gap:10px;font-size:14px"><span style="display:flex;color:var(--muted)">${icon('archive', 16)}</span><span style="flex:1">${esc(nm(p))}: statement kept until you discard.</span><button class="btn btn-ghost btn-sm" data-act="restorePerson" data-arg="${p.id}">${icon('undo', 15)} Restore</button></div>`).join('')}</div></div>` : ''}
+    ${archived.length ? `<div class="card card-pad"><div class="section-title" style="font-size:14px">Removed</div><div class="stack" style="gap:8px;margin-top:8px">${archived.map((p) => `<div class="row wrap" style="gap:10px;font-size:14px"><span style="display:flex;color:var(--muted)">${icon('archive', 16)}</span><span style="flex:1">${esc(nm(p))}: statement kept until you discard.</span><button class="btn btn-ghost btn-sm" data-act="restorePerson" data-arg="${p.id}">${icon('undo', 15)} Restore</button></div>`).join('')}</div></div>` : ''}
     <div class="callout callout-info">${icon('file', 16)}<span><b>Statements needed:</b> ${ps.map((p) => esc(p.kind === 'self' ? 'you' : p.name)).join(', ')}.</span></div>
   </div>`,
           {
@@ -6290,7 +6275,7 @@
           title: 'Also declare for…',
           sub: `${esc(lab(ASSET_TYPES, it.type))}: ${esc(it.desc)}`,
           icon: 'users',
-          tint: ['#e8f0fb', '#2f5fae'],
+          tint: ['#dff2fe', '#2f5fae'],
           body: others.length
             ? `<p class="small muted">Added to their statement as jointly held, with the other share.</p>
       <div class="field"><span class="label">Whose statement?</span><div class="stack" style="gap:8px">${others.map((o) => `<label class="choice"><input type="radio" name="modal.to" value="${o.key}" data-bind="modal.to" ${m.to === o.key ? 'checked' : ''}/><span class="dot"></span><span>${esc(o.name)} <span class="muted" style="font-weight:400">· ${o.rel}</span></span></label>`).join('')}</div></div>
@@ -6524,7 +6509,7 @@
                 : `<div class="grid-2">${field('Court or body', input(`${b}.forum`, { ph: "e.g. Eldoret Chief Magistrate's Court" }), { id: fid(`${b}.forum`) })}${field('Case reference', input(`${b}.ref`, { ph: 'e.g. ELC 45 of 2025' }), { id: fid(`${b}.ref`) })}</div>${field('Nature', input(`${b}.nature`, { ph: 'e.g. Boundary dispute over the Kapsoya plot' }), { id: fid(`${b}.nature`) })}`;
           return `<div class="rep-card"><div class="rep-edit" style="border-top:0"><div class="row"><h4 style="font-size:14px;font-weight:600;flex:1">${conf[0].replace(/s$/, '')} ${i + 1} ${x.src ? srcBadge(x.src) : ''}</h4><button class="btn btn-ghost icon-btn" data-act="removeInterest" data-arg="${kind}|${i}" aria-label="Remove ${conf[0].replace(/s$/, '').toLowerCase()} ${i + 1}">${icon('trash', 16)}</button></div>${inner}</div></div>`;
         };
-        return `<div class="stack" style="gap:10px"><div><h3 style="font-size:15px;font-weight:600">${conf[0]}</h3>${conf[1] ? `<p class="small muted">${conf[1]}</p>` : ''}</div>${list.length ? list.map(card).join('') : `<p class="small muted" style="padding:2px 0">None added.</p>`}<button class="rep-add" style="height:40px" data-act="addInterest" data-arg="${kind}">${icon('plus', 16)} ${conf[2]}</button></div>`;
+        return `<div class="stack" style="gap:10px"><div><h3 style="font-size:14px;font-weight:600">${conf[0]}</h3>${conf[1] ? `<p class="small muted">${conf[1]}</p>` : ''}</div>${list.length ? list.map(card).join('') : `<p class="small muted" style="padding:2px 0">None added.</p>`}<button class="rep-add" style="height:40px" data-act="addInterest" data-arg="${kind}">${icon('plus', 16)} ${conf[2]}</button></div>`;
       }
       screens['decl-other'] = () => {
         const D = cur();
@@ -6542,7 +6527,7 @@
       <hr class="divider"/>
       ${interestRepeater('memberships')}
       <hr class="divider"/>
-      <div class="stack" style="gap:14px"><div><h3 style="font-size:15px;font-weight:600">Dual citizenship</h3></div>
+      <div class="stack" style="gap:14px"><div><h3 style="font-size:14px;font-weight:600">Dual citizenship</h3></div>
         <div class="field"><span class="label">Do you hold citizenship of another country?</span>${segc(
           P('other.dual.holds'),
           [
@@ -6764,7 +6749,7 @@
       ${ps
         .map((p, i) => {
           const st = D.st[p.key];
-          return `<details class="sum-person" ${i === 0 ? 'open' : ''}><summary style="cursor:pointer;list-style:none"><h3 style="font-size:14.5px;font-weight:600;display:flex;gap:8px;align-items:center">${icon('down', 15)} ${esc(p.name)} <span class="muted" style="font-weight:400">· ${p.rel}</span> ${stateBadge(cmp.sec(p.key).state)}<span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="openPerson" data-arg="${p.key}">${icon('pencil', 14)} Edit</button></h3></summary>
+          return `<details class="sum-person" ${i === 0 ? 'open' : ''}><summary style="cursor:pointer;list-style:none"><h3 style="font-size:14px;font-weight:600;display:flex;gap:8px;align-items:center">${icon('down', 15)} ${esc(p.name)} <span class="muted" style="font-weight:400">· ${p.rel}</span> ${stateBadge(cmp.sec(p.key).state)}<span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="openPerson" data-arg="${p.key}">${icon('pencil', 14)} Edit</button></h3></summary>
         ${Object.keys(CAT)
           .map(
             (cat) =>
@@ -6878,7 +6863,7 @@
           tint: ['var(--brand-soft)', 'var(--brand-ink)'],
           body: `<div class="row small" style="gap:6px;color:var(--ok);font-weight:500">${icon('shield', 15)}<span>Identity confirmed at ${m.at}</span></div>
       ${late ? `<div class="alert alert-warn" role="alert">${icon('alert', 17)}<div>This declaration is being submitted after its due date (${fmtDate(D.dueDate)}). It will be recorded as filed late.</div></div>` : ''}
-      <div class="solemn" style="padding:16px"><div class="small muted" style="font-weight:500">Solemn declaration</div><blockquote style="font-size:15px">"I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete."</blockquote></div>
+      <div class="solemn" style="padding:16px"><div class="small muted" style="font-weight:500">Solemn declaration</div><blockquote style="font-size:14px">"I solemnly declare that the information I have given in this declaration is, to the best of my knowledge, true and complete."</blockquote></div>
       ${checkbox('modal.checked', 'I affirm that this declaration is true and complete to the best of my knowledge', { disabled: m.busy, sub: 'Giving false information is an offence.' })}
       ${m.err ? `<div class="alert ${m.err === 'error' ? 'alert-danger' : 'alert-warn'}" role="alert">${icon('alert', 17)}<div>${errs[m.err]}${m.err === 'notdraft' ? `<div><button class="btn btn-secondary btn-sm" data-act="reloadAfterConflict">${icon('refresh', 15)} Reload</button></div>` : ''}</div></div>` : ''}
       <div class="proto-note"><b>Prototype.</b> Idempotency-Key <span class="mono">${m.key.slice(0, 13)}…</span> (kept on retry, new when the dialog reopens). Server answer: ${[
@@ -7056,7 +7041,7 @@
         <div><dt>Version</dt><dd>${v.version}</dd></div>
         <div><dt>Submitted</dt><dd>${fmtDateTime(v.submittedAt)}${v.late ? ' · late' : ''}</dd></div>
       </dl>
-      <div class="slip-qr">${Kit.qr(v.version * 13 + 5, 124, `QR code for verification code ${a.code}`)}<div class="hint" style="font-size:11.5px;margin-top:4px">Scan to check it is genuine</div></div>
+      <div class="slip-qr">${Kit.qr(v.version * 13 + 5, 124, `QR code for verification code ${a.code}`)}<div class="hint" style="font-size:12px;margin-top:4px">Scan to check it is genuine</div></div>
     </div>
     <div style="padding:0 20px 16px;display:grid;gap:10px">
       <div><div class="small muted" style="font-weight:500;margin-bottom:4px">Verification code</div><div class="code-box"><span class="mono" style="flex:1">${a.code}</span>${copyBtn(a.code, 'Verification code')}</div></div>

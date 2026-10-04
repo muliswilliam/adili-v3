@@ -4,6 +4,8 @@ How the designs map to code. The design system lives in [`packages/ui`](../packa
 
 ## Source
 
+> **October 2026: the prototypes moved to the [Dials design guide](design/dials-design-guide.md).** The guide is extracted from the Figma style guide, the admin Form K requests dashboard and the "Identify Officer" dialog. The prototype kit now follows it. The `packages/ui` token tables below still describe the earlier kit and will change when the app is reworked. The [notes at the end of this page](#prototype-kit-and-the-dials-design-guide) record how the kit applies the guide and which calls it makes where the guide is silent.
+
 The clickable HTML prototypes are the source of truth. Where they disagree with the Figma style guide, the prototypes win; the Dials logo is the one thing still taken from Figma.
 
 They are published to [muliswilliam.github.io/adili-v3](https://muliswilliam.github.io/adili-v3/) on every push to `main` that touches a `prototype` dir (`.github/workflows/pages.yml`). The site is public.
@@ -297,3 +299,28 @@ Claude Code reads designs through the [Figma MCP server](https://mcp.figma.com/m
 - Share **frame** links (right-click a frame → Copy link to selection). Page links point at a canvas and fail with "nothing selected".
 - Each read counts against the plan's limit: 20 calls a month on Starter, 200 a day on Professional with a Full or Dev seat. One frame usually costs two or three calls.
 - When a call is not worth spending, export frames as 2× PNGs and share the paths instead; spacing and colours then need checking by eye.
+
+## Prototype kit and the Dials design guide
+
+The prototypes follow the [Dials design guide](design/dials-design-guide.md) through the shared kit (`packages/ui/prototype/kit.css` and `kit.js`). Page files keep only page-specific styles.
+
+**What the kit applies**
+
+- **Foundations:** Inter at 14px. Neutral palette (`#FAFAFA` panel, `#F5F5F5` app, `#0A0A0A` text, `#737373` labels). Page headers are 18px Semi Bold.
+- **Shell:** console and portal use the 64px global navigation with the logo, nav entries and count pills. The fluid main panel sits below it with an 8px gutter, 16px corners and an outline shadow. The verify app uses the same shell. Below 1024px, the console's nav entries move into a sheet behind the menu button.
+- **Controls:** buttons are 32px with 8px corners in primary, secondary, ghost and destructive. Inputs are base/elevated, with active, focus and error states.
+- **Dialogs:** 20% black backdrop, white 20px-radius surface, 480px wide, 20px padding. The header has a utility row (icon, close) above the title and description. Fields inside dialogs and drawers use the dialog/flat input. A single action fills the width.
+- **List pages:** a card that holds only a toolbar, a table and a pager loses its card, giving the guide's toolbar, table and pagination stack on the panel. Tabs and filter chips are pills. The table header is a 36px band; rows are dense with 5% dividers. `Kit.pager` puts the summary on the left and Rows, Previous and Next on the right.
+- **Status pills:** 28px, 13px Medium. `badge-brand`, `badge-warn`, `badge-info`, `badge` and `badge-danger` carry the guide's Review/Ready, Identify, Notify, Awaiting and Record decision colours. Green (`badge-ok`) and violet (`badge-ai`) are extensions in the same palette family.
+
+**Calls the guide leaves open**
+
+- Line heights the source sets below the font size (18px header on 16px, 16px dialog title on 16px) use 24px and 20px so text does not clip.
+- Controls keep their 32px height and centre text, instead of using the source's conflicting 10px vertical padding.
+- The ghost button drops the secondary elevation at rest, so icon buttons in toolbars and the nav stay quiet.
+- The search and pagination fonts are normalised from SF Pro to Inter.
+- Hover is a subtle 2% tint on clickable rows and 4% on the selected row, plus a neutral hover on nav entries and filter chips. The guide defines neither.
+- Toolbars keep their DOM order (filters, then search) so focus order matches what is on screen. The guide shows tabs on the left and search on the right.
+- An invalid field that has focus keeps the red outline and adds a pale red halo.
+- The brand orange is reserved for the logo and the sign-in illustration. `btn-brand` renders as a primary button.
+- A single crumb is hidden because it repeats the page title.

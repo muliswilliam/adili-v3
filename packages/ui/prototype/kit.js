@@ -281,6 +281,8 @@
       () =>
         `<tr>${Array.from({ length: cols }, (_, i) => `<td><span class="skeleton" style="width:${[70, 55, 40, 60, 35][i % 5]}%"></span></td>`).join('')}</tr>`,
     ).join('');
+  // Compact form dialog (design guide "Dialogs and modals"): utility row with the icon and close
+  // control, then the title and description, the fields, and the actions. Named by its title.
   const dialog = ({
     title,
     sub = '',
@@ -290,9 +292,9 @@
     foot,
     wide = false,
   }) =>
-    `<div class="overlay" data-act="closeModalBg"><div class="dialog" role="dialog" aria-modal="true" aria-label="${esc(title)}" ${wide ? 'style="max-width:720px"' : ''}><div class="grabber"></div><div class="dialog-head">${ic ? `<span class="avatar" style="border-radius:10px;background:${tint[0]};color:${tint[1]}">${icon(ic, 18)}</span>` : ''}<div style="flex:1"><h3>${title}</h3>${sub ? `<p class="small muted" style="margin-top:3px">${sub}</p>` : ''}</div><button class="btn btn-ghost icon-btn" data-act="closeModal" aria-label="Close">${icon('x', 18)}</button></div><div class="dialog-body">${body}</div>${foot ? `<div class="dialog-foot">${foot}</div>` : ''}</div></div>`;
+    `<div class="overlay" data-act="closeModalBg"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title" ${sub ? 'aria-describedby="dlg-desc"' : ''} ${wide ? 'style="max-width:720px"' : ''}><div class="grabber"></div><div class="dialog-head"><div class="dialog-util">${ic ? `<span class="dialog-ico" style="color:${tint[1]}" aria-hidden="true">${icon(ic, 20)}</span>` : '<span></span>'}<button class="btn btn-ghost icon-btn" data-act="closeModal" aria-label="Close">${icon('x', 16)}</button></div><div><h3 id="dlg-title">${title}</h3>${sub ? `<p class="dialog-desc" id="dlg-desc">${sub}</p>` : ''}</div></div><div class="dialog-body">${body}</div>${foot ? `<div class="dialog-foot">${foot}</div>` : ''}</div></div>`;
   const drawer = ({ title, sub = '', body, foot = '', wide = false, head = '' }) =>
-    `<div class="drawer-ov" data-act="closeModalBg"><aside class="drawer ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="drawer-head"><div style="flex:1;min-width:0"><h3>${title}</h3>${sub ? `<p class="small muted" style="margin-top:3px">${sub}</p>` : ''}${head}</div><button class="btn btn-ghost icon-btn" data-act="closeModal" aria-label="Close">${icon('x', 18)}</button></div><div class="drawer-body">${body}</div>${foot ? `<div class="drawer-foot">${foot}</div>` : ''}</aside></div>`;
+    `<div class="drawer-ov" data-act="closeModalBg"><aside class="drawer ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="drawer-head"><div style="flex:1;min-width:0"><h3>${title}</h3>${sub ? `<p class="dialog-desc">${sub}</p>` : ''}${head}</div><button class="btn btn-ghost icon-btn" data-act="closeModal" aria-label="Close">${icon('x', 16)}</button></div><div class="drawer-body">${body}</div>${foot ? `<div class="drawer-foot">${foot}</div>` : ''}</aside></div>`;
 
   /* ---------- tooltip ----------
    * Kit.tip(text, { icon: 'info' }) -> small info icon with a native + styled tooltip (keyboard focusable).
@@ -336,28 +338,18 @@
     const range = cursor
       ? `Showing ${num(from)}-${num(to)} ${label}`
       : `${num(from)}-${num(to)} of ${num(total)}`;
-    const btn = (p, lab, aria, on = false, dis = false) =>
-      `<button class="pg ${on ? 'on' : ''}" ${dis ? 'disabled' : `data-act="${act}" data-arg="${key ? key + '|' : ''}${p}"`} ${on ? 'aria-current="page"' : ''} aria-label="${aria}">${lab}</button>`;
-    let nums = '';
-    if (!cursor && pages > 1) {
-      const set = new Set([1, pages, page - 1, page, page + 1].filter((x) => x >= 1 && x <= pages));
-      if (page <= 3) [2, 3, 4].forEach((x) => x <= pages && set.add(x));
-      if (page >= pages - 2) [pages - 1, pages - 2, pages - 3].forEach((x) => x >= 1 && set.add(x));
-      let prev = 0;
-      nums = [...set]
-        .sort((a, b) => a - b)
-        .map((x) => {
-          const gap = x - prev > 1 ? '<span class="pg-gap" aria-hidden="true">…</span>' : '';
-          prev = x;
-          return gap + btn(x, num(x), `Page ${x}`, x === page);
-        })
-        .join('');
-    }
+    // Design guide pagination: result summary left; rows-per-page, Previous and Next right.
+    const btn = (p, lab, aria, dis = false) =>
+      `<button class="pg" ${dis ? 'disabled' : `data-act="${act}" data-arg="${key ? key + '|' : ''}${p}"`} aria-label="${aria}">${lab}</button>`;
     const sizeSel =
       sizes && sizeBind
         ? `<label class="pg-size"><span>Rows</span><select class="select" data-bind="${sizeBind}" data-rerender aria-label="Rows per page">${sizes.map((z) => `<option ${z === pageSize ? 'selected' : ''}>${z}</option>`).join('')}</select></label>`
         : '';
-    return `<nav class="pager" aria-label="Pagination"><span class="pg-range">${range}</span><span class="spacer"></span>${sizeSel}${btn(page - 1, icon('left', 16), 'Previous page', false, page <= 1)}<span class="pg-nums">${nums}</span>${!cursor && pages > 1 ? `<span class="pg-compact">Page ${num(page)} of ${num(pages)}</span>` : ''}${btn(page + 1, icon('right', 16), 'Next page', false, !next)}</nav>`;
+    const where =
+      !cursor && pages > 1
+        ? `<span class="pg-compact">Page ${num(page)} of ${num(pages)}</span>`
+        : '';
+    return `<nav class="pager" aria-label="Pagination"><span class="pg-range">${range}</span><span class="pg-ctl">${sizeSel}${where}${btn(page - 1, `${icon('left', 16)}<span>Previous</span>`, 'Previous page', page <= 1)}${btn(page + 1, `<span>Next</span>${icon('right', 16)}`, 'Next page', !next)}</span></nav>`;
   }
 
   /* ---------- console shell ---------- */
@@ -605,6 +597,8 @@
   ];
   const persona = () =>
     localStorage.getItem('dials-proto-persona') || Kit.cfg.defaultPersona || 'reporting-officer';
+  // Design guide shell: 64px global navigation (logo, entries with counts, account at the right),
+  // then the main panel. Below 1024px the entries move into a sheet behind the menu button.
   function consoleShell(body, { active = '', crumbs = [], actions = '' } = {}) {
     const p = PERSONAS[persona()] || PERSONAS['reporting-officer'];
     const file = location.pathname.split('/').pop();
@@ -612,29 +606,31 @@
       ...g,
       items: g.items.filter((it) => it.roles.includes(persona())),
     })).filter((g) => g.items.length);
-    const nav = groups
-      .map(
-        (g) =>
-          `<div class="cnav-group">${g.group}</div><nav class="cnav">${g.items
-            .map((it) => {
-              const [f, h] = it.href.split('#');
-              const on = active ? active === it.label : f === file && h === S.screen;
-              const count = Kit.cfg.navCounts?.[it.label];
-              return `<a class="${on ? 'on' : ''}" href="${f === file ? '#' + h : it.href}" ${f === file ? `data-act="go" data-arg="${h}"` : ''}>${icon(it.icon, 17)}<span>${it.label}</span>${count ? `<span class="count">${count}</span>` : ''}</a>`;
-            })
-            .join('')}</nav>`,
-      )
-      .join('');
-    const side = `<aside class="cside ${S.navOpen ? 'open' : ''}">
-      <div style="padding:4px 8px 0">${logo(22, '')}<span class="badge" style="margin-left:8px;vertical-align:4px;height:20px;font-size:11px">Console</span></div>
+    const link = (it) => {
+      const [f, h] = it.href.split('#');
+      const on = active ? active === it.label : f === file && h === S.screen;
+      const count = Kit.cfg.navCounts?.[it.label];
+      const alert = Kit.cfg.navAlerts?.includes(it.label);
+      return `<a class="${on ? 'on' : ''}" href="${f === file ? '#' + h : it.href}" ${f === file ? `data-act="go" data-arg="${h}"` : ''} ${on ? 'aria-current="page"' : ''}>${icon(it.icon, 16)}<span>${it.label}</span>${count ? `<span class="count ${alert ? 'alert' : ''}">${count}</span>` : ''}</a>`;
+    };
+    const items = groups.flatMap((g) => g.items);
+    const profHref =
+      file === 'profile.prototype.html' ? '#profile' : 'profile.prototype.html#profile';
+    const profAct = file === 'profile.prototype.html' ? 'data-act="go" data-arg="profile"' : '';
+    const sheet = S.navOpen
+      ? `<aside class="cside open" aria-label="Navigation">
+      <div style="padding:4px 8px 0">${logo(20, '')}</div>
       <div class="tenant"><span class="mono-badge">${p.code}</span><div style="min-width:0"><div class="t truncate">${p.org}</div><div class="s">${p.role}</div></div></div>
-      ${nav}
-      <div class="cside-foot"><a class="cside-me" href="${file === 'profile.prototype.html' ? '#profile' : 'profile.prototype.html#profile'}" ${file === 'profile.prototype.html' ? 'data-act="go" data-arg="profile"' : ''} title="Your profile"><span class="avatar sm">${p.initials}</span><div style="min-width:0;flex:1"><div style="font-weight:500" class="truncate">${p.name}</div><div class="muted" style="font-size:12px">${p.role}</div></div></a><button class="btn btn-ghost icon-btn" title="Sign out" data-act="toast" data-arg="Signed out (prototype)">${icon('logout', 17)}</button></div>
-    </aside>${S.navOpen ? '<div class="cside-scrim" data-act="toggleNav"></div>' : ''}`;
-    const cr = crumbs.length
-      ? `<div class="crumbs">${crumbs.map((c, i) => (i === crumbs.length - 1 ? `<span class="cur truncate">${c[0]}</span>` : `<a data-act="go" data-arg="${c[1]}">${c[0]}</a>${icon('right', 14)}`)).join('')}</div>`
+      ${groups.map((g) => `<div class="cnav-group">${g.group}</div><nav class="cnav">${g.items.map(link).join('')}</nav>`).join('')}
+      <div class="cside-foot"><a class="cside-me" href="${profHref}" ${profAct} title="Your profile"><span class="avatar sm">${p.initials}</span><div style="min-width:0;flex:1"><div style="font-weight:500" class="truncate">${p.name}</div><div class="muted" style="font-size:12px">${p.role}</div></div></a><button class="btn btn-ghost icon-btn" title="Sign out" data-act="toast" data-arg="Signed out (prototype)">${icon('logout', 16)}</button></div>
+    </aside><div class="cside-scrim" data-act="toggleNav"></div>`
       : '';
-    return `<div class="cshell">${side}<div class="cmain"><header class="ctop"><button class="btn btn-ghost icon-btn menu-btn" data-act="toggleNav" aria-label="Menu">${icon('menu', 19)}</button><span class="ctop-logo">${logo(20, '')}</span>${cr}<span class="spacer"></span>${actions}<button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Notifications would open here" aria-label="Notifications">${icon('bell', 18)}</button></header>${body}</div></div>`;
+    // A single crumb only repeats the page title, so it is left out.
+    const cr =
+      crumbs.length > 1
+        ? `<div class="panel-crumbs"><div class="crumbs">${crumbs.map((c, i) => (i === crumbs.length - 1 ? `<span class="cur truncate">${c[0]}</span>` : `<a data-act="go" data-arg="${c[1]}">${c[0]}</a>${icon('right', 14)}`)).join('')}</div></div>`
+        : '';
+    return `<div class="cshell"><header class="topbar"><button class="btn btn-ghost icon-btn menu-btn" data-act="toggleNav" aria-label="Menu">${icon('menu', 16)}</button><span class="logo-box">${logo(20, '')}</span><nav class="nav" aria-label="Console">${items.map(link).join('')}</nav><span class="spacer"></span>${actions}<button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Notifications would open here" aria-label="Notifications">${icon('bell', 16)}</button><span class="who"><b>${p.name}</b><span>${p.code} · ${p.role}</span></span><a class="avatar" href="${profHref}" ${profAct} aria-label="Your profile" title="${p.name}, ${p.role}">${p.initials}</a></header>${sheet}<div class="panel cmain">${cr}${body}</div></div>`;
   }
 
   /* ---------- portal shell (declarant) ---------- */
@@ -662,26 +658,26 @@
     const file = location.pathname.split('/').pop();
     const link = ([l, ic, href], cls) => {
       const [f, h] = href.split('#');
-      return `<a class="${active === l ? 'on' : ''} ${cls || ''}" href="${f === file ? '#' + h : href}" ${f === file ? `data-act="go" data-arg="${h}"` : ''}>${icon(ic, cls ? 21 : 17)}${cls ? `<span>${l}</span>` : ` ${l}`}${counts[l] ? `<span class="count">${counts[l]}</span>` : ''}</a>`;
+      return `<a class="${active === l ? 'on' : ''} ${cls || ''}" href="${f === file ? '#' + h : href}" ${f === file ? `data-act="go" data-arg="${h}"` : ''}>${icon(ic, cls ? 20 : 16)}${cls ? `<span>${l}</span>` : ` ${l}`}${counts[l] ? `<span class="count">${counts[l]}</span>` : ''}</a>`;
     };
-    return `<div class="pshell"><header class="topbar">${logo(22, '')}<nav class="nav">${NAV.map((n) => link(n)).join('')}</nav><div class="spacer"></div>${lang ? `<div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili would switch the whole portal">${icon('globe', 16)} English</button></div>` : ''}${(() => {
+    return `<div class="pshell"><header class="topbar"><span class="logo-box">${logo(20, '')}</span><nav class="nav">${NAV.map((n) => link(n)).join('')}</nav><div class="spacer"></div>${lang ? `<div class="lang row" style="gap:4px"><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili would switch the whole portal">${icon('globe', 16)} English</button></div>` : ''}${(() => {
       // Declarant portal: Help opens the help pages in the journey file. Custom portals (applicant, public) keep a toast.
       if (nav)
-        return `<button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Help centre would open here" aria-label="Help">${icon('help', 19)}</button>`;
+        return `<button class="btn btn-ghost icon-btn" data-act="toast" data-arg="Help centre would open here" aria-label="Help">${icon('help', 16)}</button>`;
       const hf = 'declarant-journey.prototype.html';
       const hereJ = file === hf;
-      return `<a class="btn btn-ghost icon-btn" href="${hereJ ? '#help' : hf + '#help'}" ${hereJ ? 'data-act="go" data-arg="help"' : ''} aria-label="Help" title="Help">${icon('help', 19)}</a>`;
+      return `<a class="btn btn-ghost icon-btn" href="${hereJ ? '#help' : hf + '#help'}" ${hereJ ? 'data-act="go" data-arg="help"' : ''} aria-label="Help" title="Help">${icon('help', 16)}</a>`;
     })()}${
       avatar === null
         ? ''
         : avatar
-          ? `<a class="avatar" style="margin-left:4px;text-decoration:none" href="${avatar.href || '#'}" aria-label="Your account" title="Your account">${avatar.initials}</a>`
+          ? `<a class="avatar" href="${avatar.href || '#'}" aria-label="Your account" title="Your account">${avatar.initials}</a>`
           : (() => {
               const f = 'declarant-profile.prototype.html';
               const here = location.pathname.split('/').pop() === f;
-              return `<a class="avatar" style="margin-left:4px;text-decoration:none" href="${here ? '#profile' : f + '#profile'}" ${here ? 'data-act="go" data-arg="profile"' : ''} aria-label="Your profile" title="Your profile">JK</a>`;
+              return `<a class="avatar" href="${here ? '#profile' : f + '#profile'}" ${here ? 'data-act="go" data-arg="profile"' : ''} aria-label="Your profile" title="Your profile">JK</a>`;
             })()
-    }</header><div class="pbody">${body}</div>${tabbar && NAV.length ? `<nav class="tabbar" style="grid-template-columns:repeat(${NAV.length},1fr)">${NAV.map((n) => link(n, 'tab')).join('')}</nav>` : ''}</div>`;
+    }</header><div class="pbody panel">${body}</div>${tabbar && NAV.length ? `<nav class="tabbar" style="grid-template-columns:repeat(${NAV.length},1fr)">${NAV.map((n) => link(n, 'tab')).join('')}</nav>` : ''}</div>`;
   }
 
   /* ---------- mount / render ---------- */

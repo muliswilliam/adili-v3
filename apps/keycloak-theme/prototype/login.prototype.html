@@ -72,7 +72,7 @@
         padding: 0;
         display: grid;
         gap: 6px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .rules li {
@@ -117,7 +117,7 @@
         border-radius: 50%;
         display: grid;
         place-items: center;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         box-shadow: inset 0 0 0 1.5px var(--line-2);
         color: var(--muted);
@@ -130,10 +130,10 @@
       }
       .steps-list .t {
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .steps-list .d {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         margin-top: 1px;
       }
@@ -172,7 +172,7 @@
         border-radius: 50%;
         display: grid;
         place-items: center;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         background: var(--sunken);
         color: var(--ink-2);
@@ -383,7 +383,7 @@
         return `<aside class="auth-art" aria-hidden="true">
     <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
       <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3d2"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5e5e5"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
         <radialGradient id="sun" cx=".72" cy=".47" r=".22"><stop offset="0" stop-color="#fff4e6"/><stop offset=".5" stop-color="#ffd9b8" stop-opacity=".8"/><stop offset="1" stop-color="#ffd9b8" stop-opacity="0"/></radialGradient>
       </defs>
       <rect width="800" height="1000" fill="url(#sky)"/><rect width="800" height="1000" fill="url(#sun)"/>
@@ -416,13 +416,13 @@
           ? `<div class="stepper" role="img" aria-label="Step ${stepper[0]} of ${stepper[1]}">${Array.from({ length: stepper[1] }, (_, i) => `<span class="s ${i + 1 < stepper[0] ? 'done' : i + 1 === stepper[0] ? 'cur' : ''}"></span>`).join('')}</div>`
           : '';
         return `<div class="auth"><main class="auth-main">
-    <div class="auth-top">${logo(24, '')}${isStaff() ? '<span class="badge" style="margin-right:auto;margin-left:8px;height:22px;font-size:11.5px">Console</span>' : ''}<div class="row" style="gap:4px">${top ?? langBtn()}</div></div>
+    <div class="auth-top">${logo(24, '')}${isStaff() ? '<span class="badge" style="margin-right:auto;margin-left:8px;height:22px;font-size:12px">Console</span>' : ''}<div class="row" style="gap:4px">${top ?? langBtn()}</div></div>
     <div class="auth-body">${st}${body}</div>
     <div class="auth-foot">Adili Online · <a class="link" style="font-weight:400" data-act="toast" data-arg="Privacy notice would open">Privacy</a> · <a class="link" style="font-weight:400" data-act="toast" data-arg="Help centre would open">Help</a></div>
   </main>${art(a)}</div>`;
       }
       const pwInput = (bind, show, showAct, ph, auto, extraErr) =>
-        `<div class="input-group" ${extraErr ? 'style="box-shadow:0 0 0 1.5px var(--danger)"' : ''}>${input(bind, { type: S[bind.split('.')[0]][show] ? 'text' : 'password', ph, extra: `autocomplete="${auto}" ${extraErr ? 'aria-invalid="true"' : ''}` })}<button class="btn btn-ghost icon-btn" style="margin:4px" data-act="${showAct}" aria-label="${S[bind.split('.')[0]][show] ? 'Hide password' : 'Show password'}" aria-pressed="${!!S[bind.split('.')[0]][show]}">${icon(S[bind.split('.')[0]][show] ? 'eyeOff' : 'eye', 17)}</button></div>`;
+        `<div class="input-group" ${extraErr ? 'style="box-shadow:var(--shadow-error)"' : ''}>${input(bind, { type: S[bind.split('.')[0]][show] ? 'text' : 'password', ph, extra: `autocomplete="${auto}" ${extraErr ? 'aria-invalid="true"' : ''}` })}<button class="btn btn-ghost icon-btn" style="margin:4px" data-act="${showAct}" aria-label="${S[bind.split('.')[0]][show] ? 'Hide password' : 'Show password'}" aria-pressed="${!!S[bind.split('.')[0]][show]}">${icon(S[bind.split('.')[0]][show] ? 'eyeOff' : 'eye', 17)}</button></div>`;
       const stateMark = (ic, kind) => {
         const c = {
           ok: ['var(--ok-soft)', 'var(--ok)'],

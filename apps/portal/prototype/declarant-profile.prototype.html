@@ -21,10 +21,10 @@
       }
       .proto-note {
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         line-height: 1.45;
         color: #6d5a2a;
-        background: #fffaf0;
+        background: #fffbeb;
         border: 1px dashed #e2c98f;
         border-radius: 8px;
         padding: 6px 10px;
@@ -79,7 +79,7 @@
         display: flex;
         gap: 8px;
         align-items: flex-start;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .lock-note svg {
@@ -96,7 +96,7 @@
         cursor: pointer;
       }
       .item.click:hover {
-        background: #fbfaf8;
+        background: #fafafa;
       }
       .item.gone .t,
       .item.gone .d {
@@ -132,7 +132,7 @@
         margin: 10px 0;
       }
       .cool {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .done-box {
@@ -183,12 +183,12 @@
         padding: 0;
       }
       .rt-month {
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--muted);
         padding: 12px 20px 6px;
         border-bottom: 1px solid var(--line);
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .card > .rt-month:first-child {
         border-radius: var(--r-lg) var(--r-lg) 0 0;
@@ -215,7 +215,7 @@
         cursor: pointer;
       }
       button.rt-row:hover {
-        background: #fbfaf8;
+        background: #fafafa;
       }
       button.rt-row:focus-visible {
         outline: 3px solid rgba(26, 26, 26, 0.2);
@@ -274,17 +274,17 @@
       }
       .rt-t {
         font-weight: 500;
-        font-size: 15px;
+        font-size: 14px;
         line-height: 1.35;
       }
       .rt-s {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         line-height: 1.4;
         overflow-wrap: anywhere;
       }
       .rt-s .mono {
-        font-size: 12.5px;
+        font-size: 13px;
         white-space: nowrap;
       }
       .rt-tag {
@@ -1240,7 +1240,7 @@
           title: lea ? 'Law-enforcement request' : 'Access request',
           sub: `<span class="mono">${r.ref}</span> · ${r.comm.code}`,
           body: `<div class="kv" style="grid-template-columns:1fr">${rows.join('')}</div>
-      <h4 class="section-title" style="font-size:14.5px;margin:22px 0 10px">Timeline</h4>${regCompact(asc)}`,
+      <h4 class="section-title" style="font-size:14px;margin:22px 0 10px">Timeline</h4>${regCompact(asc)}`,
           foot: act
             ? `<a class="btn btn-primary" href="${AFTER}#access-request">Respond by ${fmtDate(r.windowEndsAt)}</a>`
             : '',

@@ -28,24 +28,16 @@
         min-height: 100%;
         display: flex;
         flex-direction: column;
+        background: var(--app);
       }
-      .vtop {
-        position: sticky;
-        top: 0;
-        z-index: 20;
+      .vshell > .panel {
         display: flex;
-        align-items: center;
-        gap: 10px;
-        height: 60px;
-        padding: 0 16px;
-        background: rgba(250, 250, 249, 0.88);
-        backdrop-filter: saturate(1.4) blur(12px);
-        border-bottom: 1px solid var(--line);
+        flex-direction: column;
       }
-      @container app (min-width: 700px) {
-        .vtop {
-          padding: 0 28px;
-        }
+      .vtop .badge {
+        height: 20px;
+        padding: 0 8px;
+        font-size: 12px;
       }
       .vmain {
         flex: 1;
@@ -127,7 +119,7 @@
         display: flex;
         gap: 12px;
         align-items: flex-start;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .see .ico {
         width: 30px;
@@ -164,20 +156,20 @@
         flex: none;
       }
       .status-head h1 {
-        font-size: 20px;
+        font-size: 18px;
         line-height: 1.3;
         font-weight: 600;
         letter-spacing: -0.015em;
       }
       @container app (min-width: 600px) {
         .status-head h1 {
-          font-size: 22px;
+          font-size: 18px;
         }
       }
       .status-head p {
         color: var(--ink-2);
         margin-top: 6px;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .st-ok .status-head {
         background: linear-gradient(180deg, #eef8f1, #fff);
@@ -187,7 +179,7 @@
         color: #fff;
       }
       .st-warn .status-head {
-        background: linear-gradient(180deg, #fdf6e7, #fff);
+        background: linear-gradient(180deg, #f5f5f5, #fff);
       }
       .st-warn .mark {
         background: #d98a00;
@@ -201,10 +193,10 @@
         color: #fff;
       }
       .st-neutral .status-head {
-        background: linear-gradient(180deg, #f4f3f1, #fff);
+        background: linear-gradient(180deg, #f5f5f5, #fff);
       }
       .st-neutral .mark {
-        background: #6f6e6b;
+        background: #737373;
         color: #fff;
       }
       .status-body {
@@ -236,7 +228,7 @@
         background: var(--sunken);
         cursor: pointer;
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: var(--ink);
@@ -256,18 +248,18 @@
           right: auto;
         }
         .slipfoot .c {
-          font-size: 11.5px;
+          font-size: 12px;
         }
         .code-input {
           letter-spacing: 0.01em;
-          font-size: 14.5px;
+          font-size: 14px;
         }
       }
       .refchip {
         white-space: nowrap;
       }
       .refchip:hover {
-        background: #ebe9e6;
+        background: #e5e5e5;
       }
       .refchip svg {
         color: var(--muted);
@@ -316,7 +308,7 @@
         height: 24px;
         padding: 0 9px;
         border-radius: 999px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
         background: var(--sunken);
         color: var(--ink-2);
@@ -386,18 +378,18 @@
       }
       .hres.ok {
         background: var(--ok-soft);
-        color: #0f5a2d;
+        color: #016630;
       }
       .hres.bad {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
       }
       .hres.warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
       }
       .hres h3 {
-        font-size: 15.5px;
+        font-size: 16px;
         font-weight: 600;
       }
       .hres p {
@@ -429,7 +421,7 @@
         margin-top: 28px;
         padding: 14px 16px;
         border-radius: 12px;
-        border: 1.5px dashed #c9c7c3;
+        border: 1.5px dashed #d4d4d4;
         font-size: 13px;
         color: var(--muted);
       }
@@ -469,7 +461,7 @@
         vertical-align: top;
       }
       .lvl th {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
       }
@@ -481,7 +473,7 @@
         gap: 16px;
       }
       .prim h3 {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
       .prim .demo {
@@ -612,7 +604,7 @@
         return `<span class="menu-wrap"><button class="refchip" data-act="menu" data-arg="${key}" aria-expanded="${open}" aria-label="Reference number ${ref}. Show what each part means">${ref}${icon('info', 14)}</button>${
           open
             ? `<div class="refpop" role="dialog" aria-label="Parts of the reference number">
-    <div style="font-weight:600;font-size:13.5px;margin-bottom:6px">What the reference number means</div>
+    <div style="font-weight:600;font-size:14px;margin-bottom:6px">What the reference number means</div>
     <table><tr><td class="p">${type}</td><td class="k">Type</td><td>${TYPES[type] || type}</td></tr>
     <tr><td class="p">${issuer}</td><td class="k">Issuer</td><td>${ISSUERS[issuer] || issuer}</td></tr>
     <tr><td class="p">${year}</td><td class="k">Year</td><td>Year of the statement date</td></tr>
@@ -633,7 +625,7 @@
     </label>`;
         const never = `<div class="never" id="never-up">${icon('lock', 14)} The file is checked on your device and never uploaded.</div>`;
         const tech = () =>
-          `<button class="link small" data-act="toggleTech" aria-expanded="${H.showTech}">${H.showTech ? 'Hide' : 'Show'} technical details</button>${H.showTech ? `<div class="digest" style="margin-top:10px;display:grid;gap:8px"><div><b>Your file (SHA-256)</b><br/>${digestHtml(H.digest)}</div><div><b>Issued document (SHA-256)</b><br/>${digestHtml(doc.sha256)}</div><div class="muted" style="font-family:Inter,sans-serif;font-size:12.5px;word-break:normal">Calculated in this browser. Nothing was sent.</div></div>` : ''}`;
+          `<button class="link small" data-act="toggleTech" aria-expanded="${H.showTech}">${H.showTech ? 'Hide' : 'Show'} technical details</button>${H.showTech ? `<div class="digest" style="margin-top:10px;display:grid;gap:8px"><div><b>Your file (SHA-256)</b><br/>${digestHtml(H.digest)}</div><div><b>Issued document (SHA-256)</b><br/>${digestHtml(doc.sha256)}</div><div class="muted" style="font-family:Inter,sans-serif;font-size:13px;word-break:normal">Calculated in this browser. Nothing was sent.</div></div>` : ''}`;
         const file = H.name
           ? `<div class="fileline">${icon('file', 16)}<span class="truncate" style="flex:1;min-width:0">${esc(H.name)}</span><span class="muted small">${fmtSize(H.size)}</span></div>`
           : '';
@@ -655,9 +647,9 @@
       /* ---------- shell ---------- */
       function shell(body) {
         return `<div class="vshell">
-    <header class="vtop">${logo(22)}<span class="badge" style="height:22px;font-size:11.5px">Verify</span><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili: strings are slots for now">${icon('globe', 16)} English</button></header>
-    <main class="vmain">${body}</main>
-    <footer class="vfoot"><div>Verification is recorded (time and coarse location) to protect against abuse.</div><div>Adili Online · <a class="link" style="font-weight:400" data-act="go" data-arg="privacy">What this page shows</a></div></footer>
+    <header class="topbar vtop"><span class="logo-box" style="width:auto">${logo(20)}</span><span class="badge">Verify</span><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="toast" data-arg="Kiswahili: strings are slots for now">${icon('globe', 16)} English</button></header>
+    <div class="panel"><main class="vmain">${body}</main>
+    <footer class="vfoot"><div>Verification is recorded (time and coarse location) to protect against abuse.</div><div>Adili Online · <a class="link" style="font-weight:400" data-act="go" data-arg="privacy">What this page shows</a></div></footer></div>
   </div>`;
       }
 
@@ -669,13 +661,13 @@
   <div style="text-align:center">
     <div class="hero-ico">${icon('qr', 26)}</div>
     <h1 class="page-title" style="text-wrap:balance">Check an Adili Online document</h1>
-    <p class="muted" style="margin-top:10px;font-size:15.5px;text-wrap:pretty">Scan the QR code on the document or type the verification code printed under it. Nothing you enter is stored with your identity.</p>
+    <p class="muted" style="margin-top:10px;font-size:14px;text-wrap:pretty">Scan the QR code on the document or type the verification code printed under it. Nothing you enter is stored with your identity.</p>
   </div>
   <div class="card card-pad" style="margin-top:26px">
     <form class="stack" data-form="check" novalidate>
       <div class="field">
         <label class="label" for="f-code"><span>Verification code</span></label>
-        <div class="input-group code-group" ${S.codeErr ? 'style="box-shadow:0 0 0 1.5px var(--danger)"' : ''}><span class="addon" aria-hidden="true">ADL-</span><input id="f-code" class="input code-input" data-bind="code" value="${esc(S.code)}" placeholder="7Q4K-M2XR-9HTC-W3NB-5FJD-8P" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-describedby="code-help" ${S.codeErr ? 'aria-invalid="true"' : ''}/></div>
+        <div class="input-group code-group" ${S.codeErr ? 'style="box-shadow:var(--shadow-error)"' : ''}><span class="addon" aria-hidden="true">ADL-</span><input id="f-code" class="input code-input" data-bind="code" value="${esc(S.code)}" placeholder="7Q4K-M2XR-9HTC-W3NB-5FJD-8P" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" aria-describedby="code-help" ${S.codeErr ? 'aria-invalid="true"' : ''}/></div>
         ${S.codeErr ? `<div class="hint" id="code-help" role="alert" style="color:var(--danger);font-weight:500">${S.codeErr}</div>` : `<div class="hint" id="code-help">Starts with ADL. Not case sensitive.</div>`}
       </div>
       <button type="submit" class="btn btn-primary btn-block" ${S.checking ? 'disabled' : ''}>${S.checking ? '<span class="spinner"></span> Checking' : 'Check'}</button>

@@ -14,10 +14,10 @@
     <style>
       .proto-note {
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         line-height: 1.45;
         color: #6d5a2a;
-        background: #fffaf0;
+        background: #fffbeb;
         border: 1px dashed #e2c98f;
         border-radius: 8px;
         padding: 6px 10px;
@@ -34,13 +34,13 @@
         font-size: 17px;
       }
       .ph h1 {
-        font-size: 22px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
       }
       @container app (min-width: 700px) {
         .ph h1 {
-          font-size: 26px;
+          font-size: 18px;
         }
       }
       .cpage .tabs {
@@ -154,7 +154,7 @@
       }
       .act-ref {
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 12.5px;
+        font-size: 13px;
       }
     </style>
     <script src="../../../packages/ui/prototype/kit.js"></script>
@@ -432,7 +432,7 @@
       <div><dt>Official email</dt><dd><span style="word-break:break-all">${esc(me.email)}</span>${locked('Managed for you')}</dd></div>
       <div><dt>Phone</dt><dd class="tabular">${esc(phoneOf())}<button class="btn btn-secondary btn-xs" data-act="openChange">Change</button></dd></div>
       <div><dt>Role</dt><dd>${esc(me.role)}${locked('Managed for you')}</dd></div>
-      <div><dt>Commission</dt><dd><span class="badge" style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px">${me.code}</span>${esc(tenantName)}${locked('Managed for you')}</dd></div>
+      <div><dt>Commission</dt><dd><span class="badge" style="font-family:ui-monospace,Menlo,monospace;font-size:12px">${me.code}</span>${esc(tenantName)}${locked('Managed for you')}</dd></div>
       <div><dt>Invited</dt><dd style="flex-direction:column;align-items:flex-end;gap:0"><span>${fmtDate(me.invited.at)}</span><span class="small muted" style="font-weight:400">by ${esc(me.invited.by)}</span></dd></div>
       <div><dt>Activated</dt><dd>${fmtDate(me.activatedAt)}</dd></div>
     </dl>

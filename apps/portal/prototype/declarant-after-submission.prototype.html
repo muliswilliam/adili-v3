@@ -88,7 +88,7 @@
         background: var(--sunken);
         border: 0;
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: var(--ink);
@@ -96,11 +96,10 @@
         white-space: nowrap;
       }
       .refchip:hover {
-        background: #ebe9e5;
+        background: #e5e5e5;
       }
       .refchip:focus-visible,
       .qa-link:focus-visible,
-      .btn:focus-visible,
       .link:focus-visible,
       .back:focus-visible,
       .cardlink:focus-visible {
@@ -132,7 +131,7 @@
         gap: 12px;
         padding: 16px 18px;
         border-radius: 14px;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.5;
       }
       .banner svg {
@@ -147,22 +146,22 @@
       }
       .banner-warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
         box-shadow: 0 0 0 1px #f3dfb5;
       }
       .banner-danger {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
         box-shadow: 0 0 0 1px #f5cdc9;
       }
       .banner-ok {
         background: var(--ok-soft);
-        color: #0f5a2d;
+        color: #016630;
         box-shadow: 0 0 0 1px #cbe8d5;
       }
       .banner-info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
         box-shadow: 0 0 0 1px #d3e2f6;
       }
       .banner-neutral {
@@ -250,7 +249,7 @@
       }
       .cardlink:hover .lc,
       .lc.cardlink:hover {
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .card > .cardlink:last-child .lc {
         border-bottom-left-radius: var(--r-lg);
@@ -272,11 +271,11 @@
       }
       .lc .t {
         font-weight: 600;
-        font-size: 15.5px;
+        font-size: 16px;
         line-height: 1.35;
       }
       .lc .d {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         margin-top: 3px;
         line-height: 1.45;
@@ -332,7 +331,7 @@
         border-radius: 50%;
         display: grid;
         place-items: center;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         background: var(--ink);
         color: #fff;
@@ -361,7 +360,7 @@
       }
       .qa-target {
         font-weight: 600;
-        font-size: 15.5px;
+        font-size: 16px;
         margin-top: 2px;
         line-height: 1.4;
       }
@@ -370,7 +369,7 @@
         padding: 12px 14px;
         border-radius: 10px;
         background: var(--sunken);
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.55;
         color: var(--ink);
         position: relative;
@@ -390,12 +389,12 @@
         padding: 12px 14px;
         border-radius: 10px;
         box-shadow: inset 0 0 0 1px var(--line);
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.55;
         white-space: pre-wrap;
       }
       .qa-link {
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
         color: var(--ink-2);
         display: inline-flex;
@@ -411,7 +410,7 @@
         text-underline-offset: 3px;
       }
       .counter {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
@@ -421,8 +420,8 @@
       }
       .textarea.err {
         box-shadow:
-          0 0 0 1.5px var(--danger),
-          0 0 0 4px rgba(201, 41, 30, 0.08);
+          var(--shadow-error),
+          0 0 0 4px rgba(231, 0, 11, 0.08);
       }
       .ferr {
         font-size: 13px;
@@ -447,7 +446,7 @@
         flex-wrap: wrap;
         padding: 16px 20px;
         border-top: 1px solid var(--line);
-        background: #fcfcfb;
+        background: #fafafa;
         border-radius: 0 0 var(--r-lg) var(--r-lg);
       }
       @container app (min-width: 700px) {
@@ -471,7 +470,7 @@
         }
       }
       .answered {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .answered b {
@@ -480,7 +479,7 @@
 
       /* letter preview */
       .letter-wrap {
-        background: #eceae6;
+        background: #e5e5e5;
         border-radius: 14px;
         padding: 16px;
       }
@@ -497,7 +496,7 @@
           0 1px 3px rgba(0, 0, 0, 0.08),
           0 8px 24px -12px rgba(0, 0, 0, 0.2);
         padding: 26px 22px 20px;
-        font-size: 13.5px;
+        font-size: 14px;
         line-height: 1.6;
         color: #222;
         overflow: hidden;
@@ -529,13 +528,13 @@
       }
       .letter .org {
         font-weight: 700;
-        font-size: 15px;
+        font-size: 14px;
         letter-spacing: 0.01em;
         text-transform: uppercase;
         line-height: 1.25;
       }
       .letter .addr {
-        font-size: 11.5px;
+        font-size: 12px;
         color: #666;
       }
       @container app (max-width: 699px) {
@@ -560,7 +559,7 @@
         grid-template-columns: auto 1fr;
         gap: 2px 14px;
         margin: 16px 0;
-        font-size: 12.5px;
+        font-size: 13px;
       }
       .letter .lmeta dt {
         color: #666;
@@ -599,7 +598,7 @@
         margin-top: 22px;
         padding-top: 14px;
         border-top: 1px solid #ddd;
-        font-size: 11.5px;
+        font-size: 12px;
         color: #555;
       }
       .letter .lfoot .code {
@@ -647,7 +646,7 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
         line-height: 1.3;
@@ -731,7 +730,7 @@
       }
       .track .tt {
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
         padding-top: 3px;
       }
       .track .td {
@@ -782,12 +781,12 @@
         gap: 12px 20px;
       }
       .kvs .k {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
       }
       .kvs .v {
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 500;
         margin-top: 1px;
       }
@@ -808,7 +807,7 @@
       }
       /* access requests (#255) */
       .k-label {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
         margin-bottom: 8px;
@@ -830,7 +829,7 @@
         }
       }
       .scope dt {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .scope dd {
@@ -867,7 +866,7 @@
       .grounds {
         margin: 0;
         padding-left: 18px;
-        font-size: 14.5px;
+        font-size: 14px;
         display: grid;
         gap: 4px;
       }
@@ -895,8 +894,8 @@
         color: var(--brand-ink);
       }
       .timeline .tl-ico.info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .timeline .tl-ico.ok {
         background: var(--ok-soft);
@@ -2071,7 +2070,7 @@
           brand: ['var(--brand-soft)', 'var(--brand-ink)'],
           danger: ['var(--danger-soft)', 'var(--danger)'],
           ok: ['var(--ok-soft)', 'var(--ok)'],
-          info: ['#eaf1fb', '#1f4f96'],
+          info: ['#dff2fe', '#0069a8'],
           '': ['var(--sunken)', 'var(--muted)'],
         }[st.kind];
         const overdueNow = isOpen(c) && dd(TODAY, c.dueAt) < 0;
@@ -2307,7 +2306,7 @@
           <div class="meta-line"><span>${refChip(DECL.ref)}</span><span>${dec ? outcomeBadge(dec.outcome) : anyOpen ? `<span class="badge badge-brand">${icon('msg', 13)} Clarification open</span>` : `<span class="badge badge-info">${icon('search', 13)} Under review</span>`}</span><span>${icon('calendar', 15)} Statement date ${fmtDate(DECL.statementDate)}</span></div>
           <div class="side-grid">
             <div class="stack-lg" style="min-width:0">
-              ${S.loadFor === 'declaration' ? skeletonList(2) : dec ? decisionCard(dec, { full: true }) : `<div class="card card-pad"><div class="outcome"><span class="big-ico" style="background:#eaf1fb;color:#1f4f96">${icon('search', 22)}</span><div><div class="section-title">No decision yet</div><p class="small muted" style="margin-top:4px;max-width:520px">${anyOpen ? 'Respond to the open clarification first. ' : ''}We will SMS and email you when ${COMM.code} decides.</p></div></div></div>`}
+              ${S.loadFor === 'declaration' ? skeletonList(2) : dec ? decisionCard(dec, { full: true }) : `<div class="card card-pad"><div class="outcome"><span class="big-ico" style="background:#dff2fe;color:#0069a8">${icon('search', 22)}</span><div><div class="section-title">No decision yet</div><p class="small muted" style="margin-top:4px;max-width:520px">${anyOpen ? 'Respond to the open clarification first. ' : ''}We will SMS and email you when ${COMM.code} decides.</p></div></div></div>`}
               <div class="card"><div class="card-head"><h3>Clarifications</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="clarifications">All ${icon('right', 15)}</button></div>${clars.length ? clars.slice(0, 3).map(clarCard).join('') : `<div class="sec-b small muted">No clarification requests.</div>`}</div>
               ${S.notices.length ? `<div class="card"><div class="card-head"><h3>Notices</h3><span class="spacer"></span><button class="btn btn-ghost btn-sm" data-act="go" data-arg="notices">All ${icon('right', 15)}</button></div>${byDate(S.notices).slice(0, 3).map(noticeCard).join('')}</div>` : ''}
             </div>
@@ -2377,7 +2376,7 @@
               : `<button class="btn ${full ? 'btn-primary' : 'btn-secondary'} btn-sm" data-act="decLetter" data-arg="${dec.id}">${icon('download', 16)} Download decision letter</button>`;
         return `<div class="card"><div class="${full ? 'card-pad' : 'sec-b'}"><div class="outcome"><span class="big-ico" style="background:${tint[0]};color:${tint[1]}">${icon(o.icon, 22)}</span><div style="min-width:0;flex:1">
             <div class="row wrap" style="gap:8px">${full ? '' : outcomeBadge(dec.outcome)}${refChip(dec.ref, 'dec-' + dec.id + (full ? '' : '-s'))}</div>
-            <p class="small ${dec.outcome === 'non-compliant' ? '' : 'muted'}" style="margin-top:10px;max-width:560px;${dec.outcome === 'non-compliant' ? 'color:#8a1c14;font-weight:500' : ''}">${o.text}</p>
+            <p class="small ${dec.outcome === 'non-compliant' ? '' : 'muted'}" style="margin-top:10px;max-width:560px;${dec.outcome === 'non-compliant' ? 'color:#9f0712;font-weight:500' : ''}">${o.text}</p>
             <div class="small muted" style="margin-top:6px">Decided ${fmtDate(dec.decidedAt)}${full ? '' : ` · ${DECL.type}`}</div>
             ${dec.letter === 'error' ? `<div class="ferr" style="margin-top:10px">${icon('alert', 14)} We could not prepare your letter. Try again in a few minutes.</div>` : ''}
           </div></div></div>
@@ -2392,7 +2391,7 @@
           warn: ['var(--warn-soft)', 'var(--warn)'],
           danger: ['var(--danger-soft)', 'var(--danger)'],
           ok: ['var(--ok-soft)', 'var(--ok)'],
-          info: ['#eaf1fb', '#1f4f96'],
+          info: ['#dff2fe', '#0069a8'],
         }[b.kind];
         const left = n.actBy ? dd(TODAY, n.actBy) : null;
         const actLine =
@@ -2662,7 +2661,7 @@
           warn: ['var(--warn-soft)', 'var(--warn)'],
           danger: ['var(--danger-soft)', 'var(--danger)'],
           ok: ['var(--ok-soft)', 'var(--ok)'],
-          info: ['#eaf1fb', '#1f4f96'],
+          info: ['#dff2fe', '#0069a8'],
           '': ['var(--sunken)', 'var(--ink-2)'],
         }[b.kind];
         const lea = r.kind === 'lea';
@@ -2931,7 +2930,7 @@
             ? `<div class="card"><div class="card-head"><h3>Decision</h3><span class="spacer"></span><span class="small muted">${fmtDate(d.at)}</span></div><div class="sec-b stack" style="gap:14px">
             <div>${badge(ACC_OUT[d.outcome])}</div>
             ${d.grounds.length ? `<div><div class="k-label">Grounds</div><ul class="grounds">${d.grounds.map((g) => `<li>${esc(GROUNDS[g])}</li>`).join('')}</ul></div>` : ''}
-            <div><div class="k-label">Reasons</div><p style="font-size:14.5px">${esc(d.reasons)}</p></div>
+            <div><div class="k-label">Reasons</div><p style="font-size:14px">${esc(d.reasons)}</p></div>
             ${r.pkg ? `<div class="small muted row" style="gap:6px">${icon('box', 15)} Package issued to ${esc(r.applicant)}, watermarked with their name. ${r.pkg.downloads.length ? `Downloaded ${plural(r.pkg.downloads.length, 'time')}.` : 'Not downloaded yet.'}</div>` : ''}
           </div></div>`
             : '';

@@ -15,10 +15,10 @@
       /* ---------- shared bits (same look as declarant-journey / after-submission) ---------- */
       .proto-note {
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         line-height: 1.45;
         color: #6d5a2a;
-        background: #fffaf0;
+        background: #fffbeb;
         border: 1px dashed #e2c98f;
         border-radius: 8px;
         padding: 7px 10px;
@@ -32,7 +32,7 @@
         cursor: pointer;
       }
       .is-invalid {
-        box-shadow: 0 0 0 1.5px var(--danger) !important;
+        box-shadow: var(--shadow-error) !important;
       }
       .cd {
         font-variant-numeric: tabular-nums;
@@ -95,7 +95,7 @@
         margin-top: 28px;
         padding-top: 16px;
         border-top: 1px solid var(--line);
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         display: flex;
         gap: 8px;
@@ -106,7 +106,7 @@
         margin-top: 2px;
       }
       .gs-h1 {
-        font-size: 26px;
+        font-size: 18px;
         line-height: 1.2;
         letter-spacing: -0.02em;
         font-weight: 600;
@@ -119,7 +119,7 @@
         flex-wrap: nowrap;
       }
       .otp.err input {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .otp.dis input {
         background: var(--sunken);
@@ -217,7 +217,7 @@
         background: var(--brand-soft);
         color: var(--brand-ink);
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 600;
         letter-spacing: 0.02em;
       }
@@ -225,7 +225,7 @@
         flex: 1;
         min-width: 0;
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.3;
       }
       .combo-empty {
@@ -240,7 +240,7 @@
         padding: 12px 14px;
         border-radius: var(--r);
         background: var(--surface);
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
 
       /* ---------- portal pages (as declarant-after-submission) ---------- */
@@ -317,7 +317,7 @@
         background: var(--sunken);
         border: 0;
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: var(--ink);
@@ -325,7 +325,7 @@
         white-space: nowrap;
       }
       .refchip:hover {
-        background: #ebe9e5;
+        background: #e5e5e5;
       }
       .refchip.lg {
         height: 44px;
@@ -358,7 +358,7 @@
         gap: 12px;
         padding: 16px 18px;
         border-radius: 14px;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.5;
       }
       .banner > svg {
@@ -373,22 +373,22 @@
       }
       .banner-warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
         box-shadow: 0 0 0 1px #f3dfb5;
       }
       .banner-danger {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
         box-shadow: 0 0 0 1px #f5cdc9;
       }
       .banner-ok {
         background: var(--ok-soft);
-        color: #0f5a2d;
+        color: #016630;
         box-shadow: 0 0 0 1px #cbe8d5;
       }
       .banner-info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
         box-shadow: 0 0 0 1px #d3e2f6;
       }
       .banner-neutral {
@@ -479,7 +479,7 @@
         }
       }
       .cardlink:hover .lc {
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .card > .cardlink:first-child .lc {
         border-top-left-radius: var(--r-lg);
@@ -499,17 +499,17 @@
       }
       .lc .t {
         font-weight: 600;
-        font-size: 15.5px;
+        font-size: 16px;
         line-height: 1.35;
       }
       .lc .d {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         margin-top: 3px;
         line-height: 1.45;
       }
       .lc .d .mono {
-        font-size: 12.5px;
+        font-size: 13px;
       }
       .lc .tags {
         display: flex;
@@ -524,7 +524,7 @@
         flex: none;
       }
       .counter {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
@@ -548,13 +548,13 @@
         flex: none;
       }
       .sec-label {
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--muted);
         margin-bottom: 4px;
       }
       .prose {
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.55;
         white-space: pre-wrap;
       }
@@ -573,7 +573,7 @@
         border-radius: 999px;
         background: var(--sunken);
         color: var(--ink-2);
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
         white-space: nowrap;
         font-variant-numeric: tabular-nums;
@@ -647,7 +647,7 @@
         background: var(--surface);
         box-shadow: var(--shadow-input);
         cursor: pointer;
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 500;
         line-height: 1.3;
       }
@@ -668,7 +668,7 @@
         background: #fff;
       }
       .sp-opt:has(input:checked) {
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
       .sp-opt:has(input:checked) .box {
         background: var(--ink);
@@ -690,7 +690,7 @@
       }
       .sp-opt .sub {
         display: block;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 400;
         color: var(--muted);
       }
@@ -698,7 +698,7 @@
         min-width: 104px;
       }
       .sp.err .sp-invalid .sp-opt {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       /* read-only scope view (requested vs granted) */
       .sv {
@@ -735,12 +735,12 @@
         padding: 0 10px;
         border-radius: 8px;
         background: var(--sunken);
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
       }
       .sv-i.yes {
         background: var(--ok-soft);
-        color: #0f5a2d;
+        color: #016630;
       }
       .sv-i.no {
         background: transparent;
@@ -753,7 +753,7 @@
         display: flex;
         gap: 14px;
         flex-wrap: wrap;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .sv-legend span {
@@ -785,7 +785,7 @@
         display: flex;
         gap: 10px;
         align-items: flex-start;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.45;
       }
       .reg-tag {
@@ -835,7 +835,7 @@
         right: 12px;
         height: 4px;
         border-radius: 3px;
-        background: #ecebe8;
+        background: #e5e5e5;
       }
       .wm .mk {
         position: absolute;
@@ -847,7 +847,7 @@
         font-size: 6.5px;
         font-weight: 600;
         line-height: 1.35;
-        color: rgba(201, 41, 30, 0.42);
+        color: rgba(231, 0, 11, 0.42);
         letter-spacing: 0.02em;
       }
       .wm .cf {
@@ -878,7 +878,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
@@ -927,7 +927,7 @@
         min-width: 0;
       }
       .rail li.err .n {
-        box-shadow: inset 0 0 0 1.5px var(--danger);
+        box-shadow: inset var(--shadow-error);
         color: var(--danger);
         background: none;
       }
@@ -968,7 +968,7 @@
         }
       }
       .lock-grid .k {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .lock-grid .v {
@@ -991,7 +991,7 @@
       }
       .rev-h h3 {
         flex: 1;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
       @container app (max-width: 959px) {
@@ -1015,12 +1015,12 @@
         }
       }
       .rev dt {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .rev dd {
         margin: 0 0 10px;
-        font-size: 14.5px;
+        font-size: 14px;
         overflow-wrap: anywhere;
         white-space: pre-wrap;
       }
@@ -1032,7 +1032,7 @@
         box-shadow: 0 0 0 1px #f3dccd;
       }
       .declare-box.err {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .field .lbl-row {
         display: flex;
@@ -1043,8 +1043,8 @@
       .textarea.err,
       .input.err {
         box-shadow:
-          0 0 0 1.5px var(--danger),
-          0 0 0 4px rgba(201, 41, 30, 0.08);
+          var(--shadow-error),
+          0 0 0 4px rgba(231, 0, 11, 0.08);
       }
       .success-mark.warn {
         background: var(--warn-soft);
@@ -1053,7 +1053,7 @@
 
       /* ---------- reference pages ---------- */
       .docpage h2 {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 600;
         margin: 32px 0 12px;
         display: flex;
@@ -1066,7 +1066,7 @@
       .ctable {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
         background: var(--surface);
       }
       .ctable th,
@@ -1080,7 +1080,7 @@
         font-size: 12px;
         font-weight: 600;
         color: var(--muted);
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .ctable code {
         font-size: 12px;
@@ -1090,7 +1090,7 @@
       }
       .gap-note {
         color: var(--warn);
-        font-size: 12.5px;
+        font-size: 13px;
         margin-top: 4px;
         display: flex;
         gap: 5px;
@@ -1366,7 +1366,7 @@
       ];
       const GRANTED = ['granted', 'partially-granted'];
       const TONES = {
-        info: ['#eaf1fb', '#1f4f96'],
+        info: ['#dff2fe', '#0069a8'],
         warn: ['var(--warn-soft)', 'var(--warn)'],
         brand: ['var(--brand-soft)', 'var(--brand-ink)'],
         ok: ['var(--ok-soft)', 'var(--ok)'],
@@ -2088,7 +2088,7 @@
         return `<aside class="auth-art" aria-hidden="true">
     <svg class="hills" viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice">
       <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe3d2"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5e5e5"/><stop offset=".55" stop-color="#f6c7a6"/><stop offset="1" stop-color="#ef9e72"/></linearGradient>
         <radialGradient id="sun" cx=".72" cy=".47" r=".22"><stop offset="0" stop-color="#fff4e6"/><stop offset=".5" stop-color="#ffd9b8" stop-opacity=".8"/><stop offset="1" stop-color="#ffd9b8" stop-opacity="0"/></radialGradient>
       </defs>
       <rect width="800" height="1000" fill="url(#sky)"/><rect width="800" height="1000" fill="url(#sun)"/>
@@ -2133,7 +2133,7 @@
 
       screens.landing = () =>
         authLayout(
-          `<h1 class="gs-h1" style="font-size:30px">Request access to a declaration</h1>
+          `<h1 class="gs-h1">Request access to a declaration</h1>
     <p class="gs-sub">For members of the public, with a national ID or passport.</p>
     <div class="stack" style="margin-top:26px;gap:10px">
       <button class="btn btn-primary btn-block" data-act="startOnboarding">Get started ${icon('right', 17)}</button>
@@ -2904,7 +2904,7 @@
           return dialog({
             title: 'Already decided',
             icon: 'info',
-            tint: ['#eaf1fb', '#1f4f96'],
+            tint: ['#dff2fe', '#0069a8'],
             body: `<p>${c.code} decided this request before you withdrew it, so it cannot be withdrawn.</p>`,
             foot: `<button class="btn btn-primary" data-act="seeDecision" data-arg="${r.id}">See decision</button>`,
           });
@@ -3086,7 +3086,7 @@
               .join('')}</dl>`;
           return `${a.identityStatus !== 'verified' ? `<div class="callout callout-info" style="margin-bottom:18px">${icon('info', 17)}<div>${c ? c.code : 'The Commission'} verifies your passport before it processes this request.</div></div>` : ''}
             <div class="card fk-card">
-              ${sec(1, 'Commission', `<div style="font-size:14.5px">${c ? esc(c.name) : ''}</div>`)}
+              ${sec(1, 'Commission', `<div style="font-size:14px">${c ? esc(c.name) : ''}</div>`)}
               ${sec(
                 2,
                 'Your particulars',
@@ -3136,7 +3136,7 @@
         const errSteps = f.errSteps || [];
         const rail = `<aside class="rail" aria-label="Form K steps">
           <button class="back" data-act="go" data-arg="requests">${icon('left', 16)} My requests</button>
-          <div style="font-weight:600;font-size:15px">New request</div>
+          <div style="font-weight:600;font-size:14px">New request</div>
           <ol>${FK_STEPS.map((s, i) => {
             const k = i + 1;
             const st =

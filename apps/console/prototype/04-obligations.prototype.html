@@ -24,9 +24,8 @@
         white-space: nowrap;
         border: 0;
       }
-      .btn:focus-visible,
-      a:focus-visible,
-      button:focus-visible,
+      a:not(.btn):focus-visible,
+      button:not(.btn):focus-visible,
       .tile:focus-visible,
       [tabindex]:focus-visible {
         outline: 2px solid var(--ink);
@@ -35,10 +34,10 @@
       .input[aria-invalid='true'] {
         box-shadow:
           0 0 0 1px var(--danger),
-          0 0 0 4px rgba(201, 41, 30, 0.08);
+          0 0 0 4px rgba(231, 0, 11, 0.08);
       }
       .btn-primary[aria-busy='true'] {
-        background: linear-gradient(#3a3a3a, #262626);
+        background: linear-gradient(#404040, #262626);
         color: #fff;
         opacity: 1;
         cursor: progress;
@@ -73,15 +72,15 @@
       }
       .alert-danger {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
       }
       .alert-warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
       }
       .alert-info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .alert-neutral {
         background: var(--sunken);
@@ -102,7 +101,7 @@
       }
       .fileno {
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .tip {
@@ -123,7 +122,7 @@
         border-radius: 10px;
         background: #1c1c1c;
         color: #fff;
-        font-size: 12.5px;
+        font-size: 13px;
         line-height: 1.45;
         font-weight: 400;
         box-shadow: var(--shadow-pop);
@@ -213,7 +212,7 @@
           0 4px 14px -6px rgba(0, 0, 0, 0.12);
       }
       .otile.on {
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
       .otile .k {
         font-size: 13px;
@@ -237,7 +236,7 @@
         border-top: 1px solid var(--line);
         display: grid;
         gap: 2px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .otile .bd li {
@@ -251,10 +250,10 @@
         font-variant-numeric: tabular-nums;
       }
       .otile.warn {
-        background: linear-gradient(180deg, #fffaf0, #fff);
+        background: #fffbeb;
       }
       .otile.warn .v {
-        color: #7a4a00;
+        color: #973c00;
       }
       .otile.skel {
         cursor: default;
@@ -273,7 +272,7 @@
         padding: 10px 12px 10px 16px;
         border-radius: var(--r);
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
         font-size: 14px;
       }
       .callout-row > svg {
@@ -295,7 +294,7 @@
         height: 30px;
       }
       .table td .sub {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         margin-top: 1px;
       }
@@ -311,7 +310,7 @@
       }
       .table tfoot td {
         font-weight: 600;
-        background: #fcfcfb;
+        background: #fafafa;
         border-top: 1px solid var(--line-2);
         font-variant-numeric: tabular-nums;
       }
@@ -405,7 +404,7 @@
         gap: 12px;
         padding: 10px 0;
         border-bottom: 1px solid var(--line);
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .dlx > div:last-child {
         border-bottom: 0;
@@ -422,7 +421,7 @@
         width: 100%;
         min-width: 600px;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .rtable th {
         text-align: left;
@@ -490,7 +489,7 @@
       }
       .prow .v {
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .vh-list {
         list-style: none;
@@ -515,7 +514,7 @@
         display: grid;
         place-items: center;
         background: var(--sunken);
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--ink-2);
       }
@@ -530,7 +529,7 @@
         padding: 10px 12px;
         border-radius: var(--r);
         background: var(--sunken);
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .note {
@@ -669,7 +668,7 @@
         return n === 0 ? 'Due today' : `Due in ${n} day${n === 1 ? '' : 's'}`;
       }
       const dateText = (o) =>
-        `<span title="Due ${esc(fd(o.dueDate))}">${fd(o.dueDate)}</span><div class="sub" style="${o.status === 'overdue' ? 'color:#7a4a00;font-weight:500' : ''}">${relPhrase(o)}</div>`;
+        `<span title="Due ${esc(fd(o.dueDate))}">${fd(o.dueDate)}</span><div class="sub" style="${o.status === 'overdue' ? 'color:#973c00;font-weight:500' : ''}">${relPhrase(o)}</div>`;
 
       /* ================= demo data ================= */
       const COMMISSIONS = [
@@ -1273,7 +1272,7 @@
             (
               o,
             ) => `<div class="mitem" data-act="openOb" data-arg="${o.id}"><div class="top"><div style="min-width:0"><a class="rowlink" style="font-weight:500;text-decoration:none" href="#obligations" data-act="openOb" data-arg="${o.id}">${esc(o.officer.fullName)}</a><div class="fileno">${esc(o.officer.personnelFileNumber)}</div></div>${statusBadge(o.status)}</div>
-    <div class="meta">${TYPE_LABEL[o.type]} · ${fd(o.dueDate)} · <span style="${o.status === 'overdue' ? 'color:#7a4a00;font-weight:500' : ''}">${relPhrase(o)}</span></div>
+    <div class="meta">${TYPE_LABEL[o.type]} · ${fd(o.dueDate)} · <span style="${o.status === 'overdue' ? 'color:#973c00;font-weight:500' : ''}">${relPhrase(o)}</span></div>
     <div class="meta">${o.officer.onboarded ? `${icon('check', 13, 2.4)} Onboarded` : 'Not onboarded'} · ${plural(o.remindersSent, 'reminder')} sent</div></div>`,
           )
           .join('');
@@ -1333,9 +1332,9 @@
           })
           .join('');
         const body = `
-    <div class="row" style="gap:8px;flex-wrap:wrap">${statusBadge(o.status)}<span class="small" style="${o.status === 'overdue' ? 'color:#7a4a00;font-weight:600' : 'color:var(--ink-2);font-weight:500'}">${relPhrase(o)}</span></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">${statusBadge(o.status)}<span class="small" style="${o.status === 'overdue' ? 'color:#973c00;font-weight:600' : 'color:var(--ink-2);font-weight:500'}">${relPhrase(o)}</span></div>
     <dl class="dlx">
-      <div><dt>File number</dt><dd class="fileno" style="color:var(--ink);font-size:13.5px">${esc(o.officer.personnelFileNumber)}</dd></div>
+      <div><dt>File number</dt><dd class="fileno" style="color:var(--ink);font-size:14px">${esc(o.officer.personnelFileNumber)}</dd></div>
       <div><dt>Onboarded</dt><dd>${onbBadge(o)}${onb ? ` <span class="ref" style="font-size:13px;margin-left:6px">${esc(o.officer.ofr)}</span>` : ''}</dd></div>
       <div><dt>Type</dt><dd>${TYPE_LONG[o.type]}</dd></div>
       <div><dt>Commission</dt><dd>${esc(c.name)} <span class="issuer">${c.issuerCode}</span></dd></div>
@@ -1542,7 +1541,7 @@
             const cell = (v) =>
               `<td class="num">${v ? num(v) : '<span class="zero">0</span>'}</td>`;
             body = `<div class="table-wrap"><table class="table rounded"><caption class="vh">Obligations per Commission, ${S.nat.cycle}</caption><thead><tr>${cols.map(sortBtn).join('')}</tr></thead>
-        <tbody>${shown.map((r) => `<tr class="click" data-act="natOpen" data-arg="${r.c.slug}"><td><a class="rowlink" href="01-commissions.prototype.html?slug=${r.c.slug}#detail">${esc(r.c.name)}</a><div class="issuer">${r.c.issuerCode}</div></td>${cell(r.upcoming)}${cell(r.due)}<td class="num">${r.overdue ? `<span style="color:#7a4a00;font-weight:600">${num(r.overdue)}</span>` : '<span class="zero">0</span>'}</td>${cell(r.notOnboarded)}<td class="nowrap">${r.lastRosterImportAt ? `<span title="${esc(fdt(r.lastRosterImportAt))}">${fd(r.lastRosterImportAt)}</span>` : '<span class="muted">No roster yet</span>'}</td></tr>`).join('')}</tbody>
+        <tbody>${shown.map((r) => `<tr class="click" data-act="natOpen" data-arg="${r.c.slug}"><td><a class="rowlink" href="01-commissions.prototype.html?slug=${r.c.slug}#detail">${esc(r.c.name)}</a><div class="issuer">${r.c.issuerCode}</div></td>${cell(r.upcoming)}${cell(r.due)}<td class="num">${r.overdue ? `<span style="color:#973c00;font-weight:600">${num(r.overdue)}</span>` : '<span class="zero">0</span>'}</td>${cell(r.notOnboarded)}<td class="nowrap">${r.lastRosterImportAt ? `<span title="${esc(fdt(r.lastRosterImportAt))}">${fd(r.lastRosterImportAt)}</span>` : '<span class="muted">No roster yet</span>'}</td></tr>`).join('')}</tbody>
         <tfoot><tr><td>Total, ${plural(rows.length, 'Commission')}</td><td class="num">${num(T.upcoming)}</td><td class="num">${num(T.due)}</td><td class="num">${num(T.overdue)}</td><td class="num">${num(T.notOnboarded)}</td><td></td></tr></tfoot></table></div>${Kit.pager({ page, pageSize: size, total: rows.length, act: 'natPage', sizes: [10, 25, 50], sizeBind: 'nat.pageSize' })}`;
           }
         }

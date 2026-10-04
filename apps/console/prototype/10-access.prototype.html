@@ -20,7 +20,7 @@
         height: 24px;
         padding: 0 9px 0 7px;
         border-radius: 999px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         white-space: nowrap;
         background: var(--sunken);
@@ -67,7 +67,7 @@
         float: left;
         width: 100%;
         padding: 0;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--muted);
         text-transform: uppercase;
@@ -76,7 +76,7 @@
       }
       .scope.err fieldset.bad {
         box-shadow:
-          0 0 0 1.5px var(--danger),
+          var(--shadow-error),
           0 0 0 4px var(--danger-soft);
       }
       .scope .check {
@@ -86,7 +86,7 @@
         display: block;
         margin-left: 0;
         line-height: 1.3;
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--muted);
       }
@@ -127,7 +127,7 @@
         cursor: pointer;
       }
       .gr:has(input:checked) {
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
       .gr input {
         position: absolute;
@@ -153,7 +153,7 @@
         outline: 3px solid rgba(26, 26, 26, 0.15);
       }
       .gr .gl {
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 500;
       }
       .gr q {
@@ -183,11 +183,11 @@
         color: var(--warn);
       }
       .reg .tl-ico.info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .reg .tl-d {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
         margin-top: 3px;
       }
@@ -205,7 +205,7 @@
         border-radius: 7px;
         background: var(--sunken);
         font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         white-space: nowrap;
       }
@@ -215,7 +215,7 @@
         overflow-wrap: anywhere;
       }
       .page-head .h-ref {
-        font-size: 22px;
+        font-size: 18px;
       }
       .cls {
         display: inline-flex;
@@ -231,12 +231,12 @@
         white-space: nowrap;
       }
       .cls.restricted {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .cls.confidential {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
       }
       .ref {
         font-weight: 600;
@@ -267,7 +267,7 @@
         font-weight: 500;
       }
       .doc-row .ds {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         display: flex;
         align-items: center;
@@ -286,7 +286,7 @@
         grid-template-columns: 30px minmax(0, 1fr);
         gap: 12px;
         align-items: start;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .conseq .ci {
         width: 30px;
@@ -315,7 +315,7 @@
         padding: 12px 14px;
         border-radius: var(--r);
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
         font-size: 14px;
       }
       .problem b {
@@ -327,7 +327,7 @@
       }
       .count-r {
         text-align: right;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         margin-top: -2px;
       }
@@ -342,7 +342,7 @@
       }
       .para {
         white-space: pre-wrap;
-        font-size: 14.5px;
+        font-size: 14px;
         line-height: 1.55;
       }
       .fk-part + .fk-part {
@@ -379,12 +379,12 @@
         gap: 10px;
       }
       .kv1 .k {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
       }
       .kv1 .v {
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 500;
         margin-top: 1px;
         overflow-wrap: anywhere;
@@ -405,17 +405,17 @@
       }
       .hit .hn {
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .hit .hs {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       label.hit {
         cursor: pointer;
       }
       label.hit:has(input:checked) {
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
       }
       label.hit input {
         width: 18px;
@@ -432,7 +432,7 @@
         display: flex;
         gap: 8px;
         align-items: flex-start;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .facts svg {
@@ -447,7 +447,7 @@
         height: 24px;
         padding: 0 9px 0 7px;
         border-radius: 999px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
       }
       .stance.object {
@@ -459,8 +459,8 @@
         color: var(--ok);
       }
       .stance.context {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .outcome-v {
         display: flex;
@@ -485,7 +485,7 @@
         background: var(--danger);
       }
       .oi.muted {
-        background: #8f8d89;
+        background: #a1a1a1;
       }
       .muted-card {
         background: var(--sunken);
@@ -495,7 +495,7 @@
         color: var(--ink-2);
       }
       .demo-note {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         margin-top: 12px;
         text-align: center;
@@ -523,7 +523,7 @@
         border-top: 1px solid var(--line);
       }
       .formsec h3 {
-        font-size: 15.5px;
+        font-size: 16px;
         font-weight: 600;
       }
       .formsec-pad {
@@ -561,7 +561,7 @@
         color: var(--ok);
       }
       .success h2 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
       }
       .tabs-wrap {
@@ -3344,7 +3344,7 @@
                 <div class="fk-part"><div class="kv k3">
                   <div><div class="k">Agency</div><div class="v">${esc(agencyName(r.officer.agency))}</div></div>
                   <div><div class="k">Requesting officer</div><div class="v">${esc(r.officer.name)}</div><div class="small muted">${esc(r.officer.email)}</div></div>
-                  <div><div class="k">Case reference</div><div class="v mono" style="font-size:13.5px">${esc(r.caseRef)}</div></div>
+                  <div><div class="k">Case reference</div><div class="v mono" style="font-size:14px">${esc(r.caseRef)}</div></div>
                 </div></div>
                 <div class="fk-part"><div class="fk-lab">Officer sought</div><div class="kv k3"><div><div class="k">Name</div><div class="v">${esc(r.officerSought.name)}</div></div><div><div class="k">Entity</div><div class="v">${esc(r.officerSought.entity)}</div></div><div><div class="k">Personnel file number</div><div class="v">${esc(r.officerSought.file) || '<span class="muted" style="font-weight:400">Not given</span>'}</div></div></div></div>
                 <div class="fk-part"><div class="fk-lab">Reason for access</div><div class="para">${esc(r.reason)}</div></div>

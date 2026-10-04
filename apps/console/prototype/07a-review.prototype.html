@@ -30,7 +30,7 @@
         border-radius: 8px;
         background: #1c1c1c;
         color: #fff;
-        font-size: 12.5px;
+        font-size: 13px;
         line-height: 1.45;
         font-weight: 500;
         pointer-events: none;
@@ -87,7 +87,7 @@
         height: 24px;
         padding: 0 9px 0 7px;
         border-radius: 999px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         white-space: nowrap;
       }
@@ -112,7 +112,7 @@
         display: inline-flex;
         align-items: center;
         gap: 7px;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
         white-space: nowrap;
         color: var(--ink);
@@ -154,7 +154,7 @@
         display: flex;
         gap: 10px;
         flex-wrap: wrap;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--ink-2);
       }
       .qtiles .tile .bands span {
@@ -188,7 +188,7 @@
       .fsel {
         height: 36px;
         width: auto;
-        font-size: 13.5px;
+        font-size: 14px;
         padding: 0 32px 0 11px;
         border-radius: 999px;
         background-position: right 10px center;
@@ -196,7 +196,7 @@
         color: var(--ink-2);
       }
       .fsel.set {
-        box-shadow: 0 0 0 1.5px var(--ink);
+        box-shadow: var(--shadow-selected);
         color: var(--ink);
       }
       .chip .ck {
@@ -216,7 +216,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         min-width: 0;
       }
@@ -243,7 +243,7 @@
         min-width: 170px;
       }
       .q-table .ref {
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         letter-spacing: 0;
       }
@@ -325,7 +325,7 @@
         background: var(--surface);
         box-shadow: var(--shadow-input);
         font-family: ui-monospace, Menlo, monospace;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 600;
         letter-spacing: 0.01em;
       }
@@ -343,7 +343,7 @@
         color: var(--ink);
       }
       .case-head h1 {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 600;
         letter-spacing: -0.02em;
         line-height: 1.2;
@@ -379,7 +379,7 @@
         border-radius: 10px;
         background: var(--surface);
         box-shadow: var(--shadow-card);
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .mchip b {
@@ -392,10 +392,10 @@
       .mchip.warn {
         background: var(--warn-soft);
         box-shadow: none;
-        color: #6b4000;
+        color: #973c00;
       }
       .mchip.warn b {
-        color: #6b4000;
+        color: #973c00;
       }
       .mchip.closed {
         background: var(--sunken);
@@ -425,7 +425,7 @@
         flex-wrap: wrap;
       }
       .sod {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         display: inline-flex;
         align-items: center;
@@ -505,7 +505,7 @@
       .side-card .tabs button {
         padding: 0 7px;
         gap: 5px;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .side-card .tabs {
         position: sticky;
@@ -535,7 +535,7 @@
         padding: 12px 16px;
         border-bottom: 1px solid var(--line);
         position: sticky;
-        top: 56px;
+        top: 64px;
         z-index: 4;
         background: rgba(255, 255, 255, 0.96);
         backdrop-filter: blur(8px);
@@ -598,7 +598,7 @@
         border-bottom: 0;
       }
       .dsec h2 {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
         display: flex;
         align-items: center;
@@ -607,7 +607,7 @@
         letter-spacing: -0.01em;
       }
       .dsec h2 .no {
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--muted);
         background: var(--sunken);
@@ -626,19 +626,19 @@
         align-items: center;
         gap: 10px;
         padding: 12px 14px;
-        background: #fcfcfb;
+        background: #fafafa;
         border-bottom: 1px solid var(--line);
       }
       .stmt-h .n {
         font-weight: 600;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .cat-h {
         display: flex;
         align-items: baseline;
         gap: 8px;
         padding: 10px 14px 4px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--muted);
       }
@@ -651,7 +651,7 @@
         gap: 4px 12px;
         align-items: start;
         padding: 10px 14px;
-        border-top: 1px solid #f1efec;
+        border-top: 1px solid #f5f5f5;
         transition:
           background 0.3s,
           box-shadow 0.3s;
@@ -699,7 +699,7 @@
       }
       @keyframes hlpulse {
         0% {
-          background: #fde2d3;
+          background: #e5e5e5;
         }
         100% {
           background: var(--brand-softer);
@@ -707,7 +707,7 @@
       }
       .nil {
         padding: 8px 14px 12px 58px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
       }
       .pinbtn {
@@ -731,8 +731,8 @@
         color: var(--warn);
       }
       .pinbtn.s-low {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .pinbtn.s-info {
         background: var(--sunken);
@@ -754,18 +754,18 @@
       }
       .attbtn:hover {
         color: var(--ink);
-        background: #ebe9e5;
+        background: #e5e5e5;
       }
       .sum-mini {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .sum-mini th {
         text-align: right;
         font-weight: 500;
         color: var(--muted);
-        font-size: 12.5px;
+        font-size: 13px;
         padding: 6px 0 6px 10px;
         border-bottom: 1px solid var(--line);
       }
@@ -789,7 +789,7 @@
       .diff {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .diff th,
       .diff td {
@@ -804,7 +804,7 @@
         font-size: 12px;
         font-weight: 500;
         color: var(--muted);
-        background: #fcfcfb;
+        background: #fafafa;
         white-space: nowrap;
       }
       .diff th[scope='row'] {
@@ -814,14 +814,14 @@
         white-space: normal;
       }
       .diff th[scope='row'] .d {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 400;
         margin-top: 1px;
       }
       .diff .cat td {
         text-align: left;
-        background: #faf9f7;
+        background: #fafafa;
         font-size: 12px;
         font-weight: 600;
         color: var(--muted);
@@ -842,7 +842,7 @@
         font-weight: 600;
       }
       .diff .down {
-        color: #1f4f96;
+        color: #0069a8;
         font-weight: 600;
       }
       .diff .zero {
@@ -865,7 +865,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--muted);
         margin-top: 4px;
@@ -879,7 +879,7 @@
         background: var(--surface);
         box-shadow: var(--shadow-card);
         overflow: hidden;
-        scroll-margin-top: 60px;
+        scroll-margin-top: 72px;
       }
       .flag::before {
         content: '';
@@ -909,7 +909,7 @@
         display: none;
       }
       .flag .ind {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .flag .ev {
@@ -928,7 +928,7 @@
         color: var(--muted);
       }
       .flag .conc {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .flag .foot {
@@ -939,7 +939,7 @@
         margin-top: 2px;
       }
       .flag.reviewed {
-        background: #fcfcfb;
+        background: #fafafa;
         box-shadow: 0 0 0 1px var(--line);
       }
       .flag.reviewed::before {
@@ -950,7 +950,7 @@
         color: var(--ink-2);
       }
       .flag.closed {
-        background: #fcfcfb;
+        background: #fafafa;
         opacity: 0.85;
       }
       .flag.pulse {
@@ -983,8 +983,8 @@
         color: var(--warn);
       }
       .sevb.s-low {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .sevb.s-info {
         background: var(--sunken);
@@ -999,7 +999,7 @@
       }
       .revnote .by {
         font-size: 12px;
-        color: #0f5a2d;
+        color: #016630;
         font-weight: 500;
       }
       .ind-banner {
@@ -1008,9 +1008,9 @@
         align-items: flex-start;
         padding: 11px 13px;
         border-radius: 10px;
-        background: #eaf1fb;
-        color: #1f4f96;
-        font-size: 13.5px;
+        background: #dff2fe;
+        color: #0069a8;
+        font-size: 14px;
         font-weight: 500;
       }
       .ind-banner svg {
@@ -1029,11 +1029,11 @@
         align-items: center;
         gap: 10px;
         padding: 11px 14px;
-        background: #fcfcfb;
+        background: #fafafa;
         border-bottom: 1px solid var(--line);
       }
       .sysrow {
-        border-top: 1px solid #f1efec;
+        border-top: 1px solid #f5f5f5;
       }
       .rperson-h + .sysrow {
         border-top: 0;
@@ -1053,7 +1053,7 @@
         color: inherit;
       }
       .sysrow > button.srow:hover {
-        background: #fbfaf8;
+        background: #fafafa;
       }
       .sysrow > div.srow {
         cursor: default;
@@ -1072,7 +1072,7 @@
         font-size: 14px;
       }
       .sysrow .sc {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         margin-top: 1px;
       }
@@ -1109,10 +1109,10 @@
         border-bottom: 0;
       }
       .mt thead th {
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 500;
         color: var(--muted);
-        background: #fcfcfb;
+        background: #fafafa;
       }
       .mt th[scope='row'] {
         font-weight: 500;
@@ -1128,7 +1128,7 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
 
@@ -1177,15 +1177,15 @@
         color: var(--warn);
       }
       .timeline .tl-ico.info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .timeline .tl-ico.danger {
         background: var(--danger-soft);
         color: var(--danger);
       }
       .counter {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
@@ -1199,7 +1199,7 @@
         cursor: pointer;
       }
       .clist .item:hover {
-        background: #fbfaf8;
+        background: #fafafa;
       }
       .qa {
         display: grid;
@@ -1221,7 +1221,7 @@
         grid-template-columns: minmax(0, 1fr);
       }
       .qa .q {
-        background: #fcfcfb;
+        background: #fafafa;
         border-bottom: 1px solid var(--line);
       }
       @container app (min-width: 900px) {
@@ -1272,7 +1272,7 @@
         gap: 14px;
       }
       .citem.err {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .citem-h {
         display: flex;
@@ -1306,10 +1306,10 @@
         font: inherit;
       }
       .picker-btn .ph {
-        color: #8f8d89;
+        color: #a1a1a1;
       }
       .picker-btn.bad {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .picker {
         border-radius: 12px;
@@ -1331,7 +1331,7 @@
         overflow: auto;
       }
       .picker li.g {
-        font-size: 11.5px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--muted);
         letter-spacing: 0.04em;
@@ -1341,7 +1341,7 @@
       .picker li[role='option'] {
         padding: 7px 8px;
         border-radius: 8px;
-        font-size: 13.5px;
+        font-size: 14px;
         cursor: pointer;
         display: flex;
         gap: 8px;
@@ -1381,7 +1381,7 @@
           0 1px 3px rgba(0, 0, 0, 0.08),
           0 0 0 1px var(--line);
         padding: 28px 30px;
-        font-size: 13.5px;
+        font-size: 14px;
         line-height: 1.6;
         color: #222;
         font-family: Georgia, 'Times New Roman', serif;
@@ -1422,7 +1422,7 @@
         grid-template-columns: auto 1fr;
         gap: 2px 14px;
         font-family: Inter, sans-serif;
-        font-size: 12.5px;
+        font-size: 13px;
         margin-bottom: 14px;
       }
       .letter .meta span:nth-child(odd) {
@@ -1449,7 +1449,7 @@
         padding-top: 12px;
         border-top: 1px solid var(--line);
         font-family: Inter, sans-serif;
-        font-size: 11.5px;
+        font-size: 12px;
         color: var(--muted);
       }
       .letter.revoked {
@@ -1465,8 +1465,8 @@
         font-weight: 800;
         font-size: 22px;
         letter-spacing: 0.08em;
-        color: rgba(201, 41, 30, 0.55);
-        border: 3px solid rgba(201, 41, 30, 0.45);
+        color: rgba(231, 0, 11, 0.55);
+        border: 3px solid rgba(231, 0, 11, 0.45);
         padding: 6px 14px;
         border-radius: 8px;
         white-space: nowrap;
@@ -1479,7 +1479,7 @@
         gap: 20px;
       }
       .gal .card h3 {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
       .gal .spec {
@@ -1497,7 +1497,7 @@
       }
       .demo-split > div:not(.rs-handle) {
         padding: 14px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .demo-split .rs-handle {
@@ -1579,7 +1579,7 @@
         border-radius: 999px;
         background: var(--ai-soft);
         color: var(--ai);
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         white-space: nowrap;
         vertical-align: middle;
@@ -1596,7 +1596,7 @@
         height: 20px;
         padding: 0 7px 0 5px;
         gap: 4px;
-        font-size: 11.5px;
+        font-size: 12px;
       }
       .ailabel.edited {
         background: var(--sunken);
@@ -1622,14 +1622,14 @@
         background: var(--sunken);
         color: var(--ink);
         font: inherit;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
         line-height: 1.3;
         text-align: left;
         cursor: pointer;
       }
       .srcref:hover {
-        background: #ebe9e5;
+        background: #e5e5e5;
       }
       .srcref svg {
         flex: none;
@@ -1671,7 +1671,7 @@
         color: #fff;
       }
       .fb-ro {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         display: inline-flex;
         align-items: center;
@@ -1723,7 +1723,7 @@
       }
       .cp-launch .t {
         font-weight: 600;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .cp-launch .s {
         margin-left: auto;
@@ -1768,7 +1768,7 @@
         padding: 12px 10px 0 14px;
       }
       .cp-head h2 {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
       .cp-lab {
@@ -1781,7 +1781,7 @@
       }
       .cp-top .tabs button {
         padding: 0 8px;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .cp-body {
         padding: 16px;
@@ -1818,7 +1818,7 @@
         min-height: 28px;
       }
       .cp-bh h3 {
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 600;
       }
       .cp-block p,
@@ -1835,7 +1835,7 @@
         gap: 12px;
       }
       .cp-sec .h {
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--muted);
         margin-bottom: 2px;
@@ -1854,7 +1854,7 @@
         background: none;
         box-shadow: 0 0 0 1px var(--line);
         font: inherit;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
         color: var(--ink);
         cursor: pointer;
@@ -1885,7 +1885,7 @@
         border-radius: 10px;
         background: var(--ai-soft);
         color: #4b34a8;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
       }
       .cp-banner .spinner {
@@ -1920,7 +1920,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ai);
         font-weight: 500;
       }
@@ -1950,7 +1950,7 @@
       .cpf-h .t {
         flex: 1;
         min-width: 0;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 600;
         line-height: 1.35;
       }
@@ -1970,7 +1970,7 @@
         display: grid;
         gap: 10px;
         padding: 2px 14px 12px;
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .cpf-b .k {
         font-size: 12px;
@@ -1988,7 +1988,7 @@
         display: flex;
         gap: 6px;
         align-items: center;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
       }
       .cpf-f {
@@ -2036,7 +2036,7 @@
         flex-wrap: wrap;
       }
       .aidraft .lbl {
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: #4b34a8;
       }
@@ -2051,7 +2051,7 @@
         border-radius: 999px;
         background: var(--surface);
         box-shadow: 0 0 0 1px rgba(109, 74, 224, 0.2);
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 500;
       }
       .aichip .tx {
@@ -2079,7 +2079,7 @@
       .aidraft .select {
         height: 32px;
         width: auto;
-        font-size: 13.5px;
+        font-size: 14px;
         padding-top: 0;
         padding-bottom: 0;
         background-color: var(--surface);
@@ -2100,7 +2100,7 @@
           inset 3px 0 0 var(--ai);
       }
       .citem.ai.err {
-        box-shadow: 0 0 0 1.5px var(--danger);
+        box-shadow: var(--shadow-error);
       }
       .letter .opening {
         margin-bottom: 8px;
@@ -4308,7 +4308,7 @@
       };
 
       function declUnavailable(c) {
-        return `<div class="decl-card"><div class="decl-tools"><b style="font-size:14.5px">Declaration as filed</b></div><div style="padding:20px"><div class="callout callout-warn" role="alert">${icon('wifiOff', 17)}<div style="flex:1"><b>The declaration could not be loaded.</b><div style="margin-top:2px">Flags, notes and clarifications are still available.</div></div><button class="btn btn-secondary btn-sm" data-act="retryDecl">${icon('refresh', 15)} Try again</button></div></div></div>`;
+        return `<div class="decl-card"><div class="decl-tools"><b style="font-size:14px">Declaration as filed</b></div><div style="padding:20px"><div class="callout callout-warn" role="alert">${icon('wifiOff', 17)}<div style="flex:1"><b>The declaration could not be loaded.</b><div style="margin-top:2px">Flags, notes and clarifications are still available.</div></div><button class="btn btn-secondary btn-sm" data-act="retryDecl">${icon('refresh', 15)} Try again</button></div></div></div>`;
       }
       function versionTools(c) {
         const vv = S.viewVersion || c.currentVersion;
@@ -4316,7 +4316,7 @@
         const prevN = c.currentVersion > 1 ? c.currentVersion - 1 : null;
         const cmp = `<button class="switch" role="switch" aria-checked="${S.compare}" data-act="toggleCompare" ${!canCompare || vv !== c.currentVersion ? 'disabled' : ''}><span class="tr"></span>${prevN ? `Compare with version ${prevN}` : 'Compare with previous version'}</button>`;
         return `<div class="decl-tools">
-    <b style="font-size:14.5px">${S.compare ? 'Version comparison' : 'Declaration as filed'}</b>
+    <b style="font-size:14px">${S.compare ? 'Version comparison' : 'Declaration as filed'}</b>
     ${
       c.versions.length > 1
         ? `<label class="sr" for="vsel">Version</label><select id="vsel" class="select" data-act-change="pickVersion" ${S.compare ? 'disabled' : ''}>${c.versions
@@ -5154,9 +5154,9 @@
             : '';
         };
         return `${cpBlock(c, 'overview', 'Overview', `<p>${esc(s.overview)}</p>`, fbMode, lab)}
-    ${cpBlock(c, 'changes', 'Changes since previous version', !s.hasPrev ? '<p class="muted" style="font-size:13.5px">First declaration on Adili. Nothing to compare.</p>' : s.changes.length ? `<ul class="cp-list">${s.changes.map((x) => `<li>${esc(x.text)}${refsHtml(c, x.refs)}</li>`).join('')}</ul>` : '<p class="muted" style="font-size:13.5px">No material changes.</p>', fbMode, lab)}
+    ${cpBlock(c, 'changes', 'Changes since previous version', !s.hasPrev ? '<p class="muted" style="font-size:14px">First declaration on Adili. Nothing to compare.</p>' : s.changes.length ? `<ul class="cp-list">${s.changes.map((x) => `<li>${esc(x.text)}${refsHtml(c, x.refs)}</li>`).join('')}</ul>` : '<p class="muted" style="font-size:14px">No material changes.</p>', fbMode, lab)}
     ${cpBlock(c, 'sections', 'By person', s.sections.map((x) => `<div class="cp-sec"><div class="h">${esc(x.head)}</div><p>${esc(x.text)}</p>${refsHtml(c, x.refs)}</div>`).join(''), fbMode, lab)}
-    ${cpBlock(c, 'attention', 'Worth attention', s.worth.length ? `<ul class="cp-list">${s.worth.map((w) => `<li>${esc(w.text)}<div class="refs">${w.flagIds.map(flagLink).join('')}</div></li>`).join('')}</ul>` : '<p class="muted" style="font-size:13.5px">No open flags.</p>', fbMode, lab)}`;
+    ${cpBlock(c, 'attention', 'Worth attention', s.worth.length ? `<ul class="cp-list">${s.worth.map((w) => `<li>${esc(w.text)}<div class="refs">${w.flagIds.map(flagLink).join('')}</div></li>`).join('')}</ul>` : '<p class="muted" style="font-size:14px">No open flags.</p>', fbMode, lab)}`;
       }
       function cpFlagsTab(c, fbMode) {
         const cp = cpOf(c);
@@ -5481,7 +5481,7 @@
         const o = comp.opening;
         if (!o) return '';
         const len = o.text.length;
-        return `<div class="citem ai"><div class="citem-h"><b style="font-size:14.5px" id="copen-l">Opening paragraph</b>${aiLabel(o.ai, { text: 'AI draft', sm: true, edited: o.edited, id: 'aib-open' })}<span class="spacer"></span><span class="counter ${len > 800 ? 'over' : ''}" data-count-for="comp.opening.text" data-max="800">${num(len)} / 800</span><button class="btn btn-ghost btn-xs" data-act="aiDiscardOpening" aria-label="Discard drafted opening paragraph">${icon('trash', 14)} Discard</button></div><textarea id="copen" class="textarea" rows="3" aria-labelledby="copen-l" data-bind="comp.opening.text">${esc(o.text)}</textarea></div>`;
+        return `<div class="citem ai"><div class="citem-h"><b style="font-size:14px" id="copen-l">Opening paragraph</b>${aiLabel(o.ai, { text: 'AI draft', sm: true, edited: o.edited, id: 'aib-open' })}<span class="spacer"></span><span class="counter ${len > 800 ? 'over' : ''}" data-count-for="comp.opening.text" data-max="800">${num(len)} / 800</span><button class="btn btn-ghost btn-xs" data-act="aiDiscardOpening" aria-label="Discard drafted opening paragraph">${icon('trash', 14)} Discard</button></div><textarea id="copen" class="textarea" rows="3" aria-labelledby="copen-l" data-bind="comp.opening.text">${esc(o.text)}</textarea></div>`;
       }
       function composerModal() {
         const comp = S.comp;
@@ -5497,7 +5497,7 @@
             const opts = tg;
             const groups = [...new Set(opts.map((o) => o.g))];
             return `<div class="citem ${it.ai ? 'ai' : ''} ${Object.keys(er).length ? 'err' : ''}" id="citem-${i}">
-      <div class="citem-h"><span class="n">${i + 1}</span><b style="font-size:14.5px">Item ${i + 1}</b>${it.ai ? aiLabel(it.ai, { text: 'AI draft', sm: true, edited: it.edited, id: 'aib-' + i }) : ''}<span class="spacer"></span>${it.ai ? `<button class="btn btn-ghost btn-xs" data-act="aiDiscard" data-arg="${i}" aria-label="Discard drafted item ${i + 1}">${icon('trash', 14)} Discard</button>` : comp.items.length > 1 ? `<button class="btn btn-ghost btn-xs" data-act="rmItem" data-arg="${i}" aria-label="Remove item ${i + 1}">${icon('trash', 14)} Remove</button>` : ''}</div>
+      <div class="citem-h"><span class="n">${i + 1}</span><b style="font-size:14px">Item ${i + 1}</b>${it.ai ? aiLabel(it.ai, { text: 'AI draft', sm: true, edited: it.edited, id: 'aib-' + i }) : ''}<span class="spacer"></span>${it.ai ? `<button class="btn btn-ghost btn-xs" data-act="aiDiscard" data-arg="${i}" aria-label="Discard drafted item ${i + 1}">${icon('trash', 14)} Discard</button>` : comp.items.length > 1 ? `<button class="btn btn-ghost btn-xs" data-act="rmItem" data-arg="${i}" aria-label="Remove item ${i + 1}">${icon('trash', 14)} Remove</button>` : ''}</div>
       <div class="field"><span class="label" id="tl-${i}">What is this about?</span>
         <button class="picker-btn ${er.target ? 'bad' : ''}" data-act="togglePicker" data-arg="${i}" aria-haspopup="listbox" aria-expanded="${pickOpen}" aria-labelledby="tl-${i}">${icon('search', 16)}<span style="flex:1;min-width:0" class="${it.label ? '' : 'ph'}">${esc(it.label || 'Search a section or item of the current version')}</span>${icon('down', 16)}</button>
         ${
@@ -5818,7 +5818,7 @@
     <div class="card card-pad"><h3>Timeline</h3><p class="spec">Dated entries with actor. A list per day; time is text.</p><div style="margin-top:14px;max-width:520px">${timelineList(C1_TL.slice(-4))}</div></div>
     <div class="card card-pad"><h3>NoteList</h3><p class="spec">Author, time, text. Internal to the Commission.</p><ul class="notes" style="margin-top:14px;max-width:560px"><li class="note"><div class="h"><span class="achip"><span class="av">PM</span></span><b>Peter Mwangi</b><span class="muted">28 Apr 2026, 11:52</span></div><p>Late filing is explained by the HR letter.</p></li></ul></div>
     <div class="card card-pad"><h3>DiffTable</h3><p class="spec">Before, after, delta and percent with matched and unmatched labels. Row headers per item. Deltas announced in text. Null percentage shows "n/a".</p><div style="overflow-x:auto;margin-top:14px">${diffTable(demoDiff, 1, 2, fakeC)}</div></div>
-    <div class="card card-pad"><h3>SplitPane</h3><p class="spec">Resizable with the mouse, or focus the handle and use the left and right arrow keys (Home and End jump to the limits).</p><div class="demo-split" id="demosplit" style="margin-top:14px;--dside:${S.demoSide || 220}px"><div>Main pane: the declaration as filed.</div><div class="rs-handle" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize demo panel" aria-valuemin="140" aria-valuemax="400" aria-valuenow="${S.demoSide || 220}" data-demo="1"></div><div style="background:#fcfcfb">Side pane: flags, registry, clarifications, notes, timeline.</div></div></div>
+    <div class="card card-pad"><h3>SplitPane</h3><p class="spec">Resizable with the mouse, or focus the handle and use the left and right arrow keys (Home and End jump to the limits).</p><div class="demo-split" id="demosplit" style="margin-top:14px;--dside:${S.demoSide || 220}px"><div>Main pane: the declaration as filed.</div><div class="rs-handle" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize demo panel" aria-valuemin="140" aria-valuemax="400" aria-valuenow="${S.demoSide || 220}" data-demo="1"></div><div style="background:#fafafa">Side pane: flags, registry, clarifications, notes, timeline.</div></div></div>
     <div class="card card-pad"><h3>SystemStatusRow (#180)</h3><p class="spec">System, status badge, checked at, expandable (aria-expanded) when there are records.</p><div class="rperson" style="margin-top:14px;max-width:620px">${demoS.map((s) => sysRow(fakeC, person, s)).join('')}</div></div>
     <div class="card card-pad"><h3>MatchTable (#180)</h3><p class="spec">Registry record beside the declared item: matched, not declared, not in registry. Row headers name the registry record.</p><div style="margin-top:14px;display:grid;gap:12px;max-width:640px">${matchTable(fakeC, reg1().persons[0].systems[3])}${matchTable(fakeC, reg1().persons[1].systems[2])}${matchTable(fakeC, reg1().persons[1].systems[0])}</div></div>
     <div class="card card-pad"><h3>BreakerBadge (#180)</h3><p class="spec">Circuit breaker state per registry. Used on the Integrations page.</p><div class="row wrap" style="margin-top:14px;gap:10px">${bb('closed')}${bb('half-open')}${bb('open')}</div></div>

@@ -24,9 +24,8 @@
         white-space: nowrap;
         border: 0;
       }
-      .btn:focus-visible,
-      a:focus-visible,
-      button:focus-visible,
+      a:not(.btn):focus-visible,
+      button:not(.btn):focus-visible,
       .tile:focus-visible,
       [tabindex]:focus-visible {
         outline: 2px solid var(--ink);
@@ -36,7 +35,7 @@
       .select[aria-invalid='true'] {
         box-shadow:
           0 0 0 1px var(--danger),
-          0 0 0 4px rgba(201, 41, 30, 0.08);
+          0 0 0 4px rgba(231, 0, 11, 0.08);
       }
       .input:disabled,
       .select:disabled {
@@ -74,15 +73,15 @@
       }
       .alert-danger {
         background: var(--danger-soft);
-        color: #8a1c14;
+        color: #9f0712;
       }
       .alert-warn {
         background: var(--warn-soft);
-        color: #6b4000;
+        color: #973c00;
       }
       .alert-info {
-        background: #eaf1fb;
-        color: #1f4f96;
+        background: #dff2fe;
+        color: #0069a8;
       }
       .alert-neutral {
         background: var(--sunken);
@@ -134,7 +133,7 @@
         border-radius: 10px;
         background: #1c1c1c;
         color: #fff;
-        font-size: 12.5px;
+        font-size: 13px;
         line-height: 1.45;
         font-weight: 400;
         box-shadow: var(--shadow-pop);
@@ -176,7 +175,7 @@
       }
       .muted-i {
         color: var(--muted);
-        font-size: 13.5px;
+        font-size: 14px;
       }
       .table td a.rowlink {
         font-weight: 500;
@@ -242,7 +241,7 @@
         gap: 2px;
         padding: 11px 0;
         border-bottom: 1px solid var(--line);
-        font-size: 14.5px;
+        font-size: 14px;
       }
       @container app (min-width: 600px) {
         .dlx > div {
@@ -288,10 +287,10 @@
       }
       .cgroup-h {
         padding: 10px 14px;
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--muted);
-        background: #fcfcfb;
+        background: #fafafa;
         border-bottom: 1px solid var(--line);
         letter-spacing: 0.01em;
       }
@@ -311,7 +310,7 @@
         border-bottom: 0;
       }
       .crow:hover {
-        background: #fcfbfa;
+        background: #fafafa;
       }
       .crow input {
         position: absolute;
@@ -361,7 +360,7 @@
         padding: 10px 12px;
         border-radius: var(--r);
         background: var(--sunken);
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--ink-2);
       }
       .preview .code {
@@ -398,7 +397,7 @@
         padding: 0;
       }
       .btn-primary[aria-busy='true'] {
-        background: linear-gradient(#3a3a3a, #262626);
+        background: linear-gradient(#404040, #262626);
         color: #fff;
         opacity: 1;
         cursor: progress;
@@ -425,7 +424,7 @@
         margin-bottom: 12px;
       }
       .ro-empty h4 {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
       .ro-empty p {
@@ -510,7 +509,7 @@
       }
       .ws .go {
         margin-top: auto;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
         display: flex;
         align-items: center;
@@ -571,7 +570,7 @@
         background: var(--sunken);
       }
       .cnt .k {
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
       }
@@ -586,7 +585,7 @@
         background: var(--warn-soft);
       }
       .cnt.warn .k {
-        color: #7a4a00;
+        color: #973c00;
       }
       .pgrid {
         display: grid;
@@ -615,7 +614,7 @@
       }
       .prow .v {
         font-weight: 500;
-        font-size: 14.5px;
+        font-size: 14px;
       }
       .vh-list {
         list-style: none;
@@ -640,7 +639,7 @@
         display: grid;
         place-items: center;
         background: var(--sunken);
-        font-size: 12.5px;
+        font-size: 13px;
         font-weight: 600;
         color: var(--ink-2);
       }
@@ -741,7 +740,7 @@
         flex: none;
       }
       .sumcard .hd h3 {
-        font-size: 15.5px;
+        font-size: 16px;
         font-weight: 600;
         letter-spacing: -0.01em;
       }
@@ -758,7 +757,7 @@
         line-height: 1.2;
       }
       .sumcard .ln {
-        font-size: 13.5px;
+        font-size: 14px;
         color: var(--muted);
         display: flex;
         gap: 6px;
@@ -770,7 +769,7 @@
       }
       .sumcard .go {
         margin-top: auto;
-        font-size: 13.5px;
+        font-size: 14px;
         font-weight: 500;
         display: flex;
         align-items: center;
@@ -786,7 +785,7 @@
         display: inline-flex;
         gap: 6px;
         align-items: center;
-        font-size: 12.5px;
+        font-size: 13px;
         color: var(--muted);
         font-weight: 500;
       }
@@ -1458,7 +1457,7 @@
     </div>
     <div class="auth-foot">Ethics and Anti-Corruption Commission</div>
   </div>
-  <div class="auth-art"><svg class="hills" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice"><rect width="600" height="800" fill="#f3d2bd"/><path d="M0 520 Q150 430 300 500 T600 470 V800 H0Z" fill="#eab596"/><path d="M0 610 Q200 540 360 600 T600 590 V800 H0Z" fill="#df9a73"/><path d="M0 700 Q180 650 330 690 T600 680 V800 H0Z" fill="#cf7f55"/><circle cx="450" cy="220" r="70" fill="#f8e3d5"/></svg><div class="halftone"></div>
+  <div class="auth-art"><svg class="hills" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice"><rect width="600" height="800" fill="#f3d2bd"/><path d="M0 520 Q150 430 300 500 T600 470 V800 H0Z" fill="#eab596"/><path d="M0 610 Q200 540 360 600 T600 590 V800 H0Z" fill="#df9a73"/><path d="M0 700 Q180 650 330 690 T600 680 V800 H0Z" fill="#cf7f55"/><circle cx="450" cy="220" r="70" fill="#e5e5e5"/></svg><div class="halftone"></div>
     <div class="art-copy"><h2>Every Responsible Commission, one calm workspace.</h2></div>
   </div></div>`;
       }
@@ -1887,7 +1886,7 @@
         }
         return consoleShell(
           `<main class="cpage">
-    <div class="page-head"><div style="min-width:0"><h1>${esc(c.name)}</h1><div class="head-badges"><span class="mono-badge issuer" style="font-size:12.5px;padding:3px 8px;border-radius:6px;background:var(--sunken);color:var(--ink-2)">${c.issuerCode}</span>${typeBadge(c.type)}${isEacc() ? `<span class="badge">${icon('eye', 13)} Read only</span>` : ''}</div></div></div>
+    <div class="page-head"><div style="min-width:0"><h1>${esc(c.name)}</h1><div class="head-badges"><span class="mono-badge issuer" style="font-size:13px;padding:3px 8px;border-radius:6px;background:var(--sunken);color:var(--ink-2)">${c.issuerCode}</span>${typeBadge(c.type)}${isEacc() ? `<span class="badge">${icon('eye', 13)} Read only</span>` : ''}</div></div></div>
     <div class="dgrid">
       <div class="dcol">${detailsCard(c)}${policyOrNothing(c)}</div>
       <div class="dcol">${roCard(c)}${obligationsCard(c)}</div>
@@ -1932,7 +1931,7 @@
           wrap(
             '04-obligations.prototype.html#obligations',
             o
-              ? `${hd('calendar', 'Obligations', true)}<div class="big"><span style="color:#7a4a00">${num(o.overdue)} overdue</span> <span style="font-size:14px;font-weight:500;color:var(--muted)">· ${num(o.due)} due</span></div><div class="ln">${icon('userX', 13)}<span>${num(o.notOnboarded)} not onboarded</span></div>`
+              ? `${hd('calendar', 'Obligations', true)}<div class="big"><span style="color:#973c00">${num(o.overdue)} overdue</span> <span style="font-size:14px;font-weight:500;color:var(--muted)">· ${num(o.due)} due</span></div><div class="ln">${icon('userX', 13)}<span>${num(o.notOnboarded)} not onboarded</span></div>`
               : `${hd('calendar', 'Obligations', true)}<div class="big" style="font-size:18px">No obligations yet</div><div class="ln">Obligations appear when the roster is imported and a cycle opens.</div>`,
             'Obligations',
           ),
@@ -1964,7 +1963,7 @@
         const showPolicy = !isEacc();
         return consoleShell(
           `<main class="cpage">
-    <div class="page-head"><div style="min-width:0"><h1>${esc(c.name)}</h1><div class="head-badges"><span class="issuer" style="font-size:12.5px;padding:3px 8px;border-radius:6px;background:var(--sunken);color:var(--ink-2)">${c.issuerCode}</span>${typeBadge(c.type)}</div></div></div>
+    <div class="page-head"><div style="min-width:0"><h1>${esc(c.name)}</h1><div class="head-badges"><span class="issuer" style="font-size:13px;padding:3px 8px;border-radius:6px;background:var(--sunken);color:var(--ink-2)">${c.issuerCode}</span>${typeBadge(c.type)}</div></div></div>
     ${isEacc() ? '' : sumCards(c, role)}
     <div class="dgrid">
       <div class="dcol">${detailsCard(c)}</div>
