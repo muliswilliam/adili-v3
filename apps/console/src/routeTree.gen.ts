@@ -74,6 +74,7 @@ import { Route as CommissionsSlugRecordsRouteRouteImport } from './routes/commis
 import { Route as EaccReferralsIndexRouteImport } from './routes/eacc/referrals/index'
 import { Route as EaccReportsIndexRouteImport } from './routes/eacc/reports/index'
 import { Route as EaccReportsReportIdRouteImport } from './routes/eacc/reports/$reportId'
+import { Route as EaccReportsNcrRouteImport } from './routes/eacc/reports/ncr'
 import { Route as LeaRequestsIndexRouteImport } from './routes/lea/requests/index'
 import { Route as LeaRequestsLeaRequestIdRouteImport } from './routes/lea/requests/$leaRequestId'
 import { Route as LeaRequestsNewRouteImport } from './routes/lea/requests/new'
@@ -435,6 +436,11 @@ const EaccReportsReportIdRoute = EaccReportsReportIdRouteImport.update({
   path: '/$reportId',
   getParentRoute: () => EaccReportsRouteRoute,
 } as any)
+const EaccReportsNcrRoute = EaccReportsNcrRouteImport.update({
+  id: '/ncr',
+  path: '/ncr',
+  getParentRoute: () => EaccReportsRouteRoute,
+} as any)
 const LeaRequestsIndexRoute = LeaRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -641,6 +647,7 @@ export interface FileRoutesByFullPath {
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
+  '/eacc/reports/ncr': typeof EaccReportsNcrRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
   '/lea/requests/new': typeof LeaRequestsNewRoute
   '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
@@ -706,6 +713,7 @@ export interface FileRoutesByTo {
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
+  '/eacc/reports/ncr': typeof EaccReportsNcrRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
   '/lea/requests/new': typeof LeaRequestsNewRoute
   '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
@@ -799,6 +807,7 @@ export interface FileRoutesById {
   '/api/mock-files/$id': typeof ApiMockFilesIdRoute
   '/api/mock-uploads/$id': typeof ApiMockUploadsIdRoute
   '/eacc/reports/$reportId': typeof EaccReportsReportIdRoute
+  '/eacc/reports/ncr': typeof EaccReportsNcrRoute
   '/lea/requests/$leaRequestId': typeof LeaRequestsLeaRequestIdRoute
   '/lea/requests/new': typeof LeaRequestsNewRoute
   '/platform/law-enforcement/$agencyCode': typeof PlatformLawEnforcementAgencyCodeRoute
@@ -893,6 +902,7 @@ export interface FileRouteTypes {
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
     | '/eacc/reports/$reportId'
+    | '/eacc/reports/ncr'
     | '/lea/requests/$leaRequestId'
     | '/lea/requests/new'
     | '/platform/law-enforcement/$agencyCode'
@@ -958,6 +968,7 @@ export interface FileRouteTypes {
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
     | '/eacc/reports/$reportId'
+    | '/eacc/reports/ncr'
     | '/lea/requests/$leaRequestId'
     | '/lea/requests/new'
     | '/platform/law-enforcement/$agencyCode'
@@ -1050,6 +1061,7 @@ export interface FileRouteTypes {
     | '/api/mock-files/$id'
     | '/api/mock-uploads/$id'
     | '/eacc/reports/$reportId'
+    | '/eacc/reports/ncr'
     | '/lea/requests/$leaRequestId'
     | '/lea/requests/new'
     | '/platform/law-enforcement/$agencyCode'
@@ -1564,6 +1576,13 @@ declare module '@tanstack/react-router' {
       path: '/$reportId'
       fullPath: '/eacc/reports/$reportId'
       preLoaderRoute: typeof EaccReportsReportIdRouteImport
+      parentRoute: typeof EaccReportsRouteRoute
+    }
+    '/eacc/reports/ncr': {
+      id: '/eacc/reports/ncr'
+      path: '/ncr'
+      fullPath: '/eacc/reports/ncr'
+      preLoaderRoute: typeof EaccReportsNcrRouteImport
       parentRoute: typeof EaccReportsRouteRoute
     }
     '/lea/requests/': {
@@ -2173,11 +2192,13 @@ const EaccReferralsRouteRouteWithChildren =
 
 interface EaccReportsRouteRouteChildren {
   EaccReportsReportIdRoute: typeof EaccReportsReportIdRoute
+  EaccReportsNcrRoute: typeof EaccReportsNcrRoute
   EaccReportsIndexRoute: typeof EaccReportsIndexRoute
 }
 
 const EaccReportsRouteRouteChildren: EaccReportsRouteRouteChildren = {
   EaccReportsReportIdRoute: EaccReportsReportIdRoute,
+  EaccReportsNcrRoute: EaccReportsNcrRoute,
   EaccReportsIndexRoute: EaccReportsIndexRoute,
 }
 

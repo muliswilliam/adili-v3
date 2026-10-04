@@ -1,6 +1,15 @@
 import type { FormMV1 } from '@adili/forms';
+import type { Assert, MatchesNarrativeSections } from '@adili/ui';
 
+import type { NationalAggregates } from './aggregates';
 import type { components } from './api.gen';
+
+export type {
+  AccessAggregate,
+  CommissionAggregate,
+  NationalAggregates,
+  SectionAggregate,
+} from './aggregates';
 
 type Schemas = components['schemas'];
 
@@ -9,6 +18,24 @@ export type ReportCounts = Schemas['ReportCounts'];
 /** reporting.yaml `ComplianceReportSummary`: one financial year of the period selector. */
 export type ReportPeriod = Schemas['ComplianceReportSummary'];
 export type Officer = Schemas['Officer'];
+export type Narrative = Schemas['Narrative'];
+export type NarrativeParagraph = Schemas['NarrativeParagraph'];
+export type NarrativeSectionId = NarrativeParagraph['section'];
+
+/** The kit's national report sections and limits are the contract's (`Narrative`). */
+export type NarrativeMatchesContract = Assert<MatchesNarrativeSections<Narrative>>;
+
+/** The narrative's sections in the order the report has them. */
+export const NARRATIVE_SECTION_IDS = [
+  'overview',
+  'findings',
+  'recommendations',
+] as const satisfies readonly NarrativeSectionId[];
+
+/** reporting.yaml `NationalReport`, with its aggregates read. */
+export type NationalReport = Omit<Schemas['NationalReport'], 'aggregates'> & {
+  aggregates: NationalAggregates;
+};
 
 /**
  * reporting.yaml `ComplianceReport`, with its document typed as the form-m.v1 document it is (the
@@ -24,7 +51,7 @@ export interface ReportingProblem {
   title: string;
   status: number;
   detail?: string;
-  /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available` or `report-submitted`. */
+  /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
 }
 

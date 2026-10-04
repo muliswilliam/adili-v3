@@ -28,10 +28,11 @@ export const envSchema = bffEnvSchema.extend({
    */
   ACCESS_MOCK: z.stringbool().default(false),
   /**
-   * Serve a Commission's Form M periods and reports and EACC's referrals intake with its evidence
-   * package downloads (spec 09) from in-memory fixtures, for screens without the reporting service
-   * and its upstreams running. Honoured in `vite dev` and tests only; production builds do not
-   * contain the mock.
+   * Serve the reporting service (spec 09: a Commission's Form M periods and reports, EACC's intake
+   * totals, its referrals intake with evidence package downloads and the national consolidated
+   * report with its PDF download) from in-memory fixtures, for screens without the reporting
+   * service and its upstreams running. Honoured in `vite dev` and tests only; production builds
+   * do not contain the mock.
    */
   REPORTING_MOCK: z.stringbool().default(false),
   /**
@@ -39,6 +40,12 @@ export const envSchema = bffEnvSchema.extend({
    * to show the preview window (from 1 April) without waiting for it. Today by default.
    */
   REPORTING_MOCK_TODAY: z.iso.date().optional(),
+  /**
+   * With REPORTING_MOCK: where FY 2025/2026's national report starts. `not-built` by default;
+   * `draft` built with a narrative by another analyst; `stale` that draft with one more report
+   * received since; `approved` approved with its reference and PDF.
+   */
+  REPORTING_MOCK_NCR: z.enum(['not-built', 'draft', 'stale', 'approved']).default('not-built'),
   /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.

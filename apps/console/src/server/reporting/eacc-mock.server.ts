@@ -24,7 +24,7 @@ import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES } from '@adili/roles';
 import { INTAKE_STATUSES } from '@adili/ui';
 
 import { dueDateOf, FIRST_FINANCIAL_YEAR } from '../../components/form-m/financial-year';
-import { json, type MockCaller, mockCallerOf, problem } from '../mock-http';
+import { documentDownloadIdOf, json, type MockCaller, mockCallerOf, problem } from '../mock-http';
 import {
   mockDay,
   nairobiDayOf,
@@ -211,7 +211,8 @@ export function setEaccIntakeMockLatency(factor: number) {
   latency = factor;
 }
 
-const delay = (ms: number) =>
+/** Waits `ms` scaled by the mocks' latency (0 in tests); the national report mock shares it. */
+export const mockDelay = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms * latency);
   });
@@ -280,7 +281,7 @@ function chaseRounds(fy: number, filed: string | null): string[] {
 }
 
 /** Whether the year has a biennial declaration cycle (odd start years, as FY 2027 in spec 09). */
-const hasBiennialCycle = (fy: number) => fy % 2 === 1;
+export const hasBiennialCycle = (fy: number) => fy % 2 === 1;
 
 function sectionCounts(
   commission: Fixture,
@@ -585,7 +586,15 @@ function submittedReport(index: number, fy: number): SubmittedReport | null {
   };
 }
 
-const isEacc = (caller: MockCaller) =>
+/**
+ * The year's intake of every Commission, unfiltered: what the national report mock builds its
+ * aggregates from, so both EACC screens count the same reports.
+ */
+export function mockEaccIntake(fy: number): Intake {
+  return intake(fy);
+}
+
+export const isEacc = (caller: MockCaller) =>
   caller.tenant === EACC_TENANT &&
   caller.roles.some((role) => (EACC_ROLES as readonly string[]).includes(role));
 
@@ -602,7 +611,7 @@ function parseReportId(id: string): { index: number; fy: number } | null {
 
 /** Answers `/v1/eacc/compliance-reports` and `/v1/eacc/compliance-reports/{reportId}`. */
 export async function mockEaccIntakeFetch(input: Request): Promise<Response> {
-  await delay(300);
+  await mockDelay(300);
   const url = new URL(input.url);
   const caller = mockCallerOf(input);
   if (input.method !== 'GET') return problem(404, 'Not found');
@@ -658,10 +667,9 @@ export function mockReportingFileTitle(documentId: string): string | null {
  * 404.
  */
 export async function mockReportingDocumentsFetch(input: Request): Promise<Response> {
-  await delay(200);
-  const match = /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(input.url).pathname);
-  const id = match?.[1];
-  if (input.method !== 'GET' || !id || !mockReportingFileTitle(id)) {
+  await mockDelay(200);
+  const id = documentDownloadIdOf(input);
+  if (!id || !mockReportingFileTitle(id)) {
     return problem(404, 'Not found');
   }
   if (!isEacc(mockCallerOf(input))) return problem(404, 'Not found');

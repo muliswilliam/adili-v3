@@ -22,8 +22,15 @@ export const Route = createFileRoute('/eacc/reports')({
   beforeLoad: async ({ location }) => {
     const viewer = await getViewer();
     if (!viewer) throw signInRedirect(location.href);
-    const roles = viewer.directory.ok ? viewer.directory.principal.roles : [];
-    return { viewer, roles, workspace: workspaceFor(roles, 'compliance') ?? null };
+    const principal = viewer.directory.ok ? viewer.directory.principal : null;
+    const roles = principal?.roles ?? [];
+    return {
+      viewer,
+      roles,
+      // Who the viewer is, for the national report's author check (#233).
+      subject: principal?.subject ?? null,
+      workspace: workspaceFor(roles, 'compliance') ?? null,
+    };
   },
   staticData: {
     // Staff without the workspace get no trail back to a page they cannot open.

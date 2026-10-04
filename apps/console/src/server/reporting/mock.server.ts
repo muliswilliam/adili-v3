@@ -86,11 +86,17 @@ export function mockReportingClient(
   roles: readonly string[],
   {
     name = 'Samuel Njoroge',
+    subject = 'mock-officer',
     tenant = 'psc',
     fetch = mockReportingFetch,
-  }: { name?: string; tenant?: string; fetch?: (request: Request) => Promise<Response> } = {},
+  }: {
+    name?: string;
+    subject?: string;
+    tenant?: string;
+    fetch?: (request: Request) => Promise<Response>;
+  } = {},
 ) {
-  const token = unsignedMockToken({ subject: 'mock-officer', name, roles, tenant });
+  const token = unsignedMockToken({ subject, name, roles, tenant });
   return createClient<paths>({
     baseUrl: 'http://reporting.test',
     headers: { authorization: `Bearer ${token}` },
@@ -104,6 +110,10 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
   if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
     return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
+  }
+  // EACC's national consolidated report (ncr-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/national-reports/')) {
+    return (await import('./ncr-mock.server')).mockNcrFetch(input);
   }
   await delay(250);
   // EACC's referrals intake is its own part of the mock.
