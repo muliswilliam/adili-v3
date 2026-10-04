@@ -174,7 +174,7 @@ flowchart TB
 |---|---|---|---|
 | **directory** | tenants, org_units (ltree), people, employments, rosters, delegations, category rules, policy versions, numbering registry, reference data | Declarant onboarding (roster match, OTPs, Keycloak account); roster import and validation; Commission provisioning | - |
 | **declarations** | filing obligations, drafts, declarations, versions (JSONB snapshots), household, statements, items, material changes | Obligation tracking; autosave (Postgres per save, Valkey read cache; ADR-001 as amended); submit as one transaction; cross-tenant comparison ("compare, don't show") | `FilingObligationWorkflow`, `DeclarationProcessingWorkflow` |
-| **review** | review cases, risk flags, clarifications, determinations, administrative actions, referrals | Deterministic rules (completeness, ±25%, income vs assets, cross-checks); reviewer queues; separation of duties | `ClarificationWorkflow` |
+| **review** | review cases, risk flags, clarifications, determinations, administrative actions, referrals | Deterministic rules (completeness, ±25%, income vs assets, cross-checks); reviewer queues; separation of duties; administrative action ladder (ADR-003 decision 8); two-cycle referrals (Reg 20(2)) | `ClarificationWorkflow`, `EnforcementWorkflow`, `ReferralSweep` |
 | **access** | access requests (Form K), LEA requests, representations, decisions, grants | Declarant notification and representations; decisions with Reg 24 grounds; watermarked packages | `AccessRequestWorkflow` |
 | **reporting** | Form M reports, national consolidation, read models, open-data aggregates | Auto-compiled Form M; EACC intake and consolidation; dashboards; open data with small-group suppression | `ComplianceReportWorkflow`, `NationalConsolidationWorkflow` |
 | **documents** | document refs, scan results, templates, issued documents, verification records | Presigned uploads → quarantine → ClamAV → clean; PDF issuance (Gotenberg), PAdES signing, QR, verification records | - |
@@ -325,9 +325,11 @@ sequenceDiagram
     actor R as Reviewer
     actor S as Supervisor
     actor O as Declarant
+    participant FW as FilingObligationWorkflow
     participant REV as review
     participant CW as ClarificationWorkflow
-    participant FW as FilingObligationWorkflow
+    participant EW as EnforcementWorkflow
+    participant RS as ReferralSweep
     participant INT as integration-gateway
     participant PAY as Payroll (mock)
 
@@ -339,15 +341,21 @@ sequenceDiagram
         R->>REV: propose determination
         S->>REV: approve (reviewer ≠ approver)
     else no response
-        CW->>REV: escalate: non-compliance
+        CW-->>REV: clarification.overdue.v1
+        REV->>EW: start (subject: the clarification)
     end
-    Note over FW: Failure to file follows the same ladder
-    REV->>REV: ADM notice to comply → warning
+    FW-->>REV: obligation.status-changed.v1 overdue (failure to file)
+    REV->>EW: start (subject: the filing obligation)
+    EW->>REV: draft ADM notice to comply, then warning
+    R->>REV: approve each step (reviewer or supervisor)
+    EW->>REV: draft salary stoppage
     S->>REV: approve salary stoppage
-    REV->>INT: payroll instruction
+    EW->>INT: stop_salary
     INT->>PAY: stop salary pending compliance
     PAY-->>INT: acknowledgement
-    Note over REV: 2 consecutive cycles → RFL referral to EACC / ICMS (Reg 20(2))
+    EW->>REV: draft disciplinary referral (supervisor approves)
+    Note over EW: Compliance (filed, responded, resolved) sends resume_salary (ADM ref plus -R)
+    RS->>REV: daily: 2 consecutive cycles → propose RFL referral to EACC / ICMS (Reg 20(2))
 ```
 
 ### 5.5 Form M and national consolidation
