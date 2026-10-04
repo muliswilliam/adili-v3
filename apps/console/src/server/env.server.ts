@@ -9,7 +9,7 @@ export const envSchema = bffEnvSchema.extend({
   /** The integration-gateway's public routes: registry coverage for platform admins (spec 07b). */
   INTEGRATION_GATEWAY_API_URL: z.url(),
   ACCESS_API_URL: z.url(),
-  /** The reporting service: a Commission's Form M workspace (spec 09). */
+  /** The reporting service: Form M, EACC's intake and the national consolidated report (spec 09). */
   REPORTING_API_URL: z.url(),
   /** The ai-gateway: AI policy, routing and usage for platform admins (spec 07c). */
   AI_GATEWAY_API_URL: z.url(),
@@ -28,9 +28,10 @@ export const envSchema = bffEnvSchema.extend({
    */
   ACCESS_MOCK: z.stringbool().default(false),
   /**
-   * Serve a Commission's Form M periods and reports (spec 09) from in-memory fixtures, for screens
-   * without the reporting service and its upstreams running. Honoured in `vite dev` and tests
-   * only; production builds do not contain the mock.
+   * Serve a Commission's Form M periods and reports and EACC's referrals intake with its evidence
+   * package downloads (spec 09) from in-memory fixtures, for screens without the reporting service
+   * and its upstreams running. Honoured in `vite dev` and tests only; production builds do not
+   * contain the mock.
    */
   REPORTING_MOCK: z.stringbool().default(false),
   /**

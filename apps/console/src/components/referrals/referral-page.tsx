@@ -54,6 +54,7 @@ import {
   DeclineReferralDialog,
   type ReferralSubject,
 } from './decision-dialogs';
+import { Fact } from './fact';
 import { messages as t } from './messages';
 import { useReferralDecisions } from './use-referral-decisions';
 
@@ -480,16 +481,22 @@ function ApprovalBody({
           </div>
         </div>
       ) : null}
+      {referral.icmsCaseNumber ? (
+        <div className="flex items-start gap-2.5">
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-success-subtle text-success">
+            <Icon icon={Tick02Icon} className="size-3.5" />
+          </span>
+          <div>
+            <dt className="font-medium">{t.detail.icmsCase(referral.icmsCaseNumber)}</dt>
+            {referral.icmsRegisteredAt ? (
+              <dd className="text-[13px] text-muted-foreground">
+                {t.detail.icmsRegistered(referral.icmsRegisteredAt)}
+              </dd>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </dl>
-  );
-}
-
-function Fact({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-[13px] text-muted-foreground">{term}</dt>
-      <dd className="mt-0.5 font-medium">{children}</dd>
-    </div>
   );
 }
 

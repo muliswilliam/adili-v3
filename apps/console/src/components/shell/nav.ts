@@ -73,7 +73,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   },
   {
     label: 'EACC',
-    items: [{ workspace: 'compliance', icon: InboxIcon }],
+    items: [
+      { workspace: 'compliance', icon: InboxIcon },
+      { workspace: 'referrals-intake', icon: Flag02Icon },
+    ],
   },
   {
     label: 'Law enforcement',

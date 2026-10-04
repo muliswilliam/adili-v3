@@ -23,6 +23,9 @@
  * and any other Commission, gets 404); only the supervisor compiles (403), from 1 April after the
  * year (409 `preview-not-available`) and until the report is submitted (409 `report-submitted`).
  * A compile leaves the report `compiling` for three seconds, then a draft as at that moment.
+ *
+ * EACC's referrals intake and its evidence package downloads answer from
+ * `referral-intake-mock.server.ts`.
  */
 import { FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
 import type { FormMV1 } from '@adili/forms';
@@ -48,6 +51,7 @@ import {
   type StoredReport,
   storedYears,
 } from './mock-store.server';
+import { referralIntakeFetch } from './referral-intake-mock.server';
 
 export { resetReportingMock, submitMockReport } from './mock-store.server';
 import type { ComplianceReport, ReportCounts, ReportPeriod } from './types';
@@ -102,6 +106,9 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
     return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
   }
   await delay(250);
+  // EACC's referrals intake is its own part of the mock.
+  const intake = referralIntakeFetch(input);
+  if (intake) return intake;
   const url = new URL(input.url);
   const match = /^\/v1\/commissions\/([^/]+)\/compliance-reports(?:\/(\d+)(\/compile)?)?$/.exec(
     url.pathname,
