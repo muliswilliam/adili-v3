@@ -3,6 +3,7 @@ import {
   type DocumentType,
   FORM_M,
   NATIONAL_CONSOLIDATED_REPORT,
+  OPEN_DATA_MANIFEST,
   REFERRAL_PACKAGE,
 } from '@adili/events/contracts';
 import { EACC_ROLES, EACC_TENANT, FORM_M_ROLES, REPORTS_SUBMIT_SCOPE } from '@adili/roles';
@@ -25,12 +26,14 @@ interface Readers {
 /**
  * The issuing tenant's own readers: a Commission's supervisor, commission-admin, reporting officer
  * and federated system read its submitted Form M and receipt; EACC's analysts and supervisors
- * EACC's national consolidated report (issued for the EACC tenant).
+ * EACC's national consolidated report and its open-data release manifests (issued for the EACC
+ * tenant; anyone verifies a manifest).
  */
 const OWN_TENANT_READERS: Partial<Record<DocumentType, Readers>> = {
   [FORM_M]: { roles: FORM_M_ROLES, scope: REPORTS_SUBMIT_SCOPE },
   [COMPLIANCE_REPORT_RECEIPT]: { roles: FORM_M_ROLES, scope: REPORTS_SUBMIT_SCOPE },
   [NATIONAL_CONSOLIDATED_REPORT]: { roles: EACC_ROLES },
+  [OPEN_DATA_MANIFEST]: { roles: EACC_ROLES },
 };
 
 /**

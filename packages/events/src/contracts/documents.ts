@@ -24,6 +24,7 @@ export const DOCUMENT_TYPES = [
   'form-m',
   'compliance-report-receipt',
   'ncr',
+  'open-data-manifest',
 ] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 
@@ -81,6 +82,12 @@ export const COMPLIANCE_REPORT_RECEIPT = 'compliance-report-receipt' satisfies D
 
 /** EACC's national consolidated report of the year's compliance reports (spec 09): restricted. */
 export const NATIONAL_CONSOLIDATED_REPORT = 'ncr' satisfies DocumentType;
+
+/**
+ * The manifest of a published open-data release (spec 09b): its year, kind and version and each
+ * dataset file's rows and SHA-256. Public: the verify page may show all of it.
+ */
+export const OPEN_DATA_MANIFEST = 'open-data-manifest' satisfies DocumentType;
 
 /** How much of a document the public verify page may show; fixed per document type. */
 export const DISCLOSURE_LEVELS = ['public', 'restricted', 'confidential'] as const;

@@ -296,7 +296,8 @@ if (directory) {
 // law-enforcement officers from the directory, asks declarations for disclosures, issues packages
 // and certified copies with documents and sends messages.
 for (const [id, needed] of [
-  // Registry pre-fill (spec 05b): the declarant's national ID and the registry lookups.
+  // Registry pre-fill (spec 05b): the declarant's national ID and the registry lookups. Ask Adili
+  // (spec 11): the ai-gateway's answer stream.
   [
     'declarations',
     [
@@ -305,6 +306,7 @@ for (const [id, needed] of [
       'messages',
       'documents:internal',
       'registry',
+      'ai:internal',
     ],
   ],
   // Form M (spec 09): Commissions and staff, officer and clarification details, its PDFs, emails.

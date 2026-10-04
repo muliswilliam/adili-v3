@@ -5,45 +5,46 @@ import {
   accessRequestCountsSchema,
   countSchema as count,
 } from '../compliance-reports/representation.js';
-import type { Conforms } from '../conforms.js';
-import { type Officer, officerSchema, storedOfficer } from '../officer.js';
-import type { NationalAggregates } from './aggregates.js';
+import { officerSchema, storedOfficer } from '../officer.js';
+import { narrativeOf, narrativeSchema, type Paragraph, paragraphSchema } from './narrative.js';
 import {
-  type Narrative,
-  narrativeOf,
-  narrativeSchema,
-  type Paragraph,
-  paragraphSchema,
-} from './narrative.js';
-import {
+  DRAFT_SCOPES,
+  NARRATIVE_DRAFT_STATUSES,
   NATIONAL_REPORT_STATUSES,
   type nationalReportAggregates,
+  type nationalReportNarrativeDrafts,
   type nationalReportParagraphs,
   type nationalReports,
-  type NationalReportStatus,
 } from './schema.js';
 
 export type NationalReportRow = typeof nationalReports.$inferSelect;
 export type AggregatesRow = typeof nationalReportAggregates.$inferSelect;
 export type ParagraphRow = typeof nationalReportParagraphs.$inferSelect;
+export type NarrativeDraftRow = typeof nationalReportNarrativeDrafts.$inferSelect;
 
-/** reporting.yaml `NationalReport`. */
-export interface NationalReportView {
-  id: string;
-  fy: number;
-  version: number;
-  status: NationalReportStatus;
-  builtAt: string | null;
-  reportsIncluded: number;
-  aggregates: NationalAggregates | Record<string, never>;
-  narrative: Narrative;
-  narrativeParagraphs: Paragraph[];
-  author: Officer | null;
-  approver: Officer | null;
-  approvedAt: string | null;
-  reference: string | null;
-  documentId: string | null;
-}
+/** reporting.yaml `NarrativeDraft`: the report's latest AI narrative draft (spec 09b). */
+export const narrativeDraftSchema = z.object({
+  jobs: z
+    .array(z.object({ section: z.enum(DRAFT_SCOPES), jobId: z.uuid() }))
+    .min(1)
+    .meta({
+      description:
+        "The ai-gateway jobs writing the draft, each with the section it asks for: one, or for `all` in a year with no pattern candidates, the overview's and the recommendations'",
+    }),
+  section: z.enum(DRAFT_SCOPES),
+  replaceAll: z.boolean(),
+  status: z.enum(NARRATIVE_DRAFT_STATUSES).meta({
+    description:
+      '`drafting` until the job ends; then its paragraphs are `inserted`, or the draft `failed` and nothing was inserted',
+  }),
+  failureReason: z.string().nullable().meta({
+    description:
+      "Why a failed draft was discarded: the ai-gateway job's reason (`validation`, `policy`, `budget`, `provider`, ...), or `missing` (the gateway no longer has the job), `invalid-output`, `aggregates-rebuilt` or `ncr-approved`",
+  }),
+  requestedAt: z.iso.datetime(),
+  finishedAt: z.iso.datetime().nullable(),
+});
+export type NarrativeDraftView = z.infer<typeof narrativeDraftSchema>;
 
 const rate = z.number().nullable();
 const sectionAggregateSchema = z.object({
@@ -91,8 +92,8 @@ export const nationalAggregatesSchema = z
       .meta({ description: 'Per Commission slug; its numbers are null until it reports' }),
   })
   .meta({ description: 'Counts and rates only, never an officer' });
-true satisfies Conforms<NationalAggregates, typeof nationalAggregatesSchema>;
 
+/** reporting.yaml `NationalReport`. */
 export const nationalReportSchema = z.object({
   id: z.uuid(),
   fy: z.number().int(),
@@ -110,6 +111,9 @@ export const nationalReportSchema = z.object({
     description:
       'The paragraphs behind the narrative sections, per section in position order; AI drafts (spec 09b) labelled until edited',
   }),
+  narrativeDraft: narrativeDraftSchema.nullable().meta({
+    description: 'The latest AI narrative draft (spec 09b); null until one is asked for',
+  }),
   author: officerSchema.nullable(),
   approver: officerSchema.nullable(),
   approvedAt: z.iso.datetime().nullable(),
@@ -119,7 +123,7 @@ export const nationalReportSchema = z.object({
     .meta({ description: '`NCR-EACC-<FY end>-<seq>-<check>`, allocated at approval' }),
   documentId: z.uuid().nullable().meta({ description: 'The Restricted NCR PDF, once issued' }),
 });
-true satisfies Conforms<NationalReportView, typeof nationalReportSchema>;
+export type NationalReportView = z.infer<typeof nationalReportSchema>;
 
 /** A stored paragraph as the narrative module works with it. */
 export function paragraphOf(row: ParagraphRow): Paragraph {
@@ -139,6 +143,7 @@ export function nationalReportView(
   report: NationalReportRow,
   aggregates: AggregatesRow | undefined,
   paragraphs: readonly Paragraph[],
+  draft: NarrativeDraftRow | undefined,
 ): NationalReportView {
   const ordered = [...paragraphs].sort(
     (a, b) => sectionOrder(a) - sectionOrder(b) || a.position - b.position,
@@ -153,11 +158,24 @@ export function nationalReportView(
     aggregates: aggregates?.aggregates ?? {},
     narrative: narrativeOf(ordered),
     narrativeParagraphs: ordered,
+    narrativeDraft: draft ? narrativeDraftView(draft) : null,
     author: { subject: report.authorSubject, name: report.authorName },
     approver: storedOfficer(report.approverSubject, report.approverName),
     approvedAt: report.approvedAt?.toISOString() ?? null,
     reference: report.reference,
     documentId: report.documentId,
+  };
+}
+
+function narrativeDraftView(draft: NarrativeDraftRow): NarrativeDraftView {
+  return {
+    jobs: draft.jobs.map((job) => ({ ...job })),
+    section: draft.section,
+    replaceAll: draft.replaceAll,
+    status: draft.status,
+    failureReason: draft.failureReason,
+    requestedAt: draft.requestedAt.toISOString(),
+    finishedAt: draft.finishedAt?.toISOString() ?? null,
   };
 }
 

@@ -95,6 +95,7 @@ export {
   newVerificationId,
   normalizeVerificationId,
   NOTICE_TO_COMPLY,
+  OPEN_DATA_MANIFEST,
   type PublicPayload,
   REFERRAL_PACKAGE,
   REVOCATION_REASONS,

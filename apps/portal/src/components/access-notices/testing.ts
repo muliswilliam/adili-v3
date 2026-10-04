@@ -1,5 +1,5 @@
-import { mockAccessFetch, resetAccessMock } from '../../server/access/mock.server';
-import { MOCK_NOTICE_IDS, resetNoticesMock } from '../../server/access/mock-notices.server';
+import { mockAccessFetch, resetAccessMocks } from '../../server/access/mock.server';
+import { MOCK_NOTICE_IDS } from '../../server/access/mock-notices.server';
 import type { DeclarantNotice, FormKDeclarantNotice } from '../../server/access/types';
 
 /** Test fixtures for the declarant's access request screens: the access mock's seeded notices. */
@@ -14,8 +14,7 @@ const DECLARANT_TOKEN = `e30.${Buffer.from(
 
 /** Every seeded notice, latest notified first, as of NOW. */
 export async function seededNotices(): Promise<DeclarantNotice[]> {
-  resetAccessMock(Date.parse(NOW));
-  resetNoticesMock(Date.parse(NOW));
+  resetAccessMocks(Date.parse(NOW));
   const response = await mockAccessFetch(
     new Request('http://access.test/v1/me/access-notices', {
       headers: { authorization: `Bearer ${DECLARANT_TOKEN}` },

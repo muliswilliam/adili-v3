@@ -11,7 +11,7 @@ import { hashJson } from '../hashing.js';
 import { Budgets } from '../policy/budgets.js';
 import { GenAiTelemetry } from '../policy/telemetry.js';
 import { findTask } from '../tasks/registry.js';
-import type { TaskDefinition } from '../tasks/task.js';
+import { inputIdentity, type TaskDefinition } from '../tasks/task.js';
 import { Admission } from './admission.js';
 import { recordJobEnded } from './job-ended.js';
 import { JobWorkflows } from './job-workflows.js';
@@ -56,7 +56,8 @@ function promptVersionFor(task: TaskDefinition, pinned: number | null): number {
 
 /**
  * A request's job identity: the cache key columns, and the hash of what the caller asked for
- * (the wait is not part of it, so a retry may wait differently).
+ * (the wait is not part of it, so a retry may wait differently). Both hash the input's identity:
+ * a document read again through a fresh download link is the same request.
  */
 function jobKey(
   task: TaskDefinition,
@@ -64,6 +65,7 @@ function jobKey(
   route: Pick<Route, 'provider' | 'model'>,
   { tenant, principal }: Pick<TaskCaller, 'tenant' | 'principal'>,
 ): { fields: Pick<Job, (typeof CACHE_KEY)[number]>; requestHash: string } {
+  const input = inputIdentity(task, request.input);
   return {
     fields: {
       tenant,
@@ -74,7 +76,7 @@ function jobKey(
       promptVersion: promptVersionFor(task, request.promptVersion),
       provider: route.provider,
       model: route.model,
-      inputHash: hashJson(request.input),
+      inputHash: hashJson(input),
     },
     requestHash: hashJson({
       task: task.name,
@@ -82,7 +84,7 @@ function jobKey(
       dataClass: request.dataClass,
       subjectRef: request.subjectRef,
       promptVersion: request.promptVersion,
-      input: request.input,
+      input,
     }),
   };
 }
@@ -197,7 +199,12 @@ export class JobsService {
           extensions: { retryAfterSeconds: limit.retryAfterSeconds },
         });
       }
-      const ending = await this.admission.refusal(tenant, request.dataClass, route.provider);
+      const ending = await this.admission.refusal(
+        tenant,
+        request.dataClass,
+        route.provider,
+        task.name,
+      );
       const created = await asCaller(async (tx) => {
         const [job] = await tx
           .insert(jobs)

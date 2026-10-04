@@ -3,7 +3,7 @@ import { PLATFORM_TENANT, TENANT_KEY } from '@adili/api-kit';
 import { z } from 'zod';
 
 import { DATA_CLASSES } from '../jobs/task-request.js';
-import { gateCellSchema } from '../policy/gate-policies.js';
+import { gateRuleInputSchema } from '../policy/gate-policies.js';
 import { PROVIDER_CLASSES } from '../providers/port.js';
 import { TASK_NAMES } from '../tasks/task.js';
 
@@ -23,7 +23,7 @@ export const ApiTenantParam = () =>
 /** Contract `GatePolicyInput`: one rule per pair at most, applied together. */
 export const gatePolicyInput = z.strictObject({
   rules: z
-    .array(gateCellSchema)
+    .array(gateRuleInputSchema)
     .min(1)
     .max(DATA_CLASSES.length * PROVIDER_CLASSES.length)
     .refine(

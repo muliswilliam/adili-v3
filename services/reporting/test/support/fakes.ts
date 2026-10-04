@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  type AiJob,
+  AiGatewayClient,
+  AiGatewayUnavailable,
+  type ReportingTask,
+  type RunTaskOptions,
+  type TaskRequest,
+} from '../../src/ai-gateway/ai-gateway-client.js';
+
+import {
   DeclarationsClient,
   DeclarationsUnavailable,
   type OfficerDetails,
@@ -14,8 +23,10 @@ import {
 } from '../../src/directory/directory-client.js';
 import {
   DocumentsClient,
+  DocumentsUnavailable,
   type IssuedDocument,
   type IssueDocumentRequest,
+  type RevokeDocumentRequest,
 } from '../../src/documents/documents-client.js';
 import {
   NotificationsClient,
@@ -29,6 +40,11 @@ import {
   IntegrationGatewayUnavailable,
 } from '../../src/integration-gateway/integration-gateway-client.js';
 import { InternalApiRejected } from '../../src/internal-api/internal-api.js';
+import {
+  OpenDataFileMissing,
+  OpenDataFiles,
+  OpenDataStorageUnavailable,
+} from '../../src/open-data/open-data-files.js';
 import {
   type ClarificationDetails,
   type ReferralIcmsPayload,
@@ -252,6 +268,8 @@ export class FakeNotifications extends NotificationsClient {
  */
 export class FakeDocuments extends DocumentsClient {
   readonly issued: IssueDocumentRequest[] = [];
+  /** Revocations that took effect, once per document. */
+  readonly revoked: RevokeDocumentRequest[] = [];
   private readonly byKey = new Map<string, IssuedDocument>();
   private failures = 0;
 
@@ -262,14 +280,20 @@ export class FakeDocuments extends DocumentsClient {
 
   reset(): void {
     this.issued.length = 0;
+    this.revoked.length = 0;
     this.byKey.clear();
     this.failures = 0;
+  }
+
+  /** The document's revocation, or undefined while it is valid. */
+  revocationOf(documentId: string): RevokeDocumentRequest | undefined {
+    return this.revoked.find((each) => each.documentId === documentId);
   }
 
   issue(request: IssueDocumentRequest): Promise<IssuedDocument> {
     if (this.failures > 0) {
       this.failures -= 1;
-      return Promise.reject(new Error('The documents service is unreachable'));
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
     }
     const replayed = this.byKey.get(request.idempotencyKey);
     if (replayed) return Promise.resolve(replayed);
@@ -277,6 +301,18 @@ export class FakeDocuments extends DocumentsClient {
     this.byKey.set(request.idempotencyKey, issued);
     this.issued.push(structuredClone(request));
     return Promise.resolve(issued);
+  }
+
+  /** Revokes a document this fake issued; one revoked already is left as it is. */
+  revoke(request: RevokeDocumentRequest): Promise<void> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new DocumentsUnavailable('The documents service is unreachable'));
+    }
+    const known = [...this.byKey.values()].some((each) => each.id === request.documentId);
+    if (!known) return Promise.reject(new InternalApiRejected('documents', 404));
+    if (!this.revocationOf(request.documentId)) this.revoked.push(structuredClone(request));
+    return Promise.resolve();
   }
 }
 
@@ -368,4 +404,186 @@ export class FakeIntegrationGateway extends IntegrationGatewayClient {
     const found = this.registrations.get(referralReference);
     return Promise.resolve(found ? { ...found } : null);
   }
+}
+
+/**
+ * The open-data bucket in memory: objects by key with their content type; `failCalls(n)` makes
+ * the next writes fail as an unreachable storage would, `failReads(n)` the next reads.
+ */
+export class FakeOpenDataFiles extends OpenDataFiles {
+  readonly objects = new Map<string, { body: Buffer; contentType: string }>();
+  private failures = 0;
+  private readFailures = 0;
+  private writesBeforeFailures = 0;
+
+  reset(): void {
+    this.objects.clear();
+    this.failures = 0;
+    this.readFailures = 0;
+    this.writesBeforeFailures = 0;
+  }
+
+  /** The next `count` writes fail, after `after` succeed: storage lost in the middle of a build. */
+  failCalls(count: number, { after = 0 }: { after?: number } = {}): void {
+    this.failures = count;
+    this.writesBeforeFailures = after;
+  }
+
+  failReads(count: number): void {
+    this.readFailures = count;
+  }
+
+  put(file: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
+    if (this.writesBeforeFailures > 0) this.writesBeforeFailures -= 1;
+    else if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new OpenDataStorageUnavailable('Unreachable'));
+    }
+    this.objects.set(file.key, { body: Buffer.from(file.body), contentType: file.contentType });
+    return Promise.resolve();
+  }
+
+  get(key: string): Promise<Uint8Array> {
+    if (this.readFailures > 0) {
+      this.readFailures -= 1;
+      return Promise.reject(new OpenDataStorageUnavailable('Unreachable'));
+    }
+    const object = this.objects.get(key);
+    return object
+      ? Promise.resolve(new Uint8Array(object.body))
+      : Promise.reject(new OpenDataFileMissing(`No object ${key}`));
+  }
+}
+
+/** How the fake ai-gateway's next job ends: succeeded with an output, failed, blocked, or not yet. */
+export type FakeJobAnswer =
+  | { status: 'succeeded'; output: Record<string, unknown> }
+  | { status: 'failed' | 'blocked'; reason: NonNullable<AiJob['reason']> }
+  | { status: 'queued' };
+
+/**
+ * The ai-gateway's internal task and job API: each new task call takes the next answer a test
+ * gave it (a job ended within the wait, or still queued for `finish` to end later), and a replay
+ * of an idempotency key answers the same job as it is now, as the gateway does. Records every
+ * task request with its key and wait.
+ */
+export class FakeAiGateway extends AiGatewayClient {
+  /** Every `runTask` call that reached the gateway, replays included. */
+  readonly requests: {
+    task: ReportingTask;
+    request: TaskRequest;
+    idempotencyKey: string;
+    waitSeconds: number;
+  }[] = [];
+  private readonly jobs = new Map<string, AiJob & { tenant: string }>();
+  private readonly byKey = new Map<string, string>();
+  private answers: FakeJobAnswer[] = [];
+  private failures = 0;
+  private rejections = 0;
+
+  /** How the next new jobs end, in order. */
+  answer(...answers: FakeJobAnswer[]): void {
+    this.answers.push(...answers);
+  }
+
+  /** Ends a queued job. */
+  finish(jobId: string, answer: Exclude<FakeJobAnswer, { status: 'queued' }>): void {
+    const job = this.jobs.get(jobId);
+    if (!job) throw new Error(`The fake ai-gateway has no job ${jobId}`);
+    this.jobs.set(jobId, { ...job, ...jobFields(answer) });
+  }
+
+  /** The next `count` calls fail, as a gateway outage would. */
+  failCalls(count: number): void {
+    this.failures = count;
+  }
+
+  /** The next `count` task calls are refused (a 4xx from the gateway). */
+  rejectCalls(count: number): void {
+    this.rejections = count;
+  }
+
+  reset(): void {
+    this.requests.length = 0;
+    this.jobs.clear();
+    this.byKey.clear();
+    this.answers = [];
+    this.failures = 0;
+    this.rejections = 0;
+  }
+
+  runTask(
+    task: ReportingTask,
+    request: TaskRequest,
+    idempotencyKey: string,
+    { waitSeconds = 0 }: RunTaskOptions = {},
+  ): Promise<AiJob> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unreachable'));
+    }
+    if (this.rejections > 0) {
+      this.rejections -= 1;
+      return Promise.reject(new InternalApiRejected('ai-gateway', 422));
+    }
+    this.requests.push({ task, request: structuredClone(request), idempotencyKey, waitSeconds });
+    const replayed = this.byKey.get(idempotencyKey);
+    if (replayed) return Promise.resolve(this.view(replayed));
+    const answer = this.answers.shift();
+    if (!answer) throw new Error('The fake ai-gateway was given no answer for this task call');
+    const id = randomUUID();
+    this.jobs.set(id, {
+      id,
+      tenant: request.tenant,
+      task,
+      subjectRef: request.subjectRef,
+      promptVersion: request.promptVersion,
+      ...jobFields(answer),
+    });
+    this.byKey.set(idempotencyKey, id);
+    return Promise.resolve(this.view(id));
+  }
+
+  getJob(tenant: string, jobId: string): Promise<AiJob | null> {
+    if (this.failures > 0) {
+      this.failures -= 1;
+      return Promise.reject(new AiGatewayUnavailable('The ai-gateway is unreachable'));
+    }
+    const job = this.jobs.get(jobId);
+    return Promise.resolve(job?.tenant === tenant ? this.view(jobId) : null);
+  }
+
+  private view(jobId: string): AiJob {
+    const job = this.jobs.get(jobId);
+    if (!job) throw new Error(`The fake ai-gateway has no job ${jobId}`);
+    const { id, task, subjectRef, status, reason, promptVersion, output, finishedAt } = job;
+    return structuredClone({
+      id,
+      task,
+      subjectRef,
+      status,
+      reason,
+      promptVersion,
+      output,
+      finishedAt,
+    });
+  }
+}
+
+function jobFields(
+  answer: FakeJobAnswer,
+): Pick<AiJob, 'status' | 'reason' | 'output' | 'finishedAt'> {
+  if (answer.status === 'queued') {
+    return { status: 'queued', reason: null, output: null, finishedAt: null };
+  }
+  const finishedAt = new Date().toISOString();
+  if (answer.status === 'succeeded') {
+    return {
+      status: 'succeeded',
+      reason: null,
+      output: structuredClone(answer.output),
+      finishedAt,
+    };
+  }
+  return { status: answer.status, reason: answer.reason, output: null, finishedAt };
 }

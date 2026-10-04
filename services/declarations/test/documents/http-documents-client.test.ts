@@ -15,8 +15,8 @@ import { HttpDocumentsClient } from '../../src/documents/http-documents-client.j
 
 /**
  * The documents client against answers that conform to the documents contract (checked here):
- * an upload is read through the internal metadata read (not the audited download), a link is
- * recorded and taken back through the linked and unlinked markers, all acting for the Commission;
+ * an upload is read through the internal metadata read (not the audited download), handed out
+ * through the audited download for a reading, a link is recorded and taken back through the linked and unlinked markers, all acting for the Commission;
  * refusals map to the errors attachments act on.
  */
 const ajv = new Ajv2020({ strict: false, allErrors: true });
@@ -93,6 +93,37 @@ describe('HttpDocumentsClient', () => {
     ]);
   });
 
+  it('hands out a download link for the declarant, through the audited download', async () => {
+    const answer = conforming('UploadDownload', {
+      id: UPLOAD_ID,
+      purpose: 'declaration-attachment',
+      state: 'clean',
+      downloadUrl: 'http://seaweedfs.test/uploads/abc?X-Amz-Signature=1',
+      expiresAt: '2027-11-02T09:05:00.000Z',
+      sha256: SHA256,
+      size: 1204,
+      fileName: 'logbook.jpg',
+      detectedType: 'image/jpeg',
+    });
+    let actingSubject: string | null = null;
+    const { client, requests } = clientAnswering((request) => {
+      actingSubject = request.headers.get('x-acting-subject');
+      return json(answer);
+    });
+
+    const download = await client.getDownload('psc', UPLOAD_ID, 'declarant-sub');
+
+    expect(download).toEqual({
+      downloadUrl: 'http://seaweedfs.test/uploads/abc?X-Amz-Signature=1',
+      sha256: SHA256,
+      contentType: 'image/jpeg',
+    });
+    expect(requests).toEqual([
+      { method: 'GET', path: `/internal/v1/uploads/${UPLOAD_ID}/download`, actingTenant: 'psc' },
+    ]);
+    expect(actingSubject).toBe('declarant-sub');
+  });
+
   it('refuses an upload that is not clean', async () => {
     const infected = internalUpload({ state: 'infected', sha256: null, size: null });
     const { client } = clientAnswering(() => json(infected));
@@ -132,6 +163,9 @@ describe('HttpDocumentsClient', () => {
     ).rejects.toBeInstanceOf(UploadNotFound);
     await expect(
       clientAnswering(() => problem(409)).client.getCleanUpload('psc', UPLOAD_ID),
+    ).rejects.toBeInstanceOf(UploadNotClean);
+    await expect(
+      clientAnswering(() => problem(409)).client.getDownload('psc', UPLOAD_ID, 'sub'),
     ).rejects.toBeInstanceOf(UploadNotClean);
     await expect(
       clientAnswering(() => problem(409)).client.markLinked('psc', UPLOAD_ID),

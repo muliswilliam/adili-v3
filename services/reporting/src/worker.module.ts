@@ -11,6 +11,8 @@ import { NationalChaseActivities } from './compliance-reports/national-chase-act
 import { ReportWorkflowsModule } from './compliance-reports/report-workflows.js';
 import { config } from './config.js';
 import { NationalReportActivities } from './national-reports/activities.js';
+import { OpenDataReleaseActivities } from './open-data/activities.js';
+import { OpenDataReleasesModule } from './open-data/open-data.module.js';
 import { ReferralIcmsActivities } from './referrals/activities.js';
 import { UpstreamModule } from './upstream.module.js';
 
@@ -25,7 +27,7 @@ const workflowsPath = fileURLToPath(
 /**
  * The reporting worker (ADR-003), one per service: every workflow of the reporting service runs
  * on its queue. It hosts `ComplianceReportWorkflow`, the yearly compile,
- * `NationalConsolidationWorkflow`, `NationalReportApprovalWorkflow`,
+ * `NationalConsolidationWorkflow`, `NationalReportApprovalWorkflow`, `OpenDataReleaseWorkflow`,
  * `ReferralIcmsRegistrationWorkflow` and their activities.
  */
 @Module({
@@ -40,9 +42,16 @@ const workflowsPath = fileURLToPath(
         AnnualCompileActivities,
         NationalChaseActivities,
         NationalReportActivities,
+        OpenDataReleaseActivities,
         ReferralIcmsActivities,
       ],
-      imports: [ClockModule, CipherModule, UpstreamModule, ReportWorkflowsModule],
+      imports: [
+        ClockModule,
+        CipherModule,
+        UpstreamModule,
+        ReportWorkflowsModule,
+        OpenDataReleasesModule,
+      ],
     }),
   ],
 })

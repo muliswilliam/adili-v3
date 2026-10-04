@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { z } from 'zod';
 
 import { HouseholdSection } from '../../../components/declaration/household-section';
 import { loadSectionFor, SectionUnavailable } from '../../../components/declaration/route-helpers';
+import { sectionSearch, sectionSearchProps } from '../../../components/declaration/section-errors';
 import type { SectionContentsByKind } from '../../../declaration/contents';
 
 export const Route = createFileRoute('/declarations/$id/household')({
-  validateSearch: z.object({ errors: z.boolean().optional() }),
+  validateSearch: sectionSearch,
   loader: async ({ params, location }) => {
     // Marital status (Your details) decides whether a spouse is expected.
     const [household, bio] = await Promise.all([
@@ -22,7 +22,7 @@ export const Route = createFileRoute('/declarations/$id/household')({
 
 function HouseholdRoute() {
   const load = Route.useLoaderData();
-  const { errors } = Route.useSearch();
+  const search = Route.useSearch();
   if (load.status === 'unavailable') return <SectionUnavailable />;
   return (
     <HouseholdSection
@@ -30,7 +30,7 @@ function HouseholdRoute() {
       etag={load.etag}
       maritalStatus={load.officer.maritalStatus ?? null}
       officerSurname={load.officer.name?.surname}
-      showErrors={errors === true}
+      {...sectionSearchProps(search)}
     />
   );
 }

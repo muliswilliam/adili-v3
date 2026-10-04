@@ -157,6 +157,54 @@ export const PROBLEM_CODES = {
   'no-submitted-reports': { status: HttpStatus.CONFLICT, title: 'No submitted reports' },
   /** EACC referrals: the push to ICMS failed; `error` says why, and pushing again retries. */
   'icms-push-failed': { status: HttpStatus.BAD_GATEWAY, title: 'ICMS push failed' },
+  /** AI assistance: the ai-gateway's classification gate does not let the tenant's data be sent. */
+  'ai-not-enabled': { status: HttpStatus.CONFLICT, title: 'AI assistance not enabled' },
+  /**
+   * NCR narrative draft: the draft cited a figure that is not in the report's input and was
+   * discarded; nothing was inserted.
+   */
+  'narrative-validation': {
+    status: HttpStatus.CONFLICT,
+    title: 'Narrative draft failed validation',
+  },
+  /** NCR narrative draft: findings asked for, but the year has no pattern candidate to narrate. */
+  'no-pattern-candidates': { status: HttpStatus.CONFLICT, title: 'No pattern candidates' },
+  /** NCR narrative draft: the report was rebuilt while the draft was written; draft again. */
+  'aggregates-rebuilt': { status: HttpStatus.CONFLICT, title: 'Report rebuilt while drafting' },
+  /**
+   * NCR narrative draft: the ai-gateway refused the request or its job failed; `reason` says
+   * why, and nothing was inserted.
+   */
+  'narrative-draft-failed': { status: HttpStatus.BAD_GATEWAY, title: 'Narrative not drafted' },
+  /** Open data: an annual release needs the year's national consolidated report built first. */
+  'ncr-not-built': { status: HttpStatus.CONFLICT, title: 'NCR not built' },
+  /** Open data: an annual release is built from the approved national consolidated report. */
+  'ncr-not-approved': { status: HttpStatus.CONFLICT, title: 'NCR not approved' },
+  /** Open data: the financial year has not started, so there is nothing to release yet. */
+  'fy-not-started': { status: HttpStatus.CONFLICT, title: 'Financial year not started' },
+  /** Open data: another build of the year and kind is under way; try again once it is done. */
+  'release-building': { status: HttpStatus.CONFLICT, title: 'Release being built' },
+  /**
+   * Open data: the release tables do not reconcile with the national totals they were built
+   * from (`mismatches` lists them); nothing was built.
+   */
+  'reconciliation-failed': { status: HttpStatus.CONFLICT, title: 'Reconciliation failed' },
+  /** Open data: only a preview is published; the release is published or withdrawn already. */
+  'release-not-preview': { status: HttpStatus.CONFLICT, title: 'Release not a preview' },
+  /** Open data: only a published release is withdrawn. */
+  'release-not-published': { status: HttpStatus.CONFLICT, title: 'Release not published' },
+  /** Open data: the year has a published annual release; withdraw it before another. */
+  'annual-release-published': {
+    status: HttpStatus.CONFLICT,
+    title: 'Annual release already published',
+  },
+  /** Open data: the documents service refused the release manifest; nothing is published. */
+  'manifest-refused': { status: HttpStatus.BAD_GATEWAY, title: 'Release manifest refused' },
+  /** Open data: the documents service refused to revoke the manifest; nothing is withdrawn. */
+  'manifest-revocation-refused': {
+    status: HttpStatus.BAD_GATEWAY,
+    title: 'Manifest revocation refused',
+  },
 } as const satisfies Record<string, { status: HttpStatus; title: string }>;
 
 export type ProblemCode = keyof typeof PROBLEM_CODES;

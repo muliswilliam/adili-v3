@@ -734,6 +734,9 @@ describe('StatementSection: attachment slot', () => {
             readyAt: '2026-09-26T07:30:00Z',
             verificationResultId: null,
             aiJobId: null,
+            attachmentId: null,
+            documentKind: null,
+            reason: null,
             suggestions: [],
           },
         ],
@@ -743,3 +746,25 @@ describe('StatementSection: attachment slot', () => {
     expect(result.current).toBe(false);
   });
 });
+
+describe('opening a field from Ask Adili', () => {
+  it("opens the field's tab and item and focuses the field", async () => {
+    renderStatement(statement({ assets: [land, { ...land, id: VEHICLE_ID, type: 'vehicle' }] }), {
+      focusField: '/assets/1/value',
+    });
+    expect(tab(/Assets/).getAttribute('aria-selected')).toBe('true');
+    await waitFor(() => {
+      expect(document.activeElement?.id).toBe(`item-${VEHICLE_ID}-amount`);
+    });
+  });
+
+  it('opens the tab a category link names', async () => {
+    renderStatement(statement({ liabilities: [mortgage] }), { focusField: '/liabilities' });
+    expect(tab(/Liabilities/).getAttribute('aria-selected')).toBe('true');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(tab(/Liabilities/));
+    });
+  });
+});
+
+const VEHICLE_ID = 'a0000000-0000-4000-8000-0000000000ff';

@@ -93,13 +93,14 @@ describe('Workflows started in the receiving transaction', () => {
     await counterLocked;
 
     const submitting = submitRequest(api);
-    const requestId = () => start.mock.calls[0]?.[0].requestId ?? '';
-    const handle = () => api.temporal.workflow.getHandle(accessRequestWorkflowId(requestId()));
+    const readRequestId = () => start.mock.calls[0]?.[0].requestId ?? '';
+    const getRunHandle = () =>
+      api.temporal.workflow.getHandle(accessRequestWorkflowId(readRequestId()));
     try {
       await api.eventually(() => start.mock.calls.length === 1);
 
       // The receipt waits on the counter, uncommitted: the run's first read is retried meanwhile.
-      const pending = await retriedFirstRead(handle());
+      const pending = await retriedFirstRead(getRunHandle());
       expect(pending.activityType?.name).toBe('requestState');
       expect(pending.lastFailure?.applicationFailureInfo?.type).toBe(TRANSACTION_OPEN);
     } finally {
@@ -107,10 +108,10 @@ describe('Workflows started in the receiving transaction', () => {
       release();
       await holding;
     }
-    expect((await submitting).id).toBe(requestId());
+    expect((await submitting).id).toBe(readRequestId());
     // Committed: the run read it and waits for the officer named, as for any request.
     await api.eventually(async () => {
-      const run = await handle().describe();
+      const run = await getRunHandle().describe();
       return run.status.name === 'RUNNING' && (run.raw.pendingActivities ?? []).length === 0;
     });
   });

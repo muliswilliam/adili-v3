@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { Job, schema } from '../../src/db/schema.js';
 import type { Admission } from '../../src/jobs/admission.js';
+import type { DocumentFetcher } from '../../src/documents/document-fetcher.js';
 import { JobExecutor } from '../../src/jobs/job-executor.js';
 import { CircuitBreaker } from '../../src/policy/circuit-breaker.js';
 import { GenAiTelemetry } from '../../src/policy/telemetry.js';
@@ -62,6 +63,7 @@ describe('JobExecutor', () => {
       breaker,
       new GenAiTelemetry(),
       {} as EventPublisher,
+      {} as DocumentFetcher,
     );
 
     await expect(executor.execute(job.id, Date.now() + 60_000)).rejects.toThrow(
@@ -90,6 +92,7 @@ describe('JobExecutor', () => {
       breaker,
       telemetry,
       {} as EventPublisher,
+      {} as DocumentFetcher,
     );
 
     await expect(executor.execute(job.id, Date.now() + 60_000)).rejects.toThrow(

@@ -642,6 +642,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Open or resume the conversation for a draft (or for the declarant without a draft)
+         * @description Declarants (by the person_id claim). One conversation per draft, kept while it is a draft and deleted when it is discarded or submitted; one outside a draft (the dashboard), at the Commission of the declarant's latest filing obligation, deleted 30 days after its last message. Opening in another language switches it. 404 for a draft that is not the caller's or not being edited, for a declarant without a filing obligation outside a draft, and for any other caller.
+         */
+        post: operations["openAssistantConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/assistant/conversations/{conversationId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion
+         * @description Declarants, on their own conversation. The ai-gateway gets the question, the declaration's type and statement date, the household as counts, the section and what the completeness check still reports (rule ids and field paths), and the passages of the Act, Regulations and help articles retrieved for it (the platform's and the conversation's Commission's). Nothing the service adds carries amounts, names, identifiers or descriptions; the question and earlier turns are the declarant's words, which the gateway minimises. Events: `delta` {text}, the answer's prose as it is written, provisional until the end; then `final` {question, answer}, both turns as stored, whose answer replaces the deltas (an answer whose blocks do not all cite the passages retrieved is stored as a decline, with the reporting officer's contact); or `error` {code: assistant-unavailable}, after which nothing is stored. A `: ping` comment is sent every 15 s. A caller that disconnects ends the answer, and nothing is stored. Records `assistant.message.answered.v1`.
+         */
+        post: operations["askAssistant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Rate an answer, with why and a note
+         * @description Declarants, on an answer in their own conversation. The rating and reason are forwarded to the ai-gateway job the answer came from, then kept on the answer with the note, reason and note encrypted (the note is never sent on); a decline made without asking the AI has no job and is kept only. A second rating replaces the first; under a race the last one kept wins, which can be the earlier. Records `assistant.feedback.recorded.v1` (no reason, no note). 404 for a question, another person's message or a conversation gone with its draft. On 404 and 503 the rating is not kept on the answer, but the gateway may already hold it (a draft submitted or discarded while it was forwarded, ratings crossing, the gateway failing on a re-forward); the next rating brings the two together again.
+         */
+        put: operations["rateAssistantMessage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/declarations/{declarationId}/hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plain-language hints for the summary's residuals (AI-assisted; the deterministic text is always there)
+         * @description Declarants, on their own draft. The summary's `blocking`, each with an AI-assisted hint from the ai-gateway's hints mode when it has one. The gateway gets the declaration type, the household as counts and the residuals as rule ids and field paths, persons by their place only: no contents, no statement date. Hints already written for the same residuals, language and prompt version are served from a cache shared by every declarant; otherwise the service waits up to 10 s for them. `status` `pending`: still being written, ask again; `unavailable`: no AI now, the text only. 404 for a draft that is not the caller's or not being edited.
+         */
+        get: operations["getCompletenessHints"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commissions/{slug}/help/themes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Anonymised counts of the Commission's declarants' questions per month and theme
+         * @description The Commission's administrators and reporting officers; anyone else gets 404. Each question its declarants asked Ask Adili, counted once its answer was stored (a question whose answer could not be had is not), by the month asked (Nairobi) and its theme, with how many the Act, Regulations and help articles could not answer. Counts only: no text, no person. They outlive the conversations they count. Newest month first, then the most asked.
+         */
+        get: operations["getQuestionThemes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/internal/v1/declarations/{declarationId}/versions/{version}/document": {
         parameters: {
             query?: never;
@@ -813,7 +913,7 @@ export interface paths {
         put?: never;
         /**
          * Add the suggestion as an item, or apply it to an existing item (declarant); through the section save
-         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. Values are never filled. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
+         * @description A read-modify-write of the suggestion's section on the declarant's behalf, as a section save with `If-Match`: a new item carries the suggestion as its `source` (declaration.v1 `ItemSource`), naming the registry's `verificationResultId` only when the item ends up holding what the registry gave (the description aside), so not for one the declarant edited or whose own differing values were kept; applied to an item (`applyToItemId`), only the fields the item leaves empty are filled unless `overwrite`, and the item takes the `source` if it has none, or with `overwrite`. A registry's suggestion never fills values. Where each type lands: `vehicle`, `land`, `shareholding` an asset of the person's statement; `income-hint` a salary income with no amount; `directorship` a registrable interest in `other`; a spouse's `bio-tax` their KRA PIN in `household` (the declarant's own has no field, 400). A document's reading (source `document`) is different: as new it adds an item of the reading's type in its statement list; its fields are written at their declaration.v1 paths, typed as read, amounts included (`value.kesCents`, `outstanding.kesCents`: the document's figure the declarant checked); a field it did not read is refused (400); applied to an item of another type, 400; it is not refused for an item holding another identifier. The suggestion becomes `accepted` with the item; the save records `declaration.section-saved.v1` and `declaration.suggestion-accepted.v1`.
          */
         post: operations["acceptSuggestion"];
         delete?: never;
@@ -846,72 +946,16 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-                attachmentId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated */
-        post: operations["extractAttachment"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/assistant/conversations": {
-        parameters: {
-            query?: never;
-            header?: never;
             path?: never;
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** Open or resume the conversation for a draft (or for the declarant without a draft) */
-        post: operations["openAssistantConversation"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/assistant/conversations/{conversationId}/messages": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Ask a question; the answer streams back as server-sent events (`delta`, `final`, `error`) and is stored on completion */
-        post: operations["askAssistant"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me/assistant/conversations/{conversationId}/messages/{messageId}/feedback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-                messageId: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** Rate an answer */
-        put: operations["rateAssistantMessage"];
-        post?: never;
+        /**
+         * Read a clean attachment into suggested fields through the ai-gateway (declarant); policy-gated
+         * @description The document is read into the item it is attached to: the item's statement list (`assets`, `income` or `liabilities`) and type. Documents hands out a short-lived link to the clean file (audited as read for the declarant), and the ai-gateway's `extract-document` task reads it with data class `highly-confidential`, the declaration as subject, if the Commission's AI policy lets documents go to a provider. Answers the `document` set: `pending` while it is read (poll `listSuggestions` until it is not), `ready` with one suggestion (fields by declaration.v1 path within the item, each with its confidence and page in `sourceRef`, matched to the attached item), `not-enabled` when the policy keeps documents from AI, or `failed` with its `reason` (a file a reading does not take, such as HEIC, fails at once without being sent). Asking again for the same attachment, kind, section and item type while it is pending, or offered and not decided on, answers that reading (pulling it from the gateway if it has ended; one pending longer than 15 minutes counts as failed, `unavailable`, first); otherwise it is read again, and a reading that becomes `ready` supersedes the `new` suggestions of the attachment's earlier ones. A request refused for the file itself (404, 409) records nothing; a concurrent request answered with the same pending reading then finds it gone from `listSuggestions`: treat a set no longer listed as ended, and ask again to get the refusal. Records `declaration.extraction-requested.v1` (identifiers, the job) and, once read, `declaration.suggestions-ready.v1`.
+         */
+        post: operations["extractAttachment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -935,17 +979,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/declarations/{declarationId}/hints": {
+    "/v1/help/search/preview": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Plain-language hints for the completeness residuals (AI-labelled; deterministic text always present) */
-        get: operations["getCompletenessHints"];
+        /**
+         * Help search as a Commission's declarants (or every declarant) would see it, for the staff who write the articles
+         * @description A Commission's administrators and reporting officers, with `commission` their own Commission: the Act and Regulations, the platform's published articles and the Commission's, in force on `date`, ranked as `searchHelp` ranks them for its declarants. Platform admins, without `commission`: the law and the platform's articles, as every declarant gets them. A just-published article is found at once. Deterministic: no AI. 404 for: a platform admin passing `commission`; a Commission's staff omitting it or passing another Commission; anyone else, declarants included.
+         */
+        get: operations["previewHelpSearch"];
         put?: never;
         post?: never;
         delete?: never;
@@ -954,17 +999,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/commissions/{slug}/help/themes": {
+    "/v1/help/corpus/{passageId}": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                slug: components["parameters"]["Slug"];
-            };
+            path?: never;
             cookie?: never;
         };
-        /** Anonymised question theme counts and unanswered counts per month (commission-admin, reporting-officer) */
-        get: operations["getQuestionThemes"];
+        /**
+         * One wording of the statutory corpus with its text in English and Kiswahili
+         * @description platform-admin only. Read-only: statutory text changes only by import.
+         */
+        get: operations["getCorpusPassage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help/passages/{passageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One passage of the corpus or one help article in full, for the portal's help pages
+         * @description Declarants (by the person_id claim), with the visibility of `searchHelp`: the Act and Regulations, the platform's published articles and those of the declarant's own Commissions, in force on `date`. The text is in `language` where the passage has it, else in English (`language` of the response says which). Deterministic: no AI. Anything else, and other callers, 404.
+         */
+        get: operations["getHelpPassage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1731,6 +1797,118 @@ export interface components {
             removed: number;
             unchanged: number;
         };
+        OpenAssistantConversationRequest: {
+            /** @description The draft the declarant is working on; null for their conversation outside a draft (the dashboard) */
+            declarationId: string | null;
+            /** @description The language to answer in; switches a resumed conversation */
+            language: components["schemas"]["HelpLanguage"];
+        };
+        AskAssistantRequest: {
+            text: string;
+            /** @description The section of the draft the declarant is on; ignored outside a draft */
+            sectionKey: string | null;
+            /** @description The statement item type the declarant is on; passages about it rank higher */
+            itemType?: ("land" | "building" | "vehicle" | "securities" | "shareholding" | "bank-account" | "cash" | "receivable" | "mortgage" | "loan" | "guarantee" | "salary-emoluments" | "allowances" | "business" | "rent" | "dividends-interest" | "pension" | "farming" | "consultancy") | null;
+        };
+        /** @description Labels an answer from the AI: AI-assisted, which model, not legal advice */
+        AssistantAiLabel: {
+            /** @constant */
+            aiAssisted: true;
+            /** @constant */
+            task: "answer-declarant-question";
+            promptVersion: number;
+            provider: string;
+            model: string;
+            /** Format: date-time */
+            generatedAt: string;
+            /** @description Fixed text per language: not legal advice */
+            disclaimer: string;
+        };
+        /** @description The Commission's reporting officer, whom a declined answer sends the declarant to */
+        ReportingOfficerContact: {
+            name: string;
+            email: string;
+            phone: string | null;
+        };
+        AssistantMessage: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            /** @description The question, or the answer's paragraphs separated by a blank line; for a declined answer, the decline in the conversation's language */
+            text: string;
+            /** @description The passages the answer rests on, all retrieved for it; empty for a question or a decline */
+            citations: components["schemas"]["HelpPassage"][];
+            sectionLink: {
+                sectionKey: string;
+                /** @description JSON pointer within the section */
+                fieldPath: string | null;
+            } | null;
+            /** @description The Act, Regulations and help articles retrieved do not support an answer */
+            declined: boolean;
+            /** @description On a declined answer, whom to ask instead; null when the Commission has none on record */
+            reportingOfficer: components["schemas"]["ReportingOfficerContact"] | null;
+            /** @description How an answer from the AI is labelled (ai-gateway AiLabel); null for a question, and for a decline made without asking the AI */
+            label: components["schemas"]["AssistantAiLabel"] | null;
+            rating: ("helpful" | "not-helpful") | null;
+            /** Format: date-time */
+            at: string;
+        };
+        AssistantConversation: {
+            /** Format: uuid */
+            id: string;
+            declarationId: string | null;
+            language: components["schemas"]["HelpLanguage"];
+            /** @description Oldest first */
+            messages: components["schemas"]["AssistantMessage"][];
+            /** @description When a conversation outside a draft is deleted (30 days after its last message); null for a draft, whose conversation goes with it */
+            expiresAt: string | null;
+        };
+        AssistantAnswer: {
+            question: components["schemas"]["AssistantMessage"];
+            answer: components["schemas"]["AssistantMessage"];
+        };
+        RateAssistantMessageRequest: {
+            /** @enum {string} */
+            rating: "helpful" | "not-helpful";
+            reason: ("inaccurate" | "missed-something" | "unclear" | "too-long" | "other") | null;
+            /** @description The declarant's own words; kept encrypted, never sent on */
+            note?: string | null;
+        };
+        CompletenessHint: {
+            sectionKey: components["schemas"]["SectionKey"];
+            /** @description JSON pointer within the section contents */
+            path: string;
+            code: string;
+            message: string;
+            /** @description An AI-assisted plain-language hint for the residual, beneath its deterministic `message`; null when there is none */
+            hint: string | null;
+        };
+        CompletenessHints: {
+            /**
+             * @description `ready`: every hint the AI wrote is here (none when nothing is left to complete). `pending`: still being written; ask again shortly. `unavailable`: no AI now, the deterministic text only
+             * @enum {string}
+             */
+            status: "ready" | "pending" | "unavailable";
+            /** @description How the hints are labelled; null without */
+            label: components["schemas"]["AssistantAiLabel"] | null;
+            /** @description The summary's `blocking`, in its order, each with its hint; only the first 20 residuals that are rule ids and field paths get one */
+            residuals: components["schemas"]["CompletenessHint"][];
+        };
+        /**
+         * @description The fixed list of question themes; `other` for a question no rule matches. A label per theme is the console's
+         * @enum {string}
+         */
+        QuestionTheme: "household-spouses" | "children" | "land" | "vehicles" | "bank-accounts" | "shares-businesses" | "income" | "loans" | "material-changes" | "dates-obligations" | "assets-abroad" | "joint-ownership" | "registrable-interests" | "using-adili" | "other";
+        QuestionThemeCount: {
+            /** @description `YYYY-MM`, Nairobi */
+            month: string;
+            theme: components["schemas"]["QuestionTheme"];
+            /** @description Questions asked and answered (or declined) */
+            count: number;
+            /** @description Of them, those the Act, Regulations and help articles could not answer */
+            unanswered: number;
+        };
         InternalVersionDocument: {
             /** Format: uuid */
             declarationId: string;
@@ -1846,18 +2024,19 @@ export interface components {
             setId: string;
             personKey: string;
             sectionKey: components["schemas"]["SectionKey"];
-            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
+            /** @description What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value) */
             itemType: string;
-            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call */
+            /** @description Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says */
             fields: {
                 [key: string]: unknown;
             };
-            /** @description The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. Documents: page and field */
+            /** @description The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. A document's reading: `documentKind` (what the reading took the document for), `fields` (`[{name, confidence, page}]`, each field's confidence from 0 to 1 and the page it is on, null when on none), `warnings` (what the declarant should know, such as an unreadable page) and `attachmentId` */
             sourceRef: {
                 [key: string]: unknown;
             };
+            /** @description A document's reading: its least sure field's confidence, null when it read none. Null for a registry's */
             confidence: number | null;
-            /** @description The item already in the section whose identifier (registration, parcel, company) coincides: offer "Apply to this item" instead of a duplicate */
+            /** @description The item already in the section whose identifier (registration, parcel, company) coincides, or for a document the item it is attached to: offer "Apply to this item" instead of a duplicate */
             matchItemId: string | null;
             /** @enum {string} */
             status: "new" | "accepted" | "dismissed" | "superseded";
@@ -1869,7 +2048,7 @@ export interface components {
             personKey: string;
             source: components["schemas"]["SuggestionSource"];
             /**
-             * @description `pending` while the registry is being asked (retried with backoff); `ready` when it answered, with or without records; `unavailable` when it did not answer after the retries; `failed` when the check could not run. Poll `listSuggestions` until no set is `pending`
+             * @description `pending` while the registry is being asked (retried with backoff) or the document read; `ready` when it answered, with or without records, or the document was read (one suggestion); `unavailable` when a registry did not answer after the retries; `not-enabled` when the Commission's AI policy does not let documents be read; `failed` when the check or reading could not run (for a document, `reason` says why). Poll `listSuggestions` until no set is `pending`
              * @enum {string}
              */
             status: "pending" | "ready" | "unavailable" | "no-id" | "not-enabled" | "failed";
@@ -1878,6 +2057,12 @@ export interface components {
             readyAt: string | null;
             verificationResultId: string | null;
             aiJobId: string | null;
+            /** @description A document's set: the attachment read */
+            attachmentId: string | null;
+            /** @description A document's set: what the declarant said the document is */
+            documentKind: ("title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other") | null;
+            /** @description Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise */
+            reason: ("document-unavailable" | "document-unreadable" | "not-read" | "unavailable" | "not-a-draft") | null;
             suggestions: components["schemas"]["Suggestion"][];
         };
         RegistryLookupRequest: {
@@ -1895,7 +2080,7 @@ export interface components {
             };
         };
         AcceptSuggestionRequest: {
-            /** @description The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). Value fields are not taken: the declarant enters values on the item */
+            /** @description The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). For a registry's, value fields are not taken: the declarant enters values on the item. For a document's reading, its fields by declaration.v1 path, values included, each typed as read (an amount may come as text, e.g. "1,180,000"); fields it did not read are refused */
             fields: {
                 [key: string]: unknown;
             };
@@ -1918,6 +2103,19 @@ export interface components {
             /** @description Why the declarant set it aside, if they said */
             reason?: string;
         };
+        ExtractAttachmentRequest: {
+            /**
+             * @description What the declarant says it is
+             * @enum {string}
+             */
+            documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
+            /**
+             * @description The language of the warnings the reading gives
+             * @default en
+             * @enum {string}
+             */
+            language: "en" | "sw";
+        };
         ProblemDetails: {
             type: string;
             title: string;
@@ -1926,7 +2124,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed" | "ai-not-enabled" | "narrative-validation" | "no-pattern-candidates" | "aggregates-rebuilt" | "narrative-draft-failed" | "ncr-not-built" | "ncr-not-approved" | "fy-not-started" | "release-building" | "reconciliation-failed" | "release-not-preview" | "release-not-published" | "annual-release-published" | "manifest-refused" | "manifest-revocation-refused";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */
@@ -1935,37 +2133,39 @@ export interface components {
                 message: string;
             }[];
         };
-        AssistantConversation: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            declarationId: string | null;
-            /** @enum {string} */
-            language: "en" | "sw";
-            messages: components["schemas"]["AssistantMessage"][];
-            /** Format: date-time */
-            expiresAt: string | null;
+        /** @description A corpus wording as `CorpusPassage` lists it, with its text */
+        CorpusPassageText: components["schemas"]["CorpusPassage"] & {
+            textEn: string;
+            /** @description Null where the corpus has no Kiswahili text */
+            textSw: string | null;
         };
-        AssistantMessage: {
-            /** Format: uuid */
+        /** @description A passage of the corpus or a help article, whole, as the help pages show it */
+        HelpPassageDetail: {
             id: string;
             /** @enum {string} */
-            role: "user" | "assistant";
+            source: "act" | "regs" | "am" | "help";
+            /**
+             * @example Act s.31(4)
+             * @example Help: Joint assets
+             */
+            citation: string;
+            /** @description In `language` */
+            title: string;
+            /** @description The whole passage or article body, in `language`; statutory text as published */
             text: string;
-            citations: components["schemas"]["HelpPassage"][];
-            sectionLink: {
-                sectionKey: string;
-                fieldPath: string | null;
-            } | null;
-            declined: boolean;
-            /** @description ai-gateway AiLabel for assistant turns */
-            label: {
-                [key: string]: unknown;
-            } | null;
-            /** @enum {string|null} */
-            rating: "helpful" | "not-helpful" | null;
-            /** Format: date-time */
-            at: string;
+            /** @description The language of the title and text; `en` when the passage has no Swahili text */
+            language: components["schemas"]["HelpLanguage"];
+            /** @description Section kinds, statement item types and topics it covers */
+            tags: components["schemas"]["HelpTag"][];
+            /** @description The Commission whose article it is; null for the law and platform articles */
+            commission: components["schemas"]["CommissionRef"] | null;
+            /** Format: date */
+            effectiveFrom: string;
+            /**
+             * Format: date
+             * @description Exclusive; null while in force
+             */
+            effectiveTo: string | null;
         };
     };
     responses: {
@@ -1998,9 +2198,7 @@ export interface components {
         };
     };
     parameters: {
-        Slug: string;
         DeclarationId: string;
-        ConversationId: string;
         /** @description Client-generated UUID, unique per logical request; reuse on retry */
         IdempotencyKey: string;
     };
@@ -3758,6 +3956,258 @@ export interface operations {
             };
         };
     };
+    openAssistantConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenAssistantConversationRequest"];
+            };
+        };
+        responses: {
+            /** @description Conversation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversation"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    askAssistant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskAssistantRequest"];
+            };
+        };
+        responses: {
+            /** @description SSE stream: `delta` {text}, then `final` {question, answer} (`AssistantAnswer`) or `error` {code} */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem code `rate-limit-exceeded`: rate limit exceeded; retry after the seconds in `retryAfterSeconds` and Retry-After */
+            429: {
+                headers: {
+                    /** @description Requests the caller's budget holds when full */
+                    "RateLimit-Limit"?: number;
+                    /** @description Requests left in the budget after this one */
+                    "RateLimit-Remaining"?: number;
+                    /** @description Seconds until the budget is full again */
+                    "RateLimit-Reset"?: number;
+                    /** @description Seconds until the next request would be allowed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `assistant-unavailable`: the ai-gateway cannot answer now (unreachable, the Commission's limit or budget reached, no provider); nothing was stored. Use help search */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    rateAssistantMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversationId: string;
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RateAssistantMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description The answer, rated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantMessage"];
+                };
+            };
+            /** @description Request failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Problem type `assistant-unavailable`: the ai-gateway cannot take the rating now, or ratings of the answer kept crossing; the rating is not kept on the answer */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getCompletenessHints: {
+        parameters: {
+            query: {
+                /** @description The language of the hints */
+                language: "en" | "sw";
+            };
+            header?: never;
+            path: {
+                declarationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hints */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompletenessHints"];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    getQuestionThemes: {
+        parameters: {
+            query?: {
+                /** @description One month (`YYYY-MM`, Nairobi); every month when left out */
+                month?: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuestionThemeCount"][];
+                };
+            };
+            /** @description Query failed validation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     internalGetVersionDocument: {
         parameters: {
             query?: never;
@@ -4202,7 +4652,7 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionAcceptance"];
                 };
             };
-            /** @description Validation failed: the fields do not fit the item, `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN) */
+            /** @description Validation failed: the fields do not fit the item (for a document, a field it did not read, or a value the field cannot take), `applyToItemId` is not an item of the suggestion's type in its section or (without `overwrite`) holds another registration, parcel or company, or the suggestion has no place in the declaration (the declarant's own KRA PIN) */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -4299,30 +4749,21 @@ export interface operations {
             query?: never;
             header: {
                 /** @description Client-generated UUID, unique per logical request; reuse on retry */
-                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                "Idempotency-Key": string;
             };
             path: {
-                declarationId: components["parameters"]["DeclarationId"];
+                declarationId: string;
                 attachmentId: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @enum {string} */
-                    documentKindHint: "title-deed" | "logbook" | "payslip" | "bank-letter" | "share-certificate" | "other";
-                    targetItemType: string;
-                    /**
-                     * @default en
-                     * @enum {string}
-                     */
-                    language?: "en" | "sw";
-                };
+                "application/json": components["schemas"]["ExtractAttachmentRequest"];
             };
         };
         responses: {
-            /** @description Extraction requested; a suggestion set of source `document` */
+            /** @description Reading requested; the `document` suggestion set */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -4331,8 +4772,25 @@ export interface operations {
                     "application/json": components["schemas"]["SuggestionSet"];
                 };
             };
-            404: components["responses"]["NotFound"];
-            /** @description Attachment not clean, or AI reading not enabled for this Commission (`not-enabled`) */
+            /** @description Validation failed (no body, a missing or unknown document kind, an unknown language, or the attached item has no type yet), or the Idempotency-Key header missing */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found, or not visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not a draft (`declaration-not-draft`), the file is no longer clean (`upload-not-clean`), or a request with the same Idempotency-Key still running */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4341,68 +4799,8 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    openAssistantConversation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    declarationId: string | null;
-                    /** @enum {string} */
-                    language: "en" | "sw";
-                };
-            };
-        };
-        responses: {
-            /** @description Conversation */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AssistantConversation"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    askAssistant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    text: string;
-                    sectionKey: string | null;
-                };
-            };
-        };
-        responses: {
-            /** @description SSE stream ending with the stored message */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": string;
-                };
-            };
-            404: components["responses"]["NotFound"];
-            /** @description Per-person rate limit */
-            429: {
+            /** @description Idempotency-Key reused with a different request body */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4410,7 +4808,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Assistant unavailable; use help search */
+            /** @description Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or the reading it found was the reservation of a concurrent request that is no longer pending: taken back when that request was refused for the file, or already ended (`reading-conflict`, retryable: asking again gets the refusal, that reading, or a new one) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4419,38 +4817,6 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-        };
-    };
-    rateAssistantMessage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                conversationId: components["parameters"]["ConversationId"];
-                messageId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @enum {string} */
-                    rating: "helpful" | "not-helpful";
-                    /** @enum {string|null} */
-                    reason: "inaccurate" | "missed-something" | "unclear" | "too-long" | "other" | null;
-                    note?: string | null;
-                };
-            };
-        };
-        responses: {
-            /** @description Recorded */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
         };
     };
     getSuggestedQuestions: {
@@ -4476,65 +4842,86 @@ export interface operations {
             };
         };
     };
-    getCompletenessHints: {
+    previewHelpSearch: {
         parameters: {
             query: {
+                q: string;
                 language: "en" | "sw";
+                /** @description The Commission whose declarants to search as; the platform's articles only when left out (platform admins) */
+                commission?: string;
+                /** @description Read the law in force on this day (`YYYY-MM-DD`); today by default */
+                date?: string;
+                limit?: number;
             };
             header?: never;
-            path: {
-                declarationId: components["parameters"]["DeclarationId"];
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Hints */
+            /** @description Passages, best first */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        ruleId: string;
-                        fieldPath: string;
-                        /** @description Deterministic residual text */
-                        text: string;
-                        /** @description AI-assisted hint when available */
-                        hint: string | null;
-                    }[];
+                    "application/json": components["schemas"]["HelpPassage"][];
                 };
             };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
         };
     };
-    getQuestionThemes: {
+    getCorpusPassage: {
         parameters: {
-            query?: {
-                month?: string;
-            };
+            query?: never;
             header?: never;
             path: {
-                slug: components["parameters"]["Slug"];
+                passageId: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Counts */
+            /** @description The wording */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        month: string;
-                        theme: string;
-                        count: number;
-                        unanswered: number;
-                    }[];
+                    "application/json": components["schemas"]["CorpusPassageText"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getHelpPassage: {
+        parameters: {
+            query: {
+                language: components["schemas"]["HelpLanguage"];
+                /** @description Read the law in force on this day (`YYYY-MM-DD`); today by default */
+                date?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A `HelpPassage` id, as `searchHelp` and answer citations give it */
+                passageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The passage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpPassageDetail"];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
             404: components["responses"]["NotFound"];
         };
     };

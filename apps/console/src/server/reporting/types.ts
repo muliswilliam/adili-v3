@@ -1,6 +1,15 @@
 import type { FormMV1 } from '@adili/forms';
+import type { Assert, MatchesNarrativeSections } from '@adili/ui';
 
+import type { NationalAggregates } from './aggregates';
 import type { components } from './api.gen';
+
+export type {
+  AccessAggregate,
+  CommissionAggregate,
+  NationalAggregates,
+  SectionAggregate,
+} from './aggregates';
 
 type Schemas = components['schemas'];
 
@@ -9,6 +18,44 @@ export type ReportCounts = Schemas['ReportCounts'];
 /** reporting.yaml `ComplianceReportSummary`: one financial year of the period selector. */
 export type ReportPeriod = Schemas['ComplianceReportSummary'];
 export type Officer = Schemas['Officer'];
+export type Narrative = Schemas['Narrative'];
+export type NarrativeParagraph = Schemas['NarrativeParagraph'];
+export type NarrativeSectionId = NarrativeParagraph['section'];
+
+/** The kit's national report sections and limits are the contract's (`Narrative`). */
+export type NarrativeMatchesContract = Assert<MatchesNarrativeSections<Narrative>>;
+
+/** The narrative's sections in the order the report has them. */
+export const NARRATIVE_SECTION_IDS = [
+  'overview',
+  'findings',
+  'recommendations',
+] as const satisfies readonly NarrativeSectionId[];
+
+/** reporting.yaml `NarrativeDraft`: the latest AI narrative draft of a report (spec 09b). */
+export type NarrativeDraft = Schemas['NarrativeDraft'];
+/** What a narrative draft is asked for: one section or `all`. */
+export type NarrativeDraftSection = NarrativeDraft['section'];
+
+/** What a narrative draft may be asked for: each section, or `all`. */
+export const NARRATIVE_DRAFT_SECTIONS = [
+  ...NARRATIVE_SECTION_IDS,
+  'all',
+] as const satisfies readonly NarrativeDraftSection[];
+
+/** The sections a draft of `section` writes. */
+export function sectionsDrafted(section: NarrativeDraftSection): readonly NarrativeSectionId[] {
+  return section === 'all' ? NARRATIVE_SECTION_IDS : [section];
+}
+
+/**
+ * reporting.yaml `NationalReport`, with its aggregates read. `narrativeDraft` is spec 09b's
+ * (#338): the service's contract gains it with #491, so until then it may be missing, read as null.
+ */
+export type NationalReport = Omit<Schemas['NationalReport'], 'aggregates'> & {
+  aggregates: NationalAggregates;
+  narrativeDraft?: NarrativeDraft | null;
+};
 
 /**
  * reporting.yaml `ComplianceReport`, with its document typed as the form-m.v1 document it is (the
@@ -24,6 +71,52 @@ export interface ReportingProblem {
   title: string;
   status: number;
   detail?: string;
-  /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available` or `report-submitted`. */
+  /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
+  /** Field-level errors, e.g. the form-m.v1 paths an `incomplete` report has still to fill. */
+  errors?: Schemas['ProblemDetails']['errors'];
 }
+
+/** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */
+export type Intake = Schemas['Intake'];
+/** One Commission on the intake. */
+export type IntakeRow = Intake['commissions'][number];
+export type IntakeStatus = Schemas['IntakeStatus'];
+export type IntakeOutlier = IntakeRow['outliers'][number];
+export type ReportSource = Schemas['ReportSource'];
+
+/**
+ * reporting.yaml `SubmittedComplianceReport` (the report viewer), with its document typed as the
+ * frozen form-m.v1 it is.
+ */
+export type SubmittedReport = Omit<Schemas['SubmittedComplianceReport'], 'document'> & {
+  document: FormMV1;
+};
+
+/** reporting.yaml `PatternCandidate`: a notable pattern the service computed for the year. */
+export type PatternCandidate = Schemas['PatternCandidate'];
+
+/** EACC's referrals intake (spec 09 S12). */
+export type ReferralIntakeItem = Schemas['ReferralIntakeItem'];
+export type ReferralIntakePage = Schemas['ReferralIntakePage'];
+export type ReferralGrounds = Schemas['ReferralGrounds'];
+export type IcmsStatus = Schemas['IcmsStatus'];
+export type IcmsPushError = Schemas['IcmsPushError'];
+
+/** Every `IcmsStatus`, checked against the generated union both ways, in the intake's filter order. */
+const ICMS_STATUS_SET = {
+  'not-pushed': true,
+  pushed: true,
+  registered: true,
+  'push-failed': true,
+} as const satisfies Record<IcmsStatus, true>;
+
+/** reporting.yaml `IcmsStatus`, in the order the intake filters them. */
+export const ICMS_STATUSES = Object.keys(ICMS_STATUS_SET) as [IcmsStatus, ...IcmsStatus[]];
+
+/** reporting.yaml `OpenDataRelease`: an open-data release as EACC sees it (spec 09b). */
+export type OpenDataRelease = Schemas['OpenDataRelease'];
+export type OpenDataTableName = Schemas['OpenDataTable'];
+/** reporting.yaml `OpenDataReleaseDetail`: a release with its tables as built (#350). */
+export type OpenDataReleaseDetail = Schemas['OpenDataReleaseDetail'];
+export type OpenDataTableFile = Schemas['OpenDataTableFile'];

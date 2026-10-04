@@ -217,6 +217,9 @@ function set(overrides: Partial<LoadedSuggestionSet> = {}): LoadedSuggestionSet 
     readyAt: '2026-09-26T10:32:00Z',
     verificationResultId: null,
     aiJobId: null,
+    attachmentId: null,
+    documentKind: null,
+    reason: null,
     suggestions: [],
     ...overrides,
   };

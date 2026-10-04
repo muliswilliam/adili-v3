@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-import type { Conforms } from '../conforms.js';
-import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
+import { type DraftScope, NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
 
 /**
  * The national consolidated report's narrative (spec 09 NCR): sections Overview, Findings and
@@ -11,28 +10,18 @@ import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
  * pattern candidates) and an edited one loses its AI-draft flag.
  */
 
-/** reporting.yaml `Narrative`: each section as text. */
-export type Narrative = Record<NarrativeSection, string>;
-
-/** `updateNationalReportNarrative`'s body: each section's text, paragraphs separated by a blank line. */
+/**
+ * reporting.yaml `Narrative`, each section as text; also `updateNationalReportNarrative`'s body,
+ * paragraphs separated by a blank line.
+ */
 export const narrativeSchema = z.strictObject({
   overview: z.string().max(20_000),
   findings: z.string().max(40_000),
   recommendations: z.string().max(20_000),
 });
-true satisfies Conforms<Narrative, typeof narrativeSchema>;
+export type Narrative = z.infer<typeof narrativeSchema>;
 
 /** reporting.yaml `NarrativeParagraph`. */
-export interface Paragraph {
-  id: string;
-  section: NarrativeSection;
-  position: number;
-  text: string;
-  aiDraft: boolean;
-  aggregateRefs: string[];
-  candidateIds: string[];
-}
-
 export const paragraphSchema = z.object({
   id: z.uuid(),
   section: z.enum(NARRATIVE_SECTIONS),
@@ -45,7 +34,7 @@ export const paragraphSchema = z.object({
   }),
   candidateIds: z.array(z.string()),
 });
-true satisfies Conforms<Paragraph, typeof paragraphSchema>;
+export type Paragraph = z.infer<typeof paragraphSchema>;
 
 /** The paragraphs of a section's text: split at blank lines, trimmed, empty ones dropped. */
 export function paragraphsOf(text: string): string[] {
@@ -113,5 +102,64 @@ export function saveSection(
       aggregateRefs: [],
       candidateIds: [],
     };
+  });
+}
+
+/** A paragraph as the ai-gateway's `narrate-compliance-report` task drafts it. */
+export interface DraftedParagraph {
+  section: NarrativeSection;
+  text: string;
+  aggregateRefs: string[];
+  candidateIds: string[];
+}
+
+/** The sections a draft of `scope` writes. */
+export function sectionsOf(scope: DraftScope): readonly NarrativeSection[] {
+  return scope === 'all' ? NARRATIVE_SECTIONS : [scope];
+}
+
+/**
+ * The narrative's paragraphs once `drafted` (spec 09b) is inserted into the sections of `scope`,
+ * as AI drafts citing their aggregate keys and candidates. In each of those sections the drafted
+ * paragraphs replace the paragraphs still marked as AI drafts, where the first of them stood (at
+ * the end when there were none), and every paragraph the analyst edited or typed stays where it
+ * was; with `replaceAll` they replace the whole section. Other sections, and drafted paragraphs
+ * of sections outside `scope`, are left alone. Positions are renumbered from 0 per section.
+ */
+export function insertDraft(
+  existing: readonly Paragraph[],
+  drafted: readonly DraftedParagraph[],
+  scope: DraftScope,
+  replaceAll: boolean,
+  newId: () => string,
+): Paragraph[] {
+  const sections = sectionsOf(scope);
+  return NARRATIVE_SECTIONS.flatMap((section) => {
+    const stored = existing
+      .filter((paragraph) => paragraph.section === section)
+      .sort((a, b) => a.position - b.position);
+    if (!sections.includes(section)) return stored;
+    const replaced = (paragraph: Paragraph) => replaceAll || paragraph.aiDraft;
+    const kept = stored.filter((paragraph) => !replaced(paragraph));
+    const firstReplaced = stored.findIndex(replaced);
+    const at = firstReplaced === -1 ? kept.length : firstReplaced;
+    const inserted = drafted
+      .filter((paragraph) => paragraph.section === section)
+      // One paragraph stays one: a blank line inside would split it at the next save.
+      .map((paragraph) => ({ ...paragraph, text: paragraphsOf(paragraph.text).join('\n') }))
+      .filter((paragraph) => paragraph.text !== '')
+      .map((paragraph): Paragraph => ({
+        id: newId(),
+        section,
+        position: 0,
+        text: paragraph.text,
+        aiDraft: true,
+        aggregateRefs: [...paragraph.aggregateRefs],
+        candidateIds: [...paragraph.candidateIds],
+      }));
+    return [...kept.slice(0, at), ...inserted, ...kept.slice(at)].map((paragraph, position) => ({
+      ...paragraph,
+      position,
+    }));
   });
 }

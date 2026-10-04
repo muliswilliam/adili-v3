@@ -17,12 +17,22 @@ import {
   submittedComplianceReportSchema,
 } from './compliance-reports/representation.js';
 import { confirmBody, manualFieldsBody } from './compliance-reports/sign-off-input.js';
+import { patternCandidateSchema } from './national-reports/candidates.js';
 import { narrativeSchema, paragraphSchema } from './national-reports/narrative.js';
 import {
   nationalAggregatesSchema,
+  narrativeDraftSchema,
   nationalReportSchema,
 } from './national-reports/representation.js';
 import { officerSchema } from './officer.js';
+import { commissionOpenDataPreviewSchema } from './open-data/commission-preview.service.js';
+import { publicOpenDataReleaseSchema } from './open-data/public-representation.js';
+import {
+  openDataReleaseDetailSchema,
+  openDataReleaseSchema,
+  openDataTableFileSchema,
+  openDataTableNameSchema,
+} from './open-data/representation.js';
 import {
   icmsPushErrorSchema,
   icmsStatusSchema,
@@ -33,9 +43,7 @@ import {
 
 /**
  * Named schemas of the reporting service's OpenAPI document (`#/components/schemas/<name>`),
- * exported with the controllers' operations to packages/schemas/internal/reporting.yaml. The
- * operations of spec 09b not implemented yet stay in packages/schemas/drafts/reporting.yaml,
- * which may reference these.
+ * exported with the controllers' operations to packages/schemas/internal/reporting.yaml.
  */
 export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Officer: officerSchema,
@@ -57,6 +65,8 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   Narrative: narrativeSchema,
   NarrativeParagraph: paragraphSchema,
   NationalAggregates: nationalAggregatesSchema,
+  PatternCandidate: patternCandidateSchema,
+  NarrativeDraft: narrativeDraftSchema,
   NationalReport: nationalReportSchema,
   ReferralGrounds: referralGroundsSchema,
   IcmsStatus: icmsStatusSchema,
@@ -66,4 +76,10 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   AiUsageReport: aiUsageReportSchema,
   AiUsageCommission: aiUsageCommissionSchema,
   AiTaskRatings: aiTaskRatingsSchema,
+  OpenDataTable: openDataTableNameSchema,
+  OpenDataRelease: openDataReleaseSchema,
+  OpenDataTableFile: openDataTableFileSchema,
+  OpenDataReleaseDetail: openDataReleaseDetailSchema,
+  CommissionOpenDataPreview: commissionOpenDataPreviewSchema,
+  PublicOpenDataRelease: publicOpenDataReleaseSchema,
 };

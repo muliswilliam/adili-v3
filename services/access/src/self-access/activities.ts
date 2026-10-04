@@ -219,7 +219,16 @@ export class CertifiedCopyActivities {
   }
 }
 
-/** A `pending` copy is now `failed`; any other is left as it is. */
+/**
+ * A `pending` copy is now `failed`; any other is left as it is. A copy ordered again after it
+ * failed is `pending` again under a new run, and the run that failed it is terminated
+ * (`CertifiedCopyIssuance`), so Temporal schedules none of its activities again; an attempt of
+ * `issueCertifiedCopy` already in flight reads the copy before acting, and acts on the reopened
+ * one as the new run would. The exception: an attempt of `certifiedCopyFailed` still in flight
+ * (one whose completion was lost, retried before the run was terminated) reads nothing and can
+ * flip the reopened copy back to `failed`. That is rare, and ordering it again recovers it, so
+ * there is no guard on the order (`requestedAt`) here.
+ */
 async function markFailed(
   db: AccessDatabase,
   tenant: string,

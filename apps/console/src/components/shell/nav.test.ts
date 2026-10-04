@@ -6,17 +6,42 @@ const labels = (roles: string[]) =>
   navFor(roles).map((group) => [group.label, group.items.map((item) => item.label)]);
 
 describe('navFor', () => {
-  it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
+  it('shows EACC staff Commissions and National obligations under Platform, and Referrals received under EACC', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
-      expect(labels([role])).toEqual([['Platform', ['Commissions', 'National obligations']]]);
+      expect(labels([role])).toEqual([
+        ['Platform', ['Commissions', 'National obligations']],
+        ['EACC', ['Compliance reports', 'Referrals received', 'Open data']],
+      ]);
+      expect(navFor([role])[1]?.items[1]?.to).toBe('/eacc/referrals');
     }
   });
 
-  it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {
+  it('shows EACC staff the compliance reports intake under EACC (spec 09)', () => {
+    expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/ncr')).toBe('/eacc/reports');
+  });
+
+  it('marks Open data on a release page too (#350)', () => {
+    const groups = navFor(['eacc-analyst']);
+    expect(groups[1]?.items.map((item) => item.to)).toContain('/eacc/open-data');
+    expect(activeNavHref(groups, '/eacc/open-data/0199c000-0000-7000-8000-000000000002')).toBe(
+      '/eacc/open-data',
+    );
+  });
+
+  it('adds Law enforcement, Integrations, AI policy and Help articles under Platform for platform admins only (specs 10, 07b, 07c, 11)', () => {
     expect(labels(['platform-admin'])).toEqual([
       [
         'Platform',
-        ['Commissions', 'National obligations', 'Law enforcement', 'Integrations', 'AI policy'],
+        [
+          'Commissions',
+          'National obligations',
+          'Law enforcement',
+          'Integrations',
+          'AI policy',
+          'Help articles',
+        ],
       ],
     ]);
     expect(navFor(['platform-admin'])[0]?.items.map((item) => item.to)).toEqual([
@@ -25,6 +50,7 @@ describe('navFor', () => {
       '/platform/law-enforcement',
       '/platform/integrations',
       '/ai-policy',
+      '/help',
     ]);
   });
 
@@ -33,33 +59,41 @@ describe('navFor', () => {
     expect(navFor(['law-enforcement'])[0]?.items[0]?.to).toBe('/lea/requests');
   });
 
-  it('shows the Roster and API access under Commission to reporting officers', () => {
+  it('shows the Roster, API access and Help articles under Commission to reporting officers', () => {
     expect(labels(['reporting-officer'])).toEqual([
-      ['Commission', ['Roster', 'API access', 'Obligations']],
+      ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
       ['Reporting', ['Form M']],
     ]);
     expect(navFor(['reporting-officer'])[0]?.items.map((item) => item.to)).toEqual([
       '/roster',
       '/roster/api-access',
       '/obligations',
+      '/help',
     ]);
+  });
+
+  it('lists Help articles once for a platform admin who also holds a Commission role (spec 11)', () => {
+    const groups = navFor(['platform-admin', 'commission-admin']);
+    const help = groups.flatMap((group) => group.items).filter((item) => item.to === '/help');
+    expect(help).toHaveLength(1);
+    expect(groups[0]?.items.at(-1)?.to).toBe('/help');
   });
 
   it('shows commission admins the Roster but not API access, which they cannot open', () => {
     expect(labels(['commission-admin'])).toEqual([
-      ['Commission', ['Roster', 'Obligations']],
+      ['Commission', ['Roster', 'Obligations', 'Help articles']],
       ['Reporting', ['Form M']],
     ]);
     expect(labels(['commission-admin', 'reporting-officer'])).toEqual([
-      ['Commission', ['Roster', 'API access', 'Obligations']],
+      ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
       ['Reporting', ['Form M']],
     ]);
   });
 
-  it('shows reviewers Obligations and the review queue, leaving out what is not built yet', () => {
+  it('shows reviewers Obligations, the review queue and Actions, leaving out what is not built yet', () => {
     expect(labels(['reviewer'])).toEqual([
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Actions', 'Referrals']],
     ]);
   });
 
@@ -68,7 +102,7 @@ describe('navFor', () => {
     expect(labels(['supervisor'])).toEqual([
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Approvals', 'Actions', 'Referrals']],
       ['Reporting', ['Form M']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');
