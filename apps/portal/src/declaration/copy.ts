@@ -98,7 +98,7 @@ export const PREFILL_COPY = {
   },
   /**
    * Why a reading failed: the set's `reason` (`document-unavailable`, `document-unreadable`,
-   * `not-read`, `unavailable`), or what the portal saw itself.
+   * `not-read`, `unavailable`, `not-a-draft`), or what the portal saw itself.
    */
   failureReason: {
     unknown: en('the document could not be processed'),

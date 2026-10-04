@@ -479,25 +479,30 @@ export class ExtractionService {
 
   /**
    * Ends a reservation whose reading could not be asked for. A request refused for the file
-   * itself (404 gone, 409 not clean or past the draft) records nothing: the reservation is taken
-   * back, and a concurrent request answered with it gets a retryable 503 (`reading-conflict`),
-   * then the same refusal. A service that could not take it now (503) leaves it `failed`, so the
-   * concurrent request sees it end and either may ask again: `document-unavailable` when
-   * documents did not answer, `unavailable` otherwise.
+   * itself (a 4xx problem: 404 gone, 409 not clean or past the draft) records nothing: the
+   * reservation is taken back. A concurrent request that was answered with it finds it gone,
+   * either at once (a retryable 503 `reading-conflict`) or when its poll no longer lists it (the
+   * portal ends the reading); asking again gets the refusal. Anything else (a 503 problem, or an
+   * error of the service's own) leaves it `failed`, so a concurrent request sees it end and
+   * either may ask again: `document-unavailable` when documents did not answer, `unavailable`
+   * otherwise.
    */
   private async failReservation(
     person: PersonContext,
     setId: string,
     error: unknown,
   ): Promise<void> {
-    const status = error instanceof ProblemException ? error.problem.status : 500;
+    const refused =
+      error instanceof ProblemException &&
+      error.problem.status >= 400 &&
+      error.problem.status < 500;
     const reserved = and(
       eq(suggestionSets.id, setId),
       eq(suggestionSets.status, 'pending'),
       isNull(suggestionSets.aiJobId),
     );
     await withPerson(this.db, person, async (tx) => {
-      if (status !== 503) {
+      if (refused) {
         await tx.delete(suggestionSets).where(reserved);
         return;
       }

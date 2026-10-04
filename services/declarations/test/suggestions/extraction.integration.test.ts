@@ -25,7 +25,12 @@ import type {
   SectionEnvelope,
 } from '../../src/drafts/representation.js';
 import type { SuggestionSet } from '../../src/suggestions/representation.js';
-import { READING_TIMEOUT_MS } from '../../src/suggestions/workflow/contract.js';
+import {
+  documentReadingWorkflowId,
+  READING_TIMEOUT_MS,
+} from '../../src/suggestions/workflow/contract.js';
+import { TEMPORAL_CLIENT } from '@adili/temporal';
+import type { Client } from '@temporalio/client';
 import { contractErrors } from '../support/contract.js';
 import {
   type Caller,
@@ -665,6 +670,22 @@ describe('settling as the declarant who asked (ADR-003, ADR-018)', () => {
     expect(await documentSets(draft.id)).toEqual([
       expect.objectContaining({ status: 'failed', reason: 'document-unavailable', aiJobId: null }),
     ]);
+  });
+});
+
+describe('the harness', () => {
+  it("terminates a live reading's workflow on reset", async () => {
+    const { draft, attachment } = await draftWithLogbook();
+    const set = (await extract(draft.id, attachment.id)).json<SuggestionSet>();
+    if (!set.aiJobId) throw new Error('no job');
+    const handle = api.app
+      .get<Client>(TEMPORAL_CLIENT)
+      .workflow.getHandle(documentReadingWorkflowId(draft.id, set.aiJobId));
+    expect((await handle.describe()).status.name).toBe('RUNNING');
+
+    await api.reset();
+
+    expect((await handle.describe()).status.name).toBe('TERMINATED');
   });
 });
 

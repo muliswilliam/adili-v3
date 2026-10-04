@@ -381,6 +381,14 @@ describe('Read into the form (S6, S11)', () => {
     ).toBeTruthy();
   });
 
+  it('ends the reading when its set is gone (another request was refused for the file)', async () => {
+    listMock.mockResolvedValue({ status: 'ok', sets: [] });
+    renderSheet({ pollLimit: 100 });
+    read();
+    expect(await within(sheet()).findByText(/\(the file is not ready to be read\)/)).toBeTruthy();
+    expect(listMock).toHaveBeenCalledTimes(1);
+  });
+
   it('gives up after about a minute of reading', async () => {
     listMock.mockResolvedValue({ status: 'ok', sets: [set()] });
     renderSheet();
