@@ -2,6 +2,7 @@ import type { FormKV1 } from '@adili/forms';
 import type { Assert, MatchesAccessCopy } from '@adili/ui';
 
 import type { components } from './api.gen';
+import type { ValidationProblem } from '../service-call';
 
 type Schemas = components['schemas'];
 
@@ -25,15 +26,9 @@ export type AttachmentDownload = Schemas['AttachmentDownload'];
 export type Scope = Schemas['Scope'];
 
 /** The access service's problem details, with the registered `code` the console acts on. */
-export interface AccessProblem {
-  type: string;
-  title: string;
-  status: number;
-  detail?: string;
+export interface AccessProblem extends ValidationProblem {
   /** A `PROBLEM_CODES` code (api-kit), e.g. `officer-resolved`. */
   code?: string;
-  /** Fields at fault, by dotted path. */
-  errors?: { path: string; message: string }[];
 }
 
 /** A law enforcement request (Regs r.23), as its officer or the Commission reads it. */

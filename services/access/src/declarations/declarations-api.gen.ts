@@ -979,6 +979,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/help/search/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Help search as a Commission's declarants (or every declarant) would see it, for the staff who write the articles
+         * @description A Commission's administrators and reporting officers, with `commission` their own Commission: the Act and Regulations, the platform's published articles and the Commission's, in force on `date`, ranked as `searchHelp` ranks them for its declarants. Platform admins, without `commission`: the law and the platform's articles, as every declarant gets them. A just-published article is found at once. Deterministic: no AI. 404 for: a platform admin passing `commission`; a Commission's staff omitting it or passing another Commission; anyone else, declarants included.
+         */
+        get: operations["previewHelpSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help/corpus/{passageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One wording of the statutory corpus with its text in English and Kiswahili
+         * @description platform-admin only. Read-only: statutory text changes only by import.
+         */
+        get: operations["getCorpusPassage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/help/passages/{passageId}": {
         parameters: {
             query?: never;
@@ -2072,6 +2112,12 @@ export interface components {
                 path: string;
                 message: string;
             }[];
+        };
+        /** @description A corpus wording as `CorpusPassage` lists it, with its text */
+        CorpusPassageText: components["schemas"]["CorpusPassage"] & {
+            textEn: string;
+            /** @description Null where the corpus has no Kiswahili text */
+            textSw: string | null;
         };
         /** @description A passage of the corpus or a help article, whole, as the help pages show it */
         HelpPassageDetail: {
@@ -4748,6 +4794,60 @@ export interface operations {
                     "application/json": string[];
                 };
             };
+        };
+    };
+    previewHelpSearch: {
+        parameters: {
+            query: {
+                q: string;
+                language: "en" | "sw";
+                /** @description The Commission whose declarants to search as; the platform's articles only when left out (platform admins) */
+                commission?: string;
+                /** @description Read the law in force on this day (`YYYY-MM-DD`); today by default */
+                date?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Passages, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpPassage"][];
+                };
+            };
+            400: components["responses"]["ValidationProblem"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getCorpusPassage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The wording */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CorpusPassageText"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getHelpPassage: {

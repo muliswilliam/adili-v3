@@ -40,6 +40,7 @@ export type WorkspaceHref =
   | '/lea/requests'
   | '/platform/law-enforcement'
   | '/ai-policy'
+  | '/help'
   | '/form-m'
   | '/eacc/reports'
   | '/eacc/referrals';
@@ -118,6 +119,14 @@ export const REFERRAL_PUSH_ROLES = [EACC_ANALYST] as const;
 
 /** National roles, who see obligation counts per Commission but no declarant (spec 04). */
 export const NATIONAL_OBLIGATIONS_ROLES = NATIONAL_ROLES;
+
+/**
+ * A Commission's help articles (spec 11): its administrators write them, its reporting officers
+ * read them; both see the question themes. Platform admins write the platform's articles and see
+ * the legal corpus, under the same pages.
+ */
+export const HELP_ROLES = [COMMISSION_ADMIN, REPORTING_OFFICER] as const;
+export const HELP_WRITE_ROLES = [COMMISSION_ADMIN] as const;
 
 /** Console areas, in display order, with the realm roles that open each one (architecture section 7). */
 const WORKSPACES: WorkspaceDefinition[] = [
@@ -202,6 +211,17 @@ const WORKSPACES: WorkspaceDefinition[] = [
     roles: OBLIGATIONS_ROLES,
   },
   {
+    id: 'help',
+    title: 'Help articles',
+    description:
+      "Write the help your Commission's declarants find in Ask Adili, and see what they ask.",
+    readOnlyDescription:
+      "The help your Commission's declarants find in Ask Adili, and what they ask.",
+    href: '/help',
+    roles: HELP_ROLES,
+    writeRoles: HELP_WRITE_ROLES,
+  },
+  {
     id: 'commission',
     title: 'Commission administration',
     description: 'Manage users, policies and document templates for your Commission.',
@@ -249,6 +269,13 @@ const WORKSPACES: WorkspaceDefinition[] = [
     title: 'AI policy',
     description: 'Which Commissions may use an AI provider, task routing and budgets.',
     href: '/ai-policy',
+    roles: [PLATFORM_ADMIN],
+  },
+  {
+    id: 'platform-help',
+    title: 'Help articles',
+    description: 'Write the help every declarant finds in Ask Adili, and read the legal corpus.',
+    href: '/help',
     roles: [PLATFORM_ADMIN],
   },
   {
