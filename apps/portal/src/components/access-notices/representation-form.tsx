@@ -34,7 +34,7 @@ import {
   Tick02Icon,
   WifiOff01Icon,
 } from '@hugeicons/core-free-icons';
-import { type Dispatch, useReducer, useState } from 'react';
+import { type Dispatch, useReducer } from 'react';
 
 import { RESPONSE_COPY as COPY, STANCES } from '../../access/notice-copy';
 import { scopeLine } from '../../access/notices';
@@ -55,17 +55,8 @@ import type {
   Representations,
   RepresentationStance,
 } from '../../server/access/types';
-import {
-  completeAttachmentUpload,
-  createAttachmentUpload,
-  getAttachmentUpload,
-} from '../../server/documents/uploads';
-import {
-  putToPresignedUrl,
-  uploadAttachment,
-  type UploadSteps,
-} from '../declaration/attachment-upload';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_MAX_BYTES } from '../declaration/attachments';
+import { useResponseUploads } from '../response-uploads';
 
 /**
  * The declarant's representations on an access request (spec 10 S4): the form (stance, text,
@@ -83,56 +74,17 @@ export interface RepresentationFormState {
   retry: (rowId: string) => void;
 }
 
-function wait(ms: number) {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
 /** The form's state, from blank or from the response being edited, and its uploads. */
 export function useRepresentationForm(sent: Representations | null): RepresentationFormState {
   const [form, dispatch] = useReducer(representationReducer, sent, newRepresentationForm);
-  // The picked files by row id, to upload a failed one again.
-  const [files] = useState(() => new Map<string, File>());
-
-  function start(rowId: string, file: File) {
-    const steps: UploadSteps = {
-      reserve: (picked) =>
-        createAttachmentUpload({ data: { ...picked, purpose: 'access-representation' } }),
-      put: putToPresignedUrl,
-      complete: (uploadId) => completeAttachmentUpload({ data: { uploadId } }),
-      check: (uploadId) => getAttachmentUpload({ data: { uploadId } }),
-      // The access service links the files when the response is saved; nothing to link here.
-      link: () => Promise.resolve({ status: 'linked', size: file.size }),
-      wait,
-    };
-    void uploadAttachment(rowId, file, steps, (event) => {
-      if (event.type === 'linked') files.delete(rowId);
-      dispatch(event);
-    });
-  }
-
+  const uploads = useResponseUploads('access-representation', dispatch);
   return {
     form,
     dispatch,
     attach: (file, rejection) => {
-      const rowId = crypto.randomUUID();
-      dispatch({
-        type: 'picked',
-        id: rowId,
-        itemId: 'representations',
-        name: file.name,
-        size: file.size,
-        rejection,
-      });
-      if (rejection) return;
-      files.set(rowId, file);
-      start(rowId, file);
+      uploads.attach('representations', file, rejection);
     },
-    retry: (rowId) => {
-      const file = files.get(rowId);
-      if (!file) return;
-      dispatch({ type: 'retry', id: rowId });
-      start(rowId, file);
-    },
+    retry: uploads.retry,
   };
 }
 

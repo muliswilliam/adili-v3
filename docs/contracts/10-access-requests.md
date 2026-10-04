@@ -62,7 +62,7 @@ Schemas changed:
 - Added `internalListPersonVersions` (#303), so the officer's self-access form only offers the declarant's own submitted versions.
 - Added `internalCountDisclosure` (decision 1, scope `declarations:disclosures`): per year of a scope, the person's versions in force and per section and household member kind how much the disclosure would let out; counts only, zero rather than 404, audited as `declaration.disclosure-counted` with the officer as recipient.
 
-## Review (`internal/review.yaml`, hand-written)
+## Review (`internal/review.yaml`)
 
 - Added `internalDiscloseClarifications` (decision 7) and `internalCountClarificationDisclosure` (decision 1, scope `review:disclosures`): per declaration named, how many clarifications a grant of the scope would disclose, audited as `clarification.disclosure-counted`.
 

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { allocateReference, ARQ } from '@adili/numbering';
-import type { WorkflowHandle } from '@temporalio/client';
+import { type WorkflowHandle, WorkflowNotFoundError } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -54,10 +54,17 @@ describe('Workflows started in the receiving transaction', () => {
     }
   }
 
-  /** The workflow's first activity, once it has been retried. */
+  /**
+   * The workflow's first activity, once it has been retried. The spy on `start` sees the call
+   * before Temporal has the run, so a run not found yet is waited for like one not retried yet.
+   */
   async function retriedFirstRead(handle: WorkflowHandle) {
     return api.eventually(async () => {
-      const pending = (await handle.describe()).raw.pendingActivities?.[0];
+      const run = await handle.describe().catch((error: unknown) => {
+        if (error instanceof WorkflowNotFoundError) return undefined;
+        throw error;
+      });
+      const pending = run?.raw.pendingActivities?.[0];
       return pending && (pending.attempt ?? 0) >= 2 ? pending : undefined;
     });
   }
@@ -86,21 +93,25 @@ describe('Workflows started in the receiving transaction', () => {
     await counterLocked;
 
     const submitting = submitRequest(api);
-    await api.eventually(() => start.mock.calls.length === 1);
-    const requestId = start.mock.calls[0]?.[0].requestId ?? '';
-    const handle = api.temporal.workflow.getHandle(accessRequestWorkflowId(requestId));
+    const readRequestId = () => start.mock.calls[0]?.[0].requestId ?? '';
+    const getRunHandle = () =>
+      api.temporal.workflow.getHandle(accessRequestWorkflowId(readRequestId()));
+    try {
+      await api.eventually(() => start.mock.calls.length === 1);
 
-    // The receipt waits on the counter, uncommitted: the run's first read is retried meanwhile.
-    const pending = await retriedFirstRead(handle);
-    expect(pending.activityType?.name).toBe('requestState');
-    expect(pending.lastFailure?.applicationFailureInfo?.type).toBe(TRANSACTION_OPEN);
-
-    release();
-    await holding;
-    expect((await submitting).id).toBe(requestId);
+      // The receipt waits on the counter, uncommitted: the run's first read is retried meanwhile.
+      const pending = await retriedFirstRead(getRunHandle());
+      expect(pending.activityType?.name).toBe('requestState');
+      expect(pending.lastFailure?.applicationFailureInfo?.type).toBe(TRANSACTION_OPEN);
+    } finally {
+      // Never leave the counter locked: the receipt and every later test would wait on it.
+      release();
+      await holding;
+    }
+    expect((await submitting).id).toBe(readRequestId());
     // Committed: the run read it and waits for the officer named, as for any request.
     await api.eventually(async () => {
-      const run = await handle.describe();
+      const run = await getRunHandle().describe();
       return run.status.name === 'RUNNING' && (run.raw.pendingActivities ?? []).length === 0;
     });
   });

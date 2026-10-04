@@ -35,6 +35,16 @@ import { workflowUnavailable } from './problems.js';
 
 const logger = new Logger('AccessWorkflows');
 
+/**
+ * What to do with a run already open under the workflow id. `keep`: it is the run that follows
+ * the record, so it is left as it is (a retried start, or a re-order of a record still in
+ * progress). `replace`: the record was reopened from a state its last run left it in for good
+ * (e.g. a failed certified copy ordered again), so the open run is that one, past its last write
+ * and about to close without reading the record again; it is terminated and a new run started.
+ * Kept, it would leave the record with no workflow behind it.
+ */
+export type OnRunning = 'keep' | 'replace';
+
 /** A workflow to start: its type and id, its arguments, and what to tell the caller if it fails. */
 export interface WorkflowStart {
   /** The workflow type, started by name: the worker bundles the code, not this process. */
@@ -43,13 +53,14 @@ export interface WorkflowStart {
   args: unknown[];
   /** The 503 `workflow-unavailable` detail when Temporal cannot be reached. */
   unavailable: string;
+  /** What to do with a run already open under the id (`OnRunning`); `keep` by default. */
+  onRunning?: OnRunning;
 }
 
 /**
- * Starts a workflow, idempotently: one running under the same id is left as it is (a retried
- * start, or a re-order of a record still in progress); one that ended is started afresh. Temporal
- * unreachable is logged and thrown as 503 `workflow-unavailable`, which rolls the caller's
- * transaction back.
+ * Starts a workflow, idempotently: a run open under the same id is kept or replaced
+ * (`OnRunning`); one that ended is started afresh. Temporal unreachable is logged and thrown as
+ * 503 `workflow-unavailable`, which rolls the caller's transaction back.
  */
 export async function startWorkflow(temporal: Client, start: WorkflowStart): Promise<void> {
   try {
@@ -57,7 +68,8 @@ export async function startWorkflow(temporal: Client, start: WorkflowStart): Pro
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowId: start.workflowId,
       args: start.args,
-      workflowIdConflictPolicy: 'USE_EXISTING',
+      workflowIdConflictPolicy:
+        start.onRunning === 'replace' ? 'TERMINATE_EXISTING' : 'USE_EXISTING',
       workflowIdReusePolicy: 'ALLOW_DUPLICATE',
     });
   } catch (error) {

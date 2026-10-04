@@ -1,6 +1,6 @@
 import { hasValidCheckCharacter, parse } from '@adili/numbering/references';
 import createClient from 'openapi-fetch';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type FormKDraft, formKDraftSchema } from '../access/form-k';
 import { decisionClock } from '../access/progress';
@@ -340,6 +340,24 @@ describe('readPackageDownload (#261, S7)', () => {
     if (after.status !== 'ok') throw new Error(after.status);
     expect(after.request.package?.downloads).toBe(1);
     expect(after.request.timeline.at(-1)?.kind).toBe('downloaded');
+  });
+
+  describe('on a wall clock past the seeded windows', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('answers as of when the mock was seeded, not the wall clock', async () => {
+      // Seeded as of NOW, but run a month later: every seeded window has closed by the wall clock.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(NOW + 30 * 86_400_000);
+      resetAccessMock(NOW);
+      const { documentId } = await packageOf(IDS.granted);
+      expect(await readPackageDownload(clients().documents, documentId)).toEqual({
+        status: 'ok',
+        downloadUrl: `/api/mock-packages/${documentId}`,
+      });
+    });
   });
 
   it('is refused with 410 once the window has closed', async () => {
