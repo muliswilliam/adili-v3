@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { countSchema as count } from '../compliance-reports/representation.js';
 import { officerSchema, storedOfficer } from '../officer.js';
-import type { FileFormat } from './files.js';
+import { type FileFormat, RELEASE_SOURCES } from './files.js';
 import {
   type openDataFiles,
   type openDataReleases,
@@ -94,6 +94,34 @@ export const openDataTableFileSchema = z
     description:
       'A table of a release: its columns in order, its rows (dimensions, figures, null when suppressed or not collected, and the `suppressed` marker), and how many figures suppression hid',
   }) satisfies z.ZodType<OpenDataTable>;
+
+/**
+ * reporting.yaml `OpenDataReleaseDetail`: `getOpenDataReleaseEacc`'s body, a release of any
+ * status with who built it, its source and its six table files as stored.
+ */
+export const openDataReleaseDetailSchema = z.object({
+  release: openDataReleaseSchema,
+  builtBy: officerSchema
+    .nullable()
+    .meta({ description: 'Who built it; null for the release workflow on NCR approval' }),
+  source: z
+    .object({
+      kind: z.enum(RELEASE_SOURCES),
+      nationalReportReference: z.string().nullable().meta({
+        description:
+          "The NCR's reference (`NCR-EACC-...`) when it was approved at build; null for a draft NCR or the live projections",
+      }),
+    })
+    .meta({ description: 'What the tables were built from and reconciled with at build' }),
+  tables: z
+    .strictObject(
+      Object.fromEntries(
+        OPEN_DATA_TABLES.map((table) => [table, openDataTableFileSchema]),
+      ) as Record<OpenDataTableName, typeof openDataTableFileSchema>,
+    )
+    .meta({ description: "The release's six table files as stored, by table" }),
+});
+export type OpenDataReleaseDetail = z.infer<typeof openDataReleaseDetailSchema>;
 
 /** A release with its tables' rows and hashes, in table order. */
 export function openDataReleaseView(

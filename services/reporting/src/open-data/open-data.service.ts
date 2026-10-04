@@ -1,17 +1,18 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { type Principal, ProblemException } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
-import { asc, desc } from 'drizzle-orm';
+import { asc, desc, eq } from 'drizzle-orm';
 
 import { requireEacc, requireEaccSupervisor } from '../access.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { DirectoryUnavailable } from '../directory/directory-client.js';
 import { DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
-import { officerOf } from '../officer.js';
+import { nationalReports } from '../national-reports/schema.js';
+import { officerOf, storedOfficer } from '../officer.js';
 import { directoryUnavailable, notFound, problem, storageUnavailable } from '../problems.js';
 import { eaccContext } from '../system-context.js';
-import { OpenDataStorageUnavailable } from './open-data-files.js';
+import { OpenDataFiles, OpenDataStorageUnavailable } from './open-data-files.js';
 import {
   AnnualReleasePublished,
   FyNotStarted,
@@ -27,11 +28,13 @@ import {
   ReleaseNotPublished,
 } from './release-publisher.js';
 import {
+  type OpenDataReleaseDetail,
   type OpenDataReleaseView,
   openDataReleaseView,
   ReleaseNotFound,
 } from './representation.js';
 import { openDataFiles, openDataReleases, type ReleaseKind } from './schema.js';
+import { OPEN_DATA_TABLES, type OpenDataTable, type OpenDataTableName } from './tables.js';
 
 const EACC_ONLY = 'Only EACC analysts and supervisors work on open-data releases.';
 
@@ -50,6 +53,7 @@ export class OpenDataService {
     @InjectDatabase() private readonly db: Database<ReportingSchema>,
     private readonly builder: OpenDataReleaseBuilder,
     private readonly publisher: OpenDataReleasePublisher,
+    private readonly files: OpenDataFiles,
   ) {}
 
   /** Every release, the latest year first, then by kind and the latest version first. */
@@ -75,6 +79,62 @@ export class OpenDataService {
   }
 
   /**
+   * A release of any status, a preview included (the one checked before it is published, S6),
+   * with who built it, its source and its six table files read from object storage as stored.
+   * The source is the release's record: the NCR it was built from, its reference when it was
+   * approved by then (as the release JSON names it), or the live projections. 404 for no
+   * release; 503 `storage-unavailable` while the files cannot be read.
+   */
+  async get(principal: Principal, releaseId: string): Promise<OpenDataReleaseDetail> {
+    requireEacc(principal, EACC_ONLY);
+    const found = await withTenant(this.db, eaccContext(principal.subject), async (tx) => {
+      const [row] = await tx
+        .select({
+          release: openDataReleases,
+          ncrReference: nationalReports.reference,
+          ncrApprovedAt: nationalReports.approvedAt,
+        })
+        .from(openDataReleases)
+        .leftJoin(nationalReports, eq(nationalReports.id, openDataReleases.nationalReportId))
+        .where(eq(openDataReleases.id, releaseId));
+      if (!row) return null;
+      const files = await tx
+        .select()
+        .from(openDataFiles)
+        .where(eq(openDataFiles.releaseId, releaseId));
+      return { ...row, files };
+    });
+    if (!found) throw notFound(NOT_FOUND);
+    const { release, files, ncrReference, ncrApprovedAt } = found;
+
+    const tables = {} as Record<OpenDataTableName, OpenDataTable>;
+    try {
+      await Promise.all(
+        OPEN_DATA_TABLES.map(async (table) => {
+          const file = files.find((each) => each.table === table && each.format === 'json');
+          if (!file) throw new Error(`Open-data release ${releaseId} has no ${table} JSON`);
+          const body = await this.files.get(file.objectKey);
+          tables[table] = JSON.parse(Buffer.from(body).toString('utf8')) as OpenDataTable;
+        }),
+      );
+    } catch (error) {
+      if (error instanceof OpenDataStorageUnavailable) throw storageUnavailable();
+      throw error;
+    }
+
+    const approvedAtBuild = ncrApprovedAt !== null && ncrApprovedAt <= release.builtAt;
+    return {
+      release: openDataReleaseView(release, files),
+      builtBy: storedOfficer(release.builtBy, release.builtByName),
+      source: {
+        kind: release.nationalReportId === null ? 'live-projections' : 'national-report',
+        nationalReportReference: approvedAtBuild ? ncrReference : null,
+      },
+      tables,
+    };
+  }
+
+  /**
    * Builds a release of the year as a preview: a snapshot (of the NCR's aggregates once built, of
    * the live projections before then, so a year in progress can be shown), or an annual release
    * of the approved NCR (a corrected one, the next annual version, after the published one is
@@ -90,7 +150,7 @@ export class OpenDataService {
   async build(principal: Principal, fy: number, kind: ReleaseKind): Promise<OpenDataReleaseView> {
     requireEacc(principal, EACC_ONLY);
     try {
-      return await this.builder.build({ fy, kind, builtBy: principal.subject });
+      return await this.builder.build({ fy, kind, builtBy: officerOf(principal) });
     } catch (error) {
       if (error instanceof NcrNotBuilt) {
         throw problem(

@@ -7,7 +7,7 @@ Each difference below was decided in the ticket named; the generated contract in
 
 | Contract | Source | Drafts left | Drift check |
 |---|---|---|---|
-| `internal/reporting.yaml` | exported from `services/reporting` (`pnpm --filter @adili/reporting contracts`, since #238) | `drafts/reporting.yaml`: `getOpenDataReleaseEacc` only (#350), since #491 | `pnpm contracts:drift` |
+| `internal/reporting.yaml` | exported from `services/reporting` (`pnpm --filter @adili/reporting contracts`, since #238) | none (`getOpenDataReleaseEacc`, the last 09b draft, implemented in #491) | `pnpm contracts:drift` |
 | `internal/integration-gateway.yaml` | exported | none | same |
 | `internal/declarations.yaml` | exported | `drafts/declarations.yaml`: specs 05b and 11 only | same |
 | `internal/review.yaml` | exported | none | same |

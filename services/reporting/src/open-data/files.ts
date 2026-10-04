@@ -53,7 +53,8 @@ export interface ReleaseTableEntry {
  * What a release's tables were built from: the year's NCR aggregates, or, for a snapshot of a
  * year with no NCR yet, the live projections.
  */
-export type ReleaseSourceName = 'national-report' | 'live-projections';
+export const RELEASE_SOURCES = ['national-report', 'live-projections'] as const;
+export type ReleaseSourceName = (typeof RELEASE_SOURCES)[number];
 
 /** The release JSON. */
 export interface ReleaseDocument {

@@ -11,6 +11,7 @@ import type { ReportingTransaction } from '../compliance-reports/reports.js';
 import { aggregateFacts } from '../compliance-reports/form-m.js';
 import { reportReceipts, type ReportCounts } from '../compliance-reports/schema.js';
 import type { ReportingSchema } from '../db/schema.js';
+import type { Officer } from '../officer.js';
 import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
 import { financialYearAt } from '../financial-year.js';
 import { buildLiveAggregates, type NationalAggregates } from '../national-reports/aggregates.js';
@@ -49,7 +50,8 @@ import {
 export interface BuildReleaseRequest {
   fy: number;
   kind: ReleaseKind;
-  builtBy: string | null;
+  /** Who asked for it; null for the release workflow on NCR approval. */
+  builtBy: Officer | null;
   /**
    * The release's id, for a caller that retries (a workflow activity): a release already built
    * under it is returned as it is. A new id when not given.
@@ -185,7 +187,7 @@ export class OpenDataReleaseBuilder {
   async build(request: BuildReleaseRequest): Promise<OpenDataReleaseView> {
     const { fy, kind, builtBy } = request;
     const releaseId = request.releaseId ?? uuidv7();
-    const context = { tenant: PLATFORM_TENANT, subject: builtBy ?? SYSTEM_SUBJECT };
+    const context = { tenant: PLATFORM_TENANT, subject: builtBy?.subject ?? SYSTEM_SUBJECT };
     // A snapshot of a year without an NCR is of the live projections, over the directory's
     // Commissions, asked outside the transaction. An NCR is never removed, so one not found now
     // is the only way the transaction finds none.
@@ -238,7 +240,13 @@ export class OpenDataReleaseBuilder {
       if (mismatches.length > 0) throw new ReconciliationFailed(mismatches);
 
       const builtAt = this.clock.now();
-      const version = await this.claimBuild(tx, { releaseId, fy, kind, builtBy, builtAt });
+      const version = await this.claimBuild(tx, {
+        releaseId,
+        fy,
+        kind,
+        builtBy: builtBy?.subject ?? null,
+        builtAt,
+      });
       const files = datasetFiles(
         {
           id: releaseId,
@@ -312,7 +320,8 @@ export class OpenDataReleaseBuilder {
         status: 'preview',
         nationalReportId: plan.nationalReportId,
         builtAt: plan.builtAt,
-        builtBy,
+        builtBy: builtBy?.subject ?? null,
+        builtByName: builtBy?.name ?? null,
       });
       await tx.insert(openDataFiles).values(
         plan.files.map((file) => ({

@@ -52,8 +52,12 @@ export const openDataReleases = pgTable(
      */
     nationalReportId: uuid().references(() => nationalReports.id),
     builtAt: timestamp({ withTimezone: true }).notNull(),
-    /** Who built it (a subject), or null for the release workflow on NCR approval. */
+    /**
+     * Who built it (subject and name as their token gave it), or null for the release workflow
+     * on NCR approval.
+     */
     builtBy: text(),
+    builtByName: text(),
     publishedAt: timestamp({ withTimezone: true }),
     /**
      * The EACC supervisor who published it (subject and name as their token gave it): who

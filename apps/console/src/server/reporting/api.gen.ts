@@ -368,6 +368,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/eacc/open-data/releases/{releaseId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A release of any status with its six tables as built, suppression applied, and its source (EACC)
+         * @description Spec 09b S6: the preview EACC checks before a supervisor publishes it. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview included (the public API never serves a preview). `tables` are the release's table files as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the tables were built from and reconciled with at build (`buildOpenDataRelease`): the national consolidated report (its reference if it was approved by then) or, for a snapshot of a year without one, the live projections. A release that exists has reconciled.
+         */
+        get: operations["getOpenDataReleaseEacc"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/eacc/open-data/releases/{releaseId}/publish": {
         parameters: {
             query?: never;
@@ -542,28 +562,6 @@ export interface paths {
          * @description EACC analysts and supervisors. Pulls the referral's ICMS payload from review (national ID, full name, grounds, details) and registers it through the integration-gateway's ICMS adapter (`submitIcmsReferral`), idempotent by the `RFL` reference; ICMS is retried with backoff while unreachable. A case number is stored (`registered`) and `referral.icms-registered.v1` published; a registration ICMS only accepted is `pushed` and followed to its case number. A retry with the same Idempotency-Key replays the answer; a registered referral is answered as it is and never sent again.
          */
         post: operations["pushReferralToIcms"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/eacc/open-data/releases/{releaseId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        /**
-         * A release of any status with its six tables as built, suppression applied, and its source (EACC)
-         * @description Spec 09b S6 (#350): the preview EACC checks before a supervisor publishes it. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403. Any status, a preview included (the public API never serves a preview). `tables` are the release's table files as stored, the same JSON `getOpenDataTable` serves once published. `source` is what the tables were built from and reconciled with at build (`buildOpenDataRelease`): the national consolidated report (its reference once approved) or, for a snapshot of a year without one, the live projections. A release that exists has reconciled.
-         */
-        get: operations["getOpenDataReleaseEacc"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1203,6 +1201,27 @@ export interface components {
             /** @description Figures not collected yet: columns, or in `national-totals` measures, whose values are null for want of data, not suppression (`suppressed` stays false): `by-entity-type`'s filing figures (no rows) until the directory carries entity types; empty otherwise. */
             notCollected: string[];
         };
+        OpenDataReleaseDetail: {
+            release: components["schemas"]["OpenDataRelease"];
+            /** @description Who built it; null for the release workflow on NCR approval */
+            builtBy: components["schemas"]["Officer"] | null;
+            /** @description What the tables were built from and reconciled with at build */
+            source: {
+                /** @enum {string} */
+                kind: "national-report" | "live-projections";
+                /** @description The NCR's reference (`NCR-EACC-...`) when it was approved at build; null for a draft NCR or the live projections */
+                nationalReportReference: string | null;
+            };
+            /** @description The release's six table files as stored, by table */
+            tables: {
+                "filing-by-commission": components["schemas"]["OpenDataTableFile"];
+                "compliance-by-commission": components["schemas"]["OpenDataTableFile"];
+                "by-entity-type": components["schemas"]["OpenDataTableFile"];
+                "by-cycle": components["schemas"]["OpenDataTableFile"];
+                "access-requests": components["schemas"]["OpenDataTableFile"];
+                "national-totals": components["schemas"]["OpenDataTableFile"];
+            };
+        };
         CommissionOpenDataPreview: {
             release: components["schemas"]["OpenDataRelease"];
             /** @description The Commission's own rows of each Commission table, as released */
@@ -1271,49 +1290,9 @@ export interface components {
                 message: string;
             }[];
         };
-        OpenDataReleaseDetail: {
-            release: components["schemas"]["OpenDataRelease"];
-            /** @description Who built it; null for the release workflow on NCR approval */
-            builtBy: components["schemas"]["Officer"] | null;
-            source: {
-                /** @enum {string} */
-                kind: "national-report" | "live-projections";
-                /** @description The NCR's reference (`NCR-EACC-...`) once approved; null for a draft NCR or the live projections */
-                nationalReportReference: string | null;
-            };
-            tables: {
-                "filing-by-commission": components["schemas"]["OpenDataTableFile"];
-                "compliance-by-commission": components["schemas"]["OpenDataTableFile"];
-                "by-entity-type": components["schemas"]["OpenDataTableFile"];
-                "by-cycle": components["schemas"]["OpenDataTableFile"];
-                "access-requests": components["schemas"]["OpenDataTableFile"];
-                "national-totals": components["schemas"]["OpenDataTableFile"];
-            };
-        };
     };
-    responses: {
-        /** @description Not found, or not visible to the caller */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-        /** @description Caller lacks the required role or scope */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["ProblemDetails"];
-            };
-        };
-    };
-    parameters: {
-        ReleaseId: string;
-    };
+    responses: never;
+    parameters: never;
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -2482,6 +2461,64 @@ export interface operations {
             };
         };
     };
+    getOpenDataReleaseEacc: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                releaseId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The release, who built it, its source and its tables */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenDataReleaseDetail"];
+                };
+            };
+            /** @description The release id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Only EACC analysts and supervisors */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description No release has the id */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Object storage could not be reached (`storage-unavailable`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     publishOpenDataRelease: {
         parameters: {
             query?: never;
@@ -3215,48 +3252,6 @@ export interface operations {
                 };
             };
             /** @description ICMS accepted the referral but the workflow following its case number could not be started; push it again shortly */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    getOpenDataReleaseEacc: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                releaseId: components["parameters"]["ReleaseId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The release, who built it, its source and its tables */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OpenDataReleaseDetail"];
-                };
-            };
-            /** @description The release id is not a UUID */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description Object storage could not be reached (`storage-unavailable`) */
             503: {
                 headers: {
                     [name: string]: unknown;

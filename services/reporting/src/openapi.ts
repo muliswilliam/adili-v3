@@ -28,6 +28,7 @@ import { officerSchema } from './officer.js';
 import { commissionOpenDataPreviewSchema } from './open-data/commission-preview.service.js';
 import { publicOpenDataReleaseSchema } from './open-data/public-representation.js';
 import {
+  openDataReleaseDetailSchema,
   openDataReleaseSchema,
   openDataTableFileSchema,
   openDataTableNameSchema,
@@ -78,6 +79,7 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   OpenDataTable: openDataTableNameSchema,
   OpenDataRelease: openDataReleaseSchema,
   OpenDataTableFile: openDataTableFileSchema,
+  OpenDataReleaseDetail: openDataReleaseDetailSchema,
   CommissionOpenDataPreview: commissionOpenDataPreviewSchema,
   PublicOpenDataRelease: publicOpenDataReleaseSchema,
 };

@@ -63,6 +63,7 @@ describe('the reporting contract', () => {
         'getNationalReport',
         'getNationalReportCandidates',
         'getOpenDataRelease',
+        'getOpenDataReleaseEacc',
         'getOpenDataTable',
         'getOpenDataTableCsv',
         'getSubmittedReport',

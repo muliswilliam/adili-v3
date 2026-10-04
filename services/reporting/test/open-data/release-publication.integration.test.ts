@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { openDataReleases, reportReceipts } from '../../src/db/schema.js';
+import { nationalReports, openDataReleases, reportReceipts } from '../../src/db/schema.js';
 import type { NationalAggregates } from '../../src/national-reports/aggregates.js';
 import { nationalReportApprovalWorkflowId } from '../../src/national-reports/contract.js';
 import {
@@ -14,7 +14,10 @@ import {
 import { openDataReleaseWorkflowId } from '../../src/open-data/contract.js';
 import { sha256 } from '../../src/open-data/files.js';
 import { annualReleaseIdOf } from '../../src/open-data/release-workflows.js';
-import type { OpenDataReleaseView } from '../../src/open-data/representation.js';
+import type {
+  OpenDataReleaseDetail,
+  OpenDataReleaseView,
+} from '../../src/open-data/representation.js';
 import type { OpenDataTable } from '../../src/open-data/tables.js';
 import { OPEN_DATA_TABLES } from '../../src/open-data/tables.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -33,6 +36,8 @@ import { givenReleaseYear } from '../support/release-year.js';
  *   with `open-data.release.built.v1` and `published.v1` carrying ids only.
  * - S6: an analyst's snapshot preview is published by an EACC supervisor only: an analyst and a
  *   Commission get 403. A documents outage publishes nothing.
+ * - S6 (preview): an EACC analyst or supervisor reads a release of any status before it is
+ *   published, with who built it, its source and its six tables as stored; anyone else 403.
  * - S7: a supervisor withdraws a published release with a reason: its manifest revoked through
  *   documents first (a documents outage withdraws nothing), then status, who, when and the
  *   reason, `withdrawn.v1`, the files still there; the next build is version 2. A withdrawn
@@ -685,6 +690,91 @@ describe('Open-data release publication (S5, S6, S7)', () => {
     expect(value('clarificationsIssued')).toBe(ncr.aggregates.national.clarifications);
     expect(value('commissionsReported')).toBe(ncr.aggregates.reporting.reported);
     expect(manifests()).toHaveLength(1);
+  });
+  const detail = (caller: Caller, releaseId: string) => api.get(`${RELEASES}/${releaseId}`, caller);
+
+  /** The release's six tables as `getOpenDataReleaseEacc` reads them: the stored files. */
+  const storedTables = (releaseId: string) =>
+    Object.fromEntries(OPEN_DATA_TABLES.map((table) => [table, storedTable(releaseId, table)]));
+
+  it('S6: an eacc-analyst and an eacc-supervisor check a snapshot preview of the draft NCR: its tables as stored, who built it, its source', async () => {
+    await givenReleaseYear(api);
+    await ncrBuilt();
+    const preview = await snapshotBuilt();
+
+    for (const caller of [ANALYST, SUPERVISOR]) {
+      const response = await detail(caller, preview.id);
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json<OpenDataReleaseDetail>();
+      expect(contractErrors(okResponse(`${RELEASES}/{releaseId}`, 'get'), body)).toEqual([]);
+      expect(body).toEqual({
+        release: preview,
+        builtBy: { subject: ANALYST.sub, name: 'Amina Hassan' },
+        // A draft NCR has no reference.
+        source: { kind: 'national-report', nationalReportReference: null },
+        tables: storedTables(preview.id),
+      });
+      expect(body.release.status).toBe('preview');
+    }
+  });
+
+  it('S6: a snapshot preview of a year with no NCR names the live projections as its source', async () => {
+    await givenReleaseYear(api);
+    const preview = await snapshotBuilt();
+
+    const response = await detail(SUPERVISOR, preview.id);
+    expect(response.statusCode, response.body).toBe(200);
+    const body = response.json<OpenDataReleaseDetail>();
+    expect(contractErrors(okResponse(`${RELEASES}/{releaseId}`, 'get'), body)).toEqual([]);
+    expect(body.source).toEqual({ kind: 'live-projections', nationalReportReference: null });
+    expect(body.tables).toEqual(storedTables(preview.id));
+  });
+
+  it("S6: the annual release published on approval reads as published, built by the workflow, from the approved NCR's reference", async () => {
+    await givenReleaseYear(api);
+    const release = await annualPublished();
+    const [ncr] = await api.asPlatform((tx) => tx.select().from(nationalReports));
+
+    for (const caller of [ANALYST, SUPERVISOR]) {
+      const response = await detail(caller, release.id);
+      expect(response.statusCode, response.body).toBe(200);
+      const body = response.json<OpenDataReleaseDetail>();
+      expect(contractErrors(okResponse(`${RELEASES}/{releaseId}`, 'get'), body)).toEqual([]);
+      expect(body).toEqual({
+        release,
+        builtBy: null,
+        source: { kind: 'national-report', nationalReportReference: ncr?.reference },
+        tables: storedTables(release.id),
+      });
+      expect(ncr?.reference).toMatch(/^NCR-EACC-/);
+    }
+  });
+
+  it('S6: a commission-admin and an EACC role of another tenant get 403 reading a release; 404 for none, 400 for an id that is not a UUID', async () => {
+    await givenReleaseYear(api);
+    const preview = await snapshotBuilt();
+
+    for (const caller of [COMMISSION_ADMIN, SUPERVISOR_OF_PSC]) {
+      const response = await detail(caller, preview.id);
+      expect(response.statusCode, response.body).toBe(403);
+    }
+    const unknown = await detail(ANALYST, randomUUID());
+    expect(unknown.statusCode, unknown.body).toBe(404);
+    const malformed = await detail(ANALYST, 'not-a-uuid');
+    expect(malformed.statusCode, malformed.body).toBe(400);
+  });
+
+  it('S6: 503 storage-unavailable while the release files cannot be read', async () => {
+    await givenReleaseYear(api);
+    const preview = await snapshotBuilt();
+
+    api.files.failReads(1);
+    const response = await detail(ANALYST, preview.id);
+    expect(response.statusCode, response.body).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'storage-unavailable' });
+
+    const retried = await detail(ANALYST, preview.id);
+    expect(retried.statusCode, retried.body).toBe(200);
   });
 });
 
