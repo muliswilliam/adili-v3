@@ -48,6 +48,8 @@ export type ChartProps = Omit<ComponentProps<'figure'>, 'title' | 'children'> & 
   missingLabel?: ReactNode;
   /** Show the data table on screen too. It is always available to assistive tech. */
   showTable?: boolean;
+  /** Show the data table on screen instead of the drawing, e.g. a "Table" toggle. */
+  tableOnly?: boolean;
 };
 
 // Static class names so Tailwind can see them. Series cycle through these in order. Status
@@ -111,6 +113,7 @@ export function Chart({
   suppressedLabel = 'Not shown',
   missingLabel = 'No data',
   showTable = false,
+  tableOnly = false,
   className,
   ...props
 }: ChartProps) {
@@ -127,27 +130,29 @@ export function Chart({
       <figcaption aria-hidden="true" className="text-sm font-medium text-foreground">
         {title}
       </figcaption>
-      <div data-chart-plot="" aria-hidden="true" className="flex flex-col gap-3">
-        {series.length > 1 && (
-          <ul
-            data-chart-legend=""
-            className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-secondary-foreground"
-          >
-            {series.map((s, seriesIndex) => (
-              <li key={s.key} className="flex items-center gap-1.5">
-                <span className={cn('size-2.5 rounded-sm', colorOf(seriesIndex).fill)} />
-                {s.label}
-              </li>
-            ))}
-          </ul>
-        )}
-        {kind === 'bar' ? (
-          <BarPlot {...plot} valueText={valueText} />
-        ) : (
-          <LinePlot {...plot} ticks={ticks} formatValue={formatValue} />
-        )}
-      </div>
-      <div data-chart-table="" className={cn(!showTable && 'sr-only')}>
+      {tableOnly ? null : (
+        <div data-chart-plot="" aria-hidden="true" className="flex flex-col gap-3">
+          {series.length > 1 && (
+            <ul
+              data-chart-legend=""
+              className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-secondary-foreground"
+            >
+              {series.map((s, seriesIndex) => (
+                <li key={s.key} className="flex items-center gap-1.5">
+                  <span className={cn('size-2.5 rounded-sm', colorOf(seriesIndex).fill)} />
+                  {s.label}
+                </li>
+              ))}
+            </ul>
+          )}
+          {kind === 'bar' ? (
+            <BarPlot {...plot} valueText={valueText} />
+          ) : (
+            <LinePlot {...plot} ticks={ticks} formatValue={formatValue} />
+          )}
+        </div>
+      )}
+      <div data-chart-table="" className={cn(!showTable && !tableOnly && 'sr-only')}>
         <Table caption={title}>
           <TableHeader>
             <TableRow>

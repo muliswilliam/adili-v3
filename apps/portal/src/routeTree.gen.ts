@@ -36,6 +36,8 @@ import { Route as HelpIndexRouteImport } from './routes/help/index'
 import { Route as HelpPassageIdRouteImport } from './routes/help/$passageId'
 import { Route as NoticesIndexRouteImport } from './routes/notices/index'
 import { Route as NoticesActionIdRouteImport } from './routes/notices/$actionId'
+import { Route as OpenDataIndexRouteImport } from './routes/open-data/index'
+import { Route as OpenDataAboutRouteImport } from './routes/open-data/about'
 import { Route as AccessGetStartedIndexRouteImport } from './routes/access/get-started/index'
 import { Route as AccessGetStartedCheckEmailRouteImport } from './routes/access/get-started/check-email'
 import { Route as AccessGetStartedCreateRouteImport } from './routes/access/get-started/create'
@@ -60,6 +62,7 @@ import { Route as AccessRequestsIdSubmittedRouteImport } from './routes/access/r
 import { Route as ApiDocumentsDocumentIdDownloadRouteImport } from './routes/api/documents.$documentId.download'
 import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
 import { Route as ApiAssistantConversationsConversationIdMessagesRouteImport } from './routes/api/assistant.conversations.$conversationId.messages'
+import { Route as ApiOpenDataFyKindVersionFileRouteImport } from './routes/api/open-data/$fy.$kind.$version.$file'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -196,6 +199,16 @@ const NoticesActionIdRoute = NoticesActionIdRouteImport.update({
   path: '/notices/$actionId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OpenDataIndexRoute = OpenDataIndexRouteImport.update({
+  id: '/open-data/',
+  path: '/open-data/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpenDataAboutRoute = OpenDataAboutRouteImport.update({
+  id: '/open-data/about',
+  path: '/open-data/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccessGetStartedIndexRoute = AccessGetStartedIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -323,6 +336,12 @@ const ApiAssistantConversationsConversationIdMessagesRoute =
     path: '/api/assistant/conversations/$conversationId/messages',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiOpenDataFyKindVersionFileRoute =
+  ApiOpenDataFyKindVersionFileRouteImport.update({
+    id: '/api/open-data/$fy/$kind/$version/$file',
+    path: '/api/open-data/$fy/$kind/$version/$file',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -346,12 +365,14 @@ export interface FileRoutesByFullPath {
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/help/$passageId': typeof HelpPassageIdRoute
   '/notices/$actionId': typeof NoticesActionIdRoute
+  '/open-data/about': typeof OpenDataAboutRoute
   '/access/': typeof AccessIndexRoute
   '/clarifications/': typeof ClarificationsIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
   '/help/': typeof HelpIndexRoute
   '/notices/': typeof NoticesIndexRoute
+  '/open-data/': typeof OpenDataIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -376,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
   '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
+  '/api/open-data/$fy/$kind/$version/$file': typeof ApiOpenDataFyKindVersionFileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -396,12 +418,14 @@ export interface FileRoutesByTo {
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/help/$passageId': typeof HelpPassageIdRoute
   '/notices/$actionId': typeof NoticesActionIdRoute
+  '/open-data/about': typeof OpenDataAboutRoute
   '/access': typeof AccessIndexRoute
   '/clarifications': typeof ClarificationsIndexRoute
   '/declarations': typeof DeclarationsIndexRoute
   '/get-started': typeof GetStartedIndexRoute
   '/help': typeof HelpIndexRoute
   '/notices': typeof NoticesIndexRoute
+  '/open-data': typeof OpenDataIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -426,6 +450,7 @@ export interface FileRoutesByTo {
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
   '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
+  '/api/open-data/$fy/$kind/$version/$file': typeof ApiOpenDataFyKindVersionFileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -450,12 +475,14 @@ export interface FileRoutesById {
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
   '/help/$passageId': typeof HelpPassageIdRoute
   '/notices/$actionId': typeof NoticesActionIdRoute
+  '/open-data/about': typeof OpenDataAboutRoute
   '/access/': typeof AccessIndexRoute
   '/clarifications/': typeof ClarificationsIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
   '/help/': typeof HelpIndexRoute
   '/notices/': typeof NoticesIndexRoute
+  '/open-data/': typeof OpenDataIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -480,6 +507,7 @@ export interface FileRoutesById {
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
   '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
+  '/api/open-data/$fy/$kind/$version/$file': typeof ApiOpenDataFyKindVersionFileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -505,12 +533,14 @@ export interface FileRouteTypes {
     | '/get-started/verify-phone'
     | '/help/$passageId'
     | '/notices/$actionId'
+    | '/open-data/about'
     | '/access/'
     | '/clarifications/'
     | '/declarations/'
     | '/get-started/'
     | '/help/'
     | '/notices/'
+    | '/open-data/'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -535,6 +565,7 @@ export interface FileRouteTypes {
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
     | '/api/assistant/conversations/$conversationId/messages'
+    | '/api/open-data/$fy/$kind/$version/$file'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -555,12 +586,14 @@ export interface FileRouteTypes {
     | '/get-started/verify-phone'
     | '/help/$passageId'
     | '/notices/$actionId'
+    | '/open-data/about'
     | '/access'
     | '/clarifications'
     | '/declarations'
     | '/get-started'
     | '/help'
     | '/notices'
+    | '/open-data'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -585,6 +618,7 @@ export interface FileRouteTypes {
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
     | '/api/assistant/conversations/$conversationId/messages'
+    | '/api/open-data/$fy/$kind/$version/$file'
   id:
     | '__root__'
     | '/'
@@ -608,12 +642,14 @@ export interface FileRouteTypes {
     | '/get-started/verify-phone'
     | '/help/$passageId'
     | '/notices/$actionId'
+    | '/open-data/about'
     | '/access/'
     | '/clarifications/'
     | '/declarations/'
     | '/get-started/'
     | '/help/'
     | '/notices/'
+    | '/open-data/'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -638,6 +674,7 @@ export interface FileRouteTypes {
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
     | '/api/assistant/conversations/$conversationId/messages'
+    | '/api/open-data/$fy/$kind/$version/$file'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -655,11 +692,13 @@ export interface RootRouteChildren {
   ClarificationsIdRoute: typeof ClarificationsIdRoute
   HelpPassageIdRoute: typeof HelpPassageIdRoute
   NoticesActionIdRoute: typeof NoticesActionIdRoute
+  OpenDataAboutRoute: typeof OpenDataAboutRoute
   AccessIndexRoute: typeof AccessIndexRoute
   ClarificationsIndexRoute: typeof ClarificationsIndexRoute
   DeclarationsIndexRoute: typeof DeclarationsIndexRoute
   HelpIndexRoute: typeof HelpIndexRoute
   NoticesIndexRoute: typeof NoticesIndexRoute
+  OpenDataIndexRoute: typeof OpenDataIndexRoute
   AccessNoticesIdRoute: typeof AccessNoticesIdRoute
   AccessRequestsIdRoute: typeof AccessRequestsIdRoute
   AccessRequestsNewRoute: typeof AccessRequestsNewRoute
@@ -673,6 +712,7 @@ export interface RootRouteChildren {
   AccessRequestsIdSubmittedRoute: typeof AccessRequestsIdSubmittedRoute
   ApiDocumentsDocumentIdDownloadRoute: typeof ApiDocumentsDocumentIdDownloadRoute
   ApiAssistantConversationsConversationIdMessagesRoute: typeof ApiAssistantConversationsConversationIdMessagesRoute
+  ApiOpenDataFyKindVersionFileRoute: typeof ApiOpenDataFyKindVersionFileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -866,6 +906,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NoticesActionIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/open-data/': {
+      id: '/open-data/'
+      path: '/open-data'
+      fullPath: '/open-data/'
+      preLoaderRoute: typeof OpenDataIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/open-data/about': {
+      id: '/open-data/about'
+      path: '/open-data/about'
+      fullPath: '/open-data/about'
+      preLoaderRoute: typeof OpenDataAboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/access/get-started/': {
       id: '/access/get-started/'
       path: '/'
@@ -1034,6 +1088,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAssistantConversationsConversationIdMessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/open-data/$fy/$kind/$version/$file': {
+      id: '/api/open-data/$fy/$kind/$version/$file'
+      path: '/api/open-data/$fy/$kind/$version/$file'
+      fullPath: '/api/open-data/$fy/$kind/$version/$file'
+      preLoaderRoute: typeof ApiOpenDataFyKindVersionFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1121,11 +1182,13 @@ const rootRouteChildren: RootRouteChildren = {
   ClarificationsIdRoute: ClarificationsIdRoute,
   HelpPassageIdRoute: HelpPassageIdRoute,
   NoticesActionIdRoute: NoticesActionIdRoute,
+  OpenDataAboutRoute: OpenDataAboutRoute,
   AccessIndexRoute: AccessIndexRoute,
   ClarificationsIndexRoute: ClarificationsIndexRoute,
   DeclarationsIndexRoute: DeclarationsIndexRoute,
   HelpIndexRoute: HelpIndexRoute,
   NoticesIndexRoute: NoticesIndexRoute,
+  OpenDataIndexRoute: OpenDataIndexRoute,
   AccessNoticesIdRoute: AccessNoticesIdRoute,
   AccessRequestsIdRoute: AccessRequestsIdRoute,
   AccessRequestsNewRoute: AccessRequestsNewRoute,
@@ -1140,6 +1203,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocumentsDocumentIdDownloadRoute: ApiDocumentsDocumentIdDownloadRoute,
   ApiAssistantConversationsConversationIdMessagesRoute:
     ApiAssistantConversationsConversationIdMessagesRoute,
+  ApiOpenDataFyKindVersionFileRoute: ApiOpenDataFyKindVersionFileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
