@@ -41,7 +41,7 @@
  *
  * Commands (submit, withdraw) take about as long as the service would, so the busy states show;
  * tests turn that off (`setAccessMockLatency(0)`). Tests can also reseed at a given time
- * (`resetAccessMock`) and make the next call fail as if the service were down
+ * (`resetAccessMocks`) and make the next call fail as if the service were down
  * (`failNextAccessCall`).
  */
 import { validateFormK, type FormKV1 } from '@adili/forms';
@@ -730,13 +730,13 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
  */
 export function resetAccessMocks(now = Date.now()) {
   setMockClock(now);
-  seedRequests(now);
+  reseedRequestStore(now);
   seedNoticesMock(now);
   seedHistoryMock(now);
 }
 
 /** Clears the requests and seeds them again as of `now`, leaving the clock alone. */
-function seedRequests(now: number) {
+function reseedRequestStore(now: number) {
   requests.clear();
   sequences.clear();
   answered.clear();
@@ -940,7 +940,7 @@ function hasRole(request: Request, role: string): boolean {
 }
 
 export async function mockAccessFetch(request: Request): Promise<Response> {
-  if (!seeded) seedRequests(mockNow());
+  if (!seeded) reseedRequestStore(mockNow());
   const url = new URL(request.url);
   const path = url.pathname;
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(path);
