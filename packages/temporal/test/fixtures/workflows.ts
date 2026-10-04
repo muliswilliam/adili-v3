@@ -37,3 +37,18 @@ export async function awaitNudge(): Promise<string> {
   await condition(() => received.text !== null);
   return received.text ?? '';
 }
+
+/**
+ * Counts `nudge` signals, waiting for each with an hourly recheck (a timer each signal cancels),
+ * and returns once `count` have come.
+ */
+export async function countNudges(count: number): Promise<number> {
+  let received = 0;
+  setHandler(nudge, () => {
+    received += 1;
+  });
+  for (let seen = 0; seen < count;) {
+    if (await condition(() => received > seen, '1 hour')) seen = received;
+  }
+  return received;
+}
