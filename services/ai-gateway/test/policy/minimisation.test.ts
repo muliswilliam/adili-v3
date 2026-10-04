@@ -567,13 +567,13 @@ describe('minimise a text layer: review probes', () => {
 });
 
 /**
- * Milliseconds of CPU `run` takes: the fastest of three runs. CPU time, not the wall clock, so
+ * Milliseconds of CPU `run` takes: the fastest of five runs. CPU time, not the wall clock, so
  * other processes on a busy machine (a CI runner) do not count; the fastest, as a run is only
  * ever slowed (by garbage collection), never sped.
  */
 function fastest(run: () => void): number {
   let best = Infinity;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const started = process.cpuUsage();
     run();
     const { user, system } = process.cpuUsage(started);
@@ -585,29 +585,38 @@ function fastest(run: () => void): number {
 /** Below this many milliseconds, a run's time is noise, not a cost to compare. */
 const NOISE_MS = 20;
 
+/** How much larger the second input is than the first. */
+const GROWTH = 4;
+/**
+ * The most the time may grow for an input `GROWTH` times larger: linear time grows about four
+ * times, quadratic sixteen, so eight leaves room either side. A bound of three over a doubled
+ * input left too little: a linear row measured 3.24 times on a busy CI runner.
+ */
+const MAX_GROWTH = 8;
+
 /**
  * Asserts that reading grows linearly with its input, on a machine of any speed: `read` over the
- * input `build` makes at `scale` twice is timed against it at `scale`, after a warm-up. Linear
- * time about doubles; quadratic time quadruples, so the bound is three times (with a floor for
- * runs too fast to time). The input is built before the clock starts.
+ * input `build` makes at `GROWTH` times `scale` is timed against it at `scale`, after a warm-up,
+ * and may take at most `MAX_GROWTH` times as long (with a floor for runs too fast to time). The
+ * input is built before the clock starts.
  */
 function expectLinear<T>(build: (scale: number) => T, read: (input: T) => void, scale: number) {
   read(build(Math.max(1, Math.floor(scale / 10))));
-  const once = build(scale);
-  const twice = build(scale * 2);
-  const onceMs = fastest(() => {
-    read(once);
+  const small = build(scale);
+  const large = build(scale * GROWTH);
+  const smallMs = fastest(() => {
+    read(small);
   });
-  const twiceMs = fastest(() => {
-    read(twice);
+  const largeMs = fastest(() => {
+    read(large);
   });
   expect(
-    twiceMs,
-    `${twiceMs.toFixed(1)} ms at twice the input, ${onceMs.toFixed(1)} ms once`,
-  ).toBeLessThan(3 * Math.max(onceMs, NOISE_MS));
+    largeMs,
+    `${largeMs.toFixed(1)} ms at ${GROWTH} times the input, ${smallMs.toFixed(1)} ms at the input`,
+  ).toBeLessThan(MAX_GROWTH * Math.max(smallMs, NOISE_MS));
 }
 
-/** Time enough for the slowest rows, read six times on a slow runner. */
+/** Time enough for the slowest rows, read ten times on a slow runner. */
 const LINEAR_TIMEOUT_MS = 60_000;
 
 /**
@@ -615,7 +624,7 @@ const LINEAR_TIMEOUT_MS = 60_000;
  * time over it (#314 review F29, F36, F37 and later): long runs after each kind of introducer,
  * repeated introducers, and stray line terminators in an address line. Each row builds its input
  * at a scale (about half the 10,000 to 100,000 characters it was first written at) and is read
- * at that scale and twice it.
+ * at that scale and four times it.
  */
 describe('minimise a text layer in linear time', () => {
   const spaces = (scale: number) => ' '.repeat(scale);
