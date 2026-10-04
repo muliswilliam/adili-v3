@@ -39,7 +39,7 @@ Other forces:
 | `DeclarationProcessingWorkflow` | Per submission | Acknowledgement → document extraction → integration checks → material-change and risk scoring → assign to reviewer |
 | `ClarificationWorkflow` (review) | Per request | 6-month issuing window, 30-day response timer, reminders; announces no response (`clarification.overdue.v1`) |
 | `EnforcementWorkflow` (review) | Per overdue obligation or unanswered clarification | Administrative action ladder: notice to comply, warning, salary stoppage (`stop_salary` / `resume_salary` to payroll through the integration-gateway), disciplinary referral; each step approved by a named officer (decision 8) |
-| `ReferralSweep` (review, daily per Commission) | Scheduled | Proposes referrals to EACC: two consecutive missed biennial cycles (Reg 20(2)), a clarification unanswered past the ladder |
+| `ReferralSweep` (review, daily per Commission) | Scheduled | Proposes referrals to EACC: two consecutive missed biennial cycles (Regs r.20(2)), a clarification unanswered past the ladder |
 | `AccessRequestWorkflow` | Per Form K | Notify declarant, representation window, decision, notify applicant, time-boxed access grant |
 | `ComplianceReportWorkflow` | Per Commission per period | Build Form M from data, internal approval, submit to EACC by 31 July |
 | `NationalConsolidationWorkflow` | Per period (EACC) | Track Form M receipt from all Commissions, chase late filers, build national report, send non-compliant list to ICMS |
@@ -61,7 +61,7 @@ Other forces:
    - Each step is drafted by the system and waits for a named officer (reviewer or supervisor for notice and warning, supervisor only for salary stoppage and disciplinary referral; the separation-of-duties rule of ADR-004 applies). Review reads the windows from an optional `ladder` block of the Commission's policy in the directory and falls back to 14, 14 and 30 days; the directory's policy has no such block yet, so the fallback applies today.
    - A stopped salary is resumed when the declarant complies, or when the ladder ends without compliance (cancelled or withdrawn): review sends `resume_salary` (the stoppage's `ADM` reference plus `-R`). A declined disciplinary referral leaves the salary stopped until the ladder ends (the declarant complies, or the obligation is cancelled or the clarification withdrawn).
    - Declarations keeps only the obligation's reminders and status, and announces each status change (`due`, `overdue`, `filed`, `cancelled`). It sends no payroll instruction and proposes no referral.
-   - Two-cycle referrals (Reg 20(2)) are proposed by review's daily `ReferralSweep` (`referralSweep`, one child run per Commission and day, started by the scheduled parent `referralSweeps`, in `services/review/src/referrals/workflows.ts`), from declarations' internal person obligation history, and approved by a supervisor like any referral. The same sweep proposes `unanswered-clarification` referrals for clarifications whose ladder has run past the stoppage window without a response.
+   - Two-cycle referrals (Regs r.20(2)) are proposed by review's daily `ReferralSweep` (`referralSweep`, one child run per Commission and day, started by the scheduled parent `referralSweeps`, in `services/review/src/referrals/workflows.ts`), from declarations' internal person obligation history, and approved by a supervisor like any referral. The same sweep proposes `unanswered-clarification` referrals for clarifications whose ladder has run past the stoppage window without a response.
 
 ## Alternatives considered
 
