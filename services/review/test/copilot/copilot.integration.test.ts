@@ -12,6 +12,7 @@ import type { CopilotView } from '../../src/copilot/copilot.service.js';
 import { copilotJobWorkflowId } from '../../src/copilot/contract.js';
 import { CopilotWorkflows } from '../../src/copilot/copilot-workflows.js';
 import { outbox, reviewCases, reviewCopilots, reviewFlags } from '../../src/db/schema.js';
+import { processingWorkflowId } from '../../src/processing/contract.js';
 import { asset, declaration, income, revalued, statement } from '../fixtures/declarations.js';
 import { processedFromInbox, twoVersions } from '../support/cases.js';
 import { temporalOf } from '../support/closures.js';
@@ -164,6 +165,9 @@ describe('review copilot', () => {
   const createdCase = async (version: StoredVersion) => {
     const created = await processedFromInbox(api, version);
     const row = await untilStatus(created.id, 'pending');
+    // The run's last step pulls the request's jobs that ended already (settleCopilot): a test
+    // that changes the record before it ran would have it record them over the change.
+    await temporalOf(api).workflow.getHandle(processingWorkflowId(version.versionId)).result();
     return { caseId: created.id, row };
   };
 

@@ -533,7 +533,11 @@ describe('Form M review, confirm and submit (S3, S5, S6, S7)', () => {
 
       const unreviewed = await confirm(admin);
       expect(unreviewed.statusCode).toBe(400);
-      expect(unreviewed.json()).toMatchObject({ code: 'not-reviewed' });
+      expect(unreviewed.json()).toMatchObject({
+        type: 'not-reviewed',
+        title: 'Report not reviewed',
+        code: 'not-reviewed',
+      });
 
       // Reviewed, but Part I has no email yet.
       await api.send('POST', `${path()}/reviewed`, SUPERVISOR, { designation: 'Director' });

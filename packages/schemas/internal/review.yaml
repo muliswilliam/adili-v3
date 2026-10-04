@@ -6547,6 +6547,18 @@ components:
             - download-window-closed
             - scope-exceeds-request
             - grounds-required
+            - separation-of-duties
+            - report-submitted
+            - report-compiling
+            - preview-not-available
+            - not-reviewed
+            - invalid-remarks
+            - invalid-document
+            - inconsistent-document
+            - tenant-mismatch
+            - ncr-approved
+            - no-submitted-reports
+            - icms-push-failed
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

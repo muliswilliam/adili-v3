@@ -23,6 +23,9 @@
  * - Spec 08's cases and their determinations (`ready` to `bulkClosure`, and a proposal on
  *   `peters`): see the notes on `MOCK_CASE_IDS` and `MOCK_DETERMINATION_IDS`.
  *
+ * The version comparison (spec 07a #167) of every case on the mock declaration comes from
+ * `compare-mock.server.ts`; the first declarations (`unassigned`, `contested`) answer 409.
+ *
  * As review.yaml has it: claim an unassigned case (409 `case-already-assigned` otherwise),
  * release your own (403 otherwise), reassign or unassign as a supervisor (the mock does not
  * check roles), add a note (1-2,000 characters), mark a flag reviewed once (note 1-1,000
@@ -65,6 +68,7 @@ import {
   resetActionsMock,
 } from './actions-mock.server';
 import type { paths } from './api.gen';
+import { mockComparison } from './compare-mock.server';
 import {
   copilotRoute,
   declarationOf,
@@ -1268,6 +1272,9 @@ async function route(request: Request): Promise<Response> {
     return once(request, () => issueDraft(id, caller));
   }
 
+  const compare = /^\/v1\/review\/cases\/([^/]+)\/compare$/.exec(pathname);
+  if (method === 'GET' && compare?.[1]) return compareCase(compare[1]);
+
   const oneCase = /^\/v1\/review\/cases\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && oneCase?.[1]) {
     const stored = cases.get(oneCase[1]);
@@ -1318,6 +1325,31 @@ async function route(request: Request): Promise<Response> {
   }
 
   return problem(404, 'Not found');
+}
+
+/**
+ * The comparison with the person's previous submitted version: 409 for a first declaration on
+ * Adili, 502 while declarations is down. A single-version case compares with the previous
+ * cycle's declaration (version 1 of its own declaration).
+ */
+function compareCase(caseId: string): Response {
+  const stored = cases.get(caseId);
+  if (!stored) return problem(404, 'Not found');
+  if (stored.declarationsDown) return problem(502, 'Declarations unavailable');
+  const { currentVersion } = stored.item;
+  const current = stored.versions.find((each) => each.version === currentVersion);
+  if (!stored.document || current?.firstOnAdili) {
+    return json(409, {
+      type: 'no-previous-version',
+      title: 'No previous version',
+      status: 409,
+      detail: "This is the declarant's first declaration on Adili; there is nothing to compare.",
+    });
+  }
+  return json(
+    200,
+    mockComparison(stored.document, Math.max(currentVersion - 1, 1), currentVersion),
+  );
 }
 
 function listItem(stored: StoredCase, caller: Assignee): CaseListItem {

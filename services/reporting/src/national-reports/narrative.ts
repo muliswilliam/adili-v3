@@ -1,3 +1,6 @@
+import { z } from 'zod';
+
+import type { Conforms } from '../conforms.js';
 import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
 
 /**
@@ -11,6 +14,14 @@ import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
 /** reporting.yaml `Narrative`: each section as text. */
 export type Narrative = Record<NarrativeSection, string>;
 
+/** `updateNationalReportNarrative`'s body: each section's text, paragraphs separated by a blank line. */
+export const narrativeSchema = z.strictObject({
+  overview: z.string().max(20_000),
+  findings: z.string().max(40_000),
+  recommendations: z.string().max(20_000),
+});
+true satisfies Conforms<Narrative, typeof narrativeSchema>;
+
 /** reporting.yaml `NarrativeParagraph`. */
 export interface Paragraph {
   id: string;
@@ -21,6 +32,20 @@ export interface Paragraph {
   aggregateRefs: string[];
   candidateIds: string[];
 }
+
+export const paragraphSchema = z.object({
+  id: z.uuid(),
+  section: z.enum(NARRATIVE_SECTIONS),
+  position: z.number().int().min(0),
+  text: z.string(),
+  aiDraft: z.boolean().meta({ description: 'True until the analyst edits the paragraph' }),
+  aggregateRefs: z.array(z.string()).meta({
+    description:
+      'Aggregate keys the paragraph cites, in the ai-gateway scheme (`national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year); empty for what an analyst types',
+  }),
+  candidateIds: z.array(z.string()),
+});
+true satisfies Conforms<Paragraph, typeof paragraphSchema>;
 
 /** The paragraphs of a section's text: split at blank lines, trimmed, empty ones dropped. */
 export function paragraphsOf(text: string): string[] {

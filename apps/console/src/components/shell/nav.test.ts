@@ -36,6 +36,7 @@ describe('navFor', () => {
   it('shows the Roster and API access under Commission to reporting officers', () => {
     expect(labels(['reporting-officer'])).toEqual([
       ['Commission', ['Roster', 'API access', 'Obligations']],
+      ['Reporting', ['Form M']],
     ]);
     expect(navFor(['reporting-officer'])[0]?.items.map((item) => item.to)).toEqual([
       '/roster',
@@ -45,9 +46,13 @@ describe('navFor', () => {
   });
 
   it('shows commission admins the Roster but not API access, which they cannot open', () => {
-    expect(labels(['commission-admin'])).toEqual([['Commission', ['Roster', 'Obligations']]]);
+    expect(labels(['commission-admin'])).toEqual([
+      ['Commission', ['Roster', 'Obligations']],
+      ['Reporting', ['Form M']],
+    ]);
     expect(labels(['commission-admin', 'reporting-officer'])).toEqual([
       ['Commission', ['Roster', 'API access', 'Obligations']],
+      ['Reporting', ['Form M']],
     ]);
   });
 
@@ -64,6 +69,7 @@ describe('navFor', () => {
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
       ['Review', ['Review queue', 'Approvals', 'Actions']],
+      ['Reporting', ['Form M']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');
   });
@@ -79,6 +85,7 @@ describe('activeNavHref', () => {
     ['/obligations', '/obligations'],
     ['/obligations/policy', '/obligations'],
     ['/obligations/national', '/obligations/national'],
+    ['/form-m', '/form-m'],
     ['/commissions/psc', '/commissions'],
     ['/platform/integrations', '/platform/integrations'],
     ['/access/requests/0190f3a2-0000-7000-8000-000000000001', '/access/requests'],
