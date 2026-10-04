@@ -140,12 +140,14 @@ export class ExtractionService {
 
   /**
    * Asks for the attachment to be read, or answers the reading of it already asked for with the
-   * same kind into the same item type while pending or offered and not decided on (idempotent per
-   * attachment, kind and item type; a reading pending past `READING_TIMEOUT_MS` counts as failed
-   * first). Concurrent first requests reserve one pending set; only the one that reserved it
-   * downloads and asks the gateway. 400 for a malformed body or an item with no type yet, 404
-   * when the draft or attachment is not the caller's, 409 when it is past the draft or the file
-   * is not clean, 503 when documents or the gateway cannot take it now (no reading recorded).
+   * same kind into the same section and item type while pending or offered and not decided on
+   * (idempotent per attachment, kind, section and item type; a reading pending past
+   * `READING_TIMEOUT_MS` counts as failed first). Concurrent first requests reserve one pending
+   * set; only the one that reserved it downloads and asks the gateway, and should that fail its
+   * set is failed (`unavailable`), so a request that was answered with it sees it end and can
+   * retry. 400 for a malformed body or an item with no type yet, 404 when the draft or
+   * attachment is not the caller's, 409 when it is past the draft or the file is not clean, 503
+   * when documents or the gateway cannot take it now (the reservation failed, no job recorded).
    */
   async request(
     principal: Principal,
@@ -178,7 +180,7 @@ export class ExtractionService {
     try {
       await this.read(person, reading, request, setId);
     } catch (error) {
-      await this.release(person, setId);
+      await this.giveUp(person, setId);
       throw error;
     }
     return this.view(person, declaration, setId);
@@ -379,7 +381,7 @@ export class ExtractionService {
 
   /**
    * Reserves the reading: a `pending` set without a job, or, when a concurrent request reserved
-   * the same attachment, kind and item type first (`suggestion_sets_pending_reading_key`), that
+   * the same attachment, kind, section and item type first (`suggestion_sets_pending_reading_key`), that
    * one's id.
    */
   private async reserve(
@@ -475,12 +477,23 @@ export class ExtractionService {
     }
   }
 
-  /** Takes back a reservation whose reading could not be asked for. */
-  private async release(person: PersonContext, setId: string): Promise<void> {
+  /**
+   * Fails a reservation whose reading could not be asked for (`unavailable`), rather than
+   * deleting it: a concurrent request answered with this set then sees it end, and either may
+   * ask again (the pending key no longer holds it).
+   */
+  private async giveUp(person: PersonContext, setId: string): Promise<void> {
     await withPerson(this.db, person, (tx) =>
       tx
-        .delete(suggestionSets)
-        .where(and(eq(suggestionSets.id, setId), isNull(suggestionSets.aiJobId))),
+        .update(suggestionSets)
+        .set({ status: 'failed', reason: 'unavailable' })
+        .where(
+          and(
+            eq(suggestionSets.id, setId),
+            eq(suggestionSets.status, 'pending'),
+            isNull(suggestionSets.aiJobId),
+          ),
+        ),
     );
   }
 

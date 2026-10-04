@@ -45,7 +45,7 @@ export class ExtractionController {
   })
   @ApiProblemResponse(
     400,
-    'Validation failed (an unknown document kind or language, or the attached item has no type yet), or the Idempotency-Key header missing',
+    'Validation failed (no body, a missing or unknown document kind, an unknown language, or the attached item has no type yet), or the Idempotency-Key header missing',
   )
   @ApiProblemResponse(404, NOT_VISIBLE)
   @ApiProblemResponse(
@@ -54,7 +54,7 @@ export class ExtractionController {
   )
   @ApiProblemResponse(
     503,
-    'Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now, or a concurrent request for the same reading gave it up (`reading-conflict`); no reading was recorded, try again',
+    'Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `unavailable`, and no job), or a concurrent request for the same reading gave it up (`reading-conflict`); try again',
   )
   extract(
     @CurrentPrincipal() principal: Principal,
