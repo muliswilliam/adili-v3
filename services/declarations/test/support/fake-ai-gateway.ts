@@ -109,6 +109,7 @@ export class FakeAiGateway extends AiGatewayClient {
   });
   private feedbackDown = false;
   private heldFeedback: Promise<void> | null = null;
+  private feedbackHook: (() => Promise<void>) | null = null;
 
   /** Answers every following request with `script`. */
   answer(script: (input: AnswerInput) => ScriptedAnswer): void {
@@ -142,6 +143,14 @@ export class FakeAiGateway extends AiGatewayClient {
     return release;
   }
 
+  /**
+   * Runs `hook` each time a rating is recorded, before the gateway answers: what happens
+   * elsewhere while a rating is on its way.
+   */
+  onFeedback(hook: () => Promise<void>): void {
+    this.feedbackHook = hook;
+  }
+
   /** Forgets every job it ran, as a gateway that no longer knows them. */
   forgetJobs(): void {
     this.jobs.clear();
@@ -154,6 +163,7 @@ export class FakeAiGateway extends AiGatewayClient {
     this.jobs.clear();
     this.feedbackDown = false;
     this.heldFeedback = null;
+    this.feedbackHook = null;
     this.answer((input) => ({ kind: 'answer', output: citingFirstPassage(input) }));
     this.hints((input) => ({ kind: 'succeeded', output: writingHints(input) }));
   }
@@ -181,6 +191,7 @@ export class FakeAiGateway extends AiGatewayClient {
     const held = this.heldFeedback;
     this.heldFeedback = null;
     if (held) await held;
+    if (this.feedbackHook) await this.feedbackHook();
     return true;
   }
 
