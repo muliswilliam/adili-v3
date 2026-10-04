@@ -1,23 +1,28 @@
 import { ApprovalCard, Badge, Button, Icon, useIdempotencyKey } from '@adili/ui';
 import {
-  AlertCircleIcon,
-  BanIcon,
+  Attachment01Icon,
   Cancel01Icon,
   Legal01Icon,
   LinkSquare02Icon,
-  Notification01Icon,
   Tick02Icon,
-  UserWarning01Icon,
 } from '@hugeicons/core-free-icons';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { isGraveStep, subjectOf } from '../../actions/ladder';
 import { decisionRefusal, REFUSAL_PROBLEM } from '../../actions/refusal';
-import type { ActionStep, AdministrativeAction } from '../../server/actions.server';
-import { approveLadderStep, declineLadderStep } from '../../server/actions';
+import type { AdministrativeAction } from '../../server/actions.server';
+import { approveLadderStep, declineLadderStep, getLadder } from '../../server/actions';
 import type { ServiceResult } from '../../server/service-call';
 import { en as a, stepLabel } from '../actions/messages';
+import {
+  type EarlierSteps,
+  PriorSteps,
+  type PriorStepView,
+  STEP_ICONS,
+  stepsBefore,
+} from '../actions/prior-steps';
+import { stoppageCopy as s } from '../actions/stoppage-messages';
 import { ApproveStepDialog, consequencesOf, DeclineStepDialog } from '../actions/step-dialogs';
 import type { FailureText } from '../dialog-parts';
 import { messages as t } from './action-messages';
@@ -27,36 +32,69 @@ import { messages as m } from './messages';
 
 export type ActionApprovalItem = ItemOf<'action'>;
 
-const STEP_ICONS: Record<ActionStep, typeof Notification01Icon> = {
-  'notice-to-comply': Notification01Icon,
-  warning: AlertCircleIcon,
-  'salary-stoppage': BanIcon,
-  'disciplinary-referral': UserWarning01Icon,
-};
+/** The steps issued before this one, from the item's summary (S9): excerpts, file counts. */
+function summaryPriorSteps(item: ActionApprovalItem): PriorStepView[] {
+  return item.summary.priorSteps.map((prior) => ({
+    id: prior.actionId,
+    step: prior.step,
+    reference: prior.reference,
+    line: prior.issuedAt ? s.before.issued(prior.issuedAt) : null,
+    response:
+      prior.respondedAt && prior.responseExcerpt !== null
+        ? {
+            at: prior.respondedAt,
+            text: prior.responseExcerpt,
+            files:
+              prior.responseAttachments > 0
+                ? [
+                    <Badge key="files">
+                      <Icon icon={Attachment01Icon} />
+                      {s.before.attachments(prior.responseAttachments)}
+                    </Badge>,
+                  ]
+                : [],
+          }
+        : null,
+    action: null,
+  }));
+}
 
-/** The steps issued before this one, with the declarant's responses, read before deciding (S9). */
-function PriorSteps({ item }: { item: ActionApprovalItem }) {
-  const { priorSteps } = item.summary;
-  if (priorSteps.length === 0) return <p>{t.firstStep}</p>;
-  return (
-    <ul className="grid gap-2">
-      {priorSteps.map((prior) => (
-        <li key={prior.actionId} className="grid gap-0.5">
-          <span className="font-medium text-foreground">
-            {t.prior(prior.step, prior.reference, prior.issuedAt)}
-          </span>
-          {prior.respondedAt ? (
-            <span>
-              {t.responded(prior.respondedAt, prior.responseAttachments)}{' '}
-              <span className="whitespace-pre-line">{prior.responseExcerpt}</span>
-            </span>
-          ) : (
-            <span>{t.noResponse}</span>
-          )}
-        </li>
-      ))}
-    </ul>
-  );
+/**
+ * The steps before a grave step (salary stoppage, disciplinary referral), read from its ladder
+ * while its approve dialog is open, so the supervisor reads every response and the stoppage's
+ * payroll acknowledgement in full before deciding (#208, US 13); the card's summary has excerpts
+ * only. Undefined for a notice or warning, or while the dialog is closed.
+ */
+function useEarlierSteps(item: ActionApprovalItem, open: boolean): EarlierSteps | undefined {
+  const { ladderId, step } = item.summary;
+  const wanted = open && isGraveStep(step);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => {
+    setAttempt((count) => count + 1);
+  }, []);
+  // What the last read answered, for the read it was (`key`); any other read is still loading.
+  const key = `${ladderId}:${String(attempt)}`;
+  const [answered, setAnswered] = useState<{ key: string; earlier: EarlierSteps } | null>(null);
+  useEffect(() => {
+    if (!wanted) return;
+    let live = true;
+    void getLadder({ data: { ladderId } })
+      .catch(() => ({ ok: false }) as const)
+      .then((result) => {
+        if (!live) return;
+        setAnswered({
+          key,
+          earlier: result.ok
+            ? { state: 'ok', steps: stepsBefore(result.data, item.subjectId) }
+            : { state: 'failed', retry },
+        });
+      });
+    return () => {
+      live = false;
+    };
+  }, [wanted, key, ladderId, item.subjectId, retry]);
+  if (!wanted) return undefined;
+  return answered?.key === key ? answered.earlier : { state: 'loading' };
 }
 
 /**
@@ -81,6 +119,7 @@ export function ActionApproval({
   const approvalKey = useIdempotencyKey();
   const declineKey = useIdempotencyKey();
   const nowIso = new Date(now).toISOString();
+  const earlier = useEarlierSteps(item, dialog === 'approve');
 
   async function settle(
     result: ServiceResult<AdministrativeAction>,
@@ -147,8 +186,14 @@ export function ActionApproval({
         proposer={proposerName(item)}
         proposedAt={item.proposedAt}
         now={now}
-        summary={<PriorSteps item={item} />}
-        consequences={consequencesOf(summary.step, summary.declarantName, nowIso)}
+        summaryLabel={summary.priorSteps.length > 0 ? s.before.earlier : undefined}
+        summary={<PriorSteps steps={summaryPriorSteps(item)} label={s.before.earlier} clamp />}
+        consequences={consequencesOf(
+          summary.step,
+          summary.declarantName,
+          nowIso,
+          summary.personnelFileNumber,
+        )}
         canApprove={item.canApprove}
         cannotApproveReason={item.cannotApproveReason}
         decision={
@@ -160,7 +205,7 @@ export function ActionApproval({
               }}
             >
               <Icon icon={Tick02Icon} />
-              {t.approve}
+              {summary.step === 'salary-stoppage' ? t.approveStoppage : t.approve}
             </Button>
             <Button
               size="sm"
@@ -192,7 +237,9 @@ export function ActionApproval({
         step={summary.step}
         declarantName={summary.declarantName}
         subjectTitle={subject.title}
+        personnelFileNumber={summary.personnelFileNumber}
         now={nowIso}
+        {...(earlier ? { earlier } : {})}
         onSubmit={approve}
       />
       <DeclineStepDialog

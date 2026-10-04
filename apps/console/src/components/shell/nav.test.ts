@@ -6,18 +6,20 @@ const labels = (roles: string[]) =>
   navFor(roles).map((group) => [group.label, group.items.map((item) => item.label)]);
 
 describe('navFor', () => {
-  it('shows Commissions and National obligations under Platform to platform admins and EACC staff', () => {
+  it('shows EACC staff Commissions and National obligations under Platform, and Referrals received under EACC', () => {
     for (const role of ['eacc-analyst', 'eacc-supervisor']) {
       expect(labels([role])).toEqual([
         ['Platform', ['Commissions', 'National obligations']],
-        ['EACC', ['Compliance reports']],
+        ['EACC', ['Compliance reports', 'Referrals received']],
       ]);
+      expect(navFor([role])[1]?.items[1]?.to).toBe('/eacc/referrals');
     }
   });
 
   it('shows EACC staff the compliance reports intake under EACC (spec 09)', () => {
     expect(navFor(['eacc-analyst'])[1]?.items[0]?.to).toBe('/eacc/reports');
     expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/0199c100')).toBe('/eacc/reports');
+    expect(activeNavHref(navFor(['eacc-analyst']), '/eacc/reports/ncr')).toBe('/eacc/reports');
   });
 
   it('adds Law enforcement, Integrations and AI policy under Platform for platform admins only (specs 10, 07b, 07c)', () => {

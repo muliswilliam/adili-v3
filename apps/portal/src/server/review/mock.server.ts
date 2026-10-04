@@ -32,7 +32,12 @@ import { addDays } from '@adili/ui';
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { reviewClock } from './mock-clock.server';
-import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
+import {
+  type MockSalary,
+  noticeInStore,
+  noticesRoute,
+  resetNoticesMock,
+} from './notices-mock.server';
 import type { DeclarantClarification, DeclarantDecision } from './types';
 
 const RESPONSE_DAYS = 30;
@@ -188,10 +193,11 @@ export function resetReviewMock(
   {
     letterIssueMs = MOCK_LETTER_ISSUE_MS,
     noNotices = false,
-  }: { letterIssueMs?: number; noNotices?: boolean } = {},
+    salary = 'none',
+  }: { letterIssueMs?: number; noNotices?: boolean; salary?: MockSalary } = {},
 ) {
   reviewClock.startAt(now);
-  resetNoticesMock(now, { empty: noNotices });
+  resetNoticesMock(now, { empty: noNotices, salary });
   issueDelayMs = letterIssueMs;
   decisions.clear();
   failNextLetter = false;
@@ -345,12 +351,20 @@ export function mockNotice(actionId: string) {
   return noticeInStore(actionId);
 }
 
-function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock(reviewClock.now());
+/** Seeds the fixtures on first use; `salary` is the dev server's REVIEW_MOCK_SALARY. */
+function ensureSeeded(salary: MockSalary = 'none') {
+  if (clarifications.size === 0) resetReviewMock(reviewClock.now(), { salary });
 }
 
-export function mockReviewFetch(request: Request): Promise<Response> {
-  ensureSeeded();
+/**
+ * Answers a review client request. The client passes its environment's REVIEW_MOCK_SALARY
+ * (`client.server.ts`); tests seed with `resetReviewMock`.
+ */
+export function mockReviewFetch(
+  request: Request,
+  options: { salary?: MockSalary } = {},
+): Promise<Response> {
+  ensureSeeded(options.salary);
   return route(request);
 }
 

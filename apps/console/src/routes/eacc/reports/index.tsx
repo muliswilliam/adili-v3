@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { IntakeDashboard } from '../../../components/eacc-intake/intake-dashboard';
 import { messages as m } from '../../../components/eacc-intake/messages';
+import { ComplianceReportsTabs } from '../../../components/eacc-intake/reports-tabs';
 import { signInRedirect } from '../../../components/sign-in-redirect';
 import { type IntakePage, getEaccIntake } from '../../../server/eacc-intake';
 import { financialYear } from '../../../server/form-m';
@@ -65,6 +66,7 @@ function IntakePageView({ result }: { result: IntakePage | null }) {
       onSearchChange={(next) => {
         void navigate({ search: next, resetScroll: false });
       }}
+      tabs={<ComplianceReportsTabs current="intake" fy={result?.fy ?? search.fy} />}
       reportLink={(row, children) => (
         <Link to="/eacc/reports/$reportId" params={{ reportId: row.reportId ?? '' }}>
           {children}

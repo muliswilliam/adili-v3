@@ -106,3 +106,9 @@ export function unsignedMockToken({
   };
   return `${part({ alg: 'none' })}.${part(claims)}.`;
 }
+
+/** The document a documents `GET /v1/documents/{documentId}/download` request names, or null. */
+export function documentDownloadIdOf(request: Request): string | null {
+  if (request.method !== 'GET') return null;
+  return /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname)?.[1] ?? null;
+}

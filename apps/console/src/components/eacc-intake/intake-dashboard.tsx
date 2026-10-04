@@ -18,8 +18,6 @@ import {
   INTAKE_STATUSES,
   IntakeStatusBadge,
   RateBar,
-  Select,
-  SelectItem,
   Skeleton,
   StatTile,
   StatTileSkeleton,
@@ -50,12 +48,12 @@ import { dueDateOf } from '../form-m/financial-year';
 import { InfoTip } from '../info-tip';
 import { LoadError, NoAccess } from '../load-error';
 import { Page, PageHead } from '../page';
+import { YearSelect } from './year-select';
 import { clientPage } from '../paging';
 import { SearchBox } from '../search-box';
 import {
   awaitingReports,
   filterIntake,
-  financialYears,
   intakeCounts,
   type IntakeFilters,
   nextChaseOn,
@@ -79,6 +77,8 @@ export interface IntakeDashboardProps {
   onSearchChange: (next: IntakeSearch) => void;
   /** The row's report as a link to the report viewer, around `children`. */
   reportLink: (row: IntakeRow, children: ReactNode) => ReactNode;
+  /** The workspace's tabs under the title (intake, national report). */
+  tabs?: ReactNode;
 }
 
 /** `search` without empty values, so the URL carries only what is set. */
@@ -130,6 +130,7 @@ export function IntakeDashboard(props: IntakeDashboardProps) {
           )
         }
       />
+      {props.tabs}
       {result === null ? (
         <IntakeSkeleton />
       ) : !result.intake.ok ? (
@@ -167,40 +168,6 @@ export function IntakeDashboard(props: IntakeDashboardProps) {
         </div>
       ) : null}
     </Page>
-  );
-}
-
-function YearSelect({
-  today,
-  fy,
-  onChange,
-}: {
-  today: string;
-  fy: number;
-  onChange: (fy: number) => void;
-}) {
-  const id = useId();
-  return (
-    <div className="flex items-center gap-2.5">
-      <label id={`${id}-label`} htmlFor={id} className="text-[13.5px] text-muted-foreground">
-        {m.financialYear}
-      </label>
-      <Select
-        id={id}
-        aria-labelledby={`${id}-label`}
-        value={String(fy)}
-        onValueChange={(value) => {
-          onChange(Number(value));
-        }}
-        className="h-10 w-auto min-w-[260px] text-[14.5px]"
-      >
-        {financialYears(today).map((option) => (
-          <SelectItem key={option.fy} value={String(option.fy)}>
-            {m.fyOption(m.fyLabel(option.fy), formatDate(option.dueDate), option.current)}
-          </SelectItem>
-        ))}
-      </Select>
-    </div>
   );
 }
 

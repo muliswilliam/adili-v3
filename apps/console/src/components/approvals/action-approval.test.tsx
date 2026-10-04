@@ -65,6 +65,9 @@ vi.mock('../../server/actions', async () => {
       ({ data }: Data<{ actionId: string; note: string; idempotencyKey: string }>) =>
         server.declineStep(client(), data.actionId, data.note, data.idempotencyKey),
     ),
+    getLadder: vi.fn(({ data }: Data<{ ladderId: string }>) =>
+      server.loadLadder(client(), data.ladderId),
+    ),
   };
 });
 // The determinations and referrals tabs' calls are server functions too; this file tests actions.
@@ -135,12 +138,14 @@ beforeEach(() => {
 describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
   it('lists the drafted ladder steps with what the ladder is about', async () => {
     await open();
-    expect(screen.getByRole('link', { name: /Actions\s*9/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Actions\s*10/ })).toBeTruthy();
     const notice = card('Nancy Wairimu Muriuki');
     expect(within(notice).getByText('Notice to comply')).toBeTruthy();
     expect(within(notice).getByText('Initial declaration')).toBeTruthy();
     expect(within(notice).getByText('File 20260318')).toBeTruthy();
-    expect(within(notice).getByText('First step: nothing was issued before it.')).toBeTruthy();
+    expect(
+      within(notice).getByText('No earlier steps. This is the first step of the ladder.'),
+    ).toBeTruthy();
     expect(
       within(notice)
         .getByRole('link', { name: /Open ladder/ })
@@ -151,10 +156,11 @@ describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
   it('shows the steps before a warning, and why a reviewer of record cannot approve (S9)', async () => {
     await open();
     const warning = card('Lydia Moraa Nyakundi');
-    expect(
-      within(warning).getByText(/^Notice to comply ADM-TSC-2026-\d{7}-[0-9A-Z], issued/),
-    ).toBeTruthy();
-    expect(within(warning).getByText('No response from the declarant.')).toBeTruthy();
+    const earlier = within(warning).getByRole('list', { name: 'Earlier steps' });
+    expect(within(earlier).getByText('Notice to comply')).toBeTruthy();
+    expect(within(earlier).getByText(/^ADM-TSC-2026-\d{7}-[0-9A-Z]$/)).toBeTruthy();
+    expect(within(earlier).getByText(/^Issued /)).toBeTruthy();
+    expect(within(earlier).getByText('No response from the declarant')).toBeTruthy();
     expect(within(warning).queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(
       within(warning).getByRole('button', { name: 'Reassign to another supervisor' }),
@@ -216,10 +222,14 @@ describe('Approvals inbox, actions tab (spec 08 FE-3, S14)', () => {
     await open();
     // The viewer loses the supervisor role after the inbox loaded.
     viewer.roles = [REVIEWER];
-    fireEvent.click(within(card('Janet Achieng Odero')).getByRole('button', { name: 'Approve' }));
+    fireEvent.click(
+      within(card('Janet Achieng Odero')).getByRole('button', { name: 'Approve stoppage' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'Approve salary stoppage' });
-    expect(within(dialog).getByText("The declarant's salary is stopped")).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and issue' }));
+    expect(within(dialog).getByText('Payroll receives a stop_salary instruction')).toBeTruthy();
+    await within(dialog).findByRole('list', { name: 'What came before' });
+    fireEvent.click(within(dialog).getByRole('checkbox'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and stop salary' }));
     const notice = await screen.findByRole('dialog', { name: 'You cannot approve this' });
     expect(within(notice).getByText('Only a supervisor can approve this step.')).toBeTruthy();
     expect(within(notice).getByText('403 supervisor-required')).toBeTruthy();

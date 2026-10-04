@@ -36,6 +36,9 @@
  * The store and the day live in `mock-store.server.ts`, which the EACC intake mock
  * (`eacc-mock.server.ts`) reads: psc is not reported there until it is submitted here;
  * `submitMockReport` submits it on a day.
+ *
+ * EACC's referrals intake and its evidence package downloads answer from
+ * `referral-intake-mock.server.ts`.
  */
 import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';
 import { COMMISSION_ADMIN, FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
@@ -79,6 +82,7 @@ import {
   type StoredReport,
   storedYears,
 } from './mock-store.server';
+import { referralIntakeFetch } from './referral-intake-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
 export { type ReportingMockSeed, submitMockReport } from './mock-store.server';
@@ -141,18 +145,20 @@ export function mockReportingClient(
   roles: readonly string[],
   {
     name = 'Samuel Njoroge',
+    subject = 'mock-officer',
     tenant = 'psc',
     stepUpAt,
     fetch = mockReportingFetch,
   }: {
     name?: string;
+    subject?: string;
     tenant?: string;
     stepUpAt?: number;
     fetch?: (request: Request) => Promise<Response>;
   } = {},
 ) {
   const token = unsignedMockToken({
-    subject: 'mock-officer',
+    subject,
     name,
     roles,
     tenant,
@@ -175,7 +181,14 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
     return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);
   }
+  // EACC's national consolidated report (ncr-mock.server.ts).
+  if (new URL(input.url).pathname.startsWith('/v1/eacc/national-reports/')) {
+    return (await import('./ncr-mock.server')).mockNcrFetch(input);
+  }
   await delay(250);
+  // EACC's referrals intake is its own part of the mock.
+  const intake = referralIntakeFetch(input);
+  if (intake) return intake;
   const url = new URL(input.url);
   const match = /^\/v1\/commissions\/([^/]+)\/compliance-reports(?:\/(\d+)(?:\/([a-z]+))?)?$/.exec(
     url.pathname,

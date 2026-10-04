@@ -1,5 +1,7 @@
 import type { LadderStepStatus } from '@adili/ui';
 
+import { salaryStopped } from './payroll';
+
 import type {
   ActionStep,
   AdministrativeAction,
@@ -52,20 +54,33 @@ export interface LadderStepView {
   action: AdministrativeAction | null;
 }
 
+/** Approved but not issued yet: waiting for payroll (a stoppage) or for its letter. */
+export function approvedNotIssued(action: AdministrativeAction): boolean {
+  return action.status === 'approved' || action.status === 'approved-pending-payroll';
+}
+
 /** Where one action stands; `passed` when a later step has been reached. */
 export function stepStatusOf(
   action: AdministrativeAction,
   passed: boolean,
   ladderStatus: Ladder['status'],
 ): LadderStepStatus {
+  // A salary payroll stopped stays stopped until payroll acknowledges its resume, whatever the
+  // step's status (an issued stoppage stays issued when its ladder ends without compliance; one
+  // approved before its letter is cancelled). Passed by the disciplinary referral, it is done
+  // (its line still says the salary is stopped).
+  if (salaryStopped(action)) return passed ? 'done' : 'stopped';
   switch (action.status) {
     case 'proposed':
+      return ladderStatus === 'active' ? 'awaiting' : 'skipped';
     case 'approved':
     case 'approved-pending-payroll':
-      return ladderStatus === 'active' ? 'awaiting' : 'skipped';
+      // Decided (`approvedNotIssued`), not waiting for approval.
+      return ladderStatus === 'active' ? 'current' : 'skipped';
     case 'issued':
     case 'responded':
-      if (passed) return 'done';
+      // Passed by a later step, or left issued by a ladder that ended without compliance.
+      if (passed || ladderStatus === 'ended') return 'done';
       return action.step === 'salary-stoppage' ? 'stopped' : 'current';
     case 'declined':
       return 'declined';
