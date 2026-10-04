@@ -606,6 +606,8 @@ describe('minimise a text layer in linear time', () => {
     ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
     // A long run of capitals, which a parcel's section may start (F102).
     ['100,000 capitals', 'KRA '.repeat(25_000)],
+    // Capitals joined by slashes, which a parcel's blocks may be (F111).
+    ['100,000 capitals and slashes', 'KSM/BLOCK '.repeat(10_000)],
   ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
     minimise({ textLayer: text });
@@ -1260,6 +1262,36 @@ describe('minimise a text layer: what is no name', () => {
 
     expect(input.textLayer).not.toMatch(/Tumaini|TUMAINI|Fresh|FRESH/u);
     expect(input.textLayer).toContain('sells fresh produce.');
+  });
+});
+
+/**
+ * The parcel scan (F111) finds what the regular expression it replaced found, on random runs of
+ * capitals, digits, letters and marks: the expression is the reference, too slow for long runs.
+ */
+describe('minimise free text: parcels as the regular expression found them', () => {
+  const REFERENCE =
+    /(?<![\p{L}\p{N}/])\p{Lu}{2,}(?:[ .]\p{Lu}+)*(?:\/[\p{Lu}\p{N}]+(?:[ .][\p{Lu}\p{N}]+)*)*\/\d+(?![\p{L}\p{N}/])/gu;
+  const PARTS = ['AB', 'CD', 'E', 'x', 'eF', '1', '23', ' ', ' ', '/', '/', '.', ',', '-'];
+
+  it('matches the reference on 20,000 random runs', () => {
+    let seed = 7;
+    const random = (n: number) => {
+      seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648;
+      return seed % n;
+    };
+    const differences: string[][] = [];
+    for (let run = 0; run < 20_000; run++) {
+      const text = Array.from({ length: 1 + random(12) }, () => PARTS[random(PARTS.length)]).join(
+        '',
+      );
+      const sent = minimise({ note: text }).input.note.replace(/\[\[PARCEL_\d+\]\]/gu, '#');
+      // Another shape's token (an ID of digits) is no parcel's business.
+      if (sent.includes('[[')) continue;
+      const expected = text.replace(REFERENCE, '#');
+      if (sent !== expected) differences.push([text, expected, sent]);
+    }
+    expect(differences).toEqual([]);
   });
 });
 

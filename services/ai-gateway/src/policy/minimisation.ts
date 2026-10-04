@@ -1,4 +1,9 @@
-import { addressesAt, documentIdentifiers, recurrenceOf } from './document-identifiers.js';
+import {
+  addressesAt,
+  documentIdentifiers,
+  recurrenceOf,
+  type Shape,
+} from './document-identifiers.js';
 
 /**
  * Minimisation (spec 07c, ADR-007): personal identifiers in a task input are replaced by stable
@@ -147,10 +152,88 @@ export function holdsAccountNumber(text: string): boolean {
   return ACCOUNT_NUMBER.test(text);
 }
 
+/**
+ * Words joined by single spaces, dots and slashes, from the start of their run only (no word or
+ * joined word before): each run is matched once, so a long run takes linear time.
+ */
+const WORD_RUN = /(?<![\p{L}\p{N}]|[\p{L}\p{N}][ ./])[\p{L}\p{N}]+(?:[ ./][\p{L}\p{N}]+)*/gu;
+const WORD = /[\p{L}\p{N}]+/gu;
+const CAPITALS = /^\p{Lu}+$/u;
+const CAPITALS_AND_DIGITS = /^[\p{Lu}\p{N}]+$/u;
+const DIGITS = /^\p{N}+$/u;
+
+/**
+ * Land parcel numbers, as `String.replace` finds them: a section of capitals (two letters or
+ * more, then capitals words after spaces or dots), a slash, blocks of capitals and digits, and a
+ * number after a slash with no slash after it ("KSM/123", "KISUMU/MUNICIPALITY BLOCK 7/412",
+ * "via eCITIZEN NAKURU/NJORO/1234"). The leftmost section that reaches a number wins, with its
+ * last number. A regular expression restarts at each word of a long run of capitals and slashes,
+ * which is quadratic (F102, F111); this scan reads each run once: a section that reaches no
+ * number fails for every later section of the same run too.
+ */
+const PARCELS = {
+  [Symbol.replace](text: string, replacer: (match: string) => string): string {
+    return text.replace(WORD_RUN, (run: string, offset: number) => {
+      const words = Array.from(run.matchAll(WORD), ({ 0: word, index }) => ({
+        word,
+        start: index,
+        end: index + word.length,
+      }));
+      // The mark before word `at` (a space, dot or slash; for the first, the text's).
+      const before = (at: number) => {
+        const start = words[at]?.start ?? 0;
+        return at === 0 ? text[offset - 1] : run[start - 1];
+      };
+      const slashAfterRun = text[offset + run.length] === '/';
+      let result = '';
+      let copied = 0;
+      let at = 0;
+      while (at < words.length) {
+        const first = words[at];
+        if (!first || before(at) === '/' || first.word.length < 2 || !CAPITALS.test(first.word)) {
+          at++;
+          continue;
+        }
+        // The section: capitals words after spaces or dots, up to a slash.
+        let last = at;
+        while (
+          last + 1 < words.length &&
+          before(last + 1) !== '/' &&
+          CAPITALS.test(words[last + 1]?.word ?? '')
+        ) {
+          last++;
+        }
+        if (last + 1 >= words.length || before(last + 1) !== '/') {
+          at = last + 1;
+          continue;
+        }
+        // The blocks, and the last number after a slash with no slash after it.
+        let end = -1;
+        let next = last + 1;
+        for (; next < words.length && CAPITALS_AND_DIGITS.test(words[next]?.word ?? ''); next++) {
+          const slashAfter = next + 1 < words.length ? before(next + 1) === '/' : slashAfterRun;
+          if (before(next) === '/' && DIGITS.test(words[next]?.word ?? '') && !slashAfter) {
+            end = next;
+          }
+        }
+        const finish = words[end];
+        if (!finish) {
+          at = next;
+          continue;
+        }
+        result += run.slice(copied, first.start) + replacer(run.slice(first.start, finish.end));
+        copied = finish.end;
+        at = end + 1;
+      }
+      return result + run.slice(copied);
+    });
+  },
+};
+
 /** Shapes of identifiers anywhere in text. `L` and `N` boundaries keep them off longer codes. */
 const EDGE_BEFORE = String.raw`(?<![\p{L}\p{N}])`;
 const EDGE_AFTER = String.raw`(?![\p{L}\p{N}])`;
-const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number }[] = [
+const PATTERNS: readonly { cls: IdentifierClass; pattern: Shape; group?: number }[] = [
   // An email, matched from the start of its run only, and its domain label by label, so a long
   // run of letters and dots takes linear time.
   {
@@ -180,15 +263,8 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
     pattern: new RegExp(`${EDGE_BEFORE}K(?!ES|SH)[A-Z]{2}\\s?\\d{3}[A-Z]?${EDGE_AFTER}`, 'gu'),
   },
   // Land parcel numbers: a registration section, its blocks, then the number (KSM/123,
-  // KISUMU/MUNICIPALITY BLOCK 7/412). A match does not start at a word of capitals right after
-  // one that could start a match itself: that match reaches every end the later one would, and
-  // restarting at each word of a long run is quadratic (F102). After a word that cannot start one
-  // ("eCITIZEN", "2021/LR"), the next word may (F106).
-  {
-    cls: 'PARCEL',
-    pattern:
-      /(?<![\p{L}\p{N}/])(?<!(?<![\p{L}\p{N}/])\p{Lu}{2,}[ .])\p{Lu}{2,}(?:[ .]\p{Lu}+)*(?:\/[\p{Lu}\p{N}]+(?:[ .][\p{Lu}\p{N}]+)*)*\/\d+(?![\p{L}\p{N}/])/gu,
-  },
+  // KISUMU/MUNICIPALITY BLOCK 7/412), found by a linear scan (`PARCELS`).
+  { cls: 'PARCEL', pattern: PARCELS },
   // Kenyan passport numbers: one or two letters and seven digits.
   { cls: 'PASSPORT', pattern: new RegExp(`${EDGE_BEFORE}[A-Z]{1,2}\\d{7}${EDGE_AFTER}`, 'gu') },
   {

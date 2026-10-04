@@ -108,6 +108,13 @@ const RUN_INTRODUCERS: readonly RegExp[] = [
 /** Words that introduce a run themselves, where a run ends: short titles and salutations. */
 const INTRODUCER_WORDS = new Set([...SHORT_TITLES, 'dear', 'mpendwa', 'ndugu']);
 
+/**
+ * An identifier's shape: a regular expression, or a scan that `String.replace` runs as one
+ * (minimisation's parcels).
+ */
+export type Shape =
+  RegExp | { [Symbol.replace](text: string, replacer: (match: string) => string): string };
+
 /** What a shape's characters are blanked to: a private-use mark that is no word. */
 const BLANK = '\ue000';
 
@@ -1107,7 +1114,7 @@ const ADDRESS_LABEL = new RegExp(
  */
 export function documentIdentifiers(
   text: string,
-  shapes: readonly RegExp[] = [],
+  shapes: readonly Shape[] = [],
 ): DocumentIdentifier[] {
   const found: DocumentIdentifier[] = [];
   // Each character of a shape becomes a private-use mark: a value, no name ("Tel 0712 ..."). The
