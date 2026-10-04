@@ -33,3 +33,4 @@ export type ReferralInput = Schemas['ReferralInput'];
 export type ReferralGrounds = Schemas['ReferralGrounds'];
 export type ReferralStatus = Schemas['ReferralStatus'];
 export type ReferralManifestKind = Schemas['ReferralManifestKind'];
+export type VersionComparison = Schemas['VersionComparison'];

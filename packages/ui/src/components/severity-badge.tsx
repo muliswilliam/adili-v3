@@ -24,7 +24,7 @@ const META: Record<Severity, { variant: NonNullable<BadgeProps['variant']>; bars
   info: { variant: 'default', bars: 0 },
 };
 
-export type SeverityBadgeProps = Omit<BadgeProps, 'children' | 'variant'> & {
+export type SeverityBadgeProps = Omit<BadgeProps, 'children' | 'variant' | 'size'> & {
   severity: Severity;
   /** Replaces the word, e.g. for another language. */
   label?: string;

@@ -53,10 +53,12 @@ vi.mock('@tanstack/react-router', () => ({
 
 const client = () => mockReviewClient(ME.subject, ME.name, [SUPERVISOR]);
 
+// The determinations and actions tabs' calls are server functions too; this file tests referrals.
 vi.mock('../../server/determinations', () => ({
   approveCaseDetermination: vi.fn(),
   returnCaseDetermination: vi.fn(),
 }));
+vi.mock('../../server/actions', () => ({ approveLadderStep: vi.fn(), declineLadderStep: vi.fn() }));
 vi.mock('../../server/referrals', async () => {
   const server = await import('../../server/referrals.server');
   interface Data<T> {

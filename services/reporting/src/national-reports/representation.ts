@@ -5,45 +5,18 @@ import {
   accessRequestCountsSchema,
   countSchema as count,
 } from '../compliance-reports/representation.js';
-import type { Conforms } from '../conforms.js';
-import { type Officer, officerSchema, storedOfficer } from '../officer.js';
-import type { NationalAggregates } from './aggregates.js';
-import {
-  type Narrative,
-  narrativeOf,
-  narrativeSchema,
-  type Paragraph,
-  paragraphSchema,
-} from './narrative.js';
+import { officerSchema, storedOfficer } from '../officer.js';
+import { narrativeOf, narrativeSchema, type Paragraph, paragraphSchema } from './narrative.js';
 import {
   NATIONAL_REPORT_STATUSES,
   type nationalReportAggregates,
   type nationalReportParagraphs,
   type nationalReports,
-  type NationalReportStatus,
 } from './schema.js';
 
 export type NationalReportRow = typeof nationalReports.$inferSelect;
 export type AggregatesRow = typeof nationalReportAggregates.$inferSelect;
 export type ParagraphRow = typeof nationalReportParagraphs.$inferSelect;
-
-/** reporting.yaml `NationalReport`. */
-export interface NationalReportView {
-  id: string;
-  fy: number;
-  version: number;
-  status: NationalReportStatus;
-  builtAt: string | null;
-  reportsIncluded: number;
-  aggregates: NationalAggregates | Record<string, never>;
-  narrative: Narrative;
-  narrativeParagraphs: Paragraph[];
-  author: Officer | null;
-  approver: Officer | null;
-  approvedAt: string | null;
-  reference: string | null;
-  documentId: string | null;
-}
 
 const rate = z.number().nullable();
 const sectionAggregateSchema = z.object({
@@ -91,8 +64,8 @@ export const nationalAggregatesSchema = z
       .meta({ description: 'Per Commission slug; its numbers are null until it reports' }),
   })
   .meta({ description: 'Counts and rates only, never an officer' });
-true satisfies Conforms<NationalAggregates, typeof nationalAggregatesSchema>;
 
+/** reporting.yaml `NationalReport`. */
 export const nationalReportSchema = z.object({
   id: z.uuid(),
   fy: z.number().int(),
@@ -119,7 +92,7 @@ export const nationalReportSchema = z.object({
     .meta({ description: '`NCR-EACC-<FY end>-<seq>-<check>`, allocated at approval' }),
   documentId: z.uuid().nullable().meta({ description: 'The Restricted NCR PDF, once issued' }),
 });
-true satisfies Conforms<NationalReportView, typeof nationalReportSchema>;
+export type NationalReportView = z.infer<typeof nationalReportSchema>;
 
 /** A stored paragraph as the narrative module works with it. */
 export function paragraphOf(row: ParagraphRow): Paragraph {

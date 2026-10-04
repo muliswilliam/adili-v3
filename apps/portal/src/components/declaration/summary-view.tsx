@@ -1,13 +1,18 @@
 import {
+  AI_TASK_NAMES,
+  AiLabel,
   Alert,
   AlertDescription,
   Button,
   Card,
+  cn,
   formatDate,
   formatDateTime,
   formatMoney,
   Icon,
+  Skeleton,
   SourceBadge,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -22,6 +27,7 @@ import {
   PencilEdit02Icon,
   SecurityCheckIcon,
   SentIcon,
+  SparklesIcon,
   Tick02Icon,
 } from '@hugeicons/core-free-icons';
 import { Link, useNavigate } from '@tanstack/react-router';
@@ -29,7 +35,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 import { getDeclarationSummary } from '../../server/declarations';
 import type { LoadedSummary } from '../../server/declarations.server';
-import type { DeclarationSection } from '../../server/declarations/types';
+import type { CompletenessIssue, DeclarationSection } from '../../server/declarations/types';
 import { isSaving } from './autosave';
 import { CompletenessBadge } from './completeness-badge';
 import type { Draft, Statement } from '../../declaration/contents';
@@ -61,6 +67,7 @@ import {
   STATEMENTS_TITLE,
   STEP_TITLES,
   statementTitle,
+  sectionLink,
   stepLink,
   type Step,
 } from './steps';
@@ -83,6 +90,7 @@ import {
   statementTotals,
   submitNote,
 } from './summary';
+import { residualKey, type SummaryHints, useSummaryHints } from './use-hints';
 import { useWorkspace } from './workspace';
 
 type Sections = DeclarationSection[];
@@ -115,12 +123,83 @@ function ErrorsLink({
   step: Step;
   children: ReactNode;
 }) {
-  // Every section route reads `?errors=true` to show all its missing answers at once.
-  const search = { errors: true } as never;
   return (
-    <Link {...stepLink(declarationId, step)} search={search} className={textLink}>
+    <Link {...sectionLink(declarationId, step, { errors: true })} className={textLink}>
       {children}
     </Link>
+  );
+}
+
+/**
+ * The words of the hints' AI label, and the task its tooltip names: hints are the
+ * `answer-declarant-question` task in hints mode (the label's `task` is that), which the shared
+ * names call "Answer".
+ */
+const HINTS_LABEL = 'Hints: AI-assisted';
+const HINTS_TASK_NAMES = { ...AI_TASK_NAMES, 'answer-declarant-question': 'Hints' };
+
+function FixLink({
+  declarationId,
+  issue,
+  text,
+}: {
+  declarationId: string;
+  issue: CompletenessIssue;
+  text: string;
+}) {
+  return (
+    <Link
+      {...sectionLink(declarationId, issue.sectionKey, { field: issue.path })}
+      aria-label={`Fix: ${text}`}
+      className={cn(textLink, 'font-semibold')}
+    >
+      Fix
+    </Link>
+  );
+}
+
+/**
+ * One residual: its deterministic text linking to the section's errors; with an AI-assisted hint
+ * (spec 11 S5), the text, a Fix link to the field and the hint beneath; a placeholder line while
+ * hints load.
+ */
+function BlockingIssue({
+  declarationId,
+  step,
+  issue,
+  text,
+  hints,
+}: {
+  declarationId: string;
+  step: Step;
+  issue: CompletenessIssue;
+  text: string;
+  hints: SummaryHints;
+}) {
+  const hint = hints.status === 'ready' ? hints.byResidual.get(residualKey(issue)) : undefined;
+  if (!hint) {
+    return (
+      <li className="list-disc">
+        <ErrorsLink declarationId={declarationId} step={step}>
+          {text}
+        </ErrorsLink>
+        {hints.status === 'loading' ? (
+          <Skeleton aria-hidden="true" className="mt-1.5 h-3 w-[72%] max-w-md" />
+        ) : null}
+      </li>
+    );
+  }
+  return (
+    <li className="list-disc">
+      <span>{text}</span> <FixLink declarationId={declarationId} issue={issue} text={text} />
+      <span className="mt-[3px] flex items-start gap-1.5 text-[13px] text-ai-subtle-foreground">
+        <Icon icon={SparklesIcon} className="mt-[3px] size-[13px] shrink-0 text-ai" />
+        <span>
+          <span className="sr-only">AI-assisted hint: </span>
+          {hint}
+        </span>
+      </span>
+    </li>
   );
 }
 
@@ -138,23 +217,56 @@ function BlockingPanel({
 }) {
   const headingId = useId();
   const { groups, hidden } = blockingGroups(blocking, sections);
+  const hints = useSummaryHints(declarationId, blocking);
   return (
     <section aria-labelledby={headingId} className="grid gap-3 rounded-lg bg-warning-subtle p-5">
-      <h2 id={headingId} className="flex items-center gap-2 text-base font-semibold">
-        <Icon icon={Alert02Icon} className="size-5 text-warning" />
-        {blockingTitle(blocking.length)}
-      </h2>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <h2
+          id={headingId}
+          className="flex flex-[1_1_220px] items-center gap-2 text-base font-semibold"
+        >
+          <Icon icon={Alert02Icon} className="size-5 text-warning" />
+          {blockingTitle(blocking.length)}
+        </h2>
+        {/* One live region, so "Hints ready" is read where "Getting hints" was. */}
+        <span role="status" className="sr-only">
+          {hints.status === 'loading'
+            ? 'Getting hints…'
+            : hints.status === 'ready'
+              ? 'Hints ready'
+              : ''}
+        </span>
+        {hints.status === 'loading' ? (
+          <span
+            aria-hidden="true"
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium"
+          >
+            <Spinner className="size-3.5" />
+            Getting hints…
+          </span>
+        ) : hints.status === 'ready' ? (
+          <AiLabel
+            size="sm"
+            text={HINTS_LABEL}
+            details={hints.label}
+            messages={{ taskNames: HINTS_TASK_NAMES }}
+          />
+        ) : null}
+      </div>
       <ul className="grid gap-3">
         {groups.map((group) => (
           <li key={group.key} className="grid gap-1">
             <h3 className="text-sm font-semibold">{group.label}</h3>
             <ul className="grid gap-1 pl-4 text-sm">
               {group.issues.map((issue) => (
-                <li key={`${issue.path}-${issue.code}-${issue.message}`} className="list-disc">
-                  <ErrorsLink declarationId={declarationId} step={group.key}>
-                    {issueText(issue, document)}
-                  </ErrorsLink>
-                </li>
+                <BlockingIssue
+                  key={`${issue.path}-${issue.code}-${issue.message}`}
+                  declarationId={declarationId}
+                  step={group.key}
+                  issue={issue}
+                  text={issueText(issue, document)}
+                  hints={hints}
+                />
               ))}
             </ul>
           </li>

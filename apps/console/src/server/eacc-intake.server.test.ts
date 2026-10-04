@@ -114,6 +114,25 @@ describe('the EACC intake (S9)', () => {
     });
   });
 
+  it('sees psc filed late from the workspace seed between April and June', async () => {
+    // From 1 April the workspace mock seeds last year's report submitted 57 days late.
+    resetReportingMock('2027-05-10');
+    const line = row(await intake(analyst()), 'psc');
+    expect(line).toMatchObject({
+      status: 'submitted-late',
+      reference: 'RPT-PSC-2026-0000001-K',
+      submittedAt: '2026-09-26T11:42:00.000Z',
+    });
+    const result = await loadSubmittedReport(analyst(), line.reportId ?? '');
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        report: { late: true, confirmedBy: { name: 'Joyce Wanjiku' } },
+        intake: { status: 'submitted-late' },
+      },
+    });
+  });
+
   it('validates the query before the caller, and takes any year from 2025', async () => {
     const reviewer = mockReportingClient([REVIEWER], { tenant: 'psc' });
     expect(await loadIntake(reviewer, 2024)).toMatchObject({

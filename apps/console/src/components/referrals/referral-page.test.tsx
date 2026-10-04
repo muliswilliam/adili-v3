@@ -17,6 +17,7 @@ import {
   MOCK_REFERRAL_IDS as R,
 } from '../../server/review/referrals-mock.server';
 import type { Assignee, Referral } from '../../server/review/types';
+import { approveCaseReferral, declineCaseReferral } from '../../server/referrals';
 import { ReferralPage } from './referral-page';
 
 const ME: Assignee = { subject: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'Faith Achieng' };
@@ -237,6 +238,39 @@ describe('ReferralPage (spec 08 FE-6)', () => {
       await screen.findByText('You reviewed this case, so another supervisor must decide it.'),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Decline' })).toBeNull();
+  });
+
+  it.each([
+    [
+      { kind: 'separation-of-duties', reason: 'proposer' } as const,
+      'You proposed this. Another supervisor must decide it.',
+    ],
+    [{ kind: 'supervisor-required' } as const, 'Only a supervisor can decline a referral to EACC.'],
+  ])('after a decline refused as %o, says so in the words of declining', async (refusal, text) => {
+    await open(R.fromPeter);
+    vi.mocked(declineCaseReferral).mockResolvedValueOnce({ ok: false, refusal });
+    fireEvent.click(screen.getByRole('button', { name: 'Decline' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Decline referral' });
+    fireEvent.change(within(dialog).getByLabelText('Note'), {
+      target: { value: 'Declared in an amendment.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Decline referral' }));
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(screen.queryByText(/approve/i)).toBeNull();
+  });
+
+  it('after an approval refused for the role, says only a supervisor approves', async () => {
+    await open(R.fromPeter);
+    vi.mocked(approveCaseReferral).mockResolvedValueOnce({
+      ok: false,
+      refusal: { kind: 'supervisor-required' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Approve and send' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Approve referral to EACC' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Approve and send to EACC' }));
+    expect(
+      await screen.findByText('Only a supervisor can approve a referral to EACC.'),
+    ).toBeTruthy();
   });
 
   it('links to the case a referral was proposed from', async () => {

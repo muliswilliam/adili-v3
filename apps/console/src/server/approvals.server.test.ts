@@ -1,5 +1,6 @@
 import { SUPERVISOR } from '@adili/roles';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { addDays } from '@adili/ui';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { loadApprovals, loadSupervisors, reassignApproval } from './approvals.server';
 import {
@@ -53,8 +54,27 @@ describe('loadApprovals (S14)', () => {
   it('counts the pending approvals by kind and by age band', async () => {
     const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
     expect(result.ok && result.data.counts).toEqual({
-      byKind: { determination: 4, action: 0, referral: 5 },
-      byAge: { under7Days: 4, from7To30Days: 4, over30Days: 1 },
+      byKind: { determination: 4, action: 9, referral: 5 },
+      byAge: { under7Days: 9, from7To30Days: 8, over30Days: 1 },
+    });
+  });
+
+  describe('on a wall clock past the seeded proposals', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('counts the age bands as of when the mock was seeded, not the wall clock', async () => {
+      // Seeded as of NOW, but run a month later: by the wall clock every proposal is over 30 days.
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(Date.parse(addDays(new Date(NOW_MS).toISOString(), 31)));
+      resetReviewMock(NOW_MS);
+      const result = await loadApprovals(supervisor(), 'tsc', { kind: 'determination' });
+      expect(result.ok && result.data.counts.byAge).toEqual({
+        under7Days: 9,
+        from7To30Days: 8,
+        over30Days: 1,
+      });
     });
   });
 

@@ -23,6 +23,9 @@
  * - Spec 08's cases and their determinations (`ready` to `bulkClosure`, and a proposal on
  *   `peters`): see the notes on `MOCK_CASE_IDS` and `MOCK_DETERMINATION_IDS`.
  *
+ * The version comparison (spec 07a #167) of every case on the mock declaration comes from
+ * `compare-mock.server.ts`; the first declarations (`unassigned`, `contested`) answer 409.
+ *
  * As review.yaml has it: claim an unassigned case (409 `case-already-assigned` otherwise),
  * release your own (403 otherwise), reassign or unassign as a supervisor (the mock does not
  * check roles), add a note (1-2,000 characters), mark a flag reviewed once (note 1-1,000
@@ -58,7 +61,15 @@ import { isOutstanding } from '../../clarification/labels';
 import { mockTenantAiStatus } from '../ai-gateway/mock.server';
 import { type Env, envSchema } from '../env.server';
 import { isRecord, json, mockCallerOf, problem, readJson, unsignedMockToken } from '../mock-http';
+import {
+  actionApprovals,
+  actionsRoute,
+  mockActionFileTitle,
+  resetActionsMock,
+} from './actions-mock.server';
 import type { paths } from './api.gen';
+import { type ClosuresMockOptions, closuresRoute, resetClosuresMock } from './closures-mock.server';
+import { mockComparison } from './compare-mock.server';
 import {
   copilotRoute,
   declarationOf,
@@ -77,6 +88,7 @@ import {
   mockDecisionLetterTitle,
   resetDeterminationsMock,
 } from './determinations-mock.server';
+import { reviewClock } from './mock-clock.server';
 import { MOCK_CALLER, type MockCases } from './mock-parts.server';
 import {
   mockReferralPackageTitle,
@@ -525,8 +537,14 @@ export function mockReviewClient(subject: string, name: string, roles?: readonly
 /** Seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(
   now: number = Date.now(),
-  { copilot = 'ready' }: { copilot?: Env['REVIEW_MOCK_COPILOT'] } = {},
+  {
+    copilot = 'ready',
+    closures = {},
+  }: { copilot?: Env['REVIEW_MOCK_COPILOT']; closures?: ClosuresMockOptions } = {},
 ) {
+  reviewClock.startAt(now);
+  resetClosuresMock(now, closures);
+  resetActionsMock(now);
   cases.clear();
   clarifications.clear();
   letterReadyAt.clear();
@@ -913,7 +931,11 @@ function seedDeterminationCases(now: number) {
   }
   // First: the determinations seed their reassignments into it.
   resetApprovalsMock({
-    sources: { determination: determinationApprovals, referral: referralApprovals(referralCases) },
+    sources: {
+      determination: determinationApprovals,
+      action: actionApprovals,
+      referral: referralApprovals(referralCases),
+    },
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },
@@ -1029,12 +1051,10 @@ function mockCases(caller: Assignee): MockCases {
       const stored = cases.get(caseId);
       if (!stored) return;
       stored.item = { ...stored.item, status };
-      stored.timeline.push(
-        entry('status-changed', actor, new Date().toISOString(), summary, status),
-      );
+      stored.timeline.push(entry('status-changed', actor, reviewClock.isoNow(), summary, status));
     },
     record: (caseId, kind, actor, summary, ref) => {
-      cases.get(caseId)?.timeline.push(entry(kind, actor, new Date().toISOString(), summary, ref));
+      cases.get(caseId)?.timeline.push(entry(kind, actor, reviewClock.isoNow(), summary, ref));
     },
   };
 }
@@ -1078,7 +1098,7 @@ function holderOf(stored: StoredCase, caller: Assignee): Assignee | null {
 /** A clarification as read now: its letter `issued` once its delay has passed. */
 function current(found: Clarification): Clarification {
   const readyAt = letterReadyAt.get(found.id);
-  if (readyAt === undefined || Date.now() < readyAt || found.letter?.status !== 'pending') {
+  if (readyAt === undefined || reviewClock.now() < readyAt || found.letter?.status !== 'pending') {
     return found;
   }
   letterReadyAt.delete(found.id);
@@ -1139,7 +1159,7 @@ function refreshCase(stored: StoredCase, actor: Assignee | null = null) {
         ? 'awaiting-clarification'
         : 'ready-for-determination';
   if (actor && stored.item.status === 'awaiting-clarification' && status !== stored.item.status) {
-    const changedAt = new Date().toISOString();
+    const changedAt = reviewClock.isoNow();
     for (const [to, summary] of [
       ['clarified', 'Case clarified: no clarification open'],
       ['ready-for-determination', 'Case ready for determination'],
@@ -1170,7 +1190,10 @@ function ensureSeeded() {
   if (cases.size > 0) return;
   // Read here, not through env(): the mock seeds itself in tests that set no service URLs.
   const copilot = envSchema.shape.REVIEW_MOCK_COPILOT.parse(process.env.REVIEW_MOCK_COPILOT);
-  resetReviewMock(Date.now(), { copilot });
+  const failAtChunk = envSchema.shape.REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK.parse(
+    process.env.REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK,
+  );
+  resetReviewMock(reviewClock.now(), { copilot, closures: { failAtChunk } });
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -1216,7 +1239,7 @@ export function mockFileTitle(id: string): string | null {
     const file = documentAttachments(stored.document).get(id);
     if (file) return file.replace(/\.pdf$/i, '');
   }
-  return null;
+  return mockActionFileTitle(id);
 }
 
 async function route(request: Request): Promise<Response> {
@@ -1231,6 +1254,11 @@ async function route(request: Request): Promise<Response> {
     if (!mockCallerOf(request).roles.includes(COMMISSION_ADMIN)) return problem(404, 'Not found');
     return json(200, mockTenantAiStatus(aiStatus[1]));
   }
+
+  const closures = await closuresRoute(request, mockCallerOf(request));
+  if (closures) return closures;
+  const actions = await actionsRoute(request, mockCallerOf(request));
+  if (actions) return actions;
 
   const attachment = /^\/v1\/review\/cases\/([^/]+)\/attachments\/([^/]+)\/download$/.exec(
     pathname,
@@ -1249,7 +1277,7 @@ async function route(request: Request): Promise<Response> {
     if (!known) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${attachment[2]}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     });
   }
 
@@ -1259,7 +1287,7 @@ async function route(request: Request): Promise<Response> {
     if (!documentId) return problem(404, 'Not found');
     return json(200, {
       downloadUrl: `/api/mock-files/${documentId}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     });
   }
 
@@ -1293,6 +1321,9 @@ async function route(request: Request): Promise<Response> {
     }
     return once(request, () => issueDraft(id, caller));
   }
+
+  const compare = /^\/v1\/review\/cases\/([^/]+)\/compare$/.exec(pathname);
+  if (method === 'GET' && compare?.[1]) return compareCase(compare[1]);
 
   const oneCase = /^\/v1\/review\/cases\/([^/]+)$/.exec(pathname);
   if (method === 'GET' && oneCase?.[1]) {
@@ -1346,6 +1377,31 @@ async function route(request: Request): Promise<Response> {
   return problem(404, 'Not found');
 }
 
+/**
+ * The comparison with the person's previous submitted version: 409 for a first declaration on
+ * Adili, 502 while declarations is down. A single-version case compares with the previous
+ * cycle's declaration (version 1 of its own declaration).
+ */
+function compareCase(caseId: string): Response {
+  const stored = cases.get(caseId);
+  if (!stored) return problem(404, 'Not found');
+  if (stored.declarationsDown) return problem(502, 'Declarations unavailable');
+  const { currentVersion } = stored.item;
+  const current = stored.versions.find((each) => each.version === currentVersion);
+  if (!stored.document || current?.firstOnAdili) {
+    return json(409, {
+      type: 'no-previous-version',
+      title: 'No previous version',
+      status: 409,
+      detail: "This is the declarant's first declaration on Adili; there is nothing to compare.",
+    });
+  }
+  return json(
+    200,
+    mockComparison(stored.document, Math.max(currentVersion - 1, 1), currentVersion),
+  );
+}
+
 function listItem(stored: StoredCase, caller: Assignee): CaseListItem {
   return { ...stored.item, assignee: holderOf(stored, caller) };
 }
@@ -1380,7 +1436,7 @@ async function assignmentOrNote(
   action: string,
   caller: Assignee,
 ): Promise<Response> {
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const holder = holderOf(stored, caller);
   const hand = (to: Assignee | null, summary: string) => {
     stored.holder = to;
@@ -1461,7 +1517,7 @@ async function markReviewed(
   }
   const note = await textField(request, 'note', 1000);
   if (note === null) return problem(400, 'A note of 1 to 1,000 characters is required');
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: Flag = { ...flag, reviewed: { at: now, by: caller, note } };
   stored.flags[index] = updated;
   stored.timeline.push(
@@ -1492,7 +1548,12 @@ async function act(
     if (note === null) return problem(400, 'A note of 1 to 2,000 characters is required');
     return save(
       stored,
-      { ...found, status: 'resolved', resolvedAt: new Date().toISOString(), resolutionNote: note },
+      {
+        ...found,
+        status: 'resolved',
+        resolvedAt: reviewClock.isoNow(),
+        resolutionNote: note,
+      },
       caller,
     );
   }
@@ -1645,7 +1706,7 @@ function issueDraft(id: string, caller: Assignee): Promise<Response> {
     );
   }
   const { windowEndsAt } = stored.item;
-  const now = Date.now();
+  const now = reviewClock.now();
   if (now > Date.parse(windowEndsAt)) {
     return Promise.resolve(
       json(409, {
@@ -1704,7 +1765,7 @@ export function mockLetterFetch(request: Request): Promise<Response> {
   return Promise.resolve(
     json(200, {
       downloadUrl: `/api/mock-files/${documentId}`,
-      expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      expiresAt: new Date(reviewClock.now() + 5 * 60_000).toISOString(),
     }),
   );
 }

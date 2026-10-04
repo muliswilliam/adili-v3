@@ -5,18 +5,20 @@ import { opensOwnPolicy, readsCommissionPolicy, workspaceFor, workspacesFor } fr
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue, referrals and obligations', () => {
+  it('gives reviewers the review queue, actions, referrals and obligations', () => {
     expect(ids(['reviewer', 'default-roles-adili'])).toEqual([
       'review',
+      'actions',
       'referrals',
       'obligations',
     ]);
   });
 
-  it('gives supervisors review, approvals, referrals, access requests, obligations and Form M, once each', () => {
+  it('gives supervisors review, approvals, actions, referrals, access requests, obligations and Form M, once each', () => {
     expect(ids(['supervisor', 'reviewer'])).toEqual([
       'review',
       'approvals',
+      'actions',
       'referrals',
       'access',
       'obligations',

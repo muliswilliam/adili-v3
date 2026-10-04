@@ -27,7 +27,8 @@ export const messages = {
     subject: (reference: string, name: string) => `${reference} · proposed by ${name}`,
     reason: 'Reason',
     placeholder: 'Say what needs to change.',
-    hint: (name: string) => `Shown to ${name} on the case.`,
+    /** Who reads the reason; a system proposal has nobody to show it to but the case. */
+    hint: (name: string | null) => (name ? `Shown to ${name} on the case.` : 'Shown on the case.'),
     required: 'Enter a reason.',
     tooLong: (max: number) => `The reason can be up to ${formatNumber(max)} characters.`,
     cancel: 'Cancel',

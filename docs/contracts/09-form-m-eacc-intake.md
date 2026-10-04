@@ -24,7 +24,7 @@ The console's reporting client (`apps/console/src/server/reporting/api.gen.ts`) 
 
 Until #238 this file was hand-written: the backend PRs (#446, #234, #237, #272) edited it next to the code, and the integration tests checked the answers against it.
 It is now exported from the controllers and Zod schemas (`services/reporting/src/openapi.ts`).
-Each representation the service answers with is checked at compile time against the schema that documents it (`Conforms` in `src/conforms.ts`), and the integration tests still validate the answers against the exported file.
+Each representation the service answers with is typed from the schema that documents it (`z.infer`, as in the other services), and the integration tests still validate the answers against the exported file.
 
 Operations: none added, none dropped, none moved. Changed:
 
@@ -57,7 +57,7 @@ The export marks them `x-draft: true`.
 
 PR #491 (spec 09b backend) edits `internal/reporting.yaml` and `internal/documents.yaml` by hand. Once #238 merges, both files are generated, so #491's rebase conflicts on them. Taking the generated files as they are would drop #491's contract. The rule for the rebase:
 
-- **Into code:** every operation, component and problem code #491 adds or changes. Operations are documented on its controllers, components are Zod schemas in `OPENAPI_SCHEMAS` with a `Conforms` check, and codes are registered in `PROBLEM_CODES`.
+- **Into code:** every operation, component and problem code #491 adds or changes. Operations are documented on its controllers, components are Zod schemas in `OPENAPI_SCHEMAS` whose `z.infer` types the answers, and codes are registered in `PROBLEM_CODES`.
 - **In the drafts:** `drafts/reporting.yaml` keeps only what is still unimplemented. The export refuses an operation or component that the draft and the code both define (`withDraft` in api-kit `contract.ts`). A draft may `$ref` implemented components.
 - **Never hand-edited:** the generated files. Run `pnpm --filter <service> contracts` for reporting and documents, then `pnpm contracts:drift`, and regenerate the clients.
 
@@ -82,9 +82,9 @@ Known specifics as of #491's head `adc5e4b6` (3 October), as examples:
 
 ### PR #493 (Form M section 5 from access events, #467)
 
-#493 changes section 5 while this PR is open, and is not merged into it:
+#493 changed section 5 after this PR merged, and was merged second, so it carries both the looser rule and its sentence in `federated-reports.controller.ts`:
 
-- It edits `submitComplianceReport`'s description in `internal/reporting.yaml` by hand: "the decline reasons add up to declined" becomes "the decline reasons count at least every decline (a denial citing several grounds counts under each)", next to the looser rule in `federated-submission.ts`. On this branch, the contract states the rule this branch enforces ("add up to declined"), so a Commission that follows it is never refused. Whichever of #493 and #238 merges second carries both the rule and the sentence. The sentence then lives in `federated-reports.controller.ts`, and the file is re-exported, never edited by hand.
+- `federated-submission.ts` accepts decline reasons that add up to at least declined, and `submitComplianceReport`'s description in `federated-reports.controller.ts` states it: "the decline reasons count at least every decline (a denial citing several grounds counts under each)" replaces #238's "the decline reasons add up to declined". `internal/reporting.yaml` and the console client are re-exported from it, never edited by hand.
 - Its other changes (the `access_request_facts` projection, migration 0009, `form-m.ts` compiling section 5, `dataUnavailable` false for hosted reports) touch no HTTP contract. `ComplianceReport.accessDataUnavailable` and `ReportCounts.accessRequests` keep their shape.
 - It updates `docs/contracts/10-access-requests.md`, which this PR does not touch.
 
@@ -110,7 +110,7 @@ The spec drafted these internal reads for Form M in the BE detail, not in #215; 
 ## Documents (`internal/documents.yaml`)
 
 - `DocumentType` gained `form-m`, `compliance-report-receipt` and `ncr`, as drafted (#218, in #484), with `FormMPayload`, `ComplianceReportReceiptPayload` and `NcrPayload`. The reporting service sends the payload (the frozen `form-m.v1` document, the receipt's reference, SHA-256 and time, the approved NCR's aggregates and narrative); none has a subject person.
-- `getDocumentDownload`: a Commission's supervisor, commission-admin, reporting officer or federated system downloads its own Form M and receipt; EACC analysts and supervisors every Commission's, and the NCR.
+- `getDocumentDownload`: a Commission's supervisor, commission-admin, reporting officer or federated system downloads its own Form M and receipt; EACC analysts and supervisors every Commission's, the referral packages a Commission sent EACC (the intake's `packageDocumentId`, BE-3, S12), and the NCR. An analyst or supervisor whom a package refers is refused it, once their token carries their person id (`person_id`; staff tokens do not yet, #486).
 
 ## Notifications (`internal/notifications.yaml`)
 

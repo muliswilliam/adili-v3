@@ -112,18 +112,25 @@ export type CodedRefusal<K extends string> = K extends 'separation-of-duties'
   ? { kind: K; reason: 'proposer' | 'reviewer-of-record' }
   : { kind: K };
 
-/** The refusals of deciding an approval, of any kind (approve, return, decline). */
-export type DecisionRefusal = CodedRefusal<
-  'separation-of-duties' | 'supervisor-required' | 'not-proposed'
->;
+/**
+ * The refusals of deciding an approval, of any kind (approve, return, decline), with the status
+ * review gives each: the one source of their codes, type and guard. Each kind's status map
+ * spreads it.
+ */
+export const DECISION_REFUSAL_STATUS = {
+  /** The caller proposed it or held one of its cases (with `reason`). */
+  'separation-of-duties': 403,
+  /** A reviewer, not a supervisor. */
+  'supervisor-required': 403,
+  /** It was decided already. */
+  'not-proposed': 409,
+} as const satisfies Record<string, 403 | 409>;
+
+export type DecisionRefusal = CodedRefusal<keyof typeof DECISION_REFUSAL_STATUS>;
 
 /** Whether a kind's refusal is one of deciding an approval. */
 export function isDecisionRefusal(refusal: { kind: string }): refusal is DecisionRefusal {
-  return (
-    refusal.kind === 'separation-of-duties' ||
-    refusal.kind === 'supervisor-required' ||
-    refusal.kind === 'not-proposed'
-  );
+  return Object.hasOwn(DECISION_REFUSAL_STATUS, refusal.kind);
 }
 
 /** A call whose refusals the screens explain: its data, a refusal, or any other failure. */

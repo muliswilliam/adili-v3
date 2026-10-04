@@ -69,6 +69,8 @@ vi.mock('../../server/determinations', async () => {
     ),
   };
 });
+// The actions tab's calls (#205) are server functions too; this file tests determinations.
+vi.mock('../../server/actions', () => ({ approveLadderStep: vi.fn(), declineLadderStep: vi.fn() }));
 // The referrals tab is tested in referral-approval.test.tsx.
 vi.mock('../../server/referrals', () => ({
   approveCaseReferral: vi.fn(),
@@ -133,11 +135,12 @@ beforeEach(() => {
 describe('ApprovalsView (spec 08 FE-3, S14)', () => {
   it('lists the proposals with counts by kind and age, oldest first', async () => {
     await open();
-    expect(screen.getByText('9 awaiting approval')).toBeTruthy();
+    // Across the tabs: 4 determinations, the ladder's 9 drafted steps (#205) and 5 referrals.
+    expect(screen.getByText('18 awaiting approval')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Determinations\s*4/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /Referrals\s*5/ })).toBeTruthy();
     const bands = screen.getByLabelText('Waiting');
-    expect(bands.textContent).toBe('WaitingUnder 7 days47 to 30 days4Over 30 days1');
+    expect(bands.textContent).toBe('WaitingUnder 7 days97 to 30 days8Over 30 days1');
     expect(screen.getAllByRole('article')).toHaveLength(4);
     expect(within(card('Ruth Nekesa Wafula')).getByText('Reassigned to you')).toBeTruthy();
     expect(within(card('Ruth Nekesa Wafula')).getByText('Waiting 35 days')).toBeTruthy();
@@ -412,5 +415,10 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
     const dialog = await screen.findByRole('dialog', { name: 'Approve determination' });
     expect(within(dialog).getByText(/^Proposed by the system on /)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Return' }));
+    const returning = await screen.findByRole('dialog', { name: 'Return to the reviewer' });
+    expect(within(returning).getByText(/· proposed by the system$/)).toBeTruthy();
+    expect(within(returning).getByText('Shown on the case.')).toBeTruthy();
   });
 });

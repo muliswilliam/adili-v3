@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import type { Conforms } from '../conforms.js';
 import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
 
 /**
@@ -11,28 +10,18 @@ import { NARRATIVE_SECTIONS, type NarrativeSection } from './schema.js';
  * pattern candidates) and an edited one loses its AI-draft flag.
  */
 
-/** reporting.yaml `Narrative`: each section as text. */
-export type Narrative = Record<NarrativeSection, string>;
-
-/** `updateNationalReportNarrative`'s body: each section's text, paragraphs separated by a blank line. */
+/**
+ * reporting.yaml `Narrative`, each section as text; also `updateNationalReportNarrative`'s body,
+ * paragraphs separated by a blank line.
+ */
 export const narrativeSchema = z.strictObject({
   overview: z.string().max(20_000),
   findings: z.string().max(40_000),
   recommendations: z.string().max(20_000),
 });
-true satisfies Conforms<Narrative, typeof narrativeSchema>;
+export type Narrative = z.infer<typeof narrativeSchema>;
 
 /** reporting.yaml `NarrativeParagraph`. */
-export interface Paragraph {
-  id: string;
-  section: NarrativeSection;
-  position: number;
-  text: string;
-  aiDraft: boolean;
-  aggregateRefs: string[];
-  candidateIds: string[];
-}
-
 export const paragraphSchema = z.object({
   id: z.uuid(),
   section: z.enum(NARRATIVE_SECTIONS),
@@ -45,7 +34,7 @@ export const paragraphSchema = z.object({
   }),
   candidateIds: z.array(z.string()),
 });
-true satisfies Conforms<Paragraph, typeof paragraphSchema>;
+export type Paragraph = z.infer<typeof paragraphSchema>;
 
 /** The paragraphs of a section's text: split at blank lines, trimmed, empty ones dropped. */
 export function paragraphsOf(text: string): string[] {

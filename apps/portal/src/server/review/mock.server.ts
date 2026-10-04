@@ -31,6 +31,8 @@ import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { reviewClock } from './mock-clock.server';
+import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
 import type { DeclarantClarification, DeclarantDecision } from './types';
 
 const RESPONSE_DAYS = 30;
@@ -183,8 +185,13 @@ function attachment(fileName: string, k: number) {
 /** Clears responses and seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(
   now: number = Date.now(),
-  { letterIssueMs = MOCK_LETTER_ISSUE_MS }: { letterIssueMs?: number } = {},
+  {
+    letterIssueMs = MOCK_LETTER_ISSUE_MS,
+    noNotices = false,
+  }: { letterIssueMs?: number; noNotices?: boolean } = {},
 ) {
+  reviewClock.startAt(now);
+  resetNoticesMock(now, { empty: noNotices });
   issueDelayMs = letterIssueMs;
   decisions.clear();
   failNextLetter = false;
@@ -332,8 +339,14 @@ export function mockClarification(id: string): DeclarantClarification | undefine
   return clarifications.get(id);
 }
 
+/** A notice as the mock holds it (the letter route and tests). */
+export function mockNotice(actionId: string) {
+  ensureSeeded();
+  return noticeInStore(actionId);
+}
+
 function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock();
+  if (clarifications.size === 0) resetReviewMock(reviewClock.now());
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -345,6 +358,8 @@ async function route(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   const method = request.method;
 
+  const notices = await noticesRoute(request);
+  if (notices) return notices;
   if (method === 'GET' && pathname === '/v1/me/decisions') {
     return json(
       200,
@@ -427,7 +442,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',

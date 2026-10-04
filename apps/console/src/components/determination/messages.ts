@@ -5,9 +5,6 @@ import type { DeterminationRefusal } from '../../determination/refusals';
 /** Copy of the case's Determination page and its dialogs (spec 08 FE-2). */
 export const messages = {
   crumb: 'Determination',
-  system: 'The system',
-  /** The system, inside a sentence ("proposed by the system"). */
-  systemInSentence: 'the system',
   aSupervisor: 'A supervisor',
   unassigned: 'Unassigned',
   received: (date: string) => `Received ${formatDate(date)}`,
@@ -19,7 +16,7 @@ export const messages = {
     notProposed: 'Not proposed',
     emptyTitle: 'No determination yet',
     emptyBody: 'The assigned reviewer proposes one.',
-    emptyBodyYours: 'You hold this case, so you propose it.',
+    emptyBodyAssignee: 'Propose one when the review is finished.',
     outcome: 'Determination',
     reference: 'Reference',
     referencePending: 'Allocated on approval',

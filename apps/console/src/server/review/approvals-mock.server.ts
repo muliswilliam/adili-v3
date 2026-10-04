@@ -6,8 +6,7 @@
  * pages them by cursor and counts them by kind and age band (across kinds); supervisors only
  * (403 `supervisor-required`). Reassigning records the supervisor an approval is pointed at;
  * 409 `not-proposed` once decided. The determinations' source is `determinations-mock.server.ts`,
- * the referrals' `referrals-mock.server.ts`; the ladder's actions (#205) add theirs to
- * `resetApprovalsMock`.
+ * the ladder's actions' (#205) `actions-mock.server.ts`, the referrals' `referrals-mock.server.ts`.
  */
 import { SUPERVISOR } from '@adili/roles';
 
@@ -19,6 +18,7 @@ import {
   mockProblem,
   resolvedCaller,
 } from './mock-parts.server';
+import { reviewClock } from './mock-clock.server';
 import type { ApprovalItem, Assignee } from './types';
 
 /** A pending approval as a kind's source gives it: the item without what the inbox adds. */
@@ -103,7 +103,7 @@ function listApprovals(params: URLSearchParams, caller: MockApprover, cases: Moc
   const kind = params.get('kind');
   const limit = Math.min(Math.max(Number(params.get('limit') ?? 50) || 50, 1), 100);
   const cursor = params.get('cursor');
-  const now = Date.now();
+  const now = reviewClock.now();
   const counts: Record<string, number> = {};
   for (const band of AGE_BANDS) counts[band] = 0;
   const listed: ApprovalItem[] = [];
