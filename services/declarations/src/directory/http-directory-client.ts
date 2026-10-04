@@ -93,7 +93,7 @@ const personNationalIdSchema = z.object({ nationalId: z.string().min(1) });
  * (packages/schemas/internal/directory.yaml → directory-api.gen.ts via `pnpm generate:api`) on
  * api-kit's service client: the service's own token (client credentials, `directory:internal`,
  * and `directory:person-national-id` for the declarant's national ID; one retry after a 401), the
- * Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017), answers validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
+ * Commission in `X-Acting-Tenant` (ADR-013 §8.1, ADR-017; §8.14 for the reporting officers read in a declarant's request), answers validated at the boundary. Anything else unexpected is `DirectoryUnavailable`.
  */
 export class HttpDirectoryClient extends DirectoryClient {
   private readonly directory: ServiceClient<paths>;

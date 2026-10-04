@@ -4,12 +4,15 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   CheckListIcon,
+  File01Icon,
   HelpCircleIcon,
   Key01Icon,
+  Legal01Icon,
   PlugSocketIcon,
   Shield01Icon,
   SquareLock02Icon,
   SparklesIcon,
+  StampIcon,
   UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -95,7 +98,15 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
   },
   {
     label: 'Review',
-    items: [{ workspace: 'review', icon: CheckListIcon }],
+    items: [
+      { workspace: 'review', icon: CheckListIcon },
+      { workspace: 'approvals', icon: StampIcon },
+      { workspace: 'actions', icon: Legal01Icon },
+    ],
+  },
+  {
+    label: 'Reporting',
+    items: [{ workspace: 'form-m', icon: File01Icon }],
   },
 ];
 

@@ -329,3 +329,23 @@ export async function untilActivitiesDrained(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }
+
+/**
+ * Terminates the workflows with these ids (one not running is fine), then waits until the app's
+ * worker runs no activity (`untilActivitiesDrained`): a terminated run's activity in flight runs
+ * on, and its write would land on what the test does next.
+ */
+export async function endWorkflows(
+  client: Client,
+  readiness: TemporalWorkerReadinessCheck,
+  ids: readonly string[],
+): Promise<void> {
+  for (const id of ids) {
+    try {
+      await client.workflow.getHandle(id).terminate();
+    } catch {
+      // Never started, or ended already.
+    }
+  }
+  await untilActivitiesDrained(readiness);
+}

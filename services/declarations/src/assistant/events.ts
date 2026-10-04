@@ -1,5 +1,7 @@
 import type { NewEvent } from '@adili/events';
 
+import type { AssistantRating } from './schema.js';
+
 /**
  * Events of Ask Adili (spec 11). Identifiers and flags only: never a question or an answer, or
  * the reporting officer's contact. The `tenant` extension is the conversation's Commission; the
@@ -39,7 +41,7 @@ export interface AssistantFeedbackRecordedData extends Record<string, unknown> {
   /** The answer rated. */
   messageId: string;
   tenant: string;
-  rating: 'helpful' | 'not-helpful';
+  rating: AssistantRating;
   /** The ai-gateway job the answer came from; null for a decline made without one. */
   jobId: string | null;
   /** Whether the gateway recorded the rating against its job. */

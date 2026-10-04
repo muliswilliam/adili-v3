@@ -114,7 +114,7 @@ const frameSchemas = {
 
 /**
  * The ai-gateway's internal API (ai-gateway.yaml) with the service's own token (`ai:internal`,
- * one retry after a 401) and the Commission in `X-Acting-Tenant` (ADR-013 §8.8).
+ * one retry after a 401) and the Commission in `X-Acting-Tenant` (ADR-013 §8.14).
  *
  * The answer stream (`POST /internal/v1/tasks/answer-declarant-question/stream`) is read here,
  * not through api-kit's service client: that one reads a JSON body, and this one reads

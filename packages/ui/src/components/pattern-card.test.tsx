@@ -1,0 +1,204 @@
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
+
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+import { parse } from 'yaml';
+
+import { PATTERN_CANDIDATE_KINDS, PatternCard, PatternCardSkeleton } from './pattern-card';
+
+describe('PatternCard', () => {
+  it('names the card by its kind and subject, and shows its value and comparison', () => {
+    render(
+      <PatternCard
+        kind="rate-change"
+        subject="Nairobi City County Public Service Board"
+        value="12.4%"
+        valueLabel="non-filer rate"
+        comparison="from 6.1% in 2026"
+      />,
+    );
+
+    const card = screen.getByRole('article', {
+      name: 'Rate change: Nairobi City County Public Service Board',
+    });
+    expect(within(card).getByText('12.4%')).toBeTruthy();
+    expect(within(card).getByText('non-filer rate')).toBeTruthy();
+    expect(within(card).getByText('from 6.1% in 2026')).toBeTruthy();
+  });
+
+  it('labels the kind with an icon and words, and explains it in the title', () => {
+    render(<PatternCard kind="threshold-breach" subject="National" value="9.8%" />);
+
+    const badge = screen.getByText('Above threshold');
+    expect(badge.getAttribute('title')).toBe('A non-filer rate above the threshold');
+    expect(badge.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('has a label for every kind of the contract, in its order', () => {
+    render(
+      <>
+        {PATTERN_CANDIDATE_KINDS.map((kind) => (
+          <PatternCard key={kind} kind={kind} subject="National" value="1" />
+        ))}
+      </>,
+    );
+
+    expect(screen.getAllByRole('article').map((card) => card.getAttribute('aria-label'))).toEqual([
+      'Rate change: National',
+      'Above threshold: National',
+      'Repeatedly late: National',
+      'High clarifications: National',
+      'Size-band outlier: National',
+      'Did not report: National',
+    ]);
+    const contract = parse(
+      readFileSync(
+        createRequire(import.meta.url).resolve('@adili/schemas/internal/reporting.yaml'),
+        'utf8',
+      ),
+    ) as {
+      components: {
+        schemas: { PatternCandidate: { properties: { kind: { enum: string[] } } } };
+      };
+    };
+    expect(PATTERN_CANDIDATE_KINDS).toEqual(
+      contract.components.schemas.PatternCandidate.properties.kind.enum,
+    );
+  });
+
+  it('cites the pattern in findings, with a button naming which pattern', async () => {
+    const onCite = vi.fn();
+    render(
+      <PatternCard
+        kind="chronic-late-reporting"
+        subject="Kenya Ports Authority"
+        value="3 years"
+        onCite={onCite}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: 'Cite in findings: Repeatedly late, Kenya Ports Authority',
+      }),
+    );
+
+    expect(onCite).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button').textContent).toBe('Cite in findings');
+  });
+
+  it('keeps focus on the action when the caller marks the pattern cited', async () => {
+    function Citable() {
+      const [cited, setCited] = useState(false);
+      return (
+        <PatternCard
+          kind="rate-change"
+          subject="National"
+          value="9.8%"
+          cited={cited}
+          onCite={() => {
+            setCited(true);
+          }}
+        />
+      );
+    }
+    render(<Citable />);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Cite in findings: Rate change, National' }),
+    );
+
+    const done = screen.getByRole('button', { name: 'Cited in findings: Rate change, National' });
+    expect(document.activeElement).toBe(done);
+    expect(done.getAttribute('aria-disabled')).toBe('true');
+    // Announcing it is the page's job, once however many cards changed.
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('does nothing when the cited action is pressed again', async () => {
+    const onCite = vi.fn();
+    render(<PatternCard kind="rate-change" subject="National" value="1" cited onCite={onCite} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /Cited in findings/ }));
+
+    expect(onCite).not.toHaveBeenCalled();
+  });
+
+  it('says it is cited in findings instead of offering to cite it again', () => {
+    render(
+      <PatternCard
+        kind="non-reporting"
+        subject="Kenya Ports Authority"
+        value="2 years"
+        cited
+        onCite={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole('button').textContent).toBe('Cited in findings');
+    expect(screen.getByRole('article').dataset.cited).toBe('true');
+  });
+
+  it('says it is cited without a button where the narrative is read only', () => {
+    render(<PatternCard kind="non-reporting" subject="National" value="2 of 47" cited />);
+
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.getByText('Cited in findings')).toBeTruthy();
+  });
+
+  it('has no action when it can be neither cited nor was cited (read only)', () => {
+    render(<PatternCard kind="non-reporting" subject="National" value="2 of 47" />);
+
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(screen.queryByText('Cited in findings')).toBeNull();
+  });
+
+  it('takes any action in its slot', () => {
+    render(
+      <PatternCard
+        kind="size-band-outlier"
+        subject="National"
+        value="1"
+        onCite={() => undefined}
+        action={<a href="#row">Open row</a>}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Open row' })).toBeTruthy();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('takes other wording', () => {
+    render(
+      <PatternCard
+        kind="rate-change"
+        subject="Taifa"
+        value="1"
+        onCite={() => undefined}
+        messages={{
+          name: (kind, subject) => `${kind} (${subject})`,
+          kinds: { 'rate-change': { label: 'Mabadiliko', description: 'Kiwango kimebadilika' } },
+          cite: 'Taja',
+          citeName: (kind, subject) => `Taja: ${kind}, ${subject}`,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('article', { name: 'Mabadiliko (Taifa)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Taja: Mabadiliko, Taifa' }).textContent).toBe(
+      'Taja',
+    );
+  });
+});
+
+describe('PatternCardSkeleton', () => {
+  it('stands in for a card while candidates load, hidden from screen readers', () => {
+    const { container } = render(<PatternCardSkeleton />);
+
+    expect(container.firstElementChild?.getAttribute('aria-hidden')).toBe('true');
+  });
+});

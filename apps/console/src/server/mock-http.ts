@@ -36,7 +36,7 @@ export interface MockCaller {
   name: string | null;
   /** Keycloak realm roles (`realm_access.roles`). */
   roles: string[];
-  /** The Commission the token is for (the `tenant` claim); null without one. */
+  /** The Commission the caller belongs to (the `tenant` claim); null for national staff. */
   tenant: string | null;
 }
 

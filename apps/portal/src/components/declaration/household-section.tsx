@@ -64,7 +64,7 @@ import {
   optionsOf,
 } from '../../declaration/labels';
 import { relationship, stepLink } from './steps';
-import { useShownErrors } from './section-errors';
+import { useFocusLinkedField, useShownErrors } from './section-errors';
 import { useSectionAutosave, useWorkspace } from './workspace';
 
 export const HOUSEHOLD_COPY = {
@@ -110,6 +110,8 @@ export interface HouseholdSectionProps {
   officerSurname?: string;
   /** Show every missing answer at once, e.g. when arriving from the summary's list. */
   showErrors?: boolean;
+  /** A JSON pointer from an Ask Adili answer: `/spouses` or `/children` goes to that list. */
+  focusField?: string;
 }
 
 /** Drops an optional field, so a cleared answer is absent rather than blank. */
@@ -143,6 +145,7 @@ export function HouseholdSection({
   maritalStatus,
   officerSurname,
   showErrors = false,
+  focusField,
 }: HouseholdSectionProps) {
   const { declaration, flush } = useWorkspace();
   const { toast } = useToast();
@@ -153,6 +156,12 @@ export function HouseholdSection({
     showErrors ? firstItemWithIssue(issues) : null,
   );
   const { touch: touchKey, shown } = useShownErrors(showErrors);
+  useFocusLinkedField(focusField, () => {
+    const list = focusField?.split('/')[1];
+    return list === 'spouses' || list === 'children'
+      ? document.getElementById(`${list}-heading`)
+      : null;
+  });
   const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
   const [badDates, setBadDates] = useState<ReadonlySet<string>>(new Set());
   const [removal, setRemoval] = useState<PendingRemoval | null>(null);

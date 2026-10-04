@@ -2,7 +2,21 @@ import { Controller } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { type Database, InjectDatabase } from '@adili/data-access';
 import { consumeOnce, type EventEnvelope, OnEvent } from '@adili/events';
+import {
+  ACCESS_REQUEST_CANNOT_IDENTIFY,
+  type AccessGround,
+  ACCESS_REQUEST_DECIDED,
+  ACCESS_REQUEST_RECEIVED,
+  ACCESS_REQUEST_WITHDRAWN,
+} from '@adili/events/contracts';
+import {
+  accessRegisterEventDataSchema,
+  accessRequestCannotIdentifyDataSchema,
+  accessRequestDecidedDataSchema,
+  accessRequestReceivedDataSchema,
+} from '@adili/events/contracts/schemas';
 import { type SQL, sql } from 'drizzle-orm';
+import { toSnakeCase } from 'drizzle-orm/casing';
 import type { PgColumn } from 'drizzle-orm/pg-core';
 
 import { TENANT_SLUG } from '../access.js';
@@ -40,6 +54,8 @@ import {
   referralSentData,
 } from './events.js';
 import {
+  accessRequestFacts,
+  type AccessRequestFactOutcome,
   actionFacts,
   type ActionStatus,
   aiFeedbackFacts,
@@ -310,10 +326,10 @@ export class ProjectionsConsumer {
             ...newerStatus(copilotCaseFacts.status, copilotCaseFacts.statusAt),
             // The earliest `ready` holds, whatever order the events arrive in.
             ...(data.status === 'ready'
-              ? {
-                  firstReadyAt: sql`least(${copilotCaseFacts.firstReadyAt}, excluded.first_ready_at)`,
-                  fy: sql`case when ${copilotCaseFacts.firstReadyAt} is null or excluded.first_ready_at < ${copilotCaseFacts.firstReadyAt} then excluded.fy else ${copilotCaseFacts.fy} end`,
-                }
+              ? earliestHolds(
+                  { firstReadyAt: copilotCaseFacts.firstReadyAt, fy: copilotCaseFacts.fy },
+                  'firstReadyAt',
+                )
               : {}),
           },
         }),
@@ -347,6 +363,104 @@ export class ProjectionsConsumer {
             recordedAt: sql`greatest(${aiFeedbackFacts.recordedAt}, excluded.recorded_at)`,
           },
         }),
+    );
+  }
+
+  /**
+   * A Form K request received (Act s.36(1)): it counts in the financial year it was received in,
+   * whenever it is decided. Law enforcement requests (`lea.request.*`) are not subscribed to:
+   * Form M section 5 counts applications by a person for purposes of section 36 (decided on #239).
+   */
+  @OnEvent(ACCESS_REQUEST_RECEIVED)
+  accessRequestReceived(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRequestReceivedDataSchema.parse(event.data);
+    const receivedAt = new Date(data.at);
+    return this.accessRequest(
+      event,
+      data.subjectId,
+      { fy: financialYearAt(receivedAt), receivedAt },
+      earliestHolds(
+        { fy: accessRequestFacts.fy, receivedAt: accessRequestFacts.receivedAt },
+        'receivedAt',
+      ),
+    );
+  }
+
+  /** The access officer's final decision, with the Regulation 24 grounds it cites. */
+  @OnEvent(ACCESS_REQUEST_DECIDED)
+  accessRequestDecided(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRequestDecidedDataSchema.parse(event.data);
+    return this.closeAccessRequest(event, data.subjectId, {
+      outcome: data.outcome,
+      grounds: data.grounds,
+      closedAt: new Date(data.at),
+    });
+  }
+
+  /** The officer Form K names matches no roster record: the request closes, declined. */
+  @OnEvent(ACCESS_REQUEST_CANNOT_IDENTIFY)
+  accessRequestCannotIdentify(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRequestCannotIdentifyDataSchema.parse(event.data);
+    return this.closeAccessRequest(event, data.subjectId, {
+      outcome: 'cannot-identify',
+      grounds: [],
+      closedAt: new Date(data.at),
+    });
+  }
+
+  /** The applicant withdrew the request: it still counts as received. */
+  @OnEvent(ACCESS_REQUEST_WITHDRAWN)
+  accessRequestWithdrawn(@Payload() event: EventEnvelope): Promise<boolean> {
+    const data = accessRegisterEventDataSchema.parse(event.data);
+    return this.accessRequest(
+      event,
+      data.subjectId,
+      { withdrawnAt: new Date(data.at) },
+      earliestHolds({ withdrawnAt: accessRequestFacts.withdrawnAt }, 'withdrawnAt'),
+    );
+  }
+
+  /**
+   * How a Form K request closed: a decision, or the officer not identified. Final, so the
+   * earliest closure holds. Access sends one closure per request; this keeps a conflicting or
+   * late redelivered one from replacing it all the same.
+   */
+  private closeAccessRequest(
+    event: EventEnvelope,
+    requestId: string,
+    facts: { outcome: AccessRequestFactOutcome; grounds: AccessGround[]; closedAt: Date },
+  ): Promise<boolean> {
+    return this.accessRequest(
+      event,
+      requestId,
+      facts,
+      earliestHolds(
+        {
+          outcome: accessRequestFacts.outcome,
+          grounds: accessRequestFacts.grounds,
+          closedAt: accessRequestFacts.closedAt,
+        },
+        'closedAt',
+      ),
+    );
+  }
+
+  /**
+   * Upserts what one event knows of a Form K request, and only that (`merge`, the columns it may
+   * update on an existing row), so a decision that arrives before the receipt still lands in the
+   * year the receipt brings.
+   */
+  private accessRequest(
+    event: EventEnvelope,
+    requestId: string,
+    facts: Partial<Omit<typeof accessRequestFacts.$inferInsert, 'requestId' | 'tenant'>>,
+    merge: Record<string, SQL>,
+  ): Promise<boolean> {
+    return this.project(event, (tx, tenant) =>
+      tx
+        .insert(accessRequestFacts)
+        .values({ requestId, tenant, ...facts })
+        .onConflictDoUpdate({ target: accessRequestFacts.requestId, set: merge }),
     );
   }
 
@@ -386,4 +500,25 @@ function newerStatus(status: PgColumn, statusAt: PgColumn): Record<string, SQL> 
     status: sql`case when ${newer} then excluded.status else ${status} end`,
     statusAt: sql`case when ${newer} then excluded.status_at else ${statusAt} end`,
   };
+}
+
+/**
+ * The `set` of an upsert that keeps what the earliest event brought: `columns` move only for an
+ * event earlier (by its `at` column) than the one that set them, so a later or re-emitted one
+ * cannot replace them, whatever order they arrive in.
+ */
+function earliestHolds<K extends string>(
+  columns: Record<K, PgColumn>,
+  at: NoInfer<K>,
+): Record<string, SQL> {
+  // The value the insert proposed for `column`, by its name in the database.
+  const excluded = (column: PgColumn) =>
+    sql`excluded.${sql.identifier(column.keyAsName ? toSnakeCase(column.name) : column.name)}`;
+  const earlier = sql`(${columns[at]} is null or ${excluded(columns[at])} < ${columns[at]})`;
+  return Object.fromEntries(
+    Object.entries<PgColumn>(columns).map(([key, column]) => [
+      key,
+      sql`case when ${earlier} then ${excluded(column)} else ${column} end`,
+    ]),
+  );
 }

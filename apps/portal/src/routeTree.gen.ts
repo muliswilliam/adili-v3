@@ -32,6 +32,8 @@ import { Route as GetStartedIdentifyRouteImport } from './routes/get-started/ide
 import { Route as GetStartedNotVerifiedRouteImport } from './routes/get-started/not-verified'
 import { Route as GetStartedVerifyEmailRouteImport } from './routes/get-started/verify-email'
 import { Route as GetStartedVerifyPhoneRouteImport } from './routes/get-started/verify-phone'
+import { Route as NoticesIndexRouteImport } from './routes/notices/index'
+import { Route as NoticesActionIdRouteImport } from './routes/notices/$actionId'
 import { Route as AccessGetStartedIndexRouteImport } from './routes/access/get-started/index'
 import { Route as AccessGetStartedCheckEmailRouteImport } from './routes/access/get-started/check-email'
 import { Route as AccessGetStartedCreateRouteImport } from './routes/access/get-started/create'
@@ -55,6 +57,7 @@ import { Route as DeclarationsIdSubmittedRouteImport } from './routes/declaratio
 import { Route as AccessRequestsIdSubmittedRouteImport } from './routes/access/requests/$id_.submitted'
 import { Route as ApiDocumentsDocumentIdDownloadRouteImport } from './routes/api/documents.$documentId.download'
 import { Route as DeclarationsIdStatementsPersonKeyRouteImport } from './routes/declarations/$id/statements/$personKey'
+import { Route as ApiAssistantConversationsConversationIdMessagesRouteImport } from './routes/api/assistant.conversations.$conversationId.messages'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -170,6 +173,16 @@ const GetStartedVerifyPhoneRoute = GetStartedVerifyPhoneRouteImport.update({
   id: '/verify-phone',
   path: '/verify-phone',
   getParentRoute: () => GetStartedRouteRoute,
+} as any)
+const NoticesIndexRoute = NoticesIndexRouteImport.update({
+  id: '/notices/',
+  path: '/notices/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NoticesActionIdRoute = NoticesActionIdRouteImport.update({
+  id: '/notices/$actionId',
+  path: '/notices/$actionId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AccessGetStartedIndexRoute = AccessGetStartedIndexRouteImport.update({
   id: '/',
@@ -292,6 +305,12 @@ const DeclarationsIdStatementsPersonKeyRoute =
     path: '/statements/$personKey',
     getParentRoute: () => DeclarationsIdRouteRoute,
   } as any)
+const ApiAssistantConversationsConversationIdMessagesRoute =
+  ApiAssistantConversationsConversationIdMessagesRouteImport.update({
+    id: '/api/assistant/conversations/$conversationId/messages',
+    path: '/api/assistant/conversations/$conversationId/messages',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -313,10 +332,12 @@ export interface FileRoutesByFullPath {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/notices/$actionId': typeof NoticesActionIdRoute
   '/access/': typeof AccessIndexRoute
   '/clarifications/': typeof ClarificationsIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/notices/': typeof NoticesIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -340,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -358,10 +380,12 @@ export interface FileRoutesByTo {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/notices/$actionId': typeof NoticesActionIdRoute
   '/access': typeof AccessIndexRoute
   '/clarifications': typeof ClarificationsIndexRoute
   '/declarations': typeof DeclarationsIndexRoute
   '/get-started': typeof GetStartedIndexRoute
+  '/notices': typeof NoticesIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -385,6 +409,7 @@ export interface FileRoutesByTo {
   '/access/requests/$id/submitted': typeof AccessRequestsIdSubmittedRoute
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -407,10 +432,12 @@ export interface FileRoutesById {
   '/get-started/not-verified': typeof GetStartedNotVerifiedRoute
   '/get-started/verify-email': typeof GetStartedVerifyEmailRoute
   '/get-started/verify-phone': typeof GetStartedVerifyPhoneRoute
+  '/notices/$actionId': typeof NoticesActionIdRoute
   '/access/': typeof AccessIndexRoute
   '/clarifications/': typeof ClarificationsIndexRoute
   '/declarations/': typeof DeclarationsIndexRoute
   '/get-started/': typeof GetStartedIndexRoute
+  '/notices/': typeof NoticesIndexRoute
   '/access/get-started/check-email': typeof AccessGetStartedCheckEmailRoute
   '/access/get-started/create': typeof AccessGetStartedCreateRoute
   '/access/get-started/details': typeof AccessGetStartedDetailsRoute
@@ -434,6 +461,7 @@ export interface FileRoutesById {
   '/access/requests/$id_/submitted': typeof AccessRequestsIdSubmittedRoute
   '/api/documents/$documentId/download': typeof ApiDocumentsDocumentIdDownloadRoute
   '/declarations/$id/statements/$personKey': typeof DeclarationsIdStatementsPersonKeyRoute
+  '/api/assistant/conversations/$conversationId/messages': typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -457,10 +485,12 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/notices/$actionId'
     | '/access/'
     | '/clarifications/'
     | '/declarations/'
     | '/get-started/'
+    | '/notices/'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -484,6 +514,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
+    | '/api/assistant/conversations/$conversationId/messages'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -502,10 +533,12 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/notices/$actionId'
     | '/access'
     | '/clarifications'
     | '/declarations'
     | '/get-started'
+    | '/notices'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -529,6 +562,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
+    | '/api/assistant/conversations/$conversationId/messages'
   id:
     | '__root__'
     | '/'
@@ -550,10 +584,12 @@ export interface FileRouteTypes {
     | '/get-started/not-verified'
     | '/get-started/verify-email'
     | '/get-started/verify-phone'
+    | '/notices/$actionId'
     | '/access/'
     | '/clarifications/'
     | '/declarations/'
     | '/get-started/'
+    | '/notices/'
     | '/access/get-started/check-email'
     | '/access/get-started/create'
     | '/access/get-started/details'
@@ -577,6 +613,7 @@ export interface FileRouteTypes {
     | '/access/requests/$id_/submitted'
     | '/api/documents/$documentId/download'
     | '/declarations/$id/statements/$personKey'
+    | '/api/assistant/conversations/$conversationId/messages'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -592,9 +629,11 @@ export interface RootRouteChildren {
   AuthRecoverRoute: typeof AuthRecoverRoute
   AuthStepUpRoute: typeof AuthStepUpRoute
   ClarificationsIdRoute: typeof ClarificationsIdRoute
+  NoticesActionIdRoute: typeof NoticesActionIdRoute
   AccessIndexRoute: typeof AccessIndexRoute
   ClarificationsIndexRoute: typeof ClarificationsIndexRoute
   DeclarationsIndexRoute: typeof DeclarationsIndexRoute
+  NoticesIndexRoute: typeof NoticesIndexRoute
   AccessNoticesIdRoute: typeof AccessNoticesIdRoute
   AccessRequestsIdRoute: typeof AccessRequestsIdRoute
   AccessRequestsNewRoute: typeof AccessRequestsNewRoute
@@ -607,6 +646,7 @@ export interface RootRouteChildren {
   AccessRequestsIndexRoute: typeof AccessRequestsIndexRoute
   AccessRequestsIdSubmittedRoute: typeof AccessRequestsIdSubmittedRoute
   ApiDocumentsDocumentIdDownloadRoute: typeof ApiDocumentsDocumentIdDownloadRoute
+  ApiAssistantConversationsConversationIdMessagesRoute: typeof ApiAssistantConversationsConversationIdMessagesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -772,6 +812,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GetStartedVerifyPhoneRouteImport
       parentRoute: typeof GetStartedRouteRoute
     }
+    '/notices/': {
+      id: '/notices/'
+      path: '/notices'
+      fullPath: '/notices/'
+      preLoaderRoute: typeof NoticesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notices/$actionId': {
+      id: '/notices/$actionId'
+      path: '/notices/$actionId'
+      fullPath: '/notices/$actionId'
+      preLoaderRoute: typeof NoticesActionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/access/get-started/': {
       id: '/access/get-started/'
       path: '/'
@@ -933,6 +987,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeclarationsIdStatementsPersonKeyRouteImport
       parentRoute: typeof DeclarationsIdRouteRoute
     }
+    '/api/assistant/conversations/$conversationId/messages': {
+      id: '/api/assistant/conversations/$conversationId/messages'
+      path: '/api/assistant/conversations/$conversationId/messages'
+      fullPath: '/api/assistant/conversations/$conversationId/messages'
+      preLoaderRoute: typeof ApiAssistantConversationsConversationIdMessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1018,9 +1079,11 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRecoverRoute: AuthRecoverRoute,
   AuthStepUpRoute: AuthStepUpRoute,
   ClarificationsIdRoute: ClarificationsIdRoute,
+  NoticesActionIdRoute: NoticesActionIdRoute,
   AccessIndexRoute: AccessIndexRoute,
   ClarificationsIndexRoute: ClarificationsIndexRoute,
   DeclarationsIndexRoute: DeclarationsIndexRoute,
+  NoticesIndexRoute: NoticesIndexRoute,
   AccessNoticesIdRoute: AccessNoticesIdRoute,
   AccessRequestsIdRoute: AccessRequestsIdRoute,
   AccessRequestsNewRoute: AccessRequestsNewRoute,
@@ -1033,6 +1096,8 @@ const rootRouteChildren: RootRouteChildren = {
   AccessRequestsIndexRoute: AccessRequestsIndexRoute,
   AccessRequestsIdSubmittedRoute: AccessRequestsIdSubmittedRoute,
   ApiDocumentsDocumentIdDownloadRoute: ApiDocumentsDocumentIdDownloadRoute,
+  ApiAssistantConversationsConversationIdMessagesRoute:
+    ApiAssistantConversationsConversationIdMessagesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

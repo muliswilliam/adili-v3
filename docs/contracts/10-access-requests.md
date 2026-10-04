@@ -62,7 +62,7 @@ Schemas changed:
 - Added `internalListPersonVersions` (#303), so the officer's self-access form only offers the declarant's own submitted versions.
 - Added `internalCountDisclosure` (decision 1, scope `declarations:disclosures`): per year of a scope, the person's versions in force and per section and household member kind how much the disclosure would let out; counts only, zero rather than 404, audited as `declaration.disclosure-counted` with the officer as recipient.
 
-## Review (`internal/review.yaml`, hand-written)
+## Review (`internal/review.yaml`)
 
 - Added `internalDiscloseClarifications` (decision 7) and `internalCountClarificationDisclosure` (decision 1, scope `review:disclosures`): per declaration named, how many clarifications a grant of the scope would disclose, audited as `clarification.disclosure-counted`.
 
@@ -92,10 +92,13 @@ Access publishes one event per access-register entry (`packages/events/src/contr
 
 ```mermaid
 flowchart LR
-  A[access outbox] -->|access.request.received.v1<br/>lea.request.received.v1| R[reporting]
-  A -->|access.request.decided.v1<br/>lea.request.decided.v1| R
+  A[access outbox] -->|access.request.received.v1| R[reporting inbox]
+  A -->|access.request.decided.v1| R
   A -->|access.request.cannot-identify.v1| R
-  R -.->|not built yet| S5[Form M partII.accessRequests]
+  A -->|access.request.withdrawn.v1| R
+  A -.->|lea.request.* not subscribed| N[not counted]
+  R --> F[(access_request_facts<br/>one row per request,<br/>fy of receipt)]
+  F --> S5[Form M partII.accessRequests]
 ```
 
 | Form M section 5 | Event | Schema |
@@ -104,14 +107,16 @@ flowchart LR
 | `granted` | `access.request.decided.v1`, `outcome` `grant` or `partial-grant` | `accessRequestDecidedDataSchema` |
 | `declined`, `declineReasons` (Regulation 24 grounds) | `access.request.decided.v1`, `outcome` `deny`, `grounds` | `accessRequestDecidedDataSchema` |
 | `declined`, reason `other` | `access.request.cannot-identify.v1`, `declineReason: 'other'`: its own event type, not a `decided` event | `accessRequestCannotIdentifyDataSchema` |
+| (received only) | `access.request.withdrawn.v1` | `accessRegisterEventDataSchema` |
 
-The events carry everything section 5 needs: tenant = the Commission, ids, `at`, outcome and grounds, and no personal data. Gaps on the reporting side, none of them in a ticket yet:
+Reporting projects these into `access_request_facts` (#467): one row per Form K request, keyed by the request id, with the Commission, the financial year it was received in, its outcome, the grounds cited and whether it was withdrawn. No personal data. Form M section 5 compiles from it with the rules decided on #239:
 
-1. **No consumer.** Reporting has no handler for any `access.*` or `lea.*` event and no projection table. `compliance-reports/form-m.ts` hard-codes section 5 to zeros with `dataUnavailable: true` ("Spec 10 projects access requests; until then..."). Spec 09 (#222) left it for spec 10, and spec 10 (#267) only delivered the events. A consumer must subscribe to both `access.request.decided.v1` and `access.request.cannot-identify.v1`; otherwise requests closed for an unidentifiable officer are missing from `declined`.
-2. **One reason per denial.** A denial may cite several grounds (`grounds: AccessGround[]`). Form M wants `declineReasons` counts that add up to `declined` (`federated-submission.ts` rejects a document that does not), so reporting needs a rule, for example the first ground in Regulation 24 order.
-3. **Partial grants.** Form M has only granted and declined. The event schema's doc counts a partial grant as granted; its grounds then stay out of `declineReasons`. Confirm with the Commission's reporting officer.
-4. **Law enforcement requests.** `lea.request.received.v1` and `lea.request.decided.v1` fit the same schemas (`legalBasis: act-s36-2`). Whether section 5 ("Act s.36") counts them along with Form K is not decided. They have no cannot-identify: an officer who cannot be identified is denied.
-5. **Financial year attribution.** A request received in one FY may be decided in the next. If outcomes count in the FY of the decision, `granted + declined` can exceed `received` in that FY, which `federated-submission.ts` also rejects. Counting outcomes in the FY of receipt (joined on `subjectId`) avoids this.
-6. **`dataUnavailable`.** It should turn false only for FYs the projection fully covers (from access go-live), not for earlier ones.
+1. **Form K only.** Section 5 counts applications by "a person" for purposes of s.36; law enforcement requests (`lea.request.*`) are not subscribed to.
+2. **(a) received:** every Form K request received in the financial year.
+3. **(b) granted:** `grant` and `partial-grant`.
+4. **(c) declined:** `deny` plus `cannot-identify` closures.
+5. **(d) reasons:** a count per Regulation 24 ground cited on denials and partial grants, plus `other` per cannot-identify closure, in Regulation 24 order, reasons none cited left out. A denial citing several grounds counts once under each, so the reasons may add up to more than (c); `federated-submission.ts` accepts reasons that add up to at least (c).
+6. **Year of receipt.** Outcomes count in the financial year the request was received, so (b) + (c) never exceeds (a). A withdrawn request counts in (a) only. Each event applies once, in any order, and the earliest receipt, closure and withdrawal of a request hold, so a re-emitted or conflicting one cannot move its year or outcome.
+7. **`dataUnavailable`** is false for every hosted report. Gap 6 of the original analysis wanted it true for years before access went live; access ships with the platform, whose first reportable year (`FIRST_FINANCIAL_YEAR`, 2025) is also the first year Form K requests are taken, so no hosted year precedes it. A deployment that turns access on later would need a go-live year here.
 
 #238 (reporting contract convergence, spec 09) does not conflict with any of this. It exports reporting's HTTP contract and checks form-m.v1 in CI; reporting has no HTTP dependency on access, and #238 does not cover consuming access events. The two only touch the same lists of exported services (CI comment, `docs/how-we-work.md`, `docs/agents/issue-tracker.md`), so whichever merges second adds its service to those lists.

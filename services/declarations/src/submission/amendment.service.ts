@@ -312,8 +312,9 @@ export class AmendmentService {
   /**
    * In the transaction (the declaration row locked, and as prepared): replaces every section,
    * archived statements included, with the version in force's, sealed at the next draft
-   * version; brings the attachment links back to the ones its items hold; deletes the draft's
-   * registry suggestions; and sets the declaration's status.
+   * version; brings the attachment links back to the ones its items hold; deletes what goes
+   * with the draft (its registry suggestions and its Ask Adili conversation); and sets the
+   * declaration's status.
    */
   private async write(
     tx: Transaction,

@@ -109,3 +109,8 @@ export function problemStatus(result: ServiceResult<unknown> | null): number | n
     ? result.error.problem.status
     : null;
 }
+
+/** A problem as screens print it beside a refusal: its status and code ("409 not-proposed"). */
+export function problemLabel(status: number, code: string): string {
+  return `${String(status)} ${code}`;
+}

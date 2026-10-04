@@ -44,6 +44,7 @@ describe('navFor', () => {
   it('shows the Roster, API access and Help articles under Commission to reporting officers', () => {
     expect(labels(['reporting-officer'])).toEqual([
       ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
+      ['Reporting', ['Form M']],
     ]);
     expect(navFor(['reporting-officer'])[0]?.items.map((item) => item.to)).toEqual([
       '/roster',
@@ -63,16 +64,18 @@ describe('navFor', () => {
   it('shows commission admins the Roster but not API access, which they cannot open', () => {
     expect(labels(['commission-admin'])).toEqual([
       ['Commission', ['Roster', 'Obligations', 'Help articles']],
+      ['Reporting', ['Form M']],
     ]);
     expect(labels(['commission-admin', 'reporting-officer'])).toEqual([
       ['Commission', ['Roster', 'API access', 'Obligations', 'Help articles']],
+      ['Reporting', ['Form M']],
     ]);
   });
 
-  it('shows reviewers Obligations and the review queue, leaving out what is not built yet', () => {
+  it('shows reviewers Obligations, the review queue and Actions, leaving out what is not built yet', () => {
     expect(labels(['reviewer'])).toEqual([
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Actions']],
     ]);
   });
 
@@ -81,7 +84,8 @@ describe('navFor', () => {
     expect(labels(['supervisor'])).toEqual([
       ['Access', ['Access requests']],
       ['Commission', ['Obligations']],
-      ['Review', ['Review queue']],
+      ['Review', ['Review queue', 'Approvals', 'Actions']],
+      ['Reporting', ['Form M']],
     ]);
     expect(navFor(['access-officer'])[0]?.items[0]?.to).toBe('/access/requests');
   });
@@ -97,6 +101,7 @@ describe('activeNavHref', () => {
     ['/obligations', '/obligations'],
     ['/obligations/policy', '/obligations'],
     ['/obligations/national', '/obligations/national'],
+    ['/form-m', '/form-m'],
     ['/commissions/psc', '/commissions'],
     ['/platform/integrations', '/platform/integrations'],
     ['/access/requests/0190f3a2-0000-7000-8000-000000000001', '/access/requests'],
