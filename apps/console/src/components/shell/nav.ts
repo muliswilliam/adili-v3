@@ -6,6 +6,7 @@ import {
   CheckListIcon,
   File01Icon,
   Key01Icon,
+  Legal01Icon,
   PlugSocketIcon,
   Shield01Icon,
   SquareLock02Icon,
@@ -97,6 +98,7 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
     items: [
       { workspace: 'review', icon: CheckListIcon },
       { workspace: 'approvals', icon: StampIcon },
+      { workspace: 'actions', icon: Legal01Icon },
     ],
   },
   {

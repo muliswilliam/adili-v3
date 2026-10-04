@@ -31,6 +31,7 @@ import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
 import type { DeclarantClarification, DeclarantDecision } from './types';
 
 const RESPONSE_DAYS = 30;
@@ -183,8 +184,12 @@ function attachment(fileName: string, k: number) {
 /** Clears responses and seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(
   now: number = Date.now(),
-  { letterIssueMs = MOCK_LETTER_ISSUE_MS }: { letterIssueMs?: number } = {},
+  {
+    letterIssueMs = MOCK_LETTER_ISSUE_MS,
+    noNotices = false,
+  }: { letterIssueMs?: number; noNotices?: boolean } = {},
 ) {
+  resetNoticesMock(now, { empty: noNotices });
   issueDelayMs = letterIssueMs;
   decisions.clear();
   failNextLetter = false;
@@ -332,6 +337,12 @@ export function mockClarification(id: string): DeclarantClarification | undefine
   return clarifications.get(id);
 }
 
+/** A notice as the mock holds it (the letter route and tests). */
+export function mockNotice(actionId: string) {
+  ensureSeeded();
+  return noticeInStore(actionId);
+}
+
 function ensureSeeded() {
   if (clarifications.size === 0) resetReviewMock();
 }
@@ -345,6 +356,8 @@ async function route(request: Request): Promise<Response> {
   const { pathname } = new URL(request.url);
   const method = request.method;
 
+  const notices = await noticesRoute(request);
+  if (notices) return notices;
   if (method === 'GET' && pathname === '/v1/me/decisions') {
     return json(
       200,

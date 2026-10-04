@@ -33,6 +33,7 @@ export type WorkspaceHref =
   | '/obligations/national'
   | '/review'
   | '/approvals'
+  | '/actions'
   | '/access/requests'
   | '/lea/requests'
   | '/platform/law-enforcement'
@@ -139,6 +140,14 @@ const WORKSPACES: WorkspaceDefinition[] = [
     description: 'Approve determinations and administrative actions proposed by reviewers.',
     href: '/approvals',
     roles: [SUPERVISOR],
+  },
+  {
+    id: 'actions',
+    title: 'Actions',
+    description:
+      'Approve the notices and warnings drafted for overdue declarations and clarifications.',
+    href: '/actions',
+    roles: [REVIEWER, SUPERVISOR],
   },
   {
     id: 'access',
