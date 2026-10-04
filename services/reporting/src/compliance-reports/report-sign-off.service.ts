@@ -20,13 +20,7 @@ import type { ReportingSchema } from '../db/schema.js';
 import { type CommissionFacts, DirectoryClient } from '../directory/directory-client.js';
 import { dueDateOf, referencePeriodOf } from '../financial-year.js';
 import { officerOf } from '../officer.js';
-import {
-  badRequest,
-  forbidden,
-  notFound,
-  type ProblemError,
-  workflowUnavailable,
-} from '../problems.js';
+import { notFound, problem, type ProblemError, workflowUnavailable } from '../problems.js';
 import { commissionOf } from './commission.js';
 import {
   COMPLIANCE_REPORT_REVIEWED,
@@ -226,9 +220,10 @@ export class ReportSignOffService {
         };
         const checked = validateFormM(document);
         if (!checked.ok) {
-          throw badRequest(
+          throw problem(
+            'incomplete',
             'The report is incomplete: complete the sections named before confirming.',
-            { code: 'incomplete', errors: checked.errors },
+            { errors: checked.errors },
           );
         }
         return this.submit(tx, report, document, {
@@ -268,9 +263,9 @@ export class ReportSignOffService {
     const document = checked.value;
     const commission = await commissionOf(this.directory, tenant);
     if (document.partI.issuerCode !== commission.issuerCode) {
-      throw forbidden(
-        'The document names another Commission than the one the token is issued for.',
+      throw problem(
         'tenant-mismatch',
+        'The document names another Commission than the one the token is issued for.',
       );
     }
     const now = this.clock.now();
@@ -458,9 +453,9 @@ function documentProblem(
   detail: string,
   errors: FormValidationError[],
 ) {
-  return badRequest(detail, { code, errors });
+  return problem(code, detail, { errors });
 }
 
 function invalid(detail: string, errors: ProblemError[]) {
-  return badRequest(detail, { code: 'invalid-remarks', errors });
+  return problem('invalid-remarks', detail, { errors });
 }

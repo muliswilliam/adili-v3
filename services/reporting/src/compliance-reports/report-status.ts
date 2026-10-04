@@ -1,6 +1,6 @@
 import { ne, type SQL, sql } from 'drizzle-orm';
 
-import { badRequest, conflict } from '../problems.js';
+import { problem } from '../problems.js';
 import { complianceReports, type ReportStatus } from './schema.js';
 
 /**
@@ -53,7 +53,7 @@ export const SUBMITTED = 'submitted' satisfies ReportStatus;
 export function requireEditable(report: { status: ReportStatus }): void {
   if (isSubmitted(report)) throw reportSubmitted();
   if (report.status === 'compiling') {
-    throw conflict(
+    throw problem(
       'report-compiling',
       'The report is being compiled. Try again once the draft is ready.',
     );
@@ -63,9 +63,7 @@ export function requireEditable(report: { status: ReportStatus }): void {
 /** A report is confirmed once reviewed: 400 `not-reviewed` before. */
 export function requireReviewed(report: { status: ReportStatus }): void {
   if (report.status === REVIEWED) return;
-  throw badRequest('A supervisor marks the draft reviewed before it is confirmed.', {
-    code: 'not-reviewed',
-  });
+  throw problem('not-reviewed', 'A supervisor marks the draft reviewed before it is confirmed.');
 }
 
 /** A report is filed or compiled until it is submitted: 409 `report-submitted` after. */
@@ -75,5 +73,5 @@ export function requireNotSubmitted(report: { status: ReportStatus }): void {
 
 /** 409 `report-submitted`: one report per Commission per year, frozen once submitted. */
 function reportSubmitted() {
-  return conflict('report-submitted', 'The report is submitted and can no longer change.');
+  return problem('report-submitted', 'The report is submitted and can no longer change.');
 }
