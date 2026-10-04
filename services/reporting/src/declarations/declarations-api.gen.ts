@@ -4808,7 +4808,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or the reading it found was the reservation of a concurrent request, taken back when that request was refused for the file (`reading-conflict`: asking again gets the refusal) */
+            /** @description Documents (`documents-unavailable`), the ai-gateway (`ai-gateway-unavailable`) or the workflow engine (`workflow-unavailable`) could not take it now (the reading is recorded `failed`, `document-unavailable` for documents or `unavailable`, with no job), or the reading it found was the reservation of a concurrent request that is no longer pending: taken back when that request was refused for the file, or already ended (`reading-conflict`, retryable: asking again gets the refusal, that reading, or a new one) */
             503: {
                 headers: {
                     [name: string]: unknown;
