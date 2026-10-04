@@ -92,7 +92,9 @@ export interface NoticeWindow {
 
 /** Where the window to act stands, or null for a step that sets no deadline. */
 export function windowOf(notice: DeclarantNotice, now: string): NoticeWindow | null {
-  if (!notice.actBy) return null;
+  // A salary stoppage's window is the Commission's, before a disciplinary referral may be
+  // proposed; the declarant has no deadline but to comply (#208).
+  if (!notice.actBy || notice.step === 'salary-stoppage') return null;
   const of = notice.windowDays ?? daysBetween(notice.issuedAt, notice.actBy);
   const day = Math.min(of, Math.max(0, daysBetween(notice.issuedAt, now)));
   return { daysLeft: daysBetween(now, notice.actBy), day, of };

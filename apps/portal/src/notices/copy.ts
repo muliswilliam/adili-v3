@@ -69,7 +69,7 @@ export function subjectName(subject: Subject): string {
 }
 
 /** How to comply, in the imperative ("file your biennial declaration 2027"). */
-function complyBy(subject: Subject): string {
+export function complyBy(subject: Subject): string {
   return subject.kind === 'clarification'
     ? `respond to ${subjectName(subject)}`
     : `file your ${subjectName(subject)}`;
@@ -164,7 +164,6 @@ export const COPY = {
   compliedBanner: 'You have complied. No further action will be taken.',
   salaryStopped:
     'Your salary has been stopped pending compliance. It will be reinstated automatically when you comply.',
-  salaryReinstated: (date: string) => `Your salary reinstatement was sent to payroll on ${date}.`,
   closedBanner: 'This notice is closed. You do not need to act on it.',
   windowLeft: (n: number) => (n < 0 ? 'Window ended' : n === 0 ? 'Last day' : `${days(n)} left`),
   windowLine: (date: string, day: number, of: number) =>

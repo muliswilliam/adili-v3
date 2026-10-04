@@ -118,6 +118,7 @@ export const en = {
   fileNumberLine: (n: string) => `Personnel file ${n}`,
   stepDetail: {
     drafted: (date: string) => `drafted ${date}`,
+    approved: (date: string) => `Approved ${date}`,
     issued: (date: string) => `Issued ${date}`,
     declined: (date: string) => `Declined ${date}`,
     complied: (date: string) => `Complied ${date}`,
@@ -187,12 +188,6 @@ export const en = {
     actByDetail: (days: number) => `${plural(days, 'day', 'days')} from today`,
     notified: (name: string) => `${name} is notified`,
     notifiedDetail: 'By email, SMS and in the portal',
-    salaryStopped: "The declarant's salary is stopped",
-    salaryStoppedDetail:
-      "A stop-salary instruction goes to payroll for the declarant's reporting entity; it is reinstated automatically when they comply",
-    disciplinary: 'The reporting entity is told to start disciplinary proceedings',
-    disciplinaryDetail:
-      'Recorded as an event for the employer; the ladder then waits for compliance',
   },
   approveAndIssue: 'Approve and issue',
   approved: (step: ActionStep, reference: string | null) =>

@@ -111,8 +111,9 @@ describe('ladderSteps', () => {
         ladder([notice, warning, action({ step: 'salary-stoppage', status: 'reinstated' })]),
       )[2]?.status,
     ).toBe('reinstated');
+    // Approved, not awaiting approval: running while payroll has not acknowledged (F16).
     expect(stepStatusOf(action({ status: 'approved-pending-payroll' }), false, 'active')).toBe(
-      'awaiting',
+      'current',
     );
   });
 });
