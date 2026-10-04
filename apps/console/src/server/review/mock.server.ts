@@ -929,6 +929,7 @@ function seedDeterminationCases(now: number) {
       action: actionApprovals,
       referral: referralApprovals(referralCases),
     },
+    now,
     staff: [
       { ...PETER, supervisor: false },
       { ...MERCY, supervisor: false },

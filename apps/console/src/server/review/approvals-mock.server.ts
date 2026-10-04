@@ -43,14 +43,21 @@ export type MockApprovalSources = { [K in InboxKind]: MockApprovalSource<K> };
 
 let sources: readonly MockApprovalSource<InboxKind>[] = [];
 let staff: MockStaffMember[] = [];
+/** The seed's "now" less the real time it was seeded at: ages count from the seed's clock. */
+let clockOffset = 0;
 const reassignments = new Map<string, Assignee>();
 
-/** Starts the inbox over with `sources`, one per kind, and the Commission's staff. */
+/**
+ * Starts the inbox over with `sources`, one per kind, and the Commission's staff, dated as if it
+ * is `now` (the fixtures' seed time), so the age bands do not drift with the real clock.
+ */
 export function resetApprovalsMock(options: {
   sources: MockApprovalSources;
   staff: MockStaffMember[];
+  now: number;
 }) {
   sources = Object.values(options.sources);
+  clockOffset = options.now - Date.now();
   staff = options.staff;
   reassignments.clear();
 }
@@ -103,7 +110,7 @@ function listApprovals(params: URLSearchParams, caller: MockApprover, cases: Moc
   const kind = params.get('kind');
   const limit = Math.min(Math.max(Number(params.get('limit') ?? 50) || 50, 1), 100);
   const cursor = params.get('cursor');
-  const now = Date.now();
+  const now = Date.now() + clockOffset;
   const counts: Record<string, number> = {};
   for (const band of AGE_BANDS) counts[band] = 0;
   const listed: ApprovalItem[] = [];
