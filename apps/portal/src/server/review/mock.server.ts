@@ -31,6 +31,7 @@ import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { reviewClock } from './mock-clock.server';
 import { noticeInStore, noticesRoute, resetNoticesMock } from './notices-mock.server';
 import type { DeclarantClarification, DeclarantDecision } from './types';
 
@@ -189,6 +190,7 @@ export function resetReviewMock(
     noNotices = false,
   }: { letterIssueMs?: number; noNotices?: boolean } = {},
 ) {
+  reviewClock.startAt(now);
   resetNoticesMock(now, { empty: noNotices });
   issueDelayMs = letterIssueMs;
   decisions.clear();
@@ -344,7 +346,7 @@ export function mockNotice(actionId: string) {
 }
 
 function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock();
+  if (clarifications.size === 0) resetReviewMock(reviewClock.now());
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -440,7 +442,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date().toISOString();
+  const now = reviewClock.isoNow();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',
