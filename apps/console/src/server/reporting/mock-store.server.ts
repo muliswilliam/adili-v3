@@ -22,10 +22,28 @@ import type { Officer, ReportStatus } from './types';
  * route reads it first.
  */
 
+type Signatory = FormMV1['partIII']['compiledBy'];
+type Complaint = FormMV1['partII']['complaints']['items'][number];
+
+/** What the Commission's officers added to the compiled draft: kept across recompiles. */
+export interface Edits {
+  /** The supervisor's remarks by obligation id. */
+  remarks: Map<string, string>;
+  contactDetails?: string;
+  physicalAddress?: string;
+  emailAddress?: string;
+  registerMaintained?: boolean | null;
+  complaints?: Complaint[];
+  /** Part III, filled on review and on confirmation. */
+  compiledBy: Signatory | null;
+  confirmedBy: Signatory | null;
+}
+
 /** One year's report as the workspace mock holds it. */
 export interface StoredReport {
   fy: number;
   status: Exclude<ReportStatus, 'not-started'>;
+  source: 'hosted' | 'federated';
   compiledAt: string | null;
   /** While compiling: when the compile started. */
   compileStartedAt: number | null;
@@ -34,7 +52,13 @@ export interface StoredReport {
   reference: string | null;
   reviewedBy: Officer | null;
   confirmedBy: Officer | null;
-  document: FormMV1 | null;
+  /** The document as compiled, before the officers' edits (`storedDocument` lays them over it). */
+  compiled: FormMV1 | null;
+  edits: Edits;
+  /** Once submitted: when the documents service issues the PDF and the receipt. */
+  issueAt: number | null;
+  formMDocumentId: string | null;
+  receiptDocumentId: string | null;
 }
 
 /** The Public Service Commission's reports, by financial year (start year). */
@@ -46,7 +70,7 @@ let corruptDocument = false;
 
 /** The mocks' day (`YYYY-MM-DD`); seeds the store on the first read. */
 export function mockDay(): string {
-  if (day === '') resetReportingMock(env().REPORTING_MOCK_TODAY);
+  if (day === '') resetReportingStore(env().REPORTING_MOCK_TODAY);
   return day;
 }
 
@@ -62,6 +86,12 @@ export function storedYears(): number[] {
   return [...reports.keys()];
 }
 
+/** The reports held, every year. */
+export function storedReports(): StoredReport[] {
+  mockDay();
+  return [...reports.values()];
+}
+
 /** Stores (or replaces) a year's report. */
 export function saveStoredReport(report: StoredReport) {
   mockDay();
@@ -71,34 +101,63 @@ export function saveStoredReport(report: StoredReport) {
 /** Whether the workspace mock answers a document that is not form-m.v1 (contract drift). */
 export const mockDocumentCorrupt = () => corruptDocument;
 
-const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
+export const SUPERVISOR_OFFICER: Officer = { subject: 'mock-supervisor', name: 'Samuel Njoroge' };
 const ADMIN_OFFICER: Officer = { subject: 'mock-commission-admin', name: 'Joyce Wanjiku' };
+const REVIEWER_DESIGNATION = 'Deputy Director, HRM';
 
-/** The draft as a supervisor marks it reviewed: Part III's compiled-by filled (spec 09 S5). */
-function reviewed(document: FormMV1, on: string): FormMV1 {
+export const noEdits = (): Edits => ({ remarks: new Map(), compiledBy: null, confirmedBy: null });
+
+/** Part I and Part B as the commission-admin fills them for the seeded reports. */
+function filled(edits: Edits): Edits {
   return {
-    ...document,
-    partIII: {
-      ...document.partIII,
-      compiledBy: { name: SUPERVISOR_OFFICER.name, designation: 'Deputy Director, HRM', date: on },
-    },
+    ...edits,
+    contactDetails: '+254 20 222 3901 / +254 720 101 010',
+    emailAddress: 'compliance@publicservice.go.ke',
+    registerMaintained: true,
+    complaints: [],
   };
 }
 
-/** The document as the commission-admin confirmed it: Part I, Part B and Part III filled. */
-function confirmed(document: FormMV1, reviewedOn: string, confirmedOn: string): FormMV1 {
-  const done = reviewed(document, reviewedOn);
+/** The ids of a year's Form M PDF and receipt in the workspace mock's documents. */
+export const formMDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00010000${String(fy)}`;
+export const receiptDocumentIdOf = (fy: number) => `0199c000-0000-7000-8000-00020000${String(fy)}`;
+
+/** The compiled document with the officers' edits laid over it, as the service assembles it. */
+export function storedDocument(stored: StoredReport): FormMV1 {
+  const compiled = stored.compiled ?? fullDocument(stored.fy);
+  const { edits } = stored;
+  const remarked = (section: FormMV1['partII']['biennial']) => ({
+    ...section,
+    nonFilers: section.nonFilers.map((row) => {
+      const remark = row.obligationId ? edits.remarks.get(row.obligationId) : undefined;
+      return remark === undefined ? row : { ...row, remarks: remark };
+    }),
+  });
+  const { partI, partII, partIII } = compiled;
   return {
-    ...done,
+    ...compiled,
     partI: {
-      ...done.partI,
-      contactDetails: '+254 20 222 3901',
-      emailAddress: 'compliance@publicservice.go.ke',
+      ...partI,
+      contactDetails: edits.contactDetails ?? partI.contactDetails,
+      physicalAddress: edits.physicalAddress ?? partI.physicalAddress,
+      emailAddress: edits.emailAddress ?? partI.emailAddress,
     },
-    partII: { ...done.partII, complaints: { registerMaintained: true, items: [] } },
+    partII: {
+      ...partII,
+      initial: remarked(partII.initial),
+      biennial: remarked(partII.biennial),
+      final: remarked(partII.final),
+      complaints: {
+        registerMaintained:
+          edits.registerMaintained === undefined
+            ? partII.complaints.registerMaintained
+            : edits.registerMaintained,
+        items: edits.complaints ?? partII.complaints.items,
+      },
+    },
     partIII: {
-      ...done.partIII,
-      confirmedBy: { name: ADMIN_OFFICER.name, designation: 'Secretary/CEO', date: confirmedOn },
+      compiledBy: edits.compiledBy ?? partIII.compiledBy,
+      confirmedBy: edits.confirmedBy ?? partIII.confirmedBy,
     },
   };
 }
@@ -112,14 +171,26 @@ export { nairobiDayOf };
 /** 06:00 in Nairobi on `date`, when the scheduled compile runs. */
 export const sixAm = (date: string) => `${date}T03:00:00.000Z`;
 
-/**
- * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default).
- * `corruptDocument` answers a report whose document is not form-m.v1 (contract drift);
- * `reviewed` has the supervisor mark the year-before's draft reviewed two days ago.
- */
-export function resetReportingMock(
+export interface ReportingMockSeed {
+  /** The year-before's document is not form-m.v1 (contract drift). */
+  corruptDocument?: boolean;
+  /** The supervisor marked the year-before's draft reviewed two days ago. */
+  reviewed?: boolean;
+  /** The commission-admin filled Part I and Part B of the year-before's draft. */
+  filled?: boolean;
+  /**
+   * The year-before's report is submitted: confirmed `late` (57 days after 31 July) or `on-time`
+   * (today), or filed by the Commission's own system (`federated`, today).
+   */
+  submitted?: 'late' | 'on-time' | 'federated';
+  /** The PDF and receipt of a seeded submitted report are still being issued. */
+  issuing?: boolean;
+}
+
+/** Seeds the store as it stands on `value` (`YYYY-MM-DD`; today in Nairobi by default). */
+export function resetReportingStore(
   value: string = nairobiToday(),
-  options: { corruptDocument?: boolean; reviewed?: boolean } = {},
+  options: ReportingMockSeed = {},
 ) {
   day = value;
   corruptDocument = options.corruptDocument ?? false;
@@ -127,16 +198,32 @@ export function resetReportingMock(
   const current = financialYearOf(value);
   const last = current - 1;
   if (last < FIRST_FINANCIAL_YEAR) return;
-  if (value >= previewFromOf(current)) {
-    reports.set(last, submitted(last, `${plusDays(dueDateOf(last), 57)}T11:42:00.000Z`));
+  const submitted = options.submitted ?? (value >= previewFromOf(current) ? 'late' : undefined);
+  if (submitted) {
+    const submittedOn = submitted === 'late' ? plusDays(dueDateOf(last), 57) : value;
+    reports.set(
+      last,
+      submittedReport(last, `${submittedOn}T11:42:00.000Z`, {
+        federated: submitted === 'federated',
+        issuing: options.issuing,
+      }),
+    );
     return;
   }
   const yearStart = finalCompileOf(last);
   const compiledOn = plusDays(value, -11) < yearStart ? yearStart : plusDays(value, -11);
-  const reviewedOn = plusDays(value, -2);
+  const edits = noEdits();
+  if (options.reviewed) {
+    edits.compiledBy = {
+      name: SUPERVISOR_OFFICER.name,
+      designation: REVIEWER_DESIGNATION,
+      date: plusDays(value, -2),
+    };
+  }
   reports.set(last, {
     fy: last,
     status: options.reviewed ? 'reviewed' : 'draft',
+    source: 'hosted',
     compiledAt: sixAm(compiledOn),
     compileStartedAt: null,
     submittedAt: null,
@@ -144,34 +231,57 @@ export function resetReportingMock(
     reference: null,
     reviewedBy: options.reviewed ? SUPERVISOR_OFFICER : null,
     confirmedBy: null,
-    document: options.reviewed ? reviewed(fullDocument(last), reviewedOn) : fullDocument(last),
+    compiled: fullDocument(last),
+    edits: options.filled ? filled(edits) : edits,
+    issueAt: null,
+    formMDocumentId: null,
+    receiptDocumentId: null,
   });
 }
 
 /**
- * The year's report as the commission-admin's confirmation leaves it at `submittedAt`: reference
- * allocated, reviewed the day before, Part I, Part B and Part III filled, late when its Nairobi
- * day is after 31 July. The seed (April to June) and `submitMockReport` both build it here.
+ * The year's report as the commission-admin's confirmation leaves it at `submittedAt` (or the
+ * Commission's own system, `federated`, with no confirming officer): reference allocated,
+ * reviewed the day before, Part I, Part B and Part III filled, late when its Nairobi day is after
+ * 31 July, the PDF and receipt issued unless `issuing`. The seed and `submitMockReport` both
+ * build it here.
  */
-function submitted(fy: number, submittedAt: string): StoredReport {
+function submittedReport(
+  fy: number,
+  submittedAt: string,
+  { federated = false, issuing = false }: { federated?: boolean; issuing?: boolean } = {},
+): StoredReport {
   const filedOn = nairobiDayOf(submittedAt);
   return {
     fy,
     status: 'submitted',
+    source: federated ? 'federated' : 'hosted',
     compiledAt: sixAm(finalCompileOf(fy)),
     compileStartedAt: null,
     submittedAt,
     late: filedOn > dueDateOf(fy),
     reference: `RPT-PSC-${String(fy + 1)}-0000001-K`,
     reviewedBy: SUPERVISOR_OFFICER,
-    confirmedBy: ADMIN_OFFICER,
-    document: confirmed(fullDocument(fy), plusDays(filedOn, -1), filedOn),
+    confirmedBy: federated ? null : ADMIN_OFFICER,
+    compiled: fullDocument(fy),
+    edits: filled({
+      ...noEdits(),
+      compiledBy: {
+        name: SUPERVISOR_OFFICER.name,
+        designation: REVIEWER_DESIGNATION,
+        date: plusDays(filedOn, -1),
+      },
+      confirmedBy: { name: ADMIN_OFFICER.name, designation: 'Secretary/CEO', date: filedOn },
+    }),
+    issueAt: issuing ? Number.POSITIVE_INFINITY : null,
+    formMDocumentId: issuing ? null : formMDocumentIdOf(fy),
+    receiptDocumentId: issuing ? null : receiptDocumentIdOf(fy),
   };
 }
 
 /** Submits the year's report on `on` at 11:20 in Nairobi, as the commission-admin's confirmation would. */
 export function submitMockReport(fy: number, on: string) {
-  saveStoredReport(submitted(fy, `${on}T08:20:00.000Z`));
+  saveStoredReport(submittedReport(fy, `${on}T08:20:00.000Z`));
 }
 
 type NonFiler = FormMV1['partII']['initial']['nonFilers'][number];

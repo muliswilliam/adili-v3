@@ -89,6 +89,16 @@ export interface FormMReportExtensions {
   partI?: (report: CompiledReport) => ReactNode;
   /** Replaces the read-only Part B, e.g. the commission-admin's complaints entry. */
   complaints?: (report: CompiledReport) => ReactNode;
+  /**
+   * Says why the footer has no action for the viewer, e.g. "Awaiting supervisor review": a
+   * string, null for nothing, undefined for the default ("Read only" for the reporting officer).
+   * Previews keep theirs.
+   */
+  footerNote?: (report: CompiledReport) => string | null | undefined;
+  /** Banners over the report, above the due date's, e.g. a confirmation that did not go through. */
+  banners?: (report: CompiledReport) => ReactNode;
+  /** Replaces a submitted report's header, e.g. with the reference, receipt and downloads. */
+  submitted?: (report: CompiledReport) => ReactNode;
 }
 
 export interface FormMWorkspaceViewProps {
@@ -514,42 +524,46 @@ function ReportView({
   const missing = manualMissing(document);
   const submitted = report.status === 'submitted';
   const actions = submitted ? null : (extensions.footerActions?.(report, { preview }) ?? null);
+  const submittedHeader = submitted ? extensions.submitted?.(report) : undefined;
   return (
     <>
+      {extensions.banners?.(report)}
       <Banners report={report} today={today} preview={preview} />
       <div className="grid items-start gap-5 @min-[1080px]:grid-cols-[minmax(0,1fr)_300px]">
         <div className="grid min-w-0 gap-4">
-          <Card className="flex-row flex-wrap items-center gap-3 px-5 py-4 sm:px-5 sm:py-4">
-            <div className="min-w-0">
-              <h2 className="text-[17px] font-semibold tracking-[-0.01em]">
-                {submitted
-                  ? m.submittedHeading
-                  : m.asAt(report.compiledAt ? formatDateTime(report.compiledAt) : '-')}
-              </h2>
-              {submitted ? (
-                <p className="mt-0.5 text-[13px] text-muted-foreground">
-                  {[report.reference, report.submittedAt && formatDateTime(report.submittedAt)]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
-              ) : report.reviewedBy ? (
-                <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-medium text-success">
-                  <Icon icon={UserCheck01Icon} className="size-3.5" />
-                  {m.reviewedBy(
-                    report.reviewedBy.name,
-                    document.partIII.compiledBy.date
-                      ? formatDate(document.partIII.compiledBy.date)
-                      : null,
-                  )}
-                </p>
-              ) : null}
-            </div>
-            {recompile ? (
-              <div className="ml-auto flex flex-wrap gap-2 @max-[699px]:ml-0 @max-[699px]:w-full @max-[699px]:[&>*]:flex-1">
-                {recompile}
+          {submittedHeader ?? (
+            <Card className="flex-row flex-wrap items-center gap-3 px-5 py-4 sm:px-5 sm:py-4">
+              <div className="min-w-0">
+                <h2 className="text-[17px] font-semibold tracking-[-0.01em]">
+                  {submitted
+                    ? m.submittedHeading
+                    : m.asAt(report.compiledAt ? formatDateTime(report.compiledAt) : '-')}
+                </h2>
+                {submitted ? (
+                  <p className="mt-0.5 text-[13px] text-muted-foreground">
+                    {[report.reference, report.submittedAt && formatDateTime(report.submittedAt)]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                ) : report.reviewedBy ? (
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-medium text-success">
+                    <Icon icon={UserCheck01Icon} className="size-3.5" />
+                    {m.reviewedBy(
+                      report.reviewedBy.name,
+                      document.partIII.compiledBy.date
+                        ? formatDate(document.partIII.compiledBy.date)
+                        : null,
+                    )}
+                  </p>
+                ) : null}
               </div>
-            ) : null}
-          </Card>
+              {recompile ? (
+                <div className="ml-auto flex flex-wrap gap-2 @max-[699px]:ml-0 @max-[699px]:w-full @max-[699px]:[&>*]:flex-1">
+                  {recompile}
+                </div>
+              ) : null}
+            </Card>
+          )}
           {extensions.partI?.(report) ?? <PartICard partI={document.partI} />}
           <PartHeading>{m.partII}</PartHeading>
           <DeclarationSections
@@ -579,12 +593,28 @@ function ReportView({
         <WorkspaceFooter
           report={report}
           today={today}
-          note={actions ? null : footerNote(report, preview, capabilities)}
+          note={noteOf(report, preview, capabilities, extensions, actions !== null)}
           actions={actions}
         />
       )}
     </>
   );
+}
+
+/**
+ * The footer's note: the extension's, null included, unless it has none (undefined); else, with
+ * an action in the footer, none, and without one, why there is nothing to do.
+ */
+function noteOf(
+  report: CompiledReport,
+  preview: boolean,
+  capabilities: FormMCapabilities,
+  extensions: FormMReportExtensions,
+  hasActions: boolean,
+): string | null {
+  const extended = preview ? undefined : extensions.footerNote?.(report);
+  if (extended !== undefined) return extended;
+  return hasActions ? null : footerNote(report, preview, capabilities);
 }
 
 /** Why the footer has no action for the viewer, if it says anything. */

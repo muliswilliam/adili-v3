@@ -53,6 +53,8 @@ export interface ReportingProblem {
   detail?: string;
   /** A `PROBLEM_CODES` code (api-kit), e.g. `preview-not-available`, `report-submitted` or `separation-of-duties`. */
   code?: Schemas['ProblemDetails']['code'];
+  /** Field-level errors, e.g. the form-m.v1 paths an `incomplete` report has still to fill. */
+  errors?: Schemas['ProblemDetails']['errors'];
 }
 
 /** reporting.yaml `Intake`: every Commission's report status for a financial year (EACC). */
