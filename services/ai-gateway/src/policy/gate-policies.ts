@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { ProblemException } from '@adili/api-kit';
 import { InjectDatabase } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { and, asc, eq, sql } from 'drizzle-orm';
@@ -9,6 +10,7 @@ import { asPlatform, asTenant, type GatewayDatabase } from '../db/context.js';
 import { type GatePolicy, gatePolicies } from '../db/schema.js';
 import { DATA_CLASSES, type DataClass, dataClassSchema } from '../jobs/task-request.js';
 import { PROVIDER_CLASSES, type ProviderClass, providerClassSchema } from '../providers/port.js';
+import { type TaskName, taskNameSchema } from '../tasks/task.js';
 import { auditChange } from './audit.js';
 
 /**
@@ -29,16 +31,47 @@ export const gateCellSchema = z.strictObject({
 });
 export type GateCell = z.infer<typeof gateCellSchema>;
 
+/**
+ * The tasks a rule is for, or null for every task. A task the rule does not name follows the
+ * gate's default for the pair, so an approval for one task (the demo reading synthetic documents
+ * into the form) opens no other.
+ */
+const ruleTasks = z.array(taskNameSchema).min(1).nullable().meta({
+  description:
+    "The tasks the rule is for; null for every task. Any other task follows the gate's default for the pair",
+});
+
+/**
+ * Contract `GateRuleInput`: a cell of the gate, for every task or only the ones named. A change
+ * that leaves `tasks` out is for every task: to a cell with a rule for some tasks only it is
+ * refused, allowing or blocking, so a scope is neither widened nor dropped by accident. Name the
+ * tasks to keep it, or send `tasks: null` to make the rule every task's.
+ */
+export const gateRuleInputSchema = z.strictObject({
+  ...gateCellSchema.shape,
+  tasks: ruleTasks.optional().meta({
+    description:
+      "The tasks the rule is for; null for every task. Left out: every task, except over a rule for some tasks only, where the change (allowing or blocking) is refused: name the tasks to keep the scope, or send null to make the rule every task's",
+  }),
+});
+export type GateRuleInput = z.input<typeof gateRuleInputSchema>;
+
 /** Contract `GatePolicyInput`: rules applied together, on one approval. */
 export interface GateChange {
-  rules: GateCell[];
+  rules: GateRuleInput[];
   approvalRef: string;
+}
+
+/** Whether `rule` decides for `task`: it names no tasks, or names this one. */
+function decidesFor(rule: { tasks: readonly TaskName[] | null }, task: TaskName): boolean {
+  return rule.tasks === null || rule.tasks.includes(task);
 }
 
 /** Contract `GateRule`: an explicit rule with who decided it and on which approval. */
 export const gateRuleSchema = z
   .object({
     ...gateCellSchema.shape,
+    tasks: ruleTasks,
     approvalRef: z.string(),
     changedBy: z.string().meta({ description: '`sub` of the platform admin who made the change' }),
     changedByName: z
@@ -102,14 +135,16 @@ export class GatePolicies {
     private readonly events: EventPublisher,
   ) {}
 
+  /** Whether `task`'s jobs for `tenant` may send `dataClass` to `providerClass`. */
   async admits(
     tenant: string,
     dataClass: DataClass,
     providerClass: ProviderClass,
+    task: TaskName,
   ): Promise<boolean> {
     const [rule] = await asTenant(this.db, tenant, (tx) =>
       tx
-        .select({ allowed: gatePolicies.allowed })
+        .select({ allowed: gatePolicies.allowed, tasks: gatePolicies.tasks })
         .from(gatePolicies)
         .where(
           and(
@@ -119,18 +154,26 @@ export class GatePolicies {
           ),
         ),
     );
-    return rule ? rule.allowed : defaultGateAdmits(providerClass);
+    return rule && decidesFor(rule, task) ? rule.allowed : defaultGateAdmits(providerClass);
   }
 
-  /** The tenant's gate for every pair: its rule where it has one, else the default. */
-  async effective(tenant: string): Promise<GateCell[]> {
+  /**
+   * The tenant's gate for every pair, for every one of `tasks`: its rule where it has one that
+   * decides for them all, else the default.
+   */
+  async effective(tenant: string, tasks: readonly TaskName[]): Promise<GateCell[]> {
     const rules = await this.rules(tenant);
-    return defaultGate().map(
-      (cell) =>
-        rules.find(
-          (rule) => rule.dataClass === cell.dataClass && rule.providerClass === cell.providerClass,
-        ) ?? cell,
-    );
+    return defaultGate().map((cell) => {
+      const rule = rules.find(
+        (each) => each.dataClass === cell.dataClass && each.providerClass === cell.providerClass,
+      );
+      if (!rule || !tasks.every((task) => decidesFor(rule, task))) return cell;
+      return {
+        dataClass: rule.dataClass,
+        providerClass: rule.providerClass,
+        allowed: rule.allowed,
+      };
+    });
   }
 
   /** The tenant's explicit rules; pairs without one follow `defaultGateAdmits`. */
@@ -164,15 +207,34 @@ export class GatePolicies {
       async (tx) => {
         // Concurrent changes of the tenant's gate apply, and are audited, in turn.
         await lockTenantSetting(tx, 'gate', tenant);
-        for (const input of change.rules) {
+        for (const [index, input] of change.rules.entries()) {
           const key = and(
             eq(gatePolicies.tenant, tenant),
             eq(gatePolicies.dataClass, input.dataClass),
             eq(gatePolicies.providerClass, input.providerClass),
           );
           const [before] = await tx.select().from(gatePolicies).where(key);
+          // A rule for some tasks only is widened to every task on purpose (`tasks: null`), never
+          // by a change that does not mention tasks; the throw rolls back the whole change.
+          if (before?.tasks && input.tasks === undefined) {
+            throw new ProblemException({
+              type: 'about:blank',
+              title: 'Validation failed',
+              status: HttpStatus.BAD_REQUEST,
+              errors: [
+                {
+                  path: `rules.${index}.tasks`,
+                  message: `The rule is for ${before.tasks.join(', ')} only: send tasks to keep it so, or null for every task`,
+                },
+              ],
+            });
+          }
+          // Left out is every task: a scoped rule was refused it above, so this is a new rule or one
+          // already every task's; `null` widens a scoped rule on purpose.
+          const tasks = input.tasks ?? null;
           const decision = {
             allowed: input.allowed,
+            tasks,
             approvalRef: change.approvalRef,
             changedBy: actor.subject,
             changedByName: actor.name,
@@ -200,12 +262,14 @@ export class GatePolicies {
               dataClass: input.dataClass,
               providerClass: input.providerClass,
               allowed: before ? before.allowed : defaultGateAdmits(input.providerClass),
+              tasks: before?.tasks ?? null,
               explicit: before !== undefined,
             },
             after: {
               dataClass: input.dataClass,
               providerClass: input.providerClass,
               allowed: after.allowed,
+              tasks: after.tasks,
               explicit: true,
             },
           });
@@ -231,6 +295,7 @@ function toRule(row: GatePolicy): GateRule {
     dataClass: row.dataClass,
     providerClass: row.providerClass,
     allowed: row.allowed,
+    tasks: row.tasks,
     approvalRef: row.approvalRef,
     changedBy: row.changedBy,
     changedByName: row.changedByName,

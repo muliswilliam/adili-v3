@@ -19,6 +19,7 @@ const allowSynthetic: GateRule = {
   dataClass: 'synthetic',
   providerClass: 'external',
   allowed: true,
+  tasks: null,
   approvalRef: 'EACC/AI/2026/014',
   changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
   changedByName: 'Amina Wanjiru',
@@ -331,6 +332,59 @@ describe('S16 AI policy: a Commission', () => {
     expect(invalidate).toHaveBeenCalled();
     // Back to the Commission's drawer.
     expect(screen.getByRole('dialog', { name: 'Teachers Service Commission' })).toBeTruthy();
+  });
+
+  it('shows the demo document rule as for extract-document only, and revokes it for that task', async () => {
+    const documents = {
+      ...allowSynthetic,
+      dataClass: 'highly-confidential' as const,
+      tasks: ['extract-document' as const],
+      approvalRef: 'Demo set-up: synthetic documents read into the form only (spec 05b)',
+    };
+    const saveGate = vi.fn<SaveGate>().mockResolvedValue({
+      ok: true,
+      data: { tenant: 'psc', rules: [allowSynthetic, { ...documents, allowed: false }] },
+    });
+    const row = { ...PSC, ...policy([allowSynthetic, documents]) };
+    renderView({ saveGate, result: { ok: true, data: { ...OVERVIEW, tenants: [row] } } });
+    expect(
+      rowOf('Public Service Commission').getByText('Allowed for extract-document only'),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Public Service Commission' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit policy' }));
+    const edit = within(screen.getByRole('dialog', { name: 'Edit gate policy' }));
+    const scoped = edit.getByLabelText<HTMLInputElement>(
+      'Allow external providers for highly confidential data, for extract-document only',
+    );
+    expect(scoped.checked).toBe(true);
+    fireEvent.click(scoped);
+    fireEvent.click(edit.getByRole('button', { name: 'Continue' }));
+
+    const confirm = within(screen.getByRole('dialog', { name: 'Confirm policy change' }));
+    expect(
+      confirm.getByText(
+        'External providers will no longer process highly confidential data for Public Service Commission, for extract-document only. New AI requests are blocked; outputs already shown stay.',
+      ),
+    ).toBeTruthy();
+    fireEvent.change(confirm.getByLabelText('Record the approval reference.'), {
+      target: { value: 'EACC/AI/2026/041' },
+    });
+    fireEvent.click(confirm.getByRole('button', { name: 'Save policy' }));
+    await waitFor(() => {
+      expect(saveGate).toHaveBeenCalledWith({
+        tenant: 'psc',
+        changes: [
+          {
+            dataClass: 'highly-confidential',
+            providerClass: 'external',
+            allowed: false,
+            tasks: ['extract-document'],
+          },
+        ],
+        approvalRef: 'EACC/AI/2026/041',
+      });
+    });
   });
 
   it('warns that blocking stops new requests', () => {

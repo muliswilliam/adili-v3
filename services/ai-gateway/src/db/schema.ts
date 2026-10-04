@@ -155,6 +155,11 @@ export const gatePolicies = pgTable(
     dataClass: text({ enum: DATA_CLASSES }).notNull(),
     providerClass: text({ enum: PROVIDER_CLASSES }).notNull(),
     allowed: boolean().notNull(),
+    /**
+     * The tasks the rule is for; null for every task. Any other task follows the gate's default
+     * for the pair: the demo's approval to read documents into the form opens no reviewer task.
+     */
+    tasks: text({ enum: TASK_NAMES }).array(),
     /** The decision this rests on, e.g. a Commission resolution or an EACC approval number. */
     approvalRef: text().notNull(),
     /** `sub` of the platform admin who made the change. */

@@ -14,6 +14,7 @@ import type {
   GateChange,
   RouteRow,
 } from '../../server/ai-policy.server';
+import { decidesForReviewers } from '../../server/ai-gateway/tasks';
 import { formatNumber } from '../format';
 import { messages as m } from './messages';
 
@@ -242,44 +243,92 @@ export function changedByText(rule: Pick<GateRule, 'changedBy' | 'changedByName'
   return rule.changedByName ?? rule.changedBy;
 }
 
-export function changeText(rule: Pick<GateRule, 'dataClass' | 'providerClass' | 'allowed'>) {
+export function changeText(
+  rule: Pick<GateRule, 'dataClass' | 'providerClass' | 'allowed'> &
+    Partial<Pick<GateRule, 'tasks'>>,
+) {
   const provider = m.providerClass[rule.providerClass];
   const data = m.dataClass[rule.dataClass];
-  return rule.allowed ? m.changeAllowed(provider, data) : m.changeBlocked(provider, data);
+  const text = rule.allowed ? m.changeAllowed(provider, data) : m.changeBlocked(provider, data);
+  return rule.tasks ? m.forTasksOnly(text, rule.tasks) : text;
+}
+
+/** A cell's explicit rule, or null when the default decides it. */
+export function cellRule(
+  gate: readonly GateCellView[],
+  dataClass: DataClass,
+  providerClass: ProviderClass,
+): GateRule | null {
+  return (
+    gate.find((cell) => cell.dataClass === dataClass && cell.providerClass === providerClass)
+      ?.rule ?? null
+  );
+}
+
+/**
+ * The tasks a cell's rule is for when it is a rule for some tasks only (the demo's document
+ * reading), which the Commission's AI assistance does not follow; null otherwise.
+ */
+export function cellScope(
+  gate: readonly GateCellView[],
+  dataClass: DataClass,
+  providerClass: ProviderClass,
+): readonly TaskName[] | null {
+  const rule = cellRule(gate, dataClass, providerClass);
+  return rule && !decidesForReviewers(rule) ? rule.tasks : null;
 }
 
 /** The edit dialog's checkboxes, keyed `dataClass|providerClass`. */
 export type GateDraft = Record<`${DataClass}|${ProviderClass}`, boolean>;
 
+/**
+ * Whether a cell's checkbox starts ticked: what the cell allows, or for a rule for some tasks
+ * only what it allows those tasks, since that is the rule the checkbox edits.
+ */
+function draftAllowed(
+  gate: readonly GateCellView[],
+  dataClass: DataClass,
+  providerClass: ProviderClass,
+): boolean {
+  if (cellScope(gate, dataClass, providerClass) === null) {
+    return isAllowed(gate, dataClass, providerClass);
+  }
+  return cellRule(gate, dataClass, providerClass)?.allowed ?? false;
+}
+
 export function gateDraft(gate: readonly GateCellView[]): GateDraft {
   const draft = {} as GateDraft;
   for (const dataClass of DATA_CLASSES) {
     for (const providerClass of PROVIDER_CLASSES) {
-      draft[`${dataClass}|${providerClass}`] = isAllowed(gate, dataClass, providerClass);
+      draft[`${dataClass}|${providerClass}`] = draftAllowed(gate, dataClass, providerClass);
     }
   }
   return draft;
 }
 
-/** The cells the draft changes, in table order. */
+/**
+ * The cells the draft changes, in table order. A rule for some tasks only stays for those tasks:
+ * unticking it revokes it for them, and nothing here widens it to every task.
+ */
 export function gateChanges(gate: readonly GateCellView[], draft: GateDraft): GateChange[] {
   return DATA_CLASSES.flatMap((dataClass) =>
     PROVIDER_CLASSES.flatMap((providerClass) => {
       const allowed = draft[`${dataClass}|${providerClass}`];
-      return allowed === isAllowed(gate, dataClass, providerClass)
-        ? []
-        : [{ dataClass, providerClass, allowed }];
+      if (allowed === draftAllowed(gate, dataClass, providerClass)) return [];
+      const tasks = cellScope(gate, dataClass, providerClass);
+      return [{ dataClass, providerClass, allowed, ...(tasks && { tasks: [...tasks] }) }];
     }),
   );
 }
 
-/** A change as the confirm dialog words it. */
+/** A change as the confirm dialog words it, naming the tasks a rule for some tasks only is for. */
 export function confirmText(change: GateChange, commission: string): string {
   const provider = m.providerClass[change.providerClass];
   const data = m.dataClass[change.dataClass];
+  const scoped = change.tasks ? m.forTasksOnly(commission, change.tasks) : commission;
   return change.allowed
-    ? m.confirmAllow(provider, data, commission)
-    : m.confirmBlock(provider, data, commission);
+    ? m.confirmAllow(provider, data, scoped)
+    : m.confirmBlock(provider, data, scoped);
 }
 
 /** `1,500,000` or `1500000` → 1500000; anything else that is not a whole number → null. */
