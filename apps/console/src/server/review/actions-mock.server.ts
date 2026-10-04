@@ -582,6 +582,8 @@ export const actionApprovals: MockApprovalSource<'action'> = {
       subject: caller.subject,
       name: caller.name,
       roles: [...caller.roles],
+      // The inbox's approver carries no tenant; approving an action does not depend on one.
+      tenant: null,
     };
     return [...ladders.values()].flatMap((stored) => {
       const { ladder } = stored;
