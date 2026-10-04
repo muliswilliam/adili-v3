@@ -14,7 +14,7 @@ import {
   withPerson,
   withTenant,
 } from '@adili/data-access';
-import { FakeCipher } from '@adili/data-access/testing';
+import { FakeCipher, truncateTables } from '@adili/data-access/testing';
 import {
   deadLetterQueue,
   EVENTS_EXCHANGE,
@@ -29,7 +29,7 @@ import { lastValueFrom } from 'rxjs';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
-import { isNotNull, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
@@ -39,13 +39,7 @@ import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
 import type { Transaction } from '../../src/db/transaction.js';
-import {
-  type DeclarationsSchema,
-  schema,
-  suggestionConsents,
-  suggestionSets,
-  tenantPolicyCache,
-} from '../../src/db/schema.js';
+import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
 import { DocumentsClient } from '../../src/documents/documents-client.js';
 import { type CorpusFile, loadCorpus } from '../../src/help/corpus.js';
@@ -58,7 +52,9 @@ import {
   CycleOpeningSchedules,
 } from '../../src/obligations/workflow/cycle-opening-schedules.js';
 import { ObligationSteps } from '../../src/obligations/workflow/obligation-steps.js';
+import { DocumentReadingWorkflows } from '../../src/suggestions/document-reading-workflows.js';
 import { ExtractionJobConsumer } from '../../src/suggestions/extraction-job.consumer.js';
+import { RegistryLookupWorkflows } from '../../src/suggestions/registry-lookup-workflows.js';
 import {
   documentReadingWorkflowId,
   registryLookupsWorkflowId,
@@ -396,6 +392,7 @@ export async function startDeclarationsApi({
       persistent: true,
     });
   }
+  const suggestionWorkflows = recordSuggestionWorkflows(app);
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
@@ -449,8 +446,8 @@ export async function startDeclarationsApi({
     },
     async reset() {
       // The suite's suggestion workflows end first, so none acts on the next test's rows.
-      await terminateSuggestionWorkflows(app.get<Client>(TEMPORAL_CLIENT), db);
-      await truncateAll(db);
+      await terminateWorkflows(app.get<Client>(TEMPORAL_CLIENT), suggestionWorkflows);
+      await truncateTables(db, RESET_TABLES);
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
       directory.reset();
@@ -478,74 +475,69 @@ export async function startDeclarationsApi({
 }
 
 /**
- * Terminates the workflows the suite's tests started that act on suggestion rows: every registry
- * lookup (by consent) and document reading (by declaration and job). Left running, a reading
- * keeps pulling the fake gateway for 15 minutes, taking worker slots and locking the next test's
- * tables. One never started, or ended already, is skipped.
+ * Records the id of every suggestion workflow the service starts (registry lookups by consent,
+ * document readings by declaration and job), so `reset` can end them: read back from the tables
+ * they would not be, as the suggestion tables are the declarant's alone under row-level security.
  */
-async function terminateSuggestionWorkflows(
-  temporal: Client,
-  db: Database<DeclarationsSchema>,
-): Promise<void> {
+function recordSuggestionWorkflows(app: NestFastifyApplication): Set<string> {
+  const started = new Set<string>();
+  const lookups = app.get(RegistryLookupWorkflows);
+  const startLookups = lookups.start.bind(lookups);
+  lookups.start = (input) => {
+    started.add(registryLookupsWorkflowId(input.consentId));
+    return startLookups(input);
+  };
+  const readings = app.get(DocumentReadingWorkflows);
+  const startReading = readings.start.bind(readings);
+  readings.start = (input) => {
+    started.add(documentReadingWorkflowId(input.declarationId, input.jobId));
+    return startReading(input);
+  };
+  return started;
+}
+
+/**
+ * Terminates the suggestion workflows the suite started and forgets them. Left running, a
+ * reading keeps pulling the fake gateway for 15 minutes, taking worker slots and locking the next
+ * test's tables. One never started, or ended already, is skipped.
+ */
+async function terminateWorkflows(temporal: Client, started: Set<string>): Promise<void> {
   // `FakeTemporal` (the `fake` mode) starts nothing to terminate.
   if (!('getHandle' in temporal.workflow)) return;
-  const { consents, readings } = await withTenant(
-    db,
-    { tenant: 'platform', subject: 'test' },
-    async (tx) => ({
-      consents: await tx.select({ id: suggestionConsents.id }).from(suggestionConsents),
-      readings: await tx
-        .select({ declarationId: suggestionSets.declarationId, jobId: suggestionSets.aiJobId })
-        .from(suggestionSets)
-        .where(isNotNull(suggestionSets.aiJobId)),
-    }),
-  );
-  const ids = [
-    ...consents.map(({ id }) => registryLookupsWorkflowId(id)),
-    ...readings.flatMap(({ declarationId, jobId }) =>
-      jobId ? [documentReadingWorkflowId(declarationId, jobId)] : [],
-    ),
-  ];
-  for (const id of new Set(ids)) {
+  for (const id of started) {
     try {
       await temporal.workflow.getHandle(id).terminate();
     } catch {
       // Never started, or ended already.
     }
   }
+  started.clear();
 }
 
-/** Truncates tried again on a lock conflict, a backstop to `terminateSuggestionWorkflows`. */
-const RESET_ATTEMPTS = 20;
-
-function isLockConflict(error: unknown): boolean {
-  const codeOf = (value: unknown) =>
-    typeof value === 'object' && value !== null && 'code' in value ? value.code : undefined;
-  const cause =
-    typeof error === 'object' && error !== null && 'cause' in error ? error.cause : undefined;
-  return [codeOf(error), codeOf(cause)].some((code) => code === '55P03' || code === '40P01');
-}
-
-/**
- * Empties the tables. An activity of a workflow just terminated may still hold a lock: the
- * truncate waits at most 2 s for it and, on a lock timeout or a deadlock Postgres broke by
- * aborting the truncate, is tried again.
- */
-async function truncateAll(db: Database<DeclarationsSchema>): Promise<void> {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      await db.transaction(async (tx) => {
-        await tx.execute(sql`set local lock_timeout = '2s'`);
-        await tx.execute(
-          sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
-        );
-      });
-      return;
-    } catch (error) {
-      if (attempt >= RESET_ATTEMPTS || !isLockConflict(error)) throw error;
-    }
-  }
-}
+/** Every table `reset` empties. */
+const RESET_TABLES = [
+  'help_articles',
+  'suggestions',
+  'suggestion_sets',
+  'suggestion_consents',
+  'declaration_items',
+  'declaration_versions',
+  'numbering_counters',
+  'idempotency_keys',
+  'obligation_drafts',
+  'declaration_attachments',
+  'declaration_sections',
+  'declarations',
+  'reminder_messages',
+  'obligation_reminders',
+  'filing_obligations',
+  'roster_snapshots',
+  'tenant_policy_cache',
+  'commission_refs',
+  'cycle_openings',
+  'outbox',
+  'inbox',
+] as const;
 
 /** Deletes the suite's own events queue and its dead-letter queue. */
 async function deleteQueues(rabbitmqUrl: string, service: string): Promise<void> {
