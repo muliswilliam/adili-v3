@@ -36,6 +36,28 @@ export const envSchema = baseEnvSchema
     AI_BREAKER_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
     /** How long an open breaker fails calls fast before one probe call. */
     AI_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(30_000),
+    /**
+     * Origins (`scheme://host:port`, comma-separated) the download link of a document a task
+     * reads may point at: the documents store's (spec 05b). Any other link fails the job.
+     */
+    AI_DOCUMENT_ORIGINS: z
+      .string()
+      .default('http://localhost:8333')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean),
+      )
+      .pipe(z.array(z.url()).min(1)),
+    /** Largest document a task reads: the documents service's upload limit. */
+    AI_DOCUMENT_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(20 * 1024 * 1024),
+    /** How long fetching a document may take. */
+    AI_DOCUMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
     ...providerEnvShape,
   })
   .superRefine(checkProviderEnv)

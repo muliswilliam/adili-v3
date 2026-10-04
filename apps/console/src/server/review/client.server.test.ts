@@ -10,7 +10,14 @@ describe('reviewTimeoutMs', () => {
     expect(timeout).toBe(REVIEW_TIMEOUTS_MS.aiDraft);
   });
 
+  it('waits for a bulk closure approval to work through its chunks', () => {
+    const timeout = reviewTimeoutMs('POST', '/v1/commissions/tsc/closures');
+    expect(timeout).toBe(REVIEW_TIMEOUTS_MS.bulkApproval);
+    expect(timeout).toBeGreaterThanOrEqual(120_000);
+  });
+
   it.each([
+    ['GET', '/v1/commissions/tsc/closures'],
     ['GET', '/v1/review/copilot/drafts/d-1'],
     ['GET', '/v1/review/cases/c-1/copilot'],
     ['POST', '/v1/review/cases/c-1/copilot/refresh'],

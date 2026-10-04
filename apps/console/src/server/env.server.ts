@@ -39,9 +39,10 @@ export const envSchema = bffEnvSchema.extend({
   ACCESS_MOCK: z.stringbool().default(false),
   /**
    * Serve the reporting service (spec 09: a Commission's Form M periods and reports, EACC's intake
-   * totals and the national consolidated report with its PDF download) from in-memory fixtures,
-   * for screens without the reporting service and its upstreams running. Honoured in `vite dev`
-   * and tests only; production builds do not contain the mock.
+   * totals, its referrals intake with evidence package downloads and the national consolidated
+   * report with its PDF download) from in-memory fixtures, for screens without the reporting
+   * service and its upstreams running. Honoured in `vite dev` and tests only; production builds
+   * do not contain the mock.
    */
   REPORTING_MOCK: z.stringbool().default(false),
   /**
@@ -66,15 +67,42 @@ export const envSchema = bffEnvSchema.extend({
     .enum(['history', 'none', 'unavailable', 'reconciliation-failed', 'documents-unavailable'])
     .default('history'),
   /**
+   * With REPORTING_MOCK: the national report's pattern candidates (spec 09b). `computed` by
+   * default, from the built report and two prior years; `none` for no candidates; `error` for a
+   * 503, the panel's error state.
+   */
+  REPORTING_MOCK_CANDIDATES: z.enum(['computed', 'none', 'error']).default('computed'),
+  /**
+   * With REPORTING_MOCK: how the national report's AI narrative drafts go (spec 09b, #341).
+   * `inserted` by default, answered within the request; `slow` answers 202 and inserts the draft
+   * when the report is read some seconds later; `validation` and `slow-validation` discard it as
+   * citing a figure not in the input (409, or on that later read); `failed` is the ai-gateway's
+   * job failing (502); `unavailable` is the gateway out of reach (503).
+   */
+  REPORTING_MOCK_NARRATIVE: z
+    .enum(['inserted', 'slow', 'validation', 'slow-validation', 'failed', 'unavailable'])
+    .default('inserted'),
+  /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.
    */
   REVIEW_MOCK_COPILOT: z.enum(['ready', 'not-enabled']).default('ready'),
   /**
+   * With REVIEW_MOCK: the first attempt of every bulk closure approval stops with a 503 before
+   * this chunk (1-based), for the screen's stopped and Resume states (spec 08 #202). Off by default.
+   */
+  REVIEW_MOCK_CLOSURES_FAIL_AT_CHUNK: z.coerce.number().int().min(1).optional(),
+  /**
    * Serve the ai-gateway's policy, routing and usage endpoints from in-memory fixtures, so the
    * console runs without the gateway. Honoured in `vite dev` and tests only, like REVIEW_MOCK.
    */
   AI_GATEWAY_MOCK: z.stringbool().default(false),
+  /**
+   * Serve the declarations service's help endpoints (articles, corpus, help search, question
+   * themes; spec 11) from in-memory fixtures, so the help pages run without the service.
+   * Honoured in `vite dev` and tests only, like REVIEW_MOCK.
+   */
+  HELP_MOCK: z.stringbool().default(false),
 });
 
 export type Env = z.infer<typeof envSchema>;

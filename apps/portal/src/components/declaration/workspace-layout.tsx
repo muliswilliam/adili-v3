@@ -28,6 +28,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 
 import { OBLIGATION_TYPE_LABELS } from '../../declaration/labels';
+import { AskAdiliBarButton, AskAdiliLauncher } from '../assistant/context';
 import { AmendmentBanner, amendingFrom } from './amendment-banner';
 import { navEntries, neighbours, type Step, stepForNavEntry, stepLink, stepTitle } from './steps';
 import { useWorkspace } from './workspace';
@@ -139,6 +140,7 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
             </span>
             {saveIndicator}
           </div>
+          <AskAdiliBarButton />
           <Button
             type="button"
             variant="secondary"
@@ -236,6 +238,8 @@ export function WorkspaceLayout({ step, children }: { step: Step; children: Reac
           </nav>
         ) : null}
       </div>
+      {/* On phones and tablets the bar above holds Ask Adili, clear of Back and Next. */}
+      <AskAdiliLauncher className="max-lg:hidden" />
     </div>
   );
 }

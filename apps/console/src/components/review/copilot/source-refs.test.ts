@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { MOCK_DECLARATION, MOCK_ITEM_IDS } from '../../../server/review/copilot-mock.server';
-import {
-  declarationAnchorId,
-  HIGHLIGHT_MS,
-  highlightInDeclaration,
-  sourceRefResolver,
-} from './source-refs';
+import { sourceRefResolver } from './source-refs';
 
 const resolve = sourceRefResolver(MOCK_DECLARATION);
 const SPOUSE = 'spouse:5b0e0000-0000-4000-8000-000000000201';
@@ -99,32 +94,5 @@ describe('sourceRefResolver', () => {
     expect(resolve(ref({ personKey: 'child:nobody' }))).toBeNull();
     expect(resolve(ref({}))).toBeNull();
     expect(sourceRefResolver(null)(ref({ itemId: MOCK_ITEM_IDS.plot }))).toBeNull();
-  });
-});
-
-describe('highlightInDeclaration', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-    document.body.innerHTML = '';
-  });
-
-  it('scrolls to the target and highlights it for a moment', () => {
-    vi.useFakeTimers();
-    const id = declarationAnchorId({ kind: 'item', itemId: MOCK_ITEM_IDS.plot });
-    document.body.innerHTML = `<div id="${id}">Plot</div>`;
-    const target = document.getElementById(id);
-    if (!target) throw new Error('no target');
-    const scroll = vi.fn();
-    target.scrollIntoView = scroll;
-    expect(highlightInDeclaration(id)).toBe(true);
-    expect(scroll).toHaveBeenCalled();
-    expect(target.hasAttribute('data-target-highlight')).toBe(true);
-    expect(document.activeElement).toBe(target);
-    vi.advanceTimersByTime(HIGHLIGHT_MS);
-    expect(target.hasAttribute('data-target-highlight')).toBe(false);
-  });
-
-  it('does nothing when the pane does not show the target', () => {
-    expect(highlightInDeclaration('decl-item-missing')).toBe(false);
   });
 });

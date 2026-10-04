@@ -1,6 +1,9 @@
 import { bffEnvSchema, parseEnv } from '@adili/bff-auth';
 import { z } from 'zod';
 
+/** How the Ask Adili mock's gateway can behave (`./declarations/mock/assistant.ts`). */
+export const ASSISTANT_MOCK_MODES = ['ok', 'unavailable', 'fail-midway', 'rate-limited'] as const;
+
 export const envSchema = bffEnvSchema.extend({
   DIRECTORY_API_URL: z.url(),
   /**
@@ -32,6 +35,18 @@ export const envSchema = bffEnvSchema.extend({
    * service's obligations. Honoured in `vite dev` and tests only, like the other mocks.
    */
   DECLARATIONS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve Ask Adili (conversations, streamed answers, feedback) and help search from in-memory
+   * canned answers, to work on the panel without the declarations service's assistant and the
+   * ai-gateway. Works with real drafts too. Honoured in `vite dev` and tests only, like the
+   * other mocks.
+   */
+  ASSISTANT_MOCK: z.stringbool().default(false),
+  /**
+   * How the Ask Adili mock's gateway behaves, to see the panel's other states: `unavailable`
+   * (help search), `fail-midway` (an answer that stops part-way), `rate-limited` (429).
+   */
+  ASSISTANT_MOCK_MODE: z.enum(ASSISTANT_MOCK_MODES).default('ok'),
   REVIEW_API_URL: z.url(),
   /**
    * Serve the declarant's clarifications from in-memory fixtures until the review service
@@ -39,6 +54,14 @@ export const envSchema = bffEnvSchema.extend({
    * DECLARATIONS_MOCK too. Honoured in `vite dev` and tests only, like the other mocks.
    */
   REVIEW_MOCK: z.stringbool().default(false),
+  /**
+   * With REVIEW_MOCK, how far the mock's clarification ladder has gone with the declarant's
+   * salary (spec 08, #208): `none` stops at the warning; `stopped`, `disciplinary`,
+   * `reinstating` and `reinstated` show the salary stoppage notices.
+   */
+  REVIEW_MOCK_SALARY: z
+    .enum(['none', 'stopped', 'disciplinary', 'reinstating', 'reinstated'])
+    .default('none'),
   ACCESS_API_URL: z.url(),
   /**
    * Serve the applicant's access requests (Form K, My requests, withdraw) and the Commissions

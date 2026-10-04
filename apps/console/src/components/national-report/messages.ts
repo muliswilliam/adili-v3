@@ -76,10 +76,64 @@ export const en = {
   previousPage: 'Previous page',
   nextPage: 'Next page',
 
+  patternsTitle: 'Notable patterns',
+  patternsCount: (count: number) =>
+    `${formatNumber(count)} notable pattern${count === 1 ? '' : 's'}`,
+  patternsAbout: 'About notable patterns',
+  patternsTip:
+    "Computed from this and prior years' figures. AI narrates these; it does not find them.",
+  patternsFailed: 'Notable patterns could not be loaded.',
+  retry: 'Retry',
+  noPatternsTitle: 'No notable patterns',
+  noPatternsText: (fy: string) => `Nothing crossed the thresholds for FY ${fy}.`,
+  patternsPagination: 'Notable patterns pages',
+  patternsRows: (count: number) => `${formatNumber(count)} notable patterns`,
+  citedToast: 'Cited in findings. Rewrite the paragraph in your words.',
+
   narrativeTitle: 'Narrative',
   writtenByAnalyst: 'Written by the analyst',
   frozenAtApproval: 'Frozen at approval',
   aiDraft: 'AI draft',
+  aiDraftTip:
+    "Drafted with AI from the year's figures. The analyst reviews it; a named EACC supervisor approves the report.",
+  edited: 'Edited',
+  editedTip: 'AI draft, edited by the analyst',
+
+  draftNarrative: 'Draft narrative',
+  drafting: 'Drafting…',
+  draftAll: 'All sections',
+  draftingSection: (section: string) => `Drafting ${section.toLowerCase()}…`,
+  drafted: (what: string, count: number) =>
+    `Drafted ${what}: ${formatNumber(count)} paragraph${count === 1 ? '' : 's'}. Review each one.`,
+  allSectionsLower: 'all sections',
+  redraftTitle: (what: string) => `Redraft ${what}?`,
+  redraftLegend: 'What the draft replaces',
+  redraftAiOnly: 'Replace only AI-draft paragraphs',
+  redraftKeeps: (count: number) =>
+    `Keeps ${formatNumber(count)} paragraph${count === 1 ? '' : 's'} you wrote or edited.`,
+  redraftNothingToKeep: 'No written or edited paragraphs to keep.',
+  redraftWholeSection: 'Replace the whole section',
+  redraftEverySection: 'Replace every section',
+  redraftRemoves: (count: number, includesEdits: boolean) =>
+    `Removes all ${formatNumber(count)} paragraph${count === 1 ? '' : 's'}${includesEdits ? ', including your edits' : ''}.`,
+  redraft: 'Redraft',
+  draftValidation: 'The draft referenced a figure that is not in the table and was discarded.',
+  draftUnavailable:
+    'The AI service did not respond. Nothing was changed. Try again, or write the narrative yourself.',
+  draftNotEnabled:
+    "AI drafting is not switched on for EACC's figures. Nothing was changed. Write the narrative yourself.",
+  draftNoCandidates:
+    'There are no notable patterns for the findings to narrate. Nothing was changed. Write the findings yourself.',
+  draftRebuilt:
+    'The report was rebuilt while the draft was being written, so the draft was discarded. Try again.',
+  draftBudget:
+    "This month's AI budget is used up. Nothing was changed. Write the narrative yourself.",
+  draftUnreadable: 'The draft could not be read and was discarded. Try again.',
+  draftUnsaved:
+    'Your latest edits could not be saved, so nothing was drafted. Check them, then try again.',
+  draftForbidden: 'Only EACC analysts draft the narrative.',
+  draftSlow: 'The draft is taking longer than usual.',
+  dismiss: 'Dismiss',
 
   approveTitle: 'Approve the national report?',
   approveText: (fy: string) =>

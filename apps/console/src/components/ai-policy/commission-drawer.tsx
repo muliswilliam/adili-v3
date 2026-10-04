@@ -179,6 +179,11 @@ function GateMatrix({ row }: { row: AiTenantRow }) {
                     ) : (
                       <span className="text-muted-foreground">{m.blocked}</span>
                     )}
+                    {cell?.rule?.tasks ? (
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {m.tasksOnly(cell.rule.allowed, cell.rule.tasks)}
+                      </span>
+                    ) : null}
                     {cell?.rule ? (
                       <span className="mt-0.5 block font-mono text-xs text-muted-foreground">
                         {cell.rule.approvalRef}

@@ -30,9 +30,13 @@ const REFERRAL = {
   details: DETAILS,
 } as const;
 
-/** ICMS answers within 300 ms or is timed out; never cached. */
+/**
+ * ICMS answers within 1.5 s or is timed out; never cached. Not less: two sends at once (S13 same
+ * reference) each wait on the stub's 100 ms and a second connection, and on a loaded CI runner
+ * one of them outlasted 300 ms (answered 503 in a 553 ms test).
+ */
 const ICMS_POLICY = {
-  timeoutMs: 300,
+  timeoutMs: 1_500,
   cacheTtlSeconds: null,
   ratePerMinute: 60_000,
   burst: burstOf(60_000),
@@ -55,7 +59,7 @@ describe('ICMS referrals', () => {
       'x-legal-basis': 'regs-r20-referral',
     };
     // The first fetch in a process pays undici's lazy start-up, which on a busy CI runner can
-    // outlast the 300ms timeout. Pay it here, without a timeout, so the first test's call
+    // outlast the timeout. Pay it here, without a timeout, so the first test's call
     // does not time out.
     await (await fetch(`${icms.baseUrl}/warm-up`)).body?.cancel();
     return async () => {
@@ -221,7 +225,11 @@ describe('ICMS referrals', () => {
 
       const responses = await Promise.all([submit(), submit()]);
 
-      expect(responses.map((r) => r.statusCode).sort()).toEqual([200, 201]);
+      // The bodies say why, should one of them be refused again (a 503 names its reason).
+      expect(
+        responses.map((r) => r.statusCode).sort(),
+        responses.map((r) => r.body).join('\n'),
+      ).toEqual([200, 201]);
       const [one, other] = responses;
       expect(one.json()).toEqual(other.json());
       expect(await stored()).toHaveLength(1);
@@ -330,7 +338,7 @@ describe('ICMS referrals', () => {
       const response = await submit();
 
       expect(response.statusCode).toBe(503);
-      expect(performance.now() - started).toBeLessThan(2_000);
+      expect(performance.now() - started).toBeLessThan(ICMS_POLICY.timeoutMs + 2_000);
       expect(await stored()).toEqual([]);
       expect(await calls()).toEqual([
         expect.objectContaining({ outcome: 'unavailable', reason: 'timeout' }),
@@ -478,7 +486,7 @@ describe('ICMS referrals', () => {
         pausedAt: null,
         rateLimitPerMinute: 60_000,
         cacheTtlSeconds: null,
-        timeoutMs: 300,
+        timeoutMs: ICMS_POLICY.timeoutMs,
         breakerFailureThreshold: config.BREAKER_FAILURE_THRESHOLD,
         breakerCooldownSeconds: config.BREAKER_COOLDOWN_MS / 1000,
       });

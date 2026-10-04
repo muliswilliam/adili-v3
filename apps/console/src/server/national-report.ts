@@ -9,6 +9,8 @@ import { financialYear } from './form-m';
 import {
   approveNationalReport,
   buildNationalReport,
+  draftNationalReportNarrative,
+  loadNationalReport,
   loadNationalReportPage,
   nationalReportPdf,
   type NationalReportPage,
@@ -16,8 +18,13 @@ import {
   type NationalReportResult,
   saveNationalReportNarrative,
 } from './national-report.server';
+import { loadPatternCandidates } from './pattern-candidates.server';
 import { reportingToday } from './reporting/today.server';
-import type { NationalReport } from './reporting/types';
+import {
+  NARRATIVE_DRAFT_SECTIONS,
+  type NationalReport,
+  type PatternCandidate,
+} from './reporting/types';
 import type { ServiceResult } from './service-call';
 
 /**
@@ -55,6 +62,41 @@ export const getNationalReportPage = createServerFn({ method: 'GET' })
       page: await asReportingViewer((client) => loadNationalReportPage(client, fy)),
     };
   });
+
+/** The year's pattern candidates, for the Notable patterns panel (spec 09b, #331). */
+export const getPatternCandidatesFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ fy: financialYear }))
+  .handler(({ data }): Promise<NationalReportResult<PatternCandidate[]> | Unauthenticated> =>
+    asReportingViewer((client) => loadPatternCandidates(client, data.fy)),
+  );
+
+/** The year's report alone, polled while an AI narrative draft is being written (#341). */
+export const getNationalReportFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ fy: financialYear }))
+  .handler(({ data }): Promise<NationalReportResult<NationalReport> | Unauthenticated> =>
+    asReportingViewer((client) => loadNationalReport(client, data.fy)),
+  );
+
+/** Asks for an AI narrative draft of a section or all (spec 09b S2, S3, #341). */
+export const draftNationalReportNarrativeFn = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      fy: financialYear,
+      section: z.enum(NARRATIVE_DRAFT_SECTIONS),
+      replaceAll: z.boolean(),
+      idempotencyKey: z.uuid(),
+    }),
+  )
+  .handler(({ data }): Promise<NationalReportResult<NationalReport> | Unauthenticated> =>
+    asReportingViewer((client) =>
+      draftNationalReportNarrative(
+        client,
+        data.fy,
+        { section: data.section, replaceAll: data.replaceAll },
+        data.idempotencyKey,
+      ),
+    ),
+  );
 
 export const buildNationalReportFn = createServerFn({ method: 'POST' })
   .validator(z.object({ fy: financialYear }))

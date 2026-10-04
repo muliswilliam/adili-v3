@@ -991,10 +991,13 @@ describe('clarifications: drafts, issue, letter payload, declarant reads', () =>
     const caseId = await givenAssignedCase(api, version);
     const unissued = (await draft(caseId)).json<ClarificationView>();
     const { id } = (await draft(caseId)).json<ClarificationView>();
+    // Documents produces the letter in the issue workflow; held back, the record has none yet.
+    api.documents.holdIssues();
     expect((await issue(id)).statusCode).toBe(200);
     const letter = `/v1/review/clarifications/${id}/letter/download`;
     // Before documents has produced the letter there is nothing to download.
     expect((await api.get(letter, reviewerA)).statusCode).toBe(404);
+    api.documents.releaseIssues();
     await vi.waitFor(
       async () => {
         const [row] = await api.asPlatform((tx) =>

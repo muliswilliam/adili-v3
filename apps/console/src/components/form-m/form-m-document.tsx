@@ -50,7 +50,7 @@ export const FORM_M_ANCHORS = {
 } as const;
 
 /** A card of the form (the kit's `.card` with `.sec-h` and `.sec-b`), labelled by its heading. */
-function PartCard({
+export function PartCard({
   id,
   title,
   actions,
@@ -119,7 +119,7 @@ function NumberedSection({
 }
 
 /** A static callout (no live role: it is not news). */
-function Note({ children, className }: { children: ReactNode; className?: string }) {
+export function Note({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <Alert role={undefined} className={cn('w-auto', className)}>
       <Icon icon={InformationCircleIcon} />
@@ -137,7 +137,15 @@ function Filled({ value, empty = m.notFilled }: { value: string; empty?: string 
   );
 }
 
-function Field({ roman, label, children }: { roman: string; label: string; children: ReactNode }) {
+export function Field({
+  roman,
+  label,
+  children,
+}: {
+  roman: string;
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <div>
       <dt className="text-[12.5px] font-medium text-muted-foreground">

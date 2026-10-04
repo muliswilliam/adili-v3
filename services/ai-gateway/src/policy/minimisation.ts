@@ -1,3 +1,10 @@
+import {
+  namesNoOneAt,
+  documentIdentifiers,
+  recurrenceOf,
+  type Shape,
+} from './document-identifiers.js';
+
 /**
  * Minimisation (spec 07c, ADR-007): personal identifiers in a task input are replaced by stable
  * per-job tokens such as `[[PERSON_1]]` or `[[ID_1]]` before the provider request is built, and
@@ -7,14 +14,18 @@
  * Task-independent: identifiers are found by where they sit in the input (the declaration.v1
  * field names for names, debtors and creditors, ID numbers, KRA PINs, personnel file numbers,
  * parcel numbers, vehicle registrations, file names, phones, emails, addresses, and dates and
- * places of birth) and by their
- * shape anywhere in free text. Values found in fields are also replaced wherever they recur in
- * free text, in any case and, for codes, with or without spaces and dashes; the token stands for
- * the value as its field holds it. Amounts, other dates and item descriptions are left alone: the tasks
- * need them, and the classification gate decides whether they may leave. The exception is what a
+ * places of birth) and by their shape anywhere in free text. Values found in fields are also
+ * replaced wherever they recur in free text, in any case and, for codes, with or without spaces
+ * and dashes; the token stands for the value as its field holds it. Amounts, other dates and item
+ * descriptions are left alone: the tasks need them, and the classification gate decides whether
+ * they may leave. The exception is what a
  * declarant asks in their own words (`QUESTION_FIELDS`): Ask Adili needs no figure, and never
  * receives one (spec 11), so amounts there are tokens too. Over-matching is safe, since every token
  * is restored; it only hides a word from the model.
+ *
+ * A document's text layer (`DOCUMENT_TEXT_FIELDS`, spec 05b) has no fields to say what is a name:
+ * `documentIdentifiers` reads what its labels, titles and salutations introduce, and those are
+ * replaced wherever they recur.
  *
  * A token in the output that the input never had (the model invented or garbled one) cannot be
  * restored: `restore` throws `UnknownTokenError`, and the job fails as a validation failure
@@ -38,6 +49,10 @@ export const IDENTIFIER_CLASSES = [
   'BIRTH_DATE',
   'BIRTH_PLACE',
   'ACCOUNT',
+  /** A membership, payroll or staff number a document labels (UW-00781). */
+  'MEMBER_NUMBER',
+  /** A company or society a document names as a party ("Borrower: Tumaini Produce Limited"). */
+  'ORGANISATION',
 ] as const;
 export type IdentifierClass = (typeof IDENTIFIER_CLASSES)[number];
 
@@ -124,11 +139,107 @@ const UNTOUCHED_FIELDS = new Set([
   'language',
 ]);
 
+/**
+ * A bank account number: a run of ten to sixteen digits, or three or four groups of four. An
+ * amount after a currency, or with separators or decimals, is not one, nor are a longer code's
+ * digits (a chassis number's).
+ */
+const ACCOUNT_NUMBER =
+  /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/u;
+
+/** Whether `text` holds a bank account number, as minimisation finds one. */
+export function holdsAccountNumber(text: string): boolean {
+  return ACCOUNT_NUMBER.test(text);
+}
+
+/**
+ * Words joined by single spaces, dots and slashes, from the start of their run only (no word or
+ * joined word before): each run is matched once, so a long run takes linear time.
+ */
+const WORD_RUN = /(?<![\p{L}\p{N}]|[\p{L}\p{N}][ ./])[\p{L}\p{N}]+(?:[ ./][\p{L}\p{N}]+)*/gu;
+const WORD = /[\p{L}\p{N}]+/gu;
+const CAPITALS = /^\p{Lu}+$/u;
+const CAPITALS_AND_DIGITS = /^[\p{Lu}\p{N}]+$/u;
+const DIGITS = /^\d+$/u;
+
+/**
+ * Land parcel numbers, as `String.replace` finds them: a section of capitals (two letters or
+ * more, then capitals words after spaces or dots), a slash, blocks of capitals and digits, and a
+ * number after a slash with no slash after it ("KSM/123", "KISUMU/MUNICIPALITY BLOCK 7/412",
+ * "via eCITIZEN NAKURU/NJORO/1234"). The leftmost section that reaches a number wins, with its
+ * last number. A regular expression restarts at each word of a long run of capitals and slashes,
+ * which is quadratic (F102, F111); this scan reads each run once: a section that reaches no
+ * number fails for every later section of the same run too.
+ */
+const PARCELS = {
+  [Symbol.replace](text: string, replacer: (match: string) => string): string {
+    return text.replace(WORD_RUN, (run: string, offset: number) => {
+      const words = Array.from(run.matchAll(WORD), ({ 0: word, index }) => ({
+        word,
+        start: index,
+        end: index + word.length,
+      }));
+      // The mark before word `at` (a space, dot or slash; for the first, the text's).
+      const before = (at: number) => {
+        const start = words[at]?.start ?? 0;
+        return at === 0 ? text[offset - 1] : run[start - 1];
+      };
+      const slashAfterRun = text[offset + run.length] === '/';
+      let result = '';
+      let copied = 0;
+      let at = 0;
+      while (at < words.length) {
+        const first = words[at];
+        if (!first || before(at) === '/' || first.word.length < 2 || !CAPITALS.test(first.word)) {
+          at++;
+          continue;
+        }
+        // The section: capitals words after spaces or dots, up to a slash.
+        let last = at;
+        while (
+          last + 1 < words.length &&
+          before(last + 1) !== '/' &&
+          CAPITALS.test(words[last + 1]?.word ?? '')
+        ) {
+          last++;
+        }
+        if (last + 1 >= words.length || before(last + 1) !== '/') {
+          at = last + 1;
+          continue;
+        }
+        // The blocks, and the last number after a slash with no slash after it.
+        let end = -1;
+        let next = last + 1;
+        for (; next < words.length && CAPITALS_AND_DIGITS.test(words[next]?.word ?? ''); next++) {
+          const slashAfter = next + 1 < words.length ? before(next + 1) === '/' : slashAfterRun;
+          if (before(next) === '/' && DIGITS.test(words[next]?.word ?? '') && !slashAfter) {
+            end = next;
+          }
+        }
+        const finish = words[end];
+        if (!finish) {
+          at = next;
+          continue;
+        }
+        result += run.slice(copied, first.start) + replacer(run.slice(first.start, finish.end));
+        copied = finish.end;
+        at = end + 1;
+      }
+      return result + run.slice(copied);
+    });
+  },
+};
+
 /** Shapes of identifiers anywhere in text. `L` and `N` boundaries keep them off longer codes. */
 const EDGE_BEFORE = String.raw`(?<![\p{L}\p{N}])`;
 const EDGE_AFTER = String.raw`(?![\p{L}\p{N}])`;
-const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number }[] = [
-  { cls: 'EMAIL', pattern: /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}.-]+\.[\p{L}]{2,}/gu },
+const PATTERNS: readonly { cls: IdentifierClass; pattern: Shape; group?: number }[] = [
+  // An email, matched from the start of its run only, and its domain label by label, so a long
+  // run of letters and dots takes linear time.
+  {
+    cls: 'EMAIL',
+    pattern: /(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@(?:[\p{L}\p{N}-]*\.)+\p{L}{2,}/gu,
+  },
   // A KRA PIN: A or P, nine digits, a letter.
   { cls: 'KRA_PIN', pattern: new RegExp(`${EDGE_BEFORE}[AP]\\d{9}[A-Z]${EDGE_AFTER}`, 'gu') },
   // Kenyan phone numbers (+254 or 0, then 7 or 1 and eight digits), and other international ones.
@@ -152,12 +263,8 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
     pattern: new RegExp(`${EDGE_BEFORE}K(?!ES|SH)[A-Z]{2}\\s?\\d{3}[A-Z]?${EDGE_AFTER}`, 'gu'),
   },
   // Land parcel numbers: a registration section, its blocks, then the number (KSM/123,
-  // KISUMU/MUNICIPALITY BLOCK 7/412).
-  {
-    cls: 'PARCEL',
-    pattern:
-      /(?<![\p{L}\p{N}/])\p{Lu}{2,}(?:[ .]\p{Lu}+)*(?:\/[\p{Lu}\p{N}]+(?:[ .][\p{Lu}\p{N}]+)*)*\/\d+(?![\p{L}\p{N}/])/gu,
-  },
+  // KISUMU/MUNICIPALITY BLOCK 7/412), found by a linear scan (`PARCELS`).
+  { cls: 'PARCEL', pattern: PARCELS },
   // Kenyan passport numbers: one or two letters and seven digits.
   { cls: 'PASSPORT', pattern: new RegExp(`${EDGE_BEFORE}[A-Z]{1,2}\\d{7}${EDGE_AFTER}`, 'gu') },
   {
@@ -174,11 +281,7 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   },
   // Bank account numbers: a run of ten to sixteen digits, or three or four groups of four.
   // Amounts after a currency, or with separators or decimals, are left alone as below.
-  {
-    cls: 'ACCOUNT',
-    pattern:
-      /(?<![\p{L}\p{N}.,-]|(?:KES|KSh|Ksh|KShs|Kshs|Shs?|USD|US\$|\$|EUR|GBP)\.?\s?)(?:\d{10,16}|\d{4}(?:[ -]\d{4}){2,3})(?![\p{L}\p{N}%-]|[.,]\d)/gu,
-  },
+  { cls: 'ACCOUNT', pattern: new RegExp(ACCOUNT_NUMBER.source, 'gu') },
   // A bare seven- or eight-digit number is shaped like a national ID. Amounts stay readable:
   // one after a currency, or with separators, decimals or a percent sign, is left alone, as is
   // a part of a longer code (a UUID's group).
@@ -189,11 +292,20 @@ const PATTERNS: readonly { cls: IdentifierClass; pattern: RegExp; group?: number
   },
 ];
 
+/** The shapes' patterns: what a document's names are read around (`documentIdentifiers`). */
+const SHAPES = PATTERNS.map(({ pattern }) => pattern);
+
 /**
  * Fields holding what a declarant asks in their own words (Ask Adili's `question` and earlier
  * turns), where amounts are replaced as well as identifiers.
  */
 const QUESTION_FIELDS = new Set(['question', 'history']);
+
+/**
+ * Fields holding a document's text layer, where the identifiers its labels, titles and
+ * salutations introduce are found (`documentIdentifiers`, spec 05b).
+ */
+const DOCUMENT_TEXT_FIELDS = new Set(['textLayer']);
 
 const CURRENCY = String.raw`(?:KES|KShs?|Kshs?|Shs?|USD|US\$|\$|EUR|€|GBP|£)\.?`;
 const NUMBER = String.raw`\d+(?:[.,]\d+)*`;
@@ -218,10 +330,32 @@ const AMOUNT = new RegExp(
   'giu',
 );
 
+/** Where a string sits: a declarant's question, a document's text layer, or anywhere else. */
+type TextKind = 'question' | 'document' | 'plain';
+
+/** Classes that are names: replaced in a document's text after its shapes. */
+const NAME_CLASSES: ReadonlySet<IdentifierClass> = new Set(['PERSON', 'ORGANISATION', 'PARTY']);
+
 /** Replaces the identifiers in `input` with tokens; see the module comment. */
 export function minimise<T>(input: T): Minimised<T> {
   const known = new Map<string, IdentifierClass>();
-  collect(input, undefined, known);
+  const documentTexts: string[] = [];
+  collect(input, undefined, known, documentTexts);
+  // A document's pages are read as one text, so a label at a page's foot finds its name on the
+  // next. The names a page gives are matched in every case, except common words ("Grace",
+  // "Upendo"), matched only as written, capitalised or in capitals, and words known to be no
+  // one's name ("Branch", "Nakuru"), matched only as written: a trade of a little privacy for
+  // prose that stays readable (#504).
+  const written = new Map<string, IdentifierClass>();
+  for (const { value, cls } of documentIdentifiers(documentTexts.join('\n'), SHAPES)) {
+    const recurrence = cls === 'PERSON' ? recurrenceOf(value) : 'any';
+    if (recurrence !== 'any') {
+      const forms = recurrence === 'exact' ? [value] : writtenForms(value);
+      for (const form of forms) if (!written.has(form)) written.set(form, cls);
+    } else if (!known.has(value)) {
+      known.set(value, cls);
+    }
+  }
 
   const tokens = new Map<string, string>();
   const values = new Map<string, string>();
@@ -241,15 +375,40 @@ export function minimise<T>(input: T): Minimised<T> {
 
   const lookup = knownLookup(known);
   const knownPattern = alternation(known);
-  const replaceText = (text: string, inQuestion: boolean): string => {
-    let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
-    if (inQuestion) result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
-    if (knownPattern) {
-      result = result.replace(knownPattern, (match) => {
-        const found = lookup(match);
-        return found ? tokenFor(found.cls, found.value) : match;
-      });
-    }
+  const writtenPattern = writtenAlternation(written);
+  // A document's text: codes and addresses it labels, then shapes, then names, so a name inside
+  // an email or phone number is not cut out of it ("John.Kamau@KamauLaw.co.ke").
+  const codes = new Map([...known].filter(([, cls]) => !NAME_CLASSES.has(cls)));
+  const names = new Map([...known].filter(([, cls]) => NAME_CLASSES.has(cls)));
+  const codeLookup = knownLookup(codes);
+  const codePattern = alternation(codes);
+  const nameLookup = knownLookup(names);
+  const namePattern = alternation(names);
+  const replaceKnown = (
+    text: string,
+    pattern: RegExp | undefined,
+    find: ReturnType<typeof knownLookup>,
+  ): string =>
+    pattern
+      ? text.replace(pattern, (match) => {
+          const found = find(match);
+          return found ? tokenFor(found.cls, found.value) : match;
+        })
+      : text;
+  const replaceWritten = (text: string): string =>
+    writtenPattern
+      ? text.replace(writtenPattern, (match: string, offset: number) => {
+          const cls = written.get(match);
+          // The text just after the match, as far as a box number or a colon may sit.
+          const after = text.slice(offset + match.length, offset + match.length + 8);
+          if (namesNoOneAt(match, after)) {
+            return match;
+          }
+          return cls ? tokenFor(cls, match) : match;
+        })
+      : text;
+  const replaceShapes = (text: string): string => {
+    let result = text;
     for (const { cls, pattern, group } of PATTERNS) {
       result = result.replace(pattern, (match, ...groups: unknown[]) => {
         if (group === undefined) return tokenFor(cls, match);
@@ -258,6 +417,17 @@ export function minimise<T>(input: T): Minimised<T> {
       });
     }
     return result;
+  };
+  const replaceText = (text: string, kind: TextKind): string => {
+    let result = text.replace(TOKEN, (literal) => tokenFor('LITERAL', literal));
+    if (kind === 'question')
+      result = result.replace(AMOUNT, (amount) => tokenFor('AMOUNT', amount));
+    if (kind === 'document') {
+      result = replaceShapes(replaceKnown(result, codePattern, codeLookup));
+      return replaceWritten(replaceKnown(result, namePattern, nameLookup));
+    }
+    // After the known values, so an organisation's whole name is one token before its words.
+    return replaceShapes(replaceWritten(replaceKnown(result, knownPattern, lookup)));
   };
 
   const minimised = mapStrings(input, undefined, replaceText) as T;
@@ -284,22 +454,22 @@ function collect(
   value: unknown,
   key: string | undefined,
   known: Map<string, IdentifierClass>,
+  documentTexts: string[],
 ): void {
   if (key !== undefined && UNTOUCHED_FIELDS.has(key)) return;
   if (typeof value === 'string') {
     const cls = key === undefined ? undefined : fieldClass(key);
     if (cls === 'PERSON') {
-      // Each part of a name on its own, so it is found in free text in any order or form.
-      for (const word of value.split(/[\s,]+/u)) {
-        if (word.length >= 2 && !known.has(word)) known.set(word, 'PERSON');
-      }
+      collectName(value, known);
+    } else if (key !== undefined && DOCUMENT_TEXT_FIELDS.has(key)) {
+      documentTexts.push(value);
     } else if (cls !== undefined && value.trim().length >= 2) {
       known.set(value.trim(), cls);
     }
     return;
   }
   if (Array.isArray(value)) {
-    for (const each of value) collect(each, key, known);
+    for (const each of value) collect(each, key, known, documentTexts);
     return;
   }
   if (value !== null && typeof value === 'object') {
@@ -311,9 +481,16 @@ function collect(
       if (lineClass !== undefined && typeof child === 'string') {
         if (child.trim().length >= 2) known.set(child.trim(), lineClass);
       } else {
-        collect(child, childKey, known);
+        collect(child, childKey, known, documentTexts);
       }
     }
+  }
+}
+
+/** Each part of a name on its own, so it is found in free text in any order or form. */
+function collectName(name: string, known: Map<string, IdentifierClass>): void {
+  for (const word of name.split(/[\s,]+/u)) {
+    if (word.length >= 2 && !known.has(word)) known.set(word, 'PERSON');
   }
 }
 
@@ -326,6 +503,7 @@ function fieldClass(key: string): IdentifierClass | undefined {
  * `PF 2003 001184`); a known one is found in any of those forms.
  */
 const COMPACT_CLASSES: ReadonlySet<IdentifierClass> = new Set([
+  'MEMBER_NUMBER',
   'ID',
   'KRA_PIN',
   'PASSPORT',
@@ -397,10 +575,33 @@ function phoneAlternative(value: string): string {
  * One case-insensitive pattern matching any known value as a whole word, longest first so it
  * wins; a code also matches with spaces or dashes between its characters.
  */
+/** `text` as a pattern that matches it literally. */
+function escape(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** A name as a page writes it: as found, capitalised, and in capitals ("Kamau", "KAMAU"). */
+function writtenForms(value: string): string[] {
+  const capitalised = value.replace(
+    /(^|[\s-])(\p{L})(\p{L}*)/gu,
+    (_, before: string, first: string, rest: string) =>
+      `${before}${first.toUpperCase()}${rest.toLowerCase()}`,
+  );
+  return [...new Set([value, capitalised, value.toUpperCase()])];
+}
+
+/** One case-sensitive pattern matching any written form as a whole word, longest first. */
+function writtenAlternation(written: ReadonlyMap<string, IdentifierClass>): RegExp | undefined {
+  if (written.size === 0) return undefined;
+  const sorted = [...written.keys()].sort(
+    (a, b) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0),
+  );
+  return new RegExp(`${EDGE_BEFORE}(?:${sorted.map(escape).join('|')})${EDGE_AFTER}`, 'gu');
+}
+
 function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | undefined {
   if (known.size === 0) return undefined;
   const sorted = [...known].sort(([a], [b]) => b.length - a.length || (a < b ? -1 : a > b ? 1 : 0));
-  const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const alternatives = sorted.map(([value, cls]) =>
     // A phone field without digits ("none") is matched as written.
     cls === 'PHONE' && /\d/u.test(value)
@@ -421,12 +622,15 @@ function alternation(known: ReadonlyMap<string, IdentifierClass>): RegExp | unde
 function mapStrings(
   value: unknown,
   key: string | undefined,
-  map: (text: string, inQuestion: boolean) => string,
+  map: (text: string, kind: TextKind) => string,
   inQuestion = false,
 ): unknown {
   if (key !== undefined && UNTOUCHED_FIELDS.has(key)) return value;
   const question = inQuestion || (key !== undefined && QUESTION_FIELDS.has(key));
-  if (typeof value === 'string') return map(value, question);
+  if (typeof value === 'string') {
+    if (question) return map(value, 'question');
+    return map(value, key !== undefined && DOCUMENT_TEXT_FIELDS.has(key) ? 'document' : 'plain');
+  }
   if (Array.isArray(value)) return value.map((each) => mapStrings(each, key, map, question));
   if (value !== null && typeof value === 'object') {
     // Sorted, so tokens are numbered in the same order the canonical JSON shows them.

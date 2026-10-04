@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { saveDeclarationSection } from '../../server/declarations';
@@ -261,5 +261,17 @@ describe('BioSection', () => {
     });
 
     expect(saveMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('opening a field from Ask Adili', () => {
+  it('focuses the field the answer links to', async () => {
+    renderWorkspace(
+      <BioSection section={sampleBio()} etag={'"1"'} focusField="/employment/nature" />,
+      { step: 'bio' },
+    );
+    await waitFor(() => {
+      expect(document.activeElement?.id).toBe('bio-nature');
+    });
   });
 });

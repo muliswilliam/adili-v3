@@ -7,6 +7,7 @@ import {
   type PulledPolicy,
   type PulledRosterRecord,
   type PulledRosterRecordPage,
+  type PulledStaffMember,
   type RosterRecordSelector,
 } from '../../src/directory/directory-client.js';
 
@@ -69,6 +70,21 @@ export class FakeDirectory extends DirectoryClient {
   private readonly nationalIds = new Map<string, string>();
   /** Every national ID read, by person id: an audited read in the directory. */
   readonly nationalIdReads: string[] = [];
+  /** By `<slug> <role>`: the Commission's staff holding the role. */
+  private readonly staff = new Map<string, PulledStaffMember[]>();
+  /** Every reporting officer read, by Commission: an audited read in the directory. */
+  readonly staffReads: string[] = [];
+  private staffUnavailable = false;
+
+  /** The Commission's staff holding `role`. */
+  givenStaff(slug: string, role: 'reporting-officer', members: PulledStaffMember[]): void {
+    this.staff.set(`${slug} ${role}`, members);
+  }
+
+  /** Staff reads fail until `reset`, as an unreachable directory would. */
+  failStaffReads(): void {
+    this.staffUnavailable = true;
+  }
 
   givenCommission(slug: string, name: string, policy: PulledPolicy = policyVersion()): void {
     this.commissions.set(slug, { slug, issuerCode: slug.toUpperCase(), name });
@@ -114,6 +130,17 @@ export class FakeDirectory extends DirectoryClient {
     this.failures = undefined;
     this.nationalIds.clear();
     this.nationalIdReads.length = 0;
+    this.staff.clear();
+    this.staffReads.length = 0;
+    this.staffUnavailable = false;
+  }
+
+  listReportingOfficers(slug: string): Promise<PulledStaffMember[]> {
+    this.staffReads.push(slug);
+    if (this.staffUnavailable) {
+      return Promise.reject(new DirectoryUnavailable('The directory is unreachable'));
+    }
+    return Promise.resolve(this.staff.get(`${slug} reporting-officer`) ?? []);
   }
 
   listRosterRecords(

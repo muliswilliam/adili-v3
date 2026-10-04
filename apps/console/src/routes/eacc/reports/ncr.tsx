@@ -3,13 +3,28 @@ import { z } from 'zod';
 
 import { ComplianceReportsTabs } from '../../../components/eacc-intake/reports-tabs';
 import { messages as m } from '../../../components/national-report/messages';
-import { NationalReportView } from '../../../components/national-report/national-report-view';
+import {
+  type NcrExtensions,
+  NationalReportView,
+} from '../../../components/national-report/national-report-view';
+import {
+  type NarrativeDraftAsk,
+  type NationalReportLoad,
+  useNcrNarrativeDrafting,
+} from '../../../components/national-report/narrative-drafting';
+import {
+  type PatternCandidatesLoad,
+  useNcrPatterns,
+} from '../../../components/national-report/notable-patterns';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
 import {
   approveNationalReportFn,
   buildNationalReportFn,
+  draftNationalReportNarrativeFn,
+  getNationalReportFn,
   getNationalReportPage,
   getNationalReportPdf,
+  getPatternCandidatesFn,
   type NationalReportScreen,
   saveNationalReportNarrativeFn,
 } from '../../../server/national-report';
@@ -41,6 +56,11 @@ export const Route = createFileRoute('/eacc/reports/ncr')({
   component: NcrLoaded,
 });
 
+const loadCandidates: PatternCandidatesLoad = (fy) => getPatternCandidatesFn({ data: { fy } });
+const draftNarrative: NarrativeDraftAsk = (fy, request, idempotencyKey) =>
+  draftNationalReportNarrativeFn({ data: { fy, ...request, idempotencyKey } });
+const loadReport: NationalReportLoad = (fy) => getNationalReportFn({ data: { fy } });
+
 function NcrLoading() {
   return <NcrPage screen={null} />;
 }
@@ -57,6 +77,41 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
   const { viewer, roles, subject } = Route.useRouteContext();
   const navigate = useNavigate({ from: '/eacc/reports/ncr' });
   const fy = screen?.fy ?? search.fy;
+  const page = search.page ?? 1;
+  const onPageChange = (next: number) => {
+    void navigate({
+      search: (previous) => ({ ...previous, page: next > 1 ? next : undefined }),
+      resetScroll: false,
+    });
+  };
+  const result = screen ? screen.page : null;
+  const report = result?.ok ? result.data.report : null;
+  const patterns = useNcrPatterns({
+    fy: fy ?? 0,
+    report,
+    load: loadCandidates,
+    page,
+    onPageChange,
+    onUnauthenticated: goToSignIn,
+  });
+  const drafting = useNcrNarrativeDrafting({
+    fy: fy ?? 0,
+    report,
+    draft: draftNarrative,
+    load: loadReport,
+    onUnauthenticated: goToSignIn,
+    // Its paragraphMeta renders the figure chips after the "Edited" label.
+    figures: patterns.paragraphMeta,
+  });
+  const extensions: NcrExtensions = {
+    patterns: patterns.patterns,
+    narrativeActions: drafting.narrativeActions,
+    narrativeNotice: drafting.narrativeNotice,
+    narrativeBusy: drafting.narrativeBusy,
+    sectionBody: drafting.sectionBody,
+    // The figure chips through drafting's paragraphMeta, after its "Edited" label.
+    paragraphMeta: drafting.paragraphMeta,
+  };
   return (
     <NationalReportView
       fy={fy ?? 0}
@@ -65,14 +120,9 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
       onYearChange={(next) => {
         void navigate({ search: { fy: next } });
       }}
-      page={search.page ?? 1}
-      onPageChange={(page) => {
-        void navigate({
-          search: (previous) => ({ ...previous, page: page > 1 ? page : undefined }),
-          resetScroll: false,
-        });
-      }}
-      result={screen ? screen.page : null}
+      page={page}
+      onPageChange={onPageChange}
+      result={result}
       viewer={{ subject: subject ?? '', name: viewer.user.name, roles }}
       build={(year) => buildNationalReportFn({ data: { fy: year } })}
       saveNarrative={(year, narrative) =>
@@ -85,6 +135,7 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
       onUnauthenticated={() => {
         goToSignIn();
       }}
+      extensions={extensions}
     />
   );
 }

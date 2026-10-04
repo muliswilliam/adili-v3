@@ -16,7 +16,7 @@ import {
 import { FakeCipher } from '@adili/data-access/testing';
 import { OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
-import { prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
+import { endWorkflows, prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -90,7 +90,10 @@ export interface AccessApi {
   temporal: Client;
   /** The events recorded in the outbox, of `type` when given, oldest first. */
   events(type?: string): Promise<RecordedEvent[]>;
-  /** Terminates the workflows with these ids; one not running is fine. */
+  /**
+   * Terminates the workflows with these ids (one not running is fine), then waits until the
+   * worker runs no activity: a terminated run's activity in flight runs on.
+   */
   endWorkflows(ids: readonly string[]): Promise<void>;
   /**
    * Waits until `check` holds (or returns a value other than undefined), as a workflow's
@@ -129,12 +132,13 @@ export async function startAccessApi(): Promise<AccessApi> {
   const url = new URL(baseUrl);
   url.searchParams.set('options', `-c search_path=${pgSchema}`);
 
+  const step = startupStep(baseUrl);
   const admin = createDatabase({ url: baseUrl, schema: {}, applicationName: 'access-test' });
-  await admin.execute(sql.raw(`create schema ${pgSchema}`));
+  await step('creating the schema', admin.execute(sql.raw(`create schema ${pgSchema}`)));
   await admin.$client.end();
 
   const db = createDatabase({ url: url.toString(), schema, applicationName: 'access-test' });
-  await applyMigrations(db);
+  await step('applying the migrations', applyMigrations(db));
 
   const { signer, jwk } = await tokenSigner();
   const directory = new FakeDirectory();
@@ -144,35 +148,43 @@ export async function startAccessApi(): Promise<AccessApi> {
   const documents = new FakeDocuments(() => clock.now());
   const notifications = new FakeNotifications();
   const cipher = new FakeCipher();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(DATABASE)
-    .useValue(db)
-    .overrideProvider(TokenVerifier)
-    .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
-    .overrideProvider(DirectoryClient)
-    .useValue(directory)
-    .overrideProvider(DeclarationsClient)
-    .useValue(declarations)
-    .overrideProvider(ReviewClient)
-    .useValue(review)
-    .overrideProvider(DocumentsClient)
-    .useValue(documents)
-    .overrideProvider(NotificationsClient)
-    .useValue(notifications)
-    .overrideProvider(FieldCipher)
-    .useValue(cipher)
-    .overrideProvider(Clock)
-    .useValue(clock)
-    .overrideProvider(OutboxRelay)
-    .useValue({})
-    .overrideProvider(WorkflowBundler)
-    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
-    .compile();
+  const moduleRef = await step(
+    'compiling the module',
+    Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(DATABASE)
+      .useValue(db)
+      .overrideProvider(TokenVerifier)
+      .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
+      .overrideProvider(DirectoryClient)
+      .useValue(directory)
+      .overrideProvider(DeclarationsClient)
+      .useValue(declarations)
+      .overrideProvider(ReviewClient)
+      .useValue(review)
+      .overrideProvider(DocumentsClient)
+      .useValue(documents)
+      .overrideProvider(NotificationsClient)
+      .useValue(notifications)
+      .overrideProvider(FieldCipher)
+      .useValue(cipher)
+      .overrideProvider(Clock)
+      .useValue(clock)
+      .overrideProvider(OutboxRelay)
+      .useValue({})
+      .overrideProvider(WorkflowBundler)
+      .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
+      .compile(),
+  );
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
-  await app.init();
-  await app.getHttpAdapter().getInstance().ready();
+  await step('starting the app', app.init());
+  await step(
+    'readying the HTTP server',
+    (async () => {
+      await app.getHttpAdapter().getInstance().ready();
+    })(),
+  );
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
   await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
@@ -198,14 +210,8 @@ export async function startAccessApi(): Promise<AccessApi> {
         .map((row) => row.envelope as RecordedEvent)
         .filter((event) => type === undefined || event.type === type);
     },
-    async endWorkflows(ids) {
-      for (const id of ids) {
-        try {
-          await temporal.workflow.getHandle(id).terminate();
-        } catch {
-          // Not running.
-        }
-      }
+    endWorkflows(ids) {
+      return endWorkflows(temporal, app.get(TemporalWorkerReadinessCheck), ids);
     },
     async eventually(check, timeoutMs = 20_000) {
       const deadline = Date.now() + timeoutMs;
@@ -250,13 +256,7 @@ export async function startAccessApi(): Promise<AccessApi> {
         ...leaRows.map(({ id }) => leaRequestWorkflowId(id)),
         ...[...requests, ...leaRows].map(({ id }) => onboardedNoticeWorkflowId(id)),
       ];
-      for (const id of workflowIds) {
-        try {
-          await temporal.workflow.getHandle(id).terminate();
-        } catch {
-          // Never started (held), or ended already.
-        }
-      }
+      await endWorkflows(temporal, app.get(TemporalWorkerReadinessCheck), workflowIds);
       // Children before parents; the register's insert-only trigger does not fire on truncate.
       await db.execute(
         sql`truncate representations, access_requests, lea_requests, access_register, certified_copies, self_access_applications, numbering_counters, idempotency_keys, outbox, inbox`,
@@ -305,6 +305,70 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
       .setExpirationTime('5m')
       .sign(privateKey);
   return { signer, jwk };
+}
+
+/**
+ * Longer than any start step takes on a loaded runner. One stalled step fails (with the 5 s probe)
+ * inside the 60 s hook timeout; several slow steps together can still reach the hook timeout.
+ */
+const STARTUP_STEP_TIMEOUT_MS = 30_000;
+
+/** How long the stalled step's report waits for Postgres to say what its sessions wait on. */
+const PROBE_TIMEOUT_MS = 5_000;
+
+/**
+ * Runs a step of the harness's start, failing it after `STARTUP_STEP_TIMEOUT_MS` with the step's
+ * name and what Postgres' other sessions were waiting on, instead of an anonymous hook timeout:
+ * once in CI the start hung (#534) and nothing said where.
+ */
+function startupStep(baseUrl: string) {
+  return async <T>(name: string, work: Promise<T>): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+    const stalled = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        let probeTimer: NodeJS.Timeout | undefined;
+        void Promise.race([
+          postgresWaits(baseUrl),
+          new Promise<string>((resolve) => {
+            probeTimer = setTimeout(() => {
+              resolve(
+                `unknown (the probe itself did not answer within ${String(PROBE_TIMEOUT_MS)} ms)`,
+              );
+            }, PROBE_TIMEOUT_MS);
+          }),
+        ])
+          .catch((error: unknown) => `unknown (${String(error)})`)
+          .then((waits) => {
+            clearTimeout(probeTimer);
+            reject(
+              new Error(
+                `startAccessApi: ${name} took over ${String(STARTUP_STEP_TIMEOUT_MS)} ms; Postgres sessions waiting: ${waits}`,
+              ),
+            );
+          });
+      }, STARTUP_STEP_TIMEOUT_MS);
+    });
+    try {
+      return await Promise.race([work, stalled]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
+/** The test database's sessions that wait on something, with what they run (best effort). */
+async function postgresWaits(baseUrl: string): Promise<string> {
+  const probe = createDatabase({ url: baseUrl, schema: {}, applicationName: 'access-test-probe' });
+  try {
+    const { rows } = await probe.execute(
+      sql`select pid, application_name, state, wait_event_type, wait_event, pg_blocking_pids(pid) as blocked_by, left(query, 200) as query from pg_stat_activity where datname = current_database() and wait_event_type is not null and state <> 'idle'`,
+    );
+    return JSON.stringify(rows);
+  } catch (error) {
+    return `unknown (${error instanceof Error ? error.message : String(error)})`;
+  } finally {
+    await probe.$client.end().catch(() => undefined);
+  }
 }
 
 function requireEnv(name: string): string {
