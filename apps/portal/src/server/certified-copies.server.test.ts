@@ -20,6 +20,7 @@ import { amendDeclaration } from './my-declarations.server';
 import { submitDeclaration } from './submission.server';
 
 const NOW = Date.parse('2026-10-02T07:00:00Z');
+const DAY = 86_400_000;
 
 /** The declarant as the access mock reads them: their person and the realm role. */
 const DECLARANT = bearer({ ...PERSON, realm_access: { roles: ['declarant'] } });
@@ -193,9 +194,10 @@ describe('certified copies (S13)', () => {
       status: 'not-found',
     });
   });
+
   it('asks and issues as of when the mock was seeded, not the wall clock', async () => {
     // Seeded as of NOW, but run a month later: the wall clock is past every seeded window.
-    vi.setSystemTime(NOW + 30 * 86_400_000);
+    vi.setSystemTime(NOW + 30 * DAY);
     // The declarations mock seeds as of the wall clock and runs on it.
     resetDeclarationsMock();
     resetAccessMocks(NOW);
