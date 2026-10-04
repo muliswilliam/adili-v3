@@ -6,8 +6,7 @@
  * pages them by cursor and counts them by kind and age band (across kinds); supervisors only
  * (403 `supervisor-required`). Reassigning records the supervisor an approval is pointed at;
  * 409 `not-proposed` once decided. The determinations' source is `determinations-mock.server.ts`,
- * the referrals' `referrals-mock.server.ts`; the ladder's actions (#205) add theirs to
- * `resetApprovalsMock`.
+ * the ladder's actions' (#205) `actions-mock.server.ts`, the referrals' `referrals-mock.server.ts`.
  */
 import { SUPERVISOR } from '@adili/roles';
 
