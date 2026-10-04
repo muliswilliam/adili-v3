@@ -1,3 +1,5 @@
+import { DIFF_HIGHLIGHT_PERCENT } from '@adili/ui';
+
 /**
  * Copy for the case view (spec 07a FE-3), as the spec's frontend comment and the 07a-review
  * prototype word it. English now; Swahili slots stay empty until translated.
@@ -32,6 +34,8 @@ export const en = {
     reassign: 'Reassign',
     assign: 'Assign to a reviewer',
     unassign: 'Unassign',
+    proposeDetermination: 'Propose determination',
+    determination: 'Determination',
   },
   toasts: {
     reviewed: 'Marked reviewed',
@@ -84,6 +88,32 @@ export const en = {
     unreadableBody: 'Its document is not in a form the console reads. Flags and notes still work.',
     tryAgain: 'Try again',
     unnamed: 'Unnamed',
+  },
+  compare: {
+    title: 'Version comparison',
+    toggle: (previous: number | null) =>
+      previous === null
+        ? 'Compare with previous declaration'
+        : `Compare with version ${String(previous)}`,
+    firstDeclaration: 'First declaration on Adili: nothing to compare.',
+    loading: 'Loading the comparison',
+    matched: (count: number) => `${String(count)} matched`,
+    rulesFlagged: (count: number) => `${String(count)} changed ${String(DIFF_HIGHLIGHT_PERCENT)}%+`,
+    oneVersionOnly: (count: number) => `${String(count)} in one version only`,
+    span: (previous: string, current: string) => `${previous} → ${current}`,
+    versionOn: (version: number, date: string | null) =>
+      date ? `v${String(version)} ${date}` : `v${String(version)}`,
+    howMatched: 'How items are matched',
+    howMatchedBody: `Items are matched by person, category, type and description. "Not marked" means the declarant did not mark the change or the new item. Changes of ${String(DIFF_HIGHLIGHT_PERCENT)}% or more are shaded. An item up from nothing shows n/a for the percentage and counts as changed. Disposals are recorded under Other information.`,
+    caption: (name: string, previous: number | null, current: number) =>
+      `Changes for ${name} between ${previous === null ? 'the previous declaration' : `version ${String(previous)}`} and version ${String(current)}`,
+    previousDeclaration: 'Previous declaration',
+    previousColumn: 'Previous (KES)',
+    nilBoth: 'Nil declared in both versions',
+    noneTitle: 'Nothing to compare',
+    noneBody: 'This is the first declaration on Adili for this person.',
+    failedTitle: 'The comparison could not be loaded.',
+    failedBody: 'The declaration as filed is still available. Turn Compare off to see it.',
   },
   tabs: {
     label: 'Case review',

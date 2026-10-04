@@ -1,7 +1,15 @@
 import { z } from 'zod';
 
 import type { ReviewClient } from './review/client.server';
-import type { Assignee, CaseDetail, CaseListItem, Flag, Note, RegistryView } from './review/types';
+import type {
+  Assignee,
+  CaseDetail,
+  CaseListItem,
+  Flag,
+  Note,
+  RegistryView,
+  VersionComparison,
+} from './review/types';
 import { callService, type ServiceError, type ServiceResult } from './service-call';
 
 /**
@@ -39,17 +47,11 @@ export interface CaseRegistryView {
   })[];
 }
 
-/** The case detail as the case view reads it (determinations are spec 08's). */
-export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document' | 'determinations'> & {
+/** The case detail as the case view reads it. */
+export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document'> & {
   flags: CaseFlag[];
   document: JsonObject | null;
 };
-
-function viewOf(detail: CaseDetail): CaseViewDetail {
-  const view: Partial<CaseDetail> = { ...detail };
-  delete view.determinations;
-  return view as CaseViewDetail;
-}
 
 export interface CaseView {
   detail: CaseViewDetail;
@@ -75,7 +77,7 @@ function caseDetailOf(body: unknown): CaseViewDetail | null {
   const rest = Object.fromEntries(
     Object.entries(body).filter(([field]) => !PROBLEM_FIELDS.has(field)),
   );
-  return { ...viewOf(rest as unknown as CaseDetail), document: null };
+  return { ...(rest as unknown as CaseViewDetail), document: null };
 }
 
 /**
@@ -100,7 +102,28 @@ export async function loadCaseView(
     return { ok: true, data: { detail: unavailable.detail, documentUnavailable: true, viewer } };
   }
   if (!result.ok) return result;
-  return { ok: true, data: { detail: viewOf(result.data), documentUnavailable: false, viewer } };
+  return {
+    ok: true,
+    data: { detail: result.data as CaseViewDetail, documentUnavailable: false, viewer },
+  };
+}
+
+/**
+ * `GET .../compare`: the current version against the person's previous submitted version, both
+ * pulled from declarations for this call (an audited read). Null when there is none to compare
+ * with (409 `no-previous-version`): a first declaration on Adili.
+ */
+export async function loadComparison(
+  client: ReviewClient,
+  caseId: string,
+): Promise<ServiceResult<VersionComparison | null>> {
+  const result = await callService(() =>
+    client.GET('/v1/review/cases/{caseId}/compare', { params: { path: { caseId } } }),
+  );
+  if (!result.ok && result.error.kind === 'problem' && result.error.problem.status === 409) {
+    return { ok: true, data: null };
+  }
+  return result;
 }
 
 /** `POST .../claim`: the case becomes the caller's (409 `case-already-assigned` if taken). */
