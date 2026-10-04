@@ -76,6 +76,11 @@ vi.mock('../../server/determinations', () => ({
   approveCaseDetermination: vi.fn(),
   returnCaseDetermination: vi.fn(),
 }));
+// So are the referrals tab's (#211), tested in referral-approval.test.tsx.
+vi.mock('../../server/referrals', () => ({
+  approveCaseReferral: vi.fn(),
+  declineCaseReferral: vi.fn(),
+}));
 vi.mock('../../server/approvals', async () => {
   const server = await import('../../server/approvals.server');
   interface Data<T> {
