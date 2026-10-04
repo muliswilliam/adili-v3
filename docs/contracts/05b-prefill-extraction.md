@@ -8,7 +8,7 @@ ADR-013 §8.12 and §8.13 record the registry lookups' calls and why accept and 
 
 | Contract | Source | Drafts left | Drift check |
 |---|---|---|---|
-| `internal/declarations.yaml` | exported from `services/declarations` (`pnpm --filter @adili/declarations contracts`) | `drafts/declarations.yaml`: spec 11 only (assistant, hints, help themes). #469 removed the suggestion operations, #520 `extractAttachment` | `pnpm contracts:drift` |
+| `internal/declarations.yaml` | exported from `services/declarations` (`pnpm --filter @adili/declarations contracts`) | `drafts/declarations.yaml`: spec 11's `getSuggestedQuestions` (#544), once #513 and #536 merge. #469 removed the suggestion operations, #520 `extractAttachment` | `pnpm contracts:drift` |
 | `internal/ai-gateway.yaml` | exported | none (`drafts/ai-gateway.yaml` deleted by #314: `extract-document`'s input and output come from its Zod schemas) | same |
 | `internal/integration-gateway.yaml` | exported | none | same |
 | `internal/directory.yaml` | exported | none | same |
