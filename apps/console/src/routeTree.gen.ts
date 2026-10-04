@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccessRouteRouteImport } from './routes/access/route'
 import { Route as AiPolicyRouteRouteImport } from './routes/ai-policy/route'
 import { Route as CommissionsRouteRouteImport } from './routes/commissions/route'
+import { Route as FormMRouteRouteImport } from './routes/form-m/route'
 import { Route as LeaRouteRouteImport } from './routes/lea/route'
 import { Route as ObligationsRouteRouteImport } from './routes/obligations/route'
 import { Route as PlatformRouteRouteImport } from './routes/platform/route'
@@ -29,6 +30,7 @@ import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
+import { Route as FormMIndexRouteImport } from './routes/form-m/index'
 import { Route as LeaIndexRouteImport } from './routes/lea/index'
 import { Route as LeaRequestsRouteRouteImport } from './routes/lea/requests/route'
 import { Route as ObligationsIndexRouteImport } from './routes/obligations/index'
@@ -102,6 +104,11 @@ const AiPolicyRouteRoute = AiPolicyRouteRouteImport.update({
 const CommissionsRouteRoute = CommissionsRouteRouteImport.update({
   id: '/commissions',
   path: '/commissions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FormMRouteRoute = FormMRouteRouteImport.update({
+  id: '/form-m',
+  path: '/form-m',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaRouteRoute = LeaRouteRouteImport.update({
@@ -184,6 +191,11 @@ const CommissionsNewRoute = CommissionsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CommissionsRouteRoute,
+} as any)
+const FormMIndexRoute = FormMIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FormMRouteRoute,
 } as any)
 const LeaIndexRoute = LeaIndexRouteImport.update({
   id: '/',
@@ -484,6 +496,7 @@ export interface FileRoutesByFullPath {
   '/access': typeof AccessRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/form-m': typeof FormMRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
@@ -512,6 +525,7 @@ export interface FileRoutesByFullPath {
   '/access/': typeof AccessIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/form-m/': typeof FormMIndexRoute
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
@@ -570,6 +584,7 @@ export interface FileRoutesByTo {
   '/access': typeof AccessIndexRoute
   '/ai-policy': typeof AiPolicyIndexRoute
   '/commissions': typeof CommissionsIndexRoute
+  '/form-m': typeof FormMIndexRoute
   '/lea': typeof LeaIndexRoute
   '/obligations': typeof ObligationsIndexRoute
   '/platform': typeof PlatformIndexRoute
@@ -613,6 +628,7 @@ export interface FileRoutesById {
   '/access': typeof AccessRouteRouteWithChildren
   '/ai-policy': typeof AiPolicyRouteRouteWithChildren
   '/commissions': typeof CommissionsRouteRouteWithChildren
+  '/form-m': typeof FormMRouteRouteWithChildren
   '/lea': typeof LeaRouteRouteWithChildren
   '/obligations': typeof ObligationsRouteRouteWithChildren
   '/platform': typeof PlatformRouteRouteWithChildren
@@ -642,6 +658,7 @@ export interface FileRoutesById {
   '/access/': typeof AccessIndexRoute
   '/ai-policy/': typeof AiPolicyIndexRoute
   '/commissions/': typeof CommissionsIndexRoute
+  '/form-m/': typeof FormMIndexRoute
   '/lea/': typeof LeaIndexRoute
   '/obligations/': typeof ObligationsIndexRoute
   '/platform/': typeof PlatformIndexRoute
@@ -691,6 +708,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/form-m'
     | '/lea'
     | '/obligations'
     | '/platform'
@@ -719,6 +737,7 @@ export interface FileRouteTypes {
     | '/access/'
     | '/ai-policy/'
     | '/commissions/'
+    | '/form-m/'
     | '/lea/'
     | '/obligations/'
     | '/platform/'
@@ -777,6 +796,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/form-m'
     | '/lea'
     | '/obligations'
     | '/platform'
@@ -819,6 +839,7 @@ export interface FileRouteTypes {
     | '/access'
     | '/ai-policy'
     | '/commissions'
+    | '/form-m'
     | '/lea'
     | '/obligations'
     | '/platform'
@@ -848,6 +869,7 @@ export interface FileRouteTypes {
     | '/access/'
     | '/ai-policy/'
     | '/commissions/'
+    | '/form-m/'
     | '/lea/'
     | '/obligations/'
     | '/platform/'
@@ -896,6 +918,7 @@ export interface RootRouteChildren {
   AccessRouteRoute: typeof AccessRouteRouteWithChildren
   AiPolicyRouteRoute: typeof AiPolicyRouteRouteWithChildren
   CommissionsRouteRoute: typeof CommissionsRouteRouteWithChildren
+  FormMRouteRoute: typeof FormMRouteRouteWithChildren
   LeaRouteRoute: typeof LeaRouteRouteWithChildren
   ObligationsRouteRoute: typeof ObligationsRouteRouteWithChildren
   PlatformRouteRoute: typeof PlatformRouteRouteWithChildren
@@ -937,6 +960,13 @@ declare module '@tanstack/react-router' {
       path: '/commissions'
       fullPath: '/commissions'
       preLoaderRoute: typeof CommissionsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/form-m': {
+      id: '/form-m'
+      path: '/form-m'
+      fullPath: '/form-m'
+      preLoaderRoute: typeof FormMRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lea': {
@@ -1050,6 +1080,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/commissions/new'
       preLoaderRoute: typeof CommissionsNewRouteImport
       parentRoute: typeof CommissionsRouteRoute
+    }
+    '/form-m/': {
+      id: '/form-m/'
+      path: '/'
+      fullPath: '/form-m/'
+      preLoaderRoute: typeof FormMIndexRouteImport
+      parentRoute: typeof FormMRouteRoute
     }
     '/lea/': {
       id: '/lea/'
@@ -1614,6 +1651,18 @@ const CommissionsRouteRouteChildren: CommissionsRouteRouteChildren = {
 const CommissionsRouteRouteWithChildren =
   CommissionsRouteRoute._addFileChildren(CommissionsRouteRouteChildren)
 
+interface FormMRouteRouteChildren {
+  FormMIndexRoute: typeof FormMIndexRoute
+}
+
+const FormMRouteRouteChildren: FormMRouteRouteChildren = {
+  FormMIndexRoute: FormMIndexRoute,
+}
+
+const FormMRouteRouteWithChildren = FormMRouteRoute._addFileChildren(
+  FormMRouteRouteChildren,
+)
+
 interface LeaRequestsRouteRouteChildren {
   LeaRequestsLeaRequestIdRoute: typeof LeaRequestsLeaRequestIdRoute
   LeaRequestsNewRoute: typeof LeaRequestsNewRoute
@@ -1806,6 +1855,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessRouteRoute: AccessRouteRouteWithChildren,
   AiPolicyRouteRoute: AiPolicyRouteRouteWithChildren,
   CommissionsRouteRoute: CommissionsRouteRouteWithChildren,
+  FormMRouteRoute: FormMRouteRouteWithChildren,
   LeaRouteRoute: LeaRouteRouteWithChildren,
   ObligationsRouteRoute: ObligationsRouteRouteWithChildren,
   PlatformRouteRoute: PlatformRouteRouteWithChildren,
