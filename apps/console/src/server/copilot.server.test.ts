@@ -81,6 +81,18 @@ describe('copilot endpoints (review mock)', () => {
     expect(later.ok && later.data.status).toBe('ready');
   });
 
+  it('generates as of when the mock was seeded, not the wall clock', async () => {
+    // Seeded as of NOW, but run a month later.
+    const later = NOW_MS + 30 * 86_400_000;
+    vi.setSystemTime(later);
+    resetReviewMock(NOW_MS);
+    await refreshCopilot(client(), CASES.mine);
+    vi.setSystemTime(later + MOCK_COPILOT_DELAY_MS);
+    const ready = await loadCopilot(client(), CASES.mine);
+    if (!ready.ok) throw new Error(JSON.stringify(ready.error));
+    expect(ready.data.generatedAt).toBe(new Date(NOW_MS + MOCK_COPILOT_DELAY_MS).toISOString());
+  });
+
   it('refuses a refresh by someone not holding the case', async () => {
     const theirs = await refreshCopilot(client(), CASES.peters);
     expect(theirs.ok || theirs.error).toMatchObject({ problem: { status: 403 } });
