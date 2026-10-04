@@ -21,12 +21,12 @@ Console, portal, access, documents, reporting and review clients (`*.gen.ts`) ar
 
 Operations added (not in the draft):
 
-- `internalGetDeterminationLetterPayload`, `internalGetActionLetterPayload`, `internalGetReferralPackagePayload` (#194, #484): documents pulls a letter's or package's fields by record id instead of trusting the caller's body (ADR-010). Each payload carries `declarantPersonId`, which documents checks against the subject person. The package pull has a 15 s budget, and its three hops are ADR-013 §8.11's exception.
+- `internalGetDeterminationLetterPayload`, `internalGetActionLetterPayload`, `internalGetReferralPackagePayload` (added by #200, #206 and #212 in #444; documents consumes them since #194, #484): documents pulls a letter's or package's fields by record id instead of trusting the caller's body (ADR-010). Each payload carries `declarantPersonId`, which documents checks against the subject person. The package pull has a 15 s budget, and its three hops are ADR-013 §8.11's exception.
 - `internalGetReferralIcmsPayload` (#237, in #444): what reporting pulls when EACC pushes a sent referral to ICMS, with the declarant's national ID read from the directory at each call. 409 `roster-record-unknown`.
 
 Operations changed:
 
-- Every write accepts `Idempotency-Key` (ADR-013 §7.5). `approveDetermination`, `approveBulkClosures`, `approveAction`, `approveReferral` and `respondToNotice` require it, as the draft did; propose, return, withdraw, decline, restart and reassign accept it.
+- Every spec 08 write accepts `Idempotency-Key` (ADR-013 §7.5). `approveDetermination`, `approveBulkClosures`, `approveAction`, `approveReferral` and `respondToNotice` require it, as the draft did; propose, return, withdraw, decline, restart and reassign accept it.
 - `approveBulkClosures` documented `Idempotency-Key` twice (also as `idempotency-key`), so a generated client had to send both. Fixed in #213: it is documented once, and `exportContract` now refuses a parameter documented twice.
 - Every operation documents its problems. The codes a client branches on:
   - 403 `separation-of-duties` (the caller proposed it or held the case) and `supervisor-required` on approve, return and decline; `not-the-assignee` on propose; `not-the-proposer` on withdraw.
@@ -51,7 +51,7 @@ Schemas changed:
 
 ## Integration-gateway (`internal/integration-gateway.yaml`)
 
-- `submitPayrollInstruction`, `getPayrollInstruction` (#195, #482): scope `payroll`, held by review only; no `X-Acting-Tenant` (the employer is in the instruction). `X-Legal-Basis` is required and only `am-sanctions` (an inline enum, not the shared `LegalBasis`); `X-Case-Ref` optional.
+- `submitPayrollInstruction`, `getPayrollInstruction` (#195, #482): scope `payroll`, held by review only; no `X-Acting-Tenant` (the instruction names the reporting entity by `employerCode`). `X-Legal-Basis` is required and only `am-sanctions` (an inline enum, not the shared `LegalBasis`); `X-Case-Ref` optional.
 - No `Idempotency-Key`: idempotent by `instructionReference` (ADR-013 §8.10). The same reference with other particulars is 409 `instruction-reference-conflict`; with the same ones, 200 and the stored acknowledgement.
 - 503 when payroll is down, timed out, paused or its breaker is open: nothing is recorded as sent, and review retries while the action is `approved-pending-payroll`.
 - `PayrollInstruction.status` keeps `accepted | pending | failed`, but the payroll system only answers `accepted` today; pending and failed are reserved.
@@ -59,17 +59,17 @@ Schemas changed:
 ## Declarations (`internal/declarations.yaml`)
 
 - `internalListPersonObligations` (#196, #458): `tenant` moved from the query to `X-Acting-Tenant`; the response is the named `InternalPersonObligation` array, oldest first, no names, audited with the person. 400, 403 and 404 documented.
-- Added `internalGetObligation` (#196, #458): the ladder reads the overdue obligation it starts on, audited.
+- Added `internalGetObligation` (drafted by #206 in #444, served by #458 for #196): the ladder reads the overdue obligation it starts on, audited.
 
 ## Documents (`internal/documents.yaml`)
 
 - The draft's document types and the `action-response` upload purpose are built as drafted (#194, #484). The letters are Restricted and the package Confidential; the template decides the disclosure level, and the issue body refuses one (400).
 - `DecisionLetterSource`, `ActionLetterSource`, `ReferralPackageSource`: the record each template pulls from review.
-- Added `internalGetDocument` (#194, #484): review reads the letters' SHA-256 for the package manifest.
+- Added `internalGetDocument` (drafted by #212 in #444, served by #484 for #194): review reads the letters' SHA-256 for the package manifest.
 
 ## Notifications (`internal/notifications.yaml`)
 
-- The draft's `decision`, `notice`, `salary-stopped` and `salary-reinstated` templates (email and SMS) are built (#194, #484). Their params take `commission`, where older templates take `commissionName`, and a `portalUrl`; none attaches a letter. The disciplinary referral sends no message: it goes to the employer as an event.
+- The draft's `decision`, `notice`, `salary-stopped` and `salary-reinstated` templates (email and SMS) are built (#194, #484). Their params take `commission`, where older templates take `commissionName`, and a `portalUrl`; none attaches a letter. The disciplinary referral sends no message: it goes to the reporting entity as an event (`action.disciplinary-referred.v1`).
 
 ## Events
 

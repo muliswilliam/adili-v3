@@ -62,11 +62,49 @@ export async function exportContract(module: Type, options: ContractExportOption
  * `Idempotency-Key` is caught: generated clients would otherwise require both headers.
  */
 function refuseRepeatedParameters(document: OpenAPIObject): void {
+  const repeated = repeatedParameters(document);
+  if (repeated.length > 0) {
+    throw new Error(`Parameters documented more than once:\n  ${repeated.join('\n  ')}`);
+  }
+}
+
+interface ParameterRef {
+  name?: string;
+  in?: string;
+  $ref?: string;
+}
+
+/** A reference to one of the document's own shared parameters. */
+const PARAMETER_REF = /^#\/components\/parameters\/([^/]+)$/;
+
+/**
+ * Each operation's parameters documented more than once, as `METHOD /path: location names`.
+ * An operation's parameters are its own plus its path's (`$ref`s resolved), where an operation's
+ * parameter of the same name and location replaces its path's, as OpenAPI defines. Header names
+ * are compared without case; query, path and cookie names with it. A reference that is not to
+ * one of the document's own `components.parameters` is an error.
+ */
+export function repeatedParameters(document: OpenAPIObject): string[] {
+  const shared = (document.components?.parameters ?? {}) as Record<string, ParameterRef>;
+  const resolve = (parameter: ParameterRef): ParameterRef => {
+    if (parameter.$ref === undefined) return parameter;
+    const name = PARAMETER_REF.exec(parameter.$ref)?.[1];
+    const found = name === undefined ? undefined : shared[name];
+    if (found === undefined) {
+      throw new Error(`Unresolved parameter reference: ${parameter.$ref}`);
+    }
+    return found;
+  };
+  const exact = ({ name, in: location }: ParameterRef) => `${location ?? ''}:${name ?? ''}`;
+
   const repeated: string[] = [];
   for (const [path, item] of Object.entries(document.paths)) {
+    const pathLevel = ((item.parameters ?? []) as ParameterRef[]).map(resolve);
     for (const [method, operation] of Object.entries(item)) {
       if (!HTTP_METHODS.has(method) || !isOperation(operation)) continue;
-      const parameters = (operation.parameters ?? []) as { name?: string; in?: string }[];
+      const own = ((operation.parameters ?? []) as ParameterRef[]).map(resolve);
+      const replaced = new Set(own.map(exact));
+      const parameters = [...own, ...pathLevel.filter((p) => !replaced.has(exact(p)))];
       const seen = new Map<string, { location: string; names: string[] }>();
       for (const { name, in: location } of parameters) {
         if (name === undefined || location === undefined) continue;
@@ -82,9 +120,7 @@ function refuseRepeatedParameters(document: OpenAPIObject): void {
       }
     }
   }
-  if (repeated.length > 0) {
-    throw new Error(`Parameters documented more than once:\n  ${repeated.join('\n  ')}`);
-  }
+  return repeated;
 }
 
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);

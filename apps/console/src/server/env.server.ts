@@ -9,6 +9,8 @@ export const envSchema = bffEnvSchema.extend({
   /** The integration-gateway's public routes: registry coverage for platform admins (spec 07b). */
   INTEGRATION_GATEWAY_API_URL: z.url(),
   ACCESS_API_URL: z.url(),
+  /** The reporting service: a Commission's Form M workspace (spec 09). */
+  REPORTING_API_URL: z.url(),
   /** The ai-gateway: AI policy, routing and usage for platform admins (spec 07c). */
   AI_GATEWAY_API_URL: z.url(),
   /** Base URL of the public API that Commissions' own systems (HR) call, shown in the API docs. */
@@ -25,6 +27,17 @@ export const envSchema = bffEnvSchema.extend({
    * production builds do not contain the mock.
    */
   ACCESS_MOCK: z.stringbool().default(false),
+  /**
+   * Serve a Commission's Form M periods and reports (spec 09) from in-memory fixtures, for screens
+   * without the reporting service and its upstreams running. Honoured in `vite dev` and tests
+   * only; production builds do not contain the mock.
+   */
+  REPORTING_MOCK: z.stringbool().default(false),
+  /**
+   * With REPORTING_MOCK: the day (`YYYY-MM-DD`) the mock and the Form M workspace take as today,
+   * to show the preview window (from 1 April) without waiting for it. Today by default.
+   */
+  REPORTING_MOCK_TODAY: z.iso.date().optional(),
   /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.

@@ -41,6 +41,19 @@ describe('Table', () => {
     expect(caption?.className).toContain('sr-only');
   });
 
+  it('can show its caption as the table’s title', () => {
+    render(
+      <Table caption="Section 1(d)" showCaption>
+        <TableBody />
+      </Table>,
+    );
+
+    expect(screen.getByRole('table', { name: 'Section 1(d)' })).toBeTruthy();
+    const title = screen.getAllByText('Section 1(d)').find((node) => node.tagName !== 'CAPTION');
+    expect(title?.getAttribute('aria-hidden')).toBe('true');
+    expect(title?.className).not.toContain('sr-only');
+  });
+
   it('scopes column headers to columns and row headers to rows', () => {
     render(<CommissionsTable />);
 
