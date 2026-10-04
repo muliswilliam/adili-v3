@@ -9,9 +9,8 @@ import {
   PERSON,
 } from '../test/declarant';
 import { loadHistory } from './access-history.server';
-import { mockAccessFetch, resetAccessMock, setAccessMockLatency } from './access/mock.server';
-import { MOCK_COPY_IDS, resetHistoryMock } from './access/mock-history.server';
-import { resetNoticesMock } from './access/mock-notices.server';
+import { mockAccessFetch, resetAccessMocks, setAccessMockLatency } from './access/mock.server';
+import { MOCK_COPY_IDS } from './access/mock-history.server';
 import type { paths } from './access/schema.gen';
 import { listCopies, readCopy, readCopyDownload, requestCopy } from './certified-copies.server';
 import { resetDeclarationsMock } from './declarations/mock.server';
@@ -59,9 +58,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   setAccessMockLatency(0);
   resetDeclarationsMock();
-  resetAccessMock(NOW);
-  resetNoticesMock(NOW);
-  resetHistoryMock(NOW);
+  resetAccessMocks(NOW);
 });
 
 afterEach(() => {
@@ -201,9 +198,7 @@ describe('certified copies (S13)', () => {
     vi.setSystemTime(NOW + 30 * 86_400_000);
     // The declarations mock seeds as of the wall clock and runs on it.
     resetDeclarationsMock();
-    resetAccessMock(NOW);
-    resetNoticesMock(NOW);
-    resetHistoryMock(NOW);
+    resetAccessMocks(NOW);
     const id = await completeDraft();
     await submitDeclaration(declarationsClient(), {
       declarationId: id,

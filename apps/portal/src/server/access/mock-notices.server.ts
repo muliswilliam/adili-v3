@@ -24,7 +24,7 @@ import { ARQ, format, LEA } from '@adili/numbering/references';
 
 import { mockUpload } from '../documents/mock.server';
 import { isRecord, json, problem, readJson } from '../mock-http';
-import { mockNow, setMockClock } from './mock-clock.server';
+import { mockNow } from './mock-clock.server';
 import type {
   Decision,
   DeclarantNotice,
@@ -288,9 +288,8 @@ function seed(now: number) {
   seeded = true;
 }
 
-/** Clears the store and seeds it again as of `now`; for tests. */
-export function resetNoticesMock(now = Date.now()) {
-  setMockClock(now);
+/** Clears the store and seeds it again as of `now`; `resetAccessMocks` calls it. */
+export function seedNoticesMock(now: number) {
   seed(now);
 }
 

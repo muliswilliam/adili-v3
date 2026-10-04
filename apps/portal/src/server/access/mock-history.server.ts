@@ -31,7 +31,7 @@ import { bearerClaims } from '../declarations/mock/obligations';
 import { store } from '../declarations/mock/store';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
-import { mockNow, setMockClock } from './mock-clock.server';
+import { mockNow } from './mock-clock.server';
 import { MOCK_NOTICE_IDS, mockNotices } from './mock-notices.server';
 import type { AccessHistoryEntry, CertifiedCopy, DeclarantNotice } from './types';
 
@@ -107,9 +107,8 @@ function seed(now: number) {
   seeded = true;
 }
 
-/** Clears the copies and seeds them again as of `now`; for tests. */
-export function resetHistoryMock(now = Date.now()) {
-  setMockClock(now);
+/** Clears the copies and seeds them again as of `now`; `resetAccessMocks` calls it. */
+export function seedHistoryMock(now: number) {
   seed(now);
 }
 

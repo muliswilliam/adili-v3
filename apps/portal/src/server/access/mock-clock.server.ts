@@ -6,7 +6,7 @@
  */
 let offsetMs = 0;
 
-/** Starts the clock at `now`; each mock's reset calls it with the instant it seeds as of. */
+/** Starts the clock at `now`; only `resetAccessMocks` calls it, as it seeds all three. */
 export function setMockClock(now: number) {
   offsetMs = now - Date.now();
 }

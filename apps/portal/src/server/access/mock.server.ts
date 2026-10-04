@@ -56,8 +56,9 @@ import {
   mockCopyDownload,
   mockCopyFile,
   mockHistoryFetch,
+  seedHistoryMock,
 } from './mock-history.server';
-import { mockNoticesFetch } from './mock-notices.server';
+import { mockNoticesFetch, seedNoticesMock } from './mock-notices.server';
 import type { AccessCommission, AccessRequest, RegisterEntry } from './types';
 
 interface MockCommission extends AccessCommission {
@@ -723,9 +724,19 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
   };
 }
 
-/** Clears the store and seeds it again as of `now`; for tests. */
-export function resetAccessMock(now = Date.now()) {
+/**
+ * Clears the access mocks (requests, declarant notices, history and certified copies) and seeds
+ * them again as of `now`, starting their clock there; for tests.
+ */
+export function resetAccessMocks(now = Date.now()) {
   setMockClock(now);
+  seedRequests(now);
+  seedNoticesMock(now);
+  seedHistoryMock(now);
+}
+
+/** Clears the requests and seeds them again as of `now`, leaving the clock alone. */
+function seedRequests(now: number) {
   requests.clear();
   sequences.clear();
   answered.clear();
@@ -929,7 +940,7 @@ function hasRole(request: Request, role: string): boolean {
 }
 
 export async function mockAccessFetch(request: Request): Promise<Response> {
-  if (!seeded) resetAccessMock(mockNow());
+  if (!seeded) seedRequests(mockNow());
   const url = new URL(request.url);
   const path = url.pathname;
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(path);

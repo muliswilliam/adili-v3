@@ -1,8 +1,6 @@
 import { vi } from 'vitest';
 
-import { mockAccessFetch, resetAccessMock } from '../../server/access/mock.server';
-import { resetHistoryMock } from '../../server/access/mock-history.server';
-import { resetNoticesMock } from '../../server/access/mock-notices.server';
+import { mockAccessFetch, resetAccessMocks } from '../../server/access/mock.server';
 import type { AccessHistoryEntry, DeclarantNotice } from '../../server/access/types';
 
 /** Test fixtures for Who accessed: the access mock's seeded history and notices, as of NOW. */
@@ -30,9 +28,7 @@ export async function seededHistory(): Promise<{
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(Date.parse(NOW));
   try {
-    resetAccessMock(Date.parse(NOW));
-    resetNoticesMock(Date.parse(NOW));
-    resetHistoryMock(Date.parse(NOW));
+    resetAccessMocks(Date.parse(NOW));
     return {
       entries: await read<AccessHistoryEntry[]>('/v1/me/access-history'),
       notices: await read<DeclarantNotice[]>('/v1/me/access-notices'),

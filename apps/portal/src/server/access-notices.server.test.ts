@@ -5,10 +5,10 @@ import { listNotices, loadNotice, saveRepresentations } from './access-notices.s
 import {
   failNextAccessCall,
   mockAccessFetch,
-  resetAccessMock,
+  resetAccessMocks,
   setAccessMockLatency,
 } from './access/mock.server';
-import { MOCK_NOTICE_IDS as IDS, resetNoticesMock } from './access/mock-notices.server';
+import { MOCK_NOTICE_IDS as IDS } from './access/mock-notices.server';
 import type { paths } from './access/schema.gen';
 
 const NOW = Date.parse('2026-10-02T07:00:00Z');
@@ -41,8 +41,7 @@ const key = () => crypto.randomUUID();
 
 beforeEach(() => {
   setAccessMockLatency(0);
-  resetAccessMock(NOW);
-  resetNoticesMock(NOW);
+  resetAccessMocks(NOW);
 });
 
 describe('listNotices', () => {
@@ -164,8 +163,7 @@ describe('saveRepresentations (S4)', () => {
       // Seeded as of NOW, but run a month later: every seeded window has closed by the wall clock.
       vi.useFakeTimers({ toFake: ['Date'] });
       vi.setSystemTime(NOW + 30 * 86_400_000);
-      resetAccessMock(NOW);
-      resetNoticesMock(NOW);
+      resetAccessMocks(NOW);
       const saved = await saveRepresentations(
         client(),
         IDS.awaiting,
