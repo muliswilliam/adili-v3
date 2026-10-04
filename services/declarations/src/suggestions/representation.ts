@@ -1,10 +1,16 @@
 import { z } from 'zod';
 
 import { sectionKeySchema } from '../drafts/representation.js';
-import { SUGGESTION_SET_STATUSES, SUGGESTION_SOURCES, SUGGESTION_STATUSES } from './schema.js';
+import {
+  DOCUMENT_KINDS,
+  EXTRACTION_FAILURES,
+  SUGGESTION_SET_STATUSES,
+  SUGGESTION_SOURCES,
+  SUGGESTION_STATUSES,
+} from './schema.js';
 
 /**
- * Bodies of the registry suggestions API (spec 05b). They are the contract: the OpenAPI document,
+ * Bodies of the pre-fill suggestions API (spec 05b): registry lookups and document readings. They are the contract: the OpenAPI document,
  * packages/schemas/internal/declarations.yaml, is generated from them (`pnpm contracts`).
  */
 
@@ -20,20 +26,23 @@ export const suggestionSchema = z.object({
   sectionKey: sectionKeySchema,
   itemType: z.string().meta({
     description:
-      'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)',
+      'What the suggestion proposes: a Second Schedule item type from declaration.v1 (`vehicle` from NTSA, `land` from ArdhiSasa, `shareholding` from BRS, the type a document was read into), `directorship` (BRS, a paragraph 9 registrable interest of the declarant, in `other`), `bio-tax` (KRA PIN and compliance, in `bio` for the declarant or `household` for a spouse) or `income-hint` (KRA, a hint to check the salary item, never a value)',
   }),
   fields: z.record(z.string(), z.unknown()).meta({
     description:
-      "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call",
+      "Proposed fields, by item type: `vehicle` registration, make, model, year; `land` parcelNumber, size, location, county (a declaration.v1 county code); `shareholding` companyName, registrationNumber, role, shares; `directorship` companyName, role; `bio-tax` kraPin, complianceStatus; `income-hint` incomeType. Statement items also carry an editable `description`. Value fields are never set: valuing is the declarant's call. A document's reading (source `document`) names its fields by their declaration.v1 path within the item instead (`details.registration`, `outstanding.kesCents`, `location.county`), typed as the item types them, amounts included: what the document says",
   }),
   sourceRef: z.record(z.string(), z.unknown()).meta({
     description:
-      "The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. Documents: page and field",
+      "The registry's identifiers for the record (registration, parcel, company or KRA PIN number) and facts that do not become fields (registration date, tenure, company status, certificate); for `income-hint`, the declared income in KES cents. A document's reading: `documentKind` (what the reading took the document for), `fields` (`[{name, confidence, page}]`, each field's confidence from 0 to 1 and the page it is on, null when on none), `warnings` (what the declarant should know, such as an unreadable page) and `attachmentId`",
   }),
-  confidence: z.number().min(0).max(1).nullable(),
+  confidence: z.number().min(0).max(1).nullable().meta({
+    description:
+      "A document's reading: its least sure field's confidence, null when it read none. Null for a registry's",
+  }),
   matchItemId: z.uuid().nullable().meta({
     description:
-      'The item already in the section whose identifier (registration, parcel, company) coincides: offer "Apply to this item" instead of a duplicate',
+      'The item already in the section whose identifier (registration, parcel, company) coincides, or for a document the item it is attached to: offer "Apply to this item" instead of a duplicate',
   }),
   status: z.enum(SUGGESTION_STATUSES),
   acceptedItemId: z.uuid().nullable(),
@@ -46,12 +55,21 @@ export const suggestionSetSchema = z.object({
   source: suggestionSourceSchema,
   status: z.enum(SUGGESTION_SET_STATUSES).meta({
     description:
-      '`pending` while the registry is being asked (retried with backoff); `ready` when it answered, with or without records; `unavailable` when it did not answer after the retries; `failed` when the check could not run. Poll `listSuggestions` until no set is `pending`',
+      "`pending` while the registry is being asked (retried with backoff) or the document read; `ready` when it answered, with or without records, or the document was read (one suggestion); `unavailable` when a registry did not answer after the retries; `not-enabled` when the Commission's AI policy does not let documents be read; `failed` when the check or reading could not run (for a document, `reason` says why). Poll `listSuggestions` until no set is `pending`",
   }),
   requestedAt: z.iso.datetime(),
   readyAt: z.iso.datetime().nullable(),
   verificationResultId: z.uuid().nullable(),
   aiJobId: z.uuid().nullable(),
+  attachmentId: z.uuid().nullable().meta({ description: "A document's set: the attachment read" }),
+  documentKind: z
+    .enum(DOCUMENT_KINDS)
+    .nullable()
+    .meta({ description: "A document's set: what the declarant said the document is" }),
+  reason: z.enum(EXTRACTION_FAILURES).nullable().meta({
+    description:
+      "Why a document's set is `failed`: `document-unavailable` (the file could not be fetched in time: try again), `document-unreadable` (damaged, too long, or a type a reading does not take), `not-read` (nothing usable came back), `unavailable` (the reading service could not do it now: try again) or `not-a-draft` (the declaration was submitted while it was read). Null otherwise",
+  }),
   suggestions: z.array(suggestionSchema),
 });
 export type SuggestionSet = z.infer<typeof suggestionSetSchema>;
@@ -71,7 +89,7 @@ export type RegistryLookupRequest = z.infer<typeof registryLookupRequestSchema>;
 export const acceptSuggestionRequestSchema = z.object({
   fields: z.record(z.string(), z.unknown()).meta({
     description:
-      "The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). Value fields are not taken: the declarant enters values on the item",
+      "The suggestion's fields as the declarant accepts them, after any edits (`Suggestion.fields` names). For a registry's, value fields are not taken: the declarant enters values on the item. For a document's reading, its fields by declaration.v1 path, values included, each typed as read (an amount may come as text, e.g. \"1,180,000\"); fields it did not read are refused",
   }),
   applyToItemId: z.uuid().nullable().meta({
     description:
@@ -102,3 +120,12 @@ export const dismissSuggestionRequestSchema = z.object({
     .meta({ description: 'Why the declarant set it aside, if they said' }),
 });
 export type DismissSuggestionRequest = z.infer<typeof dismissSuggestionRequestSchema>;
+
+export const extractAttachmentRequestSchema = z.object({
+  documentKindHint: z.enum(DOCUMENT_KINDS).meta({ description: 'What the declarant says it is' }),
+  language: z
+    .enum(['en', 'sw'])
+    .default('en')
+    .meta({ description: 'The language of the warnings the reading gives' }),
+});
+export type ExtractAttachmentRequest = z.infer<typeof extractAttachmentRequestSchema>;

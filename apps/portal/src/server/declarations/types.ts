@@ -1,6 +1,6 @@
 import type { Assert, MatchesObligationCopy } from '@adili/ui';
 
-import type { components, operations } from './schema.gen';
+import type { components } from './schema.gen';
 
 type Schemas = components['schemas'];
 
@@ -36,9 +36,11 @@ export type SuggestionSource = Schemas['SuggestionSource'];
 /** The registries a lookup can ask (every `SuggestionSource` but `document`). */
 export type RegistrySystem = Exclude<SuggestionSource, 'document'>;
 
-/** What the declarant says a document is, as `extractAttachment` takes it (an inline enum). */
-export type DocumentKind =
-  operations['extractAttachment']['requestBody']['content']['application/json']['documentKindHint'];
+/** What the declarant says a document is, as `extractAttachment` takes it. */
+export type DocumentKind = Schemas['ExtractAttachmentRequest']['documentKindHint'];
+
+/** Why a document's reading failed (`SuggestionSet.reason`). */
+export type ReadingFailure = NonNullable<SuggestionSet['reason']>;
 
 /** Fails to compile when the contract and the shared copy table in @adili/ui drift apart. */
 export type ContractMatchesSharedCopy = Assert<
@@ -49,3 +51,12 @@ export type ContractMatchesSharedCopy = Assert<
     channel: Reminder['channels'][number];
   }>
 >;
+
+export type AssistantConversation = Schemas['AssistantConversation'];
+export type AssistantMessage = Schemas['AssistantMessage'];
+export type AssistantAnswer = Schemas['AssistantAnswer'];
+export type AssistantItemType = NonNullable<Schemas['AskAssistantRequest']['itemType']>;
+export type HelpPassage = Schemas['HelpPassage'];
+export type HelpPassageDetail = Schemas['HelpPassageDetail'];
+export type CompletenessHints = Schemas['CompletenessHints'];
+export type CompletenessHint = Schemas['CompletenessHint'];

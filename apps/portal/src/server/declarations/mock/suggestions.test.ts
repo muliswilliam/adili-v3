@@ -485,14 +485,13 @@ function extract(declarationId: string, attachmentId: string, idempotencyKey?: s
     declarationId,
     attachmentId,
     documentKindHint: 'logbook',
-    targetItemType: 'vehicle',
     idempotencyKey: idempotencyKey ?? crypto.randomUUID(),
   });
 }
 
 describe('reading a document (S6)', () => {
-  it('answers a pending document set that a later read finds ready', async () => {
-    const { declarationId, attachmentId } = await attached('logbook-KCB782M.pdf');
+  it('answers a pending document set that a later read finds ready, read into the item', async () => {
+    const { declarationId, attachmentId, itemId } = await attached('logbook-KCB782M.pdf');
     const started = await extract(declarationId, attachmentId);
     if (started.status !== 'started') throw new Error(started.status);
     expect(started.set).toMatchObject({
@@ -501,6 +500,9 @@ describe('reading a document (S6)', () => {
       personKey: 'officer',
       suggestions: [],
       aiJobId: expect.any(String) as string,
+      attachmentId,
+      documentKind: 'logbook',
+      reason: null,
     });
 
     const found = await sets(declarationId);
@@ -511,15 +513,22 @@ describe('reading a document (S6)', () => {
       sectionKey: 'statement:officer',
       itemType: 'vehicle',
       status: 'new',
-      fields: { registration: 'KCB 782M', make: 'Toyota', model: 'Premio', year: 2015 },
+      fields: {
+        'details.registration': 'KCB 782M',
+        'details.makeModel': 'Toyota Premio, 2015',
+        description: 'Toyota Premio saloon',
+        'value.kesCents': 95_000_000,
+      },
       sourceRef: {
+        attachmentId,
         documentKind: 'logbook',
         warnings: ['Page 3 could not be read.'],
       },
       confidence: 0.41,
+      matchItemId: itemId,
     });
     expect(suggestion?.sourceRef.fields).toContainEqual({
-      name: 'year',
+      name: 'value.kesCents',
       confidence: 0.41,
       page: 2,
     });
@@ -545,7 +554,7 @@ describe('reading a document (S6)', () => {
       declarationId,
       suggestionId: suggestion.id,
       ifMatch: await etagOf(declarationId),
-      fields: { ...suggestion.fields, year: '2016' },
+      fields: { ...suggestion.fields, 'details.makeModel': 'Toyota Premio, 2016' },
       applyToItemId: itemId,
     });
     if (outcome.status !== 'accepted') throw new Error(outcome.status);
@@ -570,13 +579,42 @@ describe('reading a document (S6)', () => {
     const started = await extract(declarationId, attachmentId);
     if (started.status !== 'started') throw new Error(started.status);
     const set = (await sets(declarationId)).find((each) => each.id === started.set.id);
-    expect(set).toMatchObject({ status: 'failed', suggestions: [] });
+    expect(set).toMatchObject({ status: 'failed', reason: 'document-unreadable', suggestions: [] });
   });
 
-  it('answers not-enabled for a Commission without AI', async () => {
+  it('answers a not-enabled set for a Commission without AI', async () => {
     setExtractionEnabled(false);
     const { declarationId, attachmentId } = await attached('logbook.pdf');
-    expect(await extract(declarationId, attachmentId)).toEqual({ status: 'not-enabled' });
+    expect(await extract(declarationId, attachmentId)).toMatchObject({
+      status: 'started',
+      set: { status: 'not-enabled' },
+    });
+  });
+
+  it('adds a reading as a new item, its amount typed', async () => {
+    const { declarationId, attachmentId } = await attached('logbook.pdf');
+    const started = await extract(declarationId, attachmentId);
+    if (started.status !== 'started') throw new Error(started.status);
+    const suggestion = (await sets(declarationId)).find((each) => each.id === started.set.id)
+      ?.suggestions[0];
+    if (!suggestion) throw new Error('nothing read');
+    const outcome = await acceptSuggestion(client, {
+      declarationId,
+      suggestionId: suggestion.id,
+      ifMatch: await etagOf(declarationId),
+      fields: { ...suggestion.fields, 'value.kesCents': '90000000' },
+      applyToItemId: null,
+    });
+    if (outcome.status !== 'accepted') throw new Error(outcome.status);
+    const section = await loadSection(client, declarationId, 'statement:officer');
+    if (section.status !== 'ok') throw new Error(section.status);
+    expect(section.section.contents.assets).toContainEqual(
+      expect.objectContaining({
+        id: outcome.itemId,
+        type: 'vehicle',
+        value: { kesCents: 90_000_000 },
+      }),
+    );
   });
 
   it('answers 404 for an unknown attachment and refuses a missing kind', async () => {
@@ -587,7 +625,6 @@ describe('reading a document (S6)', () => {
         declarationId,
         attachmentId,
         documentKindHint: 'passport' as 'other',
-        targetItemType: 'vehicle',
         idempotencyKey: crypto.randomUUID(),
       }),
     ).toEqual({ status: 'refused', code: null });

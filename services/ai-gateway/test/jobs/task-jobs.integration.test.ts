@@ -420,7 +420,7 @@ describe('task jobs', () => {
 
   describe('requests', () => {
     it('answers 404 for a task the gateway does not serve', async () => {
-      const response = await runTask('extract-document', taskRequest(summarizeInput));
+      const response = await runTask('read-palms', taskRequest(summarizeInput));
 
       expect(response.statusCode).toBe(404);
       expect(response.json()).toMatchObject({ type: 'task-not-found' });

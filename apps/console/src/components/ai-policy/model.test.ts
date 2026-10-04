@@ -9,6 +9,8 @@ import {
   budgetErrors,
   budgetResetsOn,
   changedByText,
+  changeText,
+  cellScope,
   confirmText,
   filterCounts,
   filterRows,
@@ -32,6 +34,7 @@ function rule(overrides: Partial<GateRule> = {}): GateRule {
     dataClass: 'synthetic',
     providerClass: 'external',
     allowed: true,
+    tasks: null,
     approvalRef: 'EACC/AI/2026/014',
     changedBy: '7d1c2a4e-0000-4000-8000-00000000a001',
     changedByName: 'Amina Wanjiru',
@@ -106,6 +109,17 @@ describe('accessText', () => {
     );
   });
 
+  it("leaves out a rule for some tasks only: it is not the Commission's AI assistance", () => {
+    const documents = rule({ dataClass: 'highly-confidential', tasks: ['extract-document'] });
+    expect(accessText(accessOf(routedTo([rule(), documents])))).toBe(
+      'External provider, synthetic data only',
+    );
+    expect(gate([documents]).find((cell) => cell.rule)).toMatchObject({
+      allowed: false,
+      rule: documents,
+    });
+  });
+
   it('is null when nothing is allowed, blocked rules included', () => {
     expect(accessText(accessOf(routedTo([rule({ allowed: false })])))).toBeNull();
   });
@@ -172,6 +186,34 @@ describe('the edit dialog', () => {
     ]);
   });
 
+  it('keeps a rule for some tasks only for those tasks: ticked as it is, saved with its tasks', () => {
+    const documents = rule({ dataClass: 'highly-confidential', tasks: ['extract-document'] });
+    const cells = gate([documents]);
+    const draft = gateDraft(cells);
+    expect(draft['highly-confidential|external']).toBe(true);
+    expect(cellScope(cells, 'highly-confidential', 'external')).toEqual(['extract-document']);
+    expect(gateChanges(cells, draft)).toEqual([]);
+
+    // Unticking revokes it for the same tasks; it never widens to every task.
+    draft['highly-confidential|external'] = false;
+    expect(gateChanges(cells, draft)).toEqual([
+      {
+        dataClass: 'highly-confidential',
+        providerClass: 'external',
+        allowed: false,
+        tasks: ['extract-document'],
+      },
+    ]);
+    const [revoke] = gateChanges(cells, draft);
+    if (!revoke) throw new Error('No change');
+    expect(confirmText(revoke, 'Public Service Commission')).toBe(
+      'External providers will no longer process highly confidential data for Public Service Commission, for extract-document only. New AI requests are blocked; outputs already shown stay.',
+    );
+    expect(confirmText({ ...revoke, allowed: true }, 'Public Service Commission')).toBe(
+      'External providers may process highly confidential data for Public Service Commission, for extract-document only.',
+    );
+  });
+
   it('words each change for the confirm step', () => {
     expect(
       confirmText(
@@ -193,6 +235,13 @@ describe('the edit dialog', () => {
     const older = rule({ changedAt: '2026-08-01T00:00:00Z' });
     const newer = rule({ dataClass: 'restricted', changedAt: '2026-09-20T00:00:00Z' });
     expect(gateHistory(gate([older, newer]))).toEqual([newer, older]);
+  });
+
+  it('says which tasks a rule for some tasks only is for', () => {
+    expect(changeText(rule())).toBe('Allowed external providers for synthetic data');
+    expect(
+      changeText(rule({ dataClass: 'highly-confidential', tasks: ['extract-document'] })),
+    ).toBe('Allowed external providers for highly confidential data, for extract-document only');
   });
 
   it('names who changed a cell, or their account id when the gateway has no name', () => {

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -472,6 +472,41 @@ describe('NarrativeEditor', () => {
     );
 
     expect(screen.getByText('AI draft p2')).toBeTruthy();
+  });
+
+  it('shows what a caller puts in place of a section’s paragraphs, e.g. while AI drafts it', () => {
+    render(
+      <Editor
+        sectionBody={(section) =>
+          section.id === 'overview' ? <p role="status">Drafting overview…</p> : null
+        }
+      />,
+    );
+
+    const overview = screen.getByRole('group', { name: 'Overview' });
+    expect(within(overview).getByRole('status').textContent).toBe('Drafting overview…');
+    expect(within(overview).queryByRole('textbox')).toBeNull();
+    expect(within(overview).queryByRole('button', { name: /Add paragraph/ })).toBeNull();
+    // The other sections are written as usual, and the count still shows.
+    expect(within(overview).getByText('60 characters')).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Recommendations, paragraph 1' })).toBeTruthy();
+  });
+
+  it('keeps the paragraphs from changing while busy, e.g. while AI drafts the narrative', () => {
+    render(<Editor busy />);
+
+    expect(screen.getByRole('region', { name: 'Narrative' }).getAttribute('aria-busy')).toBe(
+      'true',
+    );
+
+    const field = screen.getByRole('textbox', { name: 'Overview, paragraph 1' });
+    expect(field.hasAttribute('readonly')).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Add paragraph to overview' }).hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+      screen.getByRole('button', { name: 'Remove overview paragraph 1' }).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   it('takes actions for the header, e.g. a draft menu', () => {

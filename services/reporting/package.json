@@ -9,7 +9,7 @@
     "migrations"
   ],
   "scripts": {
-    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/directory/directory-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/declarations/declarations-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/review/review-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/documents/documents-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/notifications.yaml -o src/notifications/notifications-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/integration-gateway.yaml -o src/integration-gateway/integration-gateway-api.gen.ts",
+    "generate:api": "openapi-typescript node_modules/@adili/schemas/internal/directory.yaml -o src/directory/directory-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/declarations.yaml -o src/declarations/declarations-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/review.yaml -o src/review/review-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/documents.yaml -o src/documents/documents-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/notifications.yaml -o src/notifications/notifications-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/integration-gateway.yaml -o src/integration-gateway/integration-gateway-api.gen.ts && openapi-typescript node_modules/@adili/schemas/internal/ai-gateway.yaml -o src/ai-gateway/ai-gateway-api.gen.ts",
     "build": "pnpm generate:api && tsc -p tsconfig.build.json",
     "dev": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register --watch-path=src --watch-preserve-output src/main.ts",
     "start": "node --import @adili/telemetry/register dist/main.js",
@@ -18,10 +18,12 @@
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts"
+    "db:migrate": "node --disable-warning=DEP0205 --env-file-if-exists=.env --import @swc-node/register/esm-register src/db/migrate.ts",
+    "contracts": "node --disable-warning=DEP0205 --env-file=.env.example --import @swc-node/register/esm-register ../../packages/schemas/scripts/export-contract.mjs"
   },
   "dependencies": {
     "@adili/api-kit": "workspace:*",
+    "@adili/cache": "workspace:*",
     "@adili/data-access": "workspace:*",
     "@adili/events": "workspace:*",
     "@adili/forms": "workspace:*",
@@ -29,6 +31,7 @@
     "@adili/roles": "workspace:*",
     "@adili/telemetry": "workspace:*",
     "@adili/temporal": "workspace:*",
+    "@aws-sdk/client-s3": "^3.1140.0",
     "@nestjs/common": "^12.1.0",
     "@nestjs/core": "^12.1.0",
     "@nestjs/microservices": "^12.1.0",

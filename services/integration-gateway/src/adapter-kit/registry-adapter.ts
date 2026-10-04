@@ -56,11 +56,15 @@ export type CachedAdapter<T> = Pick<RegistryAdapter<T, unknown>, 'system' | 'ope
 /** Why a lookup is made and for what, as the calling service declares it. */
 export interface LookupPurpose {
   legalBasis: LegalBasis;
-  /** The review case (or other record) the lookup is for; null when there is none. */
+  /**
+   * What the lookup is for (`X-Case-Ref`): the review case (`regs-r20-1-b`, `act-s35-5`) or the
+   * declaration (`declarant-request`); null when there is none.
+   */
   caseRef: string | null;
   /**
-   * The platform person the lookup is about (the declarant of the case), so a later read of the
-   * stored result is audited as a read of their data (ADR-008); null when there is none yet.
+   * The platform person the lookup is for (the declarant of the case, or the declarant who asked
+   * for it), so a later read of the stored result is audited as a read of their data (ADR-008);
+   * null when there is none yet.
    */
   subjectPersonId: string | null;
 }

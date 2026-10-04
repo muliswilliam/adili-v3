@@ -5,6 +5,7 @@ import {
   DECLARATION_ATTACHMENT_PURPOSE,
   DocumentsClient,
   DocumentsUnavailable,
+  type UploadDownload,
   UploadNotClean,
   UploadNotFound,
 } from '../../src/documents/documents-client.js';
@@ -13,6 +14,8 @@ import {
 export interface FakeUpload extends CleanUpload {
   tenant: string;
   state: 'awaiting-upload' | 'clean' | 'infected' | 'rejected';
+  /** The type documents sniffed from the bytes. */
+  contentType: string;
 }
 
 /** A clean declaration attachment of the Commission reserved by `uploadedBy`, unless overridden. */
@@ -31,6 +34,7 @@ export function upload(
     fileName: 'title-deed.pdf',
     sha256: createHash('sha256').update(id).digest('hex'),
     size: 482_113,
+    contentType: 'application/pdf',
     ...overrides,
   };
 }
@@ -40,12 +44,14 @@ export function upload(
  * (404 otherwise, as documents does) and only for clean ones (409). `linked` and `unlinked` list
  * the uploads whose link was recorded or taken back, as `<tenant> <uploadId>`; `unavailable`
  * makes every call fail, and `markLinkedUnavailable` only the call that records a link.
+ * `downloads` lists the download links handed out, as `<tenant> <uploadId> <actingSubject>`.
  * `whileAnswering` runs before each answer, to look at what the caller holds while it waits on
  * documents.
  */
 export class FakeDocuments extends DocumentsClient {
   readonly linked: string[] = [];
   readonly unlinked: string[] = [];
+  readonly downloads: string[] = [];
   unavailable = false;
   markLinkedUnavailable = false;
   whileAnswering: (() => Promise<void>) | null = null;
@@ -58,6 +64,7 @@ export class FakeDocuments extends DocumentsClient {
   reset(): void {
     this.linked.length = 0;
     this.unlinked.length = 0;
+    this.downloads.length = 0;
     this.unavailable = false;
     this.markLinkedUnavailable = false;
     this.whileAnswering = null;
@@ -73,6 +80,17 @@ export class FakeDocuments extends DocumentsClient {
       sha256,
       size,
     }));
+  }
+
+  getDownload(tenant: string, uploadId: string, actingSubject: string): Promise<UploadDownload> {
+    return this.answer(tenant, uploadId, ({ id, sha256, contentType }) => {
+      this.downloads.push(`${tenant} ${uploadId} ${actingSubject}`);
+      return {
+        downloadUrl: `http://documents.test/objects/${id}?signature=${randomUUID()}`,
+        sha256,
+        contentType,
+      };
+    });
   }
 
   markLinked(tenant: string, uploadId: string): Promise<void> {

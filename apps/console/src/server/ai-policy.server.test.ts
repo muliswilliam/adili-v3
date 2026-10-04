@@ -222,6 +222,12 @@ describe('S16 saveGatePolicy', () => {
     ).toEqual([
       ['synthetic', false, 'EACC/AI/2026/030'],
       ['restricted', true, 'EACC/AI/2026/030'],
+      // The demo's approval for reading documents into the form, untouched (spec 05b).
+      [
+        'highly-confidential',
+        true,
+        'Demo set-up: synthetic documents read into the form only (spec 05b)',
+      ],
     ]);
     // Nothing is routed to a self-hosted provider, so PSC's synthetic data has nowhere to go.
     expect(mockTenantAiStatus('psc')).toEqual({
@@ -244,6 +250,37 @@ describe('S16 saveGatePolicy', () => {
       error: { kind: 'problem', problem: { status: 400 } },
     });
     expect(mockTenantAiStatus('tsc').enabled).toBe(false);
+  });
+
+  it('refuses a task the gateway does not run, like the gateway', async () => {
+    const result = await saveGatePolicy(
+      admin(),
+      'psc',
+      [
+        {
+          dataClass: 'restricted',
+          providerClass: 'external',
+          allowed: true,
+          tasks: ['read-palms' as never],
+        },
+      ],
+      'EACC/AI/2026/032',
+    );
+    expect(result).toMatchObject({ ok: false, error: { problem: { status: 400 } } });
+  });
+
+  it('refuses to widen a rule for some tasks only that a change does not name tasks for', async () => {
+    const result = await saveGatePolicy(
+      admin(),
+      'psc',
+      [{ dataClass: 'highly-confidential', providerClass: 'external', allowed: true }],
+      'EACC/AI/2026/033',
+    );
+    // The field path as the gateway writes it.
+    expect(result).toMatchObject({
+      ok: false,
+      error: { problem: { status: 400, errors: [{ path: 'rules.0.tasks' }] } },
+    });
   });
 
   it('stores none of the changes when one is invalid', async () => {

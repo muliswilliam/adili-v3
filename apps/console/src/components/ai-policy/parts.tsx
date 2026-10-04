@@ -5,7 +5,7 @@ import type { DataClass } from '../../server/ai-gateway/types';
 import type { AiTenantRow } from '../../server/ai-policy.server';
 import { InfoTip } from '../info-tip';
 import { messages as m } from './messages';
-import { allowedProviders } from './model';
+import { allowedProviders, cellRule, cellScope } from './model';
 
 /** Small pieces the AI policy table, drawer and dialogs share. */
 
@@ -25,14 +25,36 @@ export function DataClassesTip() {
  */
 export function GateCell({ row, dataClass }: { row: AiTenantRow; dataClass: DataClass }) {
   const allowed = allowedProviders(row.gate, dataClass).filter((each) => row.routed.includes(each));
+  // A rule for some tasks only (the demo's document reading) shows under the cell's own state.
+  const scoped = row.routed.flatMap((providerClass) => {
+    const tasks = cellScope(row.gate, dataClass, providerClass);
+    const rule = cellRule(row.gate, dataClass, providerClass);
+    return tasks && rule ? [m.tasksOnly(rule.allowed, tasks)] : [];
+  });
+  const note = scoped.length > 0 && (
+    <span className="mt-0.5 block text-xs text-muted-foreground">{scoped.join('; ')}</span>
+  );
   if (allowed.length === 0) {
-    return <span className="text-[13.5px] text-muted-foreground">{m.blocked}</span>;
+    return (
+      <span className="block">
+        <span className="text-[13.5px] text-muted-foreground">{m.blocked}</span>
+        {note}
+      </span>
+    );
   }
-  return (
+  const state = (
     <span className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-success">
       <Icon icon={Tick02Icon} className="size-3.5" strokeWidth={2.4} />
       {allowed.map((providerClass) => m.providerClass[providerClass]).join(', ')}
     </span>
+  );
+  return note ? (
+    <span className="block">
+      {state}
+      {note}
+    </span>
+  ) : (
+    state
   );
 }
 

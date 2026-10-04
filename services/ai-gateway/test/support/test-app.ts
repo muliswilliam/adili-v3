@@ -22,6 +22,10 @@ import { inject } from 'vitest';
 import { AppModule } from '../../src/app.module.js';
 import { config } from '../../src/config.js';
 import { jobs, schema } from '../../src/db/schema.js';
+import {
+  DOCUMENT_FETCHER_OPTIONS,
+  type DocumentFetcherOptions,
+} from '../../src/documents/document-fetcher.js';
 import { LIVE_STATUSES } from '../../src/jobs/job-states.js';
 import { BREAKER_OPTIONS, type BreakerOptions } from '../../src/policy/circuit-breaker.js';
 import type { ModelProvider, StructuredResult } from '../../src/providers/port.js';
@@ -73,6 +77,8 @@ export interface TestAppOptions {
   extraProviders?: ModelProvider[];
   /** Replaces the configured circuit breaker settings. */
   breaker?: BreakerOptions;
+  /** Origins the download links of documents may point at (a test's document server). */
+  documentOrigins?: string[];
 }
 
 /**
@@ -131,6 +137,12 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
         cooldownMs: config.AI_BREAKER_COOLDOWN_MS,
       },
     )
+    .overrideProvider(DOCUMENT_FETCHER_OPTIONS)
+    .useValue({
+      allowedOrigins: options.documentOrigins ?? config.AI_DOCUMENT_ORIGINS,
+      maxBytes: config.AI_DOCUMENT_MAX_BYTES,
+      timeoutMs: config.AI_DOCUMENT_TIMEOUT_MS,
+    } satisfies DocumentFetcherOptions)
     .overrideProvider(WorkflowBundler)
     .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
     .compile();

@@ -97,14 +97,14 @@ paths:
               - declarant-request
         - name: X-Case-Ref
           in: header
-          description: Review case the lookup is for; recorded on the result and the audit event
+          description: The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event
           required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
         - name: X-Subject-Person
           in: header
-          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          description: Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data
           required: false
           schema:
             type: string
@@ -169,14 +169,14 @@ paths:
               - declarant-request
         - name: X-Case-Ref
           in: header
-          description: Review case the lookup is for; recorded on the result and the audit event
+          description: The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event
           required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
         - name: X-Subject-Person
           in: header
-          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          description: Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data
           required: false
           schema:
             type: string
@@ -241,14 +241,14 @@ paths:
               - declarant-request
         - name: X-Case-Ref
           in: header
-          description: Review case the lookup is for; recorded on the result and the audit event
+          description: The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event
           required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
         - name: X-Subject-Person
           in: header
-          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          description: Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data
           required: false
           schema:
             type: string
@@ -313,14 +313,14 @@ paths:
               - declarant-request
         - name: X-Case-Ref
           in: header
-          description: Review case the lookup is for; recorded on the result and the audit event
+          description: The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event
           required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
         - name: X-Subject-Person
           in: header
-          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          description: Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data
           required: false
           schema:
             type: string
@@ -397,14 +397,14 @@ paths:
               - declarant-request
         - name: X-Case-Ref
           in: header
-          description: Review case the lookup is for; recorded on the result and the audit event
+          description: The review case (regs-r20-1-b, act-s35-5) or the declaration (declarant-request) the lookup is for; recorded on the result and the audit event
           required: true
           schema:
             type: string
             pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$
         - name: X-Subject-Person
           in: header
-          description: Platform person the lookup is about (the case declarant); recorded on the result, so reads of it are audited as reads of their data
+          description: Platform person the lookup is for (the case declarant, or the declarant who asked for it); recorded on the result, so reads of it are audited as reads of their data
           required: false
           schema:
             type: string
@@ -1545,6 +1545,33 @@ components:
             - download-window-closed
             - scope-exceeds-request
             - grounds-required
+            - separation-of-duties
+            - report-submitted
+            - report-compiling
+            - preview-not-available
+            - not-reviewed
+            - invalid-remarks
+            - invalid-document
+            - inconsistent-document
+            - tenant-mismatch
+            - ncr-approved
+            - no-submitted-reports
+            - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

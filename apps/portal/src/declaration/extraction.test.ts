@@ -21,12 +21,16 @@ function suggestion(overrides: Partial<LoadedSuggestion> = {}): LoadedSuggestion
     personKey: 'officer',
     sectionKey: 'statement:officer',
     itemType: 'vehicle',
-    fields: { registration: 'KCB 782M', make: 'Toyota', model: 'Premio', year: 2015 },
+    fields: {
+      'details.registration': 'KCB 782M',
+      'details.makeModel': 'Toyota Premio',
+      'value.kesCents': 95_000_000,
+    },
     sourceRef: {
       documentKind: 'logbook',
       fields: [
-        { name: 'registration', confidence: 0.97, page: 1 },
-        { name: 'year', confidence: 0.41, page: 2 },
+        { name: 'details.registration', confidence: 0.97, page: 1 },
+        { name: 'value.kesCents', confidence: 0.41, page: 2 },
       ],
       warnings: ['Page 3 could not be read.'],
     },
@@ -48,6 +52,9 @@ function set(overrides: Partial<LoadedSuggestionSet> = {}): LoadedSuggestionSet 
     readyAt: '2026-09-26T07:31:00Z',
     verificationResultId: null,
     aiJobId: '5c000000-0000-4000-8000-000000000001',
+    attachmentId: null,
+    documentKind: null,
+    reason: null,
     suggestions: [],
     ...overrides,
   };
@@ -78,39 +85,59 @@ describe('document kinds', () => {
 });
 
 describe('readSuggestion', () => {
-  it('reads fields, per-field confidence and pages, and warnings from sourceRef', () => {
+  it('reads fields by path in the order read, with per-field confidence, pages and warnings', () => {
     const reading = readSuggestion(suggestion());
     expect(reading.documentKind).toBe('logbook');
     expect(reading.warnings).toEqual(['Page 3 could not be read.']);
     expect(reading.fields).toEqual([
       {
-        key: 'registration',
+        key: 'details.registration',
         label: 'Registration',
         value: 'KCB 782M',
         input: 'text',
         confidence: 0.97,
         page: 1,
       },
-      { key: 'make', label: 'Make', value: 'Toyota', input: 'text', confidence: 0.7, page: null },
-      { key: 'model', label: 'Model', value: 'Premio', input: 'text', confidence: 0.7, page: null },
-      { key: 'year', label: 'Year', value: '2015', input: 'text', confidence: 0.41, page: 2 },
+      {
+        key: 'value.kesCents',
+        label: 'Value',
+        value: '95000000',
+        input: 'money',
+        confidence: 0.41,
+        page: 2,
+      },
+      {
+        key: 'details.makeModel',
+        label: 'Make and model',
+        value: 'Toyota Premio',
+        input: 'text',
+        confidence: 0.7,
+        page: null,
+      },
     ]);
-    expect(reading.fields.map(levelOf)).toEqual(['high', 'medium', 'medium', 'low']);
+    expect(reading.fields.map(levelOf)).toEqual(['high', 'low', 'medium']);
   });
 
-  it('shows land fields with the county and the description', () => {
+  it('takes a county from the counties and a yes or no as a tick', () => {
     const reading = readSuggestion(
       suggestion({
         itemType: 'land',
-        fields: { parcelNumber: 'Nakuru/Njoro/1187', county: '032', description: 'Farm' },
+        fields: {
+          'details.parcelNumber': 'Nakuru/Njoro/1187',
+          'location.county': '032',
+          'joint.isJoint': false,
+          description: '',
+        },
         sourceRef: {},
         confidence: null,
       }),
     );
-    expect(reading.fields.map(({ key, label, input }) => [key, label, input])).toEqual([
-      ['parcelNumber', 'Parcel or plot number', 'text'],
-      ['county', 'County', 'county'],
-      ['description', 'Description', 'text'],
+    expect(
+      reading.fields.map(({ key, label, input, value }) => [key, label, input, value]),
+    ).toEqual([
+      ['details.parcelNumber', 'Parcel or plot number', 'text', 'Nakuru/Njoro/1187'],
+      ['location.county', 'County', 'county', '032'],
+      ['joint.isJoint', 'Jointly held', 'boolean', 'false'],
     ]);
     expect(reading.fields.map(levelOf)).toEqual([null, null, null]);
   });
@@ -121,8 +148,8 @@ describe('readSuggestion', () => {
         sourceRef: {
           documentKind: 'passport',
           fields: [
-            'registration',
-            { name: 'registration', confidence: 7, page: -1 },
+            'details.registration',
+            { name: 'details.registration', confidence: 7, page: -1 },
             { confidence: 0.2 },
           ],
           warnings: [3, '', 'Stamp is smudged.'],
@@ -147,19 +174,15 @@ describe('readingState', () => {
     });
   });
 
-  it('fails with the reason a suggestion gives, or a generic one', () => {
+  it("fails with the set's reason, or a generic one", () => {
     expect(readingState(set({ status: 'failed' }))).toEqual({
       status: 'failed',
       reason: FAILURE_REASONS.unknown,
     });
-    expect(
-      readingState(
-        set({
-          status: 'failed',
-          suggestions: [suggestion({ status: 'superseded', sourceRef: { reason: 'too blurred' } })],
-        }),
-      ),
-    ).toEqual({ status: 'failed', reason: 'too blurred' });
+    expect(readingState(set({ status: 'failed', reason: 'document-unavailable' }))).toEqual({
+      status: 'failed',
+      reason: 'the file could not be fetched in time',
+    });
     expect(readingState(set({ status: 'ready', suggestions: [] }))).toMatchObject({
       status: 'failed',
     });
@@ -173,23 +196,29 @@ describe('readingState', () => {
 });
 
 describe('applying', () => {
-  it('sends the suggestion fields with the trimmed edits over them', () => {
-    expect(acceptedFields(suggestion(), { year: ' 2016 ', model: 'Premio' })).toEqual({
-      registration: 'KCB 782M',
-      make: 'Toyota',
-      model: 'Premio',
-      year: '2016',
+  it('sends the suggestion fields with the edits typed over them', () => {
+    expect(
+      acceptedFields(suggestion(), {
+        'details.makeModel': ' Toyota Premio, 2016 ',
+        'value.kesCents': '90000000',
+      }),
+    ).toEqual({
+      'details.registration': 'KCB 782M',
+      'details.makeModel': 'Toyota Premio, 2016',
+      'value.kesCents': 90_000_000,
     });
   });
 
-  it('lists the values the declarant entered that differ', () => {
+  it('lists the values the declarant entered that differ, as the sheet shows them', () => {
     const item = {
       description: 'Toyota Premio',
       details: { registration: 'KCB 782N', makeModel: '' },
+      value: { kesCents: 100_000_000 },
     };
-    const met = clashes(item, suggestion().fields, 'vehicle');
+    const met = clashes(item, suggestion().fields);
     expect(met.map(({ entry, existing }) => [entry.label, existing])).toEqual([
       ['Registration', 'KCB 782N'],
+      ['Value', '1,000,000'],
     ]);
   });
 });

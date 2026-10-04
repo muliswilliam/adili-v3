@@ -5,6 +5,7 @@ import { GatePolicies } from '../policy/gate-policies.js';
 import { PROVIDER_CLASSES } from '../providers/port.js';
 import { ProviderRegistry } from '../providers/providers.module.js';
 import type { JobReason } from './job-states.js';
+import type { TaskName } from '../tasks/task.js';
 import type { DataClass } from './task-request.js';
 
 /** How a job ends without reaching its provider. */
@@ -37,11 +38,12 @@ export class Admission {
     tenant: string,
     dataClass: DataClass,
     provider: string,
+    task: TaskName,
   ): Promise<Refusal | undefined> {
     const reachable = this.providers.get(provider);
     const classes = reachable ? [reachable.providerClass] : PROVIDER_CLASSES;
     const admitted = await Promise.all(
-      classes.map((providerClass) => this.gate.admits(tenant, dataClass, providerClass)),
+      classes.map((providerClass) => this.gate.admits(tenant, dataClass, providerClass, task)),
     );
     if (!admitted.every(Boolean)) return { status: 'blocked', reason: 'policy' };
     if (await this.budgets.exhausted(tenant)) return { status: 'blocked', reason: 'budget' };

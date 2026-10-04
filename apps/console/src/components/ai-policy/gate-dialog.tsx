@@ -34,6 +34,7 @@ import type { ServiceResult } from '../../server/service-call';
 import { messages as m } from './messages';
 import { DataClassesTip } from './parts';
 import {
+  cellScope,
   confirmText,
   DATA_CLASSES,
   gateChanges,
@@ -150,6 +151,7 @@ export function GateDialog({ row, save, onClose, onUnauthenticated }: GateDialog
           <>
             <DialogBody className="gap-4">
               <EditMatrix
+                gate={row.gate}
                 draft={draft}
                 onChange={(key, allowed) => {
                   setDraft((current) => ({ ...current, [key]: allowed }));
@@ -251,9 +253,11 @@ export function GateDialog({ row, save, onClose, onUnauthenticated }: GateDialog
 }
 
 function EditMatrix({
+  gate,
   draft,
   onChange,
 }: {
+  gate: AiTenantRow['gate'];
   draft: GateDraft;
   onChange: (key: keyof GateDraft, allowed: boolean) => void;
 }) {
@@ -294,12 +298,15 @@ function EditMatrix({
                 const allowed = draft[key];
                 const provider = m.providerClass[providerClass];
                 const data = m.dataClass[dataClass];
+                // A rule for some tasks only: the checkbox edits it for those tasks alone.
+                const scope = cellScope(gate, dataClass, providerClass);
+                const label = m.allowLabel(provider, data);
                 return (
                   <td key={providerClass} className="px-3 py-2.5">
                     <label className="inline-flex cursor-pointer items-center gap-2.5">
                       <Checkbox
                         checked={allowed}
-                        aria-label={m.allowLabel(provider, data)}
+                        aria-label={scope ? m.forTasksOnly(label, scope) : label}
                         onChange={(event) => {
                           onChange(key, event.target.checked);
                         }}
@@ -311,6 +318,11 @@ function EditMatrix({
                         {allowed ? m.allowed : m.blocked}
                       </span>
                     </label>
+                    {scope ? (
+                      <span className="mt-0.5 block pl-[30px] text-xs text-muted-foreground">
+                        {m.scopeNote(scope)}
+                      </span>
+                    ) : null}
                   </td>
                 );
               })}

@@ -211,24 +211,3 @@ export function sourceRefResolver(document: Record<string, unknown> | null) {
     return sectionRef(ref, sectionKey ?? undefined);
   };
 }
-
-/** How long the target of a source link stays highlighted. */
-export const HIGHLIGHT_MS = 2_400;
-
-/**
- * Scrolls the declaration pane to a ref's target and highlights it (`data-target-highlight`,
- * which `@adili/ui` styles), for `HIGHLIGHT_MS`. Returns false when the pane does not have the
- * element, for instance while it shows another version.
- */
-export function highlightInDeclaration(anchorId: string, root: Document = document): boolean {
-  const element = root.getElementById(anchorId);
-  if (!element) return false;
-  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  element.setAttribute('data-target-highlight', '');
-  if (!element.hasAttribute('tabindex')) element.setAttribute('tabindex', '-1');
-  element.focus({ preventScroll: true });
-  setTimeout(() => {
-    element.removeAttribute('data-target-highlight');
-  }, HIGHLIGHT_MS);
-  return true;
-}
