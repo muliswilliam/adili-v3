@@ -334,7 +334,7 @@ export function CaseView({
         // A source is in the declaration as filed, not the comparison.
         comparison.setOn(false);
         requestAnimationFrame(() => {
-          highlightInDeclaration(resolved.anchorId);
+          highlightTarget(resolved.anchorId);
         });
       }}
       {...copilot}
