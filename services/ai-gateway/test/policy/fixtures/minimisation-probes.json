@@ -4947,5 +4947,629 @@
     "input": "Member No. 3310 Nyeri Branch Kenya Power Sacco",
     "mustHide": [],
     "mustKeep": ["Nyeri Branch"]
+  },
+  {
+    "id": "r23-std-1",
+    "input": "Proprietors: John Kamau ID 12345678 and the late Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-2",
+    "input": "Borrowers: Peter Otieno ID 12345678 and/or Grace Akinyi ID 23456789",
+    "mustHide": ["Peter", "Otieno", "Grace", "Akinyi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-3",
+    "input": "Proprietor: John Kamau ID 12345678 and his wife Mrs. Jane Njeri",
+    "mustHide": ["John", "Kamau", "Jane", "Njeri"],
+    "mustKeep": ["and his wife"]
+  },
+  {
+    "id": "r23-std-4",
+    "input": "Proprietors: John Kamau ID 12345678 and The Late Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-5",
+    "input": "Proprietor: John Kamau ID 12345678 and Mr. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-6",
+    "input": "Member: Member No. 3310 Statement Period: Jan 2023 to Dec 2023",
+    "mustHide": [],
+    "mustKeep": ["Statement Period:"]
+  },
+  {
+    "id": "r23-std-7",
+    "input": "Member No. 3310\nMonthly Contribution KES 5,000",
+    "mustHide": [],
+    "mustKeep": ["Monthly Contribution"]
+  },
+  {
+    "id": "r23-std-8",
+    "input": "Member No. 3310 Jane Wambui Opening Balance 20,000",
+    "mustHide": ["Jane", "Wambui"],
+    "mustKeep": ["Opening Balance"]
+  },
+  {
+    "id": "r23-std-9",
+    "input": "Member No. 3310 Approved by the Board",
+    "mustHide": [],
+    "mustKeep": ["Approved by the Board"]
+  },
+  {
+    "id": "r23-std-10",
+    "input": "Members of the Board\nChairman: Peter Otieno",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": ["Members of the Board"]
+  },
+  {
+    "id": "r23-std-11",
+    "input": "Member No. 3310 May Achieng",
+    "mustHide": ["May", "Achieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-12",
+    "input": "Member No. 3310 June Atieno",
+    "mustHide": ["June", "Atieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-13",
+    "input": "Member No. 3310 Mary Wanjiru of Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "r23-std-14",
+    "input": "Member No. 3310 Mary Wanjiru: Shares 200",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Shares 200"]
+  },
+  {
+    "id": "r23-std-15",
+    "input": "Member No. 3310 Mary Wanjiru KES 12,500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["KES"]
+  },
+  {
+    "id": "r23-std-16",
+    "input": "Member No. 3310 Wanjiru Balance 2,000",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Balance"]
+  },
+  {
+    "id": "r23-std-17",
+    "input": "Proprietor: Mary Park ID 12345678",
+    "mustHide": ["Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-18",
+    "input": "Proprietor: Peter Close ID 12345678, Kileleshwa Road, Nairobi",
+    "mustHide": ["Peter", "Close"],
+    "mustKeep": ["Kileleshwa Road, Nairobi"]
+  },
+  {
+    "id": "r23-std-19",
+    "input": "Proprietor: John Kamau ID 12345678 Riverside Drive, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive, Nairobi"]
+  },
+  {
+    "id": "r23-std-20",
+    "input": "Proprietor: John Kamau ID 12345678, Kakuzi Court, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Court, Nairobi"]
+  },
+  {
+    "id": "r23-std-21",
+    "input": "Proprietor: John Kamau ID 12345678 and Kakuzi Foods Limited",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Foods Limited"]
+  },
+  {
+    "id": "r23-std-22",
+    "input": "Proprietor: John Kamau ID 12345678 and the Kakuzi Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Estate"]
+  },
+  {
+    "id": "r23-std-23",
+    "input": "Proprietor: John Kamau ID 12345678 and Daughter Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-24",
+    "input": "Proprietor: John Kamau ID 12345678 na mke wake Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-25",
+    "input": "Proprietor: John Kamau ID 12345678 and Westlands Park",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Westlands Park"]
+  },
+  {
+    "id": "r23-std-26",
+    "input": "Member No. 3310 Mary Wanjiru and Peter Otieno",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-std-27",
+    "input": "Proprietor: John Kamau ID 12345678 and Kamau Industries",
+    "mustHide": ["John"],
+    "mustKeep": ["Industries"]
+  },
+  {
+    "id": "r23-std-28",
+    "input": "Land: NAKURU/NJORO/1234 MEASURING 0.5 HA\nProprietor: John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["MEASURING 0.5 HA"]
+  },
+  {
+    "id": "r23-std-29",
+    "input": "Title No. NAIROBI/BLOCK 110/456 via eCITIZEN\nOwner: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["via eCITIZEN"]
+  },
+  {
+    "id": "r23-std-30",
+    "input": "Proprietor: John Kamau ID 12345678 and the late",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["and the late"]
+  },
+  {
+    "id": "r23-spec-1",
+    "input": "Proprietor: John Kamau ID 12345678 Mary Park",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-2",
+    "input": "Proprietors: John Kamau ID 12345678 and Mary Park\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Park"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r23-spec-3",
+    "input": "Borrowers: John Kamau ID 12345678 and Peter Drive",
+    "mustHide": ["John", "Kamau", "Peter", "Drive"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-4",
+    "input": "Owners: John Kamau ID 12345678 and Grace Way\nMake: Toyota",
+    "mustHide": ["John", "Kamau", "Way"],
+    "mustKeep": ["Make: Toyota"]
+  },
+  {
+    "id": "r23-spec-5",
+    "input": "Shareholders: John Kamau ID 12345678 and Ann Court\nCompany: Twiga Foods Limited",
+    "mustHide": ["John", "Kamau", "Ann", "Court"],
+    "mustKeep": ["Company: Twiga Foods Limited"]
+  },
+  {
+    "id": "r23-spec-6",
+    "input": "Proprietors: John Kamau ID 12345678 and James House",
+    "mustHide": ["John", "Kamau", "James", "House"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-7",
+    "input": "Proprietor: John Kamau ID 12345678, Westlands Heights, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-8",
+    "input": "Proprietor: John Kamau ID 12345678, P.O. Box 1, Uhuru Park\nLocation: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Location: Nakuru"]
+  },
+  {
+    "id": "r23-spec-9",
+    "input": "Proprietor: John Kamau ID 12345678, Riverside Drive, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-10",
+    "input": "Proprietor: John Kamau ID 12345678, Westlands Park, Nairobi\nRegistration Section: Nairobi Block 2",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Registration Section: Nairobi Block 2"]
+  },
+  {
+    "id": "r23-spec-11",
+    "input": "Proprietor: John Kamau ID 12345678 of Kilimani Court, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-12",
+    "input": "Borrower: John Kamau ID 12345678, Court House, Nyeri\nBranch: Nyeri",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-13",
+    "input": "Proprietor: John Kamau ID 12345678, Kenyatta Lane, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-14",
+    "input": "Proprietor: John Kamau ID 12345678, Nakuru Way\nLand Use: Agricultural",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Agricultural"]
+  },
+  {
+    "id": "r23-spec-15",
+    "input": "Proprietors: John Kamau ID 12345678 and the said Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-16",
+    "input": "Proprietors: John Kamau ID 12345678 and Mrs. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-17",
+    "input": "Proprietors: John Kamau ID 12345678 and Mrs Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-18",
+    "input": "Proprietors: John Kamau ID 12345678 and one Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-19",
+    "input": "Proprietors: John Kamau ID 12345678 or her nominee Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-20",
+    "input": "Proprietors: John Kamau ID 12345678 together with Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-21",
+    "input": "Proprietors: John Kamau ID 12345678 and/or Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-22",
+    "input": "Proprietors: John Kamau ID 12345678 and his son Peter Kamau",
+    "mustHide": ["John", "Kamau", "Peter"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r23-spec-23",
+    "input": "Proprietors: John Kamau ID 12345678 and the late Mary Wanjiru\nTenure: Freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Tenure: Freehold"]
+  },
+  {
+    "id": "r23-spec-24",
+    "input": "Proprietors: John Kamau ID 12345678 and Dr. Mary Wanjiru\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Kiambu"]
+  },
+  {
+    "id": "r23-spec-25",
+    "input": "Proprietors: John Kamau ID 12345678 na mke wake Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-26",
+    "input": "Proprietors: John Kamau ID 12345678 and the Land Registrar\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Registrar", "County: Kiambu"]
+  },
+  {
+    "id": "r23-spec-27",
+    "input": "Proprietors: John Kamau ID 12345678 and the Equity Bank Limited\nBank: Equity Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: Equity Bank"]
+  },
+  {
+    "id": "r23-spec-28",
+    "input": "Member No: 3310\nName: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["3310"]
+  },
+  {
+    "id": "r23-spec-29",
+    "input": "Member No. 3310 MARY WANJIRU",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-30",
+    "input": "Member No. 3310 - Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-31",
+    "input": "Member No. 3310 Mary Wanjiru Kamau Branch: Nyeri",
+    "mustHide": ["Mary", "Wanjiru", "Kamau"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-32",
+    "input": "Member No: 3310 Payroll No: 7788 Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-33",
+    "input": "member no. 3310 mary wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-34",
+    "input": "Member No. 3310 Dear Mary,",
+    "mustHide": ["Mary"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-35",
+    "input": "Member No. 3310 Wanjiru Branch: Nyeri",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-36",
+    "input": "Member No. 3310 Mary Wanjiru\nBranch: Nyeri",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Branch: Nyeri"]
+  },
+  {
+    "id": "r23-spec-37",
+    "input": "Member No. 3310 Mary Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r23-spec-38",
+    "input": "Member No. 3310 Mary Wanjiru KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["KES 5,000"]
+  },
+  {
+    "id": "r23-spec-39",
+    "input": "Member No. 3310 Mary Wanjiru: Statement",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-40",
+    "input": "Member No. 3310 Share Capital KES 20,000",
+    "mustHide": [],
+    "mustKeep": ["Share Capital KES 20,000"]
+  },
+  {
+    "id": "r23-spec-41",
+    "input": "Member No. 3310 Total Deposits 150,000",
+    "mustHide": [],
+    "mustKeep": ["Total Deposits 150,000"]
+  },
+  {
+    "id": "r23-spec-42",
+    "input": "Member No. 3310 Loan Balance KES 80,000",
+    "mustHide": [],
+    "mustKeep": ["Loan Balance KES 80,000"]
+  },
+  {
+    "id": "r23-spec-43",
+    "input": "Member No. 3310 Employer: Kenya Power",
+    "mustHide": [],
+    "mustKeep": ["Employer: Kenya Power"]
+  },
+  {
+    "id": "r23-spec-44",
+    "input": "Member No. 3310 Stima Sacco Society Ltd\nSacco: Stima Sacco",
+    "mustHide": [],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r23-spec-45",
+    "input": "Member No. 3310 Mwalimu National Sacco\nBranch: Nyeri",
+    "mustHide": [],
+    "mustKeep": ["Branch: Nyeri", "Mwalimu National"]
+  },
+  {
+    "id": "r23-spec-46",
+    "input": "Member No. 3310 Nyeri Branch",
+    "mustHide": [],
+    "mustKeep": ["Nyeri Branch"]
+  },
+  {
+    "id": "r23-spec-47",
+    "input": "Member No. 3310 31 December 2023",
+    "mustHide": [],
+    "mustKeep": ["31 December 2023"]
+  },
+  {
+    "id": "r23-spec-48",
+    "input": "Member No. 3310 Date: 31/12/2023",
+    "mustHide": [],
+    "mustKeep": ["Date: 31/12/2023"]
+  },
+  {
+    "id": "r23-spec-49",
+    "input": "Member No. 3310 Twiga Foods Limited\nEmployer: Twiga Foods Limited",
+    "mustHide": [],
+    "mustKeep": ["Employer: Twiga Foods Limited"]
+  },
+  {
+    "id": "r23-spec-50",
+    "input": "Member No. 3310 Bidco Industries\nEmployer: Bidco Industries",
+    "mustHide": [],
+    "mustKeep": ["Employer: Bidco Industries"]
+  },
+  {
+    "id": "r23-spec-51",
+    "input": "Member No. 3310 Safaricom\nEmployer: Safaricom",
+    "mustHide": [],
+    "mustKeep": ["Employer: Safaricom"]
+  },
+  {
+    "id": "r23-spec-52",
+    "input": "Member No. 3310 Mary Wanjiru and John Kamau",
+    "mustHide": ["Mary", "Wanjiru", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-53",
+    "input": "Member No. 3310 Mary Wanjiru Kamau, ID 12345678",
+    "mustHide": ["Mary", "Wanjiru", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-54",
+    "input": "Member No. 3310 Mary Wanjiru\nShares: 500 Ordinary Shares",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["500 Ordinary Shares"]
+  },
+  {
+    "id": "r23-spec-55",
+    "input": "Member No. 3310 Mary Wanjiru\nMember No. 3310 Mary Wanjiru Loan Balance KES 80,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Loan Balance KES 80,000"]
+  },
+  {
+    "id": "r23-spec-56",
+    "input": "Title No. NAKURU/NJORO/1234 Proprietor: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Title No.", "Proprietor:"]
+  },
+  {
+    "id": "r23-spec-57",
+    "input": "Title Number: KISUMU/MUNICIPALITY BLOCK 7/412\nProprietor: Mary Wanjiru ID 12345678\nLand Use: Residential",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Land Use: Residential"]
+  },
+  {
+    "id": "r23-spec-58",
+    "input": "Proprietor: Mary Wanjiru ID 12345678 Title No. NAKURU/NJORO/1234\nArea: 0.5 Ha",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Area: 0.5 Ha"]
+  },
+  {
+    "id": "r23-spec-59",
+    "input": "Proprietor: MARY WANJIRU of P.O. Box 1, Nakuru\nParcel: NAKURU/NJORO/1234\nCounty: Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r23-spec-60",
+    "input": "Proprietor: John Kamau ID 12345678, Riverside Drive, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Riverside Drive", "Nairobi"]
+  },
+  {
+    "id": "r23-spec-61",
+    "input": "Proprietor: John Kamau ID 12345678, Lenana Court, Kilimani\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-62",
+    "input": "Borrower: John Kamau ID 12345678, Mama Ngina Drive, Mombasa\nBranch: Mombasa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Branch: Mombasa"]
+  },
+  {
+    "id": "r23-spec-63",
+    "input": "Proprietor: John Kamau ID 12345678, Kindaruma Lane, Nairobi\nLocation: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Location: Nairobi"]
+  },
+  {
+    "id": "r23-spec-64",
+    "input": "Proprietor: John Kamau ID 12345678 of Riverside Drive, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-65",
+    "input": "Proprietor: John Kamau ID 12345678, P.O. Box 1, Riverside Drive, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r23-spec-66",
+    "input": "Member No. 3310 Mary Wanjiru Kamau KES 5,000",
+    "mustHide": ["Mary", "Wanjiru", "Kamau"],
+    "mustKeep": ["KES 5,000"]
+  },
+  {
+    "id": "r23-spec-67",
+    "input": "Member No. 3310 John Kamau Loan Balance KES 80,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Loan Balance KES 80,000"]
+  },
+  {
+    "id": "r23-spec-68",
+    "input": "Member No. 3310 Mary Wanjiru Deposits KES 150,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Deposits KES 150,000"]
+  },
+  {
+    "id": "r23-spec-69",
+    "input": "Member No. 3310 Mary Wanjiru Shares 500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Shares 500"]
+  },
+  {
+    "id": "r23-spec-70",
+    "input": "Member No. 3310 Mary Wanjiru 0712345678",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r23-spec-71",
+    "input": "Member No. 3310 Mary Wanjiru May 2023",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["2023"]
+  },
+  {
+    "id": "r23-spec-72",
+    "input": "Member No. 3310 Mary Wanjiru Branch: Nyeri Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Branch: Nyeri", "Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r23-spec-73",
+    "input": "Member No. 3310 Kamau Wanjiru Monthly Contribution KES 5,000",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
+  },
+  {
+    "id": "r23-spec-74",
+    "input": "Member No. 3310 Mary Wanjiru, Monthly Contribution KES 5,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Monthly Contribution KES 5,000"]
   }
 ]
