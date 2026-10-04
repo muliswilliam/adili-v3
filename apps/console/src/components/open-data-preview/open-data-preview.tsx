@@ -31,6 +31,7 @@ import {
   type FilingByCommissionRow,
 } from '../../server/open-data-tables';
 import type { OpenDataRelease } from '../../server/reporting/types';
+import { formatRate, releaseName } from '../open-data/release-parts';
 import { messages as m } from './messages';
 
 /**
@@ -160,10 +161,6 @@ function ReleaseSource({
       ) : null}
     </div>
   );
-}
-
-function releaseName(release: OpenDataRelease): string {
-  return m.releaseName(release.fy, release.kind, release.version);
 }
 
 /** A card with a hairline header and the title (the prototype's `.sec-h`), labelled by it. */
@@ -311,20 +308,6 @@ function Figure({
     );
   }
   return <SuppressionMarker kind={marker} className="align-middle" />;
-}
-
-const RATE_FORMAT = new Intl.NumberFormat('en-KE', {
-  style: 'percent',
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-/**
- * A release's filing rate (filed / expected, to four decimals) as a percentage with one decimal,
- * `96.2%`, `91.0%`, so the column lines up.
- */
-function formatRate(rate: number): string {
-  return RATE_FORMAT.format(rate);
 }
 
 /** The legend explains the kinds of marker on show, in this order. */

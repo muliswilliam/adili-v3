@@ -139,7 +139,7 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
 
   it('says there is no open data yet while no release has been built', async () => {
     await renderPreview('none');
-    expect(screen.getByText('No open data yet')).toBeTruthy();
+    expect(screen.getByText('No open-data release yet')).toBeTruthy();
     expect(screen.getByText('Your figures appear here when EACC builds a release.')).toBeTruthy();
     expect(screen.queryByRole('note')).toBeNull();
   });

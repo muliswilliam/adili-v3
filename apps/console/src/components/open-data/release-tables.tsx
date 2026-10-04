@@ -2,7 +2,6 @@ import {
   cn,
   EmptyState,
   focusRing,
-  formatPercent,
   Icon,
   SegmentedChoice,
   SuppressionLegend,
@@ -37,6 +36,7 @@ import {
 import { CursorPager } from '../cursor-pager';
 import { formatNumber } from '../format';
 import { messages as m } from './messages';
+import { formatRate } from './release-parts';
 
 /** Rows per page of a release table, as the prototype pages them. */
 const PER_PAGE = 15;
@@ -89,9 +89,6 @@ function Figure({
   if (value === null) return <span className="text-muted-foreground">{m.notApplicable}</span>;
   return <>{format(value)}</>;
 }
-
-/** A rate (0 to 1) as a percentage to one decimal, so a column of rates lines up: `90.0%`. */
-const rate = (value: number) => formatPercent(value * 100, { fixed: true });
 
 /** A figure's gap: suppressed, or for want of data. */
 function gapOf(
@@ -172,7 +169,7 @@ function filingColumns<Row extends FilingFigures>(threshold: number): Column<Row
         label: labels[figure],
         value: (row) => row[figure],
         gap: (row) => gapOf(row[figure], { suppressed: row.suppressed }),
-        format: figure === 'filingRate' ? (_row, value) => rate(value) : undefined,
+        format: figure === 'filingRate' ? (_row, value) => formatRate(value) : undefined,
       },
       threshold,
     ),
@@ -328,7 +325,7 @@ function modelOf(tables: ReadTables, table: OpenDataTableKey, cycle: Cycle): Any
                   suppressed: row.suppressed,
                   notCollected: notCollected.has(row.measure),
                 }),
-              format: (row, value) => (isRate(row) ? rate(value) : formatNumber(value)),
+              format: (row, value) => (isRate(row) ? formatRate(value) : formatNumber(value)),
             },
             threshold,
           ),

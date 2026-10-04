@@ -4,9 +4,6 @@
  */
 export const en = {
   title: 'Open data preview',
-  /** `2025` → `FY 2025/2026 annual v1`. */
-  releaseName: (fy: number, kind: 'annual' | 'snapshot', version: number) =>
-    `FY ${fy}/${fy + 1} ${kind} v${version}`,
   from: 'From',
   published: (date: string) => `Published ${date}`,
   built: (date: string) => `Built ${date}`,
@@ -39,7 +36,7 @@ export const en = {
   accessRequests: 'Access requests',
   accessRequestFigures: { received: 'Received', granted: 'Granted', declined: 'Declined' },
   noRow: 'No figures for your Commission in this release.',
-  emptyTitle: 'No open data yet',
+  emptyTitle: 'No open-data release yet',
   emptyText: 'Your figures appear here when EACC builds a release.',
   errorTitle: 'We could not load your open-data figures',
   errorDetail: 'Try again in a moment.',
