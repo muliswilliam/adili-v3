@@ -3,11 +3,13 @@ import { randomUUID } from 'node:crypto';
 import {
   Client,
   type Workflow,
+  type WorkflowHandle,
   type WorkflowHandleWithFirstExecutionRunId,
   type WorkflowResultType,
   type WorkflowStartOptions,
 } from '@temporalio/client';
 import { historyToJSON } from '@temporalio/common/lib/proto-utils.js';
+import { temporal } from '@temporalio/proto';
 import { TestWorkflowEnvironment } from '@temporalio/testing';
 import {
   bundleWorkflowCode,
@@ -46,6 +48,10 @@ export class WorkflowTestEnvironment {
   private readonly bundles = new Map<string, Promise<WorkflowBundle>>();
   /** A client that never skips time by itself, for `run`. */
   private readonly steadyClient: Client;
+  /** The workflow `run` drives now (one at a time), which `skipTime` lets settle around each skip. */
+  private runWorkflow: WorkflowHandle | undefined;
+  /** Whether a `run` is under way (from before its workflow starts). */
+  private running = false;
 
   private constructor(readonly env: TestWorkflowEnvironment) {
     this.steadyClient = new Client({ connection: env.connection, namespace: env.namespace });
@@ -78,9 +84,22 @@ export class WorkflowTestEnvironment {
     options: ExecuteWorkflowOptions<W>,
     body: (handle: WorkflowHandleWithFirstExecutionRunId<W>) => Promise<R>,
   ): Promise<R> {
-    return this.withWorker(options, async (taskQueue) =>
-      body(await this.steadyClient.workflow.start(workflow, this.startOptions(taskQueue, options))),
-    );
+    if (this.running) throw new Error('WorkflowTestEnvironment.run drives one workflow at a time');
+    // Claimed before anything starts, so a second run fails without leaving a workflow behind.
+    this.running = true;
+    try {
+      return await this.withWorker(options, async (taskQueue) => {
+        const handle = await this.steadyClient.workflow.start(
+          workflow,
+          this.startOptions(taskQueue, options),
+        );
+        this.runWorkflow = handle;
+        return body(handle);
+      });
+    } finally {
+      this.running = false;
+      this.runWorkflow = undefined;
+    }
   }
 
   private async withWorker<W extends Workflow, R>(
@@ -114,10 +133,50 @@ export class WorkflowTestEnvironment {
   /**
    * Moves the test server's clock forward by `ms` (or to `until`), firing the timers due on the
    * way and waiting for the activities they start.
+   *
+   * In `run`, the skip leaves the workflow driven settled, with no timer about to fire, so what
+   * the test sends next cannot race a timer. The time-skipping server strands a run whose
+   * workflow task cancels a timer that fired while the task was with the worker: it refuses the
+   * completion ("invalid history builder state for action", temporalio/sdk-java#3088) and never
+   * times the task out or sends it again. Between skips the server's clock runs at real pace, and
+   * each timer starts a few milliseconds after the instant a skip lands on (the workflow task's
+   * own time), so the next one is due just after the skip ends: a signal sent then, its task slow
+   * on a loaded machine, cancelled a timer that had fired meanwhile. So the skip waits for the
+   * workflow to settle before it starts and after it ends, and goes on past any timer due within
+   * `TIMER_GUARD_MS`.
+   *
+   * Limits in `run`: a skip can go past its target by up to `TIMER_GUARD_MS` per timer it skips
+   * past (at most `MAX_GUARD_SKIPS` of them), so a test cannot assert that a timer has not fired
+   * yet when it is due within `TIMER_GUARD_MS` of where the skip lands. An activity waiting
+   * between retries counts as running, so a skip while one is in its backoff waits for it, and
+   * fails after `SETTLE_TIMEOUT_MS` if the backoff is longer.
    */
   async skipTime(to: { ms: number } | { until: Date }): Promise<void> {
     const ms = 'ms' in to ? to.ms : to.until.getTime() - (await this.env.currentTimeMs());
-    if (ms > 0) await this.env.sleep(ms);
+    if (ms <= 0) return;
+    const driven = this.runWorkflow;
+    if (driven) await untilSettled(driven);
+    await this.env.sleep(ms);
+    if (!driven) return;
+    for (let extra = 0; ; extra += 1) {
+      await untilSettled(driven);
+      const dueIn = await this.nextTimerDueIn(driven);
+      if (dueIn === undefined || dueIn > TIMER_GUARD_MS) return;
+      if (extra >= MAX_GUARD_SKIPS) {
+        throw new Error(
+          `Workflow ${driven.workflowId} keeps a timer due within ${String(TIMER_GUARD_MS)} ms after each skip; skipTime cannot leave it settled`,
+        );
+      }
+      await this.env.sleep(Math.max(dueIn, 0) + 1);
+    }
+  }
+
+  /** How long until the workflow's next timer fires, by the test server's clock; none: undefined. */
+  private async nextTimerDueIn(handle: WorkflowHandle): Promise<number | undefined> {
+    const events = (await handle.fetchHistory()).events ?? [];
+    const now = await this.env.currentTimeMs();
+    const due = pendingTimersDueAt(events);
+    return due.length === 0 ? undefined : Math.min(...due) - now;
   }
 
   async teardown(): Promise<void> {
@@ -134,6 +193,114 @@ export class WorkflowTestEnvironment {
     return bundle;
   }
 }
+
+const { EventType } = temporal.api.enums.v1;
+
+/** How long `untilSettled` waits for a workflow to settle before failing. */
+const SETTLE_TIMEOUT_MS = 30_000;
+
+/**
+ * A timer due this soon after a skip ends is skipped past too: longer than a workflow task takes
+ * on a loaded machine, and far shorter than any wait a workflow under test makes.
+ */
+const TIMER_GUARD_MS = 10_000;
+
+/** Timers skipped past after one skip before `skipTime` gives up on a workflow that re-arms them. */
+const MAX_GUARD_SKIPS = 10;
+
+/**
+ * Resolves once the workflow, by its history, has closed or has no workflow task outstanding and
+ * no activity running: it waits on its timers and signals only.
+ */
+async function untilSettled(handle: WorkflowHandle): Promise<void> {
+  const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+  for (;;) {
+    const events = (await handle.fetchHistory()).events ?? [];
+    if (!busy(events)) return;
+    if (Date.now() > deadline) {
+      const last = events
+        .slice(-5)
+        .map(({ eventId, eventType }) => `${String(eventId)} ${EventType[eventType ?? 0] ?? '?'}`);
+      throw new Error(
+        `Workflow ${handle.workflowId} did not settle within ${String(SETTLE_TIMEOUT_MS)} ms; its last events: ${last.join(', ')}`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+type HistoryEvent = temporal.api.history.v1.IHistoryEvent;
+
+/**
+ * Whether the history has a workflow task or an activity not ended yet; a closed run is not. The
+ * time-skipping server records a failed task's retry (`WorkflowTaskScheduled`, attempt 2) in
+ * history, so a task retried after a failure counts as outstanding too.
+ */
+function busy(events: readonly HistoryEvent[]): boolean {
+  let workflowTask = false;
+  const activities = new Set<string>();
+  for (const event of events) {
+    switch (event.eventType) {
+      case EventType.EVENT_TYPE_WORKFLOW_TASK_SCHEDULED:
+        workflowTask = true;
+        break;
+      case EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
+      case EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED:
+      case EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT:
+        workflowTask = false;
+        break;
+      case EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+        activities.add(String(event.eventId));
+        break;
+      default: {
+        const ended = activityEnded(event);
+        if (ended !== undefined) activities.delete(ended);
+      }
+    }
+  }
+  const closed = CLOSED.has(events.at(-1)?.eventType ?? EventType.EVENT_TYPE_UNSPECIFIED);
+  return !closed && (workflowTask || activities.size > 0);
+}
+
+/** The scheduled event id of the activity `event` ends, if it ends one. */
+function activityEnded(event: HistoryEvent): string | undefined {
+  const attributes =
+    event.activityTaskCompletedEventAttributes ??
+    event.activityTaskFailedEventAttributes ??
+    event.activityTaskTimedOutEventAttributes ??
+    event.activityTaskCanceledEventAttributes;
+  return attributes?.scheduledEventId == null ? undefined : String(attributes.scheduledEventId);
+}
+
+/** When each timer started and not yet fired or cancelled is due, in ms since the epoch. */
+function pendingTimersDueAt(events: readonly HistoryEvent[]): number[] {
+  const pending = new Map<string, number>();
+  for (const event of events) {
+    const started = event.timerStartedEventAttributes;
+    if (started?.timerId) {
+      pending.set(started.timerId, protoMs(event.eventTime) + protoMs(started.startToFireTimeout));
+    }
+    const ended = event.timerFiredEventAttributes ?? event.timerCanceledEventAttributes;
+    if (ended?.timerId) pending.delete(ended.timerId);
+  }
+  return [...pending.values()];
+}
+
+/** A protobuf timestamp (since the epoch) or duration, in milliseconds. */
+function protoMs(
+  value: { seconds?: { toString(): string } | null; nanos?: number | null } | null | undefined,
+): number {
+  return Number(value?.seconds?.toString() ?? 0) * 1000 + Math.floor((value?.nanos ?? 0) / 1e6);
+}
+
+const CLOSED: ReadonlySet<temporal.api.enums.v1.EventType> = new Set([
+  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED,
+  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_FAILED,
+  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT,
+  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED,
+  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED,
+  EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW,
+]);
 
 /** A workflow run's history as committed to a replay fixture. */
 export interface RecordedHistory {
