@@ -13,7 +13,7 @@ import {
   fyLabel,
   previewFromOf,
 } from '../financial-year.js';
-import { conflict, notFound } from '../problems.js';
+import { notFound, problem } from '../problems.js';
 import { clarificationFacts, obligationFacts } from '../projections/schema.js';
 import { commissionOf } from './commission.js';
 import { findReport, markCompiling } from './reports.js';
@@ -107,7 +107,7 @@ export class ComplianceReportsService {
     requireSupervisor(principal);
     const now = this.clock.now();
     if (nairobiDate(now) < previewFromOf(fy)) {
-      throw conflict(
+      throw problem(
         'preview-not-available',
         `A preview of Form M for ${fyLabel(fy)} can be compiled from ${previewFromOf(fy)}.`,
       );
@@ -115,10 +115,7 @@ export class ComplianceReportsService {
     await withTenant(this.db, { tenant, subject: principal.subject }, async (tx) => {
       const report = await markCompiling(tx, tenant, fy, now);
       if (!report) {
-        throw conflict(
-          'report-submitted',
-          'The report is submitted and can no longer be compiled.',
-        );
+        throw problem('report-submitted', 'The report is submitted and can no longer be compiled.');
       }
     });
     await this.workflows.compile({ tenant, fy });

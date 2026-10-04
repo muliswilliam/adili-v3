@@ -215,7 +215,12 @@ describe('Federated Form M submission (S8)', () => {
     const response = await submit(psc);
 
     expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ status: 403, code: 'tenant-mismatch' });
+    expect(response.json()).toMatchObject({
+      type: 'tenant-mismatch',
+      title: 'Tenant mismatch',
+      status: 403,
+      code: 'tenant-mismatch',
+    });
     expect(await reports()).toEqual([]);
   });
 

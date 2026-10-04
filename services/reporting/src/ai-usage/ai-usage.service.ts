@@ -2,8 +2,11 @@ import { Injectable } from '@nestjs/common';
 import type { Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { and, count, eq, isNotNull } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { requireEacc } from '../access.js';
+import { countSchema as tally } from '../compliance-reports/representation.js';
+import type { Conforms } from '../conforms.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { AI_FEEDBACK_REASONS } from '../projections/events.js';
 import { aiFeedbackFacts, copilotCaseFacts } from '../projections/schema.js';
@@ -35,6 +38,42 @@ export interface AiUsageReport {
   /** Commissions with an AI-assisted case or a rating in the year, in slug order. */
   commissions: AiUsageCommission[];
 }
+
+export const aiTaskRatingsSchema = z.object({
+  task: z.string().meta({
+    description: 'The ai-gateway task whose outputs were rated, e.g. `summarize-declaration`',
+  }),
+  helpful: tally,
+  notHelpful: tally,
+  reasons: z
+    .strictObject(
+      Object.fromEntries(AI_FEEDBACK_REASONS.map((reason) => [reason, tally])) as Record<
+        AiFeedbackReason,
+        typeof tally
+      >,
+    )
+    .meta({
+      description: 'Ratings by the reason the reviewer gave; a rating without one counts in none',
+    }),
+});
+
+export const aiUsageCommissionSchema = z.object({
+  tenant: z.string().meta({ description: 'Commission slug' }),
+  aiAssistedCases: tally.meta({
+    description: 'Cases whose copilot first had outputs to show in the year',
+  }),
+  ratings: z.array(aiTaskRatingsSchema).meta({
+    description: 'Ratings last given in the year, per AI task, in task order',
+  }),
+});
+
+export const aiUsageReportSchema = z.object({
+  fy: z.number().int().meta({ description: 'Financial year start year' }),
+  commissions: z.array(aiUsageCommissionSchema).meta({
+    description: 'Commissions with an AI-assisted case or a rating in the year, in slug order',
+  }),
+});
+true satisfies Conforms<AiUsageReport, typeof aiUsageReportSchema>;
 
 const EACC_ONLY = 'Only EACC analysts and supervisors see the AI usage counts.';
 
