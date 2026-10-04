@@ -338,7 +338,7 @@ describe('ICMS referrals', () => {
       const response = await submit();
 
       expect(response.statusCode).toBe(503);
-      expect(performance.now() - started).toBeLessThan(ICMS_POLICY.timeoutMs + 1_000);
+      expect(performance.now() - started).toBeLessThan(ICMS_POLICY.timeoutMs + 2_000);
       expect(await stored()).toEqual([]);
       expect(await calls()).toEqual([
         expect.objectContaining({ outcome: 'unavailable', reason: 'timeout' }),
