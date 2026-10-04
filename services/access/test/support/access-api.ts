@@ -307,7 +307,10 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
   return { signer, jwk };
 }
 
-/** Longer than any start step takes on a loaded runner, and well inside the 60 s hook timeout. */
+/**
+ * Longer than any start step takes on a loaded runner. One stalled step fails (with the 5 s probe)
+ * inside the 60 s hook timeout; several slow steps together can still reach the hook timeout.
+ */
 const STARTUP_STEP_TIMEOUT_MS = 30_000;
 
 /** How long the stalled step's report waits for Postgres to say what its sessions wait on. */
