@@ -48,6 +48,7 @@
     "@adili/eslint-config": "workspace:*",
     "@adili/forms": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@storybook/addon-a11y": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",
     "@tailwindcss/vite": "^4.3.3",

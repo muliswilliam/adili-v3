@@ -60,9 +60,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       # One task per vCPU (2 on this runner): more starves the test suites, whose timeouts then
-      # fire on tests that take milliseconds locally.
+      # fire on tests that take milliseconds locally. Set through the environment rather than
+      # `--concurrency` so each Vitest run sizes its workers to match (@adili/vitest-config).
       # `eval` replays each AI task's golden set against its recorded outputs (ai-gateway evals/).
-      - run: pnpm turbo run lint typecheck test eval build --filter='!@adili/mocks' --cache-dir=.turbo --concurrency=2
+      - run: pnpm turbo run lint typecheck test eval build --filter='!@adili/mocks' --cache-dir=.turbo
+        env:
+          TURBO_CONCURRENCY: 2
       - run: pnpm deps:check
       # Typecheck and build regenerate these (route trees, clients generated from the committed
       # contracts), so a stale committed copy shows up as a diff.

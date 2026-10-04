@@ -1,7 +1,9 @@
+import { maxWorkers } from '@adili/vitest-config';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    maxWorkers: maxWorkers(),
     // Component tests opt into jsdom with a `@vitest-environment jsdom` comment.
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./vitest.setup.ts'],

@@ -36,6 +36,7 @@
     "@adili/api-kit": "workspace:*",
     "@adili/eslint-config": "workspace:*",
     "@adili/tsconfig": "workspace:*",
+    "@adili/vitest-config": "workspace:*",
     "@types/node": "^24.0.0",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
