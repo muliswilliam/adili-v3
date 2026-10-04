@@ -7,7 +7,8 @@ import { type ReleasedCell, SUPPRESSION_THRESHOLD, suppressTable } from './suppr
  * An open-data release's six tables (spec 09b), built from aggregates in the NCR's shape for
  * everything they carry (filing per Commission and cycle, clarifications issued) and from the
  * projection facts for what they do not (determinations, clarifications resolved, administrative
- * actions, referrals). Pure: aggregates and counts in, suppressed tables and their unsuppressed
+ * actions, referrals). Access requests (Form M section 5) are the NCR's too: the counts each
+ * report filed, which the platform projects from the access service's events (spec 10). Pure: aggregates and counts in, suppressed tables and their unsuppressed
  * national totals out. Dimensions never finer than Commission x entity type x cycle; counts and
  * rates only, never an officer.
  *
@@ -20,19 +21,16 @@ import { type ReleasedCell, SUPPRESSION_THRESHOLD, suppressTable } from './suppr
  *   totals `by-cycle` and its grand total the filing figures of `national-totals`; one
  *   suppression of that table gives all three tables the same pattern, so none reveals a figure
  *   another hides. Expected and non-filers follow filed's pattern.
- * - A Commission's other counts (compliance; access requests once collected) are over its
+ * - A Commission's other counts (compliance, access requests) are over its
  *   officers (`all` expected): one Commission-level pattern, suppressed by officers, applies to
  *   every one of them, so each measure's national total hides at least two Commissions or none.
  *
  * Commissions that have not reported for the year have no officer denominator: their rows carry
  * `null` figures, unsuppressed (there is nothing to hide), and their facts count nowhere.
  *
- * Access requests are not collected yet (spec 10 projects them): the `access-requests` figures
- * and the national `accessRequests*` measures are `null`, unsuppressed, and named in the table's
- * `notCollected`, so a consumer never reads "no requests" from a count nobody kept. A Form M's
- * access-request zeros are a placeholder, not data. Reporting entity types are not collected
- * either (the directory carries none): `by-entity-type` has no rows and names its filing figures
- * in `notCollected`, so it reads "not collected", not "no officers".
+ * Reporting entity types are not collected (the directory carries none): `by-entity-type` has
+ * no rows and names its filing figures in `notCollected`, so it reads "not collected", not "no
+ * officers".
  */
 
 export const OPEN_DATA_TABLES = [
@@ -119,7 +117,10 @@ export interface ByCycleRow extends FilingFigures {
   cycle: Cycle;
 }
 
-/** `access-requests`: a Commission's access requests (Form M section 5); not collected yet. */
+/**
+ * `access-requests`: a Commission's access requests (Form M section 5): received, granted (in
+ * full or in part) and declined (denied, or the officer could not be identified).
+ */
 export interface AccessRequestsRow extends TableRow {
   commission: string;
   commissionName: string;
@@ -206,8 +207,10 @@ export interface ReleaseTotals {
     late: number;
     notReported: number;
   };
-  /** Access requests are not collected yet, so neither published nor reconciled. */
-  national: Record<Cycle, SectionTotals> & { clarifications: number };
+  national: Record<Cycle, SectionTotals> & {
+    clarifications: number;
+    accessRequests: AccessCounts;
+  };
 }
 
 export interface BuiltRelease {
@@ -252,16 +255,15 @@ const COMPLIANCE_MEASURES = [
 type ComplianceMeasure = (typeof COMPLIANCE_MEASURES)[number];
 
 const ACCESS_MEASURES = ['received', 'granted', 'declined'] as const;
+type AccessMeasure = (typeof ACCESS_MEASURES)[number];
+type AccessCounts = Record<AccessMeasure, number>;
 
-/** The national measures of access requests, not collected yet like the table's columns. */
-const ACCESS_NATIONAL_MEASURES = [
-  'accessRequestsReceived',
-  'accessRequestsGranted',
-  'accessRequestsDeclined',
-] as const satisfies readonly NationalMeasure[];
-
-/** A figure not collected yet: null, and never suppressed (there is nothing to hide). */
-const NOT_COLLECTED = { value: null, suppressed: false } as const;
+/** The national measure of each access-request count. */
+const ACCESS_NATIONAL_MEASURES: Record<AccessMeasure, NationalMeasure> = {
+  received: 'accessRequestsReceived',
+  granted: 'accessRequestsGranted',
+  declined: 'accessRequestsDeclined',
+};
 
 const ACTION_MEASURES: Record<ActionStep, ComplianceMeasure> = {
   'notice-to-comply': 'actionsNoticeToComply',
@@ -284,6 +286,7 @@ interface Reported {
   sections: Record<(typeof INTAKE_SECTIONS)[number], SectionTotals>;
   officers: number;
   compliance: Record<ComplianceMeasure, number>;
+  access: AccessCounts;
 }
 
 export function buildReleaseTables(
@@ -318,6 +321,7 @@ export function buildReleaseTables(
       sections,
       officers: INTAKE_SECTIONS.reduce((total, section) => total + sections[section].expected, 0),
       compliance,
+      access: accessOf(row.accessRequests),
     });
   }
   const byReported = new Map(reported.map((commission) => [commission.slug, commission]));
@@ -398,12 +402,20 @@ export function buildReleaseTables(
       ...figuresOf(COMPLIANCE_MEASURES, published ? commission.compliance : undefined),
       suppressed,
     });
-    accessRows.push({ ...dimensions, ...figuresOf(ACCESS_MEASURES, undefined), suppressed: false });
+    accessRows.push({
+      ...dimensions,
+      ...figuresOf(ACCESS_MEASURES, published ? commission.access : undefined),
+      suppressed,
+    });
   }
 
   const complianceTotals = {} as Record<ComplianceMeasure, number>;
   for (const measure of COMPLIANCE_MEASURES) {
     complianceTotals[measure] = reported.reduce((t, c) => t + c.compliance[measure], 0);
+  }
+  const accessTotals = {} as AccessCounts;
+  for (const measure of ACCESS_MEASURES) {
+    accessTotals[measure] = reported.reduce((t, c) => t + c.access[measure], 0);
   }
   const onTime = commissions.filter(([, row]) => row.status === 'submitted-on-time').length;
   const late = commissions.filter(([, row]) => row.status === 'submitted-late').length;
@@ -444,7 +456,12 @@ export function buildReleaseTables(
     ...Object.fromEntries(
       COMPLIANCE_MEASURES.map((measure) => [measure, counted(complianceTotals[measure])]),
     ),
-    ...Object.fromEntries(ACCESS_NATIONAL_MEASURES.map((measure) => [measure, NOT_COLLECTED])),
+    ...Object.fromEntries(
+      ACCESS_MEASURES.map((measure) => [
+        ACCESS_NATIONAL_MEASURES[measure],
+        counted(accessTotals[measure]),
+      ]),
+    ),
   } as Record<NationalMeasure, Pick<NationalTotalsRow, 'value' | 'suppressed'>>;
   const nationalRows: NationalTotalsRow[] = NATIONAL_MEASURES.map((measure) => ({
     measure,
@@ -477,14 +494,12 @@ export function buildReleaseTables(
       ['commission', 'commissionName', ...ACCESS_MEASURES, 'suppressed'],
       accessRows,
       threshold,
-      ACCESS_MEASURES,
     ),
     'national-totals': tableOf(
       'national-totals',
       ['measure', 'value', 'suppressed'],
       nationalRows,
       threshold,
-      ACCESS_NATIONAL_MEASURES,
     ),
   };
 
@@ -492,7 +507,11 @@ export function buildReleaseTables(
     tables,
     totals: {
       reporting,
-      national: { ...national, clarifications: complianceTotals.clarificationsIssued },
+      national: {
+        ...national,
+        clarifications: complianceTotals.clarificationsIssued,
+        accessRequests: accessTotals,
+      },
     },
   };
 }
@@ -501,8 +520,8 @@ export function buildReleaseTables(
  * Reconciliation (spec 09b S9): the release's national figures against the national totals of
  * the aggregates it was built from (the NCR's, or the live projections' for a snapshot of a year
  * without one). The dot paths (`national.initial.declared`, `reporting.late`) whose counts
- * differ; empty when the release reconciles. Rates follow from the counts and are not compared;
- * access requests are not collected, so not compared either. Built from the same aggregates, the
+ * differ; empty when the release reconciles. Rates follow from the counts and are not compared.
+ * Built from the same aggregates, the
  * tables reconcile unless the table builder lost or double-counted a figure.
  */
 export function reconcile(totals: ReleaseTotals, ncr: NationalAggregates): string[] {
@@ -517,6 +536,7 @@ export function reconcile(totals: ReleaseTotals, ncr: NationalAggregates): strin
     national: {
       ...Object.fromEntries(CYCLES.map((cycle) => [cycle, countsOf(ncr.national[cycle])])),
       clarifications: ncr.national.clarifications,
+      accessRequests: accessOf(ncr.national.accessRequests),
     },
   };
   const mismatches: string[] = [];
@@ -567,6 +587,15 @@ function figuresOf<M extends string>(
 /** A cell the table does not have (an empty table's) is not suppressed. */
 function isSuppressed(cell: ReleasedCell | undefined): boolean {
   return cell?.suppressed ?? false;
+}
+
+/** Access-request counts as the aggregates carry them; a count they lack is zero. */
+function accessOf(counts: Partial<AccessCounts> | null | undefined): AccessCounts {
+  return {
+    received: counts?.received ?? 0,
+    granted: counts?.granted ?? 0,
+    declined: counts?.declined ?? 0,
+  };
 }
 
 function countsOf(section: SectionTotals): SectionTotals {

@@ -34,6 +34,8 @@ export const en = {
     reassign: 'Reassign',
     assign: 'Assign to a reviewer',
     unassign: 'Unassign',
+    proposeDetermination: 'Propose determination',
+    determination: 'Determination',
   },
   toasts: {
     reviewed: 'Marked reviewed',

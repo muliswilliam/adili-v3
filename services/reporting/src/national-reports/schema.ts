@@ -36,7 +36,8 @@ const timestamps = {
 };
 
 /** reporting.yaml `NationalReport.status`. */
-export type NationalReportStatus = 'draft' | 'approved';
+export const NATIONAL_REPORT_STATUSES = ['draft', 'approved'] as const;
+export type NationalReportStatus = (typeof NATIONAL_REPORT_STATUSES)[number];
 
 /** The narrative's sections, in the order the report prints them. */
 export const NARRATIVE_SECTIONS = ['overview', 'findings', 'recommendations'] as const;

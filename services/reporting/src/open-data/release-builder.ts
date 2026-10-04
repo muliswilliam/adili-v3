@@ -16,6 +16,7 @@ import { financialYearAt } from '../financial-year.js';
 import { buildLiveAggregates, type NationalAggregates } from '../national-reports/aggregates.js';
 import { nationalReportAggregates, nationalReports } from '../national-reports/schema.js';
 import {
+  accessRequestFacts,
   ACTION_STEPS,
   actionFacts,
   clarificationFacts,
@@ -138,7 +139,8 @@ export class ReleaseBuildAbandoned extends Error {
  *   built changes neither until the NCR is rebuilt, so the release always equals the NCR;
  * - before then, a snapshot (spec 09b: "a mid-year snapshot ... so that Parliament sees progress
  *   before July") is built from the live projections: every Commission's counts as its Form M
- *   would compile them now from the obligation and clarification facts (`aggregateFacts`), over
+ *   would compile them now from the obligation, clarification and access request facts
+ *   (`aggregateFacts`), over
  *   the directory's active Commissions (`buildLiveAggregates`). Its status per Commission is
  *   still its report's, so the year's reporting counts read "not reported" until reports come
  *   in. A year that has not started has nothing to show (`FyNotStarted`).
@@ -454,9 +456,9 @@ async function ncrOf(tx: ReportingTransaction, fy: number) {
 }
 
 /**
- * Every Commission's Form M counts for the year as they would compile now, from the obligation
- * and clarification facts (`aggregateFacts`, as the compile reads them), by slug. Read as the
- * platform: the facts are every Commission's.
+ * Every Commission's Form M counts for the year as they would compile now, from the obligation,
+ * clarification and access request facts (`aggregateFacts`, as the compile reads them), by slug.
+ * Read as the platform: the facts are every Commission's.
  */
 async function liveCounts(
   tx: ReportingTransaction,
@@ -482,13 +484,25 @@ async function liveCounts(
     })
     .from(clarificationFacts)
     .where(eq(clarificationFacts.fy, fy));
-  const tenants = new Set([...obligations, ...clarifications].map((row) => row.tenant));
+  const accessRequests = await tx
+    .select({
+      tenant: accessRequestFacts.tenant,
+      outcome: accessRequestFacts.outcome,
+      grounds: accessRequestFacts.grounds,
+      withdrawn: sql<boolean>`${accessRequestFacts.withdrawnAt} is not null`,
+    })
+    .from(accessRequestFacts)
+    .where(eq(accessRequestFacts.fy, fy));
+  const tenants = new Set(
+    [...obligations, ...clarifications, ...accessRequests].map((row) => row.tenant),
+  );
   return new Map(
     [...tenants].map((tenant) => [
       tenant,
       aggregateFacts(
         obligations.filter((row) => row.tenant === tenant),
         clarifications.filter((row) => row.tenant === tenant),
+        accessRequests.filter((row) => row.tenant === tenant),
       ).counts,
     ]),
   );

@@ -623,11 +623,66 @@ export interface components {
                 };
             };
             partII: {
-                initial: components["schemas"]["FormMDeclarationSection"];
-                biennial: components["schemas"]["FormMDeclarationSection"] & {
+                initial: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
                     noCycleInPeriod?: boolean;
                 };
-                final: components["schemas"]["FormMDeclarationSection"];
+                biennial: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
+                final: {
+                    expected: number;
+                    declared: number;
+                    notDeclared: number;
+                    nonFilers: {
+                        name: string;
+                        designation: string;
+                        identifier: string;
+                        /** Format: date */
+                        date: string;
+                        /** @enum {string} */
+                        actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
+                        /** @enum {string} */
+                        complied: "yes" | "no" | "pending";
+                        remarks?: string;
+                        /** Format: uuid */
+                        obligationId?: string;
+                    }[];
+                    noCycleInPeriod?: boolean;
+                };
                 clarifications: {
                     items: {
                         name: string;
@@ -662,8 +717,16 @@ export interface components {
                 };
             };
             partIII: {
-                compiledBy: components["schemas"]["FormMSignatory"];
-                confirmedBy: components["schemas"]["FormMSignatory"];
+                compiledBy: {
+                    name: string | null;
+                    designation: string | null;
+                    date: string | null;
+                };
+                confirmedBy: {
+                    name: string | null;
+                    designation: string | null;
+                    date: string | null;
+                };
             };
             meta: {
                 /** Format: date-time */
@@ -805,31 +868,6 @@ export interface components {
                 sha256Csv: string;
             }[];
             releaseSha256: string;
-        };
-        FormMDeclarationSection: {
-            expected: number;
-            declared: number;
-            notDeclared: number;
-            nonFilers: {
-                name: string;
-                designation: string;
-                identifier: string;
-                /** Format: date */
-                date: string;
-                /** @enum {string} */
-                actionTaken: "none" | "notice-to-comply" | "warning" | "salary-stoppage" | "disciplinary-referral" | "referred-to-eacc";
-                /** @enum {string} */
-                complied: "yes" | "no" | "pending";
-                remarks?: string;
-                /** Format: uuid */
-                obligationId?: string;
-            }[];
-            noCycleInPeriod?: boolean;
-        };
-        FormMSignatory: {
-            name: string | null;
-            designation: string | null;
-            date: string | null;
         };
         /** @description The declaration.v1 document cut to the granted scope: always schemaVersion, type, statementDate and attestation; with bio, officer (and spouses, children when included, without their national IDs, KRA PINs or dates of birth); with income, assets or liabilities, statements of the included persons holding only those parts (incomePeriod too with income); with other, otherInformation. An absent key was not granted */
         DisclosedDeclaration: {
@@ -1252,7 +1290,7 @@ export interface components {
              * @description Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
              * @enum {string}
              */
-            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required";
+            code?: "database-unavailable" | "rate-limit-exceeded" | "no-match" | "already-onboarded" | "no-roster" | "otp-invalid" | "otp-expired" | "resend-cooldown" | "otp-send-failed" | "wrong-step" | "session-expired" | "iprs-unavailable" | "identity-unavailable" | "email-in-use" | "identity-mismatch" | "step-up-required" | "incomplete" | "before-statement-date" | "amendment-window-closed" | "not-a-draft" | "not-submitted" | "obligation-cancelled" | "acknowledgement-issued" | "acknowledgement-in-progress" | "consent-required" | "no-id" | "not-new" | "no-applicant-record" | "request-decided" | "request-closed" | "officer-resolved" | "not-under-decision" | "not-pending-verification" | "lea-account-inactive" | "declarant-notified" | "representations-closed" | "download-window-closed" | "scope-exceeds-request" | "grounds-required" | "separation-of-duties" | "report-submitted" | "report-compiling" | "preview-not-available" | "not-reviewed" | "invalid-remarks" | "invalid-document" | "inconsistent-document" | "tenant-mismatch" | "ncr-approved" | "no-submitted-reports" | "icms-push-failed" | "ai-not-enabled" | "narrative-validation" | "no-pattern-candidates" | "aggregates-rebuilt" | "narrative-draft-failed" | "ncr-not-built" | "ncr-not-approved" | "fy-not-started" | "release-building" | "reconciliation-failed" | "release-not-preview" | "release-not-published" | "annual-release-published" | "manifest-refused" | "manifest-revocation-refused";
             detail?: string;
             instance?: string;
             /** @description Field-level errors; `path` is the dotted request field */

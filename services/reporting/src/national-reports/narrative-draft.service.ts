@@ -17,7 +17,7 @@ import { Clock } from '../clock.js';
 import type { ReportingTransaction } from '../compliance-reports/reports.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
-import { aiGatewayUnavailable, badGateway, conflict } from '../problems.js';
+import { aiGatewayUnavailable, problem } from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { NCR_NARRATIVE_DRAFTED, type NcrNarrativeDraftedData } from './events.js';
 import { insertDraft } from './narrative.js';
@@ -117,7 +117,7 @@ export class NarrativeDraftService {
       const { figures, candidates, builtAt: at } = await narrativeInputOf(tx, fy);
       const sections = draftJobSections(request.section, candidates);
       if (!sections) {
-        throw conflict(
+        throw problem(
           'no-pattern-candidates',
           'The year has no notable patterns for findings to narrate. Draft the overview or the recommendations instead.',
         );
@@ -320,14 +320,14 @@ function sameJobs(a: readonly DraftJob[], b: readonly DraftJob[]): boolean {
 function draftProblem(reason: DraftFailureReason | null) {
   switch (reason) {
     case GATEWAY_FAILURES.validation:
-      return conflict(
+      return problem(
         'narrative-validation',
         'The draft cited a figure that is not in the report and was discarded. Nothing was inserted.',
       );
     case GATEWAY_FAILURES.policy:
-      return conflict('ai-not-enabled', 'AI assistance is not enabled for EACC.');
+      return problem('ai-not-enabled', 'AI assistance is not enabled for EACC.');
     case DRAFT_FAILURES.aggregatesRebuilt:
-      return conflict(
+      return problem(
         'aggregates-rebuilt',
         'The report was rebuilt while the draft was written, so the draft was discarded. Draft again.',
       );
@@ -339,9 +339,9 @@ function draftProblem(reason: DraftFailureReason | null) {
 }
 
 function draftFailed(reason: DraftFailureReason | 'unknown') {
-  return badGateway(
+  return problem(
     'narrative-draft-failed',
     'The narrative could not be drafted just now. Nothing was inserted; try again.',
-    { reason },
+    { extensions: { reason } },
   );
 }

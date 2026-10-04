@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { rateOf } from '../compliance-reports/intake.js';
 import {
   commissionKey,
@@ -42,16 +44,22 @@ export const CANDIDATE_KINDS = [
 export type CandidateKind = (typeof CANDIDATE_KINDS)[number];
 
 /** reporting.yaml `PatternCandidate`; ai-gateway `NarrateComplianceReportInput.candidates[]`. */
-export interface PatternCandidate {
-  /** `<kind>:<subject>:<figure>`, stable across builds of the year. */
-  id: string;
-  kind: CandidateKind;
-  /** A Commission's slug, or `national`. */
-  subject: string;
-  values: Record<string, number | string | null>;
-  /** At least one; every key names a figure of the narrative input. */
-  aggregateKeys: string[];
-}
+export const patternCandidateSchema = z.object({
+  id: z
+    .string()
+    .meta({ description: '`<kind>:<subject>:<figure>`, stable across builds of the year' }),
+  kind: z.enum(CANDIDATE_KINDS),
+  subject: z.string().meta({ description: 'Commission slug, entity type, or `national`' }),
+  values: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).meta({
+    description:
+      'The figures the candidate rests on, by name: numbers, strings or null, no nested values, as `NarrateComplianceReportInput` takes them. A derived figure the narrative may state (a change, a count of years) is carried here.',
+  }),
+  aggregateKeys: z.array(z.string()).min(1).meta({
+    description:
+      'Keys of the figures the candidate rests on, in the ai-gateway scheme (`NarrateComplianceReportInput`): `national.<name>`, `commission.<code>.<name>`, prefixed `fy<fy>.` for a prior year',
+  }),
+});
+export type PatternCandidate = z.infer<typeof patternCandidateSchema>;
 
 /** What makes a pattern notable; configuration (`CANDIDATE_*`), defaults in `config.ts`. */
 export interface CandidateThresholds {

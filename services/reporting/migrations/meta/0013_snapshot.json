@@ -1,6 +1,6 @@
 {
-  "id": "fb0a9c22-7df5-4d40-920b-92646bbe8a73",
-  "prevId": "961a67fc-d018-40df-b597-eb3be4f45f76",
+  "id": "961a67fc-d018-40df-b597-eb3be4f45f76",
+  "prevId": "780cf088-5b04-45c0-9bb3-b69d0e2c5dbc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -960,98 +960,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.open_data_release_builds": {
-      "name": "open_data_release_builds",
-      "schema": "",
-      "columns": {
-        "release_id": {
-          "name": "release_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "fy": {
-          "name": "fy",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "version": {
-          "name": "version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "built_by": {
-          "name": "built_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "open_data_release_builds_fy_kind_building_key": {
-          "name": "open_data_release_builds_fy_kind_building_key",
-          "columns": [
-            {
-              "expression": "fy",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"open_data_release_builds\".\"status\" = 'building'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.open_data_releases": {
       "name": "open_data_releases",
       "schema": "",
@@ -1226,6 +1134,90 @@
           "value": "\"open_data_releases\".\"kind\" <> 'annual' or \"open_data_releases\".\"national_report_id\" is not null"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.access_request_facts": {
+      "name": "access_request_facts",
+      "schema": "",
+      "columns": {
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fy": {
+          "name": "fy",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grounds": {
+          "name": "grounds",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn_at": {
+          "name": "withdrawn_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "access_request_facts_tenant_fy_idx": {
+          "name": "access_request_facts_tenant_fy_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fy",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.action_facts": {

@@ -2,13 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { type Principal } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { desc, eq, inArray } from 'drizzle-orm';
+import { z } from 'zod';
 
 import { formMTenant, requireCommissionAdmin } from '../access.js';
 import type { ReportingSchema } from '../db/schema.js';
 import { notFound, storageUnavailable } from '../problems.js';
 import { PLATFORM_TENANT, systemContext } from '../system-context.js';
 import { OpenDataFiles, OpenDataStorageUnavailable } from './open-data-files.js';
-import { type OpenDataReleaseView, openDataReleaseView } from './representation.js';
+import {
+  openDataReleaseSchema,
+  type OpenDataReleaseView,
+  openDataReleaseView,
+} from './representation.js';
 import { openDataFiles, openDataReleases, type ReleaseStatus } from './schema.js';
 import type { OpenDataTable, OpenDataTableName, TableRow } from './tables.js';
 
@@ -20,11 +25,22 @@ export const COMMISSION_TABLES = [
 ] as const satisfies readonly OpenDataTableName[];
 export type CommissionTable = (typeof COMMISSION_TABLES)[number];
 
-/** reporting.yaml `getCommissionOpenDataPreview` body. */
-export interface CommissionOpenDataPreview {
-  release: OpenDataReleaseView;
-  tables: Record<CommissionTable, TableRow[]>;
-}
+const commissionRowsSchema = z.array(
+  z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+);
+
+/** reporting.yaml `CommissionOpenDataPreview`: `getCommissionOpenDataPreview`'s body. */
+export const commissionOpenDataPreviewSchema = z.object({
+  release: openDataReleaseSchema,
+  tables: z
+    .strictObject({
+      'filing-by-commission': commissionRowsSchema,
+      'compliance-by-commission': commissionRowsSchema,
+      'access-requests': commissionRowsSchema,
+    })
+    .meta({ description: "The Commission's own rows of each Commission table, as released" }),
+}) satisfies z.ZodType<{ tables: Record<CommissionTable, TableRow[]> }>;
+export type CommissionOpenDataPreview = z.infer<typeof commissionOpenDataPreviewSchema>;
 
 /** A withdrawn release is never shown: its figures were wrong, or superseded by the next version. */
 const SHOWN_STATUSES: ReleaseStatus[] = ['preview', 'published'];

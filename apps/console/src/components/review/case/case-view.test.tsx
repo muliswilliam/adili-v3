@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { ToastProvider, TooltipProvider } from '@adili/ui';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -236,6 +236,17 @@ describe('CaseView: the reviewer holding the case', () => {
     expect(
       screen.getByText('Your access to this declaration is recorded in the audit trail.'),
     ).toBeTruthy();
+  });
+
+  it('links to the Determination page; Propose for the assignee of a case ready for it (spec 08)', async () => {
+    await renderCase(CASES.mine);
+    // A clarification is open: the link reads Determination, not Propose.
+    expect(screen.getByRole('link', { name: 'Determination' }).getAttribute('href')).toBe(
+      `/review/cases/${CASES.mine}/determination`,
+    );
+    cleanup();
+    await renderCase(CASES.ready);
+    expect(screen.getByRole('link', { name: 'Propose determination' })).toBeTruthy();
   });
 
   it('shows the declaration as filed, with the ids the copilot and flags scroll to', async () => {

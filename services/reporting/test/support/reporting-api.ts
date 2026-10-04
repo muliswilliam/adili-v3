@@ -3,6 +3,7 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
+import { PATTERN_METADATA } from '@nestjs/microservices/constants';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
 import { RATE_LIMIT_CLOCK, TokenVerifier, TRUSTED_PROXIES_DEFAULT } from '@adili/api-kit';
@@ -16,6 +17,7 @@ import {
 } from '@adili/data-access';
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
+import { ACCESS_CERTIFIED_COPY_ISSUED, LEA_REQUEST_EVENTS } from '@adili/events/contracts';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
 import { endWorkflows, prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
@@ -96,7 +98,11 @@ export interface ReportingApi {
   events(type?: string): Promise<RecordedEvent[]>;
   /** Terminates the workflows with these ids (one not running is fine), then waits out their activities. */
   endWorkflows(ids: readonly string[]): Promise<void>;
-  /** Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery. */
+  /**
+   * Delivers an event to its consumer as the RabbitMQ transport would; false for a redelivery, or
+   * for a published access type the service must not bind (the exchange never routes it).
+   * Throws for any other type without a consumer.
+   */
   deliver(event: EventEnvelope): Promise<boolean>;
   get(url: string, caller: Caller): ReturnType<NestFastifyApplication['inject']>;
   /**
@@ -159,28 +165,29 @@ export interface RecordedEvent {
   data: Record<string, unknown>;
 }
 
-/** The consumer method of each projected event type. */
-const HANDLERS: Record<string, keyof ProjectionsConsumer> = {
-  'obligation.created.v1': 'obligationCreated',
-  'obligation.status-changed.v1': 'obligationStatusChanged',
-  'declaration.submitted.v1': 'declarationSubmitted',
-  'clarification.issued.v1': 'clarificationIssued',
-  'clarification.responded.v1': 'clarificationResponded',
-  'clarification.resolved.v1': 'clarificationResolved',
-  'clarification.overdue.v1': 'clarificationOverdue',
-  'clarification.withdrawn.v1': 'clarificationWithdrawn',
-  'action.proposed.v1': 'actionProposed',
-  'action.approved.v1': 'actionApproved',
-  'action.declined.v1': 'actionDeclined',
-  'action.issued.v1': 'actionIssued',
-  'action.responded.v1': 'actionResponded',
-  'action.complied.v1': 'actionComplied',
-  'action.cancelled.v1': 'actionCancelled',
-  'determination.approved.v1': 'determinationApproved',
-  'referral.sent.v1': 'referralSent',
-  'review.copilot.updated.v1': 'copilotUpdated',
-  'ai.feedback.recorded.v1': 'aiFeedbackRecorded',
-};
+/**
+ * The consumer method of each event type, from its `@OnEvent` binding: the service's queue is
+ * bound to these types and no others (`eventsServerOptions`).
+ */
+const HANDLERS = new Map<string, keyof ProjectionsConsumer>(
+  Object.entries(Object.getOwnPropertyDescriptors(ProjectionsConsumer.prototype)).flatMap(
+    ([method, descriptor]) =>
+      (
+        (Reflect.getMetadata(PATTERN_METADATA, descriptor.value as object) as
+          string[] | undefined) ?? []
+      ).map((type) => [type, method as keyof ProjectionsConsumer] as const),
+  ),
+);
+
+/**
+ * The access service's published types reporting must not bind: law enforcement requests (Form M
+ * section 5 counts Form K only, #239) and certified copies. Pinned, so a Form K type left unbound
+ * by mistake throws instead of passing as not routed.
+ */
+const UNBOUND_PUBLISHED = new Set<string>([
+  ...Object.values(LEA_REQUEST_EVENTS),
+  ACCESS_CERTIFIED_COPY_ISSUED,
+]);
 
 /**
  * The reporting service over HTTP and at its event inbox, against a real Postgres
@@ -302,9 +309,11 @@ export async function startReportingApi(): Promise<ReportingApi> {
       );
     },
     deliver(event) {
-      const handler = HANDLERS[event.type];
-      if (!handler) throw new Error(`No consumer for ${event.type}`);
-      return consumer[handler].call(consumer, event);
+      const handler = HANDLERS.get(event.type);
+      if (handler) return consumer[handler].call(consumer, event);
+      // A published type the service does not bind is never routed to it; any other is a typo.
+      if (UNBOUND_PUBLISHED.has(event.type)) return Promise.resolve(false);
+      throw new Error(`No consumer for ${event.type}`);
     },
     async get(path, caller) {
       const token = await signer(caller);
@@ -330,7 +339,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
       // compliance_reports before report_receipts, the order the submission activities lock
       // them in, so a straggling activity write waits instead of deadlocking.
       await db.execute(
-        sql`truncate open_data_files, open_data_releases, open_data_release_builds, referral_intake, national_report_narrative_drafts, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, compliance_reports, report_receipts, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, copilot_case_facts, ai_feedback_facts, numbering_counters, idempotency_keys, outbox, inbox`,
+        sql`truncate open_data_files, open_data_releases, open_data_release_builds, referral_intake, national_report_narrative_drafts, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, compliance_reports, report_receipts, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, copilot_case_facts, ai_feedback_facts, access_request_facts, numbering_counters, idempotency_keys, outbox, inbox`,
       );
       declarations.reset();
       review.reset();

@@ -1636,17 +1636,194 @@ components:
           type: object
           properties:
             initial:
-              $ref: '#/components/schemas/FormMDeclarationSection'
+              type: object
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                declared:
+                  type: integer
+                  minimum: 0
+                notDeclared:
+                  type: integer
+                  minimum: 0
+                nonFilers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      actionTaken:
+                        type: string
+                        enum:
+                          - none
+                          - notice-to-comply
+                          - warning
+                          - salary-stoppage
+                          - disciplinary-referral
+                          - referred-to-eacc
+                      complied:
+                        type: string
+                        enum:
+                          - yes
+                          - no
+                          - pending
+                      remarks:
+                        type: string
+                        maxLength: 500
+                      obligationId:
+                        type: string
+                        format: uuid
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - date
+                      - actionTaken
+                      - complied
+                    additionalProperties: false
+                noCycleInPeriod:
+                  type: boolean
+              required:
+                - expected
+                - declared
+                - notDeclared
+                - nonFilers
+              additionalProperties: false
             biennial:
-              allOf:
-                - $ref: '#/components/schemas/FormMDeclarationSection'
-                - type: object
-                  properties:
-                    noCycleInPeriod:
-                      type: boolean
-                  additionalProperties: false
+              type: object
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                declared:
+                  type: integer
+                  minimum: 0
+                notDeclared:
+                  type: integer
+                  minimum: 0
+                nonFilers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      actionTaken:
+                        type: string
+                        enum:
+                          - none
+                          - notice-to-comply
+                          - warning
+                          - salary-stoppage
+                          - disciplinary-referral
+                          - referred-to-eacc
+                      complied:
+                        type: string
+                        enum:
+                          - yes
+                          - no
+                          - pending
+                      remarks:
+                        type: string
+                        maxLength: 500
+                      obligationId:
+                        type: string
+                        format: uuid
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - date
+                      - actionTaken
+                      - complied
+                    additionalProperties: false
+                noCycleInPeriod:
+                  type: boolean
+              required:
+                - expected
+                - declared
+                - notDeclared
+                - nonFilers
+              additionalProperties: false
             final:
-              $ref: '#/components/schemas/FormMDeclarationSection'
+              type: object
+              properties:
+                expected:
+                  type: integer
+                  minimum: 0
+                declared:
+                  type: integer
+                  minimum: 0
+                notDeclared:
+                  type: integer
+                  minimum: 0
+                nonFilers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      designation:
+                        type: string
+                      identifier:
+                        type: string
+                      date:
+                        type: string
+                        format: date
+                      actionTaken:
+                        type: string
+                        enum:
+                          - none
+                          - notice-to-comply
+                          - warning
+                          - salary-stoppage
+                          - disciplinary-referral
+                          - referred-to-eacc
+                      complied:
+                        type: string
+                        enum:
+                          - yes
+                          - no
+                          - pending
+                      remarks:
+                        type: string
+                        maxLength: 500
+                      obligationId:
+                        type: string
+                        format: uuid
+                    required:
+                      - name
+                      - designation
+                      - identifier
+                      - date
+                      - actionTaken
+                      - complied
+                    additionalProperties: false
+                noCycleInPeriod:
+                  type: boolean
+              required:
+                - expected
+                - declared
+                - notDeclared
+                - nonFilers
+              additionalProperties: false
             clarifications:
               type: object
               properties:
@@ -1772,9 +1949,51 @@ components:
           type: object
           properties:
             compiledBy:
-              $ref: '#/components/schemas/FormMSignatory'
+              type: object
+              properties:
+                name:
+                  anyOf:
+                    - type: string
+                      maxLength: 200
+                    - type: 'null'
+                designation:
+                  anyOf:
+                    - type: string
+                      maxLength: 100
+                    - type: 'null'
+                date:
+                  anyOf:
+                    - type: string
+                      format: date
+                    - type: 'null'
+              required:
+                - name
+                - designation
+                - date
+              additionalProperties: false
             confirmedBy:
-              $ref: '#/components/schemas/FormMSignatory'
+              type: object
+              properties:
+                name:
+                  anyOf:
+                    - type: string
+                      maxLength: 200
+                    - type: 'null'
+                designation:
+                  anyOf:
+                    - type: string
+                      maxLength: 100
+                    - type: 'null'
+                date:
+                  anyOf:
+                    - type: string
+                      format: date
+                    - type: 'null'
+              required:
+                - name
+                - designation
+                - date
+              additionalProperties: false
           required:
             - compiledBy
             - confirmedBy
@@ -2301,92 +2520,6 @@ components:
         - releaseSha256
       additionalProperties: false
       description: "Payload of open-data-manifest v1: a published open-data release's id, financial year, kind and version, build time, the NCR reference it reconciles with (null for a snapshot of a draft), who published it (null when on the NCR's approval), the suppression threshold, and the six tables' rows, hidden cells and SHA-256 of their JSON and CSV files, with the SHA-256 of the release JSON. No figures. Sent by the reporting service"
-    FormMDeclarationSection:
-      type: object
-      properties:
-        expected:
-          type: integer
-          minimum: 0
-        declared:
-          type: integer
-          minimum: 0
-        notDeclared:
-          type: integer
-          minimum: 0
-        nonFilers:
-          type: array
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-              designation:
-                type: string
-              identifier:
-                type: string
-              date:
-                type: string
-                format: date
-              actionTaken:
-                type: string
-                enum:
-                  - none
-                  - notice-to-comply
-                  - warning
-                  - salary-stoppage
-                  - disciplinary-referral
-                  - referred-to-eacc
-              complied:
-                type: string
-                enum:
-                  - yes
-                  - no
-                  - pending
-              remarks:
-                type: string
-                maxLength: 500
-              obligationId:
-                type: string
-                format: uuid
-            required:
-              - name
-              - designation
-              - identifier
-              - date
-              - actionTaken
-              - complied
-            additionalProperties: false
-        noCycleInPeriod:
-          type: boolean
-      required:
-        - expected
-        - declared
-        - notDeclared
-        - nonFilers
-      additionalProperties: false
-    FormMSignatory:
-      type: object
-      properties:
-        name:
-          anyOf:
-            - type: string
-              maxLength: 200
-            - type: 'null'
-        designation:
-          anyOf:
-            - type: string
-              maxLength: 100
-            - type: 'null'
-        date:
-          anyOf:
-            - type: string
-              format: date
-            - type: 'null'
-      required:
-        - name
-        - designation
-        - date
-      additionalProperties: false
     DisclosedDeclaration:
       type: object
       properties:
@@ -3671,6 +3804,33 @@ components:
             - download-window-closed
             - scope-exceeds-request
             - grounds-required
+            - separation-of-duties
+            - report-submitted
+            - report-compiling
+            - preview-not-available
+            - not-reviewed
+            - invalid-remarks
+            - invalid-document
+            - inconsistent-document
+            - tenant-mismatch
+            - ncr-approved
+            - no-submitted-reports
+            - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

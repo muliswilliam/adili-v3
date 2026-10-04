@@ -2950,11 +2950,6 @@ paths:
           schema:
             type: string
             pattern: ^[a-z][a-z0-9]{1,19}$
-        - name: idempotency-key
-          required: true
-          in: header
-          schema:
-            type: string
         - name: cycleYear
           required: true
           in: query
@@ -6382,6 +6377,38 @@ components:
         actionId:
           type: string
           format: uuid
+        ladderId:
+          type: string
+          format: uuid
+          description: 'The ladder the step belongs to: the notices of one subject share it'
+        subject:
+          type: object
+          properties:
+            kind:
+              type: string
+              enum:
+                - obligation
+                - clarification
+            reference:
+              type: string
+              description: The obligation's cycle key (`biennial:2027`) or the clarification's CLR reference
+            dueAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                - type: 'null'
+              description: When the clarification's response was due; null for an obligation (its due date is the declarations service's)
+          required:
+            - kind
+            - reference
+            - dueAt
+          description: What the declarant failed to do, as the letter names it
+        windowDays:
+          anyOf:
+            - type: integer
+              minimum: 1
+            - type: 'null'
+          description: Days the step gives the declarant to act, from issue to `actBy`; null for a step without a deadline
         commission:
           type: object
           properties:
@@ -6455,6 +6482,9 @@ components:
             - type: 'null'
       required:
         - actionId
+        - ladderId
+        - subject
+        - windowDays
         - commission
         - step
         - status
@@ -6517,6 +6547,33 @@ components:
             - download-window-closed
             - scope-exceeds-request
             - grounds-required
+            - separation-of-duties
+            - report-submitted
+            - report-compiling
+            - preview-not-available
+            - not-reviewed
+            - invalid-remarks
+            - invalid-document
+            - inconsistent-document
+            - tenant-mismatch
+            - ncr-approved
+            - no-submitted-reports
+            - icms-push-failed
+            - ai-not-enabled
+            - narrative-validation
+            - no-pattern-candidates
+            - aggregates-rebuilt
+            - narrative-draft-failed
+            - ncr-not-built
+            - ncr-not-approved
+            - fy-not-started
+            - release-building
+            - reconciliation-failed
+            - release-not-preview
+            - release-not-published
+            - annual-release-published
+            - manifest-refused
+            - manifest-revocation-refused
           description: Machine-readable cause, from the platform registry; clients map it to copy and never show `title` or `detail`
         detail:
           type: string

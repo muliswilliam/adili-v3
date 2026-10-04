@@ -2,7 +2,7 @@ import { between, eq } from 'drizzle-orm';
 
 import { config } from '../config.js';
 import type { ReportingTransaction } from '../compliance-reports/reports.js';
-import { conflict, notFound } from '../problems.js';
+import { notFound, problem } from '../problems.js';
 import {
   type CandidateThresholds,
   historyYears,
@@ -81,7 +81,7 @@ export async function lockedUnapprovedReport(
 }
 
 export function approvedConflict() {
-  return conflict('ncr-approved', 'The report is approved and can no longer change.');
+  return problem('ncr-approved', 'The report is approved and can no longer change.');
 }
 
 /** The report's latest narrative draft, if any. */

@@ -13,8 +13,8 @@ import type { NationalAggregates, SectionAggregate } from './aggregates.js';
  * The gateway's `fy` is the calendar year a financial year ends in (`referencePeriodOf`), so FY
  * 2027/2028 is sent as 2028 and its figures, cited from FY 2028/2029, read `fy2028.national...`.
  *
- * Access requests are left out: they are zeros until spec 10 projects them, and a narrative must
- * not state "no access requests" from a count that is not collected yet.
+ * Access requests (Form M section 5: received, granted, declined) are the counts each report
+ * filed, which the platform projects from the access service's events.
  */
 
 /** National counts, by name. */
@@ -37,6 +37,9 @@ export const NATIONAL_TOTALS = [
   'finalFiled',
   'finalNonFilers',
   'clarifications',
+  'accessRequestsReceived',
+  'accessRequestsGranted',
+  'accessRequestsDeclined',
 ] as const;
 
 /** National rates, as fractions to four places; null where the denominator is 0. */
@@ -71,6 +74,9 @@ export const COMMISSION_FIGURES = [
   'finalFiled',
   'finalNonFilers',
   'clarifications',
+  'accessRequestsReceived',
+  'accessRequestsGranted',
+  'accessRequestsDeclined',
   'filingRate',
   'nonFilerRate',
   'initialFilingRate',
@@ -134,6 +140,7 @@ export function narrativeYear(aggregates: NationalAggregates): NarrativeYear {
     commissionsNotReported: reporting.notReported,
     ...sectionCounts(national),
     clarifications: national.clarifications,
+    ...accessCounts(national.accessRequests),
   };
   const rates: Record<NationalRate, number | null> = {
     reportingRate: reporting.rate,
@@ -149,7 +156,7 @@ export function narrativeYear(aggregates: NationalAggregates): NarrativeYear {
       }
       const all = sumOf(initial, biennial, final);
       const sections = { initial, biennial, final, all };
-      const { clarifications } = row;
+      const { clarifications, accessRequests } = row;
       return {
         code,
         commissionName: row.name,
@@ -158,6 +165,7 @@ export function narrativeYear(aggregates: NationalAggregates): NarrativeYear {
           reportedLate: row.status === 'submitted-late' ? 1 : 0,
           ...sectionCounts(sections),
           clarifications,
+          ...accessCounts(accessRequests),
           ...sectionRates(sections),
           clarificationRatio: clarifications === null ? null : rateOf(clarifications, all.declared),
         },
@@ -229,6 +237,17 @@ function sectionCounts(sections: Sections) {
     finalExpected: sections.final.expected,
     finalFiled: sections.final.declared,
     finalNonFilers: sections.final.notDeclared,
+  };
+}
+
+/** Form M section 5's counts, by figure name; a count the aggregates lack is 0. */
+function accessCounts(
+  access: Partial<NationalAggregates['national']['accessRequests']> | null | undefined,
+) {
+  return {
+    accessRequestsReceived: access?.received ?? 0,
+    accessRequestsGranted: access?.granted ?? 0,
+    accessRequestsDeclined: access?.declined ?? 0,
   };
 }
 

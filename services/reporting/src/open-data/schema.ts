@@ -33,7 +33,8 @@ export const RELEASE_KINDS = ['annual', 'snapshot'] as const;
 export type ReleaseKind = (typeof RELEASE_KINDS)[number];
 
 /** reporting.yaml `OpenDataRelease.status`. */
-export type ReleaseStatus = 'preview' | 'published' | 'withdrawn';
+export const RELEASE_STATUSES = ['preview', 'published', 'withdrawn'] as const;
+export type ReleaseStatus = (typeof RELEASE_STATUSES)[number];
 
 export const openDataReleases = pgTable(
   'open_data_releases',

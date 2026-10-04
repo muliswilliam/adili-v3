@@ -58,6 +58,8 @@ export class FakeDocuments extends DocumentsClient {
   private readonly uploads = new Map<string, FakeUpload>();
   private failures = 0;
   private refusals = 0;
+  /** While set, documents asked for wait on it before they are issued (`holdIssues`). */
+  private held: { issued: Promise<void>; release: () => void } | undefined;
 
   /** Clean declaration attachments of `tenant`. */
   givenUploads(tenant: string, ...uploadIds: string[]): void {
@@ -99,7 +101,28 @@ export class FakeDocuments extends DocumentsClient {
     this.refusals = count;
   }
 
+  /**
+   * Documents asked for from now on wait to be issued until `releaseIssues`, as documents takes
+   * its time rendering: a test can then see the record before its letter exists, whatever the
+   * workflow's pace.
+   */
+  holdIssues(): void {
+    if (this.held) return;
+    let release: () => void = () => undefined;
+    const issued = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.held = { issued, release };
+  }
+
+  /** Issues the documents held back by `holdIssues`, and those asked for after. */
+  releaseIssues(): void {
+    this.held?.release();
+    this.held = undefined;
+  }
+
   reset(): void {
+    this.releaseIssues();
     this.refusals = 0;
     this.downloads.length = 0;
     this.documentDownloads.length = 0;
@@ -165,6 +188,7 @@ export class FakeDocuments extends DocumentsClient {
   }
 
   async issue(request: IssueDocumentRequest, tenant: string): Promise<IssuedDocument> {
+    await this.held?.issued;
     if (this.failures > 0) {
       this.failures -= 1;
       throw new DocumentsUnavailable('The documents service is unreachable');

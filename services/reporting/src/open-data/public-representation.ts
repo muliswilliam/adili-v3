@@ -1,5 +1,11 @@
-import type { OpenDataFileRow, OpenDataReleaseRow } from './representation.js';
-import type { ReleaseKind } from './schema.js';
+import { z } from 'zod';
+
+import {
+  type OpenDataFileRow,
+  type OpenDataReleaseRow,
+  releaseTableSchema,
+} from './representation.js';
+import { RELEASE_KINDS } from './schema.js';
 import { OPEN_DATA_TABLES, type OpenDataTableName } from './tables.js';
 
 /** The statuses the public sees: a preview is EACC's until it is published. */
@@ -16,23 +22,36 @@ export type PublicReleaseRow = OpenDataReleaseRow & { status: PublicReleaseStatu
  * verification code and verify page. A withdrawn release keeps its tables (still served) and
  * carries when and why, and the version that corrects it once one is published.
  */
-export interface PublicOpenDataReleaseView {
-  id: string;
-  fy: number;
-  kind: ReleaseKind;
-  version: number;
-  status: PublicReleaseStatus;
-  builtAt: string;
-  publishedAt: string;
-  withdrawnAt: string | null;
-  withdrawnReason: string | null;
-  /** The latest published version of the same year and kind after a withdrawn one; else null. */
-  correctedVersion: number | null;
-  manifestVerificationId: string;
-  /** The manifest's page on the verify app, as its QR code links it. */
-  verifyUrl: string;
-  tables: { table: OpenDataTableName; rows: number; sha256Json: string; sha256Csv: string }[];
-}
+export const publicOpenDataReleaseSchema = z
+  .strictObject({
+    id: z.uuid(),
+    fy: z.number().int().meta({ description: 'Financial year start year' }),
+    kind: z.enum(RELEASE_KINDS),
+    version: z.number().int().min(1),
+    status: z.enum(PUBLIC_RELEASE_STATUSES),
+    builtAt: z.iso.datetime(),
+    publishedAt: z.iso.datetime(),
+    withdrawnAt: z.iso.datetime().nullable(),
+    withdrawnReason: z.string().nullable().meta({
+      description: 'Why EACC withdrew it (the withdrawn banner); null unless withdrawn',
+    }),
+    correctedVersion: z.number().int().nullable().meta({
+      description:
+        'For a withdrawn release, the latest published version of the same year and kind that corrects it; null otherwise or until one is published',
+    }),
+    manifestVerificationId: z.string().meta({
+      description: 'Verification code of the release manifest (a Public verifiable document)',
+    }),
+    verifyUrl: z
+      .url()
+      .meta({ description: "The manifest's verify page (`<verify app>/v/<code>`)" }),
+    tables: z.array(releaseTableSchema.strict()),
+  })
+  .meta({
+    description:
+      "A published or withdrawn release as the public sees it. Never who built, published or withdrew it, nor the manifest's document id: the manifest is checked through its verification code on the verify app.",
+  });
+export type PublicOpenDataReleaseView = z.infer<typeof publicOpenDataReleaseSchema>;
 
 /**
  * The release's public view. `siblings` are the public releases of the same year and kind (any

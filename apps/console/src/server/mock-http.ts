@@ -36,6 +36,12 @@ export interface MockCaller {
   name: string | null;
   /** Keycloak realm roles (`realm_access.roles`). */
   roles: string[];
+  /** The Commission the caller belongs to (the `tenant` claim); null for national staff. */
+  tenant: string | null;
+  /** Authentication context class (`acr`), e.g. `step-up` after a fresh one-time code. */
+  acr: string | null;
+  /** When the caller last authenticated (`auth_time`), in seconds since the epoch. */
+  authTime: number | null;
 }
 
 /**
@@ -43,7 +49,14 @@ export interface MockCaller {
  * services would); a missing or unreadable one reads as nobody.
  */
 export function mockCallerOf(request: Request): MockCaller {
-  const nobody: MockCaller = { subject: null, name: null, roles: [] };
+  const nobody: MockCaller = {
+    subject: null,
+    name: null,
+    roles: [],
+    tenant: null,
+    acr: null,
+    authTime: null,
+  };
   const token = request.headers.get('authorization')?.replace(/^Bearer /, '') ?? '';
   try {
     const claims: unknown = JSON.parse(
@@ -56,6 +69,9 @@ export function mockCallerOf(request: Request): MockCaller {
       subject: typeof claims.sub === 'string' ? claims.sub : null,
       name: typeof claims.name === 'string' ? claims.name : null,
       roles: roles.filter((role): role is string => typeof role === 'string'),
+      tenant: typeof claims.tenant === 'string' ? claims.tenant : null,
+      acr: typeof claims.acr === 'string' ? claims.acr : null,
+      authTime: typeof claims.auth_time === 'number' ? claims.auth_time : null,
     };
   } catch {
     return nobody;
@@ -67,12 +83,32 @@ export function unsignedMockToken({
   subject,
   name,
   roles,
+  tenant,
+  acr,
+  authTime,
 }: {
   subject: string;
   name: string;
   roles?: readonly string[];
+  tenant?: string;
+  acr?: string;
+  /** `auth_time`, in seconds since the epoch. */
+  authTime?: number;
 }): string {
   const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  const claims = roles ? { sub: subject, name, realm_access: { roles } } : { sub: subject, name };
+  const claims = {
+    sub: subject,
+    name,
+    ...(roles ? { realm_access: { roles } } : {}),
+    ...(tenant ? { tenant } : {}),
+    ...(acr ? { acr } : {}),
+    ...(authTime !== undefined ? { auth_time: authTime } : {}),
+  };
   return `${part({ alg: 'none' })}.${part(claims)}.`;
+}
+
+/** The document a documents `GET /v1/documents/{documentId}/download` request names, or null. */
+export function documentDownloadIdOf(request: Request): string | null {
+  if (request.method !== 'GET') return null;
+  return /^\/v1\/documents\/([^/]+)\/download$/.exec(new URL(request.url).pathname)?.[1] ?? null;
 }

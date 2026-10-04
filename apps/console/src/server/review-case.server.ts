@@ -47,17 +47,11 @@ export interface CaseRegistryView {
   })[];
 }
 
-/** The case detail as the case view reads it (determinations are spec 08's). */
-export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document' | 'determinations'> & {
+/** The case detail as the case view reads it. */
+export type CaseViewDetail = Omit<CaseDetail, 'flags' | 'document'> & {
   flags: CaseFlag[];
   document: JsonObject | null;
 };
-
-function viewOf(detail: CaseDetail): CaseViewDetail {
-  const view: Partial<CaseDetail> = { ...detail };
-  delete view.determinations;
-  return view as CaseViewDetail;
-}
 
 export interface CaseView {
   detail: CaseViewDetail;
@@ -83,7 +77,7 @@ function caseDetailOf(body: unknown): CaseViewDetail | null {
   const rest = Object.fromEntries(
     Object.entries(body).filter(([field]) => !PROBLEM_FIELDS.has(field)),
   );
-  return { ...viewOf(rest as unknown as CaseDetail), document: null };
+  return { ...(rest as unknown as CaseViewDetail), document: null };
 }
 
 /**
@@ -108,7 +102,10 @@ export async function loadCaseView(
     return { ok: true, data: { detail: unavailable.detail, documentUnavailable: true, viewer } };
   }
   if (!result.ok) return result;
-  return { ok: true, data: { detail: viewOf(result.data), documentUnavailable: false, viewer } };
+  return {
+    ok: true,
+    data: { detail: result.data as CaseViewDetail, documentUnavailable: false, viewer },
+  };
 }
 
 /**

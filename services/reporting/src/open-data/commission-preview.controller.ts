@@ -1,6 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiProblemResponse, CurrentPrincipal, type Principal } from '@adili/api-kit';
+import { ApiProblemResponse, CurrentPrincipal, type Principal, schemaRef } from '@adili/api-kit';
 
 import { TENANT_SLUG } from '../access.js';
 import {
@@ -23,8 +23,13 @@ export class CommissionOpenDataPreviewController {
     operationId: 'getCommissionOpenDataPreview',
     summary:
       "The Commission's own rows of the current preview or published release, suppression as released (commission-admin)",
+    description:
+      "The release shown is, of the most recent financial year with a preview or published release, the one built last; withdrawn releases are never shown. Only the Commission tables, filtered to the caller's Commission; national tables and other Commissions' rows are never returned. Anyone not of the Commission gets 404, its other staff 403.",
   })
-  @ApiOkResponse({ description: 'The release and the Commission rows per table' })
+  @ApiOkResponse({
+    description: "The release and the Commission's rows per table",
+    schema: schemaRef('CommissionOpenDataPreview'),
+  })
   @ApiProblemResponse(403, 'Not a commission-admin of the Commission')
   @ApiProblemResponse(404, 'Not visible to the caller, or no release built yet')
   @ApiProblemResponse(503, 'Object storage could not be reached')

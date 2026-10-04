@@ -9,9 +9,8 @@ import {
   PERSON,
 } from '../test/declarant';
 import { loadHistory } from './access-history.server';
-import { mockAccessFetch, resetAccessMock, setAccessMockLatency } from './access/mock.server';
-import { MOCK_COPY_IDS, resetHistoryMock } from './access/mock-history.server';
-import { resetNoticesMock } from './access/mock-notices.server';
+import { mockAccessFetch, resetAccessMocks, setAccessMockLatency } from './access/mock.server';
+import { MOCK_COPY_IDS } from './access/mock-history.server';
 import type { paths } from './access/schema.gen';
 import { listCopies, readCopy, readCopyDownload, requestCopy } from './certified-copies.server';
 import { resetDeclarationsMock } from './declarations/mock.server';
@@ -21,6 +20,7 @@ import { amendDeclaration } from './my-declarations.server';
 import { submitDeclaration } from './submission.server';
 
 const NOW = Date.parse('2026-10-02T07:00:00Z');
+const DAY = 86_400_000;
 
 /** The declarant as the access mock reads them: their person and the realm role. */
 const DECLARANT = bearer({ ...PERSON, realm_access: { roles: ['declarant'] } });
@@ -59,9 +59,7 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   setAccessMockLatency(0);
   resetDeclarationsMock();
-  resetAccessMock(NOW);
-  resetNoticesMock(NOW);
-  resetHistoryMock(NOW);
+  resetAccessMocks(NOW);
 });
 
 afterEach(() => {
@@ -195,6 +193,30 @@ describe('certified copies (S13)', () => {
     expect(await readCopyDownload(documents(), crypto.randomUUID())).toEqual({
       status: 'not-found',
     });
+  });
+
+  it('asks and issues as of when the mock was seeded, not the wall clock', async () => {
+    // Seeded as of NOW, but run a month later: the wall clock is past every seeded window.
+    vi.setSystemTime(NOW + 30 * DAY);
+    // The declarations mock seeds as of the wall clock and runs on it.
+    resetDeclarationsMock();
+    resetAccessMocks(NOW);
+    const id = await completeDraft();
+    await submitDeclaration(declarationsClient(), {
+      declarationId: id,
+      idempotencyKey: idempotencyKey(),
+    });
+    const asked = await requestCopy(
+      access(),
+      { commission: 'psc', declarationId: id, version: 1 },
+      crypto.randomUUID(),
+    );
+    if (asked.status !== 'ok') throw new Error(asked.status);
+    expect(asked.copy.requestedAt).toBe('2026-10-02T07:00:00.000Z');
+    later();
+    const issued = await readCopy(access(), asked.copy.id);
+    if (issued.status !== 'ok') throw new Error(issued.status);
+    expect(issued.copy).toMatchObject({ status: 'issued', issuedAt: '2026-10-02T07:00:03.000Z' });
   });
 });
 

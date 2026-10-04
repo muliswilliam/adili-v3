@@ -66,7 +66,7 @@ describe('federated Form M business rules', () => {
       expect(problemPaths(document)).toEqual(['partII.biennial.expected']);
     });
 
-    it('access requests granted and declined are no more than received; reasons add up to declined', () => {
+    it('access requests granted and declined are no more than received; reasons cover every decline', () => {
       const document = tscFormM();
       document.partII.accessRequests.granted = 5;
       document.partII.accessRequests.declineReasons = [
@@ -77,6 +77,22 @@ describe('federated Form M business rules', () => {
         'partII.accessRequests.received',
         'partII.accessRequests.declineReasons',
       ]);
+    });
+
+    it('a denial citing several grounds counts under each: the reasons may add up to more than declined', () => {
+      const document = tscFormM();
+      document.partII.accessRequests = {
+        received: 2,
+        granted: 0,
+        declined: 2,
+        declineReasons: [
+          { reason: 'public-interest', count: 2 },
+          { reason: 'not-objectives', count: 1 },
+        ],
+        dataUnavailable: false,
+      };
+
+      expect(problemPaths(document)).toEqual([]);
     });
   });
 

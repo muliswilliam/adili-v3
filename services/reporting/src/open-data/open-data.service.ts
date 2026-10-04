@@ -9,13 +9,7 @@ import { DirectoryUnavailable } from '../directory/directory-client.js';
 import { DocumentsUnavailable } from '../documents/documents-client.js';
 import { InternalApiRejected } from '../internal-api/internal-api.js';
 import { officerOf } from '../officer.js';
-import {
-  badGateway,
-  conflict,
-  directoryUnavailable,
-  notFound,
-  storageUnavailable,
-} from '../problems.js';
+import { directoryUnavailable, notFound, problem, storageUnavailable } from '../problems.js';
 import { eaccContext } from '../system-context.js';
 import { OpenDataStorageUnavailable } from './open-data-files.js';
 import {
@@ -99,35 +93,35 @@ export class OpenDataService {
       return await this.builder.build({ fy, kind, builtBy: principal.subject });
     } catch (error) {
       if (error instanceof NcrNotBuilt) {
-        throw conflict(
+        throw problem(
           'ncr-not-built',
           'Build the national consolidated report for the year before an annual release of it.',
         );
       }
       if (error instanceof FyNotStarted) {
-        throw conflict(
+        throw problem(
           'fy-not-started',
           'The financial year has not started: there is nothing to release for it yet.',
         );
       }
       if (error instanceof NcrNotApproved) {
-        throw conflict(
+        throw problem(
           'ncr-not-approved',
           'An annual release is built from the approved national consolidated report: approve it first.',
         );
       }
       if (error instanceof AnnualReleasePublished) throw annualReleasePublished();
       if (error instanceof ReleaseBuildInProgress) {
-        throw conflict(
+        throw problem(
           'release-building',
           'A release of this year and kind is being built. Try again once it is done.',
         );
       }
       if (error instanceof ReconciliationFailed) {
-        throw conflict(
+        throw problem(
           'reconciliation-failed',
           'The release tables do not reconcile with the national totals they were built from, so nothing was built. Report this fault to the platform team.',
-          { mismatches: [...error.mismatches] },
+          { extensions: { mismatches: [...error.mismatches] } },
         );
       }
       if (error instanceof OpenDataStorageUnavailable) throw storageUnavailable();
@@ -154,7 +148,7 @@ export class OpenDataService {
     } catch (error) {
       if (error instanceof ReleaseNotFound) throw notFound(NOT_FOUND);
       if (error instanceof ReleaseNotInPreview) {
-        throw conflict(
+        throw problem(
           'release-not-preview',
           `The release is ${error.status}: only a preview is published.`,
         );
@@ -164,7 +158,7 @@ export class OpenDataService {
         throw documentsUnavailable('The release manifest could not be issued just now.');
       }
       if (error instanceof InternalApiRejected) {
-        throw badGateway('manifest-refused', 'The documents service refused the release manifest.');
+        throw problem('manifest-refused', 'The documents service refused the release manifest.');
       }
       if (error instanceof OpenDataStorageUnavailable) throw storageUnavailable();
       throw error;
@@ -191,7 +185,7 @@ export class OpenDataService {
     } catch (error) {
       if (error instanceof ReleaseNotFound) throw notFound(NOT_FOUND);
       if (error instanceof ReleaseNotPublished) {
-        throw conflict(
+        throw problem(
           'release-not-published',
           `The release is ${error.status}: only a published release is withdrawn.`,
         );
@@ -200,7 +194,7 @@ export class OpenDataService {
         throw documentsUnavailable('The release manifest could not be revoked just now.');
       }
       if (error instanceof InternalApiRejected) {
-        throw badGateway(
+        throw problem(
           'manifest-revocation-refused',
           'The documents service refused to revoke the release manifest.',
         );
@@ -211,7 +205,7 @@ export class OpenDataService {
 }
 
 function annualReleasePublished(): ProblemException {
-  return conflict(
+  return problem(
     'annual-release-published',
     'The year has a published annual release: withdraw it before a corrected one.',
   );

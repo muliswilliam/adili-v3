@@ -1,6 +1,6 @@
 {
-  "id": "780cf088-5b04-45c0-9bb3-b69d0e2c5dbc",
-  "prevId": "a85bdb65-6ca4-49af-9190-072ed9d79b01",
+  "id": "a85bdb65-6ca4-49af-9190-072ed9d79b01",
+  "prevId": "235afe1e-c02d-494e-9edb-511012e7d664",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1024,12 +1024,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "published_by_name": {
-          "name": "published_by_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "withdrawn_at": {
           "name": "withdrawn_at",
           "type": "timestamp with time zone",
@@ -1038,12 +1032,6 @@
         },
         "withdrawn_by": {
           "name": "withdrawn_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "withdrawn_by_name": {
-          "name": "withdrawn_by_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -1125,6 +1113,90 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.access_request_facts": {
+      "name": "access_request_facts",
+      "schema": "",
+      "columns": {
+        "request_id": {
+          "name": "request_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "tenant": {
+          "name": "tenant",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fy": {
+          "name": "fy",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "grounds": {
+          "name": "grounds",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'"
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawn_at": {
+          "name": "withdrawn_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "access_request_facts_tenant_fy_idx": {
+          "name": "access_request_facts_tenant_fy_idx",
+          "columns": [
+            {
+              "expression": "tenant",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fy",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
