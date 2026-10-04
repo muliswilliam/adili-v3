@@ -23,12 +23,14 @@ import { type ReactNode, useId } from 'react';
 
 import { LoadError, NoAccess } from '../load-error';
 import type { OpenDataPreviewLoad } from '../../server/open-data-preview';
-import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from '../../server/open-data-figures';
-import type {
-  CommissionOpenDataPreview,
-  FilingRow,
-  OpenDataRelease,
-} from '../../server/open-data-preview.server';
+import type { CommissionOpenDataPreview } from '../../server/open-data-preview.server';
+import {
+  ACCESS_REQUEST_FIGURES,
+  COMPLIANCE_FIGURES,
+  FILING_FIGURES,
+  type FilingByCommissionRow,
+} from '../../server/open-data-tables';
+import type { OpenDataRelease } from '../../server/reporting/types';
 import { messages as m } from './messages';
 
 /**
@@ -74,7 +76,7 @@ function Preview({
       ? COMPLIANCE_FIGURES.map((figure) => unshown(compliance, figure, 'not-reported'))
       : []),
     ...(accessRequests
-      ? ACCESS_REQUEST_FIGURES.map((figure) => unshown(accessRequests, figure, 'not-collected'))
+      ? ACCESS_REQUEST_FIGURES.map((figure) => unshown(accessRequests, figure, 'not-reported'))
       : []),
   ];
   const cellsSuppressed = markers.filter((kind) => kind === 'suppressed').length;
@@ -110,7 +112,7 @@ function Preview({
                 row={data.accessRequests}
                 figures={ACCESS_REQUEST_FIGURES}
                 labels={m.accessRequestFigures}
-                gap="not-collected"
+                gap="not-reported"
               />
             ) : (
               <NoRow />
@@ -179,19 +181,22 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const CYCLE_ORDER: readonly FilingRow['cycle'][] = ['initial', 'biennial', 'final', 'all'];
+const CYCLE_ORDER: readonly FilingByCommissionRow['cycle'][] = [
+  'initial',
+  'biennial',
+  'final',
+  'all',
+];
 
 /**
  * The cycles to list, in order, the total last. A cycle nothing was expected of (the biennial in
  * an even year) is left out; a Commission that has not reported keeps every row.
  */
-export function shownFilingRows(rows: readonly FilingRow[]): FilingRow[] {
+export function shownFilingRows(rows: readonly FilingByCommissionRow[]): FilingByCommissionRow[] {
   return CYCLE_ORDER.flatMap((cycle) =>
     rows.filter((row) => row.cycle === cycle && (cycle === 'all' || row.expected !== 0)),
   );
 }
-
-const FILING_FIGURES = ['expected', 'filed', 'nonFilers', 'filingRate'] as const;
 
 /**
  * Why a figure is shown blank: one of the markers, or `nothing` for a figure over nobody (a
@@ -200,11 +205,11 @@ const FILING_FIGURES = ['expected', 'filed', 'nonFilers', 'filingRate'] as const
 type Unshown = UnshownFigureKind | 'nothing';
 
 /** What a filing row's null figures are, unsuppressed: not reported, or over nobody expected. */
-function filingGap(row: FilingRow): Unshown {
+function filingGap(row: FilingByCommissionRow): Unshown {
   return row.reportStatus === 'not-reported' ? 'not-reported' : 'nothing';
 }
 
-function DeclarationsTable({ rows }: { rows: FilingRow[] }) {
+function DeclarationsTable({ rows }: { rows: FilingByCommissionRow[] }) {
   return (
     <Table caption={m.declarationsCaption}>
       <TableHeader>
@@ -240,8 +245,7 @@ function DeclarationsTable({ rows }: { rows: FilingRow[] }) {
 
 /**
  * Why a row's figure is not shown, or null when it is: suppressed (the whole row is), else `gap`
- * for a figure null unsuppressed (compliance: the Commission has not reported; access requests:
- * not collected yet, spec 10).
+ * for a figure null unsuppressed (the Commission has not reported).
  */
 function unshown<Row extends { suppressed: boolean }>(
   row: Row,
@@ -324,7 +328,7 @@ function formatRate(rate: number): string {
 }
 
 /** The legend explains the kinds of marker on show, in this order. */
-const LEGEND_KEYS: readonly UnshownFigureKind[] = ['suppressed', 'not-reported', 'not-collected'];
+const LEGEND_KEYS: readonly UnshownFigureKind[] = ['suppressed', 'not-reported'];
 
 function NoRow() {
   return <p className="px-5 py-4 text-sm text-muted-foreground">{m.noRow}</p>;

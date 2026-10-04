@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
-import { ACCESS_REQUEST_FIGURES, COMPLIANCE_FIGURES } from './open-data-figures';
-import type { components } from './reporting/api.gen';
+import {
+  type AccessRequestsRow,
+  type ComplianceByCommissionRow,
+  type FilingByCommissionRow,
+  OPEN_DATA_ROW_SCHEMAS,
+} from './open-data-tables';
 import type { ReportingClient } from './reporting/client.server';
+import type { OpenDataRelease } from './reporting/types';
 import { callService, SERVICE_UNAVAILABLE, type ServiceResult } from './service-call';
 
 /**
@@ -10,61 +15,24 @@ import { callService, SERVICE_UNAVAILABLE, type ServiceResult } from './service-
  * as the page renders it. Pure: the caller injects the client (`open-data-preview.ts` makes it for
  * the signed-in commission-admin).
  *
- * The contract types the release but leaves each table's rows open (`additionalProperties`); their
- * shape is the release tables' (#491 `services/reporting/src/open-data/tables.ts`), checked here,
- * so a row the page cannot read is a failed load, never a wrong figure.
+ * The contract types the release but leaves each table's rows open (`additionalProperties`); they
+ * are checked against the release tables' rows (`open-data-tables.ts`), so a row the page cannot
+ * read is a failed load, never a wrong figure.
  */
 
-/** reporting.yaml `OpenDataRelease`. */
-export type OpenDataRelease = components['schemas']['OpenDataRelease'];
-
-const count = z.number().int().nonnegative().nullable();
-const commission = { commission: z.string(), commissionName: z.string() };
-
-const filingRow = z.object({
-  ...commission,
-  reportStatus: z.enum(['not-reported', 'submitted-on-time', 'submitted-late']),
-  cycle: z.enum(['initial', 'biennial', 'final', 'all']),
-  expected: count,
-  filed: count,
-  nonFilers: count,
-  /** filed / expected, to four decimals; null when nothing was expected or not shown. */
-  filingRate: z.number().min(0).max(1).nullable(),
-  suppressed: z.boolean(),
-});
-
-const counts = <Figure extends string>(figures: readonly Figure[]) =>
-  Object.fromEntries(figures.map((figure) => [figure, count])) as Record<Figure, typeof count>;
-
-const complianceRow = z.object({
-  ...commission,
-  ...counts(COMPLIANCE_FIGURES),
-  suppressed: z.boolean(),
-});
-
-const accessRequestsRow = z.object({
-  ...commission,
-  ...counts(ACCESS_REQUEST_FIGURES),
-  suppressed: z.boolean(),
-});
-
 const tables = z.object({
-  'filing-by-commission': z.array(filingRow),
-  'compliance-by-commission': z.array(complianceRow).max(1),
-  'access-requests': z.array(accessRequestsRow).max(1),
+  'filing-by-commission': z.array(OPEN_DATA_ROW_SCHEMAS['filing-by-commission']),
+  'compliance-by-commission': z.array(OPEN_DATA_ROW_SCHEMAS['compliance-by-commission']).max(1),
+  'access-requests': z.array(OPEN_DATA_ROW_SCHEMAS['access-requests']).max(1),
 });
-
-export type FilingRow = z.infer<typeof filingRow>;
-export type ComplianceRow = z.infer<typeof complianceRow>;
-export type AccessRequestsRow = z.infer<typeof accessRequestsRow>;
 
 /** The release shown and the Commission's own rows of its three Commission tables. */
 export interface CommissionOpenDataPreview {
   release: OpenDataRelease;
   /** One row per cycle and the `all` total, as released. */
-  filing: FilingRow[];
+  filing: FilingByCommissionRow[];
   /** The Commission's row; null when the release has none for it. */
-  compliance: ComplianceRow | null;
+  compliance: ComplianceByCommissionRow | null;
   accessRequests: AccessRequestsRow | null;
 }
 

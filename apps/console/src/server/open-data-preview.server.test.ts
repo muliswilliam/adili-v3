@@ -51,7 +51,7 @@ describe("a Commission's open-data preview (spec 09b S6)", () => {
     ]);
     expect(data.filing[3]).toMatchObject({ expected: 50312, filed: 48879, nonFilers: 1433 });
     expect(data.compliance).toMatchObject({ commission: 'psc', determinationsCompliant: 16054 });
-    expect(data.accessRequests).toMatchObject({ commission: 'psc', received: null });
+    expect(data.accessRequests).toMatchObject({ commission: 'psc', received: 14, granted: 11 });
   });
 
   it('gives a preview built since the last publication, its suppressed rows marked', async () => {

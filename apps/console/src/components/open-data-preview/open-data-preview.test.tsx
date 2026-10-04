@@ -76,7 +76,7 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
     expect(cellsOf(at(rows, 2))).toEqual(['912', '861', '51', '94.4%']);
   });
 
-  it('lists compliance figures, and access requests as not collected yet', async () => {
+  it('lists compliance figures and access requests', async () => {
     await renderPreview('published');
     const compliance = region('Compliance');
     expect(
@@ -88,18 +88,14 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
       within(access)
         .getAllByRole('row')
         .map((row) => row.textContent),
-    ).toEqual([
-      'ReceivedNot collectedNot collected yet',
-      'GrantedNot collectedNot collected yet',
-      'DeclinedNot collectedNot collected yet',
-    ]);
+    ).toEqual(['Received14', 'Granted11', 'Declined3']);
   });
 
   it('explains the markers it shows in the legend', async () => {
     await renderPreview('published');
     const legend = screen.getByRole('note');
     expect(legend.textContent).toContain('are not shown to protect privacy.');
-    expect(legend.textContent).toContain('Not collected yet');
+    expect(legend.textContent).not.toContain('Not collected yet');
     expect(legend.textContent).not.toContain('Protects privacy');
   });
 
@@ -137,6 +133,7 @@ describe('the Commission open-data preview (spec 09b S6)', () => {
     const rows = within(region('Declarations')).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(4);
     expect(within(at(rows, 3)).getAllByText('Not reported')).toHaveLength(4);
+    expect(within(region('Access requests')).getAllByText('Not reported')).toHaveLength(3);
     expect(screen.getByRole('note').textContent).toContain('Commission has not reported');
   });
 
