@@ -911,6 +911,9 @@ importers:
       '@temporalio/common':
         specifier: ^1.24.0
         version: 1.24.0
+      '@temporalio/proto':
+        specifier: ^1.24.0
+        version: 1.24.0
       '@temporalio/worker':
         specifier: ^1.24.0
         version: 1.24.0(patch_hash=c21c340269f5f7d17a4a3114afb1a35b42f401e6c7e9b44ed67abbaecbb9e268)(esbuild@0.28.2)

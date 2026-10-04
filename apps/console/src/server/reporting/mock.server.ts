@@ -82,6 +82,7 @@ import {
   type StoredReport,
   storedYears,
 } from './mock-store.server';
+import { isNarrativeDraftPath, mockNarrativeDraftFetch } from './narrative-draft-mock.server';
 import { referralIntakeFetch } from './referral-intake-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
@@ -181,6 +182,8 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
   if (new URL(input.url).pathname.startsWith('/v1/eacc/open-data/releases')) {
     return (await import('./releases-mock.server')).mockReleasesFetch(input);
   }
+  // The national report's AI narrative drafts (#341).
+  if (isNarrativeDraftPath(new URL(input.url).pathname)) return mockNarrativeDraftFetch(input);
   // EACC's intake and report viewer have their own Commissions (eacc-mock.server.ts).
   if (new URL(input.url).pathname.startsWith('/v1/eacc/compliance-reports')) {
     return (await import('./eacc-mock.server')).mockEaccIntakeFetch(input);

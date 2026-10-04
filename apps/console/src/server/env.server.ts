@@ -72,6 +72,16 @@ export const envSchema = bffEnvSchema.extend({
    */
   REPORTING_MOCK_CANDIDATES: z.enum(['computed', 'none', 'error']).default('computed'),
   /**
+   * With REPORTING_MOCK: how the national report's AI narrative drafts go (spec 09b, #341).
+   * `inserted` by default, answered within the request; `slow` answers 202 and inserts the draft
+   * when the report is read some seconds later; `validation` and `slow-validation` discard it as
+   * citing a figure not in the input (409, or on that later read); `failed` is the ai-gateway's
+   * job failing (502); `unavailable` is the gateway out of reach (503).
+   */
+  REPORTING_MOCK_NARRATIVE: z
+    .enum(['inserted', 'slow', 'validation', 'slow-validation', 'failed', 'unavailable'])
+    .default('inserted'),
+  /**
    * With REVIEW_MOCK: `not-enabled` seeds every mock case's copilot as not enabled for the
    * Commission (the panel's and Draft with AI's disabled states); `ready` by default.
    */

@@ -44,6 +44,7 @@ import {
   type Narrative,
   NARRATIVE_SECTION_IDS,
   type NarrativeParagraph,
+  type NarrativeSectionId,
   type NationalReport,
 } from '../../server/reporting/types';
 import { problemStatus, type ServiceResult } from '../../server/service-call';
@@ -94,6 +95,12 @@ export interface NcrExtensionContext {
    * Ignored unless `canEdit`.
    */
   adoptReport: (report: NationalReport) => void;
+  /**
+   * Whether edits are still to be saved: `saving` while they wait for typing to pause, are in
+   * flight or are retried; `failed` when the service refused them (they stay on screen). #341
+   * waits for `none` before asking for a draft, which `adoptReport` would otherwise lose.
+   */
+  unsaved: 'none' | 'saving' | 'failed';
 }
 
 /**
@@ -103,13 +110,19 @@ export interface NcrExtensionContext {
  * - `narrativeActions`: the Draft narrative menu (#341) in the narrative's header.
  * - `narrativeNotice`: above the sections, e.g. #341's drafting errors.
  * - `paragraphMeta`: under each paragraph after the "AI draft" label the page always shows on an
- *   AI-drafted paragraph, e.g. #341's figure citation chips (do not render another AI label).
+ *   AI-drafted paragraph, e.g. #331's figure chips and #341's "Edited" label (do not render
+ *   another AI-draft label).
+ * - `sectionBody`: in place of a section's paragraphs when it returns something, e.g. #341's
+ *   skeleton while AI drafts the section.
  */
 export interface NcrExtensions {
   patterns?: (context: NcrExtensionContext) => ReactNode;
   narrativeActions?: (context: NcrExtensionContext) => ReactNode;
   narrativeNotice?: (context: NcrExtensionContext) => ReactNode;
   paragraphMeta?: (paragraph: NarrativeParagraph, context: NcrExtensionContext) => ReactNode;
+  sectionBody?: (section: NarrativeSectionId, context: NcrExtensionContext) => ReactNode;
+  /** While true the paragraphs cannot be changed, e.g. while #341's draft is being written. */
+  narrativeBusy?: (context: NcrExtensionContext) => boolean;
 }
 
 export interface NationalReportViewProps {
@@ -324,6 +337,7 @@ function Built({
     narrative: draft.value,
     editNarrative: draft.edit,
     adoptReport: draft.adopt,
+    unsaved: unsavedOf(draft.autosave.status),
   };
   return (
     <div className="flex flex-col gap-4">
@@ -665,11 +679,15 @@ function NarrativeCard({
       })}
       actions={extensions?.narrativeActions?.(context)}
       notice={extensions?.narrativeNotice?.(context)}
+      sectionBody={(section) => extensions?.sectionBody?.(sectionId(section.id), context)}
+      busy={extensions?.narrativeBusy?.(context)}
       paragraphMeta={(paragraph) => {
         const extra = extensions?.paragraphMeta?.(paragraph, context);
         return paragraph.aiDraft || extra ? (
           <>
-            {paragraph.aiDraft ? <AiLabel size="sm" text={m.aiDraft} /> : null}
+            {paragraph.aiDraft ? (
+              <AiLabel size="sm" text={m.aiDraft} messages={{ noDetails: m.aiDraftTip }} />
+            ) : null}
             {extra}
           </>
         ) : null;
@@ -677,6 +695,12 @@ function NarrativeCard({
       title={m.narrativeTitle}
     />
   );
+}
+
+function unsavedOf(status: Autosave<Narrative>['status']): NcrExtensionContext['unsaved'] {
+  if (status === 'saving' || status === 'retrying') return 'saving';
+  if (status === 'error' || status === 'conflict') return 'failed';
+  return 'none';
 }
 
 function sectionId(id: string): NarrativeParagraph['section'] {
