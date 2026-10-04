@@ -16,6 +16,7 @@ import {
   formatMoney,
   FormField,
   Icon,
+  type IconProps,
   Input,
   type MoneyInvalidReason,
   Repeater,
@@ -32,11 +33,19 @@ import {
 import {
   Alert02Icon,
   Attachment01Icon,
+  BankIcon,
+  Building03Icon,
+  Car01Icon,
+  ChartLineData01Icon,
   Coins01Icon,
   Globe02Icon,
   Home01Icon,
   InformationCircleIcon,
   Invoice01Icon,
+  MapsLocation01Icon,
+  Money01Icon,
+  MoneyReceive01Icon,
+  PieChartIcon,
   RefreshIcon,
   Tick02Icon,
   UserMultipleIcon,
@@ -52,6 +61,7 @@ import type {
 } from '../../server/declarations.server';
 import {
   type AssetItem,
+  type AssetType,
   type Draft,
   followsEarlierDeclaration,
   type Statement,
@@ -104,6 +114,23 @@ export const SEPARATED_COPY =
   "You declare what you know of a separated spouse's finances. Say so in the statement if you do not know.";
 
 const ICONS = { income: Coins01Icon, assets: Home01Icon, liabilities: Invoice01Icon } as const;
+/** An asset's card shows what it is; an asset with no type yet, or "Other", the category's. */
+const ASSET_ICONS: Partial<Record<AssetType, IconProps['icon']>> = {
+  land: MapsLocation01Icon,
+  building: Building03Icon,
+  vehicle: Car01Icon,
+  securities: ChartLineData01Icon,
+  shareholding: PieChartIcon,
+  'bank-account': BankIcon,
+  cash: Money01Icon,
+  receivable: MoneyReceive01Icon,
+};
+/** Shown where an item's amount goes until it is entered, like "No description yet". */
+const NO_AMOUNT = {
+  income: 'No amount yet',
+  assets: 'No value yet',
+  liabilities: 'No amount yet',
+} as const;
 const NEW_TITLES = {
   income: 'New income item',
   assets: 'New asset',
@@ -627,6 +654,11 @@ function CategoryPanel({
         getKey={(item) => item.id ?? ''}
         getTitle={(item) => itemTitle(category, item)}
         icon={ICONS[category]}
+        getIcon={(item) =>
+          category === 'assets'
+            ? ASSET_ICONS[(item as Draft<AssetItem>).type ?? 'other']
+            : undefined
+        }
         editingKey={editing !== null && items.some((item) => item.id === editing) ? editing : null}
         onEditingKeyChange={onEditingChange}
         onAdd={onAdd}
@@ -657,7 +689,11 @@ function CategoryPanel({
           const cents = (item as AnyItem)[AMOUNT_KEY[category]]?.kesCents;
           return (
             <span className="grid">
-              {cents === undefined ? '-' : formatMoney(cents, { currency: 'KES' })}
+              {cents === undefined ? (
+                <span className="font-normal text-muted-foreground">{NO_AMOUNT[category]}</span>
+              ) : (
+                formatMoney(cents, { currency: 'KES' })
+              )}
               {category === 'assets' && (item as AnyItem).joint?.isJoint ? (
                 <span className="text-xs font-normal text-muted-foreground">whole value</span>
               ) : null}

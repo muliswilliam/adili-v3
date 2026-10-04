@@ -1,8 +1,10 @@
+import { Building03Icon, Home01Icon, UserGroupIcon } from '@hugeicons/core-free-icons';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { FormField } from './form-field';
+import { Icon, type IconProps } from './icon';
 import { Input } from './input';
 import { Repeater } from './repeater';
 
@@ -15,10 +17,14 @@ function Memberships({
   initial = [],
   disabled,
   onDuplicate,
+  icon,
+  getIcon,
 }: {
   initial?: Membership[];
   disabled?: boolean;
   onDuplicate?: (item: Membership, index: number) => void;
+  icon?: IconProps['icon'];
+  getIcon?: (item: Membership, index: number) => IconProps['icon'];
 }) {
   const [items, setItems] = useState(initial);
   const [editing, setEditing] = useState<string | null>(null);
@@ -61,9 +67,24 @@ function Memberships({
         onDuplicate={onDuplicate}
         emptyText="No memberships added."
         disabled={disabled}
+        icon={icon}
+        getIcon={getIcon}
       />
     </>
   );
+}
+
+/** The drawing an icon renders, to tell icons apart. */
+function drawingOf(icon: IconProps['icon']) {
+  const { container, unmount } = render(<Icon icon={icon} />);
+  const drawing = container.querySelector('svg')?.innerHTML;
+  unmount();
+  return drawing;
+}
+
+function cardIcon(title: string) {
+  return screen.getByRole('heading', { name: title }).closest('li')?.querySelector('svg')
+    ?.innerHTML;
 }
 
 const clubs: Membership[] = [
@@ -159,5 +180,25 @@ describe('Repeater', () => {
     for (const button of screen.getAllByRole<HTMLButtonElement>('button')) {
       expect(button.disabled).toBe(true);
     }
+  });
+
+  it('shows the list icon in every card', () => {
+    render(<Memberships initial={clubs} icon={UserGroupIcon} />);
+
+    expect(cardIcon('Nairobi Rotary Club')).toBe(drawingOf(UserGroupIcon));
+    expect(cardIcon('Kenya Farmers Society')).toBe(drawingOf(UserGroupIcon));
+  });
+
+  it("shows each card's own icon when the caller picks one per item", () => {
+    render(
+      <Memberships
+        initial={clubs}
+        icon={UserGroupIcon}
+        getIcon={(item) => (item.id === 'a' ? Home01Icon : Building03Icon)}
+      />,
+    );
+
+    expect(cardIcon('Nairobi Rotary Club')).toBe(drawingOf(Home01Icon));
+    expect(cardIcon('Kenya Farmers Society')).toBe(drawingOf(Building03Icon));
   });
 });
