@@ -1,9 +1,6 @@
 import type { ChatMessageMessages, CitationMessages, FeedbackMessages } from '@adili/ui';
 
-import type { AssistantLanguage } from '../server/declarations/types';
-
-/** The panel's language, which is also the conversation's. */
-export type AskLanguage = AssistantLanguage;
+import type { Language } from '../language';
 
 /**
  * Ask Adili's words in English and Kiswahili (spec 11 FE-2, i18n): the panel is the portal's
@@ -64,7 +61,7 @@ export interface AskCopy {
   feedback: Partial<FeedbackMessages>;
 }
 
-export const ASK_COPY: Record<AskLanguage, AskCopy> = {
+export const ASK_COPY: Record<Language, AskCopy> = {
   en: {
     title: 'Ask Adili',
     open: 'Ask Adili',

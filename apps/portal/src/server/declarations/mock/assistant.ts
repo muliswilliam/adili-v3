@@ -15,6 +15,7 @@ import type { ASSISTANT_MOCK_MODES } from '../../env.server';
 import { problem, isRecord, json, readJson } from '../../mock-http';
 import type { AssistantConversation, AssistantMessage, HelpPassage } from '../types';
 import { CORPUS, type CorpusPassage, passage } from './corpus';
+import { COMMISSIONS } from './fixtures';
 import { store, type Stored } from './store';
 
 export type AssistantMode = (typeof ASSISTANT_MOCK_MODES)[number];
@@ -275,16 +276,20 @@ function answerFor(conversation: Conversation, question: string): AssistantMessa
   return message('assistant', canned[language], {
     citations: canned.cites.map((id) => toPassage(passage(id), language)),
     sectionLink: conversation.declarationId && canned.link ? canned.link(stored) : null,
-    label: {
-      aiAssisted: true,
-      task: 'answer-declarant-question',
-      promptVersion: 1,
-      provider: 'anthropic',
-      model: 'claude-opus-5',
-      generatedAt: new Date().toISOString(),
-      disclaimer: DISCLAIMER[language],
-    },
+    label: aiLabel(language),
   });
+}
+
+function aiLabel(language: Language): NonNullable<AssistantMessage['label']> {
+  return {
+    aiAssisted: true,
+    task: 'answer-declarant-question',
+    promptVersion: 1,
+    provider: 'anthropic',
+    model: 'claude-opus-5',
+    generatedAt: new Date().toISOString(),
+    disclaimer: DISCLAIMER[language],
+  };
 }
 
 const sleep = (milliseconds: number) =>
@@ -392,12 +397,18 @@ export async function rate(
 
 const STOP_WORDS = new Set(['the', 'and', 'my', 'do', 'is', 'of', 'ya', 'na', 'je', 'a', 'i']);
 
-/** `GET /v1/help/search`: deterministic word match, the section's passages ranked higher. */
+/**
+ * `GET /v1/help/search`: deterministic word match over the citation, title, text and tags (as
+ * the service weighs tags in), the section's passages ranked higher, `limit` of them (8 unless
+ * asked).
+ */
 export function searchHelp(url: URL, caller: string | null) {
   if (!caller) return notFound();
   const q = url.searchParams.get('q') ?? '';
   const language = url.searchParams.get('language');
   if (q.trim().length < 2 || !isLanguage(language)) return problem(400, 'Invalid request');
+  const limit = Number(url.searchParams.get('limit') ?? 8);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 20) return problem(400, 'Invalid request');
   const sectionKey = url.searchParams.get('sectionKey');
   const kind = sectionKey?.startsWith('statement:') ? 'statement' : sectionKey;
   const words = q
@@ -405,18 +416,174 @@ export function searchHelp(url: URL, caller: string | null) {
     .split(/[^\p{L}\p{N}']+/u)
     .filter((word) => word.length > 1 && !STOP_WORDS.has(word));
   const ranked = CORPUS.map((item) => {
-    const haystack = [item.citation, ...item.title, ...item.text]
+    const haystack = [item.citation, ...item.title, ...item.text, ...item.tags]
       .filter((part): part is string => part !== null)
       .join(' ')
-      .toLowerCase();
+      .toLowerCase()
+      .replaceAll('-', ' ');
     const hits = words.filter((word) => haystack.includes(word)).length;
     return { item, hits, score: hits + (kind && item.tags.includes(kind) ? 0.5 : 0) };
   })
     .filter((entry) => entry.hits > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
+    .slice(0, limit);
   return json(
     200,
     ranked.map(({ item }) => toPassage(item, language)),
   );
+}
+
+/** The Act's and the Regulations' commencement, for passages that give no later date. */
+const COMMENCEMENT = '2026-01-01';
+
+/**
+ * `GET /v1/help/passages/{passageId}` (draft `getHelpPassage`, #549): one passage, whole, if in
+ * force on `date` (today unless asked).
+ */
+export function getHelpPassage(url: URL, caller: string | null, passageId: string) {
+  if (!caller) return notFound();
+  const language = url.searchParams.get('language');
+  if (!isLanguage(language)) return problem(400, 'Invalid request');
+  const date = url.searchParams.get('date') ?? new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem(400, 'Invalid request');
+  const item = CORPUS.find((candidate) => candidate.id === passageId);
+  // Only a wording in force on `date`, as the service reads it.
+  const from = item?.effectiveFrom ?? COMMENCEMENT;
+  if (!item || from > date || (item.effectiveTo !== undefined && item.effectiveTo <= date)) {
+    return notFound();
+  }
+  const swahili = language === 'sw' && item.text[1] !== null;
+  return json(200, {
+    id: item.id,
+    source: item.source,
+    citation: item.citation,
+    title: (swahili ? item.title[1] : null) ?? item.title[0],
+    text: (swahili ? item.text[1] : null) ?? item.text[0],
+    language: swahili ? 'sw' : 'en',
+    tags: [...item.tags],
+    commission: item.commission
+      ? (Object.values(COMMISSIONS).find(({ slug }) => slug === item.commission) ?? null)
+      : null,
+    effectiveFrom: from,
+    effectiveTo: item.effectiveTo ?? null,
+  });
+}
+
+interface Residual {
+  sectionKey: string;
+  path: string;
+  code: string;
+  message: string;
+}
+
+type HintRule = [test: (residual: Residual) => boolean, en: string, sw: string];
+
+const endsWith = (suffix: string) => (residual: Residual) => residual.path.endsWith(suffix);
+const isCategory = (residual: Residual) =>
+  residual.sectionKey.startsWith('statement:') &&
+  /^\/(income|assets|liabilities)$/.test(residual.path);
+
+/** Canned hints by the residual's field, as the hints mode writes them; others get none. */
+const HINT_RULES: HintRule[] = [
+  [
+    endsWith('/address/physical'),
+    'Give the house, estate or road and the town where you live now.',
+    'Taja nyumba, mtaa au barabara na mji unaoishi sasa.',
+  ],
+  [
+    endsWith('/address/postal'),
+    'Use the P.O. Box where letters reach you.',
+    'Tumia sanduku la posta ambapo barua zako hufika.',
+  ],
+  [
+    endsWith('/birth/date'),
+    'Use the date on your national ID.',
+    'Tumia tarehe iliyo kwenye kitambulisho chako.',
+  ],
+  [
+    endsWith('/birth/place'),
+    'The town and county where you were born is enough.',
+    'Mji na kaunti ulipozaliwa vinatosha.',
+  ],
+  [
+    endsWith('/employment/nature'),
+    'Pick the terms of your appointment, for example permanent.',
+    'Chagua masharti ya uteuzi wako, kwa mfano wa kudumu.',
+  ],
+  [
+    endsWith('/maritalStatus'),
+    'Choose your status on the statement date.',
+    'Chagua hali yako tarehe ya taarifa.',
+  ],
+  [
+    endsWith('/pendingApplication'),
+    'If you have not applied for another citizenship, answer No.',
+    'Kama hujaomba uraia mwingine, jibu Hapana.',
+  ],
+  [
+    endsWith('/dualCitizenship/holds'),
+    'Answer No if Kenya is your only citizenship.',
+    'Jibu Hapana kama Kenya ndiyo uraia wako pekee.',
+  ],
+  [
+    (residual) => residual.sectionKey === 'household' && residual.path.startsWith('/spouses'),
+    'Add each spouse with their names. The national ID is optional.',
+    'Ongeza kila mwenzi kwa majina yake. Nambari ya kitambulisho si lazima.',
+  ],
+  [
+    (residual) => residual.sectionKey === 'household' && residual.path.startsWith('/children'),
+    'Include children under 18 on the statement date, or say you have none.',
+    'Jumuisha watoto walio chini ya miaka 18 tarehe ya taarifa, au sema huna.',
+  ],
+  [
+    isCategory,
+    'If there was none of this on the statement date, tick "Nothing to declare".',
+    'Kama hapakuwa na chochote cha aina hii tarehe ya taarifa, weka alama "Hakuna cha kutangaza".',
+  ],
+  [
+    endsWith('/explanation'),
+    'Say briefly what changed, for example what was bought and how it was paid for.',
+    'Eleza kwa ufupi kilichobadilika, kwa mfano kilichonunuliwa na jinsi kilivyolipiwa.',
+  ],
+  [
+    (residual) => /\/(value|amount)(\/|$)/.test(residual.path),
+    'A rough figure is fine: what it would sell for on the statement date.',
+    'Kiasi cha kukadiria kinatosha: bei ambayo ingeuzwa tarehe ya taarifa.',
+  ],
+];
+
+const hintFor = (residual: Residual, language: Language) => {
+  const rule = HINT_RULES.find(([test]) => test(residual));
+  return rule ? rule[language === 'sw' ? 2 : 1] : null;
+};
+
+/**
+ * `GET /v1/declarations/{id}/hints`: the summary's `blocking` (read through `summary`, mocked or
+ * real) with a canned hint for the residuals a rule knows, after a moment's thought; text only
+ * while the gateway is `unavailable`.
+ */
+export async function completenessHints(url: URL, summary: Response) {
+  const language = url.searchParams.get('language');
+  if (!isLanguage(language)) return problem(400, 'Invalid request');
+  if (!summary.ok) return summary;
+  const { blocking } = (await summary.json()) as { blocking: Residual[] };
+  const residuals = blocking.map(({ sectionKey, path, code, message }) => ({
+    sectionKey,
+    path,
+    code,
+    message,
+  }));
+  if (mode === 'unavailable') {
+    return json(200, {
+      status: 'unavailable',
+      label: null,
+      residuals: residuals.map((residual) => ({ ...residual, hint: null })),
+    });
+  }
+  if (residuals.length > 0) await sleep(pace * 30);
+  return json(200, {
+    status: 'ready',
+    label: residuals.length > 0 ? aiLabel(language) : null,
+    residuals: residuals.map((residual) => ({ ...residual, hint: hintFor(residual, language) })),
+  });
 }

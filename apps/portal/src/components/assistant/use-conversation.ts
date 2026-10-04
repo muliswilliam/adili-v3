@@ -1,7 +1,7 @@
 import { type AssistantMessageStatus } from '@adili/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { AskLanguage } from '../../assistant/copy';
+import type { Language } from '../../language';
 import { readAnswerStream } from '../../assistant/stream';
 import { openAssistantConversation } from '../../server/assistant';
 import type { AssistantMessage } from '../../server/declarations/types';
@@ -30,8 +30,6 @@ export type ConversationState =
       status: 'ready';
       id: string;
       messages: AssistantMessage[];
-      /** Answers can be rated here (ASSISTANT_FEEDBACK). */
-      feedback: boolean;
     };
 
 export interface AskContext {
@@ -55,7 +53,7 @@ export function useConversation({
   active,
 }: {
   declarationId: string | null;
-  language: AskLanguage;
+  language: Language;
   /** The panel has been opened at least once: the conversation is opened from then on. */
   active: boolean;
 }) {
@@ -101,7 +99,6 @@ export function useConversation({
                   status: 'ready',
                   id: result.conversation.id,
                   messages: result.conversation.messages,
-                  feedback: result.feedback,
                 }
               : { status: 'failed' },
         });

@@ -21,7 +21,7 @@ import {
 import { stepFromPath } from '../../../components/declaration/steps';
 import { useWorkspace, WorkspaceProvider } from '../../../components/declaration/workspace';
 import { WorkspaceLayout } from '../../../components/declaration/workspace-layout';
-import { SignOutButton } from '../../../components/sign-out-button';
+import { DeclarantHeaderActions } from '../../../components/help/parts';
 import { getDeclaration } from '../../../server/declarations';
 
 /**
@@ -47,7 +47,7 @@ function Page({ children, footer = <SiteFooter /> }: { children: ReactNode; foot
   return (
     <ToastProvider>
       <TooltipProvider>
-        <SiteHeader actions={<SignOutButton />} />
+        <SiteHeader actions={<DeclarantHeaderActions />} />
         {children}
         {footer}
       </TooltipProvider>

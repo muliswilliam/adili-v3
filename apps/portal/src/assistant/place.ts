@@ -1,6 +1,7 @@
 import { parseSectionKey } from '../declaration/section-key';
 import type { AssistantMessage, DeclarationSection } from '../server/declarations/types';
-import { ASK_COPY, type AskLanguage } from './copy';
+import type { Language } from '../language';
+import { ASK_COPY } from './copy';
 
 type SectionLink = NonNullable<AssistantMessage['sectionLink']>;
 
@@ -15,7 +16,7 @@ export interface Place {
 const CATEGORIES = ['income', 'assets', 'liabilities'] as const;
 
 /** Field names in the button, in both languages; a field not here is left out of the label. */
-const FIELD_NAMES: Record<string, Record<AskLanguage, string>> = {
+const FIELD_NAMES: Record<string, Record<Language, string>> = {
   value: { en: 'value', sw: 'thamani' },
   description: { en: 'description', sw: 'maelezo' },
   type: { en: 'type', sw: 'aina' },
@@ -36,7 +37,7 @@ const FIELD_NAMES: Record<string, Record<AskLanguage, string>> = {
 /** Pointer parts that hold a field's value rather than name it (`/value/kesCents`). */
 const VALUE_PARTS = new Set(['kesCents', 'amount', 'currency']);
 
-function fieldName(pointer: string, language: AskLanguage): string | null {
+function fieldName(pointer: string, language: Language): string | null {
   const parts = pointer
     .split('/')
     .slice(1)
@@ -65,7 +66,7 @@ export function linkedItem(
 export function linkPlace(
   link: SectionLink,
   sections: readonly DeclarationSection[],
-  language: AskLanguage,
+  language: Language,
   /** The linked item's type as the statement names it ("Vehicle"), once read; English only. */
   itemName?: string,
 ): Place | null {

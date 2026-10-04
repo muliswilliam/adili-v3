@@ -3,9 +3,12 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
 import { ASSISTANT_NOTE_MAX_LENGTH } from '../assistant/limits';
+import { languageSchema } from '../language';
 import { isSectionKey } from '../declaration/section-key';
 import {
+  getCompletenessHints,
   type HelpSearchResult,
+  type HintsResult,
   openConversation,
   type OpenResult,
   rateAnswer,
@@ -14,28 +17,16 @@ import {
 } from './assistant.server';
 import { asDeclarant } from './bff.server';
 import { declarationsClient } from './declarations/client.server';
-import { env } from './env.server';
 import type { Unauthenticated } from './results';
-
-/**
- * An opened conversation, and whether answers can be rated here: rating is an endpoint the
- * service builds with #339, so it is shown only where ASSISTANT_FEEDBACK says it exists.
- */
-export type OpenLoad =
-  | (Extract<OpenResult, { status: 'ok' }> & { feedback: boolean })
-  | Exclude<OpenResult, { status: 'ok' }>;
 
 /** Server functions for the Ask Adili panel; the answer itself streams from an API route. */
 
-const language = z.enum(['en', 'sw']);
+const language = languageSchema;
 
 export const openAssistantConversation = createServerFn({ method: 'POST' })
   .validator(z.object({ declarationId: z.uuid().nullable(), language }))
-  .handler(({ data }): Promise<OpenLoad | Unauthenticated> =>
-    asDeclarant(declarationsClient, async (client) => {
-      const result = await openConversation(client, data);
-      return result.status === 'ok' ? { ...result, feedback: env().ASSISTANT_FEEDBACK } : result;
-    }),
+  .handler(({ data }): Promise<OpenResult | Unauthenticated> =>
+    asDeclarant(declarationsClient, (client) => openConversation(client, data)),
   );
 
 export const rateAssistantAnswer = createServerFn({ method: 'POST' })
@@ -65,4 +56,13 @@ export const searchAssistantHelp = createServerFn({ method: 'GET' })
   )
   .handler(({ data }): Promise<HelpSearchResult | Unauthenticated> =>
     asDeclarant(declarationsClient, (client) => searchHelp(client, data)),
+  );
+
+/** The summary's residuals with AI-assisted hints (spec 11 S5). */
+export const getSummaryHints = createServerFn({ method: 'GET' })
+  .validator(z.object({ declarationId: z.uuid(), language }))
+  .handler(({ data }): Promise<HintsResult | Unauthenticated> =>
+    asDeclarant(declarationsClient, (client) =>
+      getCompletenessHints(client, data.declarationId, data.language),
+    ),
   );
