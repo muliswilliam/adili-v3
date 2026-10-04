@@ -243,7 +243,11 @@ jobs:
           timeout 60 sh -c 'until curl -sf -o /dev/null -d grant_type=client_credentials -d client_id=directory \
             -d client_secret=directory-dev-secret "$TEST_KEYCLOAK_ISSUER_URL/protocol/openid-connect/token"; do sleep 2; done' \
             || { docker logs keycloak; exit 1; }
-      - run: pnpm test:integration
+      # Two suites at a time, as the TypeScript job runs its tasks: the runner's 2 vCPU also run
+      # every container above. At Turborepo's default of 10 the access suite (75 s on a laptop)
+      # took 15 minutes, and waits sized for an idle machine (Keycloak's 5 s per call, hook and
+      # workflow deadlines) ran out.
+      - run: pnpm test:integration --concurrency=2
       # S22 and S23 (spec 03): sign-in with the adili-otp extension through the notifications
       # service, the SMS mock and Mailpit, as a user drives it; S16 (spec 06): step-up through the
       # portal's BFF.
