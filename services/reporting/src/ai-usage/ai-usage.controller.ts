@@ -4,6 +4,7 @@ import {
   ApiProblemResponse,
   CurrentPrincipal,
   type Principal,
+  schemaRef,
   ZodValidationPipe,
 } from '@adili/api-kit';
 import { z } from 'zod';
@@ -30,8 +31,10 @@ export class AiUsageController {
   @ApiOperation({
     operationId: 'getAiUsage',
     summary: 'AI-assisted cases and reviewer ratings per Commission for a financial year (EACC)',
+    description:
+      'Spec 07c story 19: how much the AI reviewer copilot is used and how reviewers rate it, per Commission, without content. A case is AI-assisted in the year its copilot first had outputs to show (`review.copilot.updated.v1` `ready`); a rating counts in the year it was last given (`ai.feedback.recorded.v1`, the latest per rating). Counts only: no case, reviewer, output or note. Commissions with neither in the year are left out. eacc-analyst and eacc-supervisor (tenant `eacc`); anyone else 403.',
   })
-  @ApiOkResponse({ description: 'Counts' })
+  @ApiOkResponse({ description: 'Counts', schema: schemaRef('AiUsageReport') })
   @ApiProblemResponse(400, 'fy is not a financial year')
   @ApiProblemResponse(403, 'Only EACC analysts and supervisors')
   report(

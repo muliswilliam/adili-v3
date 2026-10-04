@@ -17,7 +17,7 @@ import {
 import type { FastifyReply } from 'fastify';
 
 import { ASSISTANT_RATE_LIMIT } from '../config.js';
-import { AssistantService, unavailableFrame } from './assistant.service.js';
+import { type AssistantFrame, AssistantService, unavailableFrame } from './assistant.service.js';
 import type { AssistantConversation } from './representation.js';
 
 const NOT_VISIBLE = 'Not found, or not visible to the caller';
@@ -105,17 +105,14 @@ export class AssistantController {
     });
     if (raw.destroyed) left.abort();
     const ping = setInterval(() => raw.write(': ping\n\n'), HEARTBEAT_MS);
+    const write = (frame: AssistantFrame) =>
+      raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
     try {
-      for await (const frame of stream.frames(left.signal)) {
-        raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
-      }
+      for await (const frame of stream.frames(left.signal)) write(frame);
     } catch (error) {
       // Every ending the stream knows is a frame; this is a bug.
       this.logger.error({ err: error }, 'Answer stream failed');
-      if (!left.signal.aborted) {
-        const frame = unavailableFrame();
-        raw.write(`event: ${frame.event}\ndata: ${JSON.stringify(frame.data)}\n\n`);
-      }
+      if (!left.signal.aborted) write(unavailableFrame());
     } finally {
       clearInterval(ping);
       raw.end();

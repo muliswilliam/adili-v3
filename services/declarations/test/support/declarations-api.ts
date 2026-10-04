@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { TokenVerifier } from '@adili/api-kit';
+import { RATE_LIMIT_POLICIES, type RateLimitPolicy, TokenVerifier } from '@adili/api-kit';
 import {
   createDatabase,
   DATABASE,
@@ -38,6 +38,7 @@ import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
+import { config } from '../../src/config.js';
 import type { Transaction } from '../../src/db/transaction.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
@@ -253,6 +254,12 @@ export interface DeclarationsApi {
   cycleSchedules: RecordingCycleOpeningSchedules;
   clock: TestClock;
   /**
+   * The rate limits by group, as the service reads them on each request (`RATE_LIMITS` of
+   * vitest.integration.config.ts); a test may change a configured group's, and `reset` puts
+   * them back.
+   */
+  rateLimits: Record<string, RateLimitPolicy>;
+  /**
    * The corpus files the service imports on boot and on a platform-admin re-import; the
    * committed corpus unless a test sets others. `reset` does not re-import.
    */
@@ -275,6 +282,13 @@ export interface DeclarationsApi {
     caller: Caller,
     options?: { headers?: Record<string, string>; body?: unknown },
   ): ReturnType<NestFastifyApplication['inject']>;
+  /** A bearer token for the caller, for requests made over the network (`listen`). */
+  token(caller: Caller): Promise<string>;
+  /**
+   * Starts listening on a free local port, for what `inject` cannot do (a caller that hangs up
+   * midway); the service's base URL. Once per suite: later calls answer the same URL.
+   */
+  listen(): Promise<string>;
   /** `GET` without a bearer token. */
   anonymous(url: string): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table except seeded reference data. */
@@ -327,6 +341,8 @@ export async function startDeclarationsApi({
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
   const corpus = new TestCorpusFiles();
+  const rateLimits = { ...config.RATE_LIMITS };
+  let listening: Promise<string> | undefined;
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -348,6 +364,8 @@ export async function startDeclarationsApi({
     .useValue(cipher)
     .overrideProvider(CorpusFiles)
     .useValue(corpus)
+    .overrideProvider(RATE_LIMIT_POLICIES)
+    .useValue(rateLimits)
     .overrideProvider(OutboxRelay)
     .useValue({})
     // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
@@ -406,6 +424,7 @@ export async function startDeclarationsApi({
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
     clock,
+    rateLimits,
     corpus,
     consumers: app.get(DirectoryEventsConsumer),
     acknowledgementConsumers: app.get(AcknowledgementConsumer),
@@ -430,6 +449,17 @@ export async function startDeclarationsApi({
       if (!publisher) throw new Error('start the harness with { events: true } to publish');
       await lastValueFrom(publisher.emit(event.type, event), { defaultValue: undefined });
     },
+    token: signer,
+    listen() {
+      listening ??= app
+        .listen(0, '127.0.0.1')
+        .then(() => app.getUrl())
+        .catch((error: unknown) => {
+          listening = undefined;
+          throw error;
+        });
+      return listening;
+    },
     anonymous(path) {
       return app.inject({ method: 'GET', url: path });
     },
@@ -447,6 +477,7 @@ export async function startDeclarationsApi({
       workflows.reset();
       temporal.reset();
       clock.reset();
+      Object.assign(rateLimits, config.RATE_LIMITS);
       cipher.calls.length = 0;
       corpus.reset();
     },

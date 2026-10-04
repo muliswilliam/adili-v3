@@ -106,7 +106,8 @@ export async function enforcement(input: EnforcementInput): Promise<EnforcementR
     const action: ActionRef = { tenant: input.tenant, actionId };
 
     const decision = await decided(action, closed, () => decisions, seen);
-    // A declined referral leaves the salary stopped until the declarant complies.
+    // A declined referral leaves the salary stopped until the ladder ends (compliance,
+    // cancellation or withdrawal all reinstate it).
     if (decision === 'declined' && step === 'disciplinary-referral') break;
     if (decision === 'declined') return { outcome: 'declined', step };
     if (decision === 'closed') {
@@ -141,7 +142,7 @@ export async function enforcement(input: EnforcementInput): Promise<EnforcementR
 /**
  * Records the closing of the ladder (open steps complied or cancelled), then reinstates a stopped
  * salary and tells the declarant, whatever the cause: compliance, or the subject going away (an
- * obligation cancelled, a clarification withdrawn). A salary is never left stopped.
+ * obligation cancelled, a clarification withdrawn). Closing never leaves a salary stopped.
  */
 async function close(ladder: LadderRef, cause: ClosingCause): Promise<EnforcementResult> {
   await closeLadder({ ...ladder, cause });

@@ -146,3 +146,15 @@ export const REGISTRY_COPY = {
     closed: 'This case is determined. Its registries are no longer checked.',
   },
 } as const;
+
+/**
+ * What a version comparison row says about the declarant's marking (spec 07a FE-3, S10). A
+ * matched row's note stands alone under its badge, so it is capitalised; a new item's follows
+ * "Only in version 2 · " on the same line, so it is not.
+ */
+export const COMPARE_COPY = {
+  marked: 'Marked as changed',
+  notMarked: 'Not marked',
+  newMarked: 'marked as new',
+  newNotMarked: 'not marked',
+} as const;

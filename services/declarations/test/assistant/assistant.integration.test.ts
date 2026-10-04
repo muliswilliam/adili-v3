@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { eq } from 'drizzle-orm';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   AssistantConversation,
@@ -16,6 +16,7 @@ import {
   rosterSnapshots,
 } from '../../src/db/schema.js';
 import { ConversationExpiry } from '../../src/assistant/expiry.js';
+import { ASSISTANT_RATE_LIMIT } from '../../src/config.js';
 import type { Declaration } from '../../src/drafts/representation.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
@@ -361,7 +362,7 @@ describe('asking a question (S1, S2)', () => {
     const { question, answer } = finalOf((await ask(conversation.id, VEHICLE_QUESTION)).body);
 
     const rows = await api.asPerson(ACHIENG, (tx) =>
-      tx.select().from(assistantMessages).orderBy(assistantMessages.at),
+      tx.select().from(assistantMessages).orderBy(assistantMessages.id),
     );
     expect(rows.map((row) => row.id)).toEqual([question.id, answer.id]);
     for (const row of rows) expect(row.ciphertext.toString('utf8')).not.toContain('matatu');
@@ -575,6 +576,31 @@ describe('Kiswahili (S4)', () => {
       text: 'Sikupata jambo hili katika Sheria wala Kanuni. Muulize afisa wako wa kuripoti.',
     });
   });
+
+  it('sends an earlier decline as history in the language it was given in', async () => {
+    const draft = await givenDraft();
+    const conversation = await opened(draft.id);
+    api.aiGateway.answer(() => ({
+      kind: 'answer',
+      output: { label: answerLabel(), declined: true, blocks: [], followUps: [] },
+    }));
+    const declined = finalOf((await ask(conversation.id, SALARY_QUESTION)).body).answer;
+    api.aiGateway.reset();
+    await opened(draft.id, 'sw');
+
+    await ask(
+      conversation.id,
+      'Nitatangaza gari ninalomiliki pamoja na kaka yangu?',
+      'statement:officer',
+      achieng,
+      { itemType: 'vehicle' },
+    );
+
+    expect(api.aiGateway.inputs()[0]?.history[1]).toEqual({
+      role: 'assistant',
+      text: declined.text,
+    });
+  });
 });
 
 describe('when the assistant is unavailable', () => {
@@ -606,6 +632,48 @@ describe('when the assistant is unavailable', () => {
     expect(await eventsOf('assistant.message.answered.v1')).toEqual([]);
   });
 
+  it('cancels the job and stores nothing when the declarant leaves midway', async () => {
+    const draft = await givenDraft();
+    const conversation = await opened(draft.id);
+    // The gateway's final arrives after the declarant has gone, as one already on its way would.
+    api.aiGateway.answer((input) => ({
+      kind: 'held',
+      output: citingFirstPassage(input),
+      deltas: ['Yes, '],
+    }));
+    const leave = new AbortController();
+    const response = await fetch(
+      `${await api.listen()}/v1/me/assistant/conversations/${conversation.id}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${await api.token(achieng)}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ text: SALARY_QUESTION, sectionKey: 'statement:officer' }),
+        signal: leave.signal,
+      },
+    );
+    expect(response.status).toBe(200);
+    const reader: ReadableStreamDefaultReader<Uint8Array> | undefined = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    const decoder = new TextDecoder();
+    let received = '';
+    while (!received.includes('event: delta')) {
+      const chunk = await reader.read();
+      if (chunk.done) throw new Error(`The stream ended before a delta: ${received}`);
+      received += decoder.decode(chunk.value, { stream: true });
+    }
+
+    leave.abort();
+
+    // Once the service has let go of the gateway's stream, whatever it would store is stored.
+    await vi.waitUntil(() => api.aiGateway.requests[0]?.closed, { timeout: 10_000 });
+    expect(api.aiGateway.requests[0]?.signal.aborted).toBe(true);
+    expect(await api.asPerson(ACHIENG, (tx) => tx.select().from(assistantMessages))).toEqual([]);
+    expect(await eventsOf('assistant.message.answered.v1')).toEqual([]);
+  });
+
   it('refuses a question that is empty or too long', async () => {
     const draft = await givenDraft();
     const conversation = await opened(draft.id);
@@ -614,6 +682,39 @@ describe('when the assistant is unavailable', () => {
       expect((await ask(conversation.id, text)).statusCode).toBe(400);
     }
     expect(api.aiGateway.requests).toEqual([]);
+  });
+});
+
+describe("the declarant's rate limit", () => {
+  it('answers 429 past the limit, without asking the gateway or storing the question', async () => {
+    api.rateLimits[ASSISTANT_RATE_LIMIT] = { limit: 2, windowSeconds: 60 };
+    // A declarant of the test's own, whose budget no other test has drawn on.
+    const personId = randomUUID();
+    const caller = declarant(personId);
+    await givenObligation(personId);
+    const conversation = (await open(null, 'en', caller)).json<AssistantConversation>();
+    for (const question of [VEHICLE_QUESTION, SALARY_QUESTION]) {
+      expect((await ask(conversation.id, question, null, caller)).statusCode).toBe(200);
+    }
+    const asked = api.aiGateway.requests.length;
+
+    const refused = await ask(conversation.id, VEHICLE_QUESTION, null, caller);
+
+    expect(refused.statusCode).toBe(429);
+    expect(refused.json()).toMatchObject({ type: 'rate-limit-exceeded', status: 429 });
+    expect(Number(refused.headers['retry-after'])).toBeGreaterThan(0);
+    expect(refused.headers['ratelimit-remaining']).toBe('0');
+    expect(api.aiGateway.requests).toHaveLength(asked);
+    const messages = await api.asPerson(personId, (tx) =>
+      tx.select().from(assistantMessages).orderBy(assistantMessages.id),
+    );
+    // The two questions answered, and nothing of the third.
+    expect(messages.map((message) => message.role)).toEqual([
+      'user',
+      'assistant',
+      'user',
+      'assistant',
+    ]);
   });
 });
 

@@ -86,7 +86,7 @@ const frameSchemas = {
 /**
  * The ai-gateway's answer stream (`POST /internal/v1/tasks/answer-declarant-question/stream`,
  * ai-gateway.yaml) with the service's own token (`ai:internal`, one retry after a 401) and the
- * Commission in `X-Acting-Tenant` (ADR-013 §8.8). Not api-kit's service client: that one reads a
+ * Commission in `X-Acting-Tenant` (ADR-013 §8.14). Not api-kit's service client: that one reads a
  * JSON body, and this one reads server-sent events as they arrive. The gateway must accept the
  * stream within `STREAM_OPEN_TIMEOUT_MS`; any other status than 200, no token or no answer is
  * `AiGatewayUnavailable`. Frames that break the contract end the stream with an `error` frame.

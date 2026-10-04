@@ -195,15 +195,8 @@ export class AssistantService {
         tenant: conversation.tenant,
       },
     );
-    const retrieved = new Set(passages.map((passage) => passage.id));
     const store = (output: AnswerOutput | null, jobId: string | null) =>
-      this.store(person, conversation, question, answerId, {
-        output,
-        jobId,
-        passages,
-        retrieved,
-        liveKeys,
-      });
+      this.store(person, conversation, question, answerId, { output, jobId, passages, liveKeys });
 
     if (passages.length === 0) {
       // Nothing in the corpus to ground an answer in: decline without asking the gateway.
@@ -430,7 +423,10 @@ export class AssistantService {
     return residualsOf(review.blocking, current);
   }
 
-  /** Earlier turns as the gateway gets them: a decline as its text, never the contact. */
+  /**
+   * Earlier turns as the gateway gets them, each in the language it was given in: a decline as
+   * its text, never the reporting officer's contact stored with it.
+   */
   private history(
     conversation: ConversationRow,
     messages: MessageRow[],
@@ -438,9 +434,7 @@ export class AssistantService {
     return Promise.all(
       messages.map(async (message) => ({
         role: message.role,
-        text: message.declined
-          ? DECLINE_TEXT[conversation.language]
-          : (await this.unseal(conversation.tenant, message)).text.slice(0, HISTORY_TEXT_MAX),
+        text: (await this.unseal(conversation.tenant, message)).text.slice(0, HISTORY_TEXT_MAX),
       })),
     );
   }
@@ -460,14 +454,13 @@ export class AssistantService {
       output: AnswerOutput | null;
       jobId: string | null;
       passages: RetrievedPassage[];
-      retrieved: ReadonlySet<string>;
       liveKeys: ReadonlySet<string>;
     },
   ): Promise<AssistantAnswer | null> {
-    const checked = answered.output
-      ? checkAnswer(answered.output, answered.retrieved, answered.liveKeys)
-      : ({ declined: true } as const);
     const byId = new Map(answered.passages.map((passage) => [passage.id, passage]));
+    const checked = answered.output
+      ? checkAnswer(answered.output, new Set(byId.keys()), answered.liveKeys)
+      : ({ declined: true } as const);
     const citations: StoredCitation[] = checked.declined
       ? []
       : checked.passageIds.flatMap((id) => {
@@ -500,7 +493,7 @@ export class AssistantService {
     const rows = await withPerson(this.db, person, async (tx) => {
       // Gone with its draft, or expired, while the answer streamed: nothing is stored.
       const [live] = await tx
-        .select()
+        .select({ expiresAt: assistantConversations.expiresAt })
         .from(assistantConversations)
         .where(eq(assistantConversations.id, conversation.id))
         .for('update');
@@ -627,7 +620,7 @@ function recordId(messageId: string): string {
   return `assistant-message/${messageId}`;
 }
 
-function isExpired(conversation: ConversationRow, now: Date): boolean {
+function isExpired(conversation: Pick<ConversationRow, 'expiresAt'>, now: Date): boolean {
   return conversation.expiresAt !== null && conversation.expiresAt.getTime() <= now.getTime();
 }
 
