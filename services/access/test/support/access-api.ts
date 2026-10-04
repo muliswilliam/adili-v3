@@ -148,35 +148,43 @@ export async function startAccessApi(): Promise<AccessApi> {
   const documents = new FakeDocuments(() => clock.now());
   const notifications = new FakeNotifications();
   const cipher = new FakeCipher();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(DATABASE)
-    .useValue(db)
-    .overrideProvider(TokenVerifier)
-    .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
-    .overrideProvider(DirectoryClient)
-    .useValue(directory)
-    .overrideProvider(DeclarationsClient)
-    .useValue(declarations)
-    .overrideProvider(ReviewClient)
-    .useValue(review)
-    .overrideProvider(DocumentsClient)
-    .useValue(documents)
-    .overrideProvider(NotificationsClient)
-    .useValue(notifications)
-    .overrideProvider(FieldCipher)
-    .useValue(cipher)
-    .overrideProvider(Clock)
-    .useValue(clock)
-    .overrideProvider(OutboxRelay)
-    .useValue({})
-    .overrideProvider(WorkflowBundler)
-    .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
-    .compile();
+  const moduleRef = await step(
+    'compiling the module',
+    Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(DATABASE)
+      .useValue(db)
+      .overrideProvider(TokenVerifier)
+      .useValue(new TokenVerifier(ISSUER, AUDIENCE, createLocalJWKSet({ keys: [jwk] })))
+      .overrideProvider(DirectoryClient)
+      .useValue(directory)
+      .overrideProvider(DeclarationsClient)
+      .useValue(declarations)
+      .overrideProvider(ReviewClient)
+      .useValue(review)
+      .overrideProvider(DocumentsClient)
+      .useValue(documents)
+      .overrideProvider(NotificationsClient)
+      .useValue(notifications)
+      .overrideProvider(FieldCipher)
+      .useValue(cipher)
+      .overrideProvider(Clock)
+      .useValue(clock)
+      .overrideProvider(OutboxRelay)
+      .useValue({})
+      .overrideProvider(WorkflowBundler)
+      .useValue(prebuiltWorkflowBundler(inject('workflowBundles')))
+      .compile(),
+  );
   const app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter(), {
     logger: ['fatal'],
   });
   await step('starting the app', app.init());
-  await app.getHttpAdapter().getInstance().ready();
+  await step(
+    'readying the HTTP server',
+    (async () => {
+      await app.getHttpAdapter().getInstance().ready();
+    })(),
+  );
   // Tests start once the worker polls, as traffic waits for readiness (see untilWorkerPolling).
   await untilWorkerPolling(app.get(TemporalWorkerReadinessCheck));
 
@@ -302,6 +310,9 @@ async function tokenSigner(): Promise<{ signer: (caller: Caller) => Promise<stri
 /** Longer than any start step takes on a loaded runner, and well inside the 60 s hook timeout. */
 const STARTUP_STEP_TIMEOUT_MS = 30_000;
 
+/** How long the stalled step's report waits for Postgres to say what its sessions wait on. */
+const PROBE_TIMEOUT_MS = 5_000;
+
 /**
  * Runs a step of the harness's start, failing it after `STARTUP_STEP_TIMEOUT_MS` with the step's
  * name and what Postgres' other sessions were waiting on, instead of an anonymous hook timeout:
@@ -312,16 +323,20 @@ function startupStep(baseUrl: string) {
     let timer: NodeJS.Timeout | undefined;
     const stalled = new Promise<never>((_, reject) => {
       timer = setTimeout(() => {
+        let probeTimer: NodeJS.Timeout | undefined;
         void Promise.race([
           postgresWaits(baseUrl),
-          new Promise<string>((resolve) =>
-            setTimeout(() => {
-              resolve('unknown (the probe itself did not answer within 5 s)');
-            }, 5_000),
-          ),
+          new Promise<string>((resolve) => {
+            probeTimer = setTimeout(() => {
+              resolve(
+                `unknown (the probe itself did not answer within ${String(PROBE_TIMEOUT_MS)} ms)`,
+              );
+            }, PROBE_TIMEOUT_MS);
+          }),
         ])
           .catch((error: unknown) => `unknown (${String(error)})`)
           .then((waits) => {
+            clearTimeout(probeTimer);
             reject(
               new Error(
                 `startAccessApi: ${name} took over ${String(STARTUP_STEP_TIMEOUT_MS)} ms; Postgres sessions waiting: ${waits}`,
