@@ -44,7 +44,8 @@ export type WorkspaceHref =
   | '/form-m'
   | '/eacc/reports'
   | '/eacc/referrals'
-  | '/eacc/open-data';
+  | '/eacc/open-data'
+  | '/commission/open-data';
 
 interface WorkspaceDefinition {
   id: string;
@@ -236,6 +237,16 @@ const WORKSPACES: WorkspaceDefinition[] = [
     href: '/form-m',
     roles: FORM_M_ROLES,
     writeRoles: FORM_M_WRITE_ROLES,
+  },
+  {
+    // Commission settings: the Commission's own rows of the current open-data release (spec 09b
+    // S6). Its other staff do not see it; EACC sees every Commission's in its Open data.
+    id: 'open-data-preview',
+    title: 'Open data preview',
+    description:
+      "Your Commission's figures in the current open-data preview or latest release, suppressed as the public sees them.",
+    href: '/commission/open-data',
+    roles: [COMMISSION_ADMIN],
   },
   {
     id: 'compliance',

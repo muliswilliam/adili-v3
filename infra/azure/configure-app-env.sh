@@ -59,6 +59,8 @@ set_env "$ROOT/apps/console/.env" APP_URL "${ADILI_CONSOLE_URL}"
 set_env "$ROOT/apps/console/.env" OIDC_ISSUER_URL "$issuer"
 set_env "$ROOT/apps/console/.env" PORT "$console_port"
 set_env "$ROOT/apps/console/.env" ADILI_DEMO_BIND 1
+# Links to the portal's public pages (open data).
+set_env "$ROOT/apps/console/.env" PORTAL_URL "${ADILI_PORTAL_URL}"
 
 set_env "$ROOT/apps/verify/.env" APP_URL "${ADILI_VERIFY_URL}"
 set_env "$ROOT/apps/verify/.env" PORT "$verify_port"

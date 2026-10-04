@@ -1,4 +1,4 @@
-import { cn } from '@adili/ui';
+import { cn, formatPercent } from '@adili/ui';
 import type { ComponentProps } from 'react';
 
 import type { OpenDataRelease } from '../../server/reporting/types';
@@ -21,3 +21,6 @@ export function KindTag({ className, ...props }: ComponentProps<'span'>) {
 export function releaseName(release: Pick<OpenDataRelease, 'fy' | 'kind' | 'version'>): string {
   return m.releaseCrumb(release.fy, release.kind, release.version);
 }
+
+/** A release's rate (0 to 1) as a percentage to one decimal, so a column of rates lines up: `90.0%`. */
+export const formatRate = (value: number) => formatPercent(value * 100, { fixed: true });

@@ -38,7 +38,7 @@
  * `submitMockReport` submits it on a day.
  *
  * EACC's referrals intake and its evidence package downloads answer from
- * `referral-intake-mock.server.ts`.
+ * `referral-intake-mock.server.ts`. The Commission open-data preview is `open-data-mock.server.ts`.
  */
 import { STEP_UP_ACR, STEP_UP_WINDOW_SECONDS } from '@adili/api-kit/client';
 import { COMMISSION_ADMIN, FORM_M_ROLES, SUPERVISOR } from '@adili/roles';
@@ -83,6 +83,11 @@ import {
   storedYears,
 } from './mock-store.server';
 import { isNarrativeDraftPath, mockNarrativeDraftFetch } from './narrative-draft-mock.server';
+import {
+  mockOpenDataFetch,
+  type OpenDataMockScenario,
+  setOpenDataMockScenario,
+} from './open-data-mock.server';
 import { referralIntakeFetch } from './referral-intake-mock.server';
 import type { ComplianceReport, Officer, ReportCounts, ReportPeriod } from './types';
 
@@ -102,8 +107,16 @@ let compileMs = COMPILE_MS;
 let issueMs = ISSUE_MS;
 let failingConfirms = 0;
 
-/** Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default). */
-export function resetReportingMock(day: string = nairobiToday(), options: ReportingMockSeed = {}) {
+/**
+ * Seeds the store as it stands on `day` (`YYYY-MM-DD`; today in Nairobi by default). `openData`
+ * is what the Commission open-data preview answers (`open-data-mock.server.ts`);
+ * `REPORTING_MOCK_OPEN_DATA` when not given.
+ */
+export function resetReportingMock(
+  day: string = nairobiToday(),
+  options: ReportingMockSeed & { openData?: OpenDataMockScenario } = {},
+) {
+  setOpenDataMockScenario(options.openData ?? null);
   failingConfirms = 0;
   confirmations.clear();
   resetReportingStore(day, options);
@@ -193,6 +206,9 @@ export async function mockReportingFetch(input: Request): Promise<Response> {
     return (await import('./ncr-mock.server')).mockNcrFetch(input);
   }
   await delay(250);
+  // The Commission open-data preview (spec 09b) is its own part of the mock.
+  const openData = mockOpenDataFetch(input);
+  if (openData) return openData;
   // EACC's referrals intake is its own part of the mock.
   const intake = referralIntakeFetch(input);
   if (intake) return intake;

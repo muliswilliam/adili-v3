@@ -191,7 +191,7 @@ function tableOf(
 
 /** The release's six tables, suppressed, and its national totals before suppression. */
 export function buildReleaseTables(
-  aggregates: NationalAggregates,
+  aggregates: Pick<NationalAggregates, 'byCommission'>,
   compliance: Readonly<Record<string, ComplianceCounts>>,
   threshold = SUPPRESSION_THRESHOLD,
 ): { tables: TableFiles; totals: { declared: number; expected: number } } {

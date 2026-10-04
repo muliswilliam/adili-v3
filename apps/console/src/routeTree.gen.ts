@@ -36,6 +36,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as AuthStepUpRouteImport } from './routes/auth/step-up'
+import { Route as CommissionOpenDataRouteImport } from './routes/commission/open-data'
 import { Route as CommissionsIndexRouteImport } from './routes/commissions/index'
 import { Route as CommissionsSlugRouteRouteImport } from './routes/commissions/$slug/route'
 import { Route as CommissionsNewRouteImport } from './routes/commissions/new'
@@ -246,6 +247,11 @@ const AuthLogoutRoute = AuthLogoutRouteImport.update({
 const AuthStepUpRoute = AuthStepUpRouteImport.update({
   id: '/auth/step-up',
   path: '/auth/step-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommissionOpenDataRoute = CommissionOpenDataRouteImport.update({
+  id: '/commission/open-data',
+  path: '/commission/open-data',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CommissionsIndexRoute = CommissionsIndexRouteImport.update({
@@ -682,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
+  '/commission/open-data': typeof CommissionOpenDataRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/help/corpus': typeof HelpCorpusRoute
   '/help/themes': typeof HelpThemesRoute
@@ -760,6 +767,7 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
+  '/commission/open-data': typeof CommissionOpenDataRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/help/corpus': typeof HelpCorpusRoute
   '/help/themes': typeof HelpThemesRoute
@@ -859,6 +867,7 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/auth/step-up': typeof AuthStepUpRoute
+  '/commission/open-data': typeof CommissionOpenDataRoute
   '/commissions/new': typeof CommissionsNewRoute
   '/help/corpus': typeof HelpCorpusRoute
   '/help/themes': typeof HelpThemesRoute
@@ -965,6 +974,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
+    | '/commission/open-data'
     | '/commissions/new'
     | '/help/corpus'
     | '/help/themes'
@@ -1043,6 +1053,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
+    | '/commission/open-data'
     | '/commissions/new'
     | '/help/corpus'
     | '/help/themes'
@@ -1141,6 +1152,7 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/logout'
     | '/auth/step-up'
+    | '/commission/open-data'
     | '/commissions/new'
     | '/help/corpus'
     | '/help/themes'
@@ -1236,6 +1248,7 @@ export interface RootRouteChildren {
   AuthLoginRoute: typeof AuthLoginRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   AuthStepUpRoute: typeof AuthStepUpRoute
+  CommissionOpenDataRoute: typeof CommissionOpenDataRoute
   ApiMockFilesIdRoute: typeof ApiMockFilesIdRoute
   ApiMockUploadsIdRoute: typeof ApiMockUploadsIdRoute
 }
@@ -1429,6 +1442,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/step-up'
       fullPath: '/auth/step-up'
       preLoaderRoute: typeof AuthStepUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/commission/open-data': {
+      id: '/commission/open-data'
+      path: '/commission/open-data'
+      fullPath: '/commission/open-data'
+      preLoaderRoute: typeof CommissionOpenDataRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/commissions/': {
@@ -2465,6 +2485,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthLoginRoute: AuthLoginRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   AuthStepUpRoute: AuthStepUpRoute,
+  CommissionOpenDataRoute: CommissionOpenDataRoute,
   ApiMockFilesIdRoute: ApiMockFilesIdRoute,
   ApiMockUploadsIdRoute: ApiMockUploadsIdRoute,
 }
