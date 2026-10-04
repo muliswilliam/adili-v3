@@ -31,7 +31,7 @@ import { bearerClaims } from '../declarations/mock/obligations';
 import { store } from '../declarations/mock/store';
 import { isRecord, json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
-import { mockNow } from './mock-clock.server';
+import { accessClock } from './mock-clock.server';
 import { MOCK_NOTICE_IDS, mockNotices } from './mock-notices.server';
 import type { AccessHistoryEntry, CertifiedCopy, DeclarantNotice } from './types';
 
@@ -374,7 +374,7 @@ function history(now: number): AccessHistoryEntry[] {
 
 /** The issued copy whose document this is, if any. */
 function copyOfDocument(documentId: string): MockCopy | undefined {
-  return allCopies(mockNow()).find(
+  return allCopies(accessClock.now()).find(
     (copy) => copy.status === 'issued' && copy.documentId === documentId,
   );
 }
@@ -398,7 +398,7 @@ export function mockCopyDownload(documentId: string): Response | null {
   if (!copyOfDocument(documentId)) return null;
   return json(200, {
     downloadUrl: `/api/mock-packages/${documentId}`,
-    expiresAt: new Date(mockNow() + 5 * MINUTE).toISOString(),
+    expiresAt: new Date(accessClock.now() + 5 * MINUTE).toISOString(),
     sha256: '0'.repeat(64),
   });
 }
@@ -413,8 +413,8 @@ export async function mockHistoryFetch(
   path: string,
   wait: () => Promise<unknown>,
 ): Promise<Response> {
-  if (!seeded) seed(mockNow());
-  const now = mockNow();
+  if (!seeded) seed(accessClock.now());
+  const now = accessClock.now();
   if (request.method === 'GET' && path === '/v1/me/access-history') {
     return json(200, history(now));
   }
@@ -423,7 +423,7 @@ export async function mockHistoryFetch(
     if (request.method === 'POST') {
       const body = await readJson(request);
       await wait();
-      return requestCopy(request, body, mockNow());
+      return requestCopy(request, body, accessClock.now());
     }
   }
   const one = /^\/v1\/me\/certified-copies\/([^/]+)$/.exec(path);

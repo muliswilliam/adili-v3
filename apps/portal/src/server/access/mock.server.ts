@@ -50,7 +50,7 @@ import { ARQ, format } from '@adili/numbering/references';
 
 import { json, problem, readJson } from '../mock-http';
 import { placeholderPdf } from '../mock-pdf';
-import { mockNow, setMockClock } from './mock-clock.server';
+import { accessClock } from './mock-clock.server';
 import {
   isHistoryPath,
   mockCopyDownload,
@@ -729,7 +729,7 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
  * them again as of `now`, starting their clock there; for tests.
  */
 export function resetAccessMocks(now = Date.now()) {
-  setMockClock(now);
+  accessClock.startAt(now);
   reseedRequestStore(now);
   seedNoticesMock(now);
   seedHistoryMock(now);
@@ -805,7 +805,7 @@ async function submit(request: Request): Promise<Response> {
       errors: [{ path: 'responsibleCommission', message: 'no such Commission' }],
     });
   }
-  const now = new Date(mockNow());
+  const now = new Date(accessClock.now());
   const submittedAt = now.toISOString();
   const reference = nextReference(commission, now);
   const id = crypto.randomUUID();
@@ -841,7 +841,7 @@ function withdraw(id: string, key: string | null): Response {
   if (!found) return problem(404, 'No such request of the applicant');
   if (decideOnWithdraw.has(id)) {
     decideOnWithdraw.delete(id);
-    const decidedAt = new Date(mockNow()).toISOString();
+    const decidedAt = new Date(accessClock.now()).toISOString();
     found.status = 'denied';
     found.decision = {
       outcome: 'deny',
@@ -856,7 +856,7 @@ function withdraw(id: string, key: string | null): Response {
   if (DECIDED_ACCESS_STATUSES.has(found.status))
     return problem(409, 'A decision is final', 'request-decided');
   if (CLOSED.has(found.status)) return problem(409, 'The request is closed', 'request-closed');
-  const at = new Date(mockNow()).toISOString();
+  const at = new Date(accessClock.now()).toISOString();
   found.status = 'withdrawn';
   found.timeline.push(
     entry('withdrawn', at, found.reference, 'Withdrawn by the applicant', found.formK.partI.name),
@@ -894,7 +894,7 @@ function packageDownload(documentId: string): Response {
   const found = packageRequest(documentId);
   const pkg = found?.package;
   if (!found || !pkg) return problem(404, 'Not found');
-  const now = new Date(mockNow());
+  const now = new Date(accessClock.now());
   if (closeOnDownload.delete(found.id)) {
     pkg.downloadExpiresAt = now.toISOString();
     found.timeline.push(
@@ -940,7 +940,7 @@ function hasRole(request: Request, role: string): boolean {
 }
 
 export async function mockAccessFetch(request: Request): Promise<Response> {
-  if (!seeded) reseedRequestStore(mockNow());
+  if (!seeded) reseedRequestStore(accessClock.now());
   const url = new URL(request.url);
   const path = url.pathname;
   const download = /^\/v1\/documents\/([^/]+)\/download$/.exec(path);
