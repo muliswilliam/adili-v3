@@ -110,7 +110,7 @@ The spec drafted these internal reads for Form M in the BE detail, not in #215; 
 ## Documents (`internal/documents.yaml`)
 
 - `DocumentType` gained `form-m`, `compliance-report-receipt` and `ncr`, as drafted (#218, in #484), with `FormMPayload`, `ComplianceReportReceiptPayload` and `NcrPayload`. The reporting service sends the payload (the frozen `form-m.v1` document, the receipt's reference, SHA-256 and time, the approved NCR's aggregates and narrative); none has a subject person.
-- `getDocumentDownload`: a Commission's supervisor, commission-admin, reporting officer or federated system downloads its own Form M and receipt; EACC analysts and supervisors every Commission's, and the NCR.
+- `getDocumentDownload`: a Commission's supervisor, commission-admin, reporting officer or federated system downloads its own Form M and receipt; EACC analysts and supervisors every Commission's, the referral packages a Commission sent EACC (the intake's `packageDocumentId`, BE-3, S12), and the NCR. An analyst or supervisor whom a package refers is refused it, once their token carries their person id (`person_id`; staff tokens do not yet, #486).
 
 ## Notifications (`internal/notifications.yaml`)
 
