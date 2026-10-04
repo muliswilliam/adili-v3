@@ -3,21 +3,16 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type {
-  AssistantConversation,
-  AssistantMessage,
-} from '../../src/assistant/representation.js';
+import type { AssistantConversation } from '../../src/assistant/representation.js';
 import {
   assistantConversations,
   assistantMessages,
   commissionRefs,
   filingObligations,
-  outbox,
-  rosterSnapshots,
 } from '../../src/db/schema.js';
 import { ConversationExpiry } from '../../src/assistant/expiry.js';
 import { ASSISTANT_RATE_LIMIT } from '../../src/config.js';
-import type { Declaration } from '../../src/drafts/representation.js';
+import { assistantFixtures, declarantCaller, finalOf, framesOf } from '../support/assistant.js';
 import { contractErrors, responseBody } from '../support/contract.js';
 import {
   type Caller,
@@ -26,8 +21,7 @@ import {
 } from '../support/declarations-api.js';
 import { answerLabel, citingFirstPassage } from '../support/fake-ai-gateway.js';
 import { DUE_DAY, submissionFixtures } from '../support/submission.js';
-import { rosterRecord } from '../support/fake-directory.js';
-import { assetItem, household, incomeItem, SPOUSE_ID } from '../fixtures/sections.js';
+import { SPOUSE_ID } from '../fixtures/sections.js';
 
 /**
  * Spec 11 Ask Adili over HTTP (#333): a declarant's conversation with the assistant, kept with the
@@ -38,7 +32,7 @@ import { assetItem, household, incomeItem, SPOUSE_ID } from '../fixtures/section
 
 const ACHIENG = randomUUID();
 const OTIENO = randomUUID();
-const declarant = (personId: string): Caller => ({ personId, sub: personId, roles: ['declarant'] });
+const declarant = declarantCaller;
 const achieng = declarant(ACHIENG);
 
 const CONVERSATION_BODY = responseBody('/v1/me/assistant/conversations', 'post', 200);
@@ -62,139 +56,10 @@ beforeEach(async () => {
   ]);
 });
 
-/** A due biennial obligation of the person's (at the PSC by default), with its roster record. */
-async function givenObligation(personId = ACHIENG, tenant = 'psc'): Promise<string> {
-  const record = rosterRecord(tenant, { personId, fullName: 'Achieng Wambui Otieno' });
-  api.directory.givenRecords([record]);
-  const obligationId = randomUUID();
-  await api.asPlatform(async (tx) => {
-    await tx.insert(rosterSnapshots).values({
-      rosterRecordId: record.id,
-      tenant,
-      personnelFileNumber: record.personnelFileNumber,
-      fullName: record.fullName,
-      state: 'onboarded',
-      appointmentDate: record.appointmentDate,
-      personId,
-      sourceUpdatedAt: new Date(),
-    });
-    await tx.insert(filingObligations).values({
-      id: obligationId,
-      tenant,
-      rosterRecordId: record.id,
-      personId,
-      type: 'biennial',
-      cycleKey: 'biennial:2027',
-      statementDate: '2027-11-01',
-      dueDate: '2027-12-31',
-      status: 'due',
-      policyVersionId: randomUUID(),
-      policyVersion: 1,
-      reminderOffsetsDays: [30, 14, 7],
-    });
-  });
-  return obligationId;
-}
-
-async function save(
-  draft: Declaration,
-  sectionKey: string,
-  body: unknown,
-  caller: Caller = achieng,
-): Promise<void> {
-  const current = (await api.get(`/v1/declarations/${draft.id}`, caller)).json<Declaration>();
-  const response = await api.request(
-    'PUT',
-    `/v1/declarations/${draft.id}/sections/${sectionKey}`,
-    caller,
-    { headers: { 'if-match': `"${String(current.draftVersion)}"` }, body },
-  );
-  expect(response.statusCode, `${sectionKey}: ${response.body}`).toBe(200);
-}
-
-/**
- * Achieng's draft with a spouse and a child, and her own statement saved with a
- * vehicle whose value is still missing: a residual at `/assets/0/value`.
- */
-async function givenDraft(caller: Caller = achieng, personId = ACHIENG): Promise<Declaration> {
-  const obligationId = await givenObligation(personId);
-  const started = await api.request('POST', `/v1/obligations/${obligationId}/declaration`, caller);
-  expect(started.statusCode).toBe(201);
-  const draft = started.json<Declaration>();
-  await save(draft, 'household', household(), caller);
-  const withoutValue: Partial<ReturnType<typeof assetItem>> = assetItem();
-  delete withoutValue.value;
-  await save(
-    draft,
-    'statement:officer',
-    {
-      incomeNil: false,
-      income: [incomeItem()],
-      assetsNil: false,
-      assets: [withoutValue],
-      liabilitiesNil: true,
-      liabilities: [],
-    },
-    caller,
-  );
-  return draft;
-}
-
-function open(declarationId: string | null, language: 'en' | 'sw' = 'en', caller = achieng) {
-  return api.request('POST', '/v1/me/assistant/conversations', caller, {
-    body: { declarationId, language },
-  });
-}
-
-async function opened(declarationId: string | null, language: 'en' | 'sw' = 'en') {
-  const response = await open(declarationId, language);
-  expect(response.statusCode).toBe(200);
-  return response.json<AssistantConversation>();
-}
-
-interface Frame {
-  event: string;
-  data: unknown;
-}
-
-/** The server-sent events of a response body, comments (`: ping`) left out. */
-function framesOf(body: string): Frame[] {
-  return body
-    .split('\n\n')
-    .filter((chunk) => chunk.startsWith('event: '))
-    .map((chunk) => {
-      const event = /^event: (.+)$/m.exec(chunk)?.[1] ?? '';
-      const data = /^data: (.+)$/m.exec(chunk)?.[1];
-      return { event, data: JSON.parse(data ?? 'null') as unknown };
-    });
-}
-
-function ask(
-  conversationId: string,
-  text: string,
-  sectionKey: string | null = 'statement:officer',
-  caller = achieng,
-  extra: Record<string, unknown> = {},
-) {
-  return api.request('POST', `/v1/me/assistant/conversations/${conversationId}/messages`, caller, {
-    body: { text, sectionKey, ...extra },
-  });
-}
-
-/** The stored answer the stream ended with. */
-function finalOf(body: string): { question: AssistantMessage; answer: AssistantMessage } {
-  const final = framesOf(body).find((frame) => frame.event === 'final');
-  if (!final) throw new Error(`No final frame in ${body}`);
-  return final.data as { question: AssistantMessage; answer: AssistantMessage };
-}
-
-async function eventsOf(type: string) {
-  const rows = await api.db
-    .select({ envelope: outbox.envelope })
-    .from(outbox)
-    .where(eq(outbox.eventType, type));
-  return rows.map((row) => row.envelope);
-}
+const { givenObligation, givenDraft, open, opened, ask, eventsOf } = assistantFixtures(
+  () => api,
+  ACHIENG,
+);
 
 const VEHICLE_QUESTION = 'Do I declare a matatu I co-own with my brother?';
 const SALARY_QUESTION = "Do I declare my wife's salary?";

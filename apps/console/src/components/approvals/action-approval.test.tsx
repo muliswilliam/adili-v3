@@ -70,10 +70,14 @@ vi.mock('../../server/actions', async () => {
     ),
   };
 });
-// The determinations tab's calls are server functions too; this file tests actions.
+// The determinations and referrals tabs' calls are server functions too; this file tests actions.
 vi.mock('../../server/determinations', () => ({
   approveCaseDetermination: vi.fn(),
   returnCaseDetermination: vi.fn(),
+}));
+vi.mock('../../server/referrals', () => ({
+  approveCaseReferral: vi.fn(),
+  declineCaseReferral: vi.fn(),
 }));
 vi.mock('../../server/approvals', async () => {
   const server = await import('../../server/approvals.server');

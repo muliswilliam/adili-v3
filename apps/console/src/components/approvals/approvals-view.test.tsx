@@ -71,6 +71,11 @@ vi.mock('../../server/determinations', async () => {
 });
 // The actions tab's calls (#205) are server functions too; this file tests determinations.
 vi.mock('../../server/actions', () => ({ approveLadderStep: vi.fn(), declineLadderStep: vi.fn() }));
+// The referrals tab is tested in referral-approval.test.tsx.
+vi.mock('../../server/referrals', () => ({
+  approveCaseReferral: vi.fn(),
+  declineCaseReferral: vi.fn(),
+}));
 vi.mock('../../server/approvals', async () => {
   const server = await import('../../server/approvals.server');
   interface Data<T> {
@@ -130,11 +135,12 @@ beforeEach(() => {
 describe('ApprovalsView (spec 08 FE-3, S14)', () => {
   it('lists the proposals with counts by kind and age, oldest first', async () => {
     await open();
-    // Across the tabs: 4 determinations and the ladder's 9 drafted steps (#205).
-    expect(screen.getByText('14 awaiting approval')).toBeTruthy();
+    // Across the tabs: 4 determinations, the ladders' 10 drafted steps (#205, #208) and 5 referrals.
+    expect(screen.getByText('19 awaiting approval')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Determinations\s*4/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Referrals\s*5/ })).toBeTruthy();
     const bands = screen.getByLabelText('Waiting');
-    expect(bands.textContent).toBe('WaitingUnder 7 days77 to 30 days6Over 30 days1');
+    expect(bands.textContent).toBe('WaitingUnder 7 days107 to 30 days8Over 30 days1');
     expect(screen.getAllByRole('article')).toHaveLength(4);
     expect(within(card('Ruth Nekesa Wafula')).getByText('Reassigned to you')).toBeTruthy();
     expect(within(card('Ruth Nekesa Wafula')).getByText('Waiting 35 days')).toBeTruthy();
@@ -193,6 +199,22 @@ describe('ApprovalsView (spec 08 FE-3, S14)', () => {
     });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Return proposal' }));
     expect(await screen.findByText('Returned to the reviewer')).toBeTruthy();
+  });
+
+  it('says a refused return cannot be returned, not approved (403)', async () => {
+    await open();
+    const { reassign } = await import('../../server/review-case.server');
+    fireEvent.click(within(card('Mary Achieng')).getByRole('button', { name: 'Return' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Return to the reviewer' });
+    await reassign(client(), MOCK_CASE_IDS.peters, ME.subject);
+    fireEvent.change(within(dialog).getByLabelText('Reason'), {
+      target: { value: 'Say how the HR letter explains the late filing.' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Return proposal' }));
+    const notice = await screen.findByRole('dialog', { name: 'You cannot return this' });
+    expect(
+      within(notice).getByText('You cannot return this: you reviewed this case.'),
+    ).toBeTruthy();
   });
 
   it('explains a separation-of-duties refusal and offers Reassign (403)', async () => {

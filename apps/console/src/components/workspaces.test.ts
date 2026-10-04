@@ -5,15 +5,21 @@ import { opensOwnPolicy, readsCommissionPolicy, workspaceFor, workspacesFor } fr
 const ids = (roles: string[]) => workspacesFor(roles).map((workspace) => workspace.id);
 
 describe('workspacesFor', () => {
-  it('gives reviewers the review queue, actions and obligations', () => {
-    expect(ids(['reviewer', 'default-roles-adili'])).toEqual(['review', 'actions', 'obligations']);
+  it('gives reviewers the review queue, actions, referrals and obligations', () => {
+    expect(ids(['reviewer', 'default-roles-adili'])).toEqual([
+      'review',
+      'actions',
+      'referrals',
+      'obligations',
+    ]);
   });
 
-  it('gives supervisors review, approvals, actions, access requests, obligations and Form M, once each', () => {
+  it('gives supervisors review, approvals, actions, referrals, access requests, obligations and Form M, once each', () => {
     expect(ids(['supervisor', 'reviewer'])).toEqual([
       'review',
       'approvals',
       'actions',
+      'referrals',
       'access',
       'obligations',
       'form-m',
@@ -80,6 +86,13 @@ describe('S18 Commissions workspace', () => {
   it('leaves workspaces that are not built yet without a link', () => {
     expect(workspaceFor(['auditor'], 'audit')).toMatchObject({ readOnly: false });
     expect(workspaceFor(['auditor'], 'audit')?.href).toBeUndefined();
+  });
+
+  it('opens Referrals for reviewers and supervisors of the Commission (spec 08)', () => {
+    expect(workspaceFor(['reviewer'], 'referrals')).toMatchObject({ href: '/referrals' });
+    expect(workspaceFor(['supervisor'], 'referrals')).toMatchObject({ href: '/referrals' });
+    expect(workspaceFor(['commission-admin'], 'referrals')).toBeUndefined();
+    expect(workspaceFor(['eacc-analyst'], 'referrals')).toBeUndefined();
   });
 
   it('opens Approvals for supervisors only (spec 08)', () => {

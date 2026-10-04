@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
-import type { AiLabel } from '../ai-gateway/ai-gateway-client.js';
+import type { AiLabel, FeedbackInput } from '../ai-gateway/ai-gateway-client.js';
+import { completenessIssueSchema } from '../drafts/representation.js';
 import { SECTION_KEY } from '../drafts/sections.js';
 import { ITEM_TYPE_TAGS } from '../help/corpus.js';
 import { helpLanguageSchema, helpPassageSchema } from '../help/representation.js';
+import { ASSISTANT_RATING_VALUES } from './schema.js';
+import { QUESTION_THEMES } from './themes.js';
 
 /**
  * Bodies of the assistant API (spec 11). They are the contract: the OpenAPI document,
@@ -92,7 +95,7 @@ export const assistantMessageSchema = z.object({
     description:
       'How an answer from the AI is labelled (ai-gateway AiLabel); null for a question, and for a decline made without asking the AI',
   }),
-  rating: z.enum(['helpful', 'not-helpful']).nullable(),
+  rating: z.enum(ASSISTANT_RATING_VALUES).nullable(),
   at: z.iso.datetime({ offset: true }),
 });
 
@@ -118,3 +121,82 @@ export const assistantAnswerSchema = z.object({
 });
 
 export type AssistantAnswer = z.infer<typeof assistantAnswerSchema>;
+
+/** Why an answer did not help: the ai-gateway's `FeedbackInput.reason`, forwarded. */
+export const FEEDBACK_REASONS = [
+  'inaccurate',
+  'missed-something',
+  'unclear',
+  'too-long',
+  'other',
+] as const satisfies readonly NonNullable<FeedbackInput['reason']>[];
+
+export const rateMessageRequestSchema = z.object({
+  rating: z.enum(ASSISTANT_RATING_VALUES),
+  reason: z.enum(FEEDBACK_REASONS).nullable(),
+  note: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .optional()
+    .transform((note) => (note === undefined || note === null || note === '' ? null : note))
+    .meta({ description: "The declarant's own words; kept encrypted, never sent on" }),
+});
+
+export type RateMessageRequest = z.infer<typeof rateMessageRequestSchema>;
+
+export const hintsQuery = z.object({
+  language: helpLanguageSchema.meta({ description: 'The language of the hints' }),
+});
+
+export type HintsQuery = z.infer<typeof hintsQuery>;
+
+export const completenessHintSchema = completenessIssueSchema.extend({
+  hint: z.string().nullable().meta({
+    description:
+      'An AI-assisted plain-language hint for the residual, beneath its deterministic `message`; null when there is none',
+  }),
+});
+
+export type CompletenessHint = z.infer<typeof completenessHintSchema>;
+
+export const completenessHintsSchema = z.object({
+  status: z.enum(['ready', 'pending', 'unavailable']).meta({
+    description:
+      '`ready`: every hint the AI wrote is here (none when nothing is left to complete). `pending`: still being written; ask again shortly. `unavailable`: no AI now, the deterministic text only',
+  }),
+  label: aiLabelSchema.nullable().meta({ description: 'How the hints are labelled; null without' }),
+  residuals: z.array(completenessHintSchema).meta({
+    description:
+      "The summary's `blocking`, in its order, each with its hint; only the first 20 residuals that are rule ids and field paths get one",
+  }),
+});
+
+export type CompletenessHints = z.infer<typeof completenessHintsSchema>;
+
+export const questionThemeSchema = z.enum(QUESTION_THEMES).meta({
+  description:
+    "The fixed list of question themes; `other` for a question no rule matches. A label per theme is the console's",
+});
+
+export const themesQuery = z.object({
+  month: z
+    .string()
+    .regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/)
+    .optional()
+    .meta({ description: 'One month (`YYYY-MM`, Nairobi); every month when left out' }),
+});
+
+export type ThemesQuery = z.infer<typeof themesQuery>;
+
+export const questionThemeCountSchema = z.object({
+  month: z.string().meta({ description: '`YYYY-MM`, Nairobi' }),
+  theme: questionThemeSchema,
+  count: z.int().min(1).meta({ description: 'Questions asked and answered (or declined)' }),
+  unanswered: z.int().min(0).meta({
+    description: 'Of them, those the Act, Regulations and help articles could not answer',
+  }),
+});
+
+export type QuestionThemeCount = z.infer<typeof questionThemeCountSchema>;

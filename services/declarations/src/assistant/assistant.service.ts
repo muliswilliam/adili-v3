@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { notFoundIfInvisible, type Principal } from '@adili/api-kit';
 import {
   type Database,
+  type FieldEnvelope,
   FieldCipher,
   InjectDatabase,
   type PersonContext,
@@ -9,7 +10,7 @@ import {
 } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import type { DeclarationSectionKey } from '@adili/forms';
-import { and, asc, desc, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type { z } from 'zod';
 
@@ -42,7 +43,7 @@ import { nairobiDate } from '../obligations/dates.js';
 import { filingObligations } from '../obligations/schema.js';
 import { checkAnswer, DECLINE_TEXT } from './answer.js';
 import { boostTagsOf, householdCountsOf, residualsOf } from './context.js';
-import { assistantMessageAnswered } from './events.js';
+import { assistantFeedbackRecorded, assistantMessageAnswered } from './events.js';
 import { assistantUnavailable } from './problems.js';
 import {
   askRequestSchema,
@@ -51,6 +52,8 @@ import {
   type AssistantMessage,
   type OpenConversationRequest,
   openConversationRequestSchema,
+  type RateMessageRequest,
+  rateMessageRequestSchema,
   type ReportingOfficerContact,
 } from './representation.js';
 import {
@@ -60,9 +63,22 @@ import {
   type StoredCitation,
   type StoredSectionLink,
 } from './schema.js';
+import { countQuestion } from './theme-counts.js';
 
 type ConversationRow = typeof assistantConversations.$inferSelect;
 type MessageRow = typeof assistantMessages.$inferSelect;
+
+/**
+ * How many times a rating is forwarded and kept while other ratings of the same answer keep
+ * landing in between (the same declarant, rating twice at once) before it gives up with 503.
+ */
+const RATING_ATTEMPTS = 3;
+
+/** A rating's reason and note as kept on the answer: sealed once, before it is forwarded. */
+interface SealedFeedback {
+  ciphertext: Buffer;
+  envelope: FieldEnvelope;
+}
 
 /** A conversation outside a draft is deleted this long after its last message (spec 11 S7). */
 export const CONVERSATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -89,6 +105,12 @@ export interface AnswerStream {
 interface MessagePlaintext {
   text: string;
   reportingOfficer?: ReportingOfficerContact | null;
+}
+
+/** What a rating's ciphertext holds: why, and the declarant's note. */
+interface FeedbackPlaintext {
+  reason: RateMessageRequest['reason'];
+  note: string | null;
 }
 
 /** Everything an ask needs from the database, read in one person transaction. */
@@ -279,6 +301,190 @@ export class AssistantService {
     };
   }
 
+  /**
+   * The declarant's rating of an answer (spec 11 S8), with why and a note: the rating and reason
+   * forwarded to the ai-gateway's job (an answer from the AI), then kept on the answer, the
+   * reason and note encrypted (the note never leaves the messages table), with
+   * `assistant.feedback.recorded.v1`. A second rating replaces the first, in both places. A
+   * decline made without asking the AI has no job, so its rating is kept only. 400 for a bad
+   * body, 404 for anything but an answer in the caller's live conversation, 503 when the gateway
+   * cannot take the rating or ratings of the answer keep crossing (below); on 404 and 503 the
+   * rating is not kept on the answer.
+   *
+   * No transaction is open while the gateway is called, so a slow gateway never holds a
+   * connection that filing needs. The rating is kept only if no other rating of the answer was
+   * kept since it was read (`feedbackVersion`); if one was, this one is forwarded again and kept
+   * over it. The last kept wins, which under a race can be the earlier click. The gateway and
+   * the answer usually end on the same rating, but not always; the gateway keeps one rating and
+   * the answer another (or none) when:
+   * - ratings cross `RATING_ATTEMPTS` times (503): the gateway has this one, the answer another;
+   * - the gateway is unavailable on a re-forward (503): it has this rating from before, or the
+   *   other, while the answer has the other;
+   * - the draft is submitted or discarded, or the conversation expires, between the forward and
+   *   the keep (404): the gateway has a rating for an answer that is gone;
+   * - the service or the database fails between the forward and the keep.
+   * The next rating of the answer, if any, brings them together again.
+   */
+  async rate(
+    principal: Principal,
+    conversationId: string,
+    messageId: string,
+    body: unknown,
+  ): Promise<AssistantMessage> {
+    const person = personOf(principal);
+    const request = parse(rateMessageRequestSchema, body);
+    const found = await withPerson(this.db, person, async (tx) => {
+      if (!isUuid(conversationId) || !isUuid(messageId)) return null;
+      const conversation = (await this.live(tx, conversationId, this.clock.now()))?.conversation;
+      if (!conversation) return null;
+      const [message] = await tx
+        .select()
+        .from(assistantMessages)
+        .where(
+          and(
+            eq(assistantMessages.id, messageId),
+            eq(assistantMessages.conversationId, conversation.id),
+            eq(assistantMessages.role, 'assistant'),
+          ),
+        );
+      return message ? { conversation, message } : null;
+    });
+    const { conversation, message } = notFoundIfInvisible(found);
+
+    const feedback: FeedbackPlaintext = { reason: request.reason, note: request.note };
+    const { ciphertext, envelope } = await this.cipher.encrypt({
+      tenant: conversation.tenant,
+      recordId: `${recordId(message.id)}/feedback`,
+      plaintext: JSON.stringify(feedback),
+    });
+    const sealed: SealedFeedback = { ciphertext: Buffer.from(ciphertext, 'base64'), envelope };
+    let version = message.feedbackVersion;
+    for (let attempt = 1; ; attempt += 1) {
+      const forwarded = await this.forwardRating(principal, conversation.tenant, message, request);
+      const kept = await withPerson(this.db, person, (tx) =>
+        this.keepRating(tx, { conversation, message, request, sealed, forwarded, version }),
+      );
+      if (kept.outcome === 'kept') return this.toMessage(conversation.tenant, kept.row);
+      if (kept.outcome === 'gone') return notFoundIfInvisible<AssistantMessage>(null);
+      // Another rating was kept meanwhile; the gateway may have had this one first.
+      if (attempt === RATING_ATTEMPTS) {
+        this.logger.warn({ messageId: message.id }, 'Ratings of an answer kept crossing');
+        throw assistantUnavailable();
+      }
+      version = kept.version;
+    }
+  }
+
+  /**
+   * Keeps a forwarded rating on the answer, with `assistant.feedback.recorded.v1`, if no other
+   * was kept since `version` was read. A rating with no job to forward to is kept whatever was
+   * kept since: nothing elsewhere has to agree with it.
+   */
+  private async keepRating(
+    tx: Transaction,
+    rating: {
+      conversation: ConversationRow;
+      message: MessageRow;
+      request: RateMessageRequest;
+      sealed: SealedFeedback;
+      forwarded: boolean;
+      version: number;
+    },
+  ): Promise<
+    | { outcome: 'kept'; row: MessageRow }
+    | { outcome: 'superseded'; version: number }
+    | { outcome: 'gone' }
+  > {
+    const { conversation, message, request, sealed, forwarded, version } = rating;
+    // Gone with its draft, or expired, while the rating was forwarded: nothing is kept.
+    if (!(await this.live(tx, conversation.id, this.clock.now()))) return { outcome: 'gone' };
+    const [row] = await tx
+      .update(assistantMessages)
+      .set({
+        rating: request.rating,
+        feedbackCiphertext: sealed.ciphertext,
+        feedbackEnvelope: sealed.envelope,
+        feedbackVersion: sql`${assistantMessages.feedbackVersion} + 1`,
+      })
+      .where(
+        and(
+          eq(assistantMessages.id, message.id),
+          message.jobId === null ? undefined : eq(assistantMessages.feedbackVersion, version),
+        ),
+      )
+      .returning();
+    if (!row) {
+      const [current] = await tx
+        .select({ version: assistantMessages.feedbackVersion })
+        .from(assistantMessages)
+        .where(eq(assistantMessages.id, message.id));
+      return current ? { outcome: 'superseded', version: current.version } : { outcome: 'gone' };
+    }
+    await this.events.record(
+      tx,
+      assistantFeedbackRecorded({
+        conversationId: conversation.id,
+        messageId: message.id,
+        tenant: conversation.tenant,
+        rating: request.rating,
+        jobId: message.jobId,
+        forwarded,
+      }),
+    );
+    return { outcome: 'kept', row };
+  }
+
+  /**
+   * Forwards a rating to the answer's ai-gateway job; false when it has none or the gateway does
+   * not know it (logged: the rating is still kept). 503 when the gateway cannot take it.
+   */
+  private async forwardRating(
+    principal: Principal,
+    tenant: string,
+    message: MessageRow,
+    request: RateMessageRequest,
+  ): Promise<boolean> {
+    if (message.jobId === null) return false;
+    let forwarded: boolean;
+    try {
+      forwarded = await this.gateway.recordFeedback(tenant, message.jobId, {
+        reviewerSubject: principal.subject,
+        block: null,
+        rating: request.rating,
+        reason: request.reason,
+        // The declarant's own words stay in the messages table (spec 11 S8).
+        note: null,
+      });
+    } catch (error) {
+      if (error instanceof AiGatewayUnavailable) {
+        this.logger.warn({ err: error }, 'The ai-gateway did not take a rating');
+        throw assistantUnavailable();
+      }
+      throw error;
+    }
+    if (!forwarded) {
+      this.logger.warn({ jobId: message.jobId }, 'The ai-gateway does not know the job rated');
+    }
+    return forwarded;
+  }
+
+  /**
+   * The conversation and its draft, if it is the caller's and still kept: not expired, its draft
+   * still being edited.
+   */
+  private async live(
+    tx: Transaction,
+    conversationId: string,
+    now: Date,
+  ): Promise<{ conversation: ConversationRow; declaration: DeclarationRow | null } | null> {
+    const conversation = await conversationWhere(tx, eq(assistantConversations.id, conversationId));
+    if (!conversation || isExpired(conversation, now)) return null;
+    if (conversation.declarationId === null) return { conversation, declaration: null };
+    const declaration = await liveDeclaration(tx, conversation.declarationId);
+    if (!declaration || !isEditable(declaration.status)) return null;
+    return { conversation, declaration };
+  }
+
   /** The draft's conversation, created or resumed in the language asked for. */
   private async ofDraft(
     tx: Transaction,
@@ -367,18 +573,10 @@ export class AssistantService {
   private read(person: PersonContext, conversationId: string, now: Date): Promise<Asked | null> {
     return withPerson(this.db, person, async (tx) => {
       if (!isUuid(conversationId)) return null;
-      const conversation = await conversationWhere(
-        tx,
-        eq(assistantConversations.id, conversationId),
-      );
-      if (!conversation || isExpired(conversation, now)) return null;
-      let declaration: DeclarationRow | null = null;
-      let sections: SectionRow[] = [];
-      if (conversation.declarationId !== null) {
-        declaration = await liveDeclaration(tx, conversation.declarationId);
-        if (!declaration || !isEditable(declaration.status)) return null;
-        sections = await liveSections(tx, declaration.id);
-      }
+      const kept = await this.live(tx, conversationId, now);
+      if (!kept) return null;
+      const { conversation, declaration } = kept;
+      const sections = declaration ? await liveSections(tx, declaration.id) : [];
       const recent = await tx
         .select()
         .from(assistantMessages)
@@ -498,6 +696,12 @@ export class AssistantService {
         .where(eq(assistantConversations.id, conversation.id))
         .for('update');
       if (!live || isExpired(live, answeredAt)) return null;
+      const theme = await countQuestion(tx, {
+        tenant: conversation.tenant,
+        text: question.text,
+        at: question.at,
+        declined: checked.declined,
+      });
       const inserted = await tx
         .insert(assistantMessages)
         .values([
@@ -507,6 +711,7 @@ export class AssistantService {
             role: 'user',
             ...questionSealed,
             sectionKey: question.sectionKey,
+            theme,
             at: question.at,
           },
           {

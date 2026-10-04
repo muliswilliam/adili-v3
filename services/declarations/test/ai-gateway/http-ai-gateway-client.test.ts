@@ -11,6 +11,7 @@ import {
   type AnswerFrame,
   type AnswerInput,
   type AnswerRequest,
+  type HintsRequest,
 } from '../../src/ai-gateway/ai-gateway-client.js';
 import { HttpAiGatewayClient } from '../../src/ai-gateway/http-ai-gateway-client.js';
 
@@ -300,5 +301,129 @@ describe('HttpAiGatewayClient', () => {
 
     expect(read).toEqual([{ event: 'delta', text: 'Ye' }]);
     expect(sent[0]?.signal?.aborted).toBe(true);
+  });
+});
+
+/** A client whose fetch is called with a `Request` (the generated client's), read back here. */
+function jsonClientAnswering(respond: () => Response) {
+  const sent: { method: string; url: string; headers: Headers; body: unknown }[] = [];
+  const client = new HttpAiGatewayClient({
+    gatewayUrl: 'http://ai-gateway.test/',
+    tokens: { token: () => Promise.resolve('token-1'), invalidate: () => undefined },
+    fetch: async (url, init) => {
+      const request = url instanceof Request ? url : new Request(url, init);
+      const text = await request.text();
+      sent.push({
+        method: request.method,
+        url: request.url,
+        headers: request.headers,
+        body: text ? (JSON.parse(text) as unknown) : null,
+      });
+      return respond();
+    },
+  });
+  return { client, sent };
+}
+
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+const hintsInput: AnswerInput = {
+  ...input,
+  mode: 'hints',
+  question: null,
+  context: { ...input.context, statementDate: null, sectionKey: null },
+  passages: [],
+};
+
+const hintsRequest: HintsRequest = {
+  tenant: 'psc',
+  subjectRef: 'declaration:0192f1a0-5a11-7000-8000-000000000002',
+  promptVersion: 1,
+  input: hintsInput,
+};
+
+const hintsOutput = {
+  ...job.output,
+  blocks: [
+    {
+      text: 'Give what the vehicle would sell for.',
+      passageIds: [],
+      sectionLink: { sectionKey: 'statement:officer', fieldPath: '/assets/0/value' },
+    },
+  ],
+};
+
+describe('HttpAiGatewayClient hints and feedback', () => {
+  it('runs a hints job that waits for its output, acting for the Commission', async () => {
+    const { client, sent } = jsonClientAnswering(() => json(200, { ...job, output: hintsOutput }));
+
+    const ran = await client.runHints(hintsRequest, KEY);
+
+    expect(ran).toEqual({ id: job.id, status: 'succeeded', output: hintsOutput });
+    expect(sent[0]).toMatchObject({
+      method: 'POST',
+      url: 'http://ai-gateway.test/internal/v1/tasks/answer-declarant-question',
+    });
+    expect(sent[0]?.headers.get('idempotency-key')).toBe(KEY);
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    conforms('TaskRequest', sent[0]?.body);
+    expect(sent[0]?.body).toEqual({
+      dataClass: 'synthetic',
+      subjectRef: hintsRequest.subjectRef,
+      promptVersion: 1,
+      waitSeconds: 10,
+      input: hintsInput,
+    });
+  });
+
+  it('reads a job still running after the wait, and a failed one, as having no output', async () => {
+    const running = jsonClientAnswering(() =>
+      json(202, { ...job, status: 'running', output: null, finishedAt: null }),
+    );
+    const failed = jsonClientAnswering(() =>
+      json(200, { ...job, status: 'failed', reason: 'validation', output: null }),
+    );
+
+    expect(await running.client.runHints(hintsRequest, KEY)).toEqual({
+      id: job.id,
+      status: 'running',
+      output: null,
+    });
+    expect(await failed.client.runHints(hintsRequest, KEY)).toMatchObject({
+      status: 'failed',
+      output: null,
+    });
+  });
+
+  it('treats a refusal or a rate limit as unavailable', async () => {
+    for (const status of [400, 422, 429, 503]) {
+      const { client } = jsonClientAnswering(() => json(status, { type: 'about:blank', status }));
+      await expect(client.runHints(hintsRequest, KEY)).rejects.toBeInstanceOf(AiGatewayUnavailable);
+    }
+  });
+
+  it('forwards a rating to the job, and reads an unknown job as not recorded', async () => {
+    const feedback = {
+      reviewerSubject: 'declarant-sub',
+      block: null,
+      rating: 'not-helpful' as const,
+      reason: 'unclear' as const,
+      note: null,
+    };
+    const { client, sent } = jsonClientAnswering(() =>
+      json(200, { jobId: job.id, ...feedback, at: '2027-11-15T09:00:00.000Z' }),
+    );
+    const unknown = jsonClientAnswering(() => json(404, { type: 'about:blank', status: 404 }));
+
+    expect(await client.recordFeedback('psc', job.id, feedback)).toBe(true);
+    expect(await unknown.client.recordFeedback('psc', job.id, feedback)).toBe(false);
+    expect(sent[0]).toMatchObject({
+      method: 'PUT',
+      url: `http://ai-gateway.test/internal/v1/jobs/${job.id}/feedback`,
+      body: feedback,
+    });
+    expect(sent[0]?.headers.get('x-acting-tenant')).toBe('psc');
+    conforms('FeedbackInput', sent[0]?.body);
   });
 });
