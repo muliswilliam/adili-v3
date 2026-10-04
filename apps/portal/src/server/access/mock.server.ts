@@ -120,6 +120,12 @@ const closeOnDownload = new Set<string>();
 const failFirstDownload = new Set<string>();
 let failNext = false;
 let seeded = false;
+/**
+ * The mock's clock runs from the instant it was seeded as of, so a store seeded as of a fixed
+ * time (in tests) answers as of that time, not the wall clock; 0 when seeded as of now.
+ */
+let clockOffsetMs = 0;
+const mockNow = () => Date.now() + clockOffsetMs;
 let latencyMs = 600;
 
 /** How long submit and withdraw take; 0 for tests. */
@@ -724,6 +730,7 @@ function seedRequest(seed: Seed, id: string, now: number): AccessRequest {
 
 /** Clears the store and seeds it again as of `now`; for tests. */
 export function resetAccessMock(now = Date.now()) {
+  clockOffsetMs = now - Date.now();
   requests.clear();
   sequences.clear();
   answered.clear();
@@ -792,7 +799,7 @@ async function submit(request: Request): Promise<Response> {
       errors: [{ path: 'responsibleCommission', message: 'no such Commission' }],
     });
   }
-  const now = new Date();
+  const now = new Date(mockNow());
   const submittedAt = now.toISOString();
   const reference = nextReference(commission, now);
   const id = crypto.randomUUID();
@@ -828,7 +835,7 @@ function withdraw(id: string, key: string | null): Response {
   if (!found) return problem(404, 'No such request of the applicant');
   if (decideOnWithdraw.has(id)) {
     decideOnWithdraw.delete(id);
-    const decidedAt = new Date().toISOString();
+    const decidedAt = new Date(mockNow()).toISOString();
     found.status = 'denied';
     found.decision = {
       outcome: 'deny',
@@ -843,7 +850,7 @@ function withdraw(id: string, key: string | null): Response {
   if (DECIDED_ACCESS_STATUSES.has(found.status))
     return problem(409, 'A decision is final', 'request-decided');
   if (CLOSED.has(found.status)) return problem(409, 'The request is closed', 'request-closed');
-  const at = new Date().toISOString();
+  const at = new Date(mockNow()).toISOString();
   found.status = 'withdrawn';
   found.timeline.push(
     entry('withdrawn', at, found.reference, 'Withdrawn by the applicant', found.formK.partI.name),
@@ -881,7 +888,7 @@ function packageDownload(documentId: string): Response {
   const found = packageRequest(documentId);
   const pkg = found?.package;
   if (!found || !pkg) return problem(404, 'Not found');
-  const now = new Date();
+  const now = new Date(mockNow());
   if (closeOnDownload.delete(found.id)) {
     pkg.downloadExpiresAt = now.toISOString();
     found.timeline.push(
