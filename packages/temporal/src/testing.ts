@@ -50,6 +50,8 @@ export class WorkflowTestEnvironment {
   private readonly steadyClient: Client;
   /** The workflow `run` drives now (one at a time), which `skipTime` lets settle around each skip. */
   private runWorkflow: WorkflowHandle | undefined;
+  /** Whether a `run` is under way (from before its workflow starts). */
+  private running = false;
 
   private constructor(readonly env: TestWorkflowEnvironment) {
     this.steadyClient = new Client({ connection: env.connection, namespace: env.namespace });
@@ -82,21 +84,22 @@ export class WorkflowTestEnvironment {
     options: ExecuteWorkflowOptions<W>,
     body: (handle: WorkflowHandleWithFirstExecutionRunId<W>) => Promise<R>,
   ): Promise<R> {
-    return this.withWorker(options, async (taskQueue) => {
-      const handle = await this.steadyClient.workflow.start(
-        workflow,
-        this.startOptions(taskQueue, options),
-      );
-      if (this.runWorkflow) {
-        throw new Error('WorkflowTestEnvironment.run drives one workflow at a time');
-      }
-      this.runWorkflow = handle;
-      try {
-        return await body(handle);
-      } finally {
-        this.runWorkflow = undefined;
-      }
-    });
+    if (this.running) throw new Error('WorkflowTestEnvironment.run drives one workflow at a time');
+    // Claimed before anything starts, so a second run fails without leaving a workflow behind.
+    this.running = true;
+    try {
+      return await this.withWorker(options, async (taskQueue) => {
+        const handle = await this.steadyClient.workflow.start(
+          workflow,
+          this.startOptions(taskQueue, options),
+        );
+        this.runWorkflow = handle;
+        return body(handle);
+      });
+    } finally {
+      this.running = false;
+      this.runWorkflow = undefined;
+    }
   }
 
   private async withWorker<W extends Workflow, R>(
@@ -140,7 +143,7 @@ export class WorkflowTestEnvironment {
    * own time), so the next one is due just after the skip ends: a signal sent then, its task slow
    * on a loaded machine, cancelled a timer that had fired meanwhile. So the skip waits for the
    * workflow to settle before it starts and after it ends, and goes on past any timer due within
-   * `TIMER_GUARD_MS`, a few milliseconds more of test time.
+   * `TIMER_GUARD_MS`.
    *
    * Limits in `run`: a skip can go past its target by up to `TIMER_GUARD_MS` per timer it skips
    * past (at most `MAX_GUARD_SKIPS` of them), so a test cannot assert that a timer has not fired
