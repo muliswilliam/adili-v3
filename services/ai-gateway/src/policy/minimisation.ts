@@ -160,7 +160,7 @@ const WORD_RUN = /(?<![\p{L}\p{N}]|[\p{L}\p{N}][ ./])[\p{L}\p{N}]+(?:[ ./][\p{L}
 const WORD = /[\p{L}\p{N}]+/gu;
 const CAPITALS = /^\p{Lu}+$/u;
 const CAPITALS_AND_DIGITS = /^[\p{Lu}\p{N}]+$/u;
-const DIGITS = /^\p{N}+$/u;
+const DIGITS = /^\d+$/u;
 
 /**
  * Land parcel numbers, as `String.replace` finds them: a section of capitals (two letters or
