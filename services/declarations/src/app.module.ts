@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
-import { CoreModule, IdempotencyModule } from '@adili/api-kit';
-import { CacheModule, ValkeyReadinessCheck } from '@adili/cache';
+import { CoreModule, IdempotencyModule, RateLimitModule } from '@adili/api-kit';
+import { CacheModule, ValkeyRateLimitStore, ValkeyReadinessCheck } from '@adili/cache';
 import {
   DATABASE,
   DatabaseModule,
@@ -16,6 +16,7 @@ import {
   TemporalWorkerReadinessCheck,
 } from '@adili/temporal';
 
+import { AssistantModule } from './assistant/assistant.module.js';
 import { AcknowledgementModule } from './acknowledgement/acknowledgement.module.js';
 import { config, SERVICE_NAME } from './config.js';
 import { schema } from './db/schema.js';
@@ -63,6 +64,7 @@ class FieldCipherModule {}
       namespace: config.TEMPORAL_NAMESPACE,
     }),
     CacheModule.forRoot({ url: config.VALKEY_URL, keyPrefix: `${SERVICE_NAME}:` }),
+    RateLimitModule.forRoot({ policies: config.RATE_LIMITS, store: ValkeyRateLimitStore }),
     FieldCipherModule,
     ObligationsModule,
     DraftsModule,
@@ -70,6 +72,7 @@ class FieldCipherModule {}
     AcknowledgementModule,
     DisclosureModule,
     HelpModule,
+    AssistantModule,
     ServiceReadsModule,
     SuggestionsModule,
   ],

@@ -35,6 +35,7 @@ import { stepLabel } from '../../components/actions/messages';
 import { isRecord, json, type MockCaller, problem, readJson } from '../mock-http';
 import type { components } from './api.gen';
 import type { MockApprovalSource } from './approvals-mock.server';
+import { reviewClock } from './mock-clock.server';
 
 type Schemas = components['schemas'];
 type Ladder = Schemas['Ladder'];
@@ -81,13 +82,6 @@ const replies = new Map<string, Response>();
 const letters = new Map<string, string>();
 const attachments = new Map<string, string>();
 let sequence = 400;
-let clock = { seeded: 0, real: 0 };
-
-/** The mock's "now": the seeded time, moving on with the real clock. */
-function now(): number {
-  return clock.seeded + (Date.now() - clock.real);
-}
-
 function iso(ms: number): string {
   return new Date(ms).toISOString();
 }
@@ -95,7 +89,7 @@ function iso(ms: number): string {
 function nextReference(): string {
   sequence += 1;
   const check = '0123456789ABCDEFGHJKLMNPQRTUVWXY'[(sequence * 7) % 32] ?? 'K';
-  return `ADM-${ISSUER}-${String(new Date(now()).getUTCFullYear())}-${String(sequence).padStart(7, '0')}-${check}`;
+  return `ADM-${ISSUER}-${String(new Date(reviewClock.now()).getUTCFullYear())}-${String(sequence).padStart(7, '0')}-${check}`;
 }
 
 function hex(n: number, width: number): string {
@@ -223,7 +217,6 @@ export function resetActionsMock(seededAt: number = Date.now()) {
   letters.clear();
   attachments.clear();
   sequence = 400;
-  clock = { seeded: seededAt, real: Date.now() };
   const base = seededAt;
   const ids = MOCK_LADDER_IDS;
 
@@ -478,7 +471,7 @@ export function resetActionsMock(seededAt: number = Date.now()) {
 }
 
 function ensureSeeded() {
-  if (ladders.size === 0) resetActionsMock();
+  if (ladders.size === 0) resetActionsMock(reviewClock.now());
 }
 
 /** A ladder as the mock holds it (tests). */
@@ -685,7 +678,7 @@ function approve(caller: MockCaller, id: string): Response {
   if (refused) return refused;
   if (action.status !== 'proposed')
     return problem(409, 'This step is not waiting for a decision', 'not-proposed');
-  const at = now();
+  const at = reviewClock.now();
   const reference = nextReference();
   const window = LADDER_WINDOW_DAYS[action.step];
   const approved: Action = {
@@ -721,7 +714,7 @@ async function decline(request: Request, caller: MockCaller, id: string): Promis
   if (refused) return refused;
   if (action.status !== 'proposed')
     return problem(409, 'This step is not waiting for a decision', 'not-proposed');
-  const at = iso(now());
+  const at = reviewClock.isoNow();
   const declined: Action = {
     ...action,
     status: 'declined',
@@ -753,7 +746,7 @@ function restart(caller: MockCaller, id: string): Response {
     `${stored.ladder.steps[0]?.id.slice(0, -4) ?? 'ac710000-0000-4000-8000-00000000'}${hex(n, 4)}`,
     id,
     step,
-    now(),
+    reviewClock.now(),
   );
   stored.ladder = {
     ...stored.ladder,
@@ -819,7 +812,7 @@ export function mockActionDocumentsFetch(request: Request): Promise<Response> {
     return Promise.resolve(
       json(200, {
         downloadUrl: `/api/mock-files/${download[1]}`,
-        expiresAt: iso(Date.now() + 5 * 60_000),
+        expiresAt: iso(reviewClock.now() + 5 * 60_000),
         sha256: 'b5d4045c3f466fa91fe2cc6abe79232a1a57cdf104f7a26e716e0a1e2789df78',
       }),
     );

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { Test } from '@nestjs/testing';
-import { TokenVerifier } from '@adili/api-kit';
+import { RATE_LIMIT_POLICIES, type RateLimitPolicy, TokenVerifier } from '@adili/api-kit';
 import {
   createDatabase,
   DATABASE,
@@ -34,9 +34,11 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
+import { AiGatewayClient } from '../../src/ai-gateway/ai-gateway-client.js';
 import { AcknowledgementConsumer } from '../../src/acknowledgement/acknowledgement.consumer.js';
 import { AppModule } from '../../src/app.module.js';
 import { Clock } from '../../src/clock.js';
+import { config } from '../../src/config.js';
 import type { Transaction } from '../../src/db/transaction.js';
 import { type DeclarationsSchema, schema, tenantPolicyCache } from '../../src/db/schema.js';
 import { DirectoryClient } from '../../src/directory/directory-client.js';
@@ -57,6 +59,7 @@ import {
   ObligationWorkflows,
   type StoppedWorkflow,
 } from '../../src/obligations/workflows.js';
+import { FakeAiGateway } from './fake-ai-gateway.js';
 import { FakeDirectory } from './fake-directory.js';
 import { FakeDocuments } from './fake-documents.js';
 import { FakeIntegrationGateway } from './fake-integration-gateway.js';
@@ -238,6 +241,8 @@ export interface DeclarationsApi {
   notifications: FakeNotifications;
   /** The integration-gateway's registry lookups (spec 05b), run by the lookup workflow. */
   gateway: FakeIntegrationGateway;
+  /** The ai-gateway's answer stream (spec 11): records what Ask Adili sends and answers it. */
+  aiGateway: FakeAiGateway;
   /** What `ObligationWorkflows` was told (`recording` mode only). */
   workflows: RecordingWorkflows;
   /** Starts and signals sent to Temporal (`fake` mode only). */
@@ -248,6 +253,12 @@ export interface DeclarationsApi {
   /** The Commissions whose cycle-opening schedule was ensured (not in `real` mode). */
   cycleSchedules: RecordingCycleOpeningSchedules;
   clock: TestClock;
+  /**
+   * The rate limits by group, as the service reads them on each request (`RATE_LIMITS` of
+   * vitest.integration.config.ts); a test may change a configured group's, and `reset` puts
+   * them back.
+   */
+  rateLimits: Record<string, RateLimitPolicy>;
   /**
    * The corpus files the service imports on boot and on a platform-admin re-import; the
    * committed corpus unless a test sets others. `reset` does not re-import.
@@ -271,6 +282,13 @@ export interface DeclarationsApi {
     caller: Caller,
     options?: { headers?: Record<string, string>; body?: unknown },
   ): ReturnType<NestFastifyApplication['inject']>;
+  /** A bearer token for the caller, for requests made over the network (`listen`). */
+  token(caller: Caller): Promise<string>;
+  /**
+   * Starts listening on a free local port, for what `inject` cannot do (a caller that hangs up
+   * midway); the service's base URL. Once per suite: later calls answer the same URL.
+   */
+  listen(): Promise<string>;
   /** `GET` without a bearer token. */
   anonymous(url: string): ReturnType<NestFastifyApplication['inject']>;
   /** Empties every table except seeded reference data. */
@@ -282,7 +300,7 @@ export interface DeclarationsApi {
  * The declarations service over HTTP and at its event inbox, against a real Postgres
  * (`TEST_DATABASE_URL`) with a private schema per suite and the committed migrations applied. The
  * directory is `FakeDirectory`, documents `FakeDocuments`, notifications `FakeNotifications`, the
- * integration-gateway `FakeIntegrationGateway`, the field cipher `FakeCipher`, workflows are
+ * integration-gateway `FakeIntegrationGateway`, the ai-gateway `FakeAiGateway`, the field cipher `FakeCipher`, workflows are
  * recorded (see `WorkflowMode`), tokens are signed locally and the outbox relay is off (events stay
  * in the outbox for assertions). The service's Temporal worker polls the suite's own task queue.
  * The test role owns the tables, so FORCE row-level security applies to it as to the service's
@@ -318,10 +336,13 @@ export async function startDeclarationsApi({
   const temporal = new FakeTemporal();
   const notifications = new FakeNotifications();
   const gateway = new FakeIntegrationGateway();
+  const aiGateway = new FakeAiGateway();
   const clock = new TestClock();
   const cycleSchedules = new RecordingCycleOpeningSchedules();
   const cipher = new FakeCipher();
   const corpus = new TestCorpusFiles();
+  const rateLimits = { ...config.RATE_LIMITS };
+  let listening: Promise<string> | undefined;
   let builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DATABASE)
     .useValue(db)
@@ -335,12 +356,16 @@ export async function startDeclarationsApi({
     .useValue(notifications)
     .overrideProvider(IntegrationGatewayClient)
     .useValue(gateway)
+    .overrideProvider(AiGatewayClient)
+    .useValue(aiGateway)
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(FieldCipher)
     .useValue(cipher)
     .overrideProvider(CorpusFiles)
     .useValue(corpus)
+    .overrideProvider(RATE_LIMIT_POLICIES)
+    .useValue(rateLimits)
     .overrideProvider(OutboxRelay)
     .useValue({})
     // The hourly schedule lives on the shared Temporal; suites run the sweep themselves.
@@ -388,6 +413,7 @@ export async function startDeclarationsApi({
     documents,
     notifications,
     gateway,
+    aiGateway,
     workflows,
     temporal,
     cipher,
@@ -398,6 +424,7 @@ export async function startDeclarationsApi({
     sweep: app.get(ObligationsSweep),
     cycleSchedules,
     clock,
+    rateLimits,
     corpus,
     consumers: app.get(DirectoryEventsConsumer),
     acknowledgementConsumers: app.get(AcknowledgementConsumer),
@@ -422,12 +449,23 @@ export async function startDeclarationsApi({
       if (!publisher) throw new Error('start the harness with { events: true } to publish');
       await lastValueFrom(publisher.emit(event.type, event), { defaultValue: undefined });
     },
+    token: signer,
+    listen() {
+      listening ??= app
+        .listen(0, '127.0.0.1')
+        .then(() => app.getUrl())
+        .catch((error: unknown) => {
+          listening = undefined;
+          throw error;
+        });
+      return listening;
+    },
     anonymous(path) {
       return app.inject({ method: 'GET', url: path });
     },
     async reset() {
       await db.execute(
-        sql`truncate help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
+        sql`truncate assistant_messages, assistant_conversations, help_articles, suggestions, suggestion_sets, suggestion_consents, declaration_items, declaration_versions, numbering_counters, idempotency_keys, obligation_drafts, declaration_attachments, declaration_sections, declarations, reminder_messages, obligation_reminders, filing_obligations, roster_snapshots, tenant_policy_cache, commission_refs, cycle_openings, outbox, inbox`,
       );
       await db.execute(sql`update cycle_calendar set opening_lead_days = 120`);
       cycleSchedules.reset();
@@ -435,9 +473,11 @@ export async function startDeclarationsApi({
       documents.reset();
       notifications.reset();
       gateway.reset();
+      aiGateway.reset();
       workflows.reset();
       temporal.reset();
       clock.reset();
+      Object.assign(rateLimits, config.RATE_LIMITS);
       cipher.calls.length = 0;
       corpus.reset();
     },

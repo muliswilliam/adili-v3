@@ -21,6 +21,7 @@
  * (`provider-unavailable`) when the picks include the Holdings outside Kenya flag.
  */
 import { isRecord, json, problem, readJson } from '../mock-http';
+import { reviewClock } from './mock-clock.server';
 import type { Assignee, CopilotView, Flag } from './types';
 
 export const MOCK_COPILOT_DELAY_MS = 6_000;
@@ -815,7 +816,7 @@ async function requestDraft(
   if (!key) return problem(400, 'Idempotency-Key required');
   const replay = draftKeys.get(`${caller.subject}|${caseId}|${key}`);
   const replayed = replay ? drafts.get(replay) : undefined;
-  if (replayed) return draftAnswer(replayed, Date.now());
+  if (replayed) return draftAnswer(replayed, reviewClock.now());
 
   const body = await readJson(request);
   const flagIds = isRecord(body) && Array.isArray(body.flagIds) ? body.flagIds : null;
@@ -833,11 +834,11 @@ async function requestDraft(
   ) {
     return selectionNotOnCase();
   }
-  const ready = draftFor(caseId, flagIds, itemIds, language, Date.now());
+  const ready = draftFor(caseId, flagIds, itemIds, language, reviewClock.now());
   if (!ready) return selectionNotOnCase();
 
   await wait(MOCK_DRAFT_WAIT_MS);
-  const now = Date.now();
+  const now = reviewClock.now();
   const id = crypto.randomUUID();
   const picks = flagIds.length + itemIds.length;
   const draft: StoredDraft['draft'] = flagIds.includes(F.foreign)
@@ -889,7 +890,7 @@ export async function copilotRoute(
 ): Promise<Response | null> {
   const { pathname } = new URL(request.url);
   const method = request.method;
-  const now = Date.now();
+  const now = reviewClock.now();
 
   const draftRequest = /^\/v1\/review\/cases\/([^/]+)\/copilot\/drafts$/.exec(pathname);
   if (draftRequest?.[1] && method === 'POST') {
