@@ -76,6 +76,20 @@ export const en = {
   previousPage: 'Previous page',
   nextPage: 'Next page',
 
+  patternsTitle: 'Notable patterns',
+  patternsCount: (count: number) =>
+    `${formatNumber(count)} notable pattern${count === 1 ? '' : 's'}`,
+  patternsAbout: 'About notable patterns',
+  patternsTip:
+    "Computed from this and prior years' figures. AI narrates these; it does not find them.",
+  patternsFailed: 'Notable patterns could not be loaded.',
+  retry: 'Retry',
+  noPatternsTitle: 'No notable patterns',
+  noPatternsText: (fy: string) => `Nothing crossed the thresholds for FY ${fy}.`,
+  patternsPagination: 'Notable patterns pages',
+  patternsRows: (count: number) => `${formatNumber(count)} notable patterns`,
+  citedToast: 'Cited in findings. Rewrite the paragraph in your words.',
+
   narrativeTitle: 'Narrative',
   writtenByAnalyst: 'Written by the analyst',
   frozenAtApproval: 'Frozen at approval',

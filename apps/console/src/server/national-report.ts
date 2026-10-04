@@ -16,8 +16,9 @@ import {
   type NationalReportResult,
   saveNationalReportNarrative,
 } from './national-report.server';
+import { loadPatternCandidates } from './pattern-candidates.server';
 import { reportingToday } from './reporting/today.server';
-import type { NationalReport } from './reporting/types';
+import type { NationalReport, PatternCandidate } from './reporting/types';
 import type { ServiceResult } from './service-call';
 
 /**
@@ -55,6 +56,13 @@ export const getNationalReportPage = createServerFn({ method: 'GET' })
       page: await asReportingViewer((client) => loadNationalReportPage(client, fy)),
     };
   });
+
+/** The year's pattern candidates, for the Notable patterns panel (spec 09b, #331). */
+export const getPatternCandidatesFn = createServerFn({ method: 'GET' })
+  .validator(z.object({ fy: financialYear }))
+  .handler(({ data }): Promise<NationalReportResult<PatternCandidate[]> | Unauthenticated> =>
+    asReportingViewer((client) => loadPatternCandidates(client, data.fy)),
+  );
 
 export const buildNationalReportFn = createServerFn({ method: 'POST' })
   .validator(z.object({ fy: financialYear }))

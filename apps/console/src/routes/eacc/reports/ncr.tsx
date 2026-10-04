@@ -4,12 +4,17 @@ import { z } from 'zod';
 import { ComplianceReportsTabs } from '../../../components/eacc-intake/reports-tabs';
 import { messages as m } from '../../../components/national-report/messages';
 import { NationalReportView } from '../../../components/national-report/national-report-view';
+import {
+  type PatternCandidatesLoad,
+  useNcrPatterns,
+} from '../../../components/national-report/notable-patterns';
 import { goToSignIn, signInRedirect } from '../../../components/sign-in-redirect';
 import {
   approveNationalReportFn,
   buildNationalReportFn,
   getNationalReportPage,
   getNationalReportPdf,
+  getPatternCandidatesFn,
   type NationalReportScreen,
   saveNationalReportNarrativeFn,
 } from '../../../server/national-report';
@@ -41,6 +46,8 @@ export const Route = createFileRoute('/eacc/reports/ncr')({
   component: NcrLoaded,
 });
 
+const loadCandidates: PatternCandidatesLoad = (fy) => getPatternCandidatesFn({ data: { fy } });
+
 function NcrLoading() {
   return <NcrPage screen={null} />;
 }
@@ -57,6 +64,22 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
   const { viewer, roles, subject } = Route.useRouteContext();
   const navigate = useNavigate({ from: '/eacc/reports/ncr' });
   const fy = screen?.fy ?? search.fy;
+  const page = search.page ?? 1;
+  const onPageChange = (next: number) => {
+    void navigate({
+      search: (previous) => ({ ...previous, page: next > 1 ? next : undefined }),
+      resetScroll: false,
+    });
+  };
+  const result = screen ? screen.page : null;
+  const extensions = useNcrPatterns({
+    fy: fy ?? 0,
+    report: result?.ok ? result.data.report : null,
+    load: loadCandidates,
+    page,
+    onPageChange,
+    onUnauthenticated: goToSignIn,
+  });
   return (
     <NationalReportView
       fy={fy ?? 0}
@@ -65,14 +88,9 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
       onYearChange={(next) => {
         void navigate({ search: { fy: next } });
       }}
-      page={search.page ?? 1}
-      onPageChange={(page) => {
-        void navigate({
-          search: (previous) => ({ ...previous, page: page > 1 ? page : undefined }),
-          resetScroll: false,
-        });
-      }}
-      result={screen ? screen.page : null}
+      page={page}
+      onPageChange={onPageChange}
+      result={result}
       viewer={{ subject: subject ?? '', name: viewer.user.name, roles }}
       build={(year) => buildNationalReportFn({ data: { fy: year } })}
       saveNarrative={(year, narrative) =>
@@ -85,6 +103,7 @@ function NcrPage({ screen }: { screen: NationalReportScreen | null }) {
       onUnauthenticated={() => {
         goToSignIn();
       }}
+      extensions={extensions}
     />
   );
 }
