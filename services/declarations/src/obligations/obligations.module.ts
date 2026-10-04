@@ -21,7 +21,8 @@ import {
 import { ObligationWorkflowsModule } from './workflow/obligation-workflows.module.js';
 import { SweepSchedule } from './workflow/sweep.js';
 import { RegistryLookupsModule } from '../suggestions/registry-lookups.module.js';
-import { SuggestionActivities } from '../suggestions/workflow/activities.js';
+import { DocumentReadingsModule } from '../suggestions/document-readings.module.js';
+import { ReadingActivities, SuggestionActivities } from '../suggestions/workflow/activities.js';
 
 /**
  * The worker's workflows module, every workflow of the service (`src/workflows.ts`):
@@ -36,7 +37,8 @@ const workflowsPath = fileURLToPath(
  * declarants and staff, and driven through their dates and reminders by one
  * `FilingObligationWorkflow` each on the declarations worker. Each biennial cycle is opened per
  * Commission by `CycleOpeningWorkflow`, fired by the Commission's schedule. The worker also hosts
- * the registry lookup workflow of the suggestions (spec 05b) and its activities.
+ * the registry lookup and document reading workflows of the suggestions (spec 05b) and their
+ * activities.
  */
 @Module({
   imports: [
@@ -48,8 +50,13 @@ const workflowsPath = fileURLToPath(
       namespace: config.TEMPORAL_NAMESPACE,
       taskQueue: config.TEMPORAL_TASK_QUEUE,
       workflowsPath,
-      activities: [ObligationActivities, CycleOpeningActivities, SuggestionActivities],
-      imports: [ObligationWorkflowsModule, RegistryLookupsModule],
+      activities: [
+        ObligationActivities,
+        CycleOpeningActivities,
+        SuggestionActivities,
+        ReadingActivities,
+      ],
+      imports: [ObligationWorkflowsModule, RegistryLookupsModule, DocumentReadingsModule],
     }),
   ],
   controllers: [ObligationsController, DirectoryEventsConsumer],

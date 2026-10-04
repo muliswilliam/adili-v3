@@ -18,6 +18,16 @@ export interface CleanUpload {
   size: number;
 }
 
+/** A short-lived link to a clean upload's bytes, for a service to fetch them (or hand on). */
+export interface UploadDownload {
+  /** Presigned GET, valid for a few minutes. */
+  downloadUrl: string;
+  /** Hex SHA-256 of the clean object. */
+  sha256: string;
+  /** The content type documents sniffed from the bytes, e.g. `application/pdf`. */
+  contentType: string;
+}
+
 /** The Commission has no upload with this id: unknown, or another Commission's. */
 export class UploadNotFound extends Error {
   constructor(readonly uploadId: string) {
@@ -53,6 +63,17 @@ export abstract class DocumentsClient {
    * `DocumentsUnavailable`.
    */
   abstract getCleanUpload(tenant: string, uploadId: string): Promise<CleanUpload>;
+
+  /**
+   * A short-lived download link to the Commission's clean upload, audited by documents as read
+   * for `actingSubject` (the declarant). Throws `UploadNotFound`, `UploadNotClean` or
+   * `DocumentsUnavailable`.
+   */
+  abstract getDownload(
+    tenant: string,
+    uploadId: string,
+    actingSubject: string,
+  ): Promise<UploadDownload>;
 
   /**
    * Records that the upload is linked, so the documents orphan sweep keeps it. Idempotent.

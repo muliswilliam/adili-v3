@@ -96,6 +96,7 @@ import { submissionResultSchema, submitProblemSchema } from './submission/repres
 import {
   acceptSuggestionRequestSchema,
   dismissSuggestionRequestSchema,
+  extractAttachmentRequestSchema,
   registryLookupRequestSchema,
   suggestionAcceptanceSchema,
   suggestionSchema,
@@ -193,4 +194,5 @@ export const OPENAPI_SCHEMAS: Record<string, z.ZodType> = {
   AcceptSuggestionRequest: acceptSuggestionRequestSchema,
   SuggestionAcceptance: suggestionAcceptanceSchema,
   DismissSuggestionRequest: dismissSuggestionRequestSchema,
+  ExtractAttachmentRequest: extractAttachmentRequestSchema,
 };
