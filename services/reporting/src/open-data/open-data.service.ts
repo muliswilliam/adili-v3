@@ -25,6 +25,7 @@ import {
   NcrNotBuilt,
   OpenDataReleaseBuilder,
   ReconciliationFailed,
+  ReleaseBuildInProgress,
 } from './release-builder.js';
 import {
   OpenDataReleasePublisher,
@@ -86,7 +87,8 @@ export class OpenDataService {
    * withdrawn; it is published deliberately). 409 `fy-not-started` for a snapshot of a year not
    * started, `ncr-not-built` for an annual release before the year's NCR is built,
    * `ncr-not-approved` before it is approved, `annual-release-published` for an annual release
-   * while one of the year is published, `reconciliation-failed` when the tables' national totals
+   * while one of the year is published, `release-building` while another build of the year and
+   * kind is under way, `reconciliation-failed` when the tables' national totals
    * differ from their source's (a fault of the table builder); 503 `storage-unavailable` while
    * object storage cannot be reached, `directory-unavailable` while the directory cannot (a
    * snapshot of the live projections).
@@ -115,6 +117,12 @@ export class OpenDataService {
         );
       }
       if (error instanceof AnnualReleasePublished) throw annualReleasePublished();
+      if (error instanceof ReleaseBuildInProgress) {
+        throw conflict(
+          'release-building',
+          'A release of this year and kind is being built. Try again once it is done.',
+        );
+      }
       if (error instanceof ReconciliationFailed) {
         throw conflict(
           'reconciliation-failed',

@@ -76,7 +76,7 @@ export class OpenDataController {
   @ApiProblemResponse(403, EACC_ONLY)
   @ApiProblemResponse(
     409,
-    'Problem code `fy-not-started`, `ncr-not-built`, `ncr-not-approved`, `annual-release-published` or `reconciliation-failed`',
+    'Problem code `fy-not-started`, `ncr-not-built`, `ncr-not-approved`, `annual-release-published`, `release-building` or `reconciliation-failed`',
   )
   @ApiProblemResponse(503, 'Object storage or the directory could not be reached')
   build(

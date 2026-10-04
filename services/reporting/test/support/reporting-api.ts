@@ -338,7 +338,7 @@ export async function startReportingApi(): Promise<ReportingApi> {
       // compliance_reports before report_receipts, the order the submission activities lock
       // them in, so a straggling activity write waits instead of deadlocking.
       await db.execute(
-        sql`truncate open_data_files, open_data_releases, referral_intake, national_report_narrative_drafts, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, compliance_reports, report_receipts, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, copilot_case_facts, ai_feedback_facts, numbering_counters, idempotency_keys, outbox, inbox`,
+        sql`truncate open_data_files, open_data_releases, open_data_release_builds, referral_intake, national_report_narrative_drafts, national_report_paragraphs, national_report_aggregates, national_reports, report_remarks, report_reminders, report_chases, compliance_reports, report_receipts, obligation_facts, clarification_facts, action_facts, determination_facts, referral_facts, copilot_case_facts, ai_feedback_facts, numbering_counters, idempotency_keys, outbox, inbox`,
       );
       declarations.reset();
       review.reset();

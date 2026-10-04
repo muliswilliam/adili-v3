@@ -793,7 +793,10 @@ paths:
         approval it is not published by itself, but deliberately through
         `publishOpenDataRelease`. The files (JSON and CSV per table, the release JSON) are
         written to object storage with their SHA-256, and the release is recorded as `preview`,
-        the next version of the year's releases of its kind. Emits `open-data.release.built.v1`
+        the next version of the year's releases of its kind. The build takes its version before
+        the files are written and records the release once they are, so one of a year and kind
+        runs at a time (409 `release-building`); a build whose files could not be written (503
+        `storage-unavailable`) records no release and gives its version back. Emits `open-data.release.built.v1`
         (release id, year, kind, version; no figures). A retry with the same Idempotency-Key
         replays the build.
       parameters:
@@ -832,7 +835,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '409':
-          description: 'A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); or the tables do not reconcile with their source (`reconciliation-failed`)'
+          description: 'A snapshot of a year that has not started (`fy-not-started`); for an annual release, the year has no national consolidated report (`ncr-not-built`), it is not approved (`ncr-not-approved`) or an annual release of the year is published (`annual-release-published`); another build of the year and kind is under way (`release-building`); or the tables do not reconcile with their source (`reconciliation-failed`)'
           content:
             application/problem+json:
               schema:

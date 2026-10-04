@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { errorType } from '@adili/api-kit';
 import { type Database, InjectDatabase, withTenant } from '@adili/data-access';
 import { EventPublisher } from '@adili/events';
 import { EACC_TENANT } from '@adili/roles';
@@ -27,7 +28,12 @@ import { OPEN_DATA_RELEASE_BUILT, type OpenDataReleaseBuiltData } from './events
 import { CONTENT_TYPES, datasetFiles, objectKeyOf, type ReleaseSourceName } from './files.js';
 import { OpenDataFiles } from './open-data-files.js';
 import { type OpenDataReleaseView, openDataReleaseView } from './representation.js';
-import { openDataFiles, openDataReleases, type ReleaseKind } from './schema.js';
+import {
+  openDataFiles,
+  openDataReleaseBuilds,
+  openDataReleases,
+  type ReleaseKind,
+} from './schema.js';
 import { SUPPRESSION_THRESHOLD } from './suppression.js';
 import {
   buildReleaseTables,
@@ -96,6 +102,30 @@ export class ReconciliationFailed extends Error {
 }
 
 /**
+ * How long a build may run before another build of its year and kind takes it over as failed (a
+ * process that died mid-build): longer than the release workflow's activity timeout.
+ */
+export const BUILD_LEASE_MS = 10 * 60 * 1000;
+
+/** Another build of the year's releases of the kind is under way. */
+export class ReleaseBuildInProgress extends Error {
+  override readonly name = 'ReleaseBuildInProgress';
+
+  constructor(fy: number, kind: ReleaseKind) {
+    super(`An open-data ${kind} release of ${String(fy)} is being built`);
+  }
+}
+
+/** The build ran past its lease and was taken over as failed: its release is not recorded. */
+export class ReleaseBuildAbandoned extends Error {
+  override readonly name = 'ReleaseBuildAbandoned';
+
+  constructor(releaseId: string) {
+    super(`The build of open-data release ${releaseId} was taken over before it finished`);
+  }
+}
+
+/**
  * Builds an open-data release (spec 09b): tables -> suppression -> reconciliation -> dataset
  * files -> the release, as one step any caller runs, the snapshot endpoint and
  * `OpenDataReleaseWorkflow`'s activity on NCR approval (#352).
@@ -118,17 +148,25 @@ export class ReconciliationFailed extends Error {
  * it guards the table builder, not data drift. Suppression is the same either way. The files
  * (JSON and CSV per table, the release JSON naming the source) go to object storage with their
  * SHA-256, and the release is recorded as `preview`, version 1, 2, ... per year and kind, with
- * `open-data.release.built.v1`. The files are written in the recording transaction, under a
- * lock on the year and kind, so a version is never taken twice; a failed build may leave files
- * under an id no release has, which nothing reads.
+ * `open-data.release.built.v1`.
+ *
+ * In three steps, so no storage call runs under the lock on the year and kind and no object is
+ * left that no row names: (1) under the lock, the tables are built and the build claimed with
+ * the next version (`open_data_release_builds`, `building`), committed; (2) the files are
+ * written, outside any transaction; (3) under the lock again, the release and its files are
+ * recorded and the claim goes. A failed write leaves the build `failed`, naming its objects for
+ * a sweep, its version free and no release; a retry under the same id claims afresh and
+ * overwrites them. One build of a year and kind runs at a time (`ReleaseBuildInProgress`); one
+ * past `BUILD_LEASE_MS` is taken over as failed (`ReleaseBuildAbandoned` if it then finishes).
  *
  * An annual release is built from the approved NCR only, and only while no annual release of the
  * year is published: a corrected one follows the withdrawal of the one published.
  *
  * Throws `NcrNotBuilt`, `NcrNotApproved` (annual), `AnnualReleasePublished` (annual),
- * `FyNotStarted` (snapshot), `ReconciliationFailed`, `DirectoryUnavailable` (a snapshot from the
- * live projections) and `OpenDataStorageUnavailable`; the callers map them (HTTP problems,
- * non-retryable activity failures).
+ * `FyNotStarted` (snapshot), `ReconciliationFailed`, `ReleaseBuildInProgress`,
+ * `DirectoryUnavailable` (a snapshot from the live projections) and
+ * `OpenDataStorageUnavailable`; the callers map them (HTTP problems, non-retryable activity
+ * failures).
  */
 @Injectable()
 export class OpenDataReleaseBuilder {
@@ -139,6 +177,8 @@ export class OpenDataReleaseBuilder {
     private readonly events: EventPublisher,
     private readonly clock: Clock,
   ) {}
+
+  private readonly logger = new Logger(OpenDataReleaseBuilder.name);
 
   async build(request: BuildReleaseRequest): Promise<OpenDataReleaseView> {
     const { fy, kind, builtBy } = request;
@@ -152,9 +192,11 @@ export class OpenDataReleaseBuilder {
       if (financialYearAt(this.clock.now()) < fy) throw new FyNotStarted(fy);
       live = { commissions: await this.directory.listCommissions() };
     }
-    return withTenant(this.db, context, async (tx) => {
+
+    // 1. Under the lock: the tables, and the build claimed with its version, committed.
+    const plan = await withTenant(this.db, context, async (tx) => {
       const existing = await releaseView(tx, releaseId);
-      if (existing) return existing;
+      if (existing) return { built: true as const, release: existing };
 
       const ncr = await ncrOf(tx, fy);
       if (kind === 'annual') {
@@ -193,13 +235,8 @@ export class OpenDataReleaseBuilder {
       const mismatches = reconcile(built.totals, aggregates);
       if (mismatches.length > 0) throw new ReconciliationFailed(mismatches);
 
-      const [latest] = await tx
-        .select({ version: max(openDataReleases.version) })
-        .from(openDataReleases)
-        .where(and(eq(openDataReleases.fy, fy), eq(openDataReleases.kind, kind)));
-      const version = (latest?.version ?? 0) + 1;
       const builtAt = this.clock.now();
-
+      const version = await this.claimBuild(tx, { releaseId, fy, kind, builtBy, builtAt });
       const files = datasetFiles(
         {
           id: releaseId,
@@ -213,8 +250,20 @@ export class OpenDataReleaseBuilder {
         },
         built.tables,
       );
+      return {
+        built: false as const,
+        files,
+        version,
+        builtAt,
+        nationalReportId: ncr?.id ?? null,
+      };
+    });
+    if (plan.built) return plan.release;
+
+    // 2. The files, outside any transaction: a failure leaves the build `failed`, naming them.
+    try {
       await Promise.all(
-        files.map((file) =>
+        plan.files.map((file) =>
           this.files.put({
             key: objectKeyOf(releaseId, file.table, file.format),
             body: file.body,
@@ -222,19 +271,49 @@ export class OpenDataReleaseBuilder {
           }),
         ),
       );
+    } catch (error) {
+      await withTenant(this.db, context, (tx) =>
+        tx
+          .update(openDataReleaseBuilds)
+          .set({ status: 'failed' })
+          .where(
+            and(
+              eq(openDataReleaseBuilds.releaseId, releaseId),
+              eq(openDataReleaseBuilds.status, 'building'),
+            ),
+          ),
+      ).catch((marking: unknown) => {
+        // Left `building`, the lease lapses and the next build takes it over as failed.
+        this.logger.warn(
+          { releaseId, err: errorType(marking) },
+          'A failed open-data release build could not be marked failed',
+        );
+      });
+      throw error;
+    }
 
+    // 3. The release, its files and the event, once the build is still this one's.
+    return withTenant(this.db, context, async (tx) => {
+      await lockReleasesOf(tx, fy, kind);
+      const [claim] = await tx
+        .select()
+        .from(openDataReleaseBuilds)
+        .where(eq(openDataReleaseBuilds.releaseId, releaseId));
+      if (claim?.status !== 'building' || claim.version !== plan.version) {
+        throw new ReleaseBuildAbandoned(releaseId);
+      }
       await tx.insert(openDataReleases).values({
         id: releaseId,
         fy,
         kind,
-        version,
+        version: plan.version,
         status: 'preview',
-        nationalReportId: ncr?.id ?? null,
-        builtAt,
+        nationalReportId: plan.nationalReportId,
+        builtAt: plan.builtAt,
         builtBy,
       });
       await tx.insert(openDataFiles).values(
-        files.map((file) => ({
+        plan.files.map((file) => ({
           releaseId,
           table: file.table,
           format: file.format,
@@ -244,16 +323,71 @@ export class OpenDataReleaseBuilder {
           bytes: file.body.byteLength,
         })),
       );
+      await tx.delete(openDataReleaseBuilds).where(eq(openDataReleaseBuilds.releaseId, releaseId));
       await this.events.record<OpenDataReleaseBuiltData>(tx, {
         type: OPEN_DATA_RELEASE_BUILT,
         subject: releaseId,
         tenant: EACC_TENANT,
-        data: { releaseId, fy, kind, version },
+        data: { releaseId, fy, kind, version: plan.version },
       });
       const view = await releaseView(tx, releaseId);
       if (!view) throw new Error(`Open-data release ${releaseId} vanished while it was built`);
       return view;
     });
+  }
+
+  /**
+   * Claims the build of the year's next release of the kind, under the lock, and gives its
+   * version. A retry of a failed build (its id) claims afresh, as the version it took may have
+   * gone to a later release. Another build `building` within its lease refuses
+   * (`ReleaseBuildInProgress`); one past it is taken over as failed.
+   */
+  private async claimBuild(
+    tx: ReportingTransaction,
+    build: {
+      releaseId: string;
+      fy: number;
+      kind: ReleaseKind;
+      builtBy: string | null;
+      builtAt: Date;
+    },
+  ): Promise<number> {
+    const { releaseId, fy, kind, builtBy, builtAt } = build;
+    await tx.delete(openDataReleaseBuilds).where(eq(openDataReleaseBuilds.releaseId, releaseId));
+    const [running] = await tx
+      .select()
+      .from(openDataReleaseBuilds)
+      .where(
+        and(
+          eq(openDataReleaseBuilds.fy, fy),
+          eq(openDataReleaseBuilds.kind, kind),
+          eq(openDataReleaseBuilds.status, 'building'),
+        ),
+      );
+    if (running) {
+      if (builtAt.getTime() - running.startedAt.getTime() < BUILD_LEASE_MS) {
+        throw new ReleaseBuildInProgress(fy, kind);
+      }
+      await tx
+        .update(openDataReleaseBuilds)
+        .set({ status: 'failed' })
+        .where(eq(openDataReleaseBuilds.releaseId, running.releaseId));
+    }
+    const [latest] = await tx
+      .select({ version: max(openDataReleases.version) })
+      .from(openDataReleases)
+      .where(and(eq(openDataReleases.fy, fy), eq(openDataReleases.kind, kind)));
+    const version = (latest?.version ?? 0) + 1;
+    await tx.insert(openDataReleaseBuilds).values({
+      releaseId,
+      fy,
+      kind,
+      version,
+      status: 'building',
+      startedAt: builtAt,
+      builtBy,
+    });
+    return version;
   }
 }
 

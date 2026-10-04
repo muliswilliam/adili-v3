@@ -414,15 +414,19 @@ export class FakeOpenDataFiles extends OpenDataFiles {
   readonly objects = new Map<string, { body: Buffer; contentType: string }>();
   private failures = 0;
   private readFailures = 0;
+  private writesBeforeFailures = 0;
 
   reset(): void {
     this.objects.clear();
     this.failures = 0;
     this.readFailures = 0;
+    this.writesBeforeFailures = 0;
   }
 
-  failCalls(count: number): void {
+  /** The next `count` writes fail, after `after` succeed: storage lost in the middle of a build. */
+  failCalls(count: number, { after = 0 }: { after?: number } = {}): void {
     this.failures = count;
+    this.writesBeforeFailures = after;
   }
 
   failReads(count: number): void {
@@ -430,7 +434,8 @@ export class FakeOpenDataFiles extends OpenDataFiles {
   }
 
   put(file: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
-    if (this.failures > 0) {
+    if (this.writesBeforeFailures > 0) this.writesBeforeFailures -= 1;
+    else if (this.failures > 0) {
       this.failures -= 1;
       return Promise.reject(new OpenDataStorageUnavailable('Unreachable'));
     }

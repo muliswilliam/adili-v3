@@ -5,14 +5,19 @@ import { v7 as uuidv7 } from 'uuid';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import type { ReportCounts } from '../../src/compliance-reports/schema.js';
-import { openDataFiles, openDataReleases } from '../../src/db/schema.js';
+import { openDataFiles, openDataReleaseBuilds, openDataReleases } from '../../src/db/schema.js';
 import {
   buildLiveAggregates,
   type NationalAggregates,
 } from '../../src/national-reports/aggregates.js';
 import { OPEN_DATA_RELEASE_BUILT } from '../../src/open-data/events.js';
 import { sha256 } from '../../src/open-data/files.js';
-import { NcrNotApproved, OpenDataReleaseBuilder } from '../../src/open-data/release-builder.js';
+import { OpenDataStorageUnavailable } from '../../src/open-data/open-data-files.js';
+import {
+  BUILD_LEASE_MS,
+  NcrNotApproved,
+  OpenDataReleaseBuilder,
+} from '../../src/open-data/release-builder.js';
 import type { OpenDataReleaseView } from '../../src/open-data/representation.js';
 import {
   buildReleaseTables,
@@ -488,6 +493,92 @@ describe('Open-data release snapshot build (S4, S6, S9)', () => {
     expect(response.json()).toMatchObject({ type: 'storage-unavailable' });
     expect(await api.asPlatform((tx) => tx.select().from(openDataReleases))).toEqual([]);
     expect(await api.events(OPEN_DATA_RELEASE_BUILT)).toEqual([]);
+  });
+
+  it('storage lost mid-build: 503, no release shown, the build recorded failed with the files it left; the next build is version 1', async () => {
+    await givenTheYear();
+    await ncrBuilt();
+    // Five of the thirteen files are written before storage goes.
+    api.files.failCalls(8, { after: 5 });
+
+    const response = await buildSnapshot(ANALYST);
+
+    expect(response.statusCode, response.body).toBe(503);
+    expect(response.json()).toMatchObject({ type: 'storage-unavailable' });
+    const listed = await api.get(RELEASES, ANALYST);
+    expect(listed.json()).toEqual([]);
+    expect(await api.asPlatform((tx) => tx.select().from(openDataReleases))).toEqual([]);
+    expect(await api.events(OPEN_DATA_RELEASE_BUILT)).toEqual([]);
+    // Every object written belongs to the failed build's row: none is an orphan.
+    const builds = await api.asPlatform((tx) => tx.select().from(openDataReleaseBuilds));
+    expect(builds).toMatchObject([
+      { fy: RELEASE_FY, kind: 'snapshot', version: 1, status: 'failed', builtBy: ANALYST.sub },
+    ]);
+    const failedId = builds[0]?.releaseId;
+    expect(api.files.objects.size).toBe(5);
+    for (const key of api.files.objects.keys()) {
+      expect(key.startsWith(`releases/${String(failedId)}/`), key).toBe(true);
+    }
+
+    // Storage back: the next build takes the version the failed one gave back.
+    const release = await snapshotBuilt();
+    expect(release).toMatchObject({ version: 1, status: 'preview' });
+    expect((await api.get(RELEASES, ANALYST)).json()).toMatchObject([{ id: release.id }]);
+    expect(await api.asPlatform((tx) => tx.select().from(openDataReleaseBuilds))).toMatchObject([
+      { releaseId: failedId, status: 'failed' },
+    ]);
+  });
+
+  it('409 release-building while another build of the year and kind is under way; one past its lease is taken over', async () => {
+    await givenTheYear();
+    await ncrBuilt();
+    const running = uuidv7();
+    await api.asPlatform((tx) =>
+      tx.insert(openDataReleaseBuilds).values({
+        releaseId: running,
+        fy: RELEASE_FY,
+        kind: 'snapshot',
+        version: 1,
+        status: 'building',
+        startedAt: new Date(BUILT_AT),
+        builtBy: 'eacc-analyst-2',
+      }),
+    );
+
+    const refused = await buildSnapshot(ANALYST);
+    expect(refused.statusCode, refused.body).toBe(409);
+    expect(refused.json()).toMatchObject({ code: 'release-building' });
+
+    // The other build's process died: past the lease, its claim is taken over as failed.
+    api.clock.set(new Date(Date.parse(BUILT_AT) + BUILD_LEASE_MS));
+    const release = await snapshotBuilt();
+    expect(release).toMatchObject({ version: 1, status: 'preview' });
+    expect(await api.asPlatform((tx) => tx.select().from(openDataReleaseBuilds))).toMatchObject([
+      { releaseId: running, status: 'failed' },
+    ]);
+  });
+
+  it('the builder: a retry of a build whose files failed claims afresh under its id and completes it', async () => {
+    await givenTheYear();
+    await ncrBuilt();
+    const builder = api.app.get(OpenDataReleaseBuilder);
+    const releaseId = uuidv7();
+    api.files.failCalls(1, { after: 3 });
+
+    await expect(
+      builder.build({ fy: RELEASE_FY, kind: 'snapshot', builtBy: null, releaseId }),
+    ).rejects.toBeInstanceOf(OpenDataStorageUnavailable);
+    const retried = await builder.build({
+      fy: RELEASE_FY,
+      kind: 'snapshot',
+      builtBy: null,
+      releaseId,
+    });
+
+    expect(retried).toMatchObject({ id: releaseId, version: 1, status: 'preview' });
+    expect(api.files.objects.size).toBe(13);
+    expect(await api.asPlatform((tx) => tx.select().from(openDataReleaseBuilds))).toEqual([]);
+    expect(await api.events(OPEN_DATA_RELEASE_BUILT)).toHaveLength(1);
   });
 
   it('the builder: an annual release needs the approved NCR; a release id already built is returned as it is', async () => {

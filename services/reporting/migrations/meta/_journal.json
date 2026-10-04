@@ -92,6 +92,13 @@
       "when": 1791026735398,
       "tag": "0012_open_data_live_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791098408250,
+      "tag": "0013_open_data_release_builds",
+      "breakpoints": true
     }
   ]
 }

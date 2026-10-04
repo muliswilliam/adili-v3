@@ -16,12 +16,13 @@ import type { FileFormat, ReleaseFileName } from './files.js';
 /**
  * Open-data releases (spec 09b): the year's aggregates as six suppressed tables, built from the
  * national consolidated report (or, for a snapshot of a year without one, the live projections)
- * and versioned per financial year and kind. Two tables:
+ * and versioned per financial year and kind. Three tables:
  *
  * - `open_data_releases`: a release's identity, status and who published or withdrew it, and
  *   its manifest once issued as a Public verifiable document;
  * - `open_data_files`: its dataset files in object storage (JSON and CSV per table, and the
- *   release JSON), each with its SHA-256.
+ *   release JSON), each with its SHA-256;
+ * - `open_data_release_builds`: builds under way, and failed ones with the files they left.
  *
  * Counts and rates only live in the files; these rows hold no figure. EACC data: row-level
  * security admits `app.tenant` `eacc` and `platform` (the public API reads as `platform`).
@@ -84,6 +85,44 @@ export const openDataReleases = pgTable(
   ],
 );
 
+/** `open_data_release_builds.status`: under way, or abandoned with its files left behind. */
+export type ReleaseBuildStatus = 'building' | 'failed';
+
+/**
+ * A release build under way, or one that failed (spec 09b; `OpenDataReleaseBuilder`): the
+ * version it took and when, recorded and committed before its files are written to object
+ * storage, so no storage call runs under the year's release lock and every object in the bucket
+ * belongs to a row, a release's or a build's. A build that writes its files becomes a release
+ * (`preview`) and its row goes; one whose writes fail stays `failed`, naming the objects left
+ * under `releases/<releaseId>/` for a sweep, and gives its version back. One build of a year and
+ * kind runs at a time; one `building` longer than the builder's lease is taken over as failed (a
+ * process that died mid-build). Nothing else reads these rows; no figures.
+ */
+export const openDataReleaseBuilds = pgTable(
+  'open_data_release_builds',
+  {
+    releaseId: uuid().primaryKey(),
+    fy: integer().notNull(),
+    kind: text().$type<ReleaseKind>().notNull(),
+    version: integer().notNull(),
+    status: text().$type<ReleaseBuildStatus>().notNull(),
+    /** When the build began: the release's `builtAt`, and the start of its lease. */
+    startedAt: timestamp({ withTimezone: true }).notNull(),
+    builtBy: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    // One build of a year's releases of a kind at a time.
+    uniqueIndex('open_data_release_builds_fy_kind_building_key')
+      .on(table.fy, table.kind)
+      .where(sql`${table.status} = 'building'`),
+  ],
+);
+
 /** A dataset file of a release, as written to the open-data bucket. */
 export const openDataFiles = pgTable(
   'open_data_files',
@@ -104,4 +143,4 @@ export const openDataFiles = pgTable(
   (table) => [primaryKey({ columns: [table.releaseId, table.table, table.format] })],
 );
 
-export const openDataSchema = { openDataReleases, openDataFiles };
+export const openDataSchema = { openDataReleases, openDataFiles, openDataReleaseBuilds };
