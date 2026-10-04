@@ -149,6 +149,18 @@ describe('access request projections (Form M section 5)', () => {
     ]);
   });
 
+  it('keeps the earliest withdrawal of a request, whatever order a re-emitted one arrives in', async () => {
+    const requestId = randomUUID();
+    const withdrawn = accessEvent('psc', 'withdrawn', { requestId, at: '2028-02-03T08:00:00Z' });
+    const reemitted = accessEvent('psc', 'withdrawn', { requestId, at: '2028-02-05T08:00:00Z' });
+
+    expect(await api.deliver(reemitted)).toBe(true);
+    expect(await api.deliver(withdrawn)).toBe(true);
+    expect(await api.asPlatform((tx) => tx.select().from(accessRequestFacts))).toEqual([
+      expect.objectContaining({ requestId, withdrawnAt: new Date('2028-02-03T08:00:00Z') }),
+    ]);
+  });
+
   it('closes a request whose officer cannot be identified, and records a withdrawal, under their Commission', async () => {
     const unidentified = randomUUID();
     const withdrawn = randomUUID();
