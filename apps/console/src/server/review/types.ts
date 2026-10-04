@@ -28,3 +28,4 @@ export type RegistrySummary = Schemas['RegistrySummary'];
 export type RegistryView = Schemas['RegistryView'];
 export type CopilotDraft = Schemas['CopilotDraft'];
 export type CopilotDraftInput = Schemas['CopilotDraftInput'];
+export type VersionComparison = Schemas['VersionComparison'];

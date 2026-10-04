@@ -10,7 +10,10 @@ import { TRANSACTION_OPEN } from '../../src/activity-retry.js';
 import { accessRegister } from '../../src/db/schema.js';
 import type { VersionDocument } from '../../src/declarations/declarations-client.js';
 import { CertifiedCopyIssuance } from '../../src/self-access/certified-copy-issuance.js';
-import { certifiedCopyWorkflowId } from '../../src/self-access/contract.js';
+import {
+  CERTIFIED_COPY_WORKFLOW,
+  certifiedCopyWorkflowId,
+} from '../../src/self-access/contract.js';
 import type { CertifiedCopy } from '../../src/self-access/representation.js';
 import { type AccessApi, type Caller, startAccessApi } from '../support/access-api.js';
 import { contractErrors, okResponse } from '../support/contract.js';
@@ -303,6 +306,30 @@ describe('Certified copies (S13)', () => {
 
     expect(await untilSettled(first.id)).toMatchObject({ status: 'issued' });
     expect(api.documents.issued).toHaveLength(1);
+  });
+
+  it('S13: a failed copy ordered again is issued, even when the run that failed it has not closed yet', async () => {
+    given();
+    api.declarations.withholdFullDocuments();
+    const first = (await ask()).json<CertifiedCopy>();
+    expect(await untilSettled(first.id)).toMatchObject({ status: 'failed' });
+    api.declarations.withholdFullDocuments(false);
+    const workflowId = certifiedCopyWorkflowId(first.id);
+    await api.temporal.workflow.getHandle(workflowId).result();
+
+    // The run that recorded the copy failed, still open between its last activity and its close
+    // (on a loaded worker, the declarant can order again in between): here a run of the copy on
+    // a task queue no worker polls, so it stays open.
+    await api.temporal.workflow.start(CERTIFIED_COPY_WORKFLOW, {
+      taskQueue: `unpolled-${randomUUID()}`,
+      workflowId,
+      args: [{ tenant: 'psc', copyId: first.id, transactionId: '0' }],
+    });
+    const again = await ask();
+
+    expect(again.statusCode, again.body).toBe(202);
+    expect(again.json<CertifiedCopy>()).toMatchObject({ id: first.id, status: 'pending' });
+    expect(await untilSettled(first.id)).toMatchObject({ status: 'issued' });
   });
 
   it('S13: issuing refused by documents (not retried): the copy is recorded failed, and can be ordered again', async () => {

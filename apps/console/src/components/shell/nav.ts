@@ -4,6 +4,7 @@ import {
   Calendar03Icon,
   ChartColumnIcon,
   CheckListIcon,
+  File01Icon,
   Key01Icon,
   PlugSocketIcon,
   Shield01Icon,
@@ -97,6 +98,10 @@ const NAV: { label: string; items: NavDefinition[] }[] = [
       { workspace: 'review', icon: CheckListIcon },
       { workspace: 'approvals', icon: StampIcon },
     ],
+  },
+  {
+    label: 'Reporting',
+    items: [{ workspace: 'form-m', icon: File01Icon }],
   },
 ];
 
