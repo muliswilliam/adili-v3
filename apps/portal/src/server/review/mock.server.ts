@@ -22,6 +22,7 @@
  * Tests can reseed at a given time (`resetReviewMock`) and make the next response fail as if the
  * service were down (`failNextResponse`).
  */
+import { createMockClock } from '@adili/api-kit/client';
 import { addDays } from '@adili/ui';
 
 import { mockUpload } from '../documents/mock.server';
@@ -86,6 +87,8 @@ const clarifications = new Map<string, DeclarantClarification>();
 /** First answer by Idempotency-Key, replayed on retry. */
 const answered = new Map<string, Response>();
 let failNext = false;
+/** Runs from the instant the fixtures were last seeded as of (`resetReviewMock`). */
+const clock = createMockClock();
 
 function at(now: number, days: number): string {
   return addDays(new Date(now).toISOString(), days);
@@ -162,6 +165,7 @@ function attachment(fileName: string, k: number) {
 
 /** Clears responses and seeds the fixtures with "now" at `now` (tests pass a fixed time). */
 export function resetReviewMock(now: number = Date.now()) {
+  clock.startAt(now);
   clarifications.clear();
   answered.clear();
   failNext = false;
@@ -257,7 +261,7 @@ export function mockClarification(id: string): DeclarantClarification | undefine
 }
 
 function ensureSeeded() {
-  if (clarifications.size === 0) resetReviewMock();
+  if (clarifications.size === 0) resetReviewMock(clock.now());
 }
 
 export function mockReviewFetch(request: Request): Promise<Response> {
@@ -333,7 +337,7 @@ async function respond(request: Request, id: string): Promise<Response> {
     answers.push({ index: item.index, text: item.text, attachments: files });
   }
 
-  const now = new Date().toISOString();
+  const now = new Date(clock.now()).toISOString();
   const updated: DeclarantClarification = {
     ...found,
     status: 'responded',
