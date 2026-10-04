@@ -100,6 +100,12 @@ Caddy terminates TLS with Let's Encrypt. Set `letsencrypt_email` in `terraform.t
 
 It does **not** re-seed, re-issue certificates, or `terraform apply`. The SSH host key is pinned in `infra/azure/known_hosts`.
 
+Portal, console and verify send a content security policy (including `frame-ancestors 'none'`), `X-Frame-Options: DENY`, and HSTS when the request is https. Check the hosted demo:
+
+```sh
+./infra/azure/check-security-headers.sh https://adili-demo.southafricanorth.cloudapp.azure.com
+```
+
 Repo secret (Actions -> Secrets):
 
 | Name | Value |
