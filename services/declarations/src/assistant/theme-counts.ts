@@ -15,8 +15,9 @@ const logger = new Logger('ThemeCounts');
 
 /**
  * Counts the question at the conversation's Commission, in a savepoint of the transaction that
- * stores it: a count refused (the person no longer has an obligation there, as the row-level
- * security requires) is logged and skipped rather than losing the answer. Returns its theme.
+ * stores it: a count the row-level security refuses (the person no longer has an obligation
+ * there) is logged and skipped rather than losing the answer; any other failure fails the store.
+ * Returns its theme.
  */
 export async function countQuestion(
   tx: Transaction,
@@ -26,9 +27,18 @@ export async function countQuestion(
   try {
     await tx.transaction((savepoint) => upsertCount(savepoint, question, theme));
   } catch (error) {
+    if (!refusedByRowSecurity(error)) throw error;
     logger.warn({ err: error }, 'A question could not be counted');
   }
   return theme;
+}
+
+/** Whether row-level security refused the query (SQLSTATE 42501), through Drizzle's wrapper. */
+function refusedByRowSecurity(error: unknown): boolean {
+  for (let cause = error; cause instanceof Error; cause = cause.cause) {
+    if ('code' in cause && cause.code === '42501') return true;
+  }
+  return false;
 }
 
 async function upsertCount(
