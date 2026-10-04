@@ -17,11 +17,7 @@ import {
 import { FakeCipher } from '@adili/data-access/testing';
 import { type EventEnvelope, OutboxRelay } from '@adili/events';
 import { TEMPORAL_CLIENT, TemporalWorkerReadinessCheck, WorkflowBundler } from '@adili/temporal';
-import {
-  prebuiltWorkflowBundler,
-  untilActivitiesDrained,
-  untilWorkerPolling,
-} from '@adili/temporal/testing';
+import { endWorkflows, prebuiltWorkflowBundler, untilWorkerPolling } from '@adili/temporal/testing';
 import type { Client } from '@temporalio/client';
 import { sql } from 'drizzle-orm';
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JWK, SignJWT } from 'jose';
@@ -298,16 +294,12 @@ export async function startReportingApi(): Promise<ReportingApi> {
         .map((row) => row.envelope as RecordedEvent)
         .filter((event) => type === undefined || event.type === type);
     },
-    async endWorkflows(ids) {
-      const temporal = app.get<Client>(TEMPORAL_CLIENT);
-      for (const id of ids) {
-        try {
-          await temporal.workflow.getHandle(id).terminate();
-        } catch {
-          // Not running.
-        }
-      }
-      await untilActivitiesDrained(app.get(TemporalWorkerReadinessCheck));
+    endWorkflows(ids) {
+      return endWorkflows(
+        app.get<Client>(TEMPORAL_CLIENT),
+        app.get(TemporalWorkerReadinessCheck),
+        ids,
+      );
     },
     deliver(event) {
       const handler = HANDLERS[event.type];
