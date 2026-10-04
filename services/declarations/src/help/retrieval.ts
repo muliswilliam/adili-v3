@@ -36,6 +36,11 @@ export interface RetrievalQuery {
   /** Tags to boost: the section kind and the statement item types the declarant is on. */
   boost: readonly CorpusTag[];
   limit: number;
+  /**
+   * Only this Commission's articles beside the platform's (the assistant, for the Commission of
+   * the draft); left out, every article the transaction may read (help search).
+   */
+  tenant?: string;
 }
 
 export interface RetrievedPassage {
@@ -45,7 +50,9 @@ export interface RetrievedPassage {
   citation: string;
   title: string;
   snippet: string;
-  /** The language of the snippet: Swahili only from a Swahili article body. */
+  /** The whole passage or article body, in the snippet's language: what the assistant reads. */
+  text: string;
+  /** The language of the snippet and text: Swahili only from a Swahili article body. */
   language: HelpLanguage;
   tags: CorpusTag[];
   effectiveFrom: string;
@@ -123,6 +130,7 @@ export async function retrieve(
     citation: string;
     title: string;
     snippet: string;
+    text: string;
     language: HelpLanguage;
     tags: CorpusTag[];
     effective_from: string;
@@ -166,6 +174,7 @@ export async function retrieve(
         ${boosted('a')}
       from help_articles a, q
       where a.published and ${matches('a')} and ${inForce('a')}
+        ${query.tenant === undefined ? sql`` : sql`and (a.tenant is null or a.tenant = ${query.tenant})`}
     ),
     top as (
       select * from hits
@@ -179,6 +188,7 @@ export async function retrieve(
         when top.sw_hit then ts_headline('simple', top.body_sw, q.sw, ${HEADLINE})
         else ts_headline('english', top.body_en, q.en, ${HEADLINE})
       end as snippet,
+      case when top.sw_hit then top.body_sw else top.body_en end as text,
       case when top.sw_hit then 'sw' else 'en' end as language,
       top.score
     from top, q
@@ -191,6 +201,7 @@ export async function retrieve(
     citation: row.citation,
     title: row.title,
     snippet: row.snippet,
+    text: row.text,
     language: row.language,
     tags: row.tags,
     effectiveFrom: row.effective_from,

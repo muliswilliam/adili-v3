@@ -1,15 +1,49 @@
 import { createFileRoute } from '@tanstack/react-router';
 
+import { STEP_TITLES } from '../../notices/copy';
 import { env } from '../../server/env.server';
 
 /**
  * Stands in for the documents service's presigned letter download while REVIEW_MOCK is on: the
- * review mock's `letterDownloadUrl` points here. Serves a one-page placeholder PDF naming the
- * clarification. Development and tests only; everywhere else it is a 404.
+ * review mock's `letterDownloadUrl`, decision letter and notice letter links point here. Serves a
+ * one-page placeholder PDF naming the clarification, the decision or the notice. Development and
+ * tests only; everywhere else it is a 404.
  */
 async function letter(id: string): Promise<Response> {
-  const { mockClarification } = await import('../../server/review/mock.server');
+  const { mockClarification, mockDecisionLetter, mockNotice } =
+    await import('../../server/review/mock.server');
   const { placeholderPdf } = await import('../../server/mock-pdf');
+  const notice = mockNotice(id);
+  if (notice) {
+    const lines = [
+      `${STEP_TITLES[notice.step].en} ${notice.reference}`,
+      notice.commission.name,
+      notice.actBy ? `Act by ${notice.actBy.slice(0, 10)}.` : '',
+      'Placeholder letter from the development mock.',
+    ];
+    return new Response(placeholderPdf(lines), {
+      headers: {
+        'content-type': 'application/pdf',
+        'content-disposition': `attachment; filename="${notice.reference}.pdf"`,
+      },
+    });
+  }
+  const decision = mockDecisionLetter(id);
+  if (decision) {
+    return new Response(
+      placeholderPdf([
+        `Decision letter ${decision.reference}`,
+        `${decision.commission.name} - declaration ${decision.declarationReference}`,
+        'Placeholder letter from the development mock.',
+      ]),
+      {
+        headers: {
+          'content-type': 'application/pdf',
+          'content-disposition': `attachment; filename="${decision.reference}.pdf"`,
+        },
+      },
+    );
+  }
   const clarification = mockClarification(id);
   if (!clarification?.reference) return new Response(null, { status: 404 });
   const lines = [

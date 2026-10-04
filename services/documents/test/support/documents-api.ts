@@ -331,11 +331,18 @@ async function deleteObjects(s3: S3Client, bucket: string, keys: string[]): Prom
   }
 }
 
-/** OpenBao as the tests reach it (`TEST_OPENBAO_URL`, `TEST_OPENBAO_TOKEN`), or at `url`. */
+/**
+ * OpenBao as the tests reach it (`TEST_OPENBAO_URL`, `TEST_OPENBAO_TOKEN`), or at `url`. The
+ * per-request budget is 10 s, not the service's 2 s: in CI every service's integration suite
+ * shares one OpenBao (their ciphers encrypt through Transit too), and a signature that queues
+ * past 2 s there failed a happy-path issuance with 502 signer-unavailable (run 37117233400). An
+ * unreachable OpenBao still fails at once, so the signer-unavailable tests are unchanged.
+ */
 export function testOpenBao(url?: string): OpenBao {
   return new OpenBao({
     url: url ?? requireEnv('TEST_OPENBAO_URL'),
     token: requireEnv('TEST_OPENBAO_TOKEN'),
+    timeoutMs: 10_000,
   });
 }
 

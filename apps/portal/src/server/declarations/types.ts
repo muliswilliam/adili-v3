@@ -49,3 +49,12 @@ export type ContractMatchesSharedCopy = Assert<
     channel: Reminder['channels'][number];
   }>
 >;
+
+export type AssistantConversation = Schemas['AssistantConversation'];
+export type AssistantMessage = Schemas['AssistantMessage'];
+export type AssistantAnswer = Schemas['AssistantAnswer'];
+export type AssistantItemType = NonNullable<Schemas['AskAssistantRequest']['itemType']>;
+export type HelpPassage = Schemas['HelpPassage'];
+export type HelpPassageDetail = Schemas['HelpPassageDetail'];
+export type CompletenessHints = Schemas['CompletenessHints'];
+export type CompletenessHint = Schemas['CompletenessHint'];

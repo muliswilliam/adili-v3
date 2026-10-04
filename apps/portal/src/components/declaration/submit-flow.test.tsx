@@ -24,6 +24,7 @@ vi.mock('@tanstack/react-router', async () => (await import('./testing-mocks')).
 vi.mock('../../server/declarations', async () => (await import('./testing-mocks')).serverMock());
 vi.mock('../../server/submission', async () => (await import('./testing-mocks')).submissionMock());
 vi.mock('../../server/step-up', async () => (await import('./testing-mocks')).stepUpMock());
+vi.mock('../../server/assistant', async () => (await import('./testing-mocks')).assistantMock());
 vi.mock('../sign-in', () => ({ stepUp: vi.fn(), signInAgain: vi.fn(), loginHref: vi.fn() }));
 
 const submitMock = vi.mocked(submitMyDeclaration);
