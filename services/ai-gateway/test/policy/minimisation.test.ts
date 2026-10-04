@@ -453,6 +453,19 @@ describe('minimise a text layer', () => {
  * must be minimised. A row per probe, so a change that leaks one again fails here. The long tail
  * (unlabelled names, lowercase names, tables) is #504.
  */
+/** `word` as a whole word, so "Kamau" does not match inside "Kamaui". */
+const wholeWord = (word: string) => new RegExp(`(?<![\\p{L}\\p{N}])${word}(?![\\p{L}\\p{N}])`, 'u');
+
+/**
+ * The words that introduce a probe's names, which must stay readable: the first label's words
+ * (before its colon), or the title or salutation that starts the line.
+ */
+function labelWords(line: string): string[] {
+  const label = /^([\p{L} ()]+?)[ \t]*\d?\s*(?:\(\d\)|\(s\))?:/u.exec(line)?.[1];
+  const words = (label ?? /^\p{L}+/u.exec(line)?.[0] ?? '').split(' ').filter(Boolean);
+  return words.filter((word) => /^\p{L}{2,}$/u.test(word));
+}
+
 describe('minimise a text layer: review probes', () => {
   it.each([
     // Offices, titles and fillers wherever they sit in a party (F21).
@@ -525,20 +538,38 @@ describe('minimise a text layer: review probes', () => {
     ['Signed: Kevin Odera for and on behalf of Pwani Traders', 'Kevin Odera'],
     ['Witness: Mary Wanjiru, a duly authorised officer, Nairobi', 'Mary Wanjiru'],
     ['Proprietor: JOHN KAMAU AND MARY WANJIRU', 'JOHN KAMAU MARY WANJIRU'],
+    // A capitalised word before a colon is a name unless it labels a known field (F45).
+    ['Borrower: John Kamau: 50,000', 'John Kamau'],
+    ['Signatories:\nJohn Kamau: Chairman', 'John Kamau'],
+    // A stand-alone plural label lists its parties on the lines below (F47).
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n3) Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+    ],
+    ['Signatories:\n- John Kamau\n• Mary Wanjiru', 'John Kamau Mary Wanjiru'],
+    ['Proprietors:\nJohn Kamau\nMary Wanjiru\n\nThe land', 'John Kamau Mary Wanjiru'],
+    // A surname that is also a Swahili title (F49).
+    ['Mr. John Baba', 'John Baba'],
+    ['Proprietor: Grace Mama', 'Grace Mama'],
+    // Recurrences in any case (F48).
+    ['Proprietor: John Kamau\nsigned: john kamau', 'John Kamau john kamau'],
+    ['Proprietor: John Kamau\nJOHN kamau', 'John Kamau JOHN kamau'],
+    // Shapes are blanked line by line, whatever ends a line (F44).
+    ['Tel 0712 345 678\vMember No. AB12C\fProprietor: John Kamau', 'John Kamau AB12C'],
     // A name ending a sentence is the same name bare (F30).
     ['Proprietor: John Kamau.\nKamau signed the transfer.', 'John Kamau'],
-  ])('sends no name word of %j', (line, names) => {
+  ])('sends no name word of %j, and keeps its label readable', (line, names) => {
     const { input } = minimise({ textLayer: line });
 
-    for (const word of names.split(' ')) {
-      expect(input.textLayer).not.toMatch(new RegExp(`(?<![\\p{L}])${word}(?![\\p{L}])`, 'u'));
-    }
+    for (const word of names.split(' ')) expect(input.textLayer).not.toMatch(wholeWord(word));
+    for (const word of labelWords(line)) expect(input.textLayer).toMatch(wholeWord(word));
   });
 });
 
 /**
  * A text layer is untrusted input: no label, number or address pattern may take more than linear
- * time over it (#314 review F29). 10,000 spaces after each kind of introducer.
+ * time over it (#314 review F29, F36, F37): 10,000 characters after each kind of introducer,
+ * 100,000 of repeated introducers, and stray line terminators in an address line.
  */
 describe('minimise a text layer in linear time', () => {
   const SPACES = ' '.repeat(10_000);
@@ -555,10 +586,680 @@ describe('minimise a text layer in linear time', () => {
     ['certify that', `certify${SPACES}that${SPACES}\n`],
     ['blank lines', `Proprietor:${'\n'.repeat(10_000)}`],
     ['capitalised words', `Proprietor: ${'Kamau '.repeat(5_000)}\n`],
-  ])('reads %s and 10,000 more characters quickly', (_name, text) => {
+    // Repeated introducers, each followed by the rest of a 100,000-character line (F36).
+    ['Mr repeated', 'Mr '.repeat(33_000)],
+    ['Dear repeated', 'Dear '.repeat(20_000)],
+    ['Borrower repeated', 'Borrower '.repeat(11_000)],
+    ['Guarantor(s): repeated', 'Guarantor(s): '.repeat(7_000)],
+    ['Proprietor: and commas', `Proprietor: ${', '.repeat(50_000)}`],
+    // Stray line terminators inside an address line (F37).
+    ['Address and carriage returns', `Address${' \r'.repeat(20_000)}`],
+    ['Address and line separators', `Address${' \u2028'.repeat(20_000)}`],
+    ['Address and paragraph separators', `Address${' \u2029'.repeat(20_000)}`],
+    ['a long address', `Physical address: ${'House 14, Riverside Drive, '.repeat(4_000)}`],
+    ['Make: A repeated', 'Make: A '.repeat(12_500)],
+    ['Chairman: repeated', 'Chairman: '.repeat(10_000)],
+    ['a marked list', `Directors:\n${'(a) John Kamau\n'.repeat(7_000)}`],
+    ['shapes after a name', `Witness: Jane Akinyi Tel ${'0712 345 678 '.repeat(8_000)}`],
+    ['a long list', `Directors:\n${'1. John Kamau\n'.repeat(7_000)}`],
+    ['Kamau: repeated', `Borrower: ${'Kamau: '.repeat(14_000)}`],
+    ['100,000 newlines', `Proprietor:${'\n'.repeat(100_000)}John Kamau`],
+    // A long run of capitals, which a parcel's section may start (F102).
+    ['100,000 capitals', 'KRA '.repeat(25_000)],
+  ])('reads %s quickly', (_name, text) => {
     const started = performance.now();
     minimise({ textLayer: text });
     expect(performance.now() - started).toBeLessThan(500);
+  });
+});
+
+/**
+ * Both directions at once (#314 review rounds 7 to 9): each row's names must not reach the
+ * request, and its fields' labels and values must stay readable, so a change cannot fix one side
+ * by breaking the other.
+ */
+describe('minimise a text layer: names out, fields readable', () => {
+  it.each([
+    // Field labels and values after a name, on the same line (F39, F51).
+    [
+      'Employee Name: John Kamau Gender: Male Nationality: Kenyan Occupation: Teacher',
+      'John Kamau',
+      'Employee Name Gender Male Nationality Kenyan Occupation Teacher',
+    ],
+    [
+      'Employee Name: Mary Wanjiru Grade: M Basic Salary: 45,000',
+      'Mary Wanjiru',
+      'Grade Basic Salary 45,000',
+    ],
+    [
+      'Borrower: John Kamau KES 12,500,000 Total Shares 500',
+      'John Kamau',
+      'KES 12,500,000 Total Shares 500',
+    ],
+    [
+      'Borrower: John Kamau Purpose: Development Value: KES 3,000,000',
+      'John Kamau',
+      'Purpose Development Value KES 3,000,000',
+    ],
+    [
+      'Proprietor: John Kamau Village: Kiamumbi Ward: Kahawa',
+      'John Kamau',
+      'Village Kiamumbi Ward Kahawa',
+    ],
+    [
+      'Proprietor: John Kamau Parcel: Plot 7 Use: Agricultural',
+      'John Kamau',
+      'Parcel Plot Use Agricultural',
+    ],
+    ['Borrower: John Kamau Term: 36 Months', 'John Kamau', 'Term 36 Months'],
+    [
+      'Registered Owner: BRIAN OUMA Make: TOYOTA Model: FIELDER',
+      'BRIAN OUMA',
+      'Make TOYOTA Model FIELDER',
+    ],
+    [
+      'Account Name: Mary Wanjiru Account Type: Savings Branch: Nyali',
+      'Mary Wanjiru',
+      'Account Type Savings Branch Nyali',
+    ],
+    [
+      'Proprietor: Peter Kamau Section: Njoro Station: Molo',
+      'Peter Kamau',
+      'Section Njoro Station Molo',
+    ],
+    // A name before a colon goes on when an office or an amount follows (F45, F51).
+    ['Borrower: John Kamau: 50,000', 'John Kamau', 'Borrower 50,000'],
+    ['Signatories:\nJohn Kamau: Chairman', 'John Kamau', 'Signatories Chairman'],
+    ['Witness: Mary Achieng: Branch Manager', 'Mary Achieng', 'Witness Branch Manager'],
+    // Fields with no name at all stay as they are.
+    ['Gender: Male', '', 'Gender Male'],
+    ['Basic Salary: 45,000', '', 'Basic Salary 45,000'],
+    ['Total Shares: 500', '', 'Total Shares 500'],
+    ['Loan Term: 36 Months', '', 'Loan Term 36 Months'],
+    ['KES 12,500,000', '', 'KES 12,500,000'],
+    [
+      'Bank Name: Highlands Bank Kenya PLC Branch Name: Nyali',
+      '',
+      'Bank Name Highlands Branch Nyali',
+    ],
+    ['Employer Name: Ministry of Health', '', 'Employer Name Ministry Health'],
+    ['Business Name: Tumaini Traders', '', 'Business Name Tumaini Traders'],
+    // A list under a stand-alone label: names out, offices and the text after it readable (F52).
+    [
+      'Directors:\n1. John Kamau, Chairman\n2. Mary Wanjiru, Secretary',
+      'John Kamau Mary Wanjiru',
+      'Directors Chairman Secretary',
+    ],
+    [
+      'Directors:\na) John Kamau\nb) Mary Wanjiru\n\nc) Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors',
+    ],
+    ['Signatories:\ni. John Kamau\nii. Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Signatories'],
+    [
+      'Signatories:\n\u2013 John Kamau\n\u2013 Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Signatories',
+    ],
+    [
+      'Proprietors:\nJohn Kamau\nMary Wanjiru\n\nThe land is freehold',
+      'John Kamau Mary Wanjiru',
+      'The land is freehold',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Date: 12 May 2026\nBalance: KES 500',
+      'John Kamau',
+      'Date May Balance KES 500',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Gender Male\n3. Total Shares 500',
+      'John Kamau',
+      'Gender Male Total Shares 500',
+    ],
+    // A colon ends a name only after a field word; after a name it goes on (F57).
+    ['Guarantor: Peter Otieno: ID 12345678', 'Peter Otieno', 'Guarantor ID'],
+    ['Director: John Kamau: 12345678', 'John Kamau', 'Director'],
+    ['Witness: Jane Akinyi: Tel 0712 345 678', 'Jane Akinyi', 'Witness Tel'],
+    ['Borrower: John Kamau:\nChairman', 'John Kamau', 'Borrower Chairman'],
+    ['Borrower: John Kamau: Sh 50,000', 'John Kamau', 'Borrower Sh 50,000'],
+    ['Borrower: John Kamau: Shs 50,000 UGX 10 TZS 20', 'John Kamau', 'Shs UGX TZS'],
+    // A field word before a colon is a label, even straight after a name (F58).
+    ['Borrower: John Kamau Loan Amount: KES 50,000', 'John Kamau', 'Loan Amount KES 50,000'],
+    ['Borrower: John Kamau Amount: 50,000', 'John Kamau', 'Amount 50,000'],
+    ['Proprietor: John Kamau Value: 3,000,000', 'John Kamau', 'Value 3,000,000'],
+    ['Employee Name: Mary Wanjiru Basic Salary: 45,000', 'Mary Wanjiru', 'Basic Salary 45,000'],
+    ['Employee Name: Mary Wanjiru Salary: 45,000', 'Mary Wanjiru', 'Salary 45,000'],
+    [
+      'Employee Name: Mary Wanjiru Net Pay: 38,000 Gross Pay: 45,000',
+      'Mary Wanjiru',
+      'Net Pay Gross Pay 38,000 45,000',
+    ],
+    // A list goes on past an entry that does not read as a name; each entry's names are out (F59).
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru: Secretary\n3. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors Secretary',
+    ],
+    [
+      'Directors:\n1. John Kamau 500 shares\n2. Mary Wanjiru 60%\n3. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'shares',
+    ],
+    [
+      'Directors:\n1. John Kamau, appointed 12 May 2020\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'appointed',
+    ],
+    [
+      'Directors:\n1. John Kamau: 500 shares\n2. Mary Wanjiru: 50,000\n3. Peter Otieno: ID 12345678',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'shares ID',
+    ],
+    ['Directors:\n1. Grace Wanjiru\n2. Faith Akinyi', 'Grace Wanjiru Faith Akinyi', 'Directors'],
+    ['Shareholders:\n1. Tumaini Traders Ltd\n2. John Kamau', 'John Kamau', 'Shareholders'],
+    [
+      'Officials:\n- Chairman: John Kamau\n- Treasurer: Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Chairman Treasurer',
+    ],
+    // More list markers (F62).
+    ['Directors:\n(a) John Kamau\n(b) Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n(1) John Kamau\n(2) Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n(i) John Kamau\n(ii) Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n[1] John Kamau\n[2] Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    ['Directors:\n1 John Kamau\n2 Mary Wanjiru', 'John Kamau Mary Wanjiru', 'Directors'],
+    // Field, organisation, place and office words before a colon are labels (F63).
+    [
+      'Proprietor: John Kamau Bank: Equity Bank Branch: Nyali',
+      'John Kamau',
+      'Bank Equity Branch Nyali',
+    ],
+    [
+      'Director: John Kamau Company: Tumaini Traders Ltd',
+      'John Kamau',
+      'Company Tumaini Traders Ltd',
+    ],
+    [
+      'Owner: John Kamau Vehicle: Toyota Premio Description: Saloon',
+      'John Kamau',
+      'Vehicle Toyota Premio Description Saloon',
+    ],
+    [
+      'Owner: John Kamau Manufacturer: Toyota Registry: Nakuru',
+      'John Kamau',
+      'Manufacturer Toyota Registry Nakuru',
+    ],
+    [
+      'Proprietor: John Kamau Residence: Njoro Constituency: Molo Sub-County: Njoro',
+      'John Kamau',
+      'Residence Njoro Constituency Molo Sub-County',
+    ],
+    [
+      'Employee Name: Mary Wanjiru Ministry: Health Organisation: Kenya Red Cross',
+      'Mary Wanjiru',
+      'Ministry Health Organisation Red Cross',
+    ],
+    ['Proprietor: John Kamau Nature of Title: Freehold', 'John Kamau', 'Nature of Title Freehold'],
+    ['Proprietor: John Kamau Nakuru: Njoro', 'John Kamau', 'Nakuru Njoro'],
+    ['Witness: Mary Wanjiru Sacco: Ufanisi', 'Mary Wanjiru', 'Sacco Ufanisi'],
+    // A false hit does not spread to other cases (F63).
+    [
+      'Proprietor: John Kamau Nyali Branch\nThe nyali branch and NYALI BRANCH accounts.',
+      'John Kamau',
+      'branch BRANCH',
+    ],
+    ['Borrower: John Kamau Group\nThe group and its GROUP savings.', 'John Kamau', 'group GROUP'],
+    // A list ends at an unmarked line that is no wrapped name (F64).
+    ['Directors:\n1. John Kamau\nAssets\nLand in Njoro', 'John Kamau', 'Assets Land Njoro'],
+    [
+      'Directors:\n1. John Kamau\nSecurity Offered\nShare Capital',
+      'John Kamau',
+      'Security Offered Share Capital',
+    ],
+    [
+      'Proprietors:\n1. John Kamau\nSchedule\nRegistered Office',
+      'John Kamau',
+      'Schedule Registered Office',
+    ],
+    ['Guarantors:\n1. John Kamau\nTERMS AND CONDITIONS', 'John Kamau', 'TERMS AND CONDITIONS'],
+    ['Owners:\n1. John Kamau\nToyota Premio', 'John Kamau', 'Toyota Premio'],
+    [
+      'Signatories:\n1. John Kamau\nEquity Bank Nyali Branch',
+      'John Kamau',
+      'Equity Bank Nyali Branch',
+    ],
+    ['Proprietors:\n1. John Kamau\nKiambu County Land', 'John Kamau', 'Kiambu County Land'],
+    [
+      'Directors:\n1. John\nKamau Mwangi\n2. Mary Wanjiru',
+      'John Kamau Mwangi Mary Wanjiru',
+      'Directors',
+    ],
+    // A field word without a colon goes on as a name when more name words follow (F65).
+    ['Borrower: John Kamau Ward Otieno', 'John Kamau Ward Otieno', 'Borrower'],
+    ['Borrower: John Kamau ID 12345678', 'John Kamau', 'ID'],
+    // A list entry is a name then a comma or dash and an office or field (F68).
+    [
+      'Directors:\nJohn Kamau, Chairman\nMary Wanjiru, Secretary',
+      'John Kamau Mary Wanjiru',
+      'Directors Chairman Secretary',
+    ],
+    [
+      'Directors:\nJohn Kamau - Chairman\nMary Wanjiru - Treasurer\nPeter Otieno, Director',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Chairman Treasurer',
+    ],
+    // A field word ends a span without a colon, unless it is also a name and a name follows (F69).
+    ['Owner: John Kamau Make Toyota Model Premio', 'John Kamau', 'Make Toyota Model Premio'],
+    ['Proprietor: John Kamau County Kiambu', 'John Kamau', 'County Kiambu'],
+    ['Employee Name: Mary Wanjiru Station Nyeri', 'Mary Wanjiru', 'Station Nyeri'],
+    ['Proprietor: John Kamau Tenure Freehold', 'John Kamau', 'Tenure Freehold'],
+    ['Employee Name: Mary Wanjiru Employer Kenya Power', 'Mary Wanjiru', 'Employer Kenya Power'],
+    [
+      'Account Name: Mary Wanjiru Bank Equity Bank Branch Nyali',
+      'Mary Wanjiru',
+      'Bank Equity Branch Nyali',
+    ],
+    ['Lessee: Peter Kamau Pwani Commercial Bank Limited', 'Peter Kamau', 'Lessee'],
+    [
+      'Borrower: John Kamau Facility Overdraft Interest Rate 13%',
+      'John Kamau',
+      'Facility Overdraft Interest Rate',
+    ],
+    // A list ends when numbering restarts, or at a line that is no wrapped name (F70).
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n1. Collateral: Title deed',
+      'John Kamau Mary Wanjiru',
+      'Collateral Title deed',
+    ],
+    ['Directors:\n1. John Kamau\nCollateral', 'John Kamau', 'Collateral'],
+    ['Directors:\n1. John Kamau\nVehicles', 'John Kamau', 'Vehicles'],
+    ['Directors:\n1. John Kamau\nMotor Vehicles', 'John Kamau', 'Motor Vehicles'],
+    ['Directors:\n1. JOHN KAMAU\nPROPERTIES', 'JOHN KAMAU', 'PROPERTIES'],
+    ['Directors:\n1. John Kamau\nShareholding', 'John Kamau', 'Shareholding'],
+    // Markers compare only with their own kind and indent; an initial is no marker (F73).
+    ['Directors:\n1. J. Kamau\n2. A. Otieno', 'Kamau Otieno', 'Directors'],
+    ['Directors:\nJ. Kamau\nA. Otieno', 'Kamau Otieno', 'Directors'],
+    [
+      'Directors:\n1. John Kamau\na. Chairman\nb. Holds 500 shares\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Directors Chairman',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Toyota Premio\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\n   1. ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Directors ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n2. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\n2. Mary Wanjiru\n1. Peter Otieno\n2. Jane Akinyi',
+      'John Kamau Mary Wanjiru Peter Otieno Jane Akinyi',
+      'Directors',
+    ],
+    // A line between two entries numbered in turn is a wrapped name (F74).
+    [
+      'Directors:\n1. John Kamau\nMwangi\n2. Mary Wanjiru',
+      'John Kamau Mwangi Mary Wanjiru',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\nCollateral\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Collateral',
+    ],
+    // After a blank line, an entry must read as a name (F75).
+    ['Directors:\n1. John Kamau\n\nKenya Power, Bank', 'John Kamau', 'Kenya Power Bank'],
+    ['Directors:\n1. John Kamau\n\n2. Kenya Power, Bank', 'John Kamau', 'Kenya Power Bank'],
+    // A marked line of another kind or indent is read only if it reads as a name (F77).
+    [
+      'Directors:\n1. John Kamau\n(a) Toyota Premio\nMake: Toyota\nModel: Premio\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Toyota Premio Make Model',
+    ],
+    [
+      'Directors:\n1. John Kamau\nb. Box 123 Nakuru\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Box Nakuru',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(b) Plot 7 Njoro\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Plot Njoro',
+    ],
+    [
+      'Shareholders:\n1. John Kamau\na) Tumaini Holdings Ltd - Ordinary Shares\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Tumaini Holdings Ltd Ordinary Shares',
+    ],
+    [
+      'Directors:\n1. John Kamau\na) Kenya Power\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Kenya Power',
+    ],
+    [
+      'Directors:\n1. John Kamau\nEquity Bank, Nakuru Branch\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Equity Bank Nakuru Branch',
+    ],
+    [
+      'Directors:\n1. John Kamau\na) Peter Otieno\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Directors',
+    ],
+    // An office before a name on an unmarked line (F78).
+    [
+      'Directors:\nChairman John Kamau\nSecretary Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Chairman Secretary',
+    ],
+    [
+      'Directors:\nJohn Kamau\nSecretary Mary Wanjiru\nTreasurer Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Secretary Treasurer',
+    ],
+    // A sub-entry is a name when its leading words are; the rest is read as a span (F81).
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(b) Peter Otieno - 40%\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      '40',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno PIN A012345678Z\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'PIN',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno Tel 0712 345 678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Tel',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno 0712345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Directors',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno - 500 shares\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      '500 shares',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno KES 500,000\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'KES 500,000',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno, Nakuru\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Nakuru',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno - Son\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Son',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno (Son)\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'Son',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Otieno born 1990\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'born 1990',
+    ],
+    [
+      'Directors:\n1. John Kamau\n   2. Peter Otieno ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n- Peter Otieno ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Peter Otieno Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\ni. John Kamau\nii. Mary Wanjiru\niii. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'Directors',
+    ],
+    // A sub-item one word leads is an item, not a name; a company word marks an organisation (F83).
+    [
+      'Directors:\n1. John Kamau\n(a) Equity Bank, Nakuru Branch\n2. Mary Wanjiru\nBank: Equity Bank',
+      'John Kamau Mary Wanjiru',
+      'Equity Bank Nakuru Branch',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Freehold Tenure\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Freehold Tenure',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Barclays Bank\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Barclays Bank',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Unity Sacco\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Unity Sacco',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Co-operative Bank\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Co-operative Bank',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Ordinary Shares\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Ordinary Shares',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Preference Shares 200\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Preference Shares 200',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Freehold/Leasehold Nakuru/Njoro/123\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Freehold Leasehold Nakuru Njoro',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Residential Plot 4\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Residential Plot 4',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Current Account\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Current Account',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) Premio Year 2015\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Premio Year 2015',
+    ],
+    [
+      'Directors:\n1. John Kamau\n- Equity Bank\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'Equity Bank',
+    ],
+    // Box is a field word only in an address (F84).
+    ['Proprietor: John Box', 'John Box', 'Proprietor'],
+    [
+      'Directors:\n1. John Kamau\n(a) Peter Box Otieno\n2. Mary Wanjiru',
+      'John Kamau Peter Box Otieno Mary Wanjiru',
+      'Directors',
+    ],
+    ['Directors:\n1. John Kamau\n2. Peter Box', 'John Kamau Peter Box', 'Directors'],
+    [
+      'Directors:\n1. John Kamau\n(a) Wanjiru ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Wanjiru Mary Wanjiru',
+      'ID',
+    ],
+    [
+      'Directors:\n1. John Kamau\n(a) J. Kamau ID 12345678\n2. Mary Wanjiru',
+      'John Kamau Mary Wanjiru',
+      'ID',
+    ],
+    // "i." starts a roman list when "ii." comes next (F81).
+    [
+      'Directors:\ni. John Kamau\nID 12345678\nii. Mary Wanjiru\nID 23456789\niii. Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'ID',
+    ],
+    [
+      'Directors:\n(i) John Kamau\nPIN A012345678Z\n(ii) Mary Wanjiru\nPIN A012345679Z\n(iii) Peter Otieno',
+      'John Kamau Mary Wanjiru Peter Otieno',
+      'PIN',
+    ],
+    // Common words a name holds stay readable in prose (F48, F55).
+    [
+      'Proprietor: Grace Baba\nThe baba and the mama of the house; tel and shares; total value.',
+      'Grace Baba',
+      'baba mama tel shares total value',
+    ],
+  ])('in %j sends no name of %j and keeps %j readable', (line, names, readable) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of names.split(' ').filter(Boolean)) {
+      expect(input.textLayer).not.toMatch(wholeWord(word));
+    }
+    for (const word of readable.split(' ')) expect(input.textLayer).toMatch(wholeWord(word));
+  });
+});
+
+describe('minimise a text layer: what is no name', () => {
+  it('reads 1,000 pages quickly (F49)', () => {
+    const pages = Array.from({ length: 1_000 }, (_, page) => ({
+      page: page + 1,
+      textLayer: 'Proprietor: John Kamau\nMember No. AB12C\nPhysical address: House 14, Nakuru',
+    }));
+    const started = performance.now();
+    minimise({ document: { pages } });
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+
+  it('reads a label at the end of one page and its name at the start of the next (F38)', () => {
+    const { input } = minimise({
+      document: {
+        pages: [
+          { page: 1, textLayer: 'TRANSFER OF LAND\nProprietor:' },
+          { page: 2, textLayer: 'John Kamau Mwangi\nof Nakuru' },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(input)).not.toMatch(/John|Kamau|Mwangi/u);
+  });
+
+  it.each([
+    // Another field on the same line ends the span: its value is the reading's (F39).
+    ['Registered Owner: BRIAN OUMA Make: TOYOTA Model: FIELDER', 'BRIAN OUMA', 'TOYOTA FIELDER'],
+    [
+      'Account Name: Mary Wanjiru Account Type: Savings Branch: Nyali',
+      'Mary Wanjiru',
+      'Savings Nyali',
+    ],
+    ['Proprietor: Peter Kamau Section: Njoro Station: Molo', 'Peter Kamau', 'Njoro Molo'],
+    // A place, office or company on the line below is no part of the name.
+    ['Proprietor: John Kamau\nNakuru', 'John Kamau', 'Nakuru'],
+    ['Signed: Kevin Odera\nBranch Manager', 'Kevin Odera', 'Branch Manager'],
+    [
+      'Lessee: Peter Kamau\nPwani Commercial Bank Limited',
+      'Peter Kamau',
+      'Pwani Commercial Bank Limited',
+    ],
+  ])('in %j minimises %j and leaves %j', (line, names, fields) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of names.split(' ')) expect(input.textLayer).not.toContain(word);
+    for (const word of fields.split(' ')) expect(input.textLayer).toContain(word);
+  });
+
+  it.each([
+    // A name label after an organisation or field word is that field's (F46).
+    ['Bank Name: Highlands Bank Kenya PLC Branch Name: Nyali', 'Highlands Nyali'],
+    ['Employer Name: Ministry of Health', 'Ministry Health'],
+    ['Business Name: Tumaini Traders', 'Tumaini Traders'],
+  ])('in %j keeps %j readable', (line, fields) => {
+    const { input } = minimise({ textLayer: line });
+
+    for (const word of fields.split(' ')) expect(input.textLayer).toContain(word);
+  });
+
+  it('reads a labelled account number as an account number (F49)', () => {
+    expect(minimise({ textLayer: 'Account Number: 0712 345 678 9' }).input.textLayer).toBe(
+      'Account Number: [[ACCOUNT_1]]',
+    );
+    expect(minimise({ textLayer: 'A/C No. 4521' }).input.textLayer).toBe('A/C No. [[ACCOUNT_1]]');
+  });
+
+  it('keeps a page header readable after a label at the foot of the page before (F49)', () => {
+    const { input } = minimise({
+      document: {
+        pages: [
+          { page: 1, textLayer: 'Proprietor: John Kamau\nWitness:' },
+          { page: 2, textLayer: 'TITLE DEED\nPage 2' },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(input)).toContain('TITLE DEED');
+  });
+
+  it('sends an email that holds a name as one email token, restored exactly (F67)', () => {
+    const minimised = minimise({
+      textLayer: 'Proprietor: John Kamau\nContact John.Kamau@KamauLaw.co.ke or 0712 345 678',
+    });
+
+    expect(minimised.input.textLayer).toBe(
+      'Proprietor: [[PERSON_1]] [[PERSON_2]]\nContact [[EMAIL_1]] or [[PHONE_1]]',
+    );
+    expect(minimised.restore({ email: '[[EMAIL_1]]' })).toEqual({
+      email: 'John.Kamau@KamauLaw.co.ke',
+    });
+  });
+
+  it('reads a list numbered again after a page break (F73)', () => {
+    const { input } = minimise({
+      document: {
+        pages: [
+          { page: 1, textLayer: 'Directors:\n1. John Kamau\n2. Mary Wanjiru' },
+          { page: 2, textLayer: '1. Peter Otieno\n2. Jane Akinyi' },
+        ],
+      },
+    });
+
+    expect(JSON.stringify(input)).not.toMatch(/John|Kamau|Mary|Wanjiru|Peter|Otieno|Jane|Akinyi/u);
+  });
+
+  it('reads a private-use mark already in a text layer as a space (F71)', () => {
+    const { input } = minimise({ textLayer: 'Proprietor: John\ue000Kamau' });
+
+    expect(input.textLayer).not.toMatch(/John|Kamau/u);
+  });
+
+  it('matches a name a page gives only in the cases a page writes it in', () => {
+    const { input } = minimise({
+      textLayer: 'Borrower: Tumaini Fresh Produce Limited\nTUMAINI FRESH sells fresh produce.',
+    });
+
+    expect(input.textLayer).not.toMatch(/Tumaini|TUMAINI|Fresh|FRESH/u);
+    expect(input.textLayer).toContain('sells fresh produce.');
   });
 });
 
@@ -571,5 +1272,16 @@ describe('minimise free text in linear time', () => {
     const { input } = minimise({ note: `${run} mail jane.doe@example.co.ke` });
     expect(performance.now() - started).toBeLessThan(100);
     expect(input.note).toMatch(/mail \[\[EMAIL_\d\]\]$/u);
+  });
+
+  it('reads a long run of capitals quickly, and still finds a parcel (F102)', () => {
+    const started = performance.now();
+    const { input } = minimise({ note: `${'KRA '.repeat(25_000)}plot NAKURU/NJORO/1234` });
+    expect(performance.now() - started).toBeLessThan(500);
+    expect(input.note).toMatch(/plot \[\[PARCEL_\d\]\]$/u);
+  });
+
+  it('finds an email whose domain an OCR pass broke ("jane@.example.co.ke")', () => {
+    expect(minimise({ note: 'mail jane@.example.co.ke' }).input.note).toBe('mail [[EMAIL_1]]');
   });
 });

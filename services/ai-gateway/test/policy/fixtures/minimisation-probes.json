@@ -1,0 +1,4126 @@
+[
+  {
+    "id": "review-probe-1",
+    "input": "Signed: Director Peter Kamau",
+    "mustHide": ["Peter", "Kamau"],
+    "mustKeep": ["Signed"]
+  },
+  {
+    "id": "review-probe-2",
+    "input": "Witnessed by: Advocate Jane Wanjiru",
+    "mustHide": ["Jane", "Wanjiru"],
+    "mustKeep": ["Witnessed", "by"]
+  },
+  {
+    "id": "review-probe-3",
+    "input": "Witness: Treasurer Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Witness"]
+  },
+  {
+    "id": "review-probe-4",
+    "input": "Signed by: Chairman John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Signed", "by"]
+  },
+  {
+    "id": "review-probe-5",
+    "input": "Proprietor: the late John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-6",
+    "input": "Signed: Kevin Otieno Odera Sacco Secretary",
+    "mustHide": ["Kevin", "Otieno", "Odera"],
+    "mustKeep": ["Signed"]
+  },
+  {
+    "id": "review-probe-7",
+    "input": "Witness: Mary Achieng, Chama Treasurer",
+    "mustHide": ["Mary", "Achieng"],
+    "mustKeep": ["Witness"]
+  },
+  {
+    "id": "review-probe-8",
+    "input": "Borrower: John Kamau   Guarantor: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-9",
+    "input": "Borrower: John Kamau\tGuarantor: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-10",
+    "input": "Borrower: John Kamau Guarantor: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-11",
+    "input": "Proprietor:\r\nJohn Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-12",
+    "input": "Proprietor:\n\nJohn Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-13",
+    "input": "Proprietor:\r\n\r\nJohn Kamau Mwangi",
+    "mustHide": ["John", "Kamau", "Mwangi"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-14",
+    "input": "Proprietor: John Kamau\nMwangi Njoroge",
+    "mustHide": ["John", "Kamau", "Mwangi", "Njoroge"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-15",
+    "input": "Proprietors: John Kamau / Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors"]
+  },
+  {
+    "id": "review-probe-16",
+    "input": "Proprietors: John Kamau; Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors"]
+  },
+  {
+    "id": "review-probe-17",
+    "input": "Proprietors: John Kamau or Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors"]
+  },
+  {
+    "id": "review-probe-18",
+    "input": "Wamiliki: John Kamau na pia Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Wamiliki"]
+  },
+  {
+    "id": "review-probe-19",
+    "input": "Wamiliki: John Kamau pamoja na Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Wamiliki"]
+  },
+  {
+    "id": "review-probe-20",
+    "input": "Owner: John Kamau c/o Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-21",
+    "input": "Owner: Mary Wanjiru w/o John Kamau",
+    "mustHide": ["Mary", "Wanjiru", "John", "Kamau"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-22",
+    "input": "Owner: Peter Kamau s/o John Kamau",
+    "mustHide": ["Peter", "Kamau", "John"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-23",
+    "input": "Owner: Grace Njeri d/o John Kamau",
+    "mustHide": ["Grace", "Njeri", "John", "Kamau"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-24",
+    "input": "Owner: John Kamau alias Johnny Kamau",
+    "mustHide": ["John", "Kamau", "Johnny"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-25",
+    "input": "Owner: John Kamau aka JK Mwangi",
+    "mustHide": ["John", "Kamau", "JK", "Mwangi"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-26",
+    "input": "Owner: John Kamau t/a Kamau Traders",
+    "mustHide": ["John", "Kamau", "Traders"],
+    "mustKeep": ["Owner"]
+  },
+  {
+    "id": "review-probe-27",
+    "input": "Borrower: Wanjiku Njoki Trading Company",
+    "mustHide": ["Wanjiku", "Njoki", "Trading"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-28",
+    "input": "Chargors: Jane Wanjiru & Tumaini Holdings Ltd",
+    "mustHide": ["Jane", "Wanjiru", "Tumaini"],
+    "mustKeep": ["Chargors"]
+  },
+  {
+    "id": "review-probe-29",
+    "input": "Guarantor: Mary Achieng and Upendo Women Group",
+    "mustHide": ["Mary", "Achieng", "Upendo", "Women"],
+    "mustKeep": ["Guarantor"]
+  },
+  {
+    "id": "review-probe-30",
+    "input": "Proprietor: Grace Trust\nGrace signed the transfer.",
+    "mustHide": ["Grace"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-31",
+    "input": "Borrower: Peter Kamau Mwangi",
+    "mustHide": ["Peter", "Kamau", "Mwangi"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-32",
+    "input": "MR. JOHN KAMAU",
+    "mustHide": ["JOHN", "KAMAU"],
+    "mustKeep": ["MR"]
+  },
+  {
+    "id": "review-probe-33",
+    "input": "Mr.John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mr"]
+  },
+  {
+    "id": "review-probe-34",
+    "input": "Rev. Peter Mwangi",
+    "mustHide": ["Peter", "Mwangi"],
+    "mustKeep": ["Rev"]
+  },
+  {
+    "id": "review-probe-35",
+    "input": "Pastor Grace Wambui",
+    "mustHide": ["Grace", "Wambui"],
+    "mustKeep": ["Pastor"]
+  },
+  {
+    "id": "review-probe-36",
+    "input": "Bishop Samuel Kariuki",
+    "mustHide": ["Samuel", "Kariuki"],
+    "mustKeep": ["Bishop"]
+  },
+  {
+    "id": "review-probe-37",
+    "input": "Sheikh Ali Hassan",
+    "mustHide": ["Ali", "Hassan"],
+    "mustKeep": ["Sheikh"]
+  },
+  {
+    "id": "review-probe-38",
+    "input": "Mzee Jomo Kariuki",
+    "mustHide": ["Jomo", "Kariuki"],
+    "mustKeep": ["Mzee"]
+  },
+  {
+    "id": "review-probe-39",
+    "input": "Mama Wanjiru Kamau",
+    "mustHide": ["Wanjiru", "Kamau"],
+    "mustKeep": ["Mama"]
+  },
+  {
+    "id": "review-probe-40",
+    "input": "Bwana Juma Hamisi",
+    "mustHide": ["Juma", "Hamisi"],
+    "mustKeep": ["Bwana"]
+  },
+  {
+    "id": "review-probe-41",
+    "input": "Bibi Amina Said",
+    "mustHide": ["Amina", "Said"],
+    "mustKeep": ["Bibi"]
+  },
+  {
+    "id": "review-probe-42",
+    "input": "Dkt. Otieno Ouma",
+    "mustHide": ["Otieno", "Ouma"],
+    "mustKeep": ["Dkt"]
+  },
+  {
+    "id": "review-probe-43",
+    "input": "Capt. Daniel Kiprop",
+    "mustHide": ["Daniel", "Kiprop"],
+    "mustKeep": ["Capt"]
+  },
+  {
+    "id": "review-probe-44",
+    "input": "CPA Mary Atieno",
+    "mustHide": ["Mary", "Atieno"],
+    "mustKeep": ["CPA"]
+  },
+  {
+    "id": "review-probe-45",
+    "input": "Dear John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Dear"]
+  },
+  {
+    "id": "review-probe-46",
+    "input": "Mpendwa Halima Ali",
+    "mustHide": ["Halima", "Ali"],
+    "mustKeep": ["Mpendwa"]
+  },
+  {
+    "id": "review-probe-47",
+    "input": "Ndugu Juma Hamisi,",
+    "mustHide": ["Juma", "Hamisi"],
+    "mustKeep": ["Ndugu"]
+  },
+  {
+    "id": "review-probe-48",
+    "input": "Imesainiwa na Juma Hamisi",
+    "mustHide": ["Juma", "Hamisi"],
+    "mustKeep": ["Imesainiwa"]
+  },
+  {
+    "id": "review-probe-49",
+    "input": "Borrower 1: John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-50",
+    "input": "Borrower (1): John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-51",
+    "input": "Guarantor(s): John Kamau, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Guarantor"]
+  },
+  {
+    "id": "review-probe-52",
+    "input": "Proprietor: 1) John Kamau 2) Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-53",
+    "input": "Proprietors: 1. John Kamau 2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors"]
+  },
+  {
+    "id": "review-probe-54",
+    "input": "Proprietor: Ali bin Hassan",
+    "mustHide": ["Ali", "Hassan"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-55",
+    "input": "Proprietor: Fatuma binti Omar",
+    "mustHide": ["Fatuma", "Omar"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-56",
+    "input": "Proprietor: Kamau wa Ngengi",
+    "mustHide": ["Kamau", "Ngengi"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-57",
+    "input": "Proprietor: Maria de Souza",
+    "mustHide": ["Maria", "Souza"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-58",
+    "input": "Proprietor: Pieter van Dijk",
+    "mustHide": ["Pieter", "Dijk"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-59",
+    "input": "Proprietor: John \"Johnny\" Kamau",
+    "mustHide": ["John", "Johnny", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-60",
+    "input": "Proprietor: John (Johnny) Kamau",
+    "mustHide": ["John", "Johnny", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-61",
+    "input": "Proprietor: John Kamau  Mwangi",
+    "mustHide": ["John", "Kamau", "Mwangi"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-62",
+    "input": "Signed: Kevin Odera for and on behalf of Pwani Traders",
+    "mustHide": ["Kevin", "Odera"],
+    "mustKeep": ["Signed"]
+  },
+  {
+    "id": "review-probe-63",
+    "input": "Witness: Mary Wanjiru, a duly authorised officer, Nairobi",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Witness"]
+  },
+  {
+    "id": "review-probe-64",
+    "input": "Proprietor: JOHN KAMAU AND MARY WANJIRU",
+    "mustHide": ["JOHN", "KAMAU", "MARY", "WANJIRU"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-65",
+    "input": "Borrower: John Kamau: 50,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "review-probe-66",
+    "input": "Signatories:\nJohn Kamau: Chairman",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Signatories"]
+  },
+  {
+    "id": "review-probe-67",
+    "input": "Directors:\n1. John Kamau\n2. Mary Wanjiru\n3) Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "review-probe-68",
+    "input": "Signatories:\n- John Kamau\n• Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Signatories"]
+  },
+  {
+    "id": "review-probe-69",
+    "input": "Proprietors:\nJohn Kamau\nMary Wanjiru\n\nThe land",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors"]
+  },
+  {
+    "id": "review-probe-70",
+    "input": "Mr. John Baba",
+    "mustHide": ["John", "Baba"],
+    "mustKeep": ["Mr"]
+  },
+  {
+    "id": "review-probe-71",
+    "input": "Proprietor: Grace Mama",
+    "mustHide": ["Grace", "Mama"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-72",
+    "input": "Proprietor: John Kamau\nsigned: john kamau",
+    "mustHide": ["John", "Kamau", "john", "kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-73",
+    "input": "Proprietor: John Kamau\nJOHN kamau",
+    "mustHide": ["John", "Kamau", "JOHN", "kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "review-probe-74",
+    "input": "Tel 0712 345 678\u000bMember No. AB12C\fProprietor: John Kamau",
+    "mustHide": ["John", "Kamau", "AB12C"],
+    "mustKeep": ["Tel"]
+  },
+  {
+    "id": "review-probe-75",
+    "input": "Proprietor: John Kamau.\nKamau signed the transfer.",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "fields-readable-1",
+    "input": "Employee Name: John Kamau Gender: Male Nationality: Kenyan Occupation: Teacher",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": [
+      "Employee",
+      "Name",
+      "Gender",
+      "Male",
+      "Nationality",
+      "Kenyan",
+      "Occupation",
+      "Teacher"
+    ]
+  },
+  {
+    "id": "fields-readable-2",
+    "input": "Employee Name: Mary Wanjiru Grade: M Basic Salary: 45,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Grade", "Basic", "Salary", "45,000"]
+  },
+  {
+    "id": "fields-readable-3",
+    "input": "Borrower: John Kamau KES 12,500,000 Total Shares 500",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["KES", "12,500,000", "Total", "Shares", "500"]
+  },
+  {
+    "id": "fields-readable-4",
+    "input": "Borrower: John Kamau Purpose: Development Value: KES 3,000,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Purpose", "Development", "Value", "KES", "3,000,000"]
+  },
+  {
+    "id": "fields-readable-5",
+    "input": "Proprietor: John Kamau Village: Kiamumbi Ward: Kahawa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Village", "Kiamumbi", "Ward", "Kahawa"]
+  },
+  {
+    "id": "fields-readable-6",
+    "input": "Proprietor: John Kamau Parcel: Plot 7 Use: Agricultural",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Parcel", "Plot", "Use", "Agricultural"]
+  },
+  {
+    "id": "fields-readable-7",
+    "input": "Borrower: John Kamau Term: 36 Months",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Term", "36", "Months"]
+  },
+  {
+    "id": "fields-readable-8",
+    "input": "Registered Owner: BRIAN OUMA Make: TOYOTA Model: FIELDER",
+    "mustHide": ["BRIAN", "OUMA"],
+    "mustKeep": ["Make", "TOYOTA", "Model", "FIELDER"]
+  },
+  {
+    "id": "fields-readable-9",
+    "input": "Account Name: Mary Wanjiru Account Type: Savings Branch: Nyali",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Account", "Type", "Savings", "Branch", "Nyali"]
+  },
+  {
+    "id": "fields-readable-10",
+    "input": "Proprietor: Peter Kamau Section: Njoro Station: Molo",
+    "mustHide": ["Peter", "Kamau"],
+    "mustKeep": ["Section", "Njoro", "Station", "Molo"]
+  },
+  {
+    "id": "fields-readable-11",
+    "input": "Borrower: John Kamau: 50,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower", "50,000"]
+  },
+  {
+    "id": "fields-readable-12",
+    "input": "Signatories:\nJohn Kamau: Chairman",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Signatories", "Chairman"]
+  },
+  {
+    "id": "fields-readable-13",
+    "input": "Witness: Mary Achieng: Branch Manager",
+    "mustHide": ["Mary", "Achieng"],
+    "mustKeep": ["Witness", "Branch", "Manager"]
+  },
+  {
+    "id": "fields-readable-14",
+    "input": "Gender: Male",
+    "mustHide": [],
+    "mustKeep": ["Gender", "Male"]
+  },
+  {
+    "id": "fields-readable-15",
+    "input": "Basic Salary: 45,000",
+    "mustHide": [],
+    "mustKeep": ["Basic", "Salary", "45,000"]
+  },
+  {
+    "id": "fields-readable-16",
+    "input": "Total Shares: 500",
+    "mustHide": [],
+    "mustKeep": ["Total", "Shares", "500"]
+  },
+  {
+    "id": "fields-readable-17",
+    "input": "Loan Term: 36 Months",
+    "mustHide": [],
+    "mustKeep": ["Loan", "Term", "36", "Months"]
+  },
+  {
+    "id": "fields-readable-18",
+    "input": "KES 12,500,000",
+    "mustHide": [],
+    "mustKeep": ["KES", "12,500,000"]
+  },
+  {
+    "id": "fields-readable-19",
+    "input": "Bank Name: Highlands Bank Kenya PLC Branch Name: Nyali",
+    "mustHide": [],
+    "mustKeep": ["Bank", "Name", "Highlands", "Branch", "Nyali"]
+  },
+  {
+    "id": "fields-readable-20",
+    "input": "Employer Name: Ministry of Health",
+    "mustHide": [],
+    "mustKeep": ["Employer", "Name", "Ministry", "Health"]
+  },
+  {
+    "id": "fields-readable-21",
+    "input": "Business Name: Tumaini Traders",
+    "mustHide": [],
+    "mustKeep": ["Business", "Name", "Tumaini", "Traders"]
+  },
+  {
+    "id": "fields-readable-22",
+    "input": "Directors:\n1. John Kamau, Chairman\n2. Mary Wanjiru, Secretary",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors", "Chairman", "Secretary"]
+  },
+  {
+    "id": "fields-readable-23",
+    "input": "Directors:\na) John Kamau\nb) Mary Wanjiru\n\nc) Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-24",
+    "input": "Signatories:\ni. John Kamau\nii. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Signatories"]
+  },
+  {
+    "id": "fields-readable-25",
+    "input": "Signatories:\n\u2013 John Kamau\n\u2013 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Signatories"]
+  },
+  {
+    "id": "fields-readable-26",
+    "input": "Proprietors:\nJohn Kamau\nMary Wanjiru\n\nThe land is freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["The", "land", "is", "freehold"]
+  },
+  {
+    "id": "fields-readable-27",
+    "input": "Directors:\n1. John Kamau\n2. Date: 12 May 2026\nBalance: KES 500",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Date", "May", "Balance", "KES", "500"]
+  },
+  {
+    "id": "fields-readable-28",
+    "input": "Directors:\n1. John Kamau\n2. Gender Male\n3. Total Shares 500",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Gender", "Male", "Total", "Shares", "500"]
+  },
+  {
+    "id": "fields-readable-29",
+    "input": "Guarantor: Peter Otieno: ID 12345678",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": ["Guarantor", "ID"]
+  },
+  {
+    "id": "fields-readable-30",
+    "input": "Director: John Kamau: 12345678",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Director"]
+  },
+  {
+    "id": "fields-readable-31",
+    "input": "Witness: Jane Akinyi: Tel 0712 345 678",
+    "mustHide": ["Jane", "Akinyi"],
+    "mustKeep": ["Witness", "Tel"]
+  },
+  {
+    "id": "fields-readable-32",
+    "input": "Borrower: John Kamau:\nChairman",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower", "Chairman"]
+  },
+  {
+    "id": "fields-readable-33",
+    "input": "Borrower: John Kamau: Sh 50,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower", "Sh", "50,000"]
+  },
+  {
+    "id": "fields-readable-34",
+    "input": "Borrower: John Kamau: Shs 50,000 UGX 10 TZS 20",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Shs", "UGX", "TZS"]
+  },
+  {
+    "id": "fields-readable-35",
+    "input": "Borrower: John Kamau Loan Amount: KES 50,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Loan", "Amount", "KES", "50,000"]
+  },
+  {
+    "id": "fields-readable-36",
+    "input": "Borrower: John Kamau Amount: 50,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Amount", "50,000"]
+  },
+  {
+    "id": "fields-readable-37",
+    "input": "Proprietor: John Kamau Value: 3,000,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Value", "3,000,000"]
+  },
+  {
+    "id": "fields-readable-38",
+    "input": "Employee Name: Mary Wanjiru Basic Salary: 45,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Basic", "Salary", "45,000"]
+  },
+  {
+    "id": "fields-readable-39",
+    "input": "Employee Name: Mary Wanjiru Salary: 45,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Salary", "45,000"]
+  },
+  {
+    "id": "fields-readable-40",
+    "input": "Employee Name: Mary Wanjiru Net Pay: 38,000 Gross Pay: 45,000",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Net", "Pay", "Gross", "Pay", "38,000", "45,000"]
+  },
+  {
+    "id": "fields-readable-41",
+    "input": "Directors:\n1. John Kamau\n2. Mary Wanjiru: Secretary\n3. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Directors", "Secretary"]
+  },
+  {
+    "id": "fields-readable-42",
+    "input": "Directors:\n1. John Kamau 500 shares\n2. Mary Wanjiru 60%\n3. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["shares"]
+  },
+  {
+    "id": "fields-readable-43",
+    "input": "Directors:\n1. John Kamau, appointed 12 May 2020\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["appointed"]
+  },
+  {
+    "id": "fields-readable-44",
+    "input": "Directors:\n1. John Kamau: 500 shares\n2. Mary Wanjiru: 50,000\n3. Peter Otieno: ID 12345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["shares", "ID"]
+  },
+  {
+    "id": "fields-readable-45",
+    "input": "Directors:\n1. Grace Wanjiru\n2. Faith Akinyi",
+    "mustHide": ["Grace", "Wanjiru", "Faith", "Akinyi"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-46",
+    "input": "Shareholders:\n1. Tumaini Traders Ltd\n2. John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Shareholders"]
+  },
+  {
+    "id": "fields-readable-47",
+    "input": "Officials:\n- Chairman: John Kamau\n- Treasurer: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Chairman", "Treasurer"]
+  },
+  {
+    "id": "fields-readable-48",
+    "input": "Directors:\n(a) John Kamau\n(b) Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-49",
+    "input": "Directors:\n(1) John Kamau\n(2) Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-50",
+    "input": "Directors:\n(i) John Kamau\n(ii) Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-51",
+    "input": "Directors:\n[1] John Kamau\n[2] Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-52",
+    "input": "Directors:\n1 John Kamau\n2 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-53",
+    "input": "Proprietor: John Kamau Bank: Equity Bank Branch: Nyali",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank", "Equity", "Branch", "Nyali"]
+  },
+  {
+    "id": "fields-readable-54",
+    "input": "Director: John Kamau Company: Tumaini Traders Ltd",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Company", "Tumaini", "Traders", "Ltd"]
+  },
+  {
+    "id": "fields-readable-55",
+    "input": "Owner: John Kamau Vehicle: Toyota Premio Description: Saloon",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Vehicle", "Toyota", "Premio", "Description", "Saloon"]
+  },
+  {
+    "id": "fields-readable-56",
+    "input": "Owner: John Kamau Manufacturer: Toyota Registry: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Manufacturer", "Toyota", "Registry", "Nakuru"]
+  },
+  {
+    "id": "fields-readable-57",
+    "input": "Proprietor: John Kamau Residence: Njoro Constituency: Molo Sub-County: Njoro",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Residence", "Njoro", "Constituency", "Molo", "Sub-County"]
+  },
+  {
+    "id": "fields-readable-58",
+    "input": "Employee Name: Mary Wanjiru Ministry: Health Organisation: Kenya Red Cross",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Ministry", "Health", "Organisation", "Red", "Cross"]
+  },
+  {
+    "id": "fields-readable-59",
+    "input": "Proprietor: John Kamau Nature of Title: Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nature", "of", "Title", "Freehold"]
+  },
+  {
+    "id": "fields-readable-60",
+    "input": "Proprietor: John Kamau Nakuru: Njoro",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nakuru", "Njoro"]
+  },
+  {
+    "id": "fields-readable-61",
+    "input": "Witness: Mary Wanjiru Sacco: Ufanisi",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Sacco", "Ufanisi"]
+  },
+  {
+    "id": "fields-readable-62",
+    "input": "Proprietor: John Kamau Nyali Branch\nThe nyali branch and NYALI BRANCH accounts.",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["branch", "BRANCH"]
+  },
+  {
+    "id": "fields-readable-63",
+    "input": "Borrower: John Kamau Group\nThe group and its GROUP savings.",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["group", "GROUP"]
+  },
+  {
+    "id": "fields-readable-64",
+    "input": "Directors:\n1. John Kamau\nAssets\nLand in Njoro",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Assets", "Land", "Njoro"]
+  },
+  {
+    "id": "fields-readable-65",
+    "input": "Directors:\n1. John Kamau\nSecurity Offered\nShare Capital",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Security", "Offered", "Share", "Capital"]
+  },
+  {
+    "id": "fields-readable-66",
+    "input": "Proprietors:\n1. John Kamau\nSchedule\nRegistered Office",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Schedule", "Registered", "Office"]
+  },
+  {
+    "id": "fields-readable-67",
+    "input": "Guarantors:\n1. John Kamau\nTERMS AND CONDITIONS",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["TERMS", "AND", "CONDITIONS"]
+  },
+  {
+    "id": "fields-readable-68",
+    "input": "Owners:\n1. John Kamau\nToyota Premio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota", "Premio"]
+  },
+  {
+    "id": "fields-readable-69",
+    "input": "Signatories:\n1. John Kamau\nEquity Bank Nyali Branch",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Equity", "Bank", "Nyali", "Branch"]
+  },
+  {
+    "id": "fields-readable-70",
+    "input": "Proprietors:\n1. John Kamau\nKiambu County Land",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kiambu", "County", "Land"]
+  },
+  {
+    "id": "fields-readable-71",
+    "input": "Directors:\n1. John\nKamau Mwangi\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mwangi", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-72",
+    "input": "Borrower: John Kamau Ward Otieno",
+    "mustHide": ["John", "Kamau", "Ward", "Otieno"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "fields-readable-73",
+    "input": "Borrower: John Kamau ID 12345678",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-74",
+    "input": "Directors:\nJohn Kamau, Chairman\nMary Wanjiru, Secretary",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors", "Chairman", "Secretary"]
+  },
+  {
+    "id": "fields-readable-75",
+    "input": "Directors:\nJohn Kamau - Chairman\nMary Wanjiru - Treasurer\nPeter Otieno, Director",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Chairman", "Treasurer"]
+  },
+  {
+    "id": "fields-readable-76",
+    "input": "Owner: John Kamau Make Toyota Model Premio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Make", "Toyota", "Model", "Premio"]
+  },
+  {
+    "id": "fields-readable-77",
+    "input": "Proprietor: John Kamau County Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County", "Kiambu"]
+  },
+  {
+    "id": "fields-readable-78",
+    "input": "Employee Name: Mary Wanjiru Station Nyeri",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Station", "Nyeri"]
+  },
+  {
+    "id": "fields-readable-79",
+    "input": "Proprietor: John Kamau Tenure Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Tenure", "Freehold"]
+  },
+  {
+    "id": "fields-readable-80",
+    "input": "Employee Name: Mary Wanjiru Employer Kenya Power",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Employer", "Kenya", "Power"]
+  },
+  {
+    "id": "fields-readable-81",
+    "input": "Account Name: Mary Wanjiru Bank Equity Bank Branch Nyali",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Bank", "Equity", "Branch", "Nyali"]
+  },
+  {
+    "id": "fields-readable-82",
+    "input": "Lessee: Peter Kamau Pwani Commercial Bank Limited",
+    "mustHide": ["Peter", "Kamau"],
+    "mustKeep": ["Lessee"]
+  },
+  {
+    "id": "fields-readable-83",
+    "input": "Borrower: John Kamau Facility Overdraft Interest Rate 13%",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Facility", "Overdraft", "Interest", "Rate"]
+  },
+  {
+    "id": "fields-readable-84",
+    "input": "Directors:\n1. John Kamau\n2. Mary Wanjiru\n1. Collateral: Title deed",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Collateral", "Title", "deed"]
+  },
+  {
+    "id": "fields-readable-85",
+    "input": "Directors:\n1. John Kamau\nCollateral",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Collateral"]
+  },
+  {
+    "id": "fields-readable-86",
+    "input": "Directors:\n1. John Kamau\nVehicles",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Vehicles"]
+  },
+  {
+    "id": "fields-readable-87",
+    "input": "Directors:\n1. John Kamau\nMotor Vehicles",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Motor", "Vehicles"]
+  },
+  {
+    "id": "fields-readable-88",
+    "input": "Directors:\n1. JOHN KAMAU\nPROPERTIES",
+    "mustHide": ["JOHN", "KAMAU"],
+    "mustKeep": ["PROPERTIES"]
+  },
+  {
+    "id": "fields-readable-89",
+    "input": "Directors:\n1. John Kamau\nShareholding",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Shareholding"]
+  },
+  {
+    "id": "fields-readable-90",
+    "input": "Directors:\n1. J. Kamau\n2. A. Otieno",
+    "mustHide": ["Kamau", "Otieno"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-91",
+    "input": "Directors:\nJ. Kamau\nA. Otieno",
+    "mustHide": ["Kamau", "Otieno"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-92",
+    "input": "Directors:\n1. John Kamau\na. Chairman\nb. Holds 500 shares\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors", "Chairman"]
+  },
+  {
+    "id": "fields-readable-93",
+    "input": "Directors:\n1. John Kamau\n(a) Toyota Premio\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-94",
+    "input": "Directors:\n1. John Kamau\n   1. ID 12345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors", "ID"]
+  },
+  {
+    "id": "fields-readable-95",
+    "input": "Directors:\n1. John Kamau\n2. Mary Wanjiru\n2. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-96",
+    "input": "Directors:\n1. John Kamau\n2. Mary Wanjiru\n1. Peter Otieno\n2. Jane Akinyi",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno", "Jane", "Akinyi"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-97",
+    "input": "Directors:\n1. John Kamau\nMwangi\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mwangi", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-98",
+    "input": "Directors:\n1. John Kamau\nCollateral\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Collateral"]
+  },
+  {
+    "id": "fields-readable-99",
+    "input": "Directors:\n1. John Kamau\n\nKenya Power, Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya", "Power", "Bank"]
+  },
+  {
+    "id": "fields-readable-100",
+    "input": "Directors:\n1. John Kamau\n\n2. Kenya Power, Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya", "Power", "Bank"]
+  },
+  {
+    "id": "fields-readable-101",
+    "input": "Directors:\n1. John Kamau\n(a) Toyota Premio\nMake: Toyota\nModel: Premio\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Toyota", "Premio", "Make", "Model"]
+  },
+  {
+    "id": "fields-readable-102",
+    "input": "Directors:\n1. John Kamau\nb. Box 123 Nakuru\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Box", "Nakuru"]
+  },
+  {
+    "id": "fields-readable-103",
+    "input": "Directors:\n1. John Kamau\n(b) Plot 7 Njoro\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Plot", "Njoro"]
+  },
+  {
+    "id": "fields-readable-104",
+    "input": "Shareholders:\n1. John Kamau\na) Tumaini Holdings Ltd - Ordinary Shares\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Tumaini", "Holdings", "Ltd", "Ordinary", "Shares"]
+  },
+  {
+    "id": "fields-readable-105",
+    "input": "Directors:\n1. John Kamau\na) Kenya Power\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Kenya", "Power"]
+  },
+  {
+    "id": "fields-readable-106",
+    "input": "Directors:\n1. John Kamau\nEquity Bank, Nakuru Branch\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Equity", "Bank", "Nakuru", "Branch"]
+  },
+  {
+    "id": "fields-readable-107",
+    "input": "Directors:\n1. John Kamau\na) Peter Otieno\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-108",
+    "input": "Directors:\nChairman John Kamau\nSecretary Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Chairman", "Secretary"]
+  },
+  {
+    "id": "fields-readable-109",
+    "input": "Directors:\nJohn Kamau\nSecretary Mary Wanjiru\nTreasurer Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Secretary", "Treasurer"]
+  },
+  {
+    "id": "fields-readable-110",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno ID 12345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-111",
+    "input": "Directors:\n1. John Kamau\n(b) Peter Otieno - 40%\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["40"]
+  },
+  {
+    "id": "fields-readable-112",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno PIN A012345678Z\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["PIN"]
+  },
+  {
+    "id": "fields-readable-113",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno Tel 0712 345 678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Tel"]
+  },
+  {
+    "id": "fields-readable-114",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno 0712345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-115",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno - 500 shares\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["500", "shares"]
+  },
+  {
+    "id": "fields-readable-116",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno KES 500,000\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["KES", "500,000"]
+  },
+  {
+    "id": "fields-readable-117",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno, Nakuru\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "fields-readable-118",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno - Son\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Son"]
+  },
+  {
+    "id": "fields-readable-119",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno (Son)\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Son"]
+  },
+  {
+    "id": "fields-readable-120",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Otieno born 1990\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["born", "1990"]
+  },
+  {
+    "id": "fields-readable-121",
+    "input": "Directors:\n1. John Kamau\n   2. Peter Otieno ID 12345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-122",
+    "input": "Directors:\n1. John Kamau\n- Peter Otieno ID 12345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-123",
+    "input": "Directors:\ni. John Kamau\nii. Mary Wanjiru\niii. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-124",
+    "input": "Directors:\n1. John Kamau\n(a) Equity Bank, Nakuru Branch\n2. Mary Wanjiru\nBank: Equity Bank",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Equity", "Bank", "Nakuru", "Branch"]
+  },
+  {
+    "id": "fields-readable-125",
+    "input": "Directors:\n1. John Kamau\n(a) Freehold Tenure\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Freehold", "Tenure"]
+  },
+  {
+    "id": "fields-readable-126",
+    "input": "Directors:\n1. John Kamau\n(a) Barclays Bank\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Barclays", "Bank"]
+  },
+  {
+    "id": "fields-readable-127",
+    "input": "Directors:\n1. John Kamau\n(a) Unity Sacco\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Unity", "Sacco"]
+  },
+  {
+    "id": "fields-readable-128",
+    "input": "Directors:\n1. John Kamau\n(a) Co-operative Bank\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Co-operative", "Bank"]
+  },
+  {
+    "id": "fields-readable-129",
+    "input": "Directors:\n1. John Kamau\n(a) Ordinary Shares\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Ordinary", "Shares"]
+  },
+  {
+    "id": "fields-readable-130",
+    "input": "Directors:\n1. John Kamau\n(a) Preference Shares 200\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Preference", "Shares", "200"]
+  },
+  {
+    "id": "fields-readable-131",
+    "input": "Directors:\n1. John Kamau\n(a) Freehold/Leasehold Nakuru/Njoro/123\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Freehold", "Leasehold", "Nakuru", "Njoro"]
+  },
+  {
+    "id": "fields-readable-132",
+    "input": "Directors:\n1. John Kamau\n(a) Residential Plot 4\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Residential", "Plot", "4"]
+  },
+  {
+    "id": "fields-readable-133",
+    "input": "Directors:\n1. John Kamau\n(a) Current Account\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Current", "Account"]
+  },
+  {
+    "id": "fields-readable-134",
+    "input": "Directors:\n1. John Kamau\n(a) Premio Year 2015\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Premio", "Year", "2015"]
+  },
+  {
+    "id": "fields-readable-135",
+    "input": "Directors:\n1. John Kamau\n- Equity Bank\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Equity", "Bank"]
+  },
+  {
+    "id": "fields-readable-136",
+    "input": "Proprietor: John Box",
+    "mustHide": ["John", "Box"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "fields-readable-137",
+    "input": "Directors:\n1. John Kamau\n(a) Peter Box Otieno\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Peter", "Box", "Otieno", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-138",
+    "input": "Directors:\n1. John Kamau\n2. Peter Box",
+    "mustHide": ["John", "Kamau", "Peter", "Box"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "fields-readable-139",
+    "input": "Directors:\n1. John Kamau\n(a) Wanjiru ID 12345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Wanjiru", "Mary", "Wanjiru"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-140",
+    "input": "Directors:\n1. John Kamau\n(a) J. Kamau ID 12345678\n2. Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-141",
+    "input": "Directors:\ni. John Kamau\nID 12345678\nii. Mary Wanjiru\nID 23456789\niii. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["ID"]
+  },
+  {
+    "id": "fields-readable-142",
+    "input": "Directors:\n(i) John Kamau\nPIN A012345678Z\n(ii) Mary Wanjiru\nPIN A012345679Z\n(iii) Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["PIN"]
+  },
+  {
+    "id": "fields-readable-143",
+    "input": "Proprietor: Grace Njeri\nThe baba and the mama of the house; tel and shares; total value.",
+    "mustHide": ["Grace", "Njeri"],
+    "mustKeep": ["baba", "mama", "tel", "shares", "total", "value"]
+  },
+  {
+    "id": "fields-readable-143-label",
+    "input": "Proprietor: Grace Baba\nCounty: Nakuru",
+    "mustHide": ["Grace", "Baba"],
+    "mustKeep": ["Proprietor", "County: Nakuru"]
+  },
+  {
+    "id": "F87 one-word shareholders with a share",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng 40%\n(b) Otieno 60%",
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "F87 one-word lead before a number",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng 500",
+    "mustHide": ["John", "Kamau", "Achieng"],
+    "mustKeep": ["500"]
+  },
+  {
+    "id": "F87 one-word lead before a currency",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng KES 500",
+    "mustHide": ["John", "Kamau", "Achieng"],
+    "mustKeep": ["KES 500"]
+  },
+  {
+    "id": "F87 one-word lead before an amount",
+    "input": "Shareholders:\n1. John Kamau\n(d) Moraa KES 500,000",
+    "mustHide": ["John", "Kamau", "Moraa"],
+    "mustKeep": ["KES 500,000"]
+  },
+  {
+    "id": "F87 roman one-word lead before shares",
+    "input": "Shareholders:\n1. John Kamau\ni. Achieng 500 shares",
+    "mustHide": ["John", "Kamau", "Achieng"],
+    "mustKeep": ["500 shares"]
+  },
+  {
+    "id": "F87 one-word lead before Year",
+    "input": "Shareholders:\n1. John Kamau\n(a) Otieno Year 2015",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": ["Year 2015"]
+  },
+  {
+    "id": "F87 one-word lead before Box",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Box 12",
+    "mustHide": ["John", "Kamau", "Achieng"],
+    "mustKeep": ["Box 12"]
+  },
+  {
+    "id": "F87 one-word lead before Date",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Date 2020",
+    "mustHide": ["John", "Kamau", "Achieng"],
+    "mustKeep": ["Date 2020"]
+  },
+  {
+    "id": "F87 joined one-word lead",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng-Otieno 40%",
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "F88 a labelled name ends at Box",
+    "input": "Owner: John Kamau Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Box 123 Nakuru", "County: Nakuru"]
+  },
+  {
+    "id": "F88 a labelled name ends at Box, commas",
+    "input": "Owner: John Kamau, Box 123, Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Box 123, Nakuru", "County: Nakuru"]
+  },
+  {
+    "id": "F88 a name Box does not spread",
+    "input": "Proprietor: Peter Box\nPack the files in a box.\nPostal: Box 99",
+    "mustHide": ["Peter"],
+    "mustKeep": ["in a box.", "Postal: Box 99"]
+  },
+  {
+    "id": "F88 a name Box is hidden",
+    "input": "Proprietor: Peter Box\nCounty: Nakuru",
+    "mustHide": ["Peter", "Box"],
+    "mustKeep": ["Proprietor", "County: Nakuru"]
+  },
+  {
+    "id": "r18-std-1",
+    "input": "Proprietor: Grace Wish\nCounty: Nakuru",
+    "mustHide": ["Grace", "Wish"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r18-std-2",
+    "input": "Shareholders:\n1. John Kamau\n(a) Mary March 40%\n(b) Peter Otieno 60%",
+    "mustHide": ["John", "Kamau", "Mary", "March", "Peter", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-std-3",
+    "input": "Proprietor: Grace Vitz\nCounty: Nakuru",
+    "mustHide": ["Grace", "Vitz"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r18-std-4",
+    "input": "Shareholders:\n1. John Kamau\n(a) Mary Prado 40%\n(b) Peter Otieno 60%",
+    "mustHide": ["John", "Kamau", "Mary", "Prado", "Peter", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-std-5",
+    "input": "Directors:\n1. John Kamau\n2. Grace Fielder\n3. Peter Otieno",
+    "mustHide": ["John", "Kamau", "Grace", "Fielder", "Peter", "Otieno"],
+    "mustKeep": ["Directors:"]
+  },
+  {
+    "id": "r18-std-6",
+    "input": "Collateral:\n(a) Toyota Premio KCA 123A\n(b) Toyota Probox KBZ 456B\nBorrower: John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Premio", "Toyota Probox"]
+  },
+  {
+    "id": "r18-std-7",
+    "input": "Vehicles:\n1. Premio Year 2015\n2. Axio Year 2016\nOwner: John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Premio Year 2015", "Axio Year 2016"]
+  },
+  {
+    "id": "r18-std-9",
+    "input": "Proprietor: Peter Box\nWitness: Peter Box\nPostal: Box 99",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Postal: Box 99"]
+  },
+  {
+    "id": "r18-std-10",
+    "input": "Proprietor: Peter Box\nThe proprietor Peter Box signed.",
+    "mustHide": ["Peter", "Box"],
+    "mustKeep": ["signed."]
+  },
+  {
+    "id": "r18-std-11",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r18-std-12",
+    "input": "Owner: John Kamau Post Office Box 123\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Post Office Box 123", "County: Nakuru"]
+  },
+  {
+    "id": "r18-std-13",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Ordinary Shares 500\n(b) Otieno Preference Shares 200",
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["Shares 500", "Shares 200"]
+  },
+  {
+    "id": "r18-std-14",
+    "input": "Assets:\n(a) Ordinary Shares 500\n(b) Freehold Tenure\n(c) Current Account 0123\nOwner: John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Ordinary Shares 500", "Freehold Tenure", "Current Account"]
+  },
+  {
+    "id": "r18-std-15",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Shares 500\n(b) Otieno Account 0123",
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["Shares 500", "0123"]
+  },
+  {
+    "id": "r18-std-16",
+    "input": "Date of registration: 3 March 2020\nProprietor: Mary March\nCounty: Nakuru",
+    "mustHide": ["Mary"],
+    "mustKeep": ["3 March 2020", "County: Nakuru"]
+  },
+  {
+    "id": "r18-std-17",
+    "input": "Proprietor: Grace Allion Box 55 Thika\nCounty: Kiambu",
+    "mustHide": ["Grace", "Allion"],
+    "mustKeep": ["Box 55 Thika", "County: Kiambu"]
+  },
+  {
+    "id": "r18-std-18",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Plot 12\n(b) Otieno 60%",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": ["60%"]
+  },
+  {
+    "id": "r18-std-19",
+    "input": "Owner: John Kamau, P.O Box 123, Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r18-std-20",
+    "input": "Shareholders:\n1. John Kamau\n(a) Wanjiru Hilux\n(b) Otieno 60%",
+    "mustHide": ["John", "Kamau", "Wanjiru", "Otieno"],
+    "mustKeep": ["60%"]
+  },
+  {
+    "id": "r18-std-21",
+    "input": "Shareholders:\n1. John Kamau\n(a) Ana Prado 40%\n(b) Peter Otieno 60%",
+    "mustHide": ["John", "Kamau", "Ana", "Prado", "Peter", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-std-22",
+    "input": "Shareholders:\n1. John Kamau\n(a) Ana Prado\n(b) Peter Otieno",
+    "mustHide": ["John", "Kamau", "Ana", "Prado", "Peter", "Otieno"],
+    "mustKeep": ["Shareholders:"]
+  },
+  {
+    "id": "r18-std-23",
+    "input": "Owner: John Kamau P.O Box Nakuru\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["P.O Box Nakuru", "County: Kiambu"]
+  },
+  {
+    "id": "r18-std-24",
+    "input": "Owner: John Kamau PO Box Nakuru\nCounty: Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["PO Box Nakuru", "County: Kiambu"]
+  },
+  {
+    "id": "r18-std-25",
+    "input": "Shareholders:\n1. John Kamau\n(a) Grace Wanjiru 40%",
+    "mustHide": ["John", "Kamau", "Grace", "Wanjiru"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r18-std-26",
+    "input": "Members:\n- John Kamau 40%\n- Mary Wanjiru 60%",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Members:", "40%", "60%"]
+  },
+  {
+    "id": "r18-std-27",
+    "input": "Shareholders:\n1. John Kamau\n(a) Grace Fielder",
+    "mustHide": ["John", "Kamau", "Grace", "Fielder"],
+    "mustKeep": ["Shareholders:"]
+  },
+  {
+    "id": "r18-std-28",
+    "input": "Shareholders:\n1. John Kamau Ordinary Shares 500\n2. Mary Wanjiru Ordinary Shares 200",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Ordinary Shares 500", "Ordinary Shares 200"]
+  },
+  {
+    "id": "r18-spec-1",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng 40%\n(b) Otieno 60%",
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-2",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng 500\n(b) Otieno 700",
+    "mustHide": ["Achieng", "Otieno", "Kamau"],
+    "mustKeep": ["500", "700"]
+  },
+  {
+    "id": "r18-spec-3",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng KES 500\n(b) Otieno KES 700",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["KES 500", "KES 700"]
+  },
+  {
+    "id": "r18-spec-4",
+    "input": "Shareholders:\n1. John Kamau\n(a) Akinyi 40%\n(b) Wafula 30%\n(c) Chebet 20%\n(d) Moraa KES 500,000",
+    "mustHide": ["Akinyi", "Wafula", "Chebet", "Moraa"],
+    "mustKeep": ["KES 500,000", "40%"]
+  },
+  {
+    "id": "r18-spec-5",
+    "input": "Shareholders:\ni. Achieng 500 shares\nii. Otieno 300 shares",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["500 shares", "300 shares"]
+  },
+  {
+    "id": "r18-spec-6",
+    "input": "Shareholders:\n1. John Kamau\n(a) Otieno Year 2015\n(b) Achieng Year 2018",
+    "mustHide": ["Otieno", "Achieng"],
+    "mustKeep": ["2015", "2018"]
+  },
+  {
+    "id": "r18-spec-7",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Box 12 Kisumu\n(b) Otieno Box 44 Nakuru",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["12", "44", "Kisumu", "Nakuru"]
+  },
+  {
+    "id": "r18-spec-8",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng Date 2020\n(b) Otieno Date 2021",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["2020", "2021"]
+  },
+  {
+    "id": "r18-spec-9",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng-Otieno 40%\n(b) Wanjiku 60%",
+    "mustHide": ["Achieng", "Otieno", "Wanjiku"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-10",
+    "input": "Directors:\n(a) Achieng Ordinary Shares 500\n(b) Otieno Preference Shares 200",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["Ordinary Shares 500", "Preference Shares 200"]
+  },
+  {
+    "id": "r18-spec-11",
+    "input": "Shareholders:\n(a) Achieng: 40%\n(b) Otieno: 60%",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-12",
+    "input": "Shareholders:\n(a) Achieng - 40%\n(b) Otieno - 60%",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-13",
+    "input": "Members:\n1. Achieng 40%\n2. Otieno 60%",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-14",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng ID 12345678",
+    "mustHide": ["Achieng", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r18-spec-15",
+    "input": "Shareholders:\n1. John Kamau\n(a) Achieng 1,000 shares\n(b) Otieno 2,000 shares",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["1,000 shares", "2,000 shares"]
+  },
+  {
+    "id": "r18-spec-16",
+    "input": "Banks:\n(a) Equity Bank, Nakuru Branch\n(b) KCB Bank, Thika Branch\nBank: Equity Bank",
+    "mustHide": [],
+    "mustKeep": ["Equity Bank", "Nakuru Branch", "Bank: Equity Bank", "Thika Branch"]
+  },
+  {
+    "id": "r18-spec-17",
+    "input": "Land:\n(a) Freehold Tenure\n(b) Leasehold Tenure",
+    "mustHide": [],
+    "mustKeep": ["Freehold Tenure", "Leasehold Tenure"]
+  },
+  {
+    "id": "r18-spec-18",
+    "input": "Employer:\n(a) Unity Sacco\n(b) Stima Sacco",
+    "mustHide": [],
+    "mustKeep": ["Unity Sacco", "Stima Sacco"]
+  },
+  {
+    "id": "r18-spec-19",
+    "input": "Shareholding:\n(a) Ordinary Shares 500\n(b) Preference Shares 200",
+    "mustHide": [],
+    "mustKeep": ["Ordinary Shares 500", "Preference Shares 200"]
+  },
+  {
+    "id": "r18-spec-20",
+    "input": "Land use:\n(a) Residential Plot 4\n(b) Commercial Plot 9",
+    "mustHide": [],
+    "mustKeep": ["Residential Plot 4", "Commercial Plot 9"]
+  },
+  {
+    "id": "r18-spec-21",
+    "input": "Accounts:\n(a) Current Account\n(b) Savings Account",
+    "mustHide": [],
+    "mustKeep": ["Current Account", "Savings Account"]
+  },
+  {
+    "id": "r18-spec-22",
+    "input": "Vehicles:\n(a) Premio Year 2015\n(b) Axio Year 2012",
+    "mustHide": [],
+    "mustKeep": ["Premio Year 2015", "Axio Year 2012"]
+  },
+  {
+    "id": "r18-spec-23",
+    "input": "Shareholding company:\n1. Safaricom PLC 500 shares\n2. Bamburi Cement 200 shares",
+    "mustHide": [],
+    "mustKeep": ["Safaricom PLC", "Bamburi Cement", "500 shares"]
+  },
+  {
+    "id": "r18-spec-24",
+    "input": "Assets:\n1. Toyota Premio KBC 123A\n2. Nissan Note KCD 456B",
+    "mustHide": [],
+    "mustKeep": ["Toyota Premio", "Nissan Note"]
+  },
+  {
+    "id": "r18-spec-25",
+    "input": "Vehicles:\n1. Fielder 2014\n2. Vitz 2010",
+    "mustHide": [],
+    "mustKeep": ["Fielder 2014", "Vitz 2010"]
+  },
+  {
+    "id": "r18-spec-26",
+    "input": "Owner: John Kamau Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Box 123", "County: Nakuru"]
+  },
+  {
+    "id": "r18-spec-27",
+    "input": "Owner: John Kamau, Box 123, Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Box 123", "Nakuru"]
+  },
+  {
+    "id": "r18-spec-28",
+    "input": "Proprietor: Peter Box\nThe box was sealed.\nPostal: Box 99",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Box 99", "box was"]
+  },
+  {
+    "id": "r18-spec-29",
+    "input": "Proprietor: Peter Box\nWitness: Peter Box signed.",
+    "mustHide": ["Peter", "Box"],
+    "mustKeep": []
+  },
+  {
+    "id": "r18-spec-30",
+    "input": "Address: P.O. Box 123 Nakuru\nOwner: Mary Wanjiru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Address:", "Owner:"]
+  },
+  {
+    "id": "r18-spec-31",
+    "input": "Owner: Grace Achieng P.O. Box 55 Kisumu",
+    "mustHide": ["Grace", "Achieng"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r18-spec-32",
+    "input": "Owner: Grace Achieng Post Office Box 55 Kisumu",
+    "mustHide": ["Grace", "Achieng"],
+    "mustKeep": ["Box 55", "Kisumu"]
+  },
+  {
+    "id": "r18-spec-33",
+    "input": "Borrower: James Mwangi\nPostal Address: Box 4021-00100 Nairobi",
+    "mustHide": ["James", "Mwangi"],
+    "mustKeep": ["Postal Address:"]
+  },
+  {
+    "id": "r18-spec-34",
+    "input": "Shareholders:\n1. John Kamau\n(a) Mary March 40%\n(b) Grace Wish 60%",
+    "mustHide": ["Mary", "March", "Grace", "Wish"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-35",
+    "input": "Proprietor: Grace Wish\nVehicle: Toyota Wish",
+    "mustHide": ["Grace"],
+    "mustKeep": ["Vehicle: Toyota"]
+  },
+  {
+    "id": "r18-spec-36",
+    "input": "Assets:\n1. Toyota Axio\n2. John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Axio"]
+  },
+  {
+    "id": "r18-spec-37",
+    "input": "Vehicles:\n1. Toyota Premio KBC 123A\n2. Toyota Fielder",
+    "mustHide": [],
+    "mustKeep": ["Toyota Premio", "Toyota Fielder"]
+  },
+  {
+    "id": "r18-spec-38",
+    "input": "Vehicles:\n1. Premio\n2. Fielder\n3. Probox",
+    "mustHide": [],
+    "mustKeep": ["Premio", "Fielder", "Probox"]
+  },
+  {
+    "id": "r18-spec-39",
+    "input": "Directors:\n1. Peter Premio\n2. Jane Otieno",
+    "mustHide": ["Peter", "Jane", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r18-spec-40",
+    "input": "Shareholders:\n1. John Kamau\n(a) Wanjiru Holdings Ltd 40%",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Wanjiru Holdings Ltd", "40%"]
+  },
+  {
+    "id": "r18-spec-41",
+    "input": "Shareholders:\n(a) Kamau Enterprises Limited 40%\n(b) Otieno 60%",
+    "mustHide": ["Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-42",
+    "input": "Guarantors:\n(a) Achieng Account 0123456789",
+    "mustHide": ["Achieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r18-spec-43",
+    "input": "Collateral:\n(a) Nakuru Plot 4\n(b) Kisumu Plot 9",
+    "mustHide": [],
+    "mustKeep": ["Nakuru Plot 4", "Kisumu Plot 9"]
+  },
+  {
+    "id": "r18-spec-44",
+    "input": "Securities:\n(a) Chebet Shares 500",
+    "mustHide": [],
+    "mustKeep": ["Shares 500"]
+  },
+  {
+    "id": "r18-spec-45",
+    "input": "Shareholders:\n(a) Achieng\n(b) Otieno",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r18-spec-46",
+    "input": ["Shareholders:\n(a) Achieng 40%", "Signed by Achieng on 1 May 2020"],
+    "mustHide": ["Achieng"],
+    "mustKeep": ["40%", "1 May 2020"]
+  },
+  {
+    "id": "r18-spec-47",
+    "input": "Shareholders:\n1. John Kamau\n(a) Grace Wanjiru 40%\n(b) Peter Wish 60%",
+    "mustHide": ["Wanjiru", "Peter", "Wish"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r18-spec-48",
+    "input": "Shareholders:\n1. Achieng 40%\n2. Otieno 60%",
+    "mustHide": ["Achieng", "Otieno"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-49",
+    "input": "Members:\n1. John Kamau 40%\n2. Mary Otieno 60%",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r18-spec-50",
+    "input": "Shareholders:\n(a) Achieng 40%\nSigned on 1 May 2020",
+    "mustHide": ["Achieng"],
+    "mustKeep": ["1 May 2020"]
+  },
+  {
+    "id": "r18-spec-51",
+    "input": "Borrower: John Kamau\nSigned by John Kamau on 1 May 2020",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["1 May 2020"]
+  },
+  {
+    "id": "r18-spec-52",
+    "input": "Signed at Nakuru on 3 March 2021",
+    "mustHide": [],
+    "mustKeep": ["Nakuru", "3 March 2021"]
+  },
+  {
+    "id": "r18-spec-53",
+    "input": "Witnessed on 1 May 2020",
+    "mustHide": [],
+    "mustKeep": ["1 May 2020"]
+  },
+  {
+    "id": "r18-spec-54",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r18-spec-55",
+    "input": "Owner: Grace Achieng P.O. Box 55 Kisumu\nCounty: Kisumu",
+    "mustHide": ["Grace", "Achieng"],
+    "mustKeep": ["County: Kisumu"]
+  },
+  {
+    "id": "r18-spec-56",
+    "input": "Owner: John Kamau 0712345678 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r18-spec-57",
+    "input": "Owner: John Kamau\nP.O. Box 123 Kisumu\nCounty: Kisumu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Kisumu"]
+  },
+  {
+    "id": "r18-spec-58",
+    "input": "Shareholders:\n(a) Mary Achieng Ordinary Shares 500",
+    "mustHide": ["Mary", "Achieng"],
+    "mustKeep": ["Ordinary Shares 500"]
+  },
+  {
+    "id": "r18-spec-59",
+    "input": "Proprietor: Peter Box\nPostal: P.O. Box 99 Nakuru",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Postal:"]
+  },
+  {
+    "id": "r18-spec-60",
+    "input": "Owner: John Kamau Box 12 Nakuru\nBank: Equity Bank\nBranch: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Box 12", "Equity Bank", "Branch: Nakuru"]
+  },
+  {
+    "id": "r18-spec-61",
+    "input": "Shareholders:\n1. Grace Wanjiru 40%\n2. John Kamau 60%",
+    "mustHide": ["Grace", "Wanjiru", "John", "Kamau"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r18-spec-62",
+    "input": "Shareholders:\n1. John Kamau 60%\n2. Grace Wanjiru 40%",
+    "mustHide": ["Grace", "Wanjiru", "John", "Kamau"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r18-spec-63",
+    "input": "Shareholder: Grace Wanjiru",
+    "mustHide": ["Grace", "Wanjiru"],
+    "mustKeep": ["Shareholder:"]
+  },
+  {
+    "id": "r19-std-1",
+    "input": "Proprietor: ID 12345678 John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "r19-std-2",
+    "input": "Borrower: John Kamau 0712345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-3",
+    "input": "Borrower: John Kamau P.O. Box 123 Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Borrower", "Nakuru"]
+  },
+  {
+    "id": "r19-std-4",
+    "input": "Parties: John Kamau P.O. Box 123 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Parties"]
+  },
+  {
+    "id": "r19-std-5",
+    "input": "Shareholder: Peter Ordinary",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Shareholder"]
+  },
+  {
+    "id": "r19-std-6",
+    "input": "Director: Jane Founder",
+    "mustHide": ["Jane"],
+    "mustKeep": ["Director"]
+  },
+  {
+    "id": "r19-std-7",
+    "input": "Shareholders:\n(a) John Kamau Ordinary Shares 500\n(b) Mary Wanjiru Preference Shares 200",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Ordinary Shares 500", "Preference Shares 200"]
+  },
+  {
+    "id": "r19-std-8",
+    "input": "Vehicles:\n(a) Premio Year 2015\n(b) Ana Prado",
+    "mustHide": ["Ana", "Prado"],
+    "mustKeep": ["Premio Year 2015"]
+  },
+  {
+    "id": "r19-std-9",
+    "input": "Owners:\n(a) Prado Kamau\n(b) Fielder Otieno",
+    "mustHide": ["Kamau", "Otieno"],
+    "mustKeep": ["Owners"]
+  },
+  {
+    "id": "r19-std-10",
+    "input": "Borrower: John Kamau john@example.com Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-11",
+    "input": "Guarantor: Mary Wanjiru PO Box 55 Thika",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Guarantor", "Thika"]
+  },
+  {
+    "id": "r19-std-12",
+    "input": "Guarantor: Mary Wanjiru Post Office Box 55",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Guarantor"]
+  },
+  {
+    "id": "r19-std-13",
+    "input": "Borrower: John Kamau, ID 12345678, and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-14",
+    "input": "Signed by: John Kamau 0712345678\nWitness: Peter Otieno",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno"],
+    "mustKeep": ["Signed", "Witness"]
+  },
+  {
+    "id": "r19-std-15",
+    "input": "Borrower: John P.O Box 9 Kamau",
+    "mustHide": ["John"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-16",
+    "input": "Shares:\n(a) Redeemable Shares 100",
+    "mustHide": [],
+    "mustKeep": ["Redeemable Shares 100"]
+  },
+  {
+    "id": "r19-std-17",
+    "input": "Postal: Box 99 Nairobi. Signed: Peter Box",
+    "mustHide": ["Peter"],
+    "mustKeep": ["Box 99"]
+  },
+  {
+    "id": "r19-std-18",
+    "input": "Directors: John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "r19-std-19",
+    "input": "Members:\n(a) Ana Prado\n(b) John Kamau",
+    "mustHide": ["Ana", "Prado", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-std-20",
+    "input": "(a) Ana Prado\n(b) John Kamau",
+    "mustHide": ["Ana", "Prado", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-std-21",
+    "input": "Borrower: John Kamau P.O. Box 123 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrower"]
+  },
+  {
+    "id": "r19-std-22",
+    "input": "Borrowers: John Kamau (ID 12345678) and Mary Wanjiru (ID 23456789)",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Borrowers"]
+  },
+  {
+    "id": "r19-std-23",
+    "input": "Chargor: John Kamau of P.O. Box 123 Nairobi and Mary Wanjiru of P.O. Box 9 Thika",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Chargor"]
+  },
+  {
+    "id": "r19-std-24",
+    "input": "Shareholders: John Kamau 0712345678; Mary Wanjiru 0722345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Shareholders"]
+  },
+  {
+    "id": "r19-std-25",
+    "input": "Proprietor: ID 12345678 John Kamau and ID 23456789 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietor"]
+  },
+  {
+    "id": "r19-std-26",
+    "input": "Shareholder: Grace Ordinary Shares 500",
+    "mustHide": ["Grace"],
+    "mustKeep": ["Shares 500"]
+  },
+  {
+    "id": "r19-std-27",
+    "input": "Directors:\n1. Peter Founder\n2. Mary Wanjiru",
+    "mustHide": ["Peter", "Mary", "Wanjiru"],
+    "mustKeep": ["Directors"]
+  },
+  {
+    "id": "r19-std-28",
+    "input": "Members:\n(a) Ana Wanjiru\n(b) John Kamau",
+    "mustHide": ["Ana", "Wanjiru", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-std-29",
+    "input": "Shareholders:\n(a) Ana Prado\n(b) John Kamau",
+    "mustHide": ["Ana", "Prado", "John", "Kamau"],
+    "mustKeep": ["Shareholders"]
+  },
+  {
+    "id": "r19-spec-1",
+    "input": "Shareholders:\n(a) Mary Prado 40%\n(b) John Kamau 60%",
+    "mustHide": ["Mary", "Prado", "John", "Kamau"],
+    "mustKeep": ["40%", "60%"]
+  },
+  {
+    "id": "r19-spec-2",
+    "input": "Children:\n(a) Ana Prado\n(b) Peter Otieno",
+    "mustHide": ["Ana", "Prado", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-3",
+    "input": "Beneficiaries:\n(a) Grace Fielder\n(b) John Kamau",
+    "mustHide": ["Grace", "Fielder", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-4",
+    "input": "Vehicles:\n1. Toyota Prado KBC 123A",
+    "mustHide": [],
+    "mustKeep": ["Toyota Prado"]
+  },
+  {
+    "id": "r19-spec-5",
+    "input": "Vehicles:\n1. Prado KBC 123A\n2. Fielder KCA 456B",
+    "mustHide": [],
+    "mustKeep": ["Prado", "Fielder"]
+  },
+  {
+    "id": "r19-spec-6",
+    "input": "Make: Toyota Model: Prado",
+    "mustHide": [],
+    "mustKeep": ["Make: Toyota Model: Prado"]
+  },
+  {
+    "id": "r19-spec-7",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-8",
+    "input": "Owner: John Kamau P.O. Box 123 Kisumu\nCounty: Kisumu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Kisumu"]
+  },
+  {
+    "id": "r19-spec-9",
+    "input": "Owner: John Kamau 0712345678 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-10",
+    "input": "Owner: John Kamau P.O Box 55 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-11",
+    "input": "Owner: John Kamau PO Box 55 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-12",
+    "input": "Owner: John Kamau Post Office Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-13",
+    "input": "Shareholders:\n1. John Kamau Ordinary Shares 500\n(a) Mary Achieng Preference Shares 200",
+    "mustHide": ["John", "Kamau", "Mary", "Achieng"],
+    "mustKeep": ["Ordinary Shares 500", "Preference Shares 200"]
+  },
+  {
+    "id": "r19-spec-14",
+    "input": "Borrowers: John Kamau 0712345678 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-15",
+    "input": "Directors: John Kamau ID 12345678, Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-16",
+    "input": "Proprietor: ID 12345678 John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-17",
+    "input": "Proprietor: P.O. Box 1 John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-18",
+    "input": "Borrowers: John Kamau jkamau@example.com and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-19",
+    "input": "Directors: John Kamau A123456789Z, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-20",
+    "input": "Borrower: John Kamau 0712345678\nOtieno",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-21",
+    "input": "Borrower: John 0712345678 Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-22",
+    "input": "Guarantors:\n1. John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-23",
+    "input": "Proprietor: Mary Ordinary",
+    "mustHide": ["Mary", "Ordinary"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-24",
+    "input": "Shareholders:\n1. John Kamau Founder Shares 100",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Founder Shares 100"]
+  },
+  {
+    "id": "r19-spec-25",
+    "input": "Shareholders:\n(a) Prado Achieng 40%",
+    "mustHide": ["Prado", "Achieng"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r19-spec-26",
+    "input": "Vehicles:\n(a) Premio Year 2015 KBC 123A",
+    "mustHide": [],
+    "mustKeep": ["Premio Year 2015"]
+  },
+  {
+    "id": "r19-spec-27",
+    "input": "Owner: Mary Wanjiru, P.O. Box 1, Nairobi\nCounty: Nairobi\nBank: Equity Bank",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["County: Nairobi", "Equity Bank"]
+  },
+  {
+    "id": "r19-spec-28",
+    "input": "Chargors: John Kamau (ID 12345678) and Mary Wanjiru (ID 23456789)",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-29",
+    "input": "Guarantor: Mary Wanjiru 0722000000 Nakuru",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-30",
+    "input": "Borrower: John Kamau 0712345678 Otieno",
+    "mustHide": ["John", "Kamau", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-31",
+    "input": "Proprietors: John Kamau, ID 12345678; Mary Wanjiru, ID 23456789; Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-32",
+    "input": "Employer: Safaricom PLC\nEmployee: John Kamau 0712345678",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Safaricom PLC"]
+  },
+  {
+    "id": "r19-spec-33",
+    "input": "Applicant: John Kamau ID No. 12345678 of P.O. Box 100 Thika and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-34",
+    "input": "Directors: John Kamau KRA PIN A123456789Z and Mary Wanjiru KRA PIN A987654321B",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-35",
+    "input": "Shareholders:\n1. Mary Wanjiru 0712345678 Ordinary Shares 500",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Ordinary Shares 500"]
+  },
+  {
+    "id": "r19-spec-36",
+    "input": "Proprietor: John Kamau 0712345678\nLand Use: Agricultural\nTenure: Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Agricultural", "Tenure: Freehold"]
+  },
+  {
+    "id": "r19-spec-37",
+    "input": "Owner: John Kamau P.O. Box 123-20100 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r19-spec-38",
+    "input": "Account Holder: John Kamau 0712345678\nBank: KCB\nBranch: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: KCB", "Branch: Nakuru"]
+  },
+  {
+    "id": "r19-spec-39",
+    "input": "Vehicles:\n1. Toyota Fielder KCB 111C\n2. Nissan Tiida KCD 222D",
+    "mustHide": [],
+    "mustKeep": ["Toyota Fielder", "Nissan Tiida"]
+  },
+  {
+    "id": "r19-spec-40",
+    "input": "Shareholding:\nCompany: Kamau Holdings Ltd\nClass: Founder Shares\nShares: 100",
+    "mustHide": [],
+    "mustKeep": ["Class: Founder Shares", "Shares: 100"]
+  },
+  {
+    "id": "r19-spec-41",
+    "input": "Borrowers: John Kamau, 0712345678, Mary Wanjiru, 0722345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-42",
+    "input": "Proprietor: Mr. John Kamau of P.O. Box 5 Nyeri and Mrs. Mary Wanjiru of P.O. Box 6 Nyeri",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-43",
+    "input": "Shareholders:\n1. John Kamau 0712345678\n2. Mary Wanjiru 0722345678",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-44",
+    "input": "Directors:\n1. John Kamau, ID 12345678, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-45",
+    "input": "Borrower: John Kamau +254712345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-46",
+    "input": "Witnesses: John Kamau jk@example.com, Mary Wanjiru mw@example.com",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-47",
+    "input": "Proprietor: John Kamau P.O. Box 1 Nakuru\nLand Use: Residential\nParcel: Nakuru/Municipality/123",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Residential", "Nakuru/Municipality/123"]
+  },
+  {
+    "id": "r19-spec-48",
+    "input": "Vehicle: Toyota Prado\nOwner: Ana Prado",
+    "mustHide": ["Ana"],
+    "mustKeep": ["Toyota Prado"]
+  },
+  {
+    "id": "r19-spec-49",
+    "input": "Shareholders:\n(a) Mary Ordinary 40%",
+    "mustHide": ["Mary", "Ordinary"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r19-spec-50",
+    "input": "Shares:\n(a) Ordinary Shares 500\n(b) Founder Shares 50",
+    "mustHide": [],
+    "mustKeep": ["Ordinary Shares 500", "Founder Shares 50"]
+  },
+  {
+    "id": "r19-spec-51",
+    "input": "Borrower: John Kamau of ID 12345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-52",
+    "input": "Proprietor: John Kamau P.O. Box 9 Box Hill",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-53",
+    "input": "Shareholders:\n(a) Ana Prado\n(b) Peter Otieno",
+    "mustHide": ["Ana", "Prado", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-54",
+    "input": "Directors:\n(a) Grace Fielder\n(b) John Kamau",
+    "mustHide": ["Grace", "Fielder", "John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-55",
+    "input": "Vehicles:\n1. Prado KBC 123A\nOwner: Ana Prado",
+    "mustHide": ["Ana"],
+    "mustKeep": ["1. Prado"]
+  },
+  {
+    "id": "r19-spec-56",
+    "input": "Borrower: John Kamau ID 12345678\nGuarantor: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r19-spec-57",
+    "input": "Shareholders:\n1. John Kamau 0712345678 and Mary Wanjiru 40%",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["40%"]
+  },
+  {
+    "id": "r19-spec-58",
+    "input": "Proprietor: John Kamau 0712345678 Mary",
+    "mustHide": ["John", "Kamau", "Mary"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-std-1",
+    "input": "Borrower: John Kamau 0712345678 Kiambu Wanjiru",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": ["Borrower:"]
+  },
+  {
+    "id": "r20-std-2",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r20-std-3",
+    "input": "Name: John Kamau ID No. 12345678 Name: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["ID No."]
+  },
+  {
+    "id": "r20-std-4",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru Kenya",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nakuru Kenya"]
+  },
+  {
+    "id": "r20-std-5",
+    "input": "Owner: John Kamau 0712345678 Nairobi Kenya\nSee the Kenya Gazette.",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nairobi Kenya", "Kenya Gazette"]
+  },
+  {
+    "id": "r20-std-6",
+    "input": "Borrower: John Kamau 0712345678 Nakuru Town",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nakuru Town"]
+  },
+  {
+    "id": "r20-std-7",
+    "input": "Borrowers: John Kamau 0712345678 Meru Mwangi 0722334455",
+    "mustHide": ["John", "Kamau", "Mwangi"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r20-std-8",
+    "input": "Owner: John Kamau ID No. 12345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["ID No."]
+  },
+  {
+    "id": "r20-std-9",
+    "input": "Owner: John Kamau KRA PIN A123456789Z and Mary Wanjiru KRA PIN A987654321Y",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["KRA PIN"]
+  },
+  {
+    "id": "r20-std-10",
+    "input": "Owner: John Kamau Tel: 0712345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r20-std-11",
+    "input": "Owner: John Kamau 0712345678 Total Value KES 500,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Total Value KES 500,000"]
+  },
+  {
+    "id": "r20-std-12",
+    "input": "Owner: John Kamau john@example.com Mombasa Achieng Otieno",
+    "mustHide": ["John", "Kamau", "Achieng", "Otieno"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r20-std-13",
+    "input": "Owner: John Kamau 0712345678\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-std-14",
+    "input": "Owner: John Kamau ID 12345678 Date of Birth 1 January 1980",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Date of Birth"]
+  },
+  {
+    "id": "r20-std-15",
+    "input": "Owner: John Kamau 0712345678 Status Active",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Status Active"]
+  },
+  {
+    "id": "r20-std-16",
+    "input": "Owner: John Kamau ID No. 12345678 Account Number 0123456789 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Account Number"]
+  },
+  {
+    "id": "r20-std-17",
+    "input": "Owner: John Kamau 0712345678 Nakuru Nakuru Wanjiru",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r20-std-18",
+    "input": "Owner: John Kamau 0712345678 Mary Wanjiru 0722334455 Peter Otieno 0733445566 Grace Njeri",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno", "Njeri"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r20-std-19",
+    "input": "Owner: John Kamau P.O. Box 123-20100 Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "r20-std-20",
+    "input": "Spouse: Mary Wanjiru ID 12345678 Employer Safaricom PLC",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": ["Safaricom PLC"]
+  },
+  {
+    "id": "r20-std-21",
+    "input": "Owner: John Kamau 0712345678 Nakuru Branch",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nakuru Branch"]
+  },
+  {
+    "id": "r20-std-22",
+    "input": "Owner: John Kamau 0712345678 Westlands Road",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Westlands Road"]
+  },
+  {
+    "id": "r20-std-23",
+    "input": "Owner: John Kamau P.O. Box 123 Kisumu City",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kisumu City"]
+  },
+  {
+    "id": "r20-std-24",
+    "input": "Owner: John Kamau 0712345678 Kenya Power",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Power"]
+  },
+  {
+    "id": "r20-std-25",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru\nThe Town Council approved the plan.",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Town Council"]
+  },
+  {
+    "id": "r20-std-26",
+    "input": "Borrower: John Kamau 0712345678 Nakuru Town\nSee the Town Clerk.",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Town Clerk"]
+  },
+  {
+    "id": "r20-std-27",
+    "input": "Owner: John Kamau ID No. 12345678 Mary",
+    "mustHide": ["John", "Kamau", "Mary"],
+    "mustKeep": ["ID No."]
+  },
+  {
+    "id": "r20-std-28",
+    "input": "Owner: John Kamau 0712345678 Uasin Gishu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Uasin Gishu"]
+  },
+  {
+    "id": "r20-std-29",
+    "input": "Owner: John Kamau 0712345678 Homa Bay",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Homa Bay"]
+  },
+  {
+    "id": "r20-std-30",
+    "input": "Owner: John Kamau 0712345678 Embu Njiru Kariuki",
+    "mustHide": ["John", "Kamau", "Njiru", "Kariuki"],
+    "mustKeep": ["Owner:"]
+  },
+  {
+    "id": "r20-std-31",
+    "input": "Owner: John Kamau 0712345678 Signature",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Signature"]
+  },
+  {
+    "id": "r20-std-32",
+    "input": "Owner: John Kamau 0712345678 Plot No. 45 Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Plot No. 45"]
+  },
+  {
+    "id": "r20-std-33",
+    "input": "Name: John Kamau ID No. 12345678\nName: Mary Wanjiru ID No. 87654321",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["ID No."]
+  },
+  {
+    "id": "r20-std-34",
+    "input": "Owner: John Kamau 0712345678 Lamu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Lamu"]
+  },
+  {
+    "id": "r20-std-35",
+    "input": "Owner: John Kamau 0712345678 Mombasa Road Branch",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mombasa Road"]
+  },
+  {
+    "id": "r20-spec-1",
+    "input": "Proprietors: John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Proprietors:"]
+  },
+  {
+    "id": "r20-spec-2",
+    "input": "Proprietors: John Kamau ID 12345678 & Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-3",
+    "input": "Proprietors: John Kamau, ID 12345678; Mary Wanjiru, ID 23456789; Peter Otieno, ID 34567890",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-4",
+    "input": "Owners: John Kamau 0712345678, Mary Wanjiru 0723456789 and Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-5",
+    "input": "Guarantors: John Kamau john@example.com and Mary Wanjiru mary@example.com",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-6",
+    "input": "Shareholders: John Kamau PIN A123456789Z, Mary Wanjiru PIN A987654321B",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-7",
+    "input": "Proprietors: John Kamau KRA PIN A123456789Z and Mary Wanjiru KRA PIN A987654321B",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-8",
+    "input": "Proprietors: John Kamau P.O. Box 123 Nakuru and Mary Wanjiru P.O. Box 456 Thika\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-9",
+    "input": "Proprietors: John Kamau ID 12345678 and\nMary Wanjiru ID 23456789\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-10",
+    "input": "Proprietors: John Kamau ID 12345678,\nMary Wanjiru ID 23456789,\nPeter Otieno ID 34567890\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-11",
+    "input": "Proprietors: John Kamau ID 12345678 and Mary Wanjiru ID 23456789\nArea: 0.5 Ha\nTenure: Freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Area: 0.5 Ha", "Tenure: Freehold"]
+  },
+  {
+    "id": "r20-spec-12",
+    "input": "Shareholders: John Kamau ID 12345678, Mary Wanjiru ID 23456789, Peter Otieno ID 34567890, Jane Akinyi ID 45678901",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno", "Jane", "Akinyi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-13",
+    "input": "Proprietors: John Kamau A123456789Z Mary Wanjiru A987654321B",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-14",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru Mary Wanjiru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-15",
+    "input": "Owner: John Kamau P.O. Box 123 Nakuru\nMary Wanjiru P.O. Box 456 Thika\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-16",
+    "input": "Proprietors: John Kamau P.O. Box 123 Nakuru, Kericho Langat P.O. Box 9 Kericho\nCounty: Kericho",
+    "mustHide": ["John", "Kamau", "Langat"],
+    "mustKeep": ["County: Kericho"]
+  },
+  {
+    "id": "r20-spec-17",
+    "input": "Owners: John Kamau ID 12345678 and Kericho Langat ID 23456789",
+    "mustHide": ["John", "Kamau", "Kericho", "Langat"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-18",
+    "input": "Owner: John Kamau ID 12345678 Kenya Wanjiru",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-19",
+    "input": "Owner: John Kamau ID 12345678 Kenya Wanjiru",
+    "mustHide": ["John", "Kamau", "Kenya", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-20",
+    "input": "Proprietor: John Kamau ID 12345678 Nakuru Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-21",
+    "input": "Owner: John Kamau ID 12345678 of Nakuru and Mary Wanjiru of Thika",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Nakuru"]
+  },
+  {
+    "id": "r20-spec-22",
+    "input": "Owner: John Kamau, john.kamau@gmail.com, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-23",
+    "input": "Name: John Kamau ID No. 12345678 Name: Mary Wanjiru ID No. 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-24",
+    "input": "Name: John Kamau PIN: A123456789Z Name: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-25",
+    "input": "Name: John Kamau Tel: 0712345678 Name: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-26",
+    "input": "Name: John Kamau Email: john@x.co.ke Name: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-27",
+    "input": "Proprietor: John Kamau ID No.: 12345678 Mary Wanjiru ID No.: 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-28",
+    "input": "Borrower: John Kamau Tel 0712345678 Guarantor: Mary Wanjiru Tel 0723456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-29",
+    "input": "Guarantor: Mary Wanjiru Tel. 0723456789 Peter Otieno Tel. 0734567890",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-30",
+    "input": "Name: John Kamau ID No. 12345678 Account Number: 0123456789 Bank: Equity Bank Branch: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: Equity Bank", "Branch: Nakuru"]
+  },
+  {
+    "id": "r20-spec-31",
+    "input": "Owner: John Kamau ID 12345678 Make: Toyota Model: Premio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Make: Toyota", "Model: Premio"]
+  },
+  {
+    "id": "r20-spec-32",
+    "input": "Owner: John Kamau ID 12345678 Vehicle: Toyota Premio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Premio"]
+  },
+  {
+    "id": "r20-spec-33",
+    "input": "Owner: John Kamau ID 12345678 Nakuru County",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nakuru County"]
+  },
+  {
+    "id": "r20-spec-34",
+    "input": "Proprietor: John Kamau ID 12345678 Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Freehold"]
+  },
+  {
+    "id": "r20-spec-35",
+    "input": "Proprietor: John Kamau ID 12345678 Absolute Proprietorship",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Absolute Proprietorship"]
+  },
+  {
+    "id": "r20-spec-36",
+    "input": "Shareholder: John Kamau ID 12345678 Ordinary Shares 1,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Ordinary Shares 1,000"]
+  },
+  {
+    "id": "r20-spec-37",
+    "input": "Employee: John Kamau PIN: A123456789Z Employer: Kenya Power",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Kenya Power"]
+  },
+  {
+    "id": "r20-spec-38",
+    "input": "Account Name: John Kamau Account No. 0123456789 Equity Bank Nakuru Branch",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Equity Bank", "Nakuru Branch"]
+  },
+  {
+    "id": "r20-spec-39",
+    "input": "Holder: John Kamau ID 12345678 Company: Safaricom PLC Class: Ordinary",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Safaricom PLC", "Class: Ordinary"]
+  },
+  {
+    "id": "r20-spec-40",
+    "input": "Member: John Kamau Member No. 4521 Tel: 0712345678\nEmployer: Kenya Power\nBasic Salary: KES 85,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Kenya Power", "KES 85,000"]
+  },
+  {
+    "id": "r20-spec-41",
+    "input": "STIMA SACCO SOCIETY LTD\nP.O. Box 75629-00200 Nairobi\n\nTo: John Kamau\nMember No: 4521\nID No: 12345678\n\nRE: CONFIRMATION OF MEMBERSHIP\nThis is to confirm that John Kamau is a member.\nShares: KES 120,000\nDeposits: KES 450,000\nGuarantors: Mary Wanjiru (Member No. 3310), Peter Otieno (Member No. 2201)\nYours faithfully,\nJane Akinyi\nCredit Manager",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno", "Jane", "Akinyi"],
+    "mustKeep": ["STIMA SACCO", "KES 120,000", "KES 450,000", "Credit Manager"]
+  },
+  {
+    "id": "r20-spec-42",
+    "input": "Guarantors:\n1. Mary Wanjiru ID 23456789 Tel 0723456789\n2. Peter Otieno ID 34567890 Tel 0734567890\nLoan Amount: KES 500,000",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": ["Loan Amount: KES 500,000"]
+  },
+  {
+    "id": "r20-spec-43",
+    "input": "Guarantor: Mary Wanjiru, ID No. 23456789, Member No. 3310, and Peter Otieno, ID No. 34567890, Member No. 2201.",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-44",
+    "input": "Borrower: John Kamau ID 12345678 Guarantors: Mary Wanjiru ID 23456789 & Peter Otieno ID 34567890",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-45",
+    "input": "Next of Kin: Mary Wanjiru ID 23456789 Tel 0723456789",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-46",
+    "input": "Nominee: Mary Wanjiru ID 23456789",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-47",
+    "input": "Nominees: Mary Wanjiru 50%, Peter Otieno 50%",
+    "mustHide": ["Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-48",
+    "input": "SHARE CERTIFICATE\nCertificate No. 045\nSAFARICOM PLC\nThis is to certify that John Kamau of P.O. Box 123 Nakuru and Mary Wanjiru of P.O. Box 456 Thika are the registered holders of 1,000 Ordinary Shares",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["SAFARICOM PLC", "1,000 Ordinary Shares"]
+  },
+  {
+    "id": "r20-spec-49",
+    "input": "Registered Holders: John Kamau ID 12345678 and Mary Wanjiru ID 23456789 (jointly)\nCompany: Kakuzi PLC\nClass: Ordinary\nNumber of Shares: 2,500",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Company: Kakuzi PLC", "Class: Ordinary", "2,500"]
+  },
+  {
+    "id": "r20-spec-50",
+    "input": "Joint Holders: John Kamau ID 12345678 and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-51",
+    "input": "REPUBLIC OF KENYA\nTITLE DEED\nTitle Number: NAKURU/NJORO/1234\nRegistered Proprietors: John Kamau ID 12345678 P.O. Box 123 Nakuru and\nMary Wanjiru ID 23456789 P.O. Box 456 Nakuru\nArea: 0.5 Ha\nLand Use: Agricultural\nTenure: Freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Area: 0.5 Ha", "Land Use: Agricultural", "Tenure: Freehold"]
+  },
+  {
+    "id": "r20-spec-52",
+    "input": "Proprietors: John Kamau (ID 12345678) and Mary Wanjiru (ID 23456789) as joint tenants",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["joint tenants"]
+  },
+  {
+    "id": "r20-spec-53",
+    "input": "Joint Proprietors: John Kamau ID 12345678 and Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-54",
+    "input": "Account Holders: John Kamau ID 12345678 and Mary Wanjiru ID 23456789\nBank: KCB Bank\nBranch: Kericho\nAccount Type: Joint Savings",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Bank: KCB Bank", "Branch: Kericho", "Account Type: Joint Savings"]
+  },
+  {
+    "id": "r20-spec-55",
+    "input": "Account Name: John Kamau & Mary Wanjiru\nAccount Number: 1234567890\nBranch: Kericho",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Branch: Kericho"]
+  },
+  {
+    "id": "r20-spec-56",
+    "input": "Employee Name: John Kamau   Staff No: 4521   ID No: 12345678   KRA PIN: A123456789Z\nEmployer: Equity Bank Kenya Ltd\nBasic Salary: KES 85,000\nNet Pay: KES 62,300",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Equity Bank Kenya Ltd", "KES 85,000", "KES 62,300"]
+  },
+  {
+    "id": "r20-spec-57",
+    "input": "Registered Owner: John Kamau ID 12345678 P.O. Box 123 Nakuru\nJoint Owner: Mary Wanjiru ID 23456789\nMake: Toyota\nModel: Fielder\nReg No: KCA 123A",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Make: Toyota", "Model: Fielder"]
+  },
+  {
+    "id": "r20-spec-58",
+    "input": "Members: John Kamau, Mary Wanjiru and Peter Otieno",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru", "Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-59",
+    "input": "Members:\nJohn Kamau\nMary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-60",
+    "input": "Parties: John Kamau and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-61",
+    "input": "Parties:\n1. John Kamau ID 12345678\n2. Mary Wanjiru ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-62",
+    "input": "Beneficiaries: John Kamau, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-63",
+    "input": "Beneficiaries:\n(a) John Kamau\n(b) Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-64",
+    "input": "Applicant: John Kamau ID 12345678",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-65",
+    "input": "Applicants: John Kamau and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-66",
+    "input": "Applicant(s): John Kamau and Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-67",
+    "input": "Children: John Kamau, Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-68",
+    "input": "Children:\nJohn Kamau\nMary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-69",
+    "input": "Shareholders: John Kamau ID 12345670, Mary Wanjiru ID 12345671, Peter Otieno ID 12345672, Jane Akinyi ID 12345673, Paul Mwangi ID 12345674, Ruth Chebet ID 12345675, James Kiprono ID 12345676, Alice Njeri ID 12345677",
+    "mustHide": [
+      "John",
+      "Kamau",
+      "Mary",
+      "Wanjiru",
+      "Peter",
+      "Otieno",
+      "Jane",
+      "Akinyi",
+      "Paul",
+      "Mwangi",
+      "Ruth",
+      "Chebet",
+      "James",
+      "Kiprono",
+      "Alice",
+      "Njeri"
+    ],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-70",
+    "input": "Proprietor: John Kamau ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 ID 12345678 \nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-71",
+    "input": "Proprietor: John Kamau ID 12345678 of Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-72",
+    "input": "Proprietor: John Kamau of P.O. Box 123 Nakuru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-73",
+    "input": "Proprietor: John Kamau, ID No. 12345678, of Nakuru\nCounty: Nakuru\nTenure: Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru", "Tenure: Freehold"]
+  },
+  {
+    "id": "r20-spec-74",
+    "input": "Account Name: John Kamau Account No. 0123456789 Equity Bank Nakuru Branch\nBank: Equity Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: Equity Bank"]
+  },
+  {
+    "id": "r20-spec-75",
+    "input": "Proprietor: John Kamau ID 12345678 Freehold\nTenure: Freehold",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Tenure: Freehold"]
+  },
+  {
+    "id": "r20-spec-76",
+    "input": "Owner: John Kamau ID 12345678 Toyota Premio KCA 123A\nMake: Toyota\nModel: Premio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Make: Toyota", "Model: Premio"]
+  },
+  {
+    "id": "r20-spec-77",
+    "input": "Employee: John Kamau PIN A123456789Z Safaricom PLC\nEmployer: Safaricom PLC",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Safaricom PLC"]
+  },
+  {
+    "id": "r20-spec-78",
+    "input": "Shareholder: John Kamau ID 12345678 Kakuzi PLC 2,500 Ordinary\nCompany: Kakuzi PLC",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Company: Kakuzi PLC"]
+  },
+  {
+    "id": "r20-spec-79",
+    "input": "Member: John Kamau Member No. 4521 Stima Sacco\nSacco: Stima Sacco",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r20-spec-80",
+    "input": "Owner: John Kamau Tel 0712345678 Nakuru Town\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-81",
+    "input": "Proprietor: John Kamau ID 12345678 Residential\nLand Use: Residential",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Land Use: Residential"]
+  },
+  {
+    "id": "r20-spec-82",
+    "input": "Borrower: John Kamau ID 12345678 Employer Kenya Power\nEmployer: Kenya Power",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Kenya Power"]
+  },
+  {
+    "id": "r20-spec-83",
+    "input": "Proprietors: John Kamau and\nMary Wanjiru\nCounty: Nakuru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-84",
+    "input": "This is to certify that John Kamau and Mary Wanjiru are the registered holders of 1,000 Ordinary Shares",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["1,000 Ordinary Shares"]
+  },
+  {
+    "id": "r20-spec-85",
+    "input": "Proprietor: JOHN KAMAU ID 12345678 TOYOTA PREMIO\nMake: TOYOTA\nModel: PREMIO",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Make: TOYOTA", "Model: PREMIO"]
+  },
+  {
+    "id": "r20-spec-86",
+    "input": "Owners: John Kamau ID 12345678, Mary Wanjiru ID 23456789\nMake: Toyota\nModel: Premio",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["Make: Toyota", "Model: Premio"]
+  },
+  {
+    "id": "r20-spec-87",
+    "input": "Members Deposits: KES 450,000\nCounty: Nakuru",
+    "mustHide": [],
+    "mustKeep": ["Members Deposits: KES 450,000", "County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-88",
+    "input": "Member Deposits: KES 450,000\nCounty: Nakuru",
+    "mustHide": [],
+    "mustKeep": ["Member Deposits: KES 450,000", "County: Nakuru"]
+  },
+  {
+    "id": "r20-spec-89",
+    "input": "Children: 3\nEmployer: Kenya Power",
+    "mustHide": [],
+    "mustKeep": ["Children: 3", "Employer: Kenya Power"]
+  },
+  {
+    "id": "r20-spec-90",
+    "input": "Parties: Equity Bank Limited and John Kamau",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": []
+  },
+  {
+    "id": "r20-spec-91",
+    "input": "Applicant: Stima Sacco Society Ltd\nSacco: Stima Sacco",
+    "mustHide": [],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r20-spec-92",
+    "input": "Members' Shares: KES 120,000",
+    "mustHide": [],
+    "mustKeep": ["Members' Shares: KES 120,000"]
+  },
+  {
+    "id": "r21-std-1",
+    "input": "Title downloaded via eCITIZEN NAKURU/NJORO/1234 on request.",
+    "mustHide": ["NJORO"],
+    "mustKeep": ["Title downloaded via", "on request."]
+  },
+  {
+    "id": "r21-std-2",
+    "input": "File 2021/LR NAIROBI/BLOCK 82/123 refers.",
+    "mustHide": ["NAIROBI"],
+    "mustKeep": ["File", "refers."]
+  },
+  {
+    "id": "r21-std-3",
+    "input": "Parcel 12/KISUMU MUNICIPALITY BLOCK 7/412 is charged.",
+    "mustHide": ["MUNICIPALITY"],
+    "mustKeep": ["Parcel", "is charged."]
+  },
+  {
+    "id": "r21-std-4",
+    "input": "Paid on iTAX KSM/123 rates.",
+    "mustHide": ["KSM"],
+    "mustKeep": ["Paid on", "rates."]
+  },
+  {
+    "id": "r21-std-5",
+    "input": "Title No. NAIROBI/BLOCK 110/456 and KAJIADO/KITENGELA/12345",
+    "mustHide": ["KITENGELA"],
+    "mustKeep": ["Title No."]
+  },
+  {
+    "id": "r21-std-6",
+    "input": "Plot NAKURU/NJORO/1234/5 and Ref: ABC/NAKURU/NJORO/123",
+    "mustHide": ["NJORO"],
+    "mustKeep": ["Plot", "Ref:"]
+  },
+  {
+    "id": "r21-std-7",
+    "input": "Land: MOMBASA/BLOCK XVII/123, KJD/KAPUTIEI NORTH/123",
+    "mustHide": ["XVII", "KAPUTIEI"],
+    "mustKeep": ["Land:"]
+  },
+  {
+    "id": "r21-std-8",
+    "input": "Borrower: John Kamau 0712345678, Dr. Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Borrower:"]
+  },
+  {
+    "id": "r21-std-9",
+    "input": "BORROWERS: JOHN KAMAU ID 12345678 MARY WANJIRU",
+    "mustHide": ["KAMAU", "WANJIRU"],
+    "mustKeep": ["BORROWERS:"]
+  },
+  {
+    "id": "r21-std-10",
+    "input": "Guarantors: John Kamau ID 12345678, Mrs. Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Guarantors:"]
+  },
+  {
+    "id": "r21-std-11",
+    "input": "Members: Mary Wanjiru Membership No. 3310 and Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:", "Membership No."]
+  },
+  {
+    "id": "r21-std-12",
+    "input": "Member Deposits: KES 50,000\nMember No.: 3310",
+    "mustHide": [],
+    "mustKeep": ["Member Deposits:", "Member No.:"]
+  },
+  {
+    "id": "r21-std-13",
+    "input": "Beneficiaries: Mary Wanjiru of Nakuru Town, Peter Otieno of Westlands Road Nairobi",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Beneficiaries:"]
+  },
+  {
+    "id": "r21-std-14",
+    "input": "Applicant: John Kamau ID 12345678 Toyota Premio KCA 123A",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Applicant:", "Toyota Premio"]
+  },
+  {
+    "id": "r21-std-15",
+    "input": "Children: Mary Wanjiru 0712345678 Peter Otieno 0722345678 Grace Njeri",
+    "mustHide": ["Wanjiru", "Otieno", "Njeri"],
+    "mustKeep": ["Children:"]
+  },
+  {
+    "id": "r21-std-16",
+    "input": "Parties: John Kamau P.O. Box 123 Nakuru Plot No. 45 and Mary Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru"],
+    "mustKeep": ["Parties:"]
+  },
+  {
+    "id": "r21-std-17",
+    "input": "Proprietor: John Kamau ID 12345678 Equity Bank Limited",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Proprietor:", "Equity Bank Limited"]
+  },
+  {
+    "id": "r21-std-18",
+    "input": "Members: Mary Wanjiru Payroll Number 4455, Peter Otieno Staff No. 12",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:", "Payroll Number", "Staff No."]
+  },
+  {
+    "id": "r21-std-19",
+    "input": "Borrower: John Kamau ID 12345678\nLoan Amount: KES 100,000",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Borrower:", "Loan Amount:"]
+  },
+  {
+    "id": "r21-std-20",
+    "input": "Applicants: John Kamau KRA PIN A123456789Z of Kisumu City and Mary Wanjiru Akinyi",
+    "mustHide": ["Kamau", "Wanjiru", "Akinyi"],
+    "mustKeep": ["Applicants:"]
+  },
+  {
+    "id": "r21-std-21",
+    "input": "Borrower: John Kamau ID 12345678 Freehold Absolute",
+    "mustHide": ["Kamau"],
+    "mustKeep": ["Borrower:", "Freehold Absolute"]
+  },
+  {
+    "id": "r21-std-22",
+    "input": "Members: Achieng Otieno 0712345678 Wanjiku Kamau",
+    "mustHide": ["Achieng", "Otieno", "Wanjiku", "Kamau"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-23",
+    "input": "Borrowers: John Kamau 0712345678 Hope Wanjiru",
+    "mustHide": ["Kamau", "Wanjiru", "Hope"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r21-std-24",
+    "input": "Borrowers: John Kamau 0712345678 Faith Akinyi",
+    "mustHide": ["Kamau", "Akinyi", "Faith"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r21-std-25",
+    "input": "Members: John Kamau ID 12345678 Mercy Achieng",
+    "mustHide": ["Kamau", "Achieng", "Mercy"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-26",
+    "input": "Guarantors: John Kamau ID 12345678 Rose Atieno",
+    "mustHide": ["Kamau", "Atieno", "Rose"],
+    "mustKeep": ["Guarantors:"]
+  },
+  {
+    "id": "r21-std-27",
+    "input": "Parties: John Kamau ID 12345678 Joy Wambui",
+    "mustHide": ["Kamau", "Wambui"],
+    "mustKeep": ["Parties:"]
+  },
+  {
+    "id": "r21-std-28",
+    "input": "Borrowers: John Kamau ID 12345678 Sharon Chebet",
+    "mustHide": ["Kamau", "Chebet", "Sharon"],
+    "mustKeep": ["Borrowers:"]
+  },
+  {
+    "id": "r21-std-29",
+    "input": "Members: Mary Wanjiru ID 12345678 House No. 4 Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-30",
+    "input": "Members: Mary Wanjiru 0712345678 Nakuru Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-31",
+    "input": "Applicants: Mary Wanjiru ID 12345678\nPeter Otieno ID 23456789",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Applicants:"]
+  },
+  {
+    "id": "r21-std-32",
+    "input": "Children: Mary Wanjiru (ID 12345678); Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Children:"]
+  },
+  {
+    "id": "r21-std-33",
+    "input": "Parties: Mary Wanjiru, ID 12345678 / Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Parties:"]
+  },
+  {
+    "id": "r21-std-34",
+    "input": "Member No. 3310 Mary Wanjiru",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Member No."]
+  },
+  {
+    "id": "r21-std-35",
+    "input": "Member Number: 3310\nMember Name: Mary Wanjiru",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Member Number:", "Member Name:"]
+  },
+  {
+    "id": "r21-std-36",
+    "input": "Members: Mary Wanjiru Member Deposits KES 5,000 Peter Otieno",
+    "mustHide": ["Wanjiru", "Otieno"],
+    "mustKeep": ["Members:"]
+  },
+  {
+    "id": "r21-std-37",
+    "input": "Applicant: Mary Wanjiru 0712345678 Commercial Bank of Africa",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Applicant:", "Commercial Bank of Africa"]
+  },
+  {
+    "id": "r21-std-38",
+    "input": "Beneficiaries: Mary Wanjiru 0712345678 Residential Plot",
+    "mustHide": ["Wanjiru"],
+    "mustKeep": ["Beneficiaries:", "Residential Plot"]
+  },
+  {
+    "id": "r21-spec-1",
+    "input": "Proprietor: John Kamau ID 12345678 Kakuzi Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Estate"]
+  },
+  {
+    "id": "r21-spec-2",
+    "input": "Borrower: John Kamau Tel 0712345678 Mwananchi Traders",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mwananchi Traders"]
+  },
+  {
+    "id": "r21-spec-3",
+    "input": "Owner: John Kamau ID 12345678 Sunrise Apartments",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Sunrise Apartments"]
+  },
+  {
+    "id": "r21-spec-4",
+    "input": "Owner: John Kamau ID 12345678 Toyota Sienta",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Sienta"]
+  },
+  {
+    "id": "r21-spec-5",
+    "input": "Owner: John Kamau ID 12345678 Mazda Demio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mazda Demio"]
+  },
+  {
+    "id": "r21-spec-6",
+    "input": "Owner: John Kamau ID 12345678 Subaru Forester",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Subaru Forester"]
+  },
+  {
+    "id": "r21-spec-7",
+    "input": "Owner: John Kamau ID 12345678 Isuzu D-Max",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Isuzu D-Max"]
+  },
+  {
+    "id": "r21-spec-8",
+    "input": "Owner: John Kamau ID 12345678 Nissan Note",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nissan Note"]
+  },
+  {
+    "id": "r21-spec-9",
+    "input": "Proprietor: John Kamau ID 12345678 Runda Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Runda Estate"]
+  },
+  {
+    "id": "r21-spec-10",
+    "input": "Proprietor: John Kamau ID 12345678 Kileleshwa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kileleshwa"]
+  },
+  {
+    "id": "r21-spec-11",
+    "input": "Proprietor: John Kamau ID 12345678 Agricultural",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Agricultural"]
+  },
+  {
+    "id": "r21-spec-12",
+    "input": "Proprietor: John Kamau ID 12345678 Commercial",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Commercial"]
+  },
+  {
+    "id": "r21-spec-13",
+    "input": "Employee: John Kamau ID 12345678 Kenya Pipeline",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Pipeline"]
+  },
+  {
+    "id": "r21-spec-14",
+    "input": "Employee: John Kamau Staff No. 4521 Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-15",
+    "input": "Borrower: John Kamau ID 12345678 Stanbic",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Stanbic"]
+  },
+  {
+    "id": "r21-spec-16",
+    "input": "Borrower: John Kamau ID 12345678 I&M Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["I&M Bank"]
+  },
+  {
+    "id": "r21-spec-17",
+    "input": "Borrower: John Kamau ID 12345678 NCBA",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["NCBA"]
+  },
+  {
+    "id": "r21-spec-18",
+    "input": "Proprietor: John Kamau ID 12345678 Absolute",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Absolute"]
+  },
+  {
+    "id": "r21-spec-19",
+    "input": "Proprietor: John Kamau ID 12345678 Leasehold 99 years",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Leasehold 99 years"]
+  },
+  {
+    "id": "r21-spec-20",
+    "input": "Shareholder: John Kamau ID 12345678 Safaricom PLC 1,000 Ordinary",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Safaricom PLC"]
+  },
+  {
+    "id": "r21-spec-21",
+    "input": "Shareholder: John Kamau ID 12345678 Kakuzi 500 shares",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi 500"]
+  },
+  {
+    "id": "r21-spec-22",
+    "input": "Owner: John Kamau ID 12345678 Toyota Probox",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Probox"]
+  },
+  {
+    "id": "r21-spec-23",
+    "input": "Employee: John Kamau Payroll No. 7781 Kenya Power",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Power"]
+  },
+  {
+    "id": "r21-spec-24",
+    "input": "Member: John Kamau Member No. 3310 Mwalimu Sacco",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mwalimu Sacco"]
+  },
+  {
+    "id": "r21-spec-25",
+    "input": "Member: John Kamau Member No. 3310 Stima",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Stima"]
+  },
+  {
+    "id": "r21-spec-26",
+    "input": "Borrower: John Kamau ID 12345678 Kenya Commercial Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Commercial Bank"]
+  },
+  {
+    "id": "r21-spec-27",
+    "input": "Proprietor: John Kamau ID 12345678 Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kiambu"]
+  },
+  {
+    "id": "r21-spec-28",
+    "input": "Proprietor: John Kamau ID 12345678 Karen",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Karen"]
+  },
+  {
+    "id": "r21-spec-29",
+    "input": "Proprietor: John Kamau ID 12345678 Ruiru Kiambu",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Ruiru Kiambu"]
+  },
+  {
+    "id": "r21-spec-30",
+    "input": "Employee: John Kamau ID 12345678 Bamburi Cement",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bamburi Cement"]
+  },
+  {
+    "id": "r21-spec-31",
+    "input": "Employee: John Kamau ID 12345678 Teachers Service Commission",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Teachers Service Commission"]
+  },
+  {
+    "id": "r21-spec-32",
+    "input": "Owner: John Kamau ID 12345678 Toyota Axio Silver",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Toyota Axio Silver"]
+  },
+  {
+    "id": "r21-spec-33",
+    "input": "Owner: John Kamau Tel 0712345678 Honda Fit",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Honda Fit"]
+  },
+  {
+    "id": "r21-spec-34",
+    "input": "Proprietor: John Kamau PIN A123456789Z Gatundu North",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Gatundu North"]
+  },
+  {
+    "id": "r21-spec-35",
+    "input": "Shareholder: John Kamau ID 12345678 Britam Holdings",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Britam Holdings"]
+  },
+  {
+    "id": "r21-spec-36",
+    "input": "Shareholder: John Kamau ID 12345678 Equity Group",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Equity Group"]
+  },
+  {
+    "id": "r21-spec-37",
+    "input": "Borrower: John Kamau ID 12345678 Family Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Family Bank"]
+  },
+  {
+    "id": "r21-spec-38",
+    "input": "Borrower: John Kamau ID 12345678 Co-operative Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Co-operative Bank"]
+  },
+  {
+    "id": "r21-spec-39",
+    "input": "Employee: John Kamau ID 12345678 Nation Media Group",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Nation Media Group"]
+  },
+  {
+    "id": "r21-spec-40",
+    "input": "Borrower: John Kamau ID 12345678 Kenya Women Microfinance",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Women Microfinance"]
+  },
+  {
+    "id": "r21-spec-41",
+    "input": "Employee: John Kamau ID 12345678 Kenya Pipeline\nGross Pay: KES 120,000",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kenya Pipeline"]
+  },
+  {
+    "id": "r21-spec-42",
+    "input": "Owner: John Kamau ID 12345678 Mazda Demio KCB 123A",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mazda Demio"]
+  },
+  {
+    "id": "r21-spec-43",
+    "input": "Proprietor: John Kamau ID 12345678 Kitengela Kajiado",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kitengela Kajiado"]
+  },
+  {
+    "id": "r21-spec-44",
+    "input": "Employee: John Kamau ID 12345678 Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-45",
+    "input": "Borrower: John Kamau ID 12345678 Stanbic Westlands",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Stanbic Westlands"]
+  },
+  {
+    "id": "r21-spec-46",
+    "input": "Proprietors: John Kamau ID 12345678 Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-47",
+    "input": "Proprietors: John Kamau ID 12345678 Wanjiru",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-48",
+    "input": "Borrowers: John Kamau 0712345678 Juma Hamisi",
+    "mustHide": ["John", "Kamau", "Juma", "Hamisi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-49",
+    "input": "Proprietors: John Kamau PIN A123456789Z Fatuma Said",
+    "mustHide": ["John", "Kamau", "Fatuma", "Said"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-50",
+    "input": "Proprietors: John Kamau ID 12345678 Mary Wanjiru ID 23456789\nTenure: Freehold",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-51",
+    "input": "Directors: John Kamau ID 12345678 Peter Otieno ID 23456789 Grace Njeri ID 34567890",
+    "mustHide": ["John", "Kamau", "Peter", "Otieno", "Njeri"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-52",
+    "input": "Shareholders: John Kamau ID 12345678 Achieng Odhiambo",
+    "mustHide": ["John", "Kamau", "Achieng", "Odhiambo"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-53",
+    "input": "Proprietors: John Kamau ID 12345678 Kipchoge Keino",
+    "mustHide": ["John", "Kamau", "Kipchoge", "Keino"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-54",
+    "input": "Owners: John Kamau 0712345678 Halima Abdi 0723456789",
+    "mustHide": ["John", "Kamau", "Halima", "Abdi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-55",
+    "input": "Proprietors: John Kamau ID 12345678 Wanjiku Njoroge",
+    "mustHide": ["John", "Kamau", "Wanjiku", "Njoroge"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-56",
+    "input": "Borrowers: John Kamau P.O. Box 123 Nakuru Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-57",
+    "input": "Proprietors: John Kamau ID 12345678 Cherono",
+    "mustHide": ["John", "Kamau", "Cherono"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-58",
+    "input": "Members: John Kamau Member No. 3310 Mary Wanjiru Member No. 3311",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-59",
+    "input": "Proprietors: John Kamau ID 12345678 Mohamed Ali",
+    "mustHide": ["John", "Kamau", "Mohamed", "Ali"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-60",
+    "input": "Proprietors: John Kamau ID 12345678 Nyambura Wairimu",
+    "mustHide": ["John", "Kamau", "Nyambura", "Wairimu"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-61",
+    "input": "Proprietors: John Kamau ID 12345678 Brian Mutua",
+    "mustHide": ["John", "Kamau", "Brian", "Mutua"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-62",
+    "input": "Proprietors: John Kamau john.kamau@gmail.com Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-63",
+    "input": "Proprietors: John Kamau ID 12345678 Mercy Chebet",
+    "mustHide": ["John", "Kamau", "Mercy", "Chebet"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-64",
+    "input": "Proprietors: John Kamau ID 12345678 Joy Akinyi",
+    "mustHide": ["John", "Kamau", "Joy", "Akinyi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-65",
+    "input": "Proprietors: John Kamau ID 12345678 Faith Muthoni",
+    "mustHide": ["John", "Kamau", "Faith", "Muthoni"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-66",
+    "input": "Proprietors: John Kamau ID 12345678 Juma",
+    "mustHide": ["John", "Kamau", "Juma"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-67",
+    "input": "Proprietors: John Kamau ID 12345678 Otieno Ochieng",
+    "mustHide": ["John", "Kamau", "Otieno", "Ochieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-68",
+    "input": "Borrowers: John Kamau, ID 12345678, Mary Wanjiru, ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-69",
+    "input": "Proprietors: John Kamau ID 12345678 Rose Mwangi",
+    "mustHide": ["John", "Kamau", "Rose", "Mwangi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-70",
+    "input": "Proprietors: John Kamau ID 12345678 Sunday Okello",
+    "mustHide": ["John", "Kamau", "Sunday", "Okello"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-71",
+    "input": "Proprietors: John Kamau ID 12345678 Charity Wambui",
+    "mustHide": ["John", "Kamau", "Charity", "Wambui"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-72",
+    "input": "Proprietors: John Kamau ID 12345678 Grace Wanjiru",
+    "mustHide": ["John", "Kamau", "Grace", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-73",
+    "input": "Proprietors: John Kamau ID 12345678 Patience Kerubo",
+    "mustHide": ["John", "Kamau", "Patience", "Kerubo"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-74",
+    "input": "Proprietors: John Kamau ID 12345678 Mercy Nduta 0723456789",
+    "mustHide": ["John", "Kamau", "Mercy", "Nduta"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-75",
+    "input": "Proprietors: John Kamau ID 12345678 Abdullahi Hassan",
+    "mustHide": ["John", "Kamau", "Abdullahi", "Hassan"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-76",
+    "input": "Proprietors: John Kamau ID 12345678 Kamau Njoroge",
+    "mustHide": ["John", "Kamau", "Njoroge"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-77",
+    "input": "Proprietors: John Kamau ID 12345678 Mary Wanjiru Kamau ID 23456789",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-78",
+    "input": "Joint Owners: John Kamau 0712345678 Juma Hamisi 0723456789\nMake: Toyota",
+    "mustHide": ["John", "Kamau", "Juma", "Hamisi"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-79",
+    "input": "Proprietors: John Kamau ID 12345678 Esther Moraa ID 23456789\nCounty: Kisii",
+    "mustHide": ["John", "Kamau", "Esther", "Moraa"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-80",
+    "input": "Borrowers: John Kamau PIN A123456789Z Fatuma Said PIN A987654321B\nBank: Equity Bank",
+    "mustHide": ["John", "Kamau", "Fatuma", "Said"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-81",
+    "input": "Proprietors: John Kamau ID 12345678 Wambui",
+    "mustHide": ["John", "Kamau", "Wambui"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-82",
+    "input": "Proprietors: John Kamau ID 12345678 Sharon Chepkoech",
+    "mustHide": ["John", "Kamau", "Sharon", "Chepkoech"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-83",
+    "input": "Proprietors: John Kamau ID 12345678 Dennis Kiprono",
+    "mustHide": ["John", "Kamau", "Dennis", "Kiprono"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-84",
+    "input": "Proprietors: John Kamau ID 12345678 Precious Achieng",
+    "mustHide": ["John", "Kamau", "Precious", "Achieng"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-85",
+    "input": "Applicant: Stima Sacco Society Ltd\nMember: John Kamau\nSacco: Stima Sacco",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r21-spec-86",
+    "input": "Borrower: Stima Sacco Society Ltd\nSacco: Stima Sacco",
+    "mustHide": [],
+    "mustKeep": ["Sacco: Stima Sacco"]
+  },
+  {
+    "id": "r21-spec-87",
+    "input": "Applicant: Twiga Foods Limited\nEmployer: Twiga Foods Limited",
+    "mustHide": [],
+    "mustKeep": ["Employer: Twiga Foods Limited"]
+  },
+  {
+    "id": "r21-spec-88",
+    "input": "Applicants: John Kamau and Mwangaza Traders\nBank: Mwangaza Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Mwangaza Bank"]
+  },
+  {
+    "id": "r21-spec-89",
+    "input": "Beneficiary: Kenya Commercial Bank Limited\nBank: Kenya Commercial Bank",
+    "mustHide": [],
+    "mustKeep": ["Bank: Kenya Commercial Bank"]
+  },
+  {
+    "id": "r21-spec-90",
+    "input": "Shareholder: Britam Holdings Limited\nCompany: Britam Holdings",
+    "mustHide": [],
+    "mustKeep": ["Company: Britam Holdings"]
+  },
+  {
+    "id": "r21-spec-91",
+    "input": "Proprietor: John Kamau ID 12345678\nEstate: Kakuzi Estate",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kakuzi Estate"]
+  },
+  {
+    "id": "r21-spec-92",
+    "input": "Employee: John Kamau ID 12345678\nEmployer: Kenya Pipeline",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Kenya Pipeline"]
+  },
+  {
+    "id": "r21-spec-93",
+    "input": "Proprietor: John Kamau ID 12345678\nKileleshwa",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Kileleshwa"]
+  },
+  {
+    "id": "r21-spec-94",
+    "input": "Employee: John Kamau\tID 12345678\tEmployer: Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-95",
+    "input": "Borrower: John Kamau ID 12345678 Bank: Stanbic",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: Stanbic"]
+  },
+  {
+    "id": "r21-spec-96",
+    "input": "Owner: John Kamau ID 12345678\nMake: Mazda\nModel: Demio",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Model: Demio"]
+  },
+  {
+    "id": "r21-spec-97",
+    "input": "Employee Name: John Kamau   Staff No: 4521   Employer: Bamburi Cement",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bamburi Cement"]
+  },
+  {
+    "id": "r21-spec-98",
+    "input": "Proprietor: John Kamau ID 12345678, Runda Estate, Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Runda Estate"]
+  },
+  {
+    "id": "r21-spec-99",
+    "input": "Member: John Kamau Member No. 3310\nNext of Kin: Mary Wanjiru",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-100",
+    "input": "Nominee(s): Mary Wanjiru 50%",
+    "mustHide": ["Mary", "Wanjiru"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-101",
+    "input": "Next of Kin: Peter Otieno (Brother) Tel 0723456789",
+    "mustHide": ["Peter", "Otieno"],
+    "mustKeep": []
+  },
+  {
+    "id": "r21-spec-102",
+    "input": "Guarantors: John Kamau ID 12345678 Mary Wanjiru ID 23456789\nLoan Amount: KES 500,000",
+    "mustHide": ["John", "Kamau", "Mary", "Wanjiru"],
+    "mustKeep": ["KES 500,000"]
+  },
+  {
+    "id": "r21-spec-103",
+    "input": "Owners: John Kamau ID 12345678 Wanjiru Kamau ID 23456789\nMake: Toyota Model: Sienta",
+    "mustHide": ["John", "Kamau", "Wanjiru"],
+    "mustKeep": ["Sienta"]
+  },
+  {
+    "id": "r21-spec-104",
+    "input": "Proprietor: John Kamau ID 12345678, Runda Estate, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r21-spec-105",
+    "input": "Proprietor: John Kamau ID 12345678 Kileleshwa\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r21-spec-106",
+    "input": "Proprietor: John Kamau ID 12345678, Kileleshwa Road, Nairobi\nCounty: Nairobi",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Nairobi"]
+  },
+  {
+    "id": "r21-spec-107",
+    "input": "Owner: John Kamau ID 12345678 Kitui\nCounty: Kitui",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["County: Kitui"]
+  },
+  {
+    "id": "r21-spec-108",
+    "input": "Employee: John Kamau ID 12345678 Twiga Foods\nEmployer: Twiga Foods",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Employer: Twiga Foods"]
+  },
+  {
+    "id": "r21-spec-109",
+    "input": "Borrower: John Kamau ID 12345678 NCBA\nBank: NCBA Bank",
+    "mustHide": ["John", "Kamau"],
+    "mustKeep": ["Bank: NCBA Bank"]
+  }
+]
